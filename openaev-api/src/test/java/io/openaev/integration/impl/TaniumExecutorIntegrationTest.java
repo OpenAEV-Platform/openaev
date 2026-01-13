@@ -17,6 +17,7 @@ import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
+import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration;
 import io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegrationFactory;
 import io.openaev.integration.migration.TaniumExecutorConfigurationMigration;
@@ -60,6 +61,7 @@ public class TaniumExecutorIntegrationTest {
   @Autowired private ConnectorInstanceService connectorInstanceService;
   @Autowired private TaniumExecutorConfig taniumExecutorConfig;
   @Autowired private EncryptionFactory encryptionFactory;
+  @Autowired private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
   @Autowired private HttpClientFactory httpClientFactory;
 
   @Autowired private TaniumExecutorConfigurationMigration taniumExecutorConfigurationMigration;
@@ -80,7 +82,7 @@ public class TaniumExecutorIntegrationTest {
         licenseCacheManager,
         taskScheduler,
         fileService,
-        encryptionFactory,
+        baseIntegrationConfigurationBuilder,
         httpClientFactory);
   }
 

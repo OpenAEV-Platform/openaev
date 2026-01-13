@@ -17,6 +17,7 @@ import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
+import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration;
 import io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegrationFactory;
 import io.openaev.integration.migration.SentinelOneExecutorConfigurationMigration;
@@ -61,6 +62,7 @@ public class SentinelOneExecutorIntegrationTest {
   @Autowired private SentinelOneExecutorConfig sentinelOneExecutorConfig;
   @Autowired private EncryptionFactory encryptionFactory;
   @Autowired private HttpClientFactory httpClientFactory;
+  @Autowired private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
   @Autowired
   private SentinelOneExecutorConfigurationMigration sentinelOneExecutorConfigurationMigration;
@@ -81,7 +83,7 @@ public class SentinelOneExecutorIntegrationTest {
         licenseCacheManager,
         taskScheduler,
         fileService,
-        encryptionFactory,
+        baseIntegrationConfigurationBuilder,
         httpClientFactory);
   }
 

@@ -3,13 +3,13 @@ package io.openaev.integration.impl.executors.caldera;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
-import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.caldera.config.CalderaExecutorConfig;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
+import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.integration.migration.CalderaExecutorConfigurationMigration;
 import io.openaev.integrations.InjectorService;
 import io.openaev.service.AgentService;
@@ -18,8 +18,6 @@ import io.openaev.service.FileService;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import io.openaev.service.connector_instances.EncryptionFactory;
-import io.openaev.service.connector_instances.EncryptionService;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
@@ -40,6 +38,7 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
   private final PlatformSettingsService platformSettingsService;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final FileService fileService;
+  private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
   public CalderaExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -53,9 +52,9 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
       PlatformSettingsService platformSettingsService,
       ThreadPoolTaskScheduler taskScheduler,
       FileService fileService,
-      EncryptionFactory encryptionFactory,
+      BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
       HttpClientFactory httpClientFactory) {
-    super(connectorInstanceService, catalogConnectorService, encryptionFactory, httpClientFactory);
+    super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;
     this.calderaExecutorConfigurationMigration = calderaExecutorConfigurationMigration;
@@ -65,6 +64,7 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
     this.platformSettingsService = platformSettingsService;
     this.taskScheduler = taskScheduler;
     this.fileService = fileService;
+    this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
   }
 
   @Override
@@ -102,14 +102,6 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
 
   @Override
   public Integration spawn(ConnectorInstance instance) {
-    EncryptionService encryptionService = null;
-    if (instance instanceof ConnectorInstancePersisted) {
-      encryptionService =
-          encryptionFactory.getEncryptionService(
-              ((ConnectorInstancePersisted) instance).getCatalogConnector());
-    } else {
-      log.warn("The encryption service cannot be instanced. You might want to look into that.");
-    }
     return new CalderaExecutorIntegration(
         instance,
         connectorInstanceService,
@@ -120,7 +112,7 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
         platformSettingsService,
         injectorService,
         taskScheduler,
-        encryptionService,
+        baseIntegrationConfigurationBuilder,
         httpClientFactory);
   }
 }

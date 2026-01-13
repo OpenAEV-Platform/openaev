@@ -17,12 +17,11 @@ import io.openaev.executors.tanium.service.TaniumGarbageCollectorService;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.QualifiedComponent;
-import io.openaev.integration.configuration.BaseIntegrationConfiguration;
+import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import io.openaev.service.connector_instances.EncryptionService;
 import java.lang.reflect.InvocationTargetException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -56,6 +55,7 @@ public class TaniumExecutorIntegration extends Integration {
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final HttpClientFactory httpClientFactory;
+  private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
   private final List<ScheduledFuture<?>> timers = new ArrayList<>();
 
@@ -70,9 +70,9 @@ public class TaniumExecutorIntegration extends Integration {
       ComponentRequestEngine componentRequestEngine,
       ExecutorService executorService,
       ThreadPoolTaskScheduler taskScheduler,
-      EncryptionService encryptionService,
+      BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
       HttpClientFactory httpClientFactory) {
-    super(componentRequestEngine, connectorInstance, connectorInstanceService, encryptionService);
+    super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.endpointService = endpointService;
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;
@@ -81,6 +81,7 @@ public class TaniumExecutorIntegration extends Integration {
     this.executorService = executorService;
     this.taskScheduler = taskScheduler;
     this.httpClientFactory = httpClientFactory;
+    this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
 
     // Refresh the context to get the config
     try {
@@ -135,9 +136,9 @@ public class TaniumExecutorIntegration extends Integration {
           NoSuchMethodException,
           InstantiationException,
           IllegalAccessException {
-    this.config =
-        BaseIntegrationConfiguration.fromConnectorInstanceConfigurationSet(
-            this.getConnectorInstance(), TaniumExecutorConfig.class, this.encryptionService);
+    this.config = baseIntegrationConfigurationBuilder.build(TaniumExecutorConfig.class);
+    this.config.fromConnectorInstanceConfigurationSet(
+        this.getConnectorInstance(), TaniumExecutorConfig.class);
   }
 
   @Override

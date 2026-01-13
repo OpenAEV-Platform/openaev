@@ -66,7 +66,6 @@ public class OpenAEVExecutorIntegrationTest {
         executorService,
         componentRequestEngine,
         assetAgentJobRepository,
-        null,
         httpClientFactory);
   }
 

@@ -4,7 +4,6 @@ import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
-import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorService;
@@ -12,6 +11,7 @@ import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
+import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.integration.migration.CrowdStrikeExecutorConfigurationMigration;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
@@ -19,8 +19,6 @@ import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import io.openaev.service.connector_instances.EncryptionFactory;
-import io.openaev.service.connector_instances.EncryptionService;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
@@ -41,6 +39,7 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
   private final ThreadPoolTaskScheduler taskScheduler;
   private final CrowdStrikeExecutorConfigurationMigration crowdStrikeExecutorConfigurationMigration;
   private final FileService fileService;
+  private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
   public CrowdStrikeExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -55,9 +54,9 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
       ThreadPoolTaskScheduler taskScheduler,
       CrowdStrikeExecutorConfigurationMigration crowdStrikeExecutorConfigurationMigration,
       FileService fileService,
-      EncryptionFactory encryptionFactory,
+      BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
       HttpClientFactory httpClientFactory) {
-    super(connectorInstanceService, catalogConnectorService, encryptionFactory, httpClientFactory);
+    super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.endpointService = endpointService;
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;
@@ -68,6 +67,7 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
     this.taskScheduler = taskScheduler;
     this.crowdStrikeExecutorConfigurationMigration = crowdStrikeExecutorConfigurationMigration;
     this.fileService = fileService;
+    this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
   }
 
   @Override
@@ -109,14 +109,6 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
 
   @Override
   public Integration spawn(ConnectorInstance instance) {
-    EncryptionService encryptionService = null;
-    if (instance instanceof ConnectorInstancePersisted) {
-      encryptionService =
-          encryptionFactory.getEncryptionService(
-              ((ConnectorInstancePersisted) instance).getCatalogConnector());
-    } else {
-      log.warn("The encryption service cannot be instanced. You might want to look into that.");
-    }
     return new CrowdStrikeExecutorIntegration(
         instance,
         connectorInstanceService,
@@ -128,7 +120,7 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
         licenseCacheManager,
         componentRequestEngine,
         taskScheduler,
-        encryptionService,
+        baseIntegrationConfigurationBuilder,
         httpClientFactory);
   }
 }

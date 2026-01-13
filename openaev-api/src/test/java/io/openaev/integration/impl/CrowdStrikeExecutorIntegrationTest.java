@@ -17,6 +17,7 @@ import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
+import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration;
 import io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegrationFactory;
 import io.openaev.integration.migration.CrowdStrikeExecutorConfigurationMigration;
@@ -61,6 +62,7 @@ public class CrowdStrikeExecutorIntegrationTest {
   @Autowired private CrowdStrikeExecutorConfig crowdStrikeExecutorConfig;
   @Autowired private EncryptionFactory encryptionFactory;
   @Autowired private HttpClientFactory httpClientFactory;
+  @Autowired private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
   @Autowired
   private CrowdStrikeExecutorConfigurationMigration crowdStrikeExecutorConfigurationMigration;
@@ -81,7 +83,7 @@ public class CrowdStrikeExecutorIntegrationTest {
         taskScheduler,
         crowdStrikeExecutorConfigurationMigration,
         fileService,
-        encryptionFactory,
+        baseIntegrationConfigurationBuilder,
         httpClientFactory);
   }
 

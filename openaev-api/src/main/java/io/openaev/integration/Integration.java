@@ -29,12 +29,10 @@ public abstract class Integration {
   protected Integration(
       ComponentRequestEngine componentRequestEngine,
       ConnectorInstance connectorInstance,
-      ConnectorInstanceService connectorInstanceService,
-      EncryptionService encryptionService) {
+      ConnectorInstanceService connectorInstanceService) {
     this.componentRequestEngine = componentRequestEngine;
     this.connectorInstance = connectorInstance;
     this.connectorInstanceService = connectorInstanceService;
-    this.encryptionService = encryptionService;
   }
 
   protected abstract void innerStart() throws Exception;

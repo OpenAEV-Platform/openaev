@@ -9,7 +9,6 @@ import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.QualifiedComponent;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import io.openaev.service.connector_instances.EncryptionService;
 
 public class OpenAEVExecutorIntegration extends Integration {
   private final ExecutorService executorService;
@@ -30,9 +29,8 @@ public class OpenAEVExecutorIntegration extends Integration {
       ConnectorInstanceService connectorInstanceService,
       ExecutorService executorService,
       AssetAgentJobRepository assetAgentJobRepository,
-      ComponentRequestEngine componentRequestEngine,
-      EncryptionService encryptionService) {
-    super(componentRequestEngine, instance, connectorInstanceService, encryptionService);
+      ComponentRequestEngine componentRequestEngine) {
+    super(componentRequestEngine, instance, connectorInstanceService);
     this.assetAgentJobRepository = assetAgentJobRepository;
     this.executorService = executorService;
   }

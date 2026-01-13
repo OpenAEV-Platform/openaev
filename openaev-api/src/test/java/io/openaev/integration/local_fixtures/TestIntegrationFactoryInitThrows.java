@@ -14,6 +14,7 @@ import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.EncryptionFactory;
 import io.openaev.service.connector_instances.EncryptionService;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -23,6 +24,7 @@ public class TestIntegrationFactoryInitThrows extends IntegrationFactory {
   private final TestIntegrationConfigurationMigration testIntegrationConfigurationMigration;
   private final ComponentRequestEngine componentRequestEngine;
   private final ConnectorInstanceService connectorInstanceService;
+  @Autowired private EncryptionFactory encryptionFactory;
 
   public TestIntegrationFactoryInitThrows(
       ConnectorInstanceService connectorInstanceService,
@@ -30,9 +32,8 @@ public class TestIntegrationFactoryInitThrows extends IntegrationFactory {
       FileService fileService,
       TestIntegrationConfigurationMigration testIntegrationConfigurationMigration,
       ComponentRequestEngine componentRequestEngine,
-      EncryptionFactory encryptionFactory,
       HttpClientFactory httpClientFactory) {
-    super(connectorInstanceService, catalogConnectorService, encryptionFactory, httpClientFactory);
+    super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.fileService = fileService;
     this.catalogConnectorService = catalogConnectorService;
     this.testIntegrationConfigurationMigration = testIntegrationConfigurationMigration;

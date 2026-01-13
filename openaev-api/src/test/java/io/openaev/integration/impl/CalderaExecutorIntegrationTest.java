@@ -17,6 +17,7 @@ import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
+import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegration;
 import io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegrationFactory;
 import io.openaev.integration.migration.CalderaExecutorConfigurationMigration;
@@ -58,6 +59,7 @@ public class CalderaExecutorIntegrationTest {
   @Autowired private ConnectorInstanceService connectorInstanceService;
   @Autowired private CalderaExecutorConfig calderaExecutorConfig;
   @Autowired private EncryptionFactory encryptionFactory;
+  @Autowired private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
   @Autowired private HttpClientFactory httpClientFactory;
 
   @Autowired private CalderaExecutorConfigurationMigration calderaExecutorConfigurationMigration;
@@ -79,7 +81,7 @@ public class CalderaExecutorIntegrationTest {
         platformSettingsService,
         taskScheduler,
         fileService,
-        encryptionFactory,
+        baseIntegrationConfigurationBuilder,
         httpClientFactory);
   }
 

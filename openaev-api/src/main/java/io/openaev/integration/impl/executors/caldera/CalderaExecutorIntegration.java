@@ -12,13 +12,12 @@ import io.openaev.executors.exception.ExecutorException;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.QualifiedComponent;
-import io.openaev.integration.configuration.BaseIntegrationConfiguration;
+import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.integrations.InjectorService;
 import io.openaev.service.AgentService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import io.openaev.service.connector_instances.EncryptionService;
 import java.lang.reflect.InvocationTargetException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -48,6 +47,7 @@ public class CalderaExecutorIntegration extends Integration {
   private final ExecutorService executorService;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final HttpClientFactory httpClientFactory;
+  private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
   private final List<ScheduledFuture<?>> timers = new ArrayList<>();
 
@@ -61,9 +61,9 @@ public class CalderaExecutorIntegration extends Integration {
       PlatformSettingsService platformSettingsService,
       InjectorService injectorService,
       ThreadPoolTaskScheduler taskScheduler,
-      EncryptionService encryptionService,
+      BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
       HttpClientFactory httpClientFactory) {
-    super(componentRequestEngine, connectorInstance, connectorInstanceService, encryptionService);
+    super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.endpointService = endpointService;
     this.agentService = agentService;
     this.platformSettingsService = platformSettingsService;
@@ -71,6 +71,7 @@ public class CalderaExecutorIntegration extends Integration {
     this.taskScheduler = taskScheduler;
     this.executorService = executorService;
     this.httpClientFactory = httpClientFactory;
+    this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
 
     // Refresh the context to get the config
     try {
@@ -126,9 +127,9 @@ public class CalderaExecutorIntegration extends Integration {
           NoSuchMethodException,
           InstantiationException,
           IllegalAccessException {
-    this.config =
-        BaseIntegrationConfiguration.fromConnectorInstanceConfigurationSet(
-            this.getConnectorInstance(), CalderaExecutorConfig.class, this.encryptionService);
+    this.config = baseIntegrationConfigurationBuilder.build(CalderaExecutorConfig.class);
+    this.config.fromConnectorInstanceConfigurationSet(
+        this.getConnectorInstance(), CalderaExecutorConfig.class);
   }
 
   @Override

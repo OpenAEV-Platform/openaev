@@ -7,12 +7,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
 import io.openaev.rest.exception.UnencryptableElementException;
+import io.openaev.service.connector_instances.EncryptionFactory;
 import io.openaev.service.connector_instances.EncryptionService;
 import io.openaev.utils.JsonUtils;
 import io.openaev.utils.reflection.FieldUtils;
 import jakarta.validation.constraints.NotNull;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -27,16 +27,18 @@ public class BaseIntegrationConfiguration {
   private final ObjectMapper mapper = new ObjectMapper();
   @Getter @Setter private boolean enable = false;
 
-  public static <T extends BaseIntegrationConfiguration> T fromConnectorInstanceConfigurationSet(
-      @NotNull ConnectorInstance instance,
-      Class<T> targetClass,
-      EncryptionService encryptionService)
-      throws NoSuchMethodException,
-          InvocationTargetException,
-          InstantiationException,
-          IllegalAccessException,
-          JsonProcessingException {
-    T newObj = targetClass.getDeclaredConstructor().newInstance();
+  @Setter private EncryptionFactory encryptionFactory;
+
+  public <T extends BaseIntegrationConfiguration> void fromConnectorInstanceConfigurationSet(
+      @NotNull ConnectorInstance instance, Class<T> targetClass) throws JsonProcessingException {
+    EncryptionService encryptionService = null;
+    if (instance instanceof ConnectorInstancePersisted) {
+      encryptionService =
+          encryptionFactory.getEncryptionService(
+              ((ConnectorInstancePersisted) instance).getCatalogConnector());
+    } else {
+      log.warn("The encryption service cannot be instanced. You might want to look into that.");
+    }
     List<Field> annotatedFields =
         FieldUtils.getAllDeclaredAnnotatedFields(targetClass, IntegrationConfigKey.class);
     for (Field field : annotatedFields) {
@@ -59,9 +61,8 @@ public class BaseIntegrationConfiguration {
           value = JsonUtils.fromJsonNode(config.get().getValue(), field.getType());
         }
       }
-      FieldUtils.setField(newObj, field, value);
+      FieldUtils.setField(this, field, value);
     }
-    return newObj;
   }
 
   public Set<ConnectorInstanceConfiguration> toInstanceConfigurationSet(
@@ -80,7 +81,7 @@ public class BaseIntegrationConfiguration {
                 // If the encryption service is not null, we use it
                 if (encryptionService != null) {
                   try {
-                    value = mapper.valueToTree(encryptionService.encrypt(value.toString()));
+                    value = mapper.valueToTree(encryptionService.encrypt(value.asText()));
                   } catch (Exception e) {
                     throw new UnencryptableElementException(
                         "Cannot encrypt the element : " + af.getName(), e);

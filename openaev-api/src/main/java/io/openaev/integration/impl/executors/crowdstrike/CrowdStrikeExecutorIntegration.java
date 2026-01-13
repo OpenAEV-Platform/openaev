@@ -17,12 +17,11 @@ import io.openaev.executors.exception.ExecutorException;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.QualifiedComponent;
-import io.openaev.integration.configuration.BaseIntegrationConfiguration;
+import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import io.openaev.service.connector_instances.EncryptionService;
 import java.lang.reflect.InvocationTargetException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -60,6 +59,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final HttpClientFactory httpClientFactory;
+  private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
   public CrowdStrikeExecutorIntegration(
       ConnectorInstance connectorInstance,
@@ -72,9 +72,9 @@ public class CrowdStrikeExecutorIntegration extends Integration {
       LicenseCacheManager licenseCacheManager,
       ComponentRequestEngine componentRequestEngine,
       ThreadPoolTaskScheduler taskScheduler,
-      EncryptionService encryptionService,
+      BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
       HttpClientFactory httpClientFactory) {
-    super(componentRequestEngine, connectorInstance, connectorInstanceService, encryptionService);
+    super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.taskScheduler = taskScheduler;
     this.endpointService = endpointService;
     this.agentService = agentService;
@@ -83,6 +83,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
     this.eeService = eeService;
     this.licenseCacheManager = licenseCacheManager;
     this.httpClientFactory = httpClientFactory;
+    this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
 
     // Refresh the context to get the config
     try {
@@ -138,9 +139,9 @@ public class CrowdStrikeExecutorIntegration extends Integration {
           NoSuchMethodException,
           InstantiationException,
           IllegalAccessException {
-    this.config =
-        BaseIntegrationConfiguration.fromConnectorInstanceConfigurationSet(
-            this.getConnectorInstance(), CrowdStrikeExecutorConfig.class, this.encryptionService);
+    this.config = baseIntegrationConfigurationBuilder.build(CrowdStrikeExecutorConfig.class);
+    this.config.fromConnectorInstanceConfigurationSet(
+        this.getConnectorInstance(), CrowdStrikeExecutorConfig.class);
   }
 
   @Override
