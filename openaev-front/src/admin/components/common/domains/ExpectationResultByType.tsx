@@ -11,7 +11,7 @@ const useStyles = makeStyles()({
   contained: {
     display: 'flex',
     gap: 2,
-    padding: 0,
+    justifyContent:'center',
   },
 });
 
@@ -91,7 +91,7 @@ const ExpectationResultByType: FunctionComponent<Props> = ({results, inline}) =>
           }))
           const successRate = result.value ? calcPercentage(successValue,result.value) : 0;
           return (
-            <div style={{ flexGrow: 1 }}>
+            <div>
               <Icon
                 key={result.label}
                 sx={{

@@ -624,23 +624,18 @@ public class OpenSearchService implements EngineService {
               .aggregations(
                   domainAggregationKey,
                   agg ->
-                      agg.terms(
-                          d ->
-                              d.field(domainField)
-                                  .aggregations(
-                                      typeAggregationKey,
-                                      sub ->
-                                          sub.terms(
-                                              t ->
-                                                  t.field(typeField)
-                                                      .aggregations(
-                                                          statusAggregationKey,
-                                                          subAg ->
-                                                              subAg.terms(
-                                                                  s -> s.field(statusField)))))))
+                      agg.terms(t -> t.field(domainField))
+                          .aggregations(
+                              typeAggregationKey,
+                              sub ->
+                                  sub.terms(t -> t.field(typeField))
+                                      .aggregations(
+                                          statusAggregationKey,
+                                          subAg -> subAg.terms(t -> t.field(statusField)))))
               .build();
 
-      SearchResponse<Void> response = openSearchClient.search(request, Void.class);
+      SearchResponse<Void> response =
+          openSearchClient.search(request, Void.class);
 
       Buckets<StringTermsBucket> domainBuckets =
           response.aggregations().get(domainAggregationKey).sterms().buckets();

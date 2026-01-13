@@ -2,7 +2,7 @@ import { FunctionComponent, useState } from 'react';
 import { type Domain, EsAvgs, EsDomainsAvgData, EsSeries } from '../../../../../../../utils/api-types';
 import { IconBarElement } from '../../../../../common/domains/IconBar-model';
 import IconBar from '../../../../../common/domains/IconBar';
-import { getDomainByIcon } from './SecurityDomainsWidgetUtils';
+import { buildOrderedDomains, getDomainByIcon, getDomainOrder } from './SecurityDomainsWidgetUtils';
 import { colorByAverage } from '../../../../../common/ColorByResult';
 import ExpectationResultByType from '../../../../../common/domains/ExpectationResultByType';
 import { useHelper } from '../../../../../../../store';
@@ -54,7 +54,6 @@ const SecurityDomainsWidget: FunctionComponent<Props> = ({
 
   }
 
-
   let iconBarElements: IconBarElement[] = [];
 
   allDomains.map((domain: Domain) => {
@@ -95,9 +94,11 @@ const SecurityDomainsWidget: FunctionComponent<Props> = ({
     }
   });
 
+  const orderedDomains = buildOrderedDomains(iconBarElements);
+
 
   return(
-    <IconBar elements={iconBarElements}/>
+    <IconBar elements={orderedDomains}/>
   );
 };
 
