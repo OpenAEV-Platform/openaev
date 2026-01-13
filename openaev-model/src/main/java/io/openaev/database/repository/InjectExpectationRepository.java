@@ -4,16 +4,17 @@ import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.raw.RawInjectExpectation;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 @Repository
 public interface InjectExpectationRepository
@@ -268,4 +269,12 @@ public interface InjectExpectationRepository
     """,
       nativeQuery = true)
   List<RawInjectExpectation> findForIndexing(@Param("from") Instant from);
+
+  @Query("""
+    select distinct ie.inject.id
+    from InjectExpectation ie
+    where ie.id in :expectationIds
+    """)
+  Set<String> findDistinctInjectIdsByInjectExpectationIds(
+    @Param("expectationIds") Set<String> expectationIds);
 }

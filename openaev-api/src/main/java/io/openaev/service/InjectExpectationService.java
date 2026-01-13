@@ -1,15 +1,5 @@
 package io.openaev.service;
 
-import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.*;
-import static io.openaev.database.model.InjectExpectationSignature.EXPECTATION_SIGNATURE_TYPE_END_DATE;
-import static io.openaev.database.model.InjectExpectationSignature.EXPECTATION_SIGNATURE_TYPE_START_DATE;
-import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.service.InjectExpectationUtils.*;
-import static io.openaev.utils.AgentUtils.getPrimaryAgents;
-import static io.openaev.utils.ExpectationUtils.*;
-import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.*;
-import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.computeScore;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.helper.InjectExpectationRepositoryHelper;
 import io.openaev.database.model.*;
@@ -30,12 +20,6 @@ import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
@@ -45,6 +29,23 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.*;
+import static io.openaev.database.model.InjectExpectationSignature.EXPECTATION_SIGNATURE_TYPE_END_DATE;
+import static io.openaev.database.model.InjectExpectationSignature.EXPECTATION_SIGNATURE_TYPE_START_DATE;
+import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.service.InjectExpectationUtils.computeScores;
+import static io.openaev.service.InjectExpectationUtils.expectationConverter;
+import static io.openaev.utils.AgentUtils.getPrimaryAgents;
+import static io.openaev.utils.ExpectationUtils.*;
+import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.*;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -664,7 +665,18 @@ public class InjectExpectationService {
     return electedExpectations.values().stream().toList();
   }
 
+  /**
+   * Fetch a distinct list of inject IDs from a list of expectation IDs.
+   *
+   * @param expectationIds expectations IDs for which we want to retrieve the inject IDs
+   * @return a set of inject IDs
+   */
+  public Set<String> findDistinctInjectIdsByInjectExpectationIds(Set<String> expectationIds) {
+    return this.injectExpectationRepository.findDistinctInjectIdsByInjectExpectationIds(expectationIds);
+  }
+
   // -- BUILD AND SAVE INJECT EXPECTATION --
+
 
   @Transactional
   public void buildAndSaveInjectExpectations(

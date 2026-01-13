@@ -10,7 +10,17 @@ import java.lang.annotation.Target;
 public @interface WorkflowUpdateEvent {
 
   /**
-   * The SPEL to fetch the inject ID related to the annotated endpoint
+   * The SPEL to fetch the inject ID from the request params
+   * Setting this is mutually exclusive with setting the other fields from this annotation
+   * (control is enforced at runtime in the aspect code)
    */
-  String injectId();
+  String injectId() default "";
+
+  /**
+   * The SPEL to fetch the list of expectation traces ID from the request params
+   * From these expectations traces IDs, we will then fetch the associated inject IDs
+   * Setting this is mutually exclusive with setting the other fields from this annotation
+   * (control is enforced at runtime in the aspect code)
+   */
+  String expectationIds() default "";
 }
