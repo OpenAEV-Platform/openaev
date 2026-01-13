@@ -21,7 +21,7 @@ import { type FunctionComponent, useEffect, useState } from 'react';
 import { Controller, type FieldArrayWithId, useFieldArray, type UseFieldArrayRemove, type UseFormReturn } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
-import { directFetchInjectorContract } from '../../../../../actions/InjectorContracts';
+import { directFetchInjectorContract } from '../../../../../actions/injector_contracts/injector-contract-action';
 import { useFormatter } from '../../../../../components/i18n';
 import InjectContractComponent from '../../../../../components/InjectContractComponent';
 import RegexComponent from '../../../../../components/RegexComponent';

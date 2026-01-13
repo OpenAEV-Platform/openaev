@@ -5,10 +5,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.api.injector_contract.InjectorContractApi;
 import io.openaev.rest.attack_pattern.AttackPatternApi;
 import io.openaev.rest.inject.InjectApi;
 import io.openaev.rest.inject.ScenarioInjectApi;
-import io.openaev.rest.injector_contract.InjectorContractApi;
 import io.openaev.rest.kill_chain_phase.KillChainPhaseApi;
 import io.openaev.rest.scenario.ScenarioApi;
 import org.junit.jupiter.api.BeforeEach;

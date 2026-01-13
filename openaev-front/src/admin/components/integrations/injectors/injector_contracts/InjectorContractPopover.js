@@ -4,7 +4,7 @@ import * as R from 'ramda';
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
 
-import { deleteInjectorContract, updateInjectorContract, updateInjectorContractMapping } from '../../../../../actions/InjectorContracts.ts';
+import { deleteInjectorContract, updateInjectorContract, updateInjectorContractMapping } from '../../../../../actions/injector_contracts/injector-contract-action';
 import Drawer from '../../../../../components/common/Drawer';
 import Transition from '../../../../../components/common/Transition';
 import { useFormatter } from '../../../../../components/i18n';

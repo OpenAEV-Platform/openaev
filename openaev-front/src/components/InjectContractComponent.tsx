@@ -3,7 +3,7 @@ import { type FunctionComponent, type SyntheticEvent, useEffect, useState } from
 import { type FieldError } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
-import { searchInjectorContracts } from '../actions/InjectorContracts';
+import { searchInjectorContracts } from '../actions/injector_contracts/injector-contract-action';
 import InjectIcon from '../admin/components/common/injects/InjectIcon';
 import { type FilterGroup, type InjectorContract } from '../utils/api-types';
 import { isNotEmptyField } from '../utils/utils';

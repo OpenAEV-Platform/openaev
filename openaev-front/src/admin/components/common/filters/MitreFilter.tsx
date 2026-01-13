@@ -3,8 +3,8 @@ import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { type AttackPatternHelper } from '../../../../actions/attack_patterns/attackpattern-helper';
+import { fetchInjectorsContracts } from '../../../../actions/injector_contracts/injector-contract-action';
 import { type InjectorContractHelper } from '../../../../actions/injector_contracts/injector-contract-helper';
-import { fetchInjectorsContracts } from '../../../../actions/InjectorContracts';
 import { type KillChainPhaseHelper } from '../../../../actions/kill_chain_phases/killchainphase-helper';
 import { type FilterHelpers } from '../../../../components/common/queryable/filter/FilterHelpers';
 import { buildEmptyFilter } from '../../../../components/common/queryable/filter/FilterUtils';
