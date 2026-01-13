@@ -73,6 +73,8 @@ const SecurityPlatformField: FunctionComponent<Props> = ({
         size="small"
         selectOnFocus
         autoHighlight
+        clearOnBlur={false}
+        clearOnEscape={false}
         options={securityPlatformsOptions}
         getOptionLabel={option => option ? `${option.label} (${option.type})` : ''}
         disabled={editing}
