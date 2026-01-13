@@ -7,9 +7,9 @@ import io.openaev.database.model.*;
 import io.openaev.database.model.InjectDependency;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.healthcheck.dto.HealthCheck;
-import io.openaev.helper.MonoIdDeserializer;
-import io.openaev.helper.MultiIdListDeserializer;
-import io.openaev.helper.MultiIdSetDeserializer;
+import io.openaev.helper.MonoIdSerializer;
+import io.openaev.helper.MultiIdListSerializer;
+import io.openaev.helper.MultiIdSetSerializer;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.injectors.ovh.OvhSmsContract;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -42,12 +42,12 @@ public class InjectOutput {
   private boolean enabled;
 
   @JsonProperty("inject_exercise")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @Schema(description = "Simulation ID of the inject", type = "string")
   private Exercise exercise;
 
   @JsonProperty("inject_scenario")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @Schema(description = "Scenario ID of the inject", type = "string")
   private Scenario scenario;
 
@@ -66,7 +66,7 @@ public class InjectOutput {
   private InjectorContract injectorContract;
 
   @JsonProperty("inject_tags")
-  @JsonSerialize(using = MultiIdSetDeserializer.class)
+  @JsonSerialize(using = MultiIdSetSerializer.class)
   @ArraySchema(schema = @Schema(description = "Tags of the inject", type = "string"))
   private Set<Tag> tags;
 
@@ -75,17 +75,17 @@ public class InjectOutput {
   public String injectType;
 
   @JsonProperty("inject_teams")
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @ArraySchema(schema = @Schema(description = "Teams of the inject", type = "string"))
   private List<Team> teams;
 
   @JsonProperty("inject_assets")
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @ArraySchema(schema = @Schema(description = "Assets of the inject", type = "string"))
   private List<Asset> assets;
 
   @JsonProperty("inject_asset_groups")
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @ArraySchema(schema = @Schema(description = "Asset groups of the inject", type = "string"))
   private List<AssetGroup> assetGroups;
 
