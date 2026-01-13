@@ -51,6 +51,9 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
 
   const { onOpenDeleteInjectExpectationResult, onOpenEditInjectExpectationResultResult } = useContext(InjectExpectationContext);
 
+  // Hooks must be called at top level - not in JSX or conditionally
+  const isManuallyUpdatable = useIsManuallyUpdatable(injectExpectation);
+
   const statusResult = computeInjectExpectationLabel(injectExpectation.inject_expectation_status, injectExpectation.inject_expectation_type);
 
   const getLabelOfValidationType = (): string => {
@@ -74,7 +77,7 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
   };
 
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT)
-    || (inherited_context == INHERITED_CONTEXT.NONE && ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, inject.inject_id))
+    || (inherited_context === INHERITED_CONTEXT.NONE && ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, inject.inject_id))
     || permissions.canManage;
 
   const entries = [{
@@ -113,11 +116,11 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
         )}
 
         {/* Create expectation result */}
-        {useIsManuallyUpdatable(injectExpectation) && canManage && (
+        {isManuallyUpdatable && canManage && (
           <Tooltip title={t('Add a result')}>
             <IconButton
               aria-label="Add"
-              onClick={() => onOpenEditInjectExpectationResultResult(null, injectExpectation)}
+              onClick={() => onOpenEditInjectExpectationResultResult((injectExpectation?.inject_expectation_results || [])[0], injectExpectation)}
             >
               {['DETECTION', 'PREVENTION'].includes(injectExpectation.inject_expectation_type)
                 ? <AddModeratorOutlined color="primary" fontSize="medium" />
