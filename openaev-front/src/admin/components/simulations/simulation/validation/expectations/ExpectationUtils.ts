@@ -58,9 +58,12 @@ export const useIsManuallyUpdatable = (injectExpectation: InjectExpectation) => 
 export const getSourceLabel = (
   expectationResult?: InjectExpectationResult | null,
 ): string => {
-  return `${expectationResult?.sourceName ?? '-'}${
-    expectationResult?.sourcePlatform
-      ? ` (${expectationResult.sourcePlatform})`
-      : ''
-  }`;
+  const sourceName = expectationResult?.sourceName?.trim();
+  const sourcePlatform = expectationResult?.sourcePlatform?.trim();
+
+  if (!sourceName) {
+    return '-';
+  }
+
+  return sourcePlatform ? `${sourceName} (${sourcePlatform})` : sourceName;
 };
