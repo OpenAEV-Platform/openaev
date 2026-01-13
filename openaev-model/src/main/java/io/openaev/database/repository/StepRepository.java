@@ -2,11 +2,13 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.STEP_STATUS;
 import io.openaev.database.model.Step;
-import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface StepRepository extends JpaRepository<Step, String> {
@@ -41,4 +43,25 @@ public interface StepRepository extends JpaRepository<Step, String> {
 
   // STEP EXECUTED
   List<Step> findAllByStepTemplateIdAndWorkflowId(String stepTemplateId, String idWorkflowRun);
+
+  /**
+   * Return the stepId associated to a given injectId if it exist
+   *
+   * @param injectId the injectId for which we want the associated step
+   * @return An optional filled with the stepId if found
+   */
+  @Query(
+    value = """
+      SELECT step_id
+      FROM steps
+      WHERE jsonb_path_exists(
+        step_data,
+        '$.** ? (@.inject_id == $id)',
+        jsonb_build_object('id', to_jsonb(:injectId))
+      )
+      LIMIT 1
+      """,
+    nativeQuery = true
+  )
+  Optional<String> findStepIdByInjectId(@Param("injectId") String injectId);
 }

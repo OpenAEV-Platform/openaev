@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.rest.helper.queue.Queueable;
 import lombok.*;
 
-import java.util.Map;
 import java.util.UUID;
 
 @Data
@@ -16,21 +15,8 @@ public class ExternalUpdateEvent implements Queueable {
   @Getter
   private final String id = UUID.randomUUID().toString();
 
-  @JsonProperty("workflow_id")
-  private String workflowId;
-
   @JsonProperty("step_id")
   private String stepId;
-
-  @JsonProperty("origin_id")
-  private String originId;
-
-  @JsonProperty("data")
-  private Map<String, Object> data;
-
-  // TODO: enum
-  @JsonProperty("data_type")
-  private String dataType;
 
   @JsonProperty("event_emission_date")
   private long emissionDate;
@@ -45,6 +31,6 @@ public class ExternalUpdateEvent implements Queueable {
 
   @Override
   public String getUniqueElementKey() {
-    return workflowId + stepId;
+    return stepId;
   }
 }

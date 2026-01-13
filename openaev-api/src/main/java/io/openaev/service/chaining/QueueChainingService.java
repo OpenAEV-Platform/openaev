@@ -100,6 +100,14 @@ public class QueueChainingService {
     waitQueueService.publish(event);
   }
 
+  public void updateStep(String stepRunId) throws IOException {
+    log.info("PUBLISH STEP UPDATE : {}", stepRunId);
+    ExternalUpdateEvent event = new ExternalUpdateEvent();
+    event.setStepId(stepRunId);
+    event.setEmissionDate(Instant.now().toEpochMilli());
+    updateQueueService.publish(event);
+  }
+
   // TODO ugly workaround for circular dependencies, to fix
   public void setCallbackForDelayQueue(QueueExecution<StepEvent> callback) {
     delayQueueService.setQueueExecution(callback);

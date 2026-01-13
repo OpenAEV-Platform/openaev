@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @RequiredArgsConstructor
 @Service
-public class StepService implements StepEventHandler {
+public class StepService implements StepEventHandler, ExternalUpdateEventHandler {
   private final WorkflowService workflowService;
   private final StepRepository stepRepository;
   private final InjectExecutionStep injectExecutionStep;
@@ -31,11 +31,12 @@ public class StepService implements StepEventHandler {
   public final ConditionService conditionService;
   private final QueueChainingService queueChainingService;
 
-  // TODO: this is an ungly workaround for a circular dependency problem (need fixing)
+  // TODO: this is an ugly workaround for a circular dependency problem (need fixing)
   @PostConstruct
   public void init() {
     queueChainingService.setCallbackForWaitQueue(this::handleWaitEvent);
     queueChainingService.setCallbackForDelayQueue(this::handleDelayEvent);
+    queueChainingService.setCallbackForExternalUpdateQueue(this::handleUpdateEvent);
   }
 
   public void createStepsTemplate(String workflowId, List<StepsCreateInput.StepCreateInput> steps) {
@@ -357,6 +358,10 @@ public class StepService implements StepEventHandler {
     return jsonObject;
   }
 
+  public Optional<String> findStepIdByInjectId(final String injectId) {
+    return stepRepository.findStepIdByInjectId(injectId);
+  }
+
   private static void iterateJsonArray(
       JsonArray jsonArray,
       int index,
@@ -544,6 +549,12 @@ public class StepService implements StepEventHandler {
     return events;
   }
 
+  @Transactional
+  public List<ExternalUpdateEvent> handleUpdateEvent(List<ExternalUpdateEvent> events) {
+    events.forEach(this::handleExternalUpdateEvent);
+    return events;
+  }
+
   @Override
   public void handleWaitStepEvent(StepEvent stepEvent) {
     stepRepository.findById(stepEvent.getStepId()).ifPresent(this::run);
@@ -556,6 +567,45 @@ public class StepService implements StepEventHandler {
       // TODO: replace null value by actual output from previous step run ?
       wait(step, workflowRun, null);
     });
+  }
+
+  @Override
+  public void handleExternalUpdateEvent(ExternalUpdateEvent stepEvent) {
+    Step stepRun = this.findById(stepEvent.getStepId());
+
+    ActionStep actionStep = this.factoryAction(stepRun.getStepAction());
+    if (actionStep == null) throw new BadRequestException("action step is null");
+
+    Step stepUpdated = actionStep.update(stepRun);
+    if (stepUpdated != null) {
+      this.saveStep(stepUpdated);
+      // GET STEP TEMPLATE
+      Step stepTemplateCurrent =
+        this.findStepTemplateById(stepRun.getStepTemplate().getId());
+      Workflow workflowTemplate = stepTemplateCurrent.getWorkflow();
+      List<Step> stepsTemplate =
+        this.findAllStepTemplateByWorkflow(workflowTemplate.getId());
+
+      // FIND OTHER STEP WHO NEED INPUT FROM THIS STEP
+      List<Step> nextStepToExecute = new ArrayList<>();
+      for (Step stepTemplate : stepsTemplate) {
+        List<Condition> conditions =
+          this.conditionService.findAllByStepId(stepTemplate.getId());
+        for (Condition conditionTemplate : conditions) {
+          if (conditionTemplate.getStepFrom() != null
+            && conditionTemplate
+            .getStepFrom()
+            .getId()
+            .equals(stepRun.getStepTemplate().getId())) {
+            nextStepToExecute.add(stepTemplate);
+          }
+        }
+      }
+
+      for (Step stepTemplate : nextStepToExecute) {
+        this.wait(stepTemplate, stepRun.getWorkflow(), null);
+      }
+    }
   }
 
   public enum ACTION_JSON {
