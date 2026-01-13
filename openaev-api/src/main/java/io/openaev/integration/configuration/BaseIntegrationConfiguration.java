@@ -44,25 +44,22 @@ public class BaseIntegrationConfiguration {
           instance.getConfigurations().stream()
               .filter(c -> c.getKey().equals(field.getAnnotation(IntegrationConfigKey.class).key()))
               .findFirst();
+      Object value = null;
       if (config.isPresent()) {
         // If the field is encrypted and can be decrypted
         if (config.get().isEncrypted() && encryptionService != null) {
-          // Decrypt the field and set it
-          FieldUtils.setField(
-              newObj,
-              field,
+          // Decrypt the field
+          value =
               JsonUtils.fromJsonNode(
                   new ObjectMapper()
                       .valueToTree(encryptionService.decrypt(config.get().getValue().asText())),
-                  field.getType()));
+                  field.getType());
         } else {
-          // Otherwise, we just set the field
-          FieldUtils.setField(
-              newObj, field, JsonUtils.fromJsonNode(config.get().getValue(), field.getType()));
+          // Otherwise, we just get the value from the JSON node
+          value = JsonUtils.fromJsonNode(config.get().getValue(), field.getType());
         }
-      } else {
-        FieldUtils.setField(newObj, field, null);
       }
+      FieldUtils.setField(newObj, field, value);
     }
     return newObj;
   }
