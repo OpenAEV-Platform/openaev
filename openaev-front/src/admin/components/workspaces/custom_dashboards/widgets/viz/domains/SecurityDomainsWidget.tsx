@@ -1,14 +1,14 @@
 import { FunctionComponent, useState } from 'react';
 import { type Domain, EsAvgs, EsDomainsAvgData, EsSeries } from '../../../../../../../utils/api-types';
 import { IconBarElement } from '../../../../../common/domains/IconBar-model';
-import IconBar from '../../../../../common/domains/IconBar';
-import { buildOrderedDomains, getIconByDomain, getOrderByDomain } from './SecurityDomainsWidgetUtils';
+import { buildOrderedDomains, getIconByDomain } from './SecurityDomainsWidgetUtils';
 import { colorByAverage, EMPTY_DATA } from '../../../../../common/ColorByResult';
 import ExpectationResultByType from '../../../../../common/domains/ExpectationResultByType';
 import { useHelper } from '../../../../../../../store';
 import type { DomainHelper } from '../../../../../../../actions/helper';
 import { useTheme } from '@mui/material/styles';
 import { useFormatter } from '../../../../../../../components/i18n';
+import SecurityDomainsWidgetIconBar from './SecurityDomainsWidgetIconBar';
 
 
 interface Props {
@@ -57,7 +57,7 @@ const SecurityDomainsWidget: FunctionComponent<Props> = ({
             selectedType: domainType,
             icon: () => getIconByDomain(selectedDomains[0].label),
             color: colorByAverage(globalSuccessRate(selectedDomains[0])*100),
-            name: selectedDomains[0].label,
+            name: selectedDomains[0].label ? selectedDomains[0].label : t('Unknown'),
             results: () => (<ExpectationResultByType results={selectedDomains[0].data}/>),
             expandedResults: () =>(<ExpectationResultByType results={selectedDomains[0].data} inline={true}/>),
             function: () => handleClick(selectedDomains[0].label)
@@ -89,7 +89,7 @@ const SecurityDomainsWidget: FunctionComponent<Props> = ({
 
 
   return(
-    <IconBar elements={orderedDomains}/>
+    <SecurityDomainsWidgetIconBar elements={orderedDomains}/>
   );
 };
 

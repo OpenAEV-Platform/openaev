@@ -5,7 +5,7 @@ export interface IconBarElement {
   selectedType?: string | null;
   icon: () => ReactElement;
   color: string | undefined;
-  name: string | undefined;
+  name: string;
   function: () => void;
   count?: number;
   results?: () => ReactElement;

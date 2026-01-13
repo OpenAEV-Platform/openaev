@@ -407,7 +407,7 @@ export type AverageConfiguration = UtilRequiredKeys<
   WidgetConfiguration,
   "series" | "widget_configuration_type" | "time_range" | "date_attribute"
 > & {
-  field: string;
+  field: Record<string, string>;
 };
 
 interface BaseEsBase {
@@ -1130,7 +1130,6 @@ export interface ConnectorInstancePersisted {
     | "OTHER";
   /** @format date-time */
   connector_instance_started_at?: string;
-  hashIdentity?: string;
   listened?: boolean;
 }
 
@@ -3577,20 +3576,6 @@ export type InjectorContractBaseOutput = BaseInjectorContractBaseOutput &
       >
   );
 
-export interface InjectorContractDomainCountOutput {
-  /**
-   * Total number of observations linked to this domain
-   * @format int64
-   * @example 42
-   */
-  count: number;
-  /**
-   * The domain name extracted from OpenAEV
-   * @example "Endpoints"
-   */
-  domain: string;
-}
-
 export interface InjectorContractFullOutput {
   injector_contract_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   /** Attack pattern IDs */
@@ -4236,7 +4221,6 @@ export interface Option {
 }
 
 export interface Organization {
-  injects?: Inject[];
   listened?: boolean;
   /** @format date-time */
   organization_created_at: string;
@@ -6179,7 +6163,7 @@ export interface Tag {
   listened?: boolean;
   /** Color of the tag */
   tag_color?: string;
-  /** Unique identifier of the tag */
+  /** ID of the tag */
   tag_id: string;
   /** Name of the tag */
   tag_name: string;
@@ -6220,7 +6204,6 @@ export interface TargetSimple {
   target_name?: string;
   target_type?:
     | "AGENT"
-    | "AGENTS"
     | "ASSETS"
     | "ASSETS_GROUPS"
     | "PLAYERS"
