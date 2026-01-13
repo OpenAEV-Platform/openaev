@@ -86,7 +86,7 @@ public class V20260107_Tags_and_tagrules_and_assetgroups extends DataPack {
         findTagRuleForPlatform(presetRules, platform)
             .ifPresent(
                 tagRule -> {
-                  tagRuleService.addAssetGroup(tagRule, assetGroup);
+                  tagRuleService.addAssetGroup(tagRule, saved);
                 });
       }
     }

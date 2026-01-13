@@ -2,7 +2,6 @@ package io.openaev.datapack.packs;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.SettingRepository;
-import io.openaev.database.repository.TagRuleRepository;
 import io.openaev.datapack.DataPack;
 import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.ResourceObject;
@@ -24,7 +23,6 @@ public class V20260101_Starter_pack extends DataPack {
   public V20260101_Starter_pack(
       DataPackService dataPackService,
       SettingRepository settingRepository,
-      TagRuleRepository tagRuleRepository,
       TagService tagService,
       EndpointService endpointService,
       AssetGroupService assetGroupService,
@@ -34,7 +32,6 @@ public class V20260101_Starter_pack extends DataPack {
       ResourcePatternResolver resolver) {
     super(dataPackService);
     this.settingRepository = settingRepository;
-    this.tagRuleRepository = tagRuleRepository;
     this.tagService = tagService;
     this.endpointService = endpointService;
     this.assetGroupService = assetGroupService;
@@ -81,8 +78,6 @@ public class V20260101_Starter_pack extends DataPack {
   private boolean isStarterPackEnabled;
 
   private final SettingRepository settingRepository;
-  private final TagRuleRepository tagRuleRepository;
-
   private final TagService tagService;
   private final EndpointService endpointService;
   private final AssetGroupService assetGroupService;

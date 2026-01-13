@@ -72,7 +72,6 @@ public class StarterPackTest extends IntegrationTest {
         new V20260101_Starter_pack(
             dataPackService,
             settingRepository,
-            tagRuleRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -110,7 +109,6 @@ public class StarterPackTest extends IntegrationTest {
         new V20260101_Starter_pack(
             dataPackService,
             settingRepository,
-            tagRuleRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -155,7 +153,6 @@ public class StarterPackTest extends IntegrationTest {
         new V20260101_Starter_pack(
             dataPackService,
             settingRepository,
-            tagRuleRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -190,7 +187,6 @@ public class StarterPackTest extends IntegrationTest {
         new V20260101_Starter_pack(
             dataPackService,
             settingRepository,
-            tagRuleRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -224,7 +220,6 @@ public class StarterPackTest extends IntegrationTest {
         new V20260101_Starter_pack(
             dataPackService,
             settingRepository,
-            tagRuleRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -262,7 +257,6 @@ public class StarterPackTest extends IntegrationTest {
         new V20260101_Starter_pack(
             dataPackService,
             settingRepository,
-            tagRuleRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -299,7 +293,6 @@ public class StarterPackTest extends IntegrationTest {
         new V20260101_Starter_pack(
             dataPackService,
             settingRepository,
-            tagRuleRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -347,7 +340,6 @@ public class StarterPackTest extends IntegrationTest {
         new V20260101_Starter_pack(
             dataPackService,
             settingRepository,
-            tagRuleRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -405,7 +397,6 @@ public class StarterPackTest extends IntegrationTest {
         new V20260101_Starter_pack(
             dataPackService,
             settingRepository,
-            tagRuleRepository,
             tagService,
             endpointService,
             assetGroupService,
