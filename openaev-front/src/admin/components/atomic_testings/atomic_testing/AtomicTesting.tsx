@@ -282,7 +282,7 @@ const AtomicTesting = () => {
           {t('Results by target')}
         </Typography>
         {selectedTarget && !!injectResultOverviewOutput.inject_type && (
-          <TargetResultsDetail inject={injectResultOverviewOutput} target={selectedTarget} />
+          <TargetResultsDetail inject={injectResultOverviewOutput} target={selectedTarget} isAgentless={!hasAgents && !hasTeams} />
         )}
         {!selectedTarget && (
           <Paper classes={{ root: classes.paper }} variant="outlined">

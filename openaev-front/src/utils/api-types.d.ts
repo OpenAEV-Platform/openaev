@@ -3118,6 +3118,38 @@ export interface InjectExpectation {
   target_id?: string;
 }
 
+/** Represents a single inject expectation with agent name */
+export interface InjectExpectationAgentOutput {
+  inject_expectation_agent?: string;
+  inject_expectation_agent_name?: string;
+  inject_expectation_asset?: string;
+  /** @format date-time */
+  inject_expectation_created_at?: string;
+  inject_expectation_group?: boolean;
+  inject_expectation_id: string;
+  inject_expectation_name?: string;
+  inject_expectation_results?: InjectExpectationResult[];
+  /** @format double */
+  inject_expectation_score?: number;
+  inject_expectation_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  inject_expectation_type:
+    | "TEXT"
+    | "DOCUMENT"
+    | "ARTICLE"
+    | "CHALLENGE"
+    | "MANUAL"
+    | "PREVENTION"
+    | "DETECTION"
+    | "VULNERABILITY";
+  /** @format int64 */
+  inject_expiration_time: number;
+}
+
 export interface InjectExpectationBulkUpdateInput {
   inputs: Record<string, InjectExpectationUpdateInput>;
 }

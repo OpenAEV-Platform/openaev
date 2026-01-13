@@ -13,12 +13,14 @@ import ExecutionStatusDetail from '../../../common/injects/status/ExecutionStatu
 import TerminalViewTab from '../../../common/injects/status/traces/TerminalViewTab';
 import TabbedView, { type TabConfig } from '../../../settings/groups/grants/ui/TabbedView';
 import { InjectResultOverviewOutputContext, type InjectResultOverviewOutputContextType } from '../../InjectResultOverviewOutputContext';
+import InjectExpectationProvider from '../context/InjectExpectationProvider';
 import InjectExpectationCard from './InjectExpectationCard';
 import TargetResultsReactFlow from './TargetResultsReactFlow';
 
 interface Props {
   inject: InjectResultOverviewOutput;
   target: InjectTarget;
+  isAgentless: boolean;
 }
 
 const useStyles = makeStyles()(theme => ({
@@ -35,7 +37,7 @@ const useStyles = makeStyles()(theme => ({
   },
 }));
 
-const TargetResultsDetail = ({ inject, target }: Props) => {
+const TargetResultsDetail = ({ inject, target, isAgentless }: Props) => {
   const { classes } = useStyles();
   const { t } = useFormatter();
 
@@ -46,7 +48,7 @@ const TargetResultsDetail = ({ inject, target }: Props) => {
 
   const [activeTab, setActiveTab] = useState<string | null>(null);
 
-  const { injectResultOverviewOutput, updateInjectResultOverviewOutput } = useContext<InjectResultOverviewOutputContextType>(InjectResultOverviewOutputContext);
+  const { injectResultOverviewOutput } = useContext<InjectResultOverviewOutputContextType>(InjectResultOverviewOutputContext);
 
   const transformToSortedGroupedResults = (results: InjectExpectationsStore[]) => {
     const groupedByType: Record<string, InjectExpectationsStore[]> = {};
@@ -106,12 +108,14 @@ const TargetResultsDetail = ({ inject, target }: Props) => {
       label: t(`TYPE_${type}`),
       component: (
         expectationResults.map(expectationResult => (
-          <InjectExpectationCard
-            key={expectationResult.inject_expectation_id}
-            injectExpectation={expectationResult}
-            inject={inject}
-            onUpdateInjectExpectationResult={updateInjectResultOverviewOutput}
-          />
+          <InjectExpectationProvider key={expectationResult.inject_expectation_id} inject={inject}>
+            <InjectExpectationCard
+              injectExpectation={expectationResult}
+              inject={inject}
+              isAgentless={isAgentless}
+              target={target}
+            />
+          </InjectExpectationProvider>
         ))
       ),
     })
