@@ -5193,10 +5193,6 @@ export interface PlatformSettings {
     | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
     | "LEGACY_INGESTION_EXECUTION_TRACE"
   )[];
-  /** True if the Caldera Executor is enabled */
-  executor_caldera_enable?: boolean;
-  /** Url of the Caldera Executor */
-  executor_caldera_public_url?: string;
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
   /**
