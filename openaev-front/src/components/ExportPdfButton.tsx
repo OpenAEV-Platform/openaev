@@ -1,7 +1,5 @@
 import { Dialog, ToggleButton, Tooltip } from '@mui/material';
 import { FilePdfBox } from 'mdi-material-ui';
-import pdfMake from 'pdfmake/build/pdfmake';
-import pdfFonts from 'pdfmake/build/vfs_fonts';
 import type { TDocumentDefinitions } from 'pdfmake/interfaces';
 import { type FunctionComponent, useState } from 'react';
 import { useDispatch } from 'react-redux';
@@ -13,8 +11,17 @@ import { MESSAGING$ } from '../utils/Environment';
 import { useFormatter } from './i18n';
 import Loader from './Loader';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-(pdfMake as any).addVirtualFileSystem(pdfFonts);
+const loadPdfMake = async () => {
+  const [pdfMakeModule, pdfFontsModule] = await Promise.all([
+    import('pdfmake/build/pdfmake'),
+    import('pdfmake/build/vfs_fonts'),
+  ]);
+  const pdfMake = pdfMakeModule.default;
+  const pdfFonts = pdfFontsModule.default;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (pdfMake as any).addVirtualFileSystem(pdfFonts);
+  return pdfMake;
+};
 
 interface Props {
   getPdfDocDefinition: () => Promise<TDocumentDefinitions>;
@@ -51,7 +58,8 @@ const ExportPdfButton: FunctionComponent<Props> = ({ getPdfDocDefinition, pdfNam
       await timeout(500);
     }
     getPdfDocDefinition()
-      .then((pdfDocDefinition: TDocumentDefinitions) => {
+      .then(async (pdfDocDefinition: TDocumentDefinitions) => {
+        const pdfMake = await loadPdfMake();
         pdfMake.createPdf(pdfDocDefinition).download(`${pdfName}.pdf`);
       })
       .catch((e) => {

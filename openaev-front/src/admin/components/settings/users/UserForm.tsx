@@ -8,7 +8,7 @@ import OldTextField from '../../../../components/fields/OldTextField';
 import { useFormatter } from '../../../../components/i18n';
 import OrganizationField from '../../../../components/OrganizationField';
 import TagField from '../../../../components/TagField';
-import { schemaValidator } from '../../../../utils/Zod.js';
+import { schemaValidator } from '../../../../utils/Zod';
 
 interface UserFormProps {
   onSubmit: (data: UserInputForm) => void;

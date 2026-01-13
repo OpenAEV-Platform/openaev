@@ -8,7 +8,7 @@ import { fetchScenario } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
 import { findNotificationRuleByResource } from '../../../../actions/scenarios/scenario-notification-rules';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import { errorWrapper } from '../../../../components/Error';
+import errorWrapper from '../../../../components/errorWrapper';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import NotFound from '../../../../components/NotFound';

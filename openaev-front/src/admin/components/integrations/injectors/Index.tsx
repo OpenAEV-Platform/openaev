@@ -5,7 +5,7 @@ import { makeStyles } from 'tss-react/mui';
 import { fetchInjector } from '../../../../actions/Injectors';
 import { type InjectorHelper } from '../../../../actions/injectors/injector-helper';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import { errorWrapper } from '../../../../components/Error';
+import errorWrapper from '../../../../components/errorWrapper';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import NotFound from '../../../../components/NotFound';

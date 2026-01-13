@@ -1,7 +1,7 @@
 import { fromJS, List, Map } from 'immutable';
 import { schema } from 'normalizr';
 
-import locale from '../utils/BrowserLanguage.js';
+import locale from '../utils/BrowserLanguage';
 
 export const document = new schema.Entity(
   'documents',
