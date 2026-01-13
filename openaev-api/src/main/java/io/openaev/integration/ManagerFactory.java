@@ -12,22 +12,15 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ManagerFactory {
   private final List<IntegrationFactory> factories;
-  private Manager manager = null;
-
-  public Manager getManager() {
-    Manager local = manager;
-    if (local == null) {
-      throw new IllegalStateException("Manager not initialized yet");
-    }
-    return local;
-  }
+  private volatile Manager manager = null;
 
   @Transactional
   @Lock(type = MANAGER_FACTORY, key = "manager-factory")
-  public void initializeAndSync() throws Exception {
+  public Manager getManager() throws Exception {
     if (manager == null) {
-      manager = new Manager(factories);
+      this.manager = new Manager(factories);
+      this.manager.monitorIntegrations();
     }
-    manager.monitorIntegrations();
+    return this.manager;
   }
 }

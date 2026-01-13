@@ -23,7 +23,7 @@ public class ManagerIntegrationsSyncJob implements Job {
   @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     try {
-      managerFactory.initializeAndSync();
+      managerFactory.getManager();
     } catch (Exception e) {
       throw new JobExecutionException(e);
     }
