@@ -8,6 +8,7 @@ import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.ResourceType;
 import io.openaev.engine.model.EsBase;
 import io.openaev.engine.query.EsAttackPath;
+import io.openaev.engine.query.EsAvgs;
 import io.openaev.engine.query.EsCountInterval;
 import io.openaev.engine.query.EsSeries;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
@@ -56,6 +57,19 @@ public class ExerciseDashboardApi {
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
     return this.customDashboardService.dashboardCountOnResourceId(
+        simulationId, widgetId, parameters);
+  }
+
+  @PostMapping(EXERCISE_URI + "/{simulationId}/dashboard/average/{widgetId}")
+  @RBAC(
+      resourceId = "#simulationId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.SIMULATION)
+  public EsAvgs dashboardAverage(
+      @PathVariable final String simulationId,
+      @PathVariable final String widgetId,
+      @RequestBody(required = false) Map<String, String> parameters) {
+    return this.customDashboardService.dashboardAverageOnResourceId(
         simulationId, widgetId, parameters);
   }
 

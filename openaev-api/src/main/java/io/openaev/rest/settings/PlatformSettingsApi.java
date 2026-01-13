@@ -7,6 +7,7 @@ import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.ResourceType;
 import io.openaev.engine.model.EsBase;
 import io.openaev.engine.query.EsAttackPath;
+import io.openaev.engine.query.EsAvgs;
 import io.openaev.engine.query.EsCountInterval;
 import io.openaev.engine.query.EsSeries;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
@@ -139,6 +140,14 @@ public class PlatformSettingsApi extends RestBehavior {
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
     return customDashboardService.homeDashboardCount(widgetId, parameters);
+  }
+
+  @PostMapping("/home-dashboard/average/{widgetId}")
+  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
+  public EsAvgs homeDashboardAverage(
+      @PathVariable final String widgetId,
+      @RequestBody(required = false) Map<String, String> parameters) {
+    return customDashboardService.homeDashboardAverage(widgetId, parameters);
   }
 
   @PostMapping("/home-dashboard/series/{widgetId}")

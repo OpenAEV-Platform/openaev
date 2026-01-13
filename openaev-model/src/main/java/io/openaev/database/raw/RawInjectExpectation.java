@@ -163,6 +163,7 @@ public interface RawInjectExpectation {
 
   /**
    * Returns the set of security domain IDs expected to detect/prevent the inject.
+   *
    * @return set of security domain IDs
    */
   Set<String> getDomain_ids();

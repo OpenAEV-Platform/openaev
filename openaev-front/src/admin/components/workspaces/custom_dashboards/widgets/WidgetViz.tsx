@@ -141,7 +141,7 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen, vizData, errorMessage }:
       if (vizData.type !== WidgetVizDataType.AVERAGE) {
         return 'Not implemented yet';
       }
-      return (<SecurityDomainsWidget widgetId={widget.widget_id} data={vizData.data}/>)
+      return (<SecurityDomainsWidget data={vizData.data}/>)
     default:
       return 'Not implemented yet';
   }

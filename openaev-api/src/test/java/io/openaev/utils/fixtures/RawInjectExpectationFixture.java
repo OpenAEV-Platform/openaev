@@ -139,7 +139,9 @@ public class RawInjectExpectationFixture {
     }
 
     @Override
-    public Set<String> getDomain_ids() {return domainIds;}
+    public Set<String> getDomain_ids() {
+      return domainIds;
+    }
 
     @Override
     public String getScenario_id() {

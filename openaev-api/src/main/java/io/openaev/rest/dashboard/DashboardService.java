@@ -60,7 +60,9 @@ public class DashboardService {
         (AverageConfiguration) widgetContext.widget().getWidgetConfiguration();
     AverageRuntime runtime =
         new AverageRuntime(
-            esSecurityDomainService.setFieldsForQuery(config), widgetContext.parameters(), widgetContext.definitionParameters());
+            esSecurityDomainService.setFieldsForQuery(config),
+            widgetContext.parameters(),
+            widgetContext.definitionParameters());
     return engineService.average(widgetContext.user(), runtime);
   }
 

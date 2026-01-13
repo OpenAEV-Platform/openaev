@@ -606,7 +606,7 @@ public class OpenSearchService implements EngineService {
     }
 
     try {
-      Map<String,String> fields = averageRuntime.getConfig().getField();
+      Map<String, String> fields = averageRuntime.getConfig().getField();
 
       String domainField = toElasticField(fields.get("domainField"));
       String domainAggregationKey = "by_security_domain";
@@ -635,8 +635,7 @@ public class OpenSearchService implements EngineService {
                                           subAg -> subAg.terms(t -> t.field(statusField)))))
               .build();
 
-      SearchResponse<Void> response =
-          openSearchClient.search(request, Void.class);
+      SearchResponse<Void> response = openSearchClient.search(request, Void.class);
 
       Buckets<StringTermsBucket> domainBuckets =
           response.aggregations().get(domainAggregationKey).sterms().buckets();

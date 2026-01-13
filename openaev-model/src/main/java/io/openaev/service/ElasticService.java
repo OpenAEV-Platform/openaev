@@ -542,7 +542,7 @@ public class ElasticService implements EngineService {
 
     try {
 
-      Map<String,String> fields = averageRuntime.getConfig().getField();
+      Map<String, String> fields = averageRuntime.getConfig().getField();
 
       String domainField = toElasticField(fields.get("domainField"));
       String domainAggregationKey = "by_security_domain";
