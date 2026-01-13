@@ -64,7 +64,7 @@ const WidgetWrapper = ({
     setErrorMessage('');
 
     const params = buildParams(customDashboardParameters);
-    type WidgetDataResponse = EsAttackPath[] | EsCountInterval | EsBase[] | EsSeries[];
+    type WidgetDataResponse = EsAttackPath[] | EsCountInterval | EsAvgs | EsBase[] | EsSeries[];
     let fetchFunction: (id: string, p: Record<string, string | undefined>) => Promise<{ data: WidgetDataResponse }>;
     let vizType: WidgetVizDataType;
 
