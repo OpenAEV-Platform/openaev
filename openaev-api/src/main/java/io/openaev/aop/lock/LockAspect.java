@@ -14,6 +14,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.Expression;
+import org.springframework.expression.spel.SpelEvaluationException;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.SimpleEvaluationContext;
 import org.springframework.stereotype.Component;
@@ -44,8 +45,12 @@ public class LockAspect {
   @Around("@annotation(lockAnnotation)")
   public Object aroundLocked(ProceedingJoinPoint joinPoint, io.openaev.aop.lock.Lock lockAnnotation)
       throws Throwable {
-    // Extract lock key from SpEL expression
-    Object lockKey = extractLockKey(joinPoint, lockAnnotation.key());
+    // If only one stripe, we just use the string as lock object
+    Object lockKey = lockAnnotation.key();
+    if (lockAnnotation.type().stripes() > 1) {
+      // Extract lock key from SpEL expression
+      lockKey = extractLockKey(joinPoint, lockAnnotation.key());
+    }
     LockResourceType lockType = lockAnnotation.type();
 
     if (lockKey == null) {
@@ -106,6 +111,10 @@ public class LockAspect {
 
     // Parse and evaluate expression
     Expression expression = parser.parseExpression(spelExpression);
-    return expression.getValue(context);
+    try {
+      return expression.getValue(context);
+    } catch (SpelEvaluationException e) {
+      return spelExpression;
+    }
   }
 }
