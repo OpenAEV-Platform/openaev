@@ -9,6 +9,7 @@ import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.raw.RawInjectorsContracts;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.injector_contract.InjectorContractDomainStatsService;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.form.InjectorContractAddInput;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateInput;
@@ -35,9 +36,7 @@ public class InjectorContractApi extends RestBehavior {
 
   // -- CREATE --
 
-  /**
-   * Creates a new custom injector contract.
-   */
+  /** Creates a new custom injector contract. */
   @PostMapping
   @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.INJECTOR_CONTRACT)
   public InjectorContract createInjectorContract(
@@ -47,19 +46,14 @@ public class InjectorContractApi extends RestBehavior {
 
   // -- READ --
 
-
-  /**
-   * Retrieve all raw injector contracts.
-   */
+  /** Retrieve all raw injector contracts. */
   @GetMapping
   @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   public Iterable<RawInjectorsContracts> injectContracts() {
     return injectorContractService.getAllRawInjectContracts();
   }
 
-  /**
-   * Retrieves a specific injector contract by ID
-   */
+  /** Retrieves a specific injector contract by ID */
   @GetMapping("/{injectorContractId}")
   @RBAC(
       resourceId = "#injectorContractId",
@@ -91,19 +85,17 @@ public class InjectorContractApi extends RestBehavior {
     }
   }
 
-    @PostMapping(INJECTOR_CONTRACT_URL + "/domain-counts")
-    @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
-    public List<InjectorContractDomainCountOutput> getDomainCounts(
-            @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
-        SearchPaginationInput filtered = handleArchitectureFilter(input);
-        return injectorContractService.getDomainCounts(filtered);
-    }
+  @PostMapping(INJECTOR_CONTRACT_URL + "/domain-counts")
+  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
+  public List<InjectorContractDomainCountOutput> getDomainCounts(
+      @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
+    SearchPaginationInput filtered = handleArchitectureFilter(input);
+    return injectorContractService.getDomainCounts(filtered);
+  }
 
   // -- UPDATE --
 
-  /**
-   * Updates an existing injector contract
-   */
+  /** Updates an existing injector contract */
   @PutMapping("/{injectorContractId}")
   @RBAC(
       resourceId = "#injectorContractId",
@@ -115,9 +107,7 @@ public class InjectorContractApi extends RestBehavior {
     return injectorContractService.updateInjectorContract(injectorContractId, input);
   }
 
-  /**
-   * Updates the attack pattern and vulnerability mappings for a contract.
-   */
+  /** Updates the attack pattern and vulnerability mappings for a contract. */
   @PutMapping("/{injectorContractId}/mapping")
   @RBAC(
       resourceId = "#injectorContractId",
