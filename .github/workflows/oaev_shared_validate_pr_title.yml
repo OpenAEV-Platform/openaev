@@ -1,7 +1,7 @@
 name: "[OAEV Shared] Validate PR title Worker"
 on:
   pull_request:
-    branches: [main, release/current]
+    branches: [master, release/current]
     types: [opened, edited, reopened, ready_for_review, synchronize]
 jobs:
   validate-pr-title:

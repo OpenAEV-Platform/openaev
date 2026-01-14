@@ -1,7 +1,7 @@
 name: "[OAEV Shared] Auto Label"
 on:
   pull_request:
-    branches: [main, release/current]
+    branches: [master, release/current]
     types: [opened, reopened]
 permissions:
   contents: read
