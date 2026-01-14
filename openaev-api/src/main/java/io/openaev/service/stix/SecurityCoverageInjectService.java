@@ -165,9 +165,11 @@ public class SecurityCoverageInjectService {
         });
 
     // 7. Delete all previous injects non existing anymore on the OpenCTI report
-    previousExistingInject.stream()
-        .filter(inject -> !managedInjectsIds.contains(inject.getId()))
-        .forEach(injectRepository::delete);
+    injectRepository.deleteAllByIdInBatch(
+        previousExistingInject.stream()
+            .map(Inject::getId)
+            .filter(id -> !managedInjectsIds.contains(id))
+            .collect(Collectors.toSet()));
   }
 
   // -- INJECTS BY VULNERABILITIES --
@@ -608,7 +610,7 @@ public class SecurityCoverageInjectService {
   private String findExistingInjectIdByHostname(Scenario scenario, String hostname) {
     return scenario.getInjects().stream()
         .filter(inject -> hasDnsResolutionFor(inject, hostname))
-        .findFirst()
+        .findAny()
         .map(Inject::getId)
         .orElse(null);
   }
@@ -632,8 +634,8 @@ public class SecurityCoverageInjectService {
 
     return inject.getContent() != null
         && inject.getContent().has(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY)
-        && hostname.equals(inject.getContent().get(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY).textValue())
-        && dns.getHostname().equals(DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE);
+        && inject.getContent().get(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY).textValue().equals(hostname)
+        && DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE.equals(dns.getHostname());
   }
 
   /**

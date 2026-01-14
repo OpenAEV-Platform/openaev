@@ -348,6 +348,7 @@ public class PayloadService {
     dynamicDnsResolutionPayload.setSource(Payload.PAYLOAD_SOURCE.FILIGRAN);
     dynamicDnsResolutionPayload.setType(DnsResolution.DNS_RESOLUTION_TYPE);
     dynamicDnsResolutionPayload.setPlatforms(ALL_PLATFORMS);
+    dynamicDnsResolutionPayload.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
 
     PayloadArgument argument = new PayloadArgument();
     argument.setType("text");

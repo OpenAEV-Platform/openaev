@@ -369,44 +369,44 @@ public class SecurityCoverageService {
         continue;
       }
 
-      Exercise ex = securityCoverageSendJob.getSimulation();
-      objects.addAll(this.getCoverageForSimulation(ex));
+      Exercise simulation = securityCoverageSendJob.getSimulation();
+      objects.addAll(this.getCoverageForSimulation(simulation));
     }
 
     return new Bundle(new Identifier("bundle", UUID.randomUUID().toString()), objects);
   }
 
-  private List<ObjectBase> getCoverageForSimulation(Exercise exercise)
+  private List<ObjectBase> getCoverageForSimulation(Exercise simulation)
       throws ParsingException, JsonProcessingException {
     List<ObjectBase> objects = new ArrayList<>();
 
     // create the main coverage object
-    SecurityCoverage assessment = exercise.getSecurityCoverage();
+    SecurityCoverage assessment = simulation.getSecurityCoverage();
     DomainObject coverage = (DomainObject) stixParser.parseObject(assessment.getContent());
     coverage.setProperty(CommonProperties.MODIFIED.toString(), new Timestamp(Instant.now()));
     coverage.setProperty(CommonProperties.AUTO_ENRICHMENT_DISABLE.toString(), new Boolean(false));
 
     String externalLink;
-    if (exercise.getScenario() != null) {
+    if (simulation.getScenario() != null) {
       externalLink =
-          openAEVConfig.getBaseUrl() + "/admin/scenarios/" + exercise.getScenario().getId();
+          openAEVConfig.getBaseUrl() + "/admin/scenarios/" + simulation.getScenario().getId();
     } else {
-      externalLink = openAEVConfig.getBaseUrl() + "/admin/simulations/" + exercise.getId();
+      externalLink = openAEVConfig.getBaseUrl() + "/admin/simulations/" + simulation.getId();
     }
 
     coverage.setProperty(CommonProperties.EXTERNAL_URI.toString(), new StixString(externalLink));
-    coverage.setProperty(ExtendedProperties.COVERAGE.toString(), getOverallCoverage(exercise));
+    coverage.setProperty(ExtendedProperties.COVERAGE.toString(), getOverallCoverage(simulation));
     objects.add(coverage);
 
     // start and stop times
-    Optional<Timestamp> sroStartTime = exercise.getStart().map(Timestamp::new);
+    Optional<Timestamp> sroStartTime = simulation.getStart().map(Timestamp::new);
     Optional<Timestamp> sroStopTime =
-        exerciseService.getLatestValidityDate(exercise).map(Timestamp::new);
+        exerciseService.getLatestValidityDate(simulation).map(Timestamp::new);
 
     // Process coverage refs by stix object: attack patterns
     processCoverageRefs(
-        exercise.getSecurityCoverage().getAttackPatternRefs(),
-        exercise,
+        simulation.getSecurityCoverage().getAttackPatternRefs(),
+        simulation,
         this::getAttackPatternCoverage,
         coverage.getId(),
         sroStartTime,
@@ -417,8 +417,8 @@ public class SecurityCoverageService {
         PreviewFeature.STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES)) {
       // Process coverage refs by stix object: vulnerabilities
       processCoverageRefs(
-          exercise.getSecurityCoverage().getVulnerabilitiesRefs(),
-          exercise,
+          simulation.getSecurityCoverage().getVulnerabilitiesRefs(),
+          simulation,
           this::getVulnerabilityCoverage,
           coverage.getId(),
           sroStartTime,
@@ -427,8 +427,8 @@ public class SecurityCoverageService {
     }
 
     processCoverageRefs(
-        exercise.getSecurityCoverage().getIndicatorsRefs(),
-        exercise,
+        simulation.getSecurityCoverage().getIndicatorsRefs(),
+        simulation,
         this::getDnsIndicatorCoverage,
         coverage.getId(),
         sroStartTime,
@@ -439,7 +439,7 @@ public class SecurityCoverageService {
       DomainObject platformIdentity = securityPlatform.toStixDomainObject();
       objects.add(platformIdentity);
 
-      BaseType<?> platformCoverage = getOverallCoveragePerPlatform(exercise, securityPlatform);
+      BaseType<?> platformCoverage = getOverallCoveragePerPlatform(simulation, securityPlatform);
       boolean covered = !((List<?>) platformCoverage.getValue()).isEmpty();
       RelationshipObject sro =
           new RelationshipObject(
@@ -473,14 +473,14 @@ public class SecurityCoverageService {
 
   private void processCoverageRefs(
       Set<StixRefToExternalRef> refs,
-      Exercise exercise,
+      Exercise simulation,
       BiFunction<StixRefToExternalRef, Exercise, BaseType<?>> coverageFunction,
       Identifier coverageId,
       Optional<Timestamp> sroStartTime,
       Optional<Timestamp> sroStopTime,
       List<ObjectBase> objects) {
     for (StixRefToExternalRef stixRef : refs) {
-      BaseType<?> coverageResult = coverageFunction.apply(stixRef, exercise);
+      BaseType<?> coverageResult = coverageFunction.apply(stixRef, simulation);
       boolean covered = !((List<?>) coverageResult.getValue()).isEmpty();
 
       RelationshipObject sro =
@@ -488,7 +488,7 @@ public class SecurityCoverageService {
               new HashMap<>(
                   Map.of(
                       CommonProperties.ID.toString(),
-                      new Identifier(ObjectTypes.RELATIONSHIP.toString(), exercise.getId()),
+                      new Identifier(ObjectTypes.RELATIONSHIP.toString(), simulation.getId()),
                       CommonProperties.TYPE.toString(),
                       new StixString(ObjectTypes.RELATIONSHIP.toString()),
                       RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
@@ -512,20 +512,20 @@ public class SecurityCoverageService {
     }
   }
 
-  private BaseType<?> getOverallCoverage(Exercise exercise) {
-    return computeCoverageFromInjects(exercise.getInjects());
+  private BaseType<?> getOverallCoverage(Exercise simulation) {
+    return computeCoverageFromInjects(simulation.getInjects());
   }
 
   private BaseType<?> getOverallCoveragePerPlatform(
-      Exercise exercise, SecurityPlatform securityPlatform) {
-    return computeCoverageFromInjects(exercise.getInjects(), securityPlatform);
+      Exercise simulation, SecurityPlatform securityPlatform) {
+    return computeCoverageFromInjects(simulation.getInjects(), securityPlatform);
   }
 
   private BaseType<?> getVulnerabilityCoverage(
-      StixRefToExternalRef stixExternalRef, Exercise exercise) {
+      StixRefToExternalRef stixExternalRef, Exercise simulation) {
     return getCoverage(
         stixExternalRef.getExternalRef(),
-        exercise,
+        simulation,
         id -> vulnerabilityService.getVulnerabilitiesByExternalIds(Set.of(id)),
         inject -> {
           if (inject.getInjectorContract().isPresent()) {
@@ -537,10 +537,10 @@ public class SecurityCoverageService {
   }
 
   private BaseType<?> getAttackPatternCoverage(
-      StixRefToExternalRef stixExternalRef, Exercise exercise) {
+      StixRefToExternalRef stixExternalRef, Exercise simulation) {
     return getCoverage(
         stixExternalRef.getExternalRef(),
-        exercise,
+        simulation,
         id -> attackPatternService.getAttackPatternsByExternalIds(Set.of(id)),
         inject -> {
           if (inject.getInjectorContract().isPresent()) {
@@ -552,12 +552,12 @@ public class SecurityCoverageService {
   }
 
   private BaseType<?> getDnsIndicatorCoverage(
-      StixRefToExternalRef stixExternalRef, Exercise exercise) {
+      StixRefToExternalRef stixExternalRef, Exercise simulation) {
     return getCoverage(
         stixExternalRef.getHostname(),
-        exercise,
+        simulation,
         hostname ->
-            exercise.getInjects().stream()
+            simulation.getInjects().stream()
                 .filter(
                     inject ->
                         inject.getContent().has(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY)
@@ -576,7 +576,7 @@ public class SecurityCoverageService {
 
   private <T> BaseType<?> getCoverage(
       String externalRef,
-      Exercise exercise,
+      Exercise simulation,
       Function<String, Collection<T>> entityFetcher,
       Function<Inject, Collection<T>> contractExtractor,
       Function<T, String> idExtractor) {
@@ -588,7 +588,7 @@ public class SecurityCoverageService {
 
     // find matching injects
     List<Inject> injects =
-        exercise.getInjects().stream()
+        simulation.getInjects().stream()
             .filter(
                 i ->
                     contractExtractor.apply(i).stream()
