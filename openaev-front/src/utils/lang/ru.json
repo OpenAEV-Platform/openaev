@@ -1566,7 +1566,7 @@
   "Should be a valid XLS file": "Должен быть действительный XLS-файл",
   "Should have at least one asset or one asset group": "Должен быть хотя бы один актив или одна группа активов",
   "Should not be empty": "Не должен быть пустым",
-  "Should not exceed 255 characters": "Не должно превышать 255 символов",
+  "Should not exceed {max_length} characters": "Не должно превышать {max_length} символов",
   "Show all assets": "Показать все активы",
   "Show covered TTP only": "Показать только покрытые ТТП",
   "Show in findings": "Показать в выводах",

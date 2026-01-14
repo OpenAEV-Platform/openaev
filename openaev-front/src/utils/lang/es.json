@@ -1566,7 +1566,7 @@
   "Should be a valid XLS file": "Debe ser un archivo XLS válido",
   "Should have at least one asset or one asset group": "Debe tener al menos un activo o un grupo de activos",
   "Should not be empty": "No debe estar vacío",
-  "Should not exceed 255 characters": "No debe superar los 255 caracteres",
+  "Should not exceed {max_length} characters": "No debe superar los {max_length} caracteres",
   "Show all assets": "Mostrar todos los activos",
   "Show covered TTP only": "Mostrar sólo Patrones de ataques cubiertos",
   "Show in findings": "Mostrar en resultados",

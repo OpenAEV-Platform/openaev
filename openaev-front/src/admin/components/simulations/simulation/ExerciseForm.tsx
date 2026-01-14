@@ -12,6 +12,7 @@ import { useFormatter } from '../../../../components/i18n';
 import { type CreateExerciseInput } from '../../../../utils/api-types';
 import { zodImplement } from '../../../../utils/Zod';
 import { scenarioCategories } from '../../scenarios/constants';
+import { EXERCISE_NAME_MAX_LENGTH, EXERCISE_NAME_MIN_LENGTH } from '../constants';
 
 interface Props {
   onSubmit: SubmitHandler<CreateExerciseInput>;
@@ -55,7 +56,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
     mode: 'onTouched',
     resolver: zodResolver(
       zodImplement<CreateExerciseInput>().with({
-        exercise_name: z.string().min(1, { message: t('Should not be empty') }).max(255, { message: t('Should not exceed 255 characters') }),
+        exercise_name: z.string().min(EXERCISE_NAME_MIN_LENGTH, { message: t('Should not be empty') }).max(EXERCISE_NAME_MAX_LENGTH, { message: t(`Should not exceed ${EXERCISE_NAME_MAX_LENGTH} characters`) }),
         exercise_subtitle: z.string().optional(),
         exercise_category: z.string().optional(),
         exercise_main_focus: z.string().optional(),

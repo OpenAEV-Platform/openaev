@@ -18,8 +18,10 @@ import lombok.Setter;
 @Data
 public class ExerciseInput {
 
+  public static final int EXERCISE_NAME_MAX_LENGTH = 255;
+
   @NotBlank(message = MANDATORY_MESSAGE)
-  @Size(max = 255, message = MAX_255_MESSAGE)
+  @Size(max = EXERCISE_NAME_MAX_LENGTH, message = MAX_255_MESSAGE)
   @JsonProperty("exercise_name")
   private String name;
 

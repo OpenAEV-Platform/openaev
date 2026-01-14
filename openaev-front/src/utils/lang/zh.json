@@ -1566,7 +1566,7 @@
   "Should be a valid XLS file": "应为有效XLS文件",
   "Should have at least one asset or one asset group": " 应至少拥有一项资产或一个资产组",
   "Should not be empty": "不能为空",
-  "Should not exceed 255 characters": "不应超过 255 个字符",
+  "Should not exceed {max_length} characters": "不应超过 {max_length} 个字符",
   "Show all assets": "显示所有资产",
   "Show covered TTP only": "只显示覆盖的 TTP",
   "Show in findings": "在调查结果中显示",
