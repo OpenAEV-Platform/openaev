@@ -73,25 +73,34 @@ public class TagRuleService {
     return tagRuleRepository.save(tagRule);
   }
 
-  public TagRule updateTagRule(
-      @NotBlank final String tagRuleId, final String tagName, final List<String> assetGroupIds) {
-
+  public TagRule updateTagRule(@NotBlank final String tagRuleId, final String tagName, final List<String> assetGroupIds) {
     // verify that the tag rule exists
     TagRule tagRule =
-        tagRuleRepository
-            .findById(tagRuleId)
-            .orElseThrow(
-                () -> new ElementNotFoundException("TagRule not found with id: " + tagRuleId));
+            tagRuleRepository
+                    .findById(tagRuleId)
+                    .orElseThrow(
+                            () -> new ElementNotFoundException("TagRule not found with id: " + tagRuleId));
 
+    Tag newTag = getTag(tagName);
+
+    // if one of the asset groups doesn't exist throw a ResourceNotFoundException
+    List<AssetGroup> assetGroups = getAssetGroups(assetGroupIds);
+
+    return updateTagRule(tagRule, newTag, assetGroups);
+  }
+
+  public TagRule updateTagRule(
+      @NotBlank final TagRule tagRule, final Tag newTag, final List<AssetGroup> assetGroups) {
     try {
-      tagRule.setTag(getTag(tagName));
+      if (TagRule.RESERVED_TAG_NAMES.contains(newTag.getName()) && isTagChanged(tagRule, newTag)) {
+        throw new ForbiddenException(
+                "Cannot change target tag to reserved tag " + newTag.getName());
+      }
+      tagRule.setTag(newTag);
     } catch (UnsupportedOperationException e) {
       throw new ForbiddenException("Cannot change the tag for protected tag rule.", e);
     }
-
-    // if one of the asset groups doesn't exist throw a ResourceNotFoundException
-    tagRule.setAssetGroups(getAssetGroups(assetGroupIds));
-
+    tagRule.setAssetGroups(assetGroups);
     return tagRuleRepository.save(tagRule);
   }
 
@@ -108,6 +117,10 @@ public class TagRuleService {
 
   public Page<TagRule> searchTagRule(SearchPaginationInput searchPaginationInput) {
     return buildPaginationJPA(tagRuleRepository::findAll, searchPaginationInput, TagRule.class);
+  }
+
+  private boolean isTagChanged(TagRule tagRule, Tag newTag) {
+    return tagRule.getTag() != null && !tagRule.getTag().equals(newTag);
   }
 
   public void deleteTagRule(@NotBlank final String tagRuleId) {
