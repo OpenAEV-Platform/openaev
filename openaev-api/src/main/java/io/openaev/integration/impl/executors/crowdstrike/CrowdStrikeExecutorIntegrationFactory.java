@@ -7,6 +7,7 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorService;
+import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
@@ -37,9 +38,12 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
   private final LicenseCacheManager licenseCacheManager;
   private final ComponentRequestEngine componentRequestEngine;
   private final ThreadPoolTaskScheduler taskScheduler;
+  private final CatalogConnectorService catalogConnectorService;
+  private final ConnectorInstanceService connectorInstanceService;
   private final CrowdStrikeExecutorConfigurationMigration crowdStrikeExecutorConfigurationMigration;
   private final FileService fileService;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
+  public static final String CROWDSTRIKE_EXECUTOR_TYPE = "openaev_crowdstrike";
 
   public CrowdStrikeExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -65,6 +69,8 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
     this.licenseCacheManager = licenseCacheManager;
     this.componentRequestEngine = componentRequestEngine;
     this.taskScheduler = taskScheduler;
+    this.catalogConnectorService = catalogConnectorService;
+    this.connectorInstanceService = connectorInstanceService;
     this.crowdStrikeExecutorConfigurationMigration = crowdStrikeExecutorConfigurationMigration;
     this.fileService = fileService;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
@@ -89,7 +95,7 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
         getClass().getResourceAsStream("/img/icon-crowdstrike.png"));
     CatalogConnector connector = new CatalogConnector();
     connector.setTitle("CrowdStrike Executor");
-    connector.setSlug(getClassName());
+    connector.setSlug(CROWDSTRIKE_EXECUTOR_TYPE);
     connector.setLogoUrl(logoFilename);
     connector.setDescription(
         """

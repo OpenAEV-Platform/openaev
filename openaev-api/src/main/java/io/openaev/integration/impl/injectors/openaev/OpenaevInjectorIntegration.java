@@ -84,11 +84,11 @@ public class OpenaevInjectorIntegration extends Integration {
 
   private Map<String, String> buildExecutorCommands(OpenAEVConfig cfg) {
     Map<String, String> commands = new HashMap<>();
-    String tokenVar = "token=\"" + openAEVConfig.getAdminToken() + "\"";
-    String serverVar = "server=\"" + openAEVConfig.getBaseUrlForAgent() + "\"";
+    String tokenVar = "token=\"" + cfg.getAdminToken() + "\"";
+    String serverVar = "server=\"" + cfg.getBaseUrlForAgent() + "\"";
     String unsecuredCertificateVar =
-        "unsecured_certificate=\"" + openAEVConfig.isUnsecuredCertificate() + "\"";
-    String withProxyVar = "with_proxy=\"" + openAEVConfig.isWithProxy() + "\"";
+        "unsecured_certificate=\"" + cfg.isUnsecuredCertificate() + "\"";
+    String withProxyVar = "with_proxy=\"" + cfg.isWithProxy() + "\"";
     commands.put(
         Endpoint.PLATFORM_TYPE.Windows.name() + "." + Endpoint.PLATFORM_ARCH.x86_64,
         "[Net.ServicePointManager]::SecurityProtocol += [Net.SecurityProtocolType]::Tls12;$x=\"#{location}\";$location=$x.Replace(\"\\oaev-agent-caldera.exe\", \"\");[Environment]::CurrentDirectory = $location;$filename=\"oaev-implant-#{inject}-agent-#{agent}.exe\";$"
@@ -100,7 +100,7 @@ public class OpenaevInjectorIntegration extends Integration {
             + ";$"
             + withProxyVar
             + ";"
-            + dlVar(openAEVConfig, "windows", "x86_64")
+            + dlVar(cfg, "windows", "x86_64")
             + ";$wc=New-Object System.Net.WebClient;$data=$wc.DownloadData($url);[io.file]::WriteAllBytes($filename,$data) | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\" -Direction Inbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\" -Direction Outbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Start-Process -FilePath \"$location\\$filename\" -ArgumentList \"--uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject}\" -WindowStyle hidden;");
     commands.put(
         Endpoint.PLATFORM_TYPE.Windows.name() + "." + Endpoint.PLATFORM_ARCH.arm64,
@@ -113,7 +113,7 @@ public class OpenaevInjectorIntegration extends Integration {
             + ";$"
             + withProxyVar
             + ";"
-            + dlVar(openAEVConfig, "windows", "arm64")
+            + dlVar(cfg, "windows", "arm64")
             + ";$wc=New-Object System.Net.WebClient;$data=$wc.DownloadData($url);[io.file]::WriteAllBytes($filename,$data) | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\" -Direction Inbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\" -Direction Outbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Start-Process -FilePath \"$location\\$filename\" -ArgumentList \"--uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject}\" -WindowStyle hidden;");
     commands.put(
         Endpoint.PLATFORM_TYPE.Linux.name() + "." + Endpoint.PLATFORM_ARCH.x86_64,
@@ -126,7 +126,7 @@ public class OpenaevInjectorIntegration extends Integration {
             + ";"
             + withProxyVar
             + ";curl -s -X GET "
-            + dlUri(openAEVConfig, "linux", "x86_64")
+            + dlUri(cfg, "linux", "x86_64")
             + " > $location/$filename;chmod +x $location/$filename;$location/$filename --uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject} &");
     commands.put(
         Endpoint.PLATFORM_TYPE.Linux.name() + "." + Endpoint.PLATFORM_ARCH.arm64,
@@ -139,7 +139,7 @@ public class OpenaevInjectorIntegration extends Integration {
             + ";"
             + withProxyVar
             + ";curl -s -X GET "
-            + dlUri(openAEVConfig, "linux", "arm64")
+            + dlUri(cfg, "linux", "arm64")
             + " > $location/$filename;chmod +x $location/$filename;$location/$filename --uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject} &");
     commands.put(
         Endpoint.PLATFORM_TYPE.MacOS.name() + "." + Endpoint.PLATFORM_ARCH.x86_64,
@@ -152,7 +152,7 @@ public class OpenaevInjectorIntegration extends Integration {
             + ";"
             + withProxyVar
             + ";curl -s -X GET "
-            + dlUri(openAEVConfig, "macos", "x86_64")
+            + dlUri(cfg, "macos", "x86_64")
             + " > $location/$filename;chmod +x $location/$filename;$location/$filename --uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject} &");
     commands.put(
         Endpoint.PLATFORM_TYPE.MacOS.name() + "." + Endpoint.PLATFORM_ARCH.arm64,
@@ -165,7 +165,7 @@ public class OpenaevInjectorIntegration extends Integration {
             + ";"
             + withProxyVar
             + ";curl -s -X GET "
-            + dlUri(openAEVConfig, "macos", "arm64")
+            + dlUri(cfg, "macos", "arm64")
             + " > $location/$filename;chmod +x $location/$filename;$location/$filename --uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject} &");
 
     return commands;

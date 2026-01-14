@@ -150,6 +150,27 @@ public class ConnectorInstanceService {
   }
 
   /**
+   * Retrieve the value of a specific connector instance configuration by instance ID and key.
+   *
+   * @param instanceId the connector instance ID to search for the configuration
+   * @param key the configuration key to retrieve
+   * @return the configuration value as a String
+   */
+  public String getConnectorInstanceConfigurationsByIdAndKey(String instanceId, String key) {
+    return this.getConnectorInstanceConfigurations(instanceId).stream()
+        .filter(c -> key.equals(c.getKey()))
+        .findFirst()
+        .map(c -> c.getValue().asText())
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    "Missing connector configuration for instanceId="
+                        + instanceId
+                        + " and key="
+                        + key));
+  }
+
+  /**
    * Update the current status for a specific connector instance
    *
    * @param connectorInstanceId the connector instance ID to update

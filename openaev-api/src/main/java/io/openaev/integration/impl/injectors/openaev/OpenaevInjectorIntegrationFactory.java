@@ -3,16 +3,11 @@ package io.openaev.integration.impl.injectors.openaev;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.ConnectorInstance;
-import io.openaev.executors.InjectorContext;
-import io.openaev.injectors.manual.ManualContract;
 import io.openaev.injectors.openaev.OpenAEVImplantContract;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
-import io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegrationFactory;
-import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegration;
 import io.openaev.integrations.InjectorService;
-import io.openaev.service.InjectExpectationService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.lang.reflect.InvocationTargetException;
@@ -24,61 +19,62 @@ import org.springframework.stereotype.Service;
 @Profile("!test")
 public class OpenaevInjectorIntegrationFactory extends IntegrationFactory {
 
-    private final ComponentRequestEngine componentRequestEngine;
-    private final ConnectorInstanceService connectorInstanceService;
-    private final InjectorService injectorService;
-    private final OpenAEVImplantContract openAEVImplantContract;
-    private final OpenAEVConfig openAEVConfig;
+  private final ComponentRequestEngine componentRequestEngine;
+  private final ConnectorInstanceService connectorInstanceService;
+  private final InjectorService injectorService;
+  private final OpenAEVImplantContract openAEVImplantContract;
+  private final OpenAEVConfig openAEVConfig;
 
-    public OpenaevInjectorIntegrationFactory(
-            ComponentRequestEngine componentRequestEngine,
-            ConnectorInstanceService connectorInstanceService,
-            InjectorService injectorService,
-            OpenAEVImplantContract openAEVImplantContract,
-            OpenAEVConfig openAEVConfig, CatalogConnectorService catalogConnectorService) {
-        super(connectorInstanceService, catalogConnectorService);
-        this.componentRequestEngine = componentRequestEngine;
-        this.connectorInstanceService = connectorInstanceService;
-        this.injectorService = injectorService;
-        this.openAEVImplantContract = openAEVImplantContract;
-        this.openAEVConfig = openAEVConfig;
-    }
+  public OpenaevInjectorIntegrationFactory(
+      ComponentRequestEngine componentRequestEngine,
+      ConnectorInstanceService connectorInstanceService,
+      InjectorService injectorService,
+      OpenAEVImplantContract openAEVImplantContract,
+      OpenAEVConfig openAEVConfig,
+      CatalogConnectorService catalogConnectorService) {
+    super(connectorInstanceService, catalogConnectorService);
+    this.componentRequestEngine = componentRequestEngine;
+    this.connectorInstanceService = connectorInstanceService;
+    this.injectorService = injectorService;
+    this.openAEVImplantContract = openAEVImplantContract;
+    this.openAEVConfig = openAEVConfig;
+  }
 
-    @Override
-    protected final String getClassName() {
-        return this.getClass().getCanonicalName();
-    }
+  @Override
+  protected final String getClassName() {
+    return this.getClass().getCanonicalName();
+  }
 
-    @Override
-    protected void runMigrations() throws Exception {
-        // noop
-    }
+  @Override
+  protected void runMigrations() throws Exception {
+    // noop
+  }
 
-    @Override
-    protected void insertCatalogEntry() throws Exception {
-        // noop
-    }
+  @Override
+  protected void insertCatalogEntry() throws Exception {
+    // noop
+  }
 
-    @Override
-    public List<ConnectorInstance> findRelatedInstances() {
-        return List.of(
-                connectorInstanceService.createAutostartInstance(OpenaevInjectorIntegration.OPENAEV_INJECTOR_ID));
-    }
+  @Override
+  public List<ConnectorInstance> findRelatedInstances() {
+    return List.of(
+        connectorInstanceService.createAutostartInstance(
+            OpenaevInjectorIntegration.OPENAEV_INJECTOR_ID));
+  }
 
-    @Override
-    public Integration spawn(ConnectorInstance instance)   throws JsonProcessingException,
-            InvocationTargetException,
-            NoSuchMethodException,
-            InstantiationException,
-            IllegalAccessException {
-        return new OpenaevInjectorIntegration(
-                componentRequestEngine,
-                instance,
-                connectorInstanceService,
-                injectorService,
-                openAEVImplantContract,
-                openAEVConfig
-        );
-    }
-
+  @Override
+  public Integration spawn(ConnectorInstance instance)
+      throws JsonProcessingException,
+          InvocationTargetException,
+          NoSuchMethodException,
+          InstantiationException,
+          IllegalAccessException {
+    return new OpenaevInjectorIntegration(
+        componentRequestEngine,
+        instance,
+        connectorInstanceService,
+        injectorService,
+        openAEVImplantContract,
+        openAEVConfig);
+  }
 }
