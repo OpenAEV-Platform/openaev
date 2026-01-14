@@ -60,12 +60,6 @@ public class TagRuleService {
       @NotBlank final Tag tag,
       final List<String> assetGroupIds,
       final boolean allowCreatingReserved) {
-    // we block creation of tag rules for reserved tags
-    if (TagRule.RESERVED_TAG_NAMES.contains(tag.getName()) && !allowCreatingReserved) {
-      throw new ForbiddenException(
-          "Creation of a rule is not allowed for the tag " + tag.getName());
-    }
-
     // if the tag  or one of the asset group doesn't exist we exist throw a ElementNotFoundException
     TagRule tagRule = new TagRule();
     tagRule.setTag(tag);
@@ -75,7 +69,6 @@ public class TagRuleService {
 
   public TagRule updateTagRule(
       @NotBlank final String tagRuleId, final String tagName, final List<String> assetGroupIds) {
-
     // verify that the tag rule exists
     TagRule tagRule =
         tagRuleRepository

@@ -22,6 +22,8 @@ public class V4_55__Add_platform_arch_specific_default_asset_groups extends Base
           ALTER TABLE tag_rules
           ADD COLUMN tag_rule_protected BOOLEAN NOT NULL DEFAULT FALSE;
 
+          ALTER TABLE tag_rules ADD CONSTRAINT tag_rule_tag_unique UNIQUE (tag_id);
+
           -- update the only known immutable tag so far
           WITH protected AS (
               SELECT tag_id as id, CASE WHEN tag_name = 'opencti' THEN TRUE ELSE FALSE END AS status
