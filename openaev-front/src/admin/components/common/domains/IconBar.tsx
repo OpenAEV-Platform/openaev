@@ -22,6 +22,7 @@ const IconBar: FunctionComponent<Props> = ({ elements, variant = 'grid' }) => {
         overflow: 'hidden',
         bgcolor: theme.palette.background.paper,
         marginRight: theme.spacing(2.5),
+        marginBottom: theme.spacing(2.5),
       }}
     >
       <Box
@@ -40,7 +41,7 @@ const IconBar: FunctionComponent<Props> = ({ elements, variant = 'grid' }) => {
           container
           spacing={1}
           wrap={isScroll ? 'nowrap' : 'wrap'}
-          sx={{ width: isScroll ? 'max-content' : '100%' }}
+          sx={{ width: '100%' }}
         >
           {elements.map((element: IconBarElement) => {
             const isSelected = element.color === 'success';
@@ -54,8 +55,8 @@ const IconBar: FunctionComponent<Props> = ({ elements, variant = 'grid' }) => {
                   md: 1.5,
                 }}
                 sx={{
-                  flexShrink: isScroll ? 0 : 1,
-                  flexGrow: isScroll ? 0 : 1,
+                  flexShrink: 0,
+                  flexGrow: 1,
                   minWidth: isScroll ? '180px' : 'auto',
                 }}
               >
@@ -95,28 +96,17 @@ const IconBar: FunctionComponent<Props> = ({ elements, variant = 'grid' }) => {
                     >
                       {t(element.name)}
                     </Typography>
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        gap: 0.5,
-                        minHeight: 24,
-                      }}
-                    >
-                      {element.results && element.results()}
-                      {element.count !== undefined && (
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            fontStyle: 'italic',
-                            color: theme.palette.text.secondary,
-                          }}
-                        >
-                          {element.count}
-                        </Typography>
-                      )}
-                    </Box>
+                    {element.count !== undefined && (
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontStyle: 'italic',
+                          color: theme.palette.text.secondary,
+                        }}
+                      >
+                        {element.count}
+                      </Typography>
+                    )}
                   </CardContent>
                 </Card>
               </Grid>

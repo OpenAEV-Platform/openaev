@@ -456,12 +456,12 @@ const CreateInject: FunctionComponent<Props> = ({
       }}
     >
       <>
-        <IconBar elements={iconBarElements} variant="scroll" />
         <div style={{
           overflowY: 'auto',
           paddingTop: theme.spacing(0.5),
         }}
         >
+          <IconBar elements={iconBarElements} variant="scroll" />
           <PaginationComponentV2
             fetch={searchInjectorContracts}
             searchPaginationInput={searchPaginationInput}
