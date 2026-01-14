@@ -1,20 +1,20 @@
-import type { FilterGroup, ListPerspective, PropertySchemaDTO, Series } from '../../../../../../../utils/api-types';
-import { FunctionComponent, useContext, useEffect, useState } from 'react';
-import { useFormatter } from '../../../../../../../components/i18n';
-import { useQueryable } from '../../../../../../../components/common/queryable/useQueryableWithLocalStorage';
-import { buildSearchPagination } from '../../../../../../../components/common/queryable/QueryableUtils';
-import { domainsEntityFilter, excludeBaseEntities, getDefaultValuesForType } from '../../WidgetUtils';
-import FilterAutocomplete, { OptionPropertySchema } from '../../../../../../../components/common/queryable/filter/FilterAutocomplete';
-import { GroupOption } from '../../../../../../../utils/Option';
-import { engineSchemas } from '../../../../../../../actions/schema/schema-action';
-import getAuthorizedPerspectives from '../AuthorizedPerspectives';
 import { Button, capitalize, Skeleton } from '@mui/material';
-import { availableOperators } from '../../../../../../../components/common/queryable/filter/FilterUtils';
 import { useTheme } from '@mui/material/styles';
-import { FilterContext } from '../../../../../../../components/common/queryable/filter/context';
-import FilterChips from '../../../../../../../components/common/queryable/filter/FilterChips';
-import { CustomDashboardContext } from '../../../CustomDashboardContext';
+import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 
+import { engineSchemas } from '../../../../../../../actions/schema/schema-action';
+import { FilterContext } from '../../../../../../../components/common/queryable/filter/context';
+import FilterAutocomplete, { type OptionPropertySchema } from '../../../../../../../components/common/queryable/filter/FilterAutocomplete';
+import FilterChips from '../../../../../../../components/common/queryable/filter/FilterChips';
+import { availableOperators } from '../../../../../../../components/common/queryable/filter/FilterUtils';
+import { buildSearchPagination } from '../../../../../../../components/common/queryable/QueryableUtils';
+import { useQueryable } from '../../../../../../../components/common/queryable/useQueryableWithLocalStorage';
+import { useFormatter } from '../../../../../../../components/i18n';
+import type { PropertySchemaDTO, Series } from '../../../../../../../utils/api-types';
+import { type GroupOption } from '../../../../../../../utils/Option';
+import { CustomDashboardContext } from '../../../CustomDashboardContext';
+import { domainsEntityFilter, getDefaultValuesForType } from '../../WidgetUtils';
+import getAuthorizedPerspectives from '../AuthorizedPerspectives';
 
 interface Props {
   currentSeries: Series[];
@@ -24,12 +24,10 @@ interface Props {
 }
 
 const WidgetSecurityDomainsSeriesSelection: FunctionComponent<Props> = ({ onChange, onSubmit, entity }) => {
-
   // Standard hooks
   const { t } = useFormatter();
   const theme = useTheme();
   const { customDashboard } = useContext(CustomDashboardContext);
-
 
   // Filters
   const { queryableHelpers, searchPaginationInput } = useQueryable({}, buildSearchPagination({}));
@@ -49,7 +47,6 @@ const WidgetSecurityDomainsSeriesSelection: FunctionComponent<Props> = ({ onChan
       },
     ]);
   }, [searchPaginationInput]);
-
 
   const [properties, setProperties] = useState<PropertySchemaDTO[]>([]);
   const [propertyOptions, setPropertyOptions] = useState<OptionPropertySchema[]>([]);
@@ -89,52 +86,50 @@ const WidgetSecurityDomainsSeriesSelection: FunctionComponent<Props> = ({ onChan
     });
   }, [entity]);
 
-
   const handleSubmit = () => {
     onSubmit();
   };
 
   return (
     <>
-        <div style={{ marginTop: theme.spacing(2) }}>
-          {propertyOptionsLoading ? <Skeleton height={35} /> : (
-            <>
-              <FilterAutocomplete
+      <div style={{ marginTop: theme.spacing(2) }}>
+        {propertyOptionsLoading ? <Skeleton height={35} /> : (
+          <>
+            <FilterAutocomplete
+              filterGroup={searchPaginationInput.filterGroup}
+              helpers={queryableHelpers.filterHelpers}
+              options={propertyOptions}
+              setPristine={setPristine}
+              domains={true}
+            />
+            <FilterContext.Provider value={{ defaultValues: defaultValues }}>
+              <FilterChips
+                propertySchemas={properties}
                 filterGroup={searchPaginationInput.filterGroup}
                 helpers={queryableHelpers.filterHelpers}
-                options={propertyOptions}
-                setPristine={setPristine}
-                domains={true}
+                pristine={pristine}
               />
-              <FilterContext.Provider value={{ defaultValues: defaultValues }}>
-                <FilterChips
-                  propertySchemas={properties}
-                  filterGroup={searchPaginationInput.filterGroup}
-                  helpers={queryableHelpers.filterHelpers}
-                  pristine={pristine}
-                />
-              </FilterContext.Provider>
-            </>
-          )}
-        </div>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-        }}
+            </FilterContext.Provider>
+          </>
+        )}
+      </div>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+      }}
+      >
+        <Button
+          variant="contained"
+          color="primary"
+          sx={{ marginTop: theme.spacing(2) }}
+          onClick={handleSubmit}
         >
-          <Button
-            variant="contained"
-            color="primary"
-            sx={{ marginTop: theme.spacing(2) }}
-            onClick={handleSubmit}
-          >
-            {t('Validate')}
-          </Button>
-        </div>
+          {t('Validate')}
+        </Button>
+      </div>
     </>
 
   );
-
 };
 
 export default WidgetSecurityDomainsSeriesSelection;

@@ -10,12 +10,12 @@ import { useFormatter } from '../../../../../../components/i18n';
 import { type Widget } from '../../../../../../utils/api-types';
 import { zodImplement } from '../../../../../../utils/Zod';
 import { getAvailableSteps, lastStepIndex, steps, type WidgetInputWithoutLayout } from '../WidgetUtils';
+import WidgetSecurityDomainsSeriesSelection from './domains/WidgetSecurityDomainsSeriesSelection';
 import WidgetMultiSeriesSelection from './histogram/WidgetMultiSeriesSelection';
 import WidgetSecurityCoverageSeriesSelection from './histogram/WidgetSecurityCoverageSeriesSelection';
 import WidgetPerspectiveSelection from './list/WidgetPerspectiveSelection';
 import WidgetConfigurationParameters from './WidgetConfigurationParameters';
 import WidgetTypeSelection from './WidgetTypeSelection';
-import WidgetSecurityDomainsSeriesSelection from './domains/WidgetSecurityDomainsSeriesSelection';
 
 const ActionsComponent: FunctionComponent<{
   disabled: boolean;
@@ -152,7 +152,7 @@ const WidgetForm: FunctionComponent<Props> = ({
     mode: 'onTouched',
     resolver: zodResolver(
       zodImplement<WidgetInputWithoutLayout>().with({
-        widget_type: z.enum(['vertical-barchart', 'horizontal-barchart', 'security-coverage', 'line', 'donut', 'list', 'attack-path', 'number','average']),
+        widget_type: z.enum(['vertical-barchart', 'horizontal-barchart', 'security-coverage', 'line', 'donut', 'list', 'attack-path', 'number', 'average']),
         // @ts-expect-error: types assigned to properties are necessary for validation purposes
         widget_config: widgetConfigSchema,
       }),
@@ -239,10 +239,10 @@ const WidgetForm: FunctionComponent<Props> = ({
             control={control}
             name="widget_config.series"
             render={({ field: { value, onChange } }) => (
-              <WidgetSecurityDomainsSeriesSelection entity="expectation-inject" onSubmit={nextStep} currentSeries={value ?? [{ name: '' }]} onChange={onChange}/>
+              <WidgetSecurityDomainsSeriesSelection entity="expectation-inject" onSubmit={nextStep} currentSeries={value ?? [{ name: '' }]} onChange={onChange} />
             )}
           />
-        )
+        );
       case 'list':
         return (
           <Controller

@@ -3,6 +3,7 @@ import { memo } from 'react';
 import { useFormatter } from '../../../../../components/i18n';
 import { type EsSeries, type ListConfiguration, type StructuralHistogramWidget, type Widget } from '../../../../../utils/api-types';
 import AttackPathContextLayer from './viz/attack_paths/AttackPathContextLayer';
+import SecurityDomainsWidget from './viz/domains/SecurityDomainsWidget';
 import DonutChart from './viz/DonutChart';
 import HorizontalBarChart from './viz/HorizontalBarChart';
 import LineChart from './viz/LineChart';
@@ -11,7 +12,6 @@ import NumberWidget from './viz/NumberWidget';
 import SecurityCoverage from './viz/SecurityCoverage';
 import VerticalBarChart from './viz/VerticalBarChart';
 import { getWidgetTitle, type WidgetVizData, WidgetVizDataType } from './WidgetUtils';
-import SecurityDomainsWidget from './viz/domains/SecurityDomainsWidget';
 
 interface WidgetTemporalVizProps {
   widget: Widget;
@@ -141,7 +141,7 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen, vizData, errorMessage }:
       if (vizData.type !== WidgetVizDataType.AVERAGE) {
         return 'Not implemented yet';
       }
-      return (<SecurityDomainsWidget data={vizData.data}/>)
+      return (<SecurityDomainsWidget data={vizData.data} />);
     default:
       return 'Not implemented yet';
   }

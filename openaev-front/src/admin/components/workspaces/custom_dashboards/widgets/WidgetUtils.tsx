@@ -2,7 +2,7 @@ import { AccountTree, List, TableChart, VerifiedUser } from '@mui/icons-material
 import { AlignHorizontalLeft, ChartBar, ChartDonut, ChartLine, Counter } from 'mdi-material-ui';
 
 import {
-  type CustomDashboardParameters, type DateHistogramWidget, type EsAttackPath, EsAvgs, type EsBase, type EsCountInterval, type EsSeries,
+  type CustomDashboardParameters, type DateHistogramWidget, type EsAttackPath, type EsAvgs, type EsBase, type EsCountInterval, type EsSeries,
   type Exercise,
   type Filter,
   type FilterGroup,

@@ -1,7 +1,8 @@
-import { FunctionComponent, useEffect } from 'react';
-import { WidgetInputWithoutLayout } from '../../WidgetUtils';
-import { Control, Controller, UseFormSetValue, useWatch } from 'react-hook-form';
+import { type FunctionComponent, useEffect } from 'react';
+import { type Control, Controller, type UseFormSetValue, useWatch } from 'react-hook-form';
+
 import type { Widget } from '../../../../../../../utils/api-types';
+import { type WidgetInputWithoutLayout } from '../../WidgetUtils';
 import WidgetConfigDateAttributeController from '../common/WidgetConfigDateAttributeController';
 import WidgetConfigTimeRangeController from '../common/WidgetConfigTimeRangeController';
 
@@ -14,9 +15,8 @@ interface Props {
 const WidgetSecurityDomainsParameters: FunctionComponent<Props> = ({
   widgetType,
   control,
-  setValue
+  setValue,
 }) => {
-
   useEffect(() => {
     setValue('widget_config.widget_configuration_type', 'average');
   }, []);
@@ -25,7 +25,6 @@ const WidgetSecurityDomainsParameters: FunctionComponent<Props> = ({
     control,
     name: 'widget_config.series',
   });
-
 
   return (
     <>
@@ -44,7 +43,6 @@ const WidgetSecurityDomainsParameters: FunctionComponent<Props> = ({
       <WidgetConfigTimeRangeController />
     </>
   );
-
 };
 
 export default WidgetSecurityDomainsParameters;

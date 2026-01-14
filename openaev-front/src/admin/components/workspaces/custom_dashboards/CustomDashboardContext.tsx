@@ -11,7 +11,7 @@ import {
 import { type SearchOptionsConfig } from '../../../../components/common/queryable/filter/useSearchOptions';
 import {
   type CustomDashboard,
-  type EsAttackPath, EsAvgs,
+  type EsAttackPath, type EsAvgs,
   type EsBase, type EsCountInterval,
   type EsSeries,
   type WidgetToEntitiesInput, type WidgetToEntitiesOutput,

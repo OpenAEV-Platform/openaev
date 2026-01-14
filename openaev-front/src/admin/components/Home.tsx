@@ -2,8 +2,8 @@ import { fetchPlatformParameters, updatePlatformParameters } from '../../actions
 import type { LoggedHelper } from '../../actions/helper';
 import {
   fetchHomeDashboard, homeDashboardAttackPaths,
-  homeDashboardCount, homeDashboardAverage,
-  homeDashboardEntities,
+  homeDashboardAverage,
+  homeDashboardCount, homeDashboardEntities,
   homeDashboardSeries,
   homeWidgetToEntitiesRuntime,
 } from '../../actions/settings/settings-action';

@@ -1,33 +1,34 @@
-import { ReactElement } from 'react';
-import { Groups, ImportantDevices, Language, Lock, Mail, WebAsset, HelpOutlined } from '@mui/icons-material';
+import { Groups, HelpOutlined, ImportantDevices, Language, Lock, Mail, WebAsset } from '@mui/icons-material';
 import { Cloud, Database } from 'mdi-material-ui';
-import { IconBarElement } from '../../../../../common/domains/IconBar-model';
+import { type ReactElement } from 'react';
 
-export function getIconByDomain(name: string | undefined): ReactElement  {
-  switch (name){
+import { type IconBarElement } from '../../../../../common/domains/IconBar-model';
+
+export function getIconByDomain(name: string | undefined): ReactElement {
+  switch (name) {
     case 'Endpoint':
-      return <ImportantDevices fontSize="large"/>;
+      return <ImportantDevices fontSize="large" />;
     case 'Network':
-      return <Language fontSize="large"/>;
+      return <Language fontSize="large" />;
     case 'Web App':
-      return <WebAsset fontSize="large"/>;
+      return <WebAsset fontSize="large" />;
     case 'E-mail Infiltration':
-      return <Mail fontSize="large"/>;
+      return <Mail fontSize="large" />;
     case 'Data Exfiltration':
-      return <Database fontSize="large"/>;
+      return <Database fontSize="large" />;
     case 'URL Filtering':
-      return <Lock fontSize="large"/>;
+      return <Lock fontSize="large" />;
     case 'Cloud':
-      return <Cloud fontSize="large"/>;
+      return <Cloud fontSize="large" />;
     case 'Tabletop':
-      return <Groups fontSize="large"/>;
+      return <Groups fontSize="large" />;
     default:
-      return <HelpOutlined fontSize="large"/>;
+      return <HelpOutlined fontSize="large" />;
   }
 };
 
-export function getOrderByDomain(name: string | undefined): number  {
-  switch (name){
+export function getOrderByDomain(name: string | undefined): number {
+  switch (name) {
     case 'Endpoint':
       return 0;
     case 'Network':
@@ -49,18 +50,18 @@ export function getOrderByDomain(name: string | undefined): number  {
   }
 };
 
-export function calcPercentage (part: number, total: number): number  {
-  if (total <= 0) return - 1;
+export function calcPercentage(part: number, total: number): number {
+  if (total <= 0) return -1;
   return (part / total) * 100;
 }
 
-export function formatPercentage (value: number , fractionDigits = 0): string {
+export function formatPercentage(value: number, fractionDigits = 0): string {
   return `${value.toFixed(fractionDigits)}%`;
 }
 
-export function buildOrderedDomains (items: IconBarElement[]): IconBarElement[] {
+export function buildOrderedDomains(items: IconBarElement[]): IconBarElement[] {
   const orderedDomains: IconBarElement[] = [];
-  for(const item of items) {
+  for (const item of items) {
     const name = item.name;
     if (!name) continue;
     const index = getOrderByDomain(item.name);

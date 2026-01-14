@@ -57,7 +57,7 @@ const WidgetCreation: FunctionComponent = () => {
       width = 2;
       height = 2;
     }
-    if ('average' === input.widget_type){
+    if ('average' === input.widget_type) {
       width = 12;
       height = 4;
     }

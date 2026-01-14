@@ -1,5 +1,12 @@
+const SUCCESS_100_COLOR = 'rgb(2,129,8)';
+const SUCCESS_75_COLOR = 'rgb(128,228,133)';
+const SUCCESS_50_COLOR = 'rgb(245, 166, 35)';
+const SUCCESS_25_COLOR = 'rgb(220, 81, 72)';
+const PENDING = 'rgba(248,243,243,0.37)';
+const UNKNOWN = 'rgba(73,72,72,0.37)';
+export const EMPTY_DATA = 'rgba(128,127,127,0.37)';
 
-export const colorByAverage= (average: number): string => {
+export const colorByAverage = (average: number): string => {
   switch (true) {
     case average < 0:
       return EMPTY_DATA;
@@ -17,7 +24,7 @@ export const colorByAverage= (average: number): string => {
 };
 
 export const colorByLabel = (label: string): string => {
-  switch (label){
+  switch (label) {
     case 'success':
       return 'rgb(2,129,8)';
     case 'failed':
@@ -26,11 +33,3 @@ export const colorByLabel = (label: string): string => {
       return PENDING;
   }
 };
-
-const SUCCESS_100_COLOR = 'rgb(2,129,8)';
-const SUCCESS_75_COLOR = 'rgb(128,228,133)';
-const SUCCESS_50_COLOR = 'rgb(245, 166, 35)';
-const SUCCESS_25_COLOR = 'rgb(220, 81, 72)';
-const PENDING = 'rgba(248,243,243,0.37)';
-const UNKNOWN = 'rgba(73,72,72,0.37)';
-export const EMPTY_DATA = 'rgba(128,127,127,0.37)';

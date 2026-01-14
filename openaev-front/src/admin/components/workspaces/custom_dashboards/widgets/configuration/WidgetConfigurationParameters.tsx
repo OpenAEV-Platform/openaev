@@ -5,10 +5,10 @@ import { type Control, Controller, type UseFormSetValue } from 'react-hook-form'
 import { useFormatter } from '../../../../../../components/i18n';
 import { type Widget } from '../../../../../../utils/api-types';
 import { type WidgetInputWithoutLayout } from '../WidgetUtils';
+import WidgetSecurityDomainsParameters from './domains/WidgetSecurityDomainsParameters';
 import HistogramParameters from './histogram/HistogramParameters';
 import ListWidgetParameters from './list/ListWidgetParameters';
 import NumberWidgetParameters from './number/NumberWidgetParameters';
-import WidgetSecurityDomainsParameters from './domains/WidgetSecurityDomainsParameters';
 
 const WidgetConfigurationParameters: FunctionComponent<{
   widgetType: Widget['widget_type'];
@@ -24,7 +24,7 @@ const WidgetConfigurationParameters: FunctionComponent<{
       case 'number':
         return <NumberWidgetParameters widgetType={widgetType} control={control} setValue={setValue} />;
       case 'average':
-        return <WidgetSecurityDomainsParameters widgetType={widgetType} control={control} setValue={setValue}/>
+        return <WidgetSecurityDomainsParameters widgetType={widgetType} control={control} setValue={setValue} />;
       default:
         return <HistogramParameters setValue={setValue} control={control} widgetType={widgetType} />;
     }

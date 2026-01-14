@@ -1,107 +1,110 @@
-import { FunctionComponent } from 'react';
-import { EsSeries, EsSeriesData } from '../../../../utils/api-types';
-import { makeStyles } from 'tss-react/mui';
 import { Icon } from '@mui/material';
-import { colorByAverage, colorByLabel } from '../ColorByResult';
-import { expectationIconByType } from '../ExpectationIconByType';
 import { useTheme } from '@mui/material/styles';
+import { type FunctionComponent } from 'react';
+import { makeStyles } from 'tss-react/mui';
+
+import { type EsSeries, type EsSeriesData } from '../../../../utils/api-types';
 import { calcPercentage, formatPercentage } from '../../workspaces/custom_dashboards/widgets/viz/domains/SecurityDomainsWidgetUtils';
+import { colorByAverage, colorByLabel } from '../ColorByResult';
+import expectationIconByType from '../ExpectationIconByType';
 
 const useStyles = makeStyles()({
   contained: {
     display: 'flex',
     gap: 2,
-    justifyContent:'center',
+    justifyContent: 'center',
   },
-  inline:{
+  inline: {
     display: 'flex',
     gap: 4,
-    alignItems: 'baseline'
-  }
+    alignItems: 'baseline',
+  },
 });
 
-interface Props{
+interface Props {
   results: EsSeries[] | undefined;
   inline?: boolean;
 }
 
-const ExpectationResultByType: FunctionComponent<Props> = ({results, inline}) => {
-
+const ExpectationResultByType: FunctionComponent<Props> = ({ results, inline }) => {
   const { classes } = useStyles();
   const theme = useTheme();
 
   const capitalize = (word: string): string => {
-    if (!word) return "";
+    if (!word) return '';
     return word.charAt(0).toUpperCase() + word.slice(1);
-  }
+  };
 
-  return(
-    inline ? (
-      results?.map((result: EsSeries) => {
-        let successValue = 0;
-        result.data?.map((d: EsSeriesData) => {
-          if (d.key === "success"){
-            successValue =  d.value ?? 0;
-          }
-        });
-        const successRate = result.value ? calcPercentage(successValue,result.value) : - 1;
-        return (
-          <div
-          style={{
-            height: theme.spacing(3)
-          }}
-          >
-            <div className={classes.inline}>
-              <Icon
+  return (
+    inline
+      ? (
+          results?.map((result: EsSeries) => {
+            let successValue = 0;
+            result.data?.map((d: EsSeriesData) => {
+              if (d.key === 'success') {
+                successValue = d.value ?? 0;
+              }
+            });
+            const successRate = result.value ? calcPercentage(successValue, result.value) : -1;
+            return (
+              <div
                 key={result.label}
-                sx={{
-                  color: colorByAverage(successRate)
-                }}
+                style={{ height: theme.spacing(3) }}
               >
-                {expectationIconByType(result.label)}
-              </Icon>
-              {result.label && <span style={{ fontSize: theme.typography.body2.fontSize }}>{capitalize(result.label)}</span>}
-              {result.data?.map((d:EsSeriesData) => {
-                return (
-                  <div className={classes.inline}>
-                    {
-                      d.label && d.value && result.value && (
-                        <span style={{ color: colorByLabel(d.label), fontSize: theme.typography.h4.fontSize }}>{formatPercentage(calcPercentage(d.value, result.value), 1)}</span>
-                      )
-                    }
+                <div className={classes.inline}>
+                  <Icon
+                    key={result.label}
+                    sx={{ color: colorByAverage(successRate) }}
+                  >
+                    {expectationIconByType(result.label)}
+                  </Icon>
+                  {result.label && <span style={{ fontSize: theme.typography.body2.fontSize }}>{capitalize(result.label)}</span>}
+                  {result.data?.map((d: EsSeriesData) => {
+                    return (
+                      <div className={classes.inline} key={d.key}>
+                        {
+                          d.label && d.value && result.value && (
+                            <span style={{
+                              color: colorByLabel(d.label),
+                              fontSize: theme.typography.h4.fontSize,
+                            }}
+                            >
+                              {formatPercentage(calcPercentage(d.value, result.value), 1)}
+                            </span>
+                          )
+                        }
 
-                  </div>
-                );
-              })}
-            </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })
+        )
+      : (
+          <div className={classes.contained}>
+            {results?.map((result: EsSeries) => {
+              let successValue = 0;
+              result.data?.map((d) => {
+                if (d.key === 'success') {
+                  successValue = d.value ? d.value : 0;
+                }
+              });
+              const successRate = result.value ? calcPercentage(successValue, result.value) : -1;
+              return (
+                <div key={result.label}>
+                  <Icon
+                    key={result.label}
+                    sx={{ color: colorByAverage(successRate) }}
+                  >
+                    {expectationIconByType(result.label)}
+                  </Icon>
+                </div>
+              );
+            })}
           </div>
-        );
-      })
-    ) : (
-      <div className={classes.contained}>
-        {results?.map((result: EsSeries) => {
-          let successValue = 0;
-          result.data?.map((d => {
-            if (d.key === "success"){
-              successValue =  d.value ? d.value : 0;
-            }
-          }))
-          const successRate = result.value ? calcPercentage(successValue,result.value) : - 1;
-          return (
-            <div>
-              <Icon
-                key={result.label}
-                sx={{
-                  color: colorByAverage(successRate)
-                }}
-              >
-                {expectationIconByType(result.label)}
-              </Icon>
-            </div>
-          )
-        })}
-      </div>
-    )
+        )
   );
 };
 

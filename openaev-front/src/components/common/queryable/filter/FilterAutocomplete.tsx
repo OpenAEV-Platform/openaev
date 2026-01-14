@@ -58,7 +58,7 @@ const FilterAutocomplete: FunctionComponent<Props> = ({
     <div className={classes.container}>
       <MuiAutocomplete
         options={computeOptions()}
-        sx={{ width: domains? '95%': 200 }}
+        sx={{ width: domains ? '95%' : 200 }}
         value={null}
         onChange={(_, selectOptionValue) => {
           if (selectOptionValue) {
