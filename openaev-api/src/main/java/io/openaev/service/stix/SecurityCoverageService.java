@@ -426,14 +426,17 @@ public class SecurityCoverageService {
           objects);
     }
 
-    processCoverageRefs(
-        simulation.getSecurityCoverage().getIndicatorsRefs(),
-        simulation,
-        this::getDnsIndicatorCoverage,
-        coverage.getId(),
-        sroStartTime,
-        sroStopTime,
-        objects);
+    if (simulation.getSecurityCoverage().getIndicatorsRefs() != null
+        && !simulation.getSecurityCoverage().getIndicatorsRefs().isEmpty()) {
+      processCoverageRefs(
+          simulation.getSecurityCoverage().getIndicatorsRefs(),
+          simulation,
+          this::getDnsIndicatorCoverage,
+          coverage.getId(),
+          sroStartTime,
+          sroStopTime,
+          objects);
+    }
 
     for (SecurityPlatform securityPlatform : assetService.securityPlatforms()) {
       DomainObject platformIdentity = securityPlatform.toStixDomainObject();

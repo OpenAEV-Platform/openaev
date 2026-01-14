@@ -91,7 +91,8 @@ public class SecurityCoverageInjectService {
         contractForInjectPlaceholders);
 
     // 7. Build injects from Indicators
-    createInjectsByIndicators(scenario, securityCoverage.getIndicatorsRefs());
+    createInjectsByIndicators(
+        scenario, securityCoverage.getIndicatorsRefs(), requiredAssetGroupMap);
 
     return injectRepository.findByScenarioId(scenario.getId());
   }
@@ -119,9 +120,12 @@ public class SecurityCoverageInjectService {
    *
    * @param scenario the scenario for which injects are managed
    * @param indicatorsRefs the related security coverage providing Indicator references
+   * @param assetsFromGroupMap the asset groups to add on new injects
    */
   private void createInjectsByIndicators(
-      Scenario scenario, Set<StixRefToExternalRef> indicatorsRefs) {
+      Scenario scenario,
+      Set<StixRefToExternalRef> indicatorsRefs,
+      Map<AssetGroup, List<Endpoint>> assetsFromGroupMap) {
     Set<StixRefToExternalRef> dnsResolutionRefs =
         indicatorsRefs.stream()
             .filter(indicator -> indicator.getHostname() != null)
@@ -161,7 +165,7 @@ public class SecurityCoverageInjectService {
 
           // 6. Create an inject, linked to the scenario for each contract
           createInjectsByInjectorContracts(
-              indicator.getHostname(), dynamicDnsResolutionPayload, scenario);
+              indicator.getHostname(), dynamicDnsResolutionPayload, assetsFromGroupMap, scenario);
         });
 
     // 7. Delete all previous injects non existing anymore on the OpenCTI report
@@ -639,14 +643,18 @@ public class SecurityCoverageInjectService {
   }
 
   /**
-   * create an inject for all the injector contracts by payload, and link them to the scenario
+   * Create an inject for all the injector contracts by payload, and link them to the scenario
    *
    * @param hostname to set on inject
    * @param payload to filter injector contracts
+   * @param assetsFromGroupMap to set on inject
    * @param scenario to link
    */
   private void createInjectsByInjectorContracts(
-      String hostname, Payload payload, Scenario scenario) {
+      String hostname,
+      Payload payload,
+      Map<AssetGroup, List<Endpoint>> assetsFromGroupMap,
+      Scenario scenario) {
     List<InjectorContract> injectorContracts =
         injectorContractRepository.findInjectorContractsByPayload(payload);
     Set<Tag> tags = tagService.fetchTagsFromLabels(new HashSet<>(Set.of(OPENCTI_TAG_NAME)));
@@ -655,7 +663,12 @@ public class SecurityCoverageInjectService {
         injectorContracts.stream()
             .map(
                 injectorContract ->
-                    createInjectAndAssociateToScenario(hostname, injectorContract, scenario, tags))
+                    createInjectAndAssociateToScenario(
+                        hostname,
+                        injectorContract,
+                        new ArrayList<>(assetsFromGroupMap.keySet()),
+                        scenario,
+                        tags))
             .collect(Collectors.toList());
     injectRepository.saveAll(injectsToCreate);
   }
@@ -665,17 +678,23 @@ public class SecurityCoverageInjectService {
    *
    * @param hostname to set on inject
    * @param injectorContract to create inject
+   * @param assetGroups to create inject
    * @param scenario to link inject to
    * @param tags to add to the injects
    * @return created inject
    */
   private Inject createInjectAndAssociateToScenario(
-      String hostname, InjectorContract injectorContract, Scenario scenario, Set<Tag> tags) {
+      String hostname,
+      InjectorContract injectorContract,
+      List<AssetGroup> assetGroups,
+      Scenario scenario,
+      Set<Tag> tags) {
     Inject inject =
         injectService.buildInject(
             injectorContract, "Resolve DNS " + hostname, "Resolve Domain Name " + hostname, true);
     inject.setTags(tags);
     inject.setScenario(scenario);
+    inject.setAssetGroups(assetGroups);
     // Add hostname in arguments of the inject to be set and used at execution on payload
     inject.setContent(inject.getContent().put(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY, hostname));
     return inject;
