@@ -14,7 +14,6 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.Expression;
-import org.springframework.expression.spel.SpelEvaluationException;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.SimpleEvaluationContext;
 import org.springframework.stereotype.Component;
@@ -111,10 +110,6 @@ public class LockAspect {
 
     // Parse and evaluate expression
     Expression expression = parser.parseExpression(spelExpression);
-    try {
-      return expression.getValue(context);
-    } catch (SpelEvaluationException e) {
-      return spelExpression;
-    }
+    return expression.getValue(context);
   }
 }
