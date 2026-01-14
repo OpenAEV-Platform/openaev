@@ -218,6 +218,36 @@ public class TagRuleServiceTest extends IntegrationTest {
   }
 
   @Test
+  void testUpdateTagRule_from_unreserved_to_reserved_should_throw() {
+    Tag unreservedTag = TagFixture.getTag("unreserved");
+    Tag reservedTag =
+        TagFixture.getTagWithText(TagRule.RESERVED_TAG_NAMES.stream().findFirst().get());
+
+    TagRule tagRule = new TagRule();
+    tagRule.setId(TAG_RULE_ID);
+    tagRule.setTag(unreservedTag);
+
+    when(tagRuleRepository.save(any())).thenReturn(tagRule);
+    when(tagRepository.findByName(unreservedTag.getName())).thenReturn(Optional.of(unreservedTag));
+    when(tagRepository.findByName(reservedTag.getName())).thenReturn(Optional.of(reservedTag));
+    when(tagRuleRepository.findById(tagRule.getId())).thenReturn(Optional.of(tagRule));
+    tagRule
+        .getAssetGroups()
+        .forEach(
+            assetGroup ->
+                when(assetGroupRepository.findById(assetGroup.getId()))
+                    .thenReturn(Optional.of(assetGroup)));
+    assertThrows(
+        ForbiddenException.class,
+        () -> {
+          tagRuleService.updateTagRule(
+              tagRule.getId(),
+              reservedTag.getName(),
+              tagRule.getAssetGroups().stream().map(AssetGroup::getId).toList());
+        });
+  }
+
+  @Test
   void testUpdateTagRule_WITH_non_existing_tag() {
     TagRule expected = TagRuleFixture.createTagRule(TAG_RULE_ID);
     Tag tag = TagFixture.getTag();

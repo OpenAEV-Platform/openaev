@@ -73,13 +73,14 @@ public class TagRuleService {
     return tagRuleRepository.save(tagRule);
   }
 
-  public TagRule updateTagRule(@NotBlank final String tagRuleId, final String tagName, final List<String> assetGroupIds) {
+  public TagRule updateTagRule(
+      @NotBlank final String tagRuleId, final String tagName, final List<String> assetGroupIds) {
     // verify that the tag rule exists
     TagRule tagRule =
-            tagRuleRepository
-                    .findById(tagRuleId)
-                    .orElseThrow(
-                            () -> new ElementNotFoundException("TagRule not found with id: " + tagRuleId));
+        tagRuleRepository
+            .findById(tagRuleId)
+            .orElseThrow(
+                () -> new ElementNotFoundException("TagRule not found with id: " + tagRuleId));
 
     Tag newTag = getTag(tagName);
 
@@ -94,7 +95,7 @@ public class TagRuleService {
     try {
       if (TagRule.RESERVED_TAG_NAMES.contains(newTag.getName()) && isTagChanged(tagRule, newTag)) {
         throw new ForbiddenException(
-                "Cannot change target tag to reserved tag " + newTag.getName());
+            "Cannot change target tag to reserved tag " + newTag.getName());
       }
       tagRule.setTag(newTag);
     } catch (UnsupportedOperationException e) {
