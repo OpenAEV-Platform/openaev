@@ -84,6 +84,7 @@ const inlineStyles: Record<string, CSSProperties> = {
 interface Props {
   title: string;
   onCreateInject: (data: InjectInput | AtomicTestingInput) => Promise<void>;
+  onCreateInjects?: (data: InjectOutputType[]) => void;
   isAtomic?: boolean;
   open?: boolean;
   handleClose: () => void;
@@ -96,6 +97,7 @@ interface Props {
 const CreateInject: FunctionComponent<Props> = ({
   title,
   onCreateInject,
+  onCreateInjects,
   open = false,
   handleClose,
   isAtomic = false,
@@ -109,7 +111,6 @@ const CreateInject: FunctionComponent<Props> = ({
   const theme = useTheme();
   const { t, tPick } = useFormatter();
   const injectContext = useContext(InjectContext);
-  const { injects, setInjects } = injectContext;
 
   // Fetching data
   const { attackPatterns, attackPatternsMap, killChainPhasesMap } = useHelper((helper: AttackPatternHelper & KillChainPhaseHelper & InjectorHelper) => ({
@@ -280,20 +281,6 @@ const CreateInject: FunctionComponent<Props> = ({
     return onToggleEntity(currentEntity, event);
   };
 
-  const onCreateAll = (result: {
-    result: string[];
-    entities: { injects: Record<string, InjectStore> };
-  }) => {
-    if (result.entities) {
-      const created: InjectOutputType[] = [];
-      result.result.map((r: string) => {
-        created.push(result.entities.injects[r]);
-      });
-      setInjects([...created, ...injects]);
-      queryableHelpers.paginationHelpers.handleChangeTotalElements(queryableHelpers.paginationHelpers.getTotalElements() + created.length);
-    }
-  };
-
   // Slider
   const [checked, setChecked] = useState<boolean>(false);
   const handleSlide = () => {
@@ -321,13 +308,20 @@ const CreateInject: FunctionComponent<Props> = ({
   };
 
   const onCreateMultipleInjectsInject = async (data: InjectInput[]) => {
-    await injectContext.onAddMultipleInjects(data).then((result: {
-      result: string[];
-      entities: { injects: Record<string, InjectStore> };
-    }) => {
-      onCreateAll(result);
-      handleCloseDrawer();
-    });
+    await injectContext.onAddMultipleInjects(data).then(
+      (result: {
+        result: string[];
+        entities: { injects: Record<string, InjectStore> };
+      }) => {
+        if (onCreateInjects && result.entities) {
+          const created: InjectOutputType[] = [];
+          result.result.map((r: string) => {
+            created.push(result.entities.injects[r]);
+          });
+          onCreateInjects(created);
+        }
+        handleCloseDrawer();
+      });
   };
 
   const buildQuickInject = (elements: Record<string, InjectorContractFullOutput>) => {
