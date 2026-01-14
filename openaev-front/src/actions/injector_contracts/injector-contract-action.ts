@@ -41,6 +41,13 @@ export const searchInjectorContracts = (paginationInput: SearchPaginationInput) 
   return simplePostCall(uri, data);
 };
 
+// This action must use InjectorContractSearchPaginationInput to stay
+// synchronized with the search route filters
+export const fetchDomainCounts = (data: SearchPaginationInput) => {
+  const uri = `${INJECTOR_CONTRACT_URI}/domain-counts`;
+  return simplePostCall(uri, data);
+};
+
 // -- UPDATE --
 
 export const updateInjectorContract = (injectorContractId: InjectorContract['injector_contract_id'], data: InjectorContractUpdateInput) => (dispatch: Dispatch) => {

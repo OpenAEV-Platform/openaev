@@ -85,7 +85,7 @@ public class InjectorContractApi extends RestBehavior {
     }
   }
 
-  @PostMapping(INJECTOR_CONTRACT_URL + "/domain-counts")
+  @PostMapping("/domain-counts")
   @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   public List<InjectorContractDomainCountOutput> getDomainCounts(
       @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
