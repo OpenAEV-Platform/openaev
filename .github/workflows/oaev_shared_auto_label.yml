@@ -1,0 +1,14 @@
+name: "[OAEV Shared] Auto Label"
+on:
+  pull_request:
+    branches: [main, release/current]
+    types: [opened, reopened]
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  auto-label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Auto Label"
+        uses: FiligranHQ/filigran-ci-tools/actions/auto-label@v1

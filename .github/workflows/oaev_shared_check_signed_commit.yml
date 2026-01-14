@@ -1,0 +1,13 @@
+name: "[OAEV Shared] Check Signed Commits in PR"
+on:
+  pull_request_target:
+    branches: [main, release/current]
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  check-signed-commits:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check signed commits in PR
+        uses: FiligranHQ/filigran-ci-tools/actions/check-signed-commit@v1

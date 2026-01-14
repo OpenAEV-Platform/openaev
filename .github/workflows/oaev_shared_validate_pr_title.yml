@@ -1,0 +1,20 @@
+name: "[OAEV Shared] Validate PR title Worker"
+on:
+  pull_request:
+    branches: [main, release/current]
+    types: [opened, edited, reopened, ready_for_review, synchronize]
+jobs:
+  validate-pr-title:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Generate a token"
+        id: generate-token
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.OPENAEV_PR_CHECKS_APP_ID }}
+          private-key: ${{ secrets.OPENAEV_PR_CHECKS_PRIVATE_KEY }}
+      - name: "Validate PR title and create check"
+        uses: FiligranHQ/filigran-ci-tools/actions/pr-title-check@v1
+        with:
+          token: ${{ steps.generate-token.outputs.token }}
