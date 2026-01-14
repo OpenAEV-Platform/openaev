@@ -10,7 +10,8 @@ import { makeStyles } from 'tss-react/mui';
 import { z } from 'zod';
 
 import { searchMappers } from '../../../../actions/mapper/mapper-actions';
-import { type Page } from '../../../../components/common/queryable/Page';
+import { initSorting, type Page } from '../../../../components/common/queryable/Page';
+import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useFormatter } from '../../../../components/i18n';
 import { type ImportMapper, type ImportMessage, type ImportTestSummary, type InjectsImportInput } from '../../../../utils/api-types';
 import { zodImplement } from '../../../../utils/Zod';
@@ -95,11 +96,19 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
 
   // Mapper
   const [mappers, setMappers] = useState<ImportMapper[]>([]);
-  useEffect(() => {
-    searchMappers({ size: 10 }).then((result: { data: Page<ImportMapper> }) => {
+  const onChangeSearchInput = (value: string) => {
+    searchMappers(buildSearchPagination({
+      sorts: initSorting('import_mapper_name'),
+      textSearch: value,
+      size: 10,
+    })).then((result: { data: Page<ImportMapper> }) => {
       const { data } = result;
       setMappers(data.content);
     });
+  };
+
+  useEffect(() => {
+    onChangeSearchInput('');
   }, []);
   const mapperOptions = mappers.map(
     m => ({
@@ -190,6 +199,9 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
               onChange={(_, v) => {
                 onChange(v?.id);
                 checkNeedLaunchDate();
+              }}
+              onInputChange={(event, value) => {
+                onChangeSearchInput(value);
               }}
               renderOption={(props, option) => (
                 <Box component="li" {...props} key={option.id}>
