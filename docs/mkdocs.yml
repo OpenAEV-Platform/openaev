@@ -122,6 +122,15 @@ nav:
       - Executors: deployment/ecosystem/executors.md
       - Injectors: deployment/ecosystem/injectors.md
       - Collectors: deployment/ecosystem/collectors.md
+      - Integration Manager:
+          - Overview: deployment/ecosystem/integration-manager/overview.md
+          - Quick start: deployment/ecosystem/integration-manager/quick-start.md
+          - Installation guide: deployment/ecosystem/integration-manager/installation.md
+          - Configuration:
+              - Configuration reference : deployment/ecosystem/integration-manager/configuration.md
+              - Proxy : deployment/ecosystem/integration-manager/proxy-configuration.md
+              - Private Registry : deployment/ecosystem/integration-manager/registry-authentification.md
+          - Troubleshooting: deployment/ecosystem/integration-manager/troubleshooting.md
     - Advanced:
       - Platform managers: deployment/managers.md
     - Breaking changes:
