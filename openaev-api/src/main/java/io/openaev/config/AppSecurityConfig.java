@@ -85,6 +85,8 @@ public class AppSecurityConfig {
                     .permitAll()
                     .requestMatchers("/api/**")
                     .authenticated()
+                    .requestMatchers("/actuator/**")
+                    .authenticated()
                     .anyRequest()
                     .permitAll())
         .logout(
