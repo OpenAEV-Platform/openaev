@@ -1,6 +1,7 @@
 package io.openaev.utils.mapper;
 
 import io.openaev.database.model.CatalogConnector;
+import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.Executor;
 import io.openaev.rest.executor.form.ExecutorOutput;
 import jakarta.annotation.Nullable;
@@ -15,17 +16,20 @@ public class ExecutorMapper {
   private final CatalogConnectorMapper catalogConnectorMapper;
 
   public ExecutorOutput toExecutorOutput(
-      Executor executor, @Nullable CatalogConnector catalogConnector, boolean isVerified) {
+      Executor executor,
+      @Nullable CatalogConnector catalogConnector,
+      ConnectorInstance connectorInstance) {
     return ExecutorOutput.builder()
         .id(executor.getId())
         .name(executor.getName())
         .type(executor.getType())
         .updatedAt(executor.getUpdatedAt())
         .catalog(catalogConnectorMapper.toCatalogSimpleOutput(catalogConnector))
-        .verified(isVerified)
+        .verified(connectorInstance != null)
         .platforms(executor.getPlatforms())
         .doc(executor.getDoc())
         .backgroundColor(executor.getBackgroundColor())
+        .currentStatus(connectorInstance != null ? connectorInstance.getCurrentStatus() : null)
         .build();
   }
 }

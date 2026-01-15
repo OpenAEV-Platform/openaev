@@ -78,10 +78,11 @@ const ConnectorList = () => {
                 lastUpdatedAt: connector.updatedAt,
                 isVerified: connector.isVerified,
                 connectorUseCases: [],
+                connectorCurrentStatus: connector.currentStatus,
               }}
               cardActionUrl={routes.detail(connector.id)}
               isNotClickable={connector.catalog === null && connectorType !== 'injector'}
-              showLastUpdatedAt
+              showStatusOrLastUpdatedAt
             />
           </Grid>
         ))}

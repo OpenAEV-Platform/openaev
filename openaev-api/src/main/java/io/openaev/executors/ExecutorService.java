@@ -79,8 +79,8 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
 
   @Override
   protected ExecutorOutput mapToOutput(
-      Executor executor, CatalogConnector catalogConnector, boolean isVerified) {
-    return executorMapper.toExecutorOutput(executor, catalogConnector, isVerified);
+      Executor executor, CatalogConnector catalogConnector, ConnectorInstance instance) {
+    return executorMapper.toExecutorOutput(executor, catalogConnector, instance);
   }
 
   @Override

@@ -1,6 +1,7 @@
 package io.openaev.rest.injector.form;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.database.model.ConnectorInstance;
 import io.openaev.rest.catalog_connector.dto.CatalogConnectorSimpleOutput;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -31,6 +32,9 @@ public class InjectorOutput {
 
   @JsonProperty("is_verified")
   private boolean verified = false;
+
+  @JsonProperty("current_status")
+  private ConnectorInstance.CURRENT_STATUS_TYPE currentStatus;
 
   @JsonProperty("injector_updated_at")
   private Instant updatedAt;

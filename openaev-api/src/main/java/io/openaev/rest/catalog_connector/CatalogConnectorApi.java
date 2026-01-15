@@ -30,10 +30,10 @@ public class CatalogConnectorApi extends RestBehavior {
   private final FileService fileService;
   private final CatalogConnectorMapper catalogConnectorMapper;
 
-  @GetMapping(CATALOG_CONNECTOR_URI)
+  @GetMapping(CATALOG_CONNECTOR_URI + "/undeployed")
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
-  public List<CatalogConnectorOutput> getCatalogConnectors() {
-    return this.catalogConnectorService.catalogConnectors();
+  public List<CatalogConnectorOutput> getUnDeployedCatalogConnectors() {
+    return this.catalogConnectorService.getUnDeployedCatalogConnectors();
   }
 
   @GetMapping(CATALOG_CONNECTOR_URI + "/{catalogConnectorId}")

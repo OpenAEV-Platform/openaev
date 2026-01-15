@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { Outlet, useParams } from 'react-router';
 
 import {
-  fetchCatalogConnectors,
   fetchConnector,
+  fetchUndeployedCatalogConnectors,
   isXtmComposerIsReachable,
 } from '../../../../actions/catalog/catalog-actions';
 import { type CatalogConnectorsHelper } from '../../../../actions/catalog/catalog-helper';
@@ -39,7 +39,7 @@ const CatalogLayout = () => {
   }));
 
   useDataLoader(() => {
-    dispatch(fetchCatalogConnectors()).finally(() => setLoading(false));
+    dispatch(fetchUndeployedCatalogConnectors()).finally(() => setLoading(false));
     if (catalogConnectorId) {
       dispatch(fetchConnector(catalogConnectorId)).finally(() => setLoading(false));
     }

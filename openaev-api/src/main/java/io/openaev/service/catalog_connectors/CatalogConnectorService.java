@@ -24,21 +24,22 @@ public class CatalogConnectorService {
   private final ConnectorInstanceService connectorInstanceService;
 
   /**
-   * Retrieves all catalog connectors as CatalogConnectorOutput format.
+   * Retrieves all unDeployed catalog connectors in CatalogConnectorOutput format.
    *
    * @return a list of catalog connector outputs with associated instance counts
    */
-  public List<CatalogConnectorOutput> catalogConnectors() {
+  public List<CatalogConnectorOutput> getUnDeployedCatalogConnectors() {
     List<ConnectorInstancePersisted> instances = connectorInstanceService.connectorInstances();
     return fromIterable(catalogConnectorRepository.findAll()).stream()
-        .map(
+        .filter(
             c -> {
               List<ConnectorInstancePersisted> instancesMatching =
                   instances.stream()
                       .filter(i -> i.getCatalogConnector().getId().equals(c.getId()))
                       .toList();
-              return catalogConnectorMapper.toCatalogConnectorOutput(c, instancesMatching.size());
+              return instancesMatching.isEmpty();
             })
+        .map(c -> catalogConnectorMapper.toCatalogConnectorOutput(c, 0))
         .toList();
   }
 

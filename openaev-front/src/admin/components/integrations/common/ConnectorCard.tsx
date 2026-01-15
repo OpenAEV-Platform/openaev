@@ -4,7 +4,8 @@ import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../components/i18n';
-import { type CatalogConnector } from '../../../../utils/api-types';
+import { type CatalogConnector, type ConnectorInstanceOutput } from '../../../../utils/api-types';
+import ConnectorStatus from './ConnectorStatus';
 import ConnectorTitle from './ConnectorTitle';
 import DeployButton from './DeployButton';
 
@@ -69,11 +70,12 @@ export type ConnectorMainInfo = {
   isVerified?: boolean;
   connectorUseCases?: string[];
   connectorInstancesCount?: number;
+  connectorCurrentStatus?: ConnectorInstanceOutput['connector_instance_current_status'];
 };
 
 type ConnectorCardProps = {
   cardActionUrl: string;
-  showLastUpdatedAt?: boolean;
+  showStatusOrLastUpdatedAt?: boolean;
   isNotClickable?: boolean;
   connector: ConnectorMainInfo;
   onDeployBtnClick?: (e: SyntheticEvent) => void;
@@ -82,7 +84,7 @@ type ConnectorCardProps = {
 const ConnectorCard = ({
   connector,
   cardActionUrl,
-  showLastUpdatedAt = false,
+  showStatusOrLastUpdatedAt = false,
   isNotClickable = false,
   onDeployBtnClick,
 }: ConnectorCardProps) => {
@@ -110,7 +112,7 @@ const ConnectorCard = ({
               color="default"
               label={connector.isExternal ? t('External') : t('Built-in')}
             />
-            {showLastUpdatedAt
+            {showStatusOrLastUpdatedAt && connector.connectorCurrentStatus == null
               && (
                 <div className={classes.dotContainer}>
                   <div
@@ -121,6 +123,7 @@ const ConnectorCard = ({
                   </Typography>
                 </div>
               )}
+            {showStatusOrLastUpdatedAt && connector.connectorCurrentStatus != null && <ConnectorStatus variant={connector.connectorCurrentStatus} /> }
             {onDeployBtnClick
               && <DeployButton onDeployBtnClick={onDeployBtnClick} deploymentCount={connector.connectorInstancesCount ?? 0} />}
           </div>
