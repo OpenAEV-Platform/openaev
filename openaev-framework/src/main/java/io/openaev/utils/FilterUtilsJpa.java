@@ -195,7 +195,7 @@ public final class FilterUtilsJpa {
     };
   }
 
-  private static <U> Predicate toPredicate(
+  public static <U> Predicate toPredicate(
       @NotNull final Expression<U> paths,
       @NotNull final Filter filter,
       @NotNull final CriteriaBuilder cb,
