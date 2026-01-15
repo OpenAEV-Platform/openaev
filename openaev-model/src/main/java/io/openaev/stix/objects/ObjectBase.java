@@ -121,7 +121,7 @@ public abstract class ObjectBase implements StixSerialisable {
     }
   }
 
-  public void setInstantIfPresent(String propName, Consumer<Instant> setter) {
+  public void setInstantIfPresent(CommonProperties propName, Consumer<Instant> setter) {
     if (this.hasProperty(propName) && this.getProperty(propName).getValue() != null) {
       setter.accept(Instant.parse(this.getProperty(propName).getValue().toString()));
     }

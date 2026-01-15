@@ -2,7 +2,7 @@ package io.openaev.utils.fixtures.composers;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ScenarioRepository;
-import io.openaev.service.ScenarioService;
+import io.openaev.service.scenario.ScenarioService;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;

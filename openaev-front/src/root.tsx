@@ -1,6 +1,5 @@
 import { CssBaseline } from '@mui/material';
 import { StyledEngineProvider } from '@mui/material/styles';
-import * as R from 'ramda';
 import { lazy, Suspense, useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
 
@@ -10,7 +9,7 @@ import EnterpriseEditionAgreementDialog from './admin/components/common/entrepri
 import ConnectedIntlProvider from './components/AppIntlProvider';
 import ConnectedThemeProvider from './components/AppThemeProvider';
 import EnterpriseEditionProvider from './components/EnterpriseEditionProvider';
-import { errorWrapper } from './components/Error';
+import errorWrapper from './components/errorWrapper';
 import Loader from './components/Loader';
 import Message from './components/Message';
 import NotFound from './components/NotFound';
@@ -49,7 +48,7 @@ const Root = () => {
   }, []);
 
   const { isReachable } = useNetworkCheck(settings?.xtm_hub_url && `${settings?.xtm_hub_url}/health`);
-  if (R.isEmpty(logged)) {
+  if (logged && typeof logged === 'object' && Object.keys(logged).length === 0) {
     return <div />;
   }
 
@@ -102,7 +101,6 @@ const Root = () => {
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Suspense>
-
               </EnterpriseEditionProvider>
             </ConnectedThemeProvider>
           </ConnectedIntlProvider>

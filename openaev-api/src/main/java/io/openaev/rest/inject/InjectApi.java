@@ -10,7 +10,6 @@ import io.openaev.aop.lock.LockResourceType;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.ExerciseRepository;
-import io.openaev.database.repository.GrantRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.database.specification.InjectSpecification;
@@ -28,7 +27,6 @@ import io.openaev.rest.inject.service.InjectExecutionService;
 import io.openaev.rest.inject.service.InjectExportService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.payload.form.DetectionRemediationOutput;
-import io.openaev.service.InjectImportService;
 import io.openaev.service.UserService;
 import io.openaev.service.targets.TargetService;
 import io.openaev.utils.FilterUtilsJpa;
@@ -70,7 +68,6 @@ public class InjectApi extends RestBehavior {
   private final ExerciseRepository exerciseRepository;
   private final InjectRepository injectRepository;
   private final InjectService injectService;
-  private final InjectImportService injectImportService;
   private final InjectExecutionService injectExecutionService;
   private final InjectExportService injectExportService;
   private final TargetService targetService;
@@ -78,7 +75,6 @@ public class InjectApi extends RestBehavior {
   private final PayloadMapper payloadMapper;
   private final UserService userService;
   private final DocumentService documentService;
-  private final GrantRepository grantRepository;
 
   // -- INJECTS --
 
@@ -437,11 +433,8 @@ public class InjectApi extends RestBehavior {
     List<Inject> injectsToDelete =
         getInjectsAndCheckInputForBulkProcessing(input, Grant.GRANT_TYPE.PLANNER);
 
-    // FIXME: This is a workaround to prevent the GUI from blocking when deleting elements
-    injectsToDelete.forEach(inject -> inject.setListened(false));
-
     // Bulk delete
-    this.injectService.deleteAll(injectsToDelete);
+    this.injectService.deleteAllByIds(injectsToDelete.stream().map(Inject::getId).toList());
     return injectsToDelete;
   }
 

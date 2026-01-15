@@ -7,7 +7,7 @@ import { type LoggedHelper } from '../../../../../actions/helper';
 import { useFormatter } from '../../../../../components/i18n';
 import ScaleBar from '../../../../../components/scalebar/ScaleBar';
 import { useHelper } from '../../../../../store';
-import { type PlatformSettings } from '../../../../../utils/api-types';
+import { type InjectExpectation, type PlatformSettings } from '../../../../../utils/api-types';
 import { splitDuration } from '../../../../../utils/Time';
 import { type ExpectationInput, type ExpectationInputForm } from './Expectation';
 import { formProps, infoMessage } from './ExpectationFormUtils';
@@ -55,9 +55,9 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
   const { classes } = useStyles();
 
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
-  const [expectationType, setExpectationType] = useState<string>('MANUAL');
+  const [expectationType, setExpectationType] = useState<string>(predefinedExpectations[0].expectation_type);
 
-  const manualExpectationExpirationTime = useExpectationExpirationTime('MANUAL');
+  const expectationExpirationTime = useExpectationExpirationTime(predefinedExpectations[0].expectation_type as InjectExpectation['inject_expectation_type']);
 
   const getExpectationDefaultScoreByType = (expectationType: string): number => {
     if (expectationType === 'MANUAL') {
@@ -83,7 +83,7 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
         expiration_time_minutes: parseInt(expirationTime.minutes, 10),
       };
     }
-    const expirationTime = splitDuration(manualExpectationExpirationTime || 0);
+    const expirationTime = splitDuration(expectationExpirationTime || 0);
     return {
       expectation_type: expectationType,
       expectation_name: '',
@@ -134,7 +134,6 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
           inputProps={register('expectation_type')}
         >
           {predefinedTypes.map(type => (<MenuItem key={type} value={type}>{t(type)}</MenuItem>))}
-          <MenuItem key="MANUAL" value="MANUAL">{t('MANUAL')}</MenuItem>
         </MUISelect>
       </div>
       {(watchType === 'ARTICLE' || watchType === 'CHALLENGE')

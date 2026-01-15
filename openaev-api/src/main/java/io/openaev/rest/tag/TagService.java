@@ -9,10 +9,7 @@ import io.openaev.database.repository.TagRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.tag.form.TagCreateInput;
 import io.openaev.rest.tag.form.TagUpdateInput;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
@@ -20,9 +17,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Service
 public class TagService {
-
-  public static final String OPENCTI_TAG_NAME = "opencti";
-
   private final TagRepository tagRepository;
 
   // -- CRUD --
@@ -31,8 +25,23 @@ public class TagService {
     return iterableToSet(this.tagRepository.findAllById(tagIds));
   }
 
+  public Tag createTag(String name) {
+    return createTag(name, getColourForName(name));
+  }
+
+  private Tag createTag(String name, String colour) {
+    TagCreateInput tagCreateInput = new TagCreateInput();
+    tagCreateInput.setName(name);
+    tagCreateInput.setColor(colour);
+    return upsertTag(tagCreateInput);
+  }
+
+  private String getColourForName(String name) {
+    return Tag.WellKnown.getOrDefault(name, generateRandomColor());
+  }
+
   public Tag upsertTag(TagCreateInput input) {
-    Optional<Tag> tag = tagRepository.findByName(input.getName());
+    Optional<Tag> tag = tagRepository.findByName(input.getName().toLowerCase());
     if (tag.isPresent()) {
       return tag.get();
     } else {
@@ -50,16 +59,16 @@ public class TagService {
   }
 
   /**
-   * Generate a set of tag from a set of labels
+   * Finds or creates tags based on a list of names. Created tags will be assigned a random colour.
    *
-   * @param labels
-   * @return set of tags
+   * @param names collection of strings, each representing a requested tag
+   * @return set of tags exactly matching the provided set of names
    */
-  public Set<Tag> fetchTagsFromLabels(Set<String> labels) {
-    Set<Tag> tags = new HashSet();
+  public Set<Tag> findOrCreateTagsFromNames(Set<String> names) {
+    Set<Tag> tags = new HashSet<>();
 
-    if (labels != null) {
-      for (String label : labels) {
+    if (names != null) {
+      for (String label : names) {
         if (label == null || label.isBlank()) {
           continue;
         }
@@ -72,5 +81,27 @@ public class TagService {
     }
 
     return tags;
+  }
+
+  /**
+   * Ensures a collection of well known tags is created.
+   *
+   * @return the complete set of well known tags
+   */
+  public Set<Tag> ensureWellKnownTags() {
+    Set<Tag> wellKnownTags = new HashSet<>();
+    for (Map.Entry<String, String> entry : Tag.WellKnown.entrySet()) {
+      wellKnownTags.add(
+          this.tagRepository
+              .findByName(entry.getKey())
+              .orElseGet(
+                  () -> {
+                    Tag tag = new Tag();
+                    tag.setName(entry.getKey());
+                    tag.setColor(entry.getValue());
+                    return tagRepository.save(tag);
+                  }));
+    }
+    return wellKnownTags;
   }
 }

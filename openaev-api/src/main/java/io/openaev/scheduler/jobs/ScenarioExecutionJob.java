@@ -6,15 +6,16 @@ import io.openaev.aop.LogExecutionTime;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.ExerciseRepository;
-import io.openaev.service.ScenarioService;
 import io.openaev.service.ScenarioToExerciseService;
-import io.openaev.service.cron.CronService;
-import jakarta.validation.constraints.NotBlank;
+import io.openaev.service.period.CronService;
+import io.openaev.service.scenario.ScenarioRecurrenceService;
+import io.openaev.service.scenario.ScenarioService;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.quartz.DisallowConcurrentExecution;
@@ -30,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ScenarioExecutionJob implements Job {
 
   private final ScenarioService scenarioService;
+  private final ScenarioRecurrenceService scenarioRecurrenceService;
   private final ExerciseRepository exerciseRepository;
   private final ScenarioToExerciseService scenarioToExerciseService;
   private final CronService cronService;
@@ -43,17 +45,20 @@ public class ScenarioExecutionJob implements Job {
   }
 
   private void createExercisesFromScenarios() {
+    Instant now = Instant.now();
     // Find each scenario with cron where now is between start and end date
-    List<Scenario> scenarios = this.scenarioService.recurringScenarios(Instant.now());
+    List<Scenario> scenarios = this.scenarioService.recurringScenarios(now);
     // Filter on valid cron scenario -> Start date on cron is in 1 minute
     List<Scenario> validScenarios =
         scenarios.stream()
             .filter(
                 scenario -> {
-                  Instant startDate =
-                      cronToDate(scenario.getRecurrence()).minus(1, ChronoUnit.MINUTES);
-                  Instant now = Instant.now();
-
+                  Optional<Instant> nextOccurrence =
+                      scenarioRecurrenceService.getNextExecutionTime(scenario, now);
+                  if (nextOccurrence.isEmpty()) {
+                    return false;
+                  }
+                  Instant startDate = nextOccurrence.get().minus(1, ChronoUnit.MINUTES);
                   ZonedDateTime startDateMinute =
                       startDate.atZone(ZoneId.of("UTC")).truncatedTo(ChronoUnit.MINUTES);
                   ZonedDateTime nowMinute =
@@ -75,7 +80,9 @@ public class ScenarioExecutionJob implements Job {
         .forEach(
             scenario ->
                 this.scenarioToExerciseService.toExercise(
-                    scenario, cronToDate(scenario.getRecurrence()), false));
+                    scenario,
+                    scenarioRecurrenceService.getNextExecutionTime(scenario, now).orElse(now),
+                    false));
   }
 
   private void cleanOutdatedRecurringScenario() {
@@ -106,15 +113,10 @@ public class ScenarioExecutionJob implements Job {
 
     // There are no next execution -> example: end date is tomorrow at 1AM and execution cron is at
     // 6AM and it's 6PM
-    Instant nextExecution = cronToDate(scenario.getRecurrence());
+    Instant nextExecution =
+        scenarioRecurrenceService
+            .getNextExecutionTime(scenario, Instant.now())
+            .orElse(Instant.now());
     return nextExecution.isAfter(scenario.getRecurrenceEnd());
-  }
-
-  // -- UTILS --
-
-  private Instant cronToDate(@NotBlank final String cronExpression) {
-    return cronService
-        .getNextExecutionFromInstant(Instant.now(), ZoneId.of("UTC"), cronExpression)
-        .orElse(Instant.now());
   }
 }

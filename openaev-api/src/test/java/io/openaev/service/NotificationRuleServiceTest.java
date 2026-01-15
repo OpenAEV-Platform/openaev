@@ -9,6 +9,7 @@ import io.openaev.database.model.NotificationRuleResourceType;
 import io.openaev.database.model.NotificationRuleTrigger;
 import io.openaev.database.model.NotificationRuleType;
 import io.openaev.database.repository.NotificationRuleRepository;
+import io.openaev.service.scenario.ScenarioService;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
