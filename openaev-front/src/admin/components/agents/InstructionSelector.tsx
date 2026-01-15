@@ -4,17 +4,17 @@ import { useTheme } from '@mui/material/styles';
 import { Bash, DownloadCircleOutline, Powershell } from 'mdi-material-ui';
 import { useState } from 'react';
 
+import type { LoggedHelper } from '../../../actions/helper';
+import { fetchCalderaSettings } from '../../../actions/settings/settings-action';
 import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
 import useTabs from '../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../components/i18n';
-import { type ExecutorOutput, type Token} from '../../../utils/api-types';
+import { useHelper } from '../../../store';
+import { type ExecutorOutput, type Token } from '../../../utils/api-types';
+import { useAppDispatch } from '../../../utils/hooks';
 import useAuth from '../../../utils/hooks/useAuth';
+import useDataLoader from '../../../utils/hooks/useDataLoader';
 import { copyToClipboard, download } from '../../../utils/utils';
-import useDataLoader from "../../../utils/hooks/useDataLoader";
-import {fetchCalderaSettings} from "../../../actions/settings/settings-action";
-import {useAppDispatch} from "../../../utils/hooks";
-import {useHelper} from "../../../store";
-import type {LoggedHelper} from "../../../actions/helper";
 
 const USER = 'user';
 const WINDOWS = 'Windows';
@@ -39,9 +39,7 @@ const InstructionSelector: React.FC<InstructionSelectorProps> = ({ userToken, pl
   const dispatch = useAppDispatch();
 
   // Fetching data
-  const { calderaSettings } = useHelper((helper: LoggedHelper) => ({
-    calderaSettings: helper.getCalderaSettings(),
-  }));
+  const { calderaSettings } = useHelper((helper: LoggedHelper) => ({ calderaSettings: helper.getCalderaSettings() }));
   useDataLoader(() => {
     dispatch(fetchCalderaSettings());
   });

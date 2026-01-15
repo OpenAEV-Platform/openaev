@@ -33,9 +33,9 @@ export const platformParameters = new schema.Entity(
   { idAttribute: () => 'parameters' },
 );
 export const calderaSettings = new schema.Entity(
-    'calderasettings',
-    {},
-    {idAttribute: 'executor_caldera_instance_id'},
+  'calderasettings',
+  {},
+  { idAttribute: 'executor_caldera_instance_id' },
 );
 export const arrayOfCalderaSettings = new schema.Array(calderaSettings);
 

@@ -1,7 +1,8 @@
-import {getReferential, simpleCall, simplePostCall} from '../../utils/Action';
+import type { Dispatch } from 'redux';
+
+import { getReferential, simpleCall, simplePostCall } from '../../utils/Action';
 import type { WidgetToEntitiesInput } from '../../utils/api-types';
-import * as schema from "../Schema";
-import type {Dispatch} from "redux";
+import * as schema from '../Schema';
 
 export const SETTINGS_URI = '/api/settings';
 export const fetchHomeDashboard = () => {

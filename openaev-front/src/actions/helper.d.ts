@@ -11,7 +11,7 @@ import {
   type SimulationChallengesReader,
   type Tag,
   type Token,
-  type User
+  type User,
 } from '../utils/api-types';
 
 export interface UserHelper {
