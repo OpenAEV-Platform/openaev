@@ -63,7 +63,7 @@ public class TagRuleService {
     // we block creation of tag rules for reserved tags
     if (TagRule.RESERVED_TAG_NAMES.contains(tag.getName()) && !allowCreatingReserved) {
       throw new ForbiddenException(
-          "Creation of a rule is not allowed for the tag " + tag.getName());
+          "Creating a rule for the reserved tag '%s' is not permitted.".formatted(tag.getName()));
     }
 
     // if the tag  or one of the asset group doesn't exist we exist throw a ElementNotFoundException
