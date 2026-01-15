@@ -37,7 +37,7 @@ public class BaseIntegrationConfiguration {
           encryptionFactory.getEncryptionService(
               ((ConnectorInstancePersisted) instance).getCatalogConnector());
     } else {
-      log.warn("The encryption service cannot be instanced. You might want to look into that.");
+      log.warn("Cannot instantiate encryption service: connectorInstance is not persisted");
     }
     List<Field> annotatedFields =
         FieldUtils.getAllDeclaredAnnotatedFields(targetClass, IntegrationConfigKey.class);
@@ -47,19 +47,17 @@ public class BaseIntegrationConfiguration {
               .filter(c -> c.getKey().equals(field.getAnnotation(IntegrationConfigKey.class).key()))
               .findFirst();
       Object value = null;
-      if (config.isPresent()) {
+      if (config.isPresent() && config.get().isEncrypted() && encryptionService != null) {
         // If the field is encrypted and can be decrypted
-        if (config.get().isEncrypted() && encryptionService != null) {
           // Decrypt the field
           value =
               JsonUtils.fromJsonNode(
                   new ObjectMapper()
                       .valueToTree(encryptionService.decrypt(config.get().getValue().asText())),
                   field.getType());
-        } else {
+      } else if (config.isPresent()) {
           // Otherwise, we just get the value from the JSON node
           value = JsonUtils.fromJsonNode(config.get().getValue(), field.getType());
-        }
       }
       FieldUtils.setField(this, field, value);
     }
