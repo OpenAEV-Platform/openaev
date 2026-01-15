@@ -572,52 +572,57 @@ public class InjectorContractService {
    * @return the list of domain counts derived from effective contract associations
    */
   public List<InjectorContractDomainCountOutput> getDomainCounts(SearchPaginationInput input) {
-      CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+    CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 
-      Specification<InjectorContract> filterSpec = computeFilterGroupJpa(input.getFilterGroup());
-      Specification<InjectorContract> searchSpec = computeSearchJpa(input.getTextSearch());
-      Specification<InjectorContract> baseSpec = Specification.where(filterSpec).and(searchSpec);
+    Specification<InjectorContract> filterSpec = computeFilterGroupJpa(input.getFilterGroup());
+    Specification<InjectorContract> searchSpec = computeSearchJpa(input.getTextSearch());
+    Specification<InjectorContract> baseSpec = Specification.where(filterSpec).and(searchSpec);
 
-      CriteriaQuery<InjectorContractDomainCountOutput> qPayload = cb.createQuery(InjectorContractDomainCountOutput.class);
-      Root<InjectorContract> rootPayload = qPayload.from(InjectorContract.class);
-      Join<InjectorContract, Payload> payloadJoin = rootPayload.join("payload", JoinType.INNER);
-      Join<Payload, Domain> payloadDomainsJoin = payloadJoin.join("domains", JoinType.INNER);
+    CriteriaQuery<InjectorContractDomainCountOutput> qPayload =
+        cb.createQuery(InjectorContractDomainCountOutput.class);
+    Root<InjectorContract> rootPayload = qPayload.from(InjectorContract.class);
+    Join<InjectorContract, Payload> payloadJoin = rootPayload.join("payload", JoinType.INNER);
+    Join<Payload, Domain> payloadDomainsJoin = payloadJoin.join("domains", JoinType.INNER);
 
-      Predicate payloadPredicate = baseSpec.toPredicate(rootPayload, qPayload, cb);
-      if (payloadPredicate != null) {
-          qPayload.where(payloadPredicate);
-      }
+    Predicate payloadPredicate = baseSpec.toPredicate(rootPayload, qPayload, cb);
+    if (payloadPredicate != null) {
+      qPayload.where(payloadPredicate);
+    }
 
-      qPayload.multiselect(payloadDomainsJoin.get("id"), cb.countDistinct(rootPayload));
-      qPayload.groupBy(payloadDomainsJoin.get("id"));
+    qPayload.multiselect(payloadDomainsJoin.get("id"), cb.countDistinct(rootPayload));
+    qPayload.groupBy(payloadDomainsJoin.get("id"));
 
-      List<InjectorContractDomainCountOutput> payloadCounts = entityManager.createQuery(qPayload).getResultList();
+    List<InjectorContractDomainCountOutput> payloadCounts =
+        entityManager.createQuery(qPayload).getResultList();
 
-      CriteriaQuery<InjectorContractDomainCountOutput> qDirect = cb.createQuery(InjectorContractDomainCountOutput.class);
-      Root<InjectorContract> rootDirect = qDirect.from(InjectorContract.class);
-      Join<InjectorContract, Domain> directDomainsJoin = rootDirect.join("domains", JoinType.INNER);
-      Join<InjectorContract, Payload> pCheckJoin = rootDirect.join("payload", JoinType.LEFT);
+    CriteriaQuery<InjectorContractDomainCountOutput> qDirect =
+        cb.createQuery(InjectorContractDomainCountOutput.class);
+    Root<InjectorContract> rootDirect = qDirect.from(InjectorContract.class);
+    Join<InjectorContract, Domain> directDomainsJoin = rootDirect.join("domains", JoinType.INNER);
+    Join<InjectorContract, Payload> pCheckJoin = rootDirect.join("payload", JoinType.LEFT);
 
-      Predicate noPayloadDomains = cb.or(cb.isNull(pCheckJoin), cb.isEmpty(pCheckJoin.get("domains")));
+    Predicate noPayloadDomains =
+        cb.or(cb.isNull(pCheckJoin), cb.isEmpty(pCheckJoin.get("domains")));
 
-      Predicate directUserPredicate = baseSpec.toPredicate(rootDirect, qDirect, cb);
-      if (directUserPredicate != null) {
-          qDirect.where(cb.and(directUserPredicate, noPayloadDomains));
-      } else {
-          qDirect.where(noPayloadDomains);
-      }
+    Predicate directUserPredicate = baseSpec.toPredicate(rootDirect, qDirect, cb);
+    if (directUserPredicate != null) {
+      qDirect.where(cb.and(directUserPredicate, noPayloadDomains));
+    } else {
+      qDirect.where(noPayloadDomains);
+    }
 
-      qDirect.multiselect(directDomainsJoin.get("id"), cb.countDistinct(rootDirect));
-      qDirect.groupBy(directDomainsJoin.get("id"));
+    qDirect.multiselect(directDomainsJoin.get("id"), cb.countDistinct(rootDirect));
+    qDirect.groupBy(directDomainsJoin.get("id"));
 
-      List<InjectorContractDomainCountOutput> directCounts = entityManager.createQuery(qDirect).getResultList();
+    List<InjectorContractDomainCountOutput> directCounts =
+        entityManager.createQuery(qDirect).getResultList();
 
-       Map<String, Long> mergedMap = new HashMap<>();
-      Stream.concat(payloadCounts.stream(), directCounts.stream())
-              .forEach(output -> mergedMap.merge(output.getDomain(), output.getCount(), Long::sum));
+    Map<String, Long> mergedMap = new HashMap<>();
+    Stream.concat(payloadCounts.stream(), directCounts.stream())
+        .forEach(output -> mergedMap.merge(output.getDomain(), output.getCount(), Long::sum));
 
-      return mergedMap.entrySet().stream()
-              .map(entry -> new InjectorContractDomainCountOutput(entry.getKey(), entry.getValue()))
-              .toList();
+    return mergedMap.entrySet().stream()
+        .map(entry -> new InjectorContractDomainCountOutput(entry.getKey(), entry.getValue()))
+        .toList();
   }
 }
