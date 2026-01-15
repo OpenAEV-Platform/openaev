@@ -138,7 +138,7 @@
     "lint": "cross-env DEBUG=eslint:eslint TIMING=1 eslint --max-warnings 0 --cache --rule \"{'import/namespace': 'error', 'import/no-cycle': ['error', {'ignoreExternal': true, 'disableScc': true}]}\" .",
     "control": "yarn audit --groups dependencies --summary",
     "check-ts": "tsc",
-    "generate-types-from-api": "swagger-typescript-api generate --no-client --path=http://localhost:8080/api-docs --output=src/utils --name=api-types.d.ts --sort-types",
+    "generate-types-from-api": "swagger-typescript-api generate --no-client --path=${API_URL:-http://localhost:8080}/api-docs --output=src/utils --name=api-types.d.ts --sort-types",
     "test": "vitest run",
     "test:e2e": "yarn playwright test --workers=1 --retries=2",
     "test:e2e:ui": "yarn playwright test --ui --workers=1",

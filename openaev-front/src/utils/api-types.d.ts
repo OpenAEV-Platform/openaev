@@ -3335,6 +3335,8 @@ export interface InjectReceptionInput {
 }
 
 export interface InjectResultOutput {
+  /** Domain of the inject */
+  inject_contract_domains?: string[];
   /** Result of expectations */
   inject_expectation_results: ExpectationResultsByType[];
   /** Id of inject */
@@ -3677,6 +3679,7 @@ export interface InjectorContractSearchPaginationInput {
 export interface InjectorContractSimple {
   convertedContent?: object;
   injector_contract_content: string;
+  injector_contract_domains?: string[];
   injector_contract_id: string;
   injector_contract_labels: Record<string, string>;
   injector_contract_payload?: PayloadSimple;
@@ -5017,6 +5020,7 @@ export interface PayloadPrerequisite {
 
 export interface PayloadSimple {
   payload_collector_type?: string;
+  payload_domains?: string[];
   payload_id?: string;
   payload_type?: string;
 }
