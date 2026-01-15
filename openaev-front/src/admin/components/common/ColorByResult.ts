@@ -26,7 +26,7 @@ export const colorByAverage = (average: number): string => {
 export const colorByLabel = (label: string): string => {
   switch (label) {
     case 'success':
-      return 'rgb(2,129,8)';
+      return SUCCESS_100_COLOR;
     case 'failed':
       return SUCCESS_25_COLOR;
     default:

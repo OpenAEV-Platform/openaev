@@ -7,6 +7,7 @@ import { type EsSeries, type EsSeriesData } from '../../../../utils/api-types';
 import { calcPercentage, formatPercentage } from '../../workspaces/custom_dashboards/widgets/viz/domains/SecurityDomainsWidgetUtils';
 import { colorByAverage, colorByLabel } from '../ColorByResult';
 import expectationIconByType from '../ExpectationIconByType';
+import { capitalize } from '../../../../utils/String';
 
 const useStyles = makeStyles()({
   contained: {
@@ -29,11 +30,6 @@ interface Props {
 const ExpectationResultByType: FunctionComponent<Props> = ({ results, inline }) => {
   const { classes } = useStyles();
   const theme = useTheme();
-
-  const capitalize = (word: string): string => {
-    if (!word) return '';
-    return word.charAt(0).toUpperCase() + word.slice(1);
-  };
 
   return (
     inline
