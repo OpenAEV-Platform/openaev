@@ -49,15 +49,15 @@ public class BaseIntegrationConfiguration {
       Object value = null;
       if (config.isPresent() && config.get().isEncrypted() && encryptionService != null) {
         // If the field is encrypted and can be decrypted
-          // Decrypt the field
-          value =
-              JsonUtils.fromJsonNode(
-                  new ObjectMapper()
-                      .valueToTree(encryptionService.decrypt(config.get().getValue().asText())),
-                  field.getType());
+        // Decrypt the field
+        value =
+            JsonUtils.fromJsonNode(
+                new ObjectMapper()
+                    .valueToTree(encryptionService.decrypt(config.get().getValue().asText())),
+                field.getType());
       } else if (config.isPresent()) {
-          // Otherwise, we just get the value from the JSON node
-          value = JsonUtils.fromJsonNode(config.get().getValue(), field.getType());
+        // Otherwise, we just get the value from the JSON node
+        value = JsonUtils.fromJsonNode(config.get().getValue(), field.getType());
       }
       FieldUtils.setField(this, field, value);
     }
@@ -75,21 +75,19 @@ public class BaseIntegrationConfiguration {
                   ENCRYPTED_FORMATS.contains(
                       af.getAnnotation(IntegrationConfigKey.class).valueFormat());
               // If the field is encrypted
-              if (isEncrypted) {
+              if (isEncrypted && encryptionService != null) {
                 // If the encryption service is not null, we use it
-                if (encryptionService != null) {
-                  try {
-                    value = mapper.valueToTree(encryptionService.encrypt(value.asText()));
-                  } catch (Exception e) {
-                    throw new UnencryptableElementException(
-                        "Cannot encrypt the element : " + af.getName(), e);
-                  }
-                } else {
-                  // If the encryption service is null, there might be an issue with how the
-                  // executor has been initialized
-                  log.warn(
-                      "A encrypted element cannot be decrypted due to the encryption service being null. You might want to look into that as this can cause issue.");
+                try {
+                  value = mapper.valueToTree(encryptionService.encrypt(value.asText()));
+                } catch (Exception e) {
+                  throw new UnencryptableElementException(
+                      "Cannot encrypt the element : " + af.getName(), e);
                 }
+              } else if (isEncrypted) {
+                // If the encryption service is null, there might be an issue with how the
+                // executor has been initialized
+                log.warn(
+                    "A encrypted element cannot be decrypted due to the encryption service being null. You might want to look into that as this can cause issue.");
               }
 
               return ConnectorInstanceConfiguration.builder()
