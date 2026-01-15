@@ -29,7 +29,6 @@ public class InjectorContractApi extends RestBehavior {
   public static final String INJECTOR_CONTRACT_URL = "/api/injector_contracts";
 
   private final InjectorContractService injectorContractService;
-  private final InjectorContractDomainStatsService injectorContractDomainStatsService;
 
   @GetMapping(INJECTOR_CONTRACT_URL)
   @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
