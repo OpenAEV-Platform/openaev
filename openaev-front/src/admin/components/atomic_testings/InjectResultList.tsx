@@ -25,6 +25,9 @@ import InjectImportJsonDialog from '../common/injects/InjectImportJsonDialog';
 import InjectorContract from '../common/injects/InjectorContract';
 import AtomicTestingPopover from './atomic_testing/AtomicTestingPopover';
 import AtomicTestingResult from './atomic_testing/AtomicTestingResult';
+import type { InjectOutputType } from '../../../actions/injects/Inject';
+import type { InjectorContractConverted } from '../../../utils/api-types-custom';
+import ItemDomains from '../../../components/ItemDomains';
 
 const useStyles = makeStyles()(() => ({
   itemHead: { textTransform: 'uppercase' },
@@ -33,12 +36,13 @@ const useStyles = makeStyles()(() => ({
 
 const inlineStyles: Record<string, CSSProperties> = {
   'inject_type': { width: '10%' },
-  'inject_title': { width: '20%' },
+  'inject_title': { width: '15%' },
+  'inject_contract_domains': { width: '15%' },
   'inject_status.tracking_sent_date': { width: '15%' },
   'inject_status': { width: '10%' },
-  'inject_targets': { width: '20%' },
+  'inject_targets': { width: '15%' },
   'inject_expectations': { width: '10%' },
-  'inject_updated_at': { width: '15%' },
+  'inject_updated_at': { width: '10%' },
 };
 
 interface Props {
@@ -79,6 +83,7 @@ const InjectResultList: FunctionComponent<Props> = ({
     'inject_assets',
     'inject_asset_groups',
     'inject_teams',
+    'inject_contract_domains',
   ];
   const [injects, setInjects] = useState<InjectResultOutput[]>([]);
 
@@ -103,6 +108,18 @@ const InjectResultList: FunctionComponent<Props> = ({
       isSortable: true,
       value: (injectResultOutput: InjectResultOutput) => {
         return <>{injectResultOutput.inject_title}</>;
+      },
+    },
+    {
+      field: 'inject_contract_domains',
+      label: t('Domains'),
+      isSortable: true,
+      value: (injectResultOutput: InjectResultOutput) => {
+        return injectResultOutput.inject_contract_domains?.length
+          ? (
+            <ItemDomains domains={injectResultOutput.inject_contract_domains} variant="reduced-view" />
+          )
+          : <></>;
       },
     },
     {

@@ -138,6 +138,7 @@ public class InjectMapper {
                     .id(payloadToSimple.getId())
                     .type(payloadToSimple.getType())
                     .collectorType(payloadToSimple.getCollectorType())
+                    .domains(payloadToSimple.getDomains().stream().map(Domain::getId).toArray(String[]::new))
                     .build())
         .orElse(null);
   }
