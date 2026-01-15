@@ -110,9 +110,13 @@ public class WorkflowUpdateEventAspect {
     if (expectationIdsFromSPEL instanceof Collection<?> c) {
       Set<String> expectationIds = c.stream().map(Object::toString).collect(Collectors.toSet());
       Set<String> injectIds = injectExpectationService.findDistinctInjectIdsByInjectExpectationIds(expectationIds);
-      injectIds.forEach(s -> {
+      // TODO: optimize to fetch the whole list of steps instead of a single one
+      injectIds.forEach(injectId -> {
         try {
-          queueChainingService.updateStep(s);
+          Optional<String> stepId = stepService.findStepIdByInjectId(injectId);
+          if (stepId.isPresent()) {
+            queueChainingService.updateStep(stepId.get());
+          }
         } catch (IOException e) {
           // TODO: exception management
           throw new RuntimeException(e);
