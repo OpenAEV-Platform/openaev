@@ -9,10 +9,10 @@ import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import { type InjectTarget, type SearchPaginationInput } from '../../../../utils/api-types';
+import { isAgentless } from '../../../../utils/target/TargetUtils';
 import { InjectResultOverviewOutputContext, type InjectResultOverviewOutputContextType } from '../InjectResultOverviewOutputContext';
 import PaginatedTargetTab from './PaginatedTargetTab';
 import TargetResultsDetail from './target_result/TargetResultsDetail';
-import {isAgentless} from "../../../../utils/target/TargetUtils";
 
 const useStyles = makeStyles()({
   chip: {
