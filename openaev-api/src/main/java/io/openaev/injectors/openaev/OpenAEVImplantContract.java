@@ -33,8 +33,7 @@ public class OpenAEVImplantContract extends Contractor {
   @Override
   public ContractConfig getConfig() {
     Map<SupportedLanguage, String> labels = Map.of(en, "OpenAEV Implant", fr, "OpenAEV Implant");
-    return new ContractConfig(
-        TYPE, labels, "#8b0000", "#8b0000", "/img/icon-openaev.png");
+    return new ContractConfig(TYPE, labels, "#8b0000", "#8b0000", "/img/icon-openaev.png");
   }
 
   @Override

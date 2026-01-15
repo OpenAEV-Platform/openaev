@@ -64,26 +64,37 @@ public enum ExternalServiceDependency {
   }
 
   /**
-   * Parses a string value to its corresponding {@link ExternalServiceDependency} enum constant.
+   * Parses a injectorType to its corresponding {@link ExternalServiceDependency} enum constant.
    *
-   * @param value the value to parse (case-insensitive)
+   * @param injectorType the injector type to parse (case-insensitive)
    * @return the matching {@link ExternalServiceDependency}
    * @throws IllegalArgumentException if the value is null, blank, or does not match any known
    *     dependency
    */
-  public static ExternalServiceDependency fromValue(String value) {
-    if (value == null || value.isBlank()) {
-      throw new IllegalArgumentException("Value cannot be null or blank");
+  public static ExternalServiceDependency[] fromInjectorType(String injectorType) {
+    if (injectorType == null || injectorType.isBlank()) {
+      throw new IllegalArgumentException("Injector type cannot be null or blank");
     }
+
+    // Special cases
+    if ("openaev_email".equalsIgnoreCase(injectorType)) {
+      return new ExternalServiceDependency[] {SMTP, IMAP};
+    }
+    if ("openaev_implant".equalsIgnoreCase(injectorType)) {
+      return new ExternalServiceDependency[] {};
+    }
+
+    // Default: find matching enum
     for (ExternalServiceDependency type : ExternalServiceDependency.values()) {
-      if (type.value.equalsIgnoreCase(value)) {
-        return type;
+      if (type.value.equalsIgnoreCase(injectorType)) {
+        return new ExternalServiceDependency[] {type};
       }
     }
+
     throw new IllegalArgumentException(
         String.format(
             "Unknown ExternalServiceDependency value: '%s'. Valid values are: %s",
-            value,
+            injectorType,
             java.util.Arrays.stream(ExternalServiceDependency.values())
                 .map(ExternalServiceDependency::getValue)
                 .collect(java.util.stream.Collectors.joining(", "))));

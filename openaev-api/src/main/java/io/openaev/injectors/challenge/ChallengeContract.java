@@ -47,11 +47,7 @@ public class ChallengeContract extends Contractor {
   @Override
   public ContractConfig getConfig() {
     return new ContractConfig(
-        TYPE,
-        Map.of(en, "Challenge", fr, "Challenge"),
-        "#e91e63",
-        "#e91e63",
-        "/img/challenge.png");
+        TYPE, Map.of(en, "Challenge", fr, "Challenge"), "#e91e63", "#e91e63", "/img/challenge.png");
   }
 
   @Override

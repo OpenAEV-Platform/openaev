@@ -46,7 +46,6 @@ public class ContractConfig {
    * @param colorDark the color for dark theme UI
    * @param colorLight the color for light theme UI
    * @param icon the icon path (currently unused, kept for API compatibility)
-   * @param expose whether the contract should be visible and available
    */
   @SuppressWarnings("java:S1172") // icon parameter kept for API compatibility
   public ContractConfig(
@@ -56,7 +55,6 @@ public class ContractConfig {
       String colorLight,
       String icon) {
     this.type = type;
-//    this.expose = expose;
     this.colorDark = colorDark;
     this.colorLight = colorLight;
     this.label = label;

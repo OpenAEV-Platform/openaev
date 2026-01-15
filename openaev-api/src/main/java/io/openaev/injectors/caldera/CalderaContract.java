@@ -52,8 +52,7 @@ public class CalderaContract extends Contractor {
   @Override
   public ContractConfig getConfig() {
     Map<SupportedLanguage, String> labels = Map.of(en, "Caldera", fr, "Caldera");
-    return new ContractConfig(
-        TYPE, labels, "#8b0000", "#8b0000", "/img/icon-caldera.png");
+    return new ContractConfig(TYPE, labels, "#8b0000", "#8b0000", "/img/icon-caldera.png");
   }
 
   @Override

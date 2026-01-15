@@ -17,15 +17,12 @@ import io.openaev.database.model.Variable.VariableType;
 import io.openaev.injector_contract.*;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractExpectations;
-import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.rest.domain.enums.PresetDomain;
 import java.io.InputStream;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -43,11 +40,7 @@ public class OpenCTIContract extends Contractor {
   @Override
   public ContractConfig getConfig() {
     return new ContractConfig(
-        TYPE,
-        Map.of(en, "OpenCTI", fr, "OpenCTI"),
-        "#0fbcff",
-        "#001bda",
-        "/img/icon-opencti.png");
+        TYPE, Map.of(en, "OpenCTI", fr, "OpenCTI"), "#0fbcff", "#001bda", "/img/icon-opencti.png");
   }
 
   @Override

@@ -58,7 +58,8 @@ public class OvhInjectorIntegration extends Integration {
         false,
         List.of());
     OvhSmsService ovhSmsService = new OvhSmsService(this.config);
-    this.ovhSmsExecutor = new OvhSmsExecutor(injectorContext, ovhSmsService, injectExpectationService);
+    this.ovhSmsExecutor =
+        new OvhSmsExecutor(injectorContext, ovhSmsService, injectExpectationService);
   }
 
   @Override

@@ -8,14 +8,14 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class OvhInjectorConfigurationMigration extends ConfigurationMigration {
-    public OvhInjectorConfigurationMigration(
-            CatalogConnectorService catalogConnectorService,
-            ConnectorInstanceService connectorInstanceService,
-            OvhSmsInjectorConfig config) {
-        super(
-            config,
-            OvhInjectorIntegrationFactory.class.getCanonicalName(),
-            catalogConnectorService,
-            connectorInstanceService);
-    }
+  public OvhInjectorConfigurationMigration(
+      CatalogConnectorService catalogConnectorService,
+      ConnectorInstanceService connectorInstanceService,
+      OvhSmsInjectorConfig config) {
+    super(
+        config,
+        OvhInjectorIntegrationFactory.class.getCanonicalName(),
+        catalogConnectorService,
+        connectorInstanceService);
+  }
 }

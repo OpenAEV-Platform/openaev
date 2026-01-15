@@ -122,8 +122,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     injector.setName("Dummy " + injectorName);
     injector.setType(injectorType + DUMMY_SUFFIX);
     injector.setId(injectorType + DUMMY_SUFFIX);
-    injector.setDependencies(
-        new ExternalServiceDependency[] {ExternalServiceDependency.fromValue(injectorType)});
+    injector.setDependencies(ExternalServiceDependency.fromInjectorType(injectorType));
     return injectorRepository.save(injector);
   }
 
