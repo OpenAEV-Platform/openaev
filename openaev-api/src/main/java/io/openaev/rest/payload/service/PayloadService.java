@@ -21,6 +21,8 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.aop.lock.Lock;
+import io.openaev.aop.lock.LockResourceType;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -338,6 +340,7 @@ public class PayloadService {
    *
    * @return the created Dynamic DNS Resolution payload
    */
+  @Lock(type = LockResourceType.PAYLOAD, key = DYNAMIC_DNS_RESOLUTION_UUID)
   private DnsResolution createDynamicDnsResolutionPayload() {
     DnsResolution dynamicDnsResolutionPayload = new DnsResolution();
     dynamicDnsResolutionPayload.setId(DYNAMIC_DNS_RESOLUTION_UUID);

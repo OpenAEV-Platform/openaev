@@ -128,7 +128,7 @@ public class SecurityCoverageInjectService {
       Map<AssetGroup, List<Endpoint>> assetsFromGroupMap) {
     Set<StixRefToExternalRef> dnsResolutionRefs =
         indicatorsRefs.stream()
-            .filter(indicator -> indicator.getHostname() != null)
+            .filter(indicator -> indicator.getExternalRef() != null)
             .collect(Collectors.toSet());
 
     // 1. Remove Inject with contract related to Dns Resolution if there is no any DNS Indicator to
@@ -153,7 +153,7 @@ public class SecurityCoverageInjectService {
         indicator -> {
           // 4. Search for existing inject on scenario by hostname
           String existingInjectId =
-              findExistingInjectIdByHostname(scenario, indicator.getHostname());
+              findExistingInjectIdByHostname(scenario, indicator.getExternalRef());
           if (existingInjectId != null) {
             managedInjectsIds.add(existingInjectId);
             return;
@@ -165,7 +165,10 @@ public class SecurityCoverageInjectService {
 
           // 6. Create an inject, linked to the scenario for each contract
           createInjectsByInjectorContracts(
-              indicator.getHostname(), dynamicDnsResolutionPayload, assetsFromGroupMap, scenario);
+              indicator.getExternalRef(),
+              dynamicDnsResolutionPayload,
+              assetsFromGroupMap,
+              scenario);
         });
 
     // 7. Delete all previous injects non existing anymore on the OpenCTI report

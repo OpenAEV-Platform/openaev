@@ -29,6 +29,8 @@ import org.apache.coyote.BadRequestException;
  */
 public class SecurityCoverageUtils {
 
+  private static final String DOMAIN_NAME = "Domain-Name";
+
   private SecurityCoverageUtils() {}
 
   /**
@@ -64,9 +66,6 @@ public class SecurityCoverageUtils {
     for (ObjectBase obj : objects) {
       String stixType = (String) obj.getProperty(STIX_TYPE).getValue();
       String refId = null;
-      String name = null;
-      String description = null;
-      String hostname = null;
 
       if (ObjectTypes.ATTACK_PATTERN.toString().equals(stixType)) {
         if (obj.hasExtension(ExtendedProperties.MITRE_EXTENSION_DEFINITION)) {
@@ -85,13 +84,7 @@ public class SecurityCoverageUtils {
           List<Dictionary> observables =
               obj.getExtensionObservables(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION);
           if (extensionObj.has(CommonProperties.ID.toString()) && hasDomainNameType(observables)) {
-            refId = (String) extensionObj.get(CommonProperties.ID.toString()).getValue();
-            name = (String) obj.getProperty(CommonProperties.NAME).getValue();
-            description =
-                obj.hasProperty(CommonProperties.DESCRIPTION)
-                    ? (String) obj.getProperty(CommonProperties.DESCRIPTION).getValue()
-                    : null;
-            hostname = getDomainNameValue(observables);
+            refId = getDomainNameValue(observables);
           }
         }
       }
@@ -103,7 +96,7 @@ public class SecurityCoverageUtils {
       if (!StringUtils.isBlank(refId)) {
         String stixId = (String) obj.getProperty(CommonProperties.ID).getValue();
         if (stixId != null) {
-          stixToRef.add(new StixRefToExternalRef(stixId, refId, name, description, hostname));
+          stixToRef.add(new StixRefToExternalRef(stixId, refId));
         }
       }
     }
@@ -134,9 +127,7 @@ public class SecurityCoverageUtils {
     return observables.stream()
         .anyMatch(
             observable ->
-                ExtendedProperties.DOMAIN_NAME
-                    .toString()
-                    .equals(observable.get(CommonProperties.TYPE.toString()).getValue()));
+                DOMAIN_NAME.equals(observable.get(CommonProperties.TYPE.toString()).getValue()));
   }
 
   private static String getDomainNameValue(List<Dictionary> observables) {
@@ -148,9 +139,7 @@ public class SecurityCoverageUtils {
         observables.stream()
             .filter(
                 observable ->
-                    ExtendedProperties.DOMAIN_NAME
-                        .toString()
-                        .equals(observable.get(CommonProperties.TYPE.toString()).getValue()))
+                    DOMAIN_NAME.equals(observable.get(CommonProperties.TYPE.toString()).getValue()))
             .findFirst()
             .orElse(null);
     return domainName != null

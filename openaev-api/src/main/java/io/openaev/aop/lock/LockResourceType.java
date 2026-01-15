@@ -2,6 +2,7 @@ package io.openaev.aop.lock;
 
 public enum LockResourceType {
   INJECT(4096),
+  PAYLOAD(4096),
   SECURITY_COVERAGE(4096),
   MANAGER_FACTORY(1);
 

@@ -477,13 +477,13 @@ public class SecurityCoverageService {
   private void processCoverageRefs(
       Set<StixRefToExternalRef> refs,
       Exercise simulation,
-      BiFunction<StixRefToExternalRef, Exercise, BaseType<?>> coverageFunction,
+      BiFunction<String, Exercise, BaseType<?>> coverageFunction,
       Identifier coverageId,
       Optional<Timestamp> sroStartTime,
       Optional<Timestamp> sroStopTime,
       List<ObjectBase> objects) {
     for (StixRefToExternalRef stixRef : refs) {
-      BaseType<?> coverageResult = coverageFunction.apply(stixRef, simulation);
+      BaseType<?> coverageResult = coverageFunction.apply(stixRef.getExternalRef(), simulation);
       boolean covered = !((List<?>) coverageResult.getValue()).isEmpty();
 
       RelationshipObject sro =
@@ -524,10 +524,9 @@ public class SecurityCoverageService {
     return computeCoverageFromInjects(simulation.getInjects(), securityPlatform);
   }
 
-  private BaseType<?> getVulnerabilityCoverage(
-      StixRefToExternalRef stixExternalRef, Exercise simulation) {
+  private BaseType<?> getVulnerabilityCoverage(String externalRef, Exercise simulation) {
     return getCoverage(
-        stixExternalRef.getExternalRef(),
+        externalRef,
         simulation,
         id -> vulnerabilityService.getVulnerabilitiesByExternalIds(Set.of(id)),
         inject -> {
@@ -539,10 +538,9 @@ public class SecurityCoverageService {
         Vulnerability::getId);
   }
 
-  private BaseType<?> getAttackPatternCoverage(
-      StixRefToExternalRef stixExternalRef, Exercise simulation) {
+  private BaseType<?> getAttackPatternCoverage(String externalRef, Exercise simulation) {
     return getCoverage(
-        stixExternalRef.getExternalRef(),
+        externalRef,
         simulation,
         id -> attackPatternService.getAttackPatternsByExternalIds(Set.of(id)),
         inject -> {
@@ -554,10 +552,9 @@ public class SecurityCoverageService {
         AttackPattern::getId);
   }
 
-  private BaseType<?> getDnsIndicatorCoverage(
-      StixRefToExternalRef stixExternalRef, Exercise simulation) {
+  private BaseType<?> getDnsIndicatorCoverage(String externalRef, Exercise simulation) {
     return getCoverage(
-        stixExternalRef.getHostname(),
+        externalRef,
         simulation,
         hostname ->
             simulation.getInjects().stream()
