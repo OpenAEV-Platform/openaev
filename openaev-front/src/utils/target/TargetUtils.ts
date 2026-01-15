@@ -11,3 +11,7 @@ export const isAssets = (target: InjectTarget) => {
 export const isAgent = (target: InjectTarget) => {
   return target.target_type === 'AGENT';
 };
+
+export const isAgentless = (hasAgents: boolean, hasTeams: boolean) => {
+  return !hasAgents && !hasTeams;
+};

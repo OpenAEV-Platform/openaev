@@ -12,6 +12,7 @@ import { type InjectTarget, type SearchPaginationInput } from '../../../../utils
 import { InjectResultOverviewOutputContext, type InjectResultOverviewOutputContextType } from '../InjectResultOverviewOutputContext';
 import PaginatedTargetTab from './PaginatedTargetTab';
 import TargetResultsDetail from './target_result/TargetResultsDetail';
+import {isAgentless} from "../../../../utils/target/TargetUtils";
 
 const useStyles = makeStyles()({
   chip: {
@@ -282,7 +283,7 @@ const AtomicTesting = () => {
           {t('Results by target')}
         </Typography>
         {selectedTarget && !!injectResultOverviewOutput.inject_type && (
-          <TargetResultsDetail inject={injectResultOverviewOutput} target={selectedTarget} isAgentless={!hasAgents && !hasTeams} />
+          <TargetResultsDetail inject={injectResultOverviewOutput} target={selectedTarget} isAgentless={isAgentless(hasAgents, hasTeams)} />
         )}
         {!selectedTarget && (
           <Paper classes={{ root: classes.paper }} variant="outlined">
