@@ -92,7 +92,7 @@ public class SecurityCoverageUtils {
       }
 
       if (obj.hasProperty(STIX_NAME) && StringUtils.isBlank(refId) && !isIndicator) {
-          refId = (String) obj.getProperty(STIX_NAME).getValue();
+        refId = (String) obj.getProperty(STIX_NAME).getValue();
       }
 
       if (!StringUtils.isBlank(refId)) {
