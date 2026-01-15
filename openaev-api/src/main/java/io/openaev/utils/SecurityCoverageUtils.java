@@ -77,6 +77,7 @@ public class SecurityCoverageUtils {
         }
       }
 
+      boolean isIndicator = false;
       if (ObjectTypes.INDICATOR.toString().equals(stixType)) {
         if (obj.hasExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION)) {
           Dictionary extensionObj =
@@ -86,11 +87,12 @@ public class SecurityCoverageUtils {
           if (extensionObj.has(CommonProperties.ID.toString()) && hasDomainNameType(observables)) {
             refId = getDomainNameValue(observables);
           }
+          isIndicator = true;
         }
       }
 
-      if (obj.hasProperty(STIX_NAME) && StringUtils.isBlank(refId)) {
-        refId = (String) obj.getProperty(STIX_NAME).getValue();
+      if (obj.hasProperty(STIX_NAME) && StringUtils.isBlank(refId) && !isIndicator) {
+          refId = (String) obj.getProperty(STIX_NAME).getValue();
       }
 
       if (!StringUtils.isBlank(refId)) {
