@@ -54,6 +54,12 @@ interface Props {
   handleSubmit: (input: InjectsImportInput) => void;
 }
 
+interface MapperOption {
+  id: string;
+  label: string;
+  isHint: boolean;
+}
+
 const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
   sheets,
   importId,
@@ -95,7 +101,8 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
   });
 
   // Mapper
-  const [mappers, setMappers] = useState<ImportMapper[]>([]);
+  const [mapperOptions, setMapperOptions] = useState<MapperOption[]>([]);
+
   const onChangeSearchInput = (value: string) => {
     searchMappers(buildSearchPagination({
       sorts: initSorting('import_mapper_name'),
@@ -103,19 +110,32 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
       size: 10,
     })).then((result: { data: Page<ImportMapper> }) => {
       const { data } = result;
-      setMappers(data.content);
+
+      const options: MapperOption[] = data.content.map(
+        m => ({
+          id: m.import_mapper_id,
+          label: m.import_mapper_name,
+          isHint: false,
+        }));
+
+      if (data.totalPages > 1) {
+        setMapperOptions([
+          ...options,
+          {
+            id: '__hint__',
+            label: t('More items are available — please type the mapper name'),
+            isHint: true,
+          },
+        ]);
+      } else {
+        setMapperOptions(options);
+      }
     });
   };
 
   useEffect(() => {
     onChangeSearchInput('');
   }, []);
-  const mapperOptions = mappers.map(
-    m => ({
-      id: m.import_mapper_id,
-      label: m.import_mapper_name,
-    }),
-  );
 
   const onSubmitImportInjects = (values: FormProps) => {
     const input: InjectsImportInput = {
@@ -203,14 +223,35 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
               onInputChange={(event, value) => {
                 onChangeSearchInput(value);
               }}
-              renderOption={(props, option) => (
-                <Box component="li" {...props} key={option.id}>
-                  <div className={classes.icon}>
-                    <TableViewOutlined color="primary" />
-                  </div>
-                  <div className={classes.text}>{option.label}</div>
-                </Box>
-              )}
+              renderOption={(props, option) => {
+                if (option.isHint) {
+                  return (
+                    <Box
+                      component="li"
+                      {...props}
+                      key={option.id}
+                      sx={{
+                        fontStyle: 'italic',
+                        color: 'text.secondary',
+                        pointerEvents: 'none',
+                        padding: '8px 16px',
+                      }}
+                    >
+                      {option.label}
+                    </Box>
+                  );
+                } else {
+                  return (
+                    <Box component="li" {...props} key={option.id}>
+                      <div className={classes.icon}>
+                        <TableViewOutlined color="primary" />
+                      </div>
+                      <div className={classes.text}>{option.label}</div>
+                    </Box>
+                  );
+                }
+              }}
+
               getOptionLabel={option => option.label}
               isOptionEqualToValue={(option, v) => option.id === v.id}
               renderInput={params => (
