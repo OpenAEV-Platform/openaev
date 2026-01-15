@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
+import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.Filters.FilterGroup;
@@ -24,7 +25,6 @@ import lombok.Getter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
-import org.hibernate.annotations.UuidGenerator;
 
 @Data
 @Entity
@@ -36,11 +36,9 @@ import org.hibernate.annotations.UuidGenerator;
       attributeNodes = {@NamedAttributeNode("tags"), @NamedAttributeNode("assets")})
 })
 public class AssetGroup implements Base {
-
   @Id
+  @ControlledUuidGeneration
   @Column(name = "asset_group_id")
-  @GeneratedValue(generator = "UUID")
-  @UuidGenerator
   @JsonProperty("asset_group_id")
   @NotBlank
   private String id;

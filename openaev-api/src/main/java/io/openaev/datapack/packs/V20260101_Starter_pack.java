@@ -1,38 +1,45 @@
-package io.openaev.runner;
-
-import static io.openaev.utils.StringUtils.generateRandomColor;
+package io.openaev.datapack.packs;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.SettingRepository;
-import io.openaev.database.repository.TagRuleRepository;
+import io.openaev.datapack.DataPack;
 import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.ResourceObject;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.tag.TagService;
-import io.openaev.rest.tag.form.TagCreateInput;
-import io.openaev.service.AssetGroupService;
-import io.openaev.service.EndpointService;
-import io.openaev.service.ImportService;
-import io.openaev.service.TagRuleService;
-import io.openaev.service.ZipJsonService;
+import io.openaev.service.*;
 import jakarta.validation.constraints.NotBlank;
 import java.util.*;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
-/** Command line runner that initializes the starter pack on first application start. */
-@Slf4j
 @Component
-@Transactional()
-@RequiredArgsConstructor
-public class InitStarterPackCommandLineRunner implements CommandLineRunner {
+@Slf4j
+public class V20260101_Starter_pack extends DataPack {
+  public V20260101_Starter_pack(
+      DataPackService dataPackService,
+      SettingRepository settingRepository,
+      TagService tagService,
+      EndpointService endpointService,
+      AssetGroupService assetGroupService,
+      TagRuleService tagRuleService,
+      ImportService importService,
+      ZipJsonService<CustomDashboard> zipJsonService,
+      ResourcePatternResolver resolver) {
+    super(dataPackService);
+    this.settingRepository = settingRepository;
+    this.tagService = tagService;
+    this.endpointService = endpointService;
+    this.assetGroupService = assetGroupService;
+    this.tagRuleService = tagRuleService;
+    this.importService = importService;
+    this.zipJsonService = zipJsonService;
+    this.resolver = resolver;
+  }
 
   private static final class Config {
 
@@ -50,13 +57,6 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
           Config.DEFAULT_FILE_DASHBOARD_HOME, SettingKeys.DEFAULT_HOME_DASHBOARD.key(),
           Config.DEFAULT_FILE_DASHBOARD_SCENARIO, SettingKeys.DEFAULT_SCENARIO_DASHBOARD.key(),
           Config.DEFAULT_FILE_DASHBOARD_SIMULATION, SettingKeys.DEFAULT_SIMULATION_DASHBOARD.key());
-
-  private static final class Tags {
-
-    static final String VULNERABILITY = "vulnerability";
-    static final String CISCO = "cisco";
-    static final String OPENCTI = "opencti";
-  }
 
   private static final class HoneyScanMeEndpoint {
 
@@ -78,8 +78,6 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
   private boolean isStarterPackEnabled;
 
   private final SettingRepository settingRepository;
-  private final TagRuleRepository tagRuleRepository;
-
   private final TagService tagService;
   private final EndpointService endpointService;
   private final AssetGroupService assetGroupService;
@@ -93,7 +91,8 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
   private String errorMessage = null;
 
   @Override
-  public void run(String... args) {
+  protected void doProcess() {
+    // early break for when the starter pack was already run
     if (!isStarterPackEnabled) {
       log.info("Starter pack is disabled by configuration");
       return;
@@ -104,18 +103,37 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
       return;
     }
 
+    // unconditionally run this code
+    Set<Tag> tags = tagService.ensureWellKnownTags();
+    Set<TagRule> tagRules = tagRuleService.ensurePresetRules();
+
     try {
-      Tag tagVulnerability = this.createTag(Tags.VULNERABILITY);
-      Tag tagCisco = this.createTag(Tags.CISCO);
-      Tag openCti = this.createTag(Tags.OPENCTI);
       Endpoint honeyScanMeEndpoint =
           this.createHoneyScanMeAgentlessEndpoint(
-              List.of(tagVulnerability.getId(), tagCisco.getId()));
-      AssetGroup allEndpointAssetGroup = this.createAllEndpointsAssetGroup(openCti);
+              new ArrayList<>(
+                  tags.stream()
+                      .filter(
+                          t ->
+                              List.of(Tag.CISCO_TAG_NAME, Tag.VULNERABILITY_TAG_NAME)
+                                  .contains(t.getName()))
+                      .map(Tag::getId)
+                      .toList()));
+      AssetGroup allEndpointAssetGroup = this.createAllEndpointsAssetGroup();
+
+      TagRule openCTITagRule =
+          tagRules.stream()
+              .filter(tr -> Tag.OPENCTI_TAG_NAME.equals(tr.getTag().getName()))
+              .findFirst()
+              .orElseThrow();
+      this.tagRuleService.updateTagRule(
+          openCTITagRule.getId(),
+          openCTITagRule.getTag().getName(),
+          new ArrayList<>(List.of(allEndpointAssetGroup.getId())));
+
       this.importScenariosFromResources(honeyScanMeEndpoint, allEndpointAssetGroup);
       this.importDashboardsFromResources();
     } catch (Exception e) {
-      recordError("Unexpected error during StarterPack initialization; cause " + e.getMessage());
+      recordError("Unexpected error during StarterPack initialization.", e);
     }
 
     this.createSetting();
@@ -133,7 +151,7 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
     return this.endpointService.createEndpoint(endpointInput);
   }
 
-  private AssetGroup createAllEndpointsAssetGroup(Tag openCti) {
+  private AssetGroup createAllEndpointsAssetGroup() {
     Filters.Filter filter = new Filters.Filter();
     filter.setKey(AllEndpointsAssetGroup.KEY);
     filter.setOperator(AllEndpointsAssetGroup.OPERATOR);
@@ -148,26 +166,7 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
     allEndpointsAssetGroup.setName(AllEndpointsAssetGroup.NAME);
     allEndpointsAssetGroup.setDynamicFilter(filterGroup);
 
-    AssetGroup createdAllEndpointAssetGroup =
-        this.assetGroupService.createAssetGroup(allEndpointsAssetGroup);
-
-    Optional<TagRule> openCtiTagRule = this.tagRuleService.findByTagName(Tags.OPENCTI);
-    openCtiTagRule.ifPresentOrElse(
-        tagRule -> {
-          List<String> existingAssetGroupRules =
-              new ArrayList<>(tagRule.getAssetGroups().stream().map(AssetGroup::getId).toList());
-          existingAssetGroupRules.add(createdAllEndpointAssetGroup.getId());
-          this.tagRuleService.updateTagRule(tagRule.getId(), Tags.OPENCTI, existingAssetGroupRules);
-        },
-        () -> {
-          // Could happen if InitTagRuleCommandLineRunner doesn't run yet
-          TagRule tagRule = new TagRule();
-          tagRule.setTag(openCti);
-          tagRule.setAssetGroups(List.of(createdAllEndpointAssetGroup));
-          this.tagRuleRepository.save(tagRule);
-        });
-
-    return createdAllEndpointAssetGroup;
+    return this.assetGroupService.createAssetGroup(allEndpointsAssetGroup);
   }
 
   private void importScenariosFromResources(Asset asset, AssetGroup assetGroup) {
@@ -182,10 +181,8 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
                     resourceToAdd.getFilename());
               } catch (Exception e) {
                 recordError(
-                    "Failed to import StarterPack scenario file : "
-                        + resourceToAdd.getFilename()
-                        + "; cause "
-                        + e.getMessage());
+                    "Failed to import StarterPack scenario file : " + resourceToAdd.getFilename(),
+                    e);
               }
             });
   }
@@ -208,10 +205,8 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
                     resourceToAdd.getFilename());
               } catch (Exception e) {
                 recordError(
-                    "Failed to import StarterPack dashboard file : "
-                        + resourceToAdd.getFilename()
-                        + "; cause "
-                        + e.getMessage());
+                    "Failed to import StarterPack dashboard file : " + resourceToAdd.getFilename(),
+                    e);
               }
             });
   }
@@ -227,17 +222,16 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
           "Failed to import StarterPack files from resource folder "
               + Config.STARTER_PACK_KEY
               + "/"
-              + folderName
-              + "; cause "
-              + e.getMessage());
+              + folderName,
+          e);
       return Collections.emptyList();
     }
   }
 
-  private void recordError(@NotBlank final String message) {
+  private void recordError(@NotBlank final String message, Throwable cause) {
     this.hasError = true;
     this.errorMessage = message;
-    log.error(message);
+    log.error(message, cause);
   }
 
   private void setDefaultDashboard(String filename, String dashboardId) {
@@ -254,13 +248,6 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
       defaultDashboardSetting.setValue(dashboardId);
       settingRepository.save(defaultDashboardSetting);
     }
-  }
-
-  private Tag createTag(String name) {
-    TagCreateInput tagCreateInput = new TagCreateInput();
-    tagCreateInput.setName(name);
-    tagCreateInput.setColor(generateRandomColor());
-    return this.tagService.upsertTag(tagCreateInput);
   }
 
   private void createSetting() {

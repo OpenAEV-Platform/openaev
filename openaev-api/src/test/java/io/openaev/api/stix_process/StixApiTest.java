@@ -4,7 +4,7 @@ import static io.openaev.api.stix_process.StixApi.STIX_URI;
 import static io.openaev.injector_contract.InjectorContractContentUtilsTest.createContentWithFieldAsset;
 import static io.openaev.injector_contract.InjectorContractContentUtilsTest.createContentWithFieldAssetGroup;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
-import static io.openaev.rest.tag.TagService.OPENCTI_TAG_NAME;
+import static io.openaev.utils.constants.StixConstants.STIX_PLATFORMS_AFFINITY;
 import static io.openaev.utils.fixtures.VulnerabilityFixture.CVE_2023_48788;
 import static java.util.Collections.emptyList;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -83,7 +83,7 @@ class StixApiTest extends IntegrationTest {
 
   private JsonNode stixSecurityCoverage;
   private JsonNode stixSecurityCoverageNoDuration;
-  private JsonNode stixSecurityCoverageNoLabels;
+  private JsonNode stixSecurityCoverageNoPlatformAffinity;
   private JsonNode stixSecurityCoverageWithoutTtps;
   private JsonNode stixSecurityCoverageWithoutVulns;
   private JsonNode stixSecurityCoverageWithoutObjects;
@@ -109,8 +109,9 @@ class StixApiTest extends IntegrationTest {
         loadJsonWithStixObjects(
             "src/test/resources/stix-bundles/security-coverage-no-duration.json");
 
-    stixSecurityCoverageNoLabels =
-        loadJsonWithStixObjects("src/test/resources/stix-bundles/security-coverage-no-labels.json");
+    stixSecurityCoverageNoPlatformAffinity =
+        loadJsonWithStixObjects(
+            "src/test/resources/stix-bundles/security-coverage-no-platform-affinity.json");
 
     stixSecurityCoverageWithoutTtps =
         loadJsonWithStixObjects(
@@ -178,23 +179,6 @@ class StixApiTest extends IntegrationTest {
             vulnerabilityComposer.forVulnerability(
                 VulnerabilityFixture.createVulnerabilityInput("CVE-2025-56786")))
         .persist();
-
-    tagRuleComposer
-        .forTagRule(new TagRule())
-        .withTag(tagComposer.forTag(TagFixture.getTagWithText("empty-asset-group")))
-        .withAssetGroup(emptyAssetGroup)
-        .persist();
-
-    tagRuleComposer
-        .forTagRule(new TagRule())
-        .withTag(tagComposer.forTag(TagFixture.getTagWithText("coverage")))
-        .withAssetGroup(completeAssetGroup)
-        .persist();
-
-    tagRuleComposer
-        .forTagRule(new TagRule())
-        .withTag(tagComposer.forTag(TagFixture.getTagWithText("no-asset-groups")))
-        .persist();
   }
 
   @Nested
@@ -203,46 +187,15 @@ class StixApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "When Security Coverage SDO has no labels property, should force adding opencti tag to scenario")
-    void whenSecurityCoverageSDOHasNoLabelsProperty_shouldForceAddingOpenctiTagToScenario()
-        throws Exception {
-      String response =
-          mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(stixSecurityCoverageNoLabels)))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      assertThat(response).isNotBlank();
-      String scenarioId = JsonPath.read(response, "$.scenarioId");
-      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
-      Tag openctiTag = tagRepository.findByName(OPENCTI_TAG_NAME).get();
-
-      assertThat(createdScenario.getTags()).contains(openctiTag);
-    }
-
-    @Test
-    @DisplayName(
-        "When Security Coverage SDO has labels property but not the opencti value, should force adding opencti tag to scenario")
+        "When Security Coverage SDO has no platforms affinity property, should force adding default platforms tag to scenario")
     void
-        whenSecurityCoverageSDOHasLabelsPropertyButNotTheOpenctiValue_shouldForceAddingOpenctiTagToScenario()
+        whenSecurityCoverageSDOHasNoPlatformsAffinityProperty_shouldForceAddingDefaultPlatformsTagToScenario()
             throws Exception {
-      JsonNode updated =
-          updateStixObjectField(
-              stixSecurityCoverage,
-              CommonProperties.LABELS.toString(),
-              null,
-              List.of("some-label"),
-              0);
-
       String response =
           mvc.perform(
                   post(STIX_URI + "/process-bundle")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(updated)))
+                      .content(mapper.writeValueAsString(stixSecurityCoverageNoPlatformAffinity)))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -251,9 +204,13 @@ class StixApiTest extends IntegrationTest {
       assertThat(response).isNotBlank();
       String scenarioId = JsonPath.read(response, "$.scenarioId");
       Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
-      Tag openctiTag = tagRepository.findByName(OPENCTI_TAG_NAME).get();
 
-      assertThat(createdScenario.getTags()).contains(openctiTag);
+      Tag customTagLinux = tagRepository.findByName(Tag.SECURITY_COVERAGE_LINUX_TAG_NAME).get();
+      Tag customTagWindows = tagRepository.findByName(Tag.SECURITY_COVERAGE_WINDOWS_TAG_NAME).get();
+      Tag customTagMacOS = tagRepository.findByName(Tag.SECURITY_COVERAGE_MACOS_TAG_NAME).get();
+
+      assertThat(createdScenario.getTags())
+          .containsExactlyInAnyOrder(customTagLinux, customTagWindows, customTagMacOS);
     }
 
     @Test
@@ -262,7 +219,8 @@ class StixApiTest extends IntegrationTest {
       String label = "custom-label";
       tagRuleComposer
           .forTagRule(TagRuleFixture.createDefaultTagRule())
-          .withTag(tagComposer.forTag(TagFixture.getTagWithText(label)))
+          .withTag(
+              tagComposer.forTag(TagFixture.getTagWithText(Tag.SECURITY_COVERAGE_WINDOWS_TAG_NAME)))
           .withAssetGroup(
               assetGroupComposer
                   .forAssetGroup(
@@ -307,9 +265,12 @@ class StixApiTest extends IntegrationTest {
       assertThat(response).isNotBlank();
       String scenarioId = JsonPath.read(response, "$.scenarioId");
       Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
-      Tag customTag = tagRepository.findByName(label).get();
+      Tag customTagLinux = tagRepository.findByName(Tag.SECURITY_COVERAGE_LINUX_TAG_NAME).get();
+      Tag customTagWindows = tagRepository.findByName(Tag.SECURITY_COVERAGE_WINDOWS_TAG_NAME).get();
+      Tag customTagMacOS = tagRepository.findByName(Tag.SECURITY_COVERAGE_MACOS_TAG_NAME).get();
 
-      assertThat(createdScenario.getTags()).contains(customTag);
+      assertThat(createdScenario.getTags())
+          .containsExactlyInAnyOrder(customTagLinux, customTagWindows, customTagMacOS);
 
       List<Inject> injects =
           createdScenario.getInjects().stream()
@@ -413,7 +374,10 @@ class StixApiTest extends IntegrationTest {
       assertThat(createdScenario.getRecurrence()).isEqualTo("P1D");
       assertThat(createdScenario.getRecurrenceEnd()).isNull();
       assertThat(createdScenario.getTags().stream().map(Tag::getName).toList())
-          .contains(OPENCTI_TAG_NAME);
+          .containsExactlyInAnyOrder(
+              Tag.SECURITY_COVERAGE_LINUX_TAG_NAME,
+              Tag.SECURITY_COVERAGE_MACOS_TAG_NAME,
+              Tag.SECURITY_COVERAGE_WINDOWS_TAG_NAME);
     }
 
     @Test
@@ -481,7 +445,10 @@ class StixApiTest extends IntegrationTest {
       assertThat(createdScenario.getRecurrenceEnd())
           .isEqualTo(createdScenario.getRecurrenceStart().plus(30, ChronoUnit.DAYS));
       assertThat(createdScenario.getTags().stream().map(Tag::getName).toList())
-          .contains(OPENCTI_TAG_NAME);
+          .containsExactlyInAnyOrder(
+              Tag.SECURITY_COVERAGE_LINUX_TAG_NAME,
+              Tag.SECURITY_COVERAGE_MACOS_TAG_NAME,
+              Tag.SECURITY_COVERAGE_WINDOWS_TAG_NAME);
 
       // -- ASSERT Security Coverage --
       assertThat(createdScenario.getSecurityCoverage().getAttackPatternRefs()).hasSize(3);
@@ -522,11 +489,20 @@ class StixApiTest extends IntegrationTest {
         throws Exception {
       JsonNode updated =
           updateStixObjectField(
-              stixSecurityCoverageOnlyVulns,
-              CommonProperties.LABELS.toString(),
-              null,
-              List.of("coverage"),
-              0);
+              stixSecurityCoverageOnlyVulns, STIX_PLATFORMS_AFFINITY, null, List.of("windows"), 0);
+
+      tagRuleComposer
+          .forTagRule(TagRuleFixture.createDefaultTagRule())
+          .withTag(
+              tagComposer.forTag(TagFixture.getTagWithText(Tag.SECURITY_COVERAGE_WINDOWS_TAG_NAME)))
+          .withAssetGroup(
+              assetGroupComposer
+                  .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("windows asset group"))
+                  .withAsset(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))
+                  .withAsset(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))
+                  .withAsset(endpointComposer.forEndpoint(EndpointFixture.createEndpoint())))
+          .persist();
+
       String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
       Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(createdScenario.getName())
@@ -546,11 +522,19 @@ class StixApiTest extends IntegrationTest {
         throws Exception {
       JsonNode updated =
           updateStixObjectField(
-              stixSecurityCoverageOnlyVulns,
-              CommonProperties.LABELS.toString(),
-              null,
-              List.of("empty-asset-group"),
-              0);
+              stixSecurityCoverageOnlyVulns, STIX_PLATFORMS_AFFINITY, null, List.of("windows"), 0);
+
+      tagRuleComposer
+          .forTagRule(TagRuleFixture.createDefaultTagRule())
+          .withTag(
+              tagComposer.forTag(TagFixture.getTagWithText(Tag.SECURITY_COVERAGE_WINDOWS_TAG_NAME)))
+          .withAssetGroup(
+              assetGroupComposer
+                  .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("windows asset group"))
+                  .withAsset(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))
+                  .withAsset(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))
+                  .withAsset(endpointComposer.forEndpoint(EndpointFixture.createEndpoint())))
+          .persist();
       updated =
           updateStixObjectField(updated, StixConstants.STIX_NAME, "CVE-2025-56786", emptyList(), 1);
       String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
@@ -589,8 +573,8 @@ class StixApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Should create scenario with 1 inject when labels are no defined")
-    void shouldCreateScenarioWithOneInjectWhenLabelsAreNotDefined() throws Exception {
+    @DisplayName("Should create scenario with 1 inject when platforms affinity are no defined")
+    void shouldCreateScenarioWithOneInjectWhenPlatformsAffinityAreNotDefined() throws Exception {
       String scenarioId =
           getScenarioIdResponse(mapper.writeValueAsString(stixSecurityCoverageOnlyVulns));
       Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
@@ -755,11 +739,19 @@ class StixApiTest extends IntegrationTest {
     void shouldNotUpdateInjectsWhenSomeTargetIsRemoved() throws Exception {
       JsonNode updated =
           updateStixObjectField(
-              stixSecurityCoverageOnlyVulns,
-              CommonProperties.LABELS.toString(),
-              null,
-              List.of("coverage"),
-              0);
+              stixSecurityCoverageOnlyVulns, STIX_PLATFORMS_AFFINITY, null, List.of("windows"), 0);
+
+      tagRuleComposer
+          .forTagRule(TagRuleFixture.createDefaultTagRule())
+          .withTag(
+              tagComposer.forTag(TagFixture.getTagWithText(Tag.SECURITY_COVERAGE_WINDOWS_TAG_NAME)))
+          .withAssetGroup(
+              assetGroupComposer
+                  .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("windows asset group"))
+                  .withAsset(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))
+                  .withAsset(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))
+                  .withAsset(endpointComposer.forEndpoint(EndpointFixture.createEndpoint())))
+          .persist();
       String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
       Scenario scenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(scenario.getName()).isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");

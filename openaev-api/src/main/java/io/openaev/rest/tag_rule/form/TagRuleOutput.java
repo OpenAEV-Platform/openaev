@@ -25,6 +25,12 @@ public class TagRuleOutput {
   @Schema(description = "Name of the tag associated with the tag rule")
   private String tagName;
 
+  @NotBlank(message = MANDATORY_MESSAGE)
+  @JsonProperty("tag_rule_protected")
+  @Schema(
+      description = "The tag rule is protected and cannot change the associated tag or be deleted.")
+  private boolean isProtected;
+
   @JsonProperty("asset_groups")
   @Schema(description = "Asset groups of the tag rule")
   Map<String, String> assetGroups = new HashMap<>();
