@@ -1,4 +1,18 @@
-import { type Challenge, type Document, type Domain, type Exercise, type Organization, type PlatformSettings, type Scenario, type ScenarioChallengesReader, type SimulationChallengesReader, type Tag, type Token, type User } from '../utils/api-types';
+import {
+  type CalderaSettings,
+  type Challenge,
+  type Document,
+  type Domain,
+  type Exercise,
+  type Organization,
+  type PlatformSettings,
+  type Scenario,
+  type ScenarioChallengesReader,
+  type SimulationChallengesReader,
+  type Tag,
+  type Token,
+  type User
+} from '../utils/api-types';
 
 export interface UserHelper {
   getMe: () => User;
@@ -25,6 +39,7 @@ export interface LoggedHelper {
   logged: () => any;
   getMe: () => User;
   getPlatformSettings: () => PlatformSettings;
+  getCalderaSettings: () => CalderaSettings[];
   getPlatformName: () => string;
   getUserLang: () => string;
 }

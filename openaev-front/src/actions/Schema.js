@@ -32,6 +32,12 @@ export const platformParameters = new schema.Entity(
   {},
   { idAttribute: () => 'parameters' },
 );
+export const calderaSettings = new schema.Entity(
+    'calderasettings',
+    {},
+    {idAttribute: 'executor_caldera_instance_id'},
+);
+export const arrayOfCalderaSettings = new schema.Array(calderaSettings);
 
 export const token = new schema.Entity(
   'tokens',
@@ -421,6 +427,7 @@ export const storeHelper = state => ({
   getExecutor: id => entity(id, 'executors', state),
   getExecutors: () => entities('executors', state),
   getExecutorsMap: () => maps('executors', state),
+  getCalderaSettings: () => entities('calderasettings', state),
   // channels
   getChannels: () => entities('channels', state),
   getChannel: id => entity(id, 'channels', state),

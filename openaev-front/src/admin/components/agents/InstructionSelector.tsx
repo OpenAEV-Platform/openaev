@@ -7,11 +7,14 @@ import { useState } from 'react';
 import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
 import useTabs from '../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../components/i18n';
-import { type ExecutorOutput, type Token } from '../../../utils/api-types';
+import { type ExecutorOutput, type Token} from '../../../utils/api-types';
 import useAuth from '../../../utils/hooks/useAuth';
 import { copyToClipboard, download } from '../../../utils/utils';
 import useDataLoader from "../../../utils/hooks/useDataLoader";
-import { fetchConfigurationValueForExecutorType } from "../../../actions/executors/executor-action";
+import {fetchCalderaSettings} from "../../../actions/settings/settings-action";
+import {useAppDispatch} from "../../../utils/hooks";
+import {useHelper} from "../../../store";
+import type {LoggedHelper} from "../../../actions/helper";
 
 const USER = 'user';
 const WINDOWS = 'Windows';
@@ -33,11 +36,17 @@ const InstructionSelector: React.FC<InstructionSelectorProps> = ({ userToken, pl
   const [selectedOption, setSelectedOption] = useState(USER);
   const [agentFolder] = useState<null | string>(null);
   const [arch, setArch] = useState<string>(x86_64);
-  const [executorCalderaPublicUrl, setExecutorCalderaPublicUrl] = useState<null | string>(null);
+  const dispatch = useAppDispatch();
 
+  // Fetching data
+  const { calderaSettings } = useHelper((helper: LoggedHelper) => ({
+    calderaSettings: helper.getCalderaSettings(),
+  }));
   useDataLoader(() => {
-    fetchConfigurationValueForExecutorType('openaev_caldera', 'EXECUTOR_CALDERA_PUBLIC_URL').then((data) => {setExecutorCalderaPublicUrl(data)});
+    dispatch(fetchCalderaSettings());
   });
+
+  const executorCalderaPublicUrl = calderaSettings.length > 0 ? calderaSettings[0].executor_caldera_public_url : '';
 
   const tabEntries: TabsEntry[] = [{
     key: 'Standard Installation',
