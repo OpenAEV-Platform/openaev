@@ -35,18 +35,6 @@ public class OpenCTIContract extends Contractor {
   public static final String OPENCTI_CREATE_CASE = "88db2075-ae49-4fe9-a64c-08da2ed07637";
   public static final String OPENCTI_CREATE_REPORT = "b535f011-3a03-46e7-800a-74f01cd8865e";
 
-  private OpenCTIConfig config;
-
-  @Autowired
-  public void setConfig(OpenCTIConfig config) {
-    this.config = config;
-  }
-
-  @Override
-  public boolean isExpose() {
-    return Optional.ofNullable(config.getEnable()).orElse(false);
-  }
-
   @Override
   public String getType() {
     return TYPE;
@@ -59,8 +47,7 @@ public class OpenCTIContract extends Contractor {
         Map.of(en, "OpenCTI", fr, "OpenCTI"),
         "#0fbcff",
         "#001bda",
-        "/img/icon-opencti.png",
-        isExpose());
+        "/img/icon-opencti.png");
   }
 
   @Override

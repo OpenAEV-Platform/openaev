@@ -72,7 +72,6 @@ public class InjectorService {
    * <p>This method handles the complete lifecycle of injector registration:
    *
    * <ul>
-   *   <li>Removes hidden injectors (expose=false)
    *   <li>Uploads injector icons
    *   <li>Creates new injectors or updates existing ones
    *   <li>Synchronizes contracts (create/update/delete)
@@ -101,12 +100,6 @@ public class InjectorService {
       Boolean isPayloads,
       List<ExternalServiceDependency> dependencies)
       throws InjectorRegistrationException {
-
-    // Handle non-exposed injectors
-    if (!contractor.isExpose()) {
-      handleNonExposedInjector(id);
-      return;
-    }
 
     // Upload icon if available
     uploadInjectorIcon(contractor);
@@ -153,10 +146,6 @@ public class InjectorService {
     }
 
     log.info("Successfully registered injector '{}' (type: {})", name, contractor.getType());
-  }
-
-  private void handleNonExposedInjector(String id) {
-    injectorRepository.findById(id).ifPresent(injector -> injectorRepository.deleteById(id));
   }
 
   private void uploadInjectorIcon(Contractor contractor) {

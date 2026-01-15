@@ -14,16 +14,16 @@ public class LadeInjector {
   @Autowired
   public LadeInjector(InjectorService injectorService, LadeContract contract) {
     try {
-      injectorService.register(
-          LADE_INJECTOR_ID,
-          LADE_INJECTOR_NAME,
-          contract,
-          false,
-          "cyber-range",
-          null,
-          null,
-          false,
-          List.of());
+//      injectorService.register(
+//          LADE_INJECTOR_ID,
+//          LADE_INJECTOR_NAME,
+//          contract,
+//          false,
+//          "cyber-range",
+//          null,
+//          null,
+//          false,
+//          List.of());
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

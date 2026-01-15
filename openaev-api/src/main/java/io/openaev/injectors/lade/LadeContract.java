@@ -30,11 +30,6 @@ public class LadeContract extends Contractor {
   }
 
   @Override
-  public boolean isExpose() {
-    return Optional.ofNullable(config.getEnable()).orElse(false);
-  }
-
-  @Override
   public String getType() {
     return TYPE;
   }
@@ -42,7 +37,7 @@ public class LadeContract extends Contractor {
   @Override
   public ContractConfig getConfig() {
     return new ContractConfig(
-        TYPE, Map.of(en, "Airbus LADE"), "#673AB7", "#673AB7", "/img/icon-lade.png", isExpose());
+        TYPE, Map.of(en, "Airbus LADE"), "#673AB7", "#673AB7", "/img/icon-lade.png");
   }
 
   @Autowired

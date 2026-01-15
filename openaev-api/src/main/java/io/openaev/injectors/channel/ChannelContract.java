@@ -46,11 +46,6 @@ public class ChannelContract extends Contractor {
   public static final String TYPE = "openaev_channel";
 
   @Override
-  public boolean isExpose() {
-    return true;
-  }
-
-  @Override
   public String getType() {
     return TYPE;
   }
@@ -62,8 +57,7 @@ public class ChannelContract extends Contractor {
         Map.of(en, "Media pressure", fr, "Pression médiatique"),
         "#ff9800",
         "#ff9800",
-        "/img/channel.png",
-        isExpose());
+        "/img/channel.png");
   }
 
   @Override

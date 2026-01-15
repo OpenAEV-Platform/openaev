@@ -34,11 +34,6 @@ public class EmailContract extends Contractor {
   public static final String EMAIL_GLOBAL = "2790bd39-37d4-4e39-be7e-53f3ca783f86";
 
   @Override
-  public boolean isExpose() {
-    return true;
-  }
-
-  @Override
   public String getType() {
     return TYPE;
   }
@@ -46,7 +41,7 @@ public class EmailContract extends Contractor {
   @Override
   public ContractConfig getConfig() {
     return new ContractConfig(
-        TYPE, Map.of(en, "Email", fr, "Email"), "#cddc39", "#cddc39", "/img/email.png", isExpose());
+        TYPE, Map.of(en, "Email", fr, "Email"), "#cddc39", "#cddc39", "/img/email.png");
   }
 
   @Override

@@ -39,13 +39,6 @@ import java.util.List;
 public abstract class Contractor {
 
   /**
-   * Returns whether this contractor's injector should be visible and available.
-   *
-   * @return true if the injector should be exposed, false to hide it
-   */
-  public abstract boolean isExpose();
-
-  /**
    * Returns the unique type identifier for this contractor's injector.
    *
    * @return the injector type (e.g., "email", "sms", "caldera")

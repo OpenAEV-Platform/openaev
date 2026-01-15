@@ -45,11 +45,6 @@ public class CalderaContract extends Contractor {
   private final DomainService domainService;
 
   @Override
-  public boolean isExpose() {
-    return this.config.isEnable();
-  }
-
-  @Override
   public String getType() {
     return TYPE;
   }
@@ -58,7 +53,7 @@ public class CalderaContract extends Contractor {
   public ContractConfig getConfig() {
     Map<SupportedLanguage, String> labels = Map.of(en, "Caldera", fr, "Caldera");
     return new ContractConfig(
-        TYPE, labels, "#8b0000", "#8b0000", "/img/icon-caldera.png", isExpose());
+        TYPE, labels, "#8b0000", "#8b0000", "/img/icon-caldera.png");
   }
 
   @Override

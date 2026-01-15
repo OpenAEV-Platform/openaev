@@ -4,6 +4,7 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.executors.InjectorContext;
 import io.openaev.injectors.ovh.OvhSmsContract;
 import io.openaev.injectors.ovh.OvhSmsExecutor;
+import io.openaev.injectors.ovh.config.OvhSmsInjectorConfig;
 import io.openaev.injectors.ovh.service.OvhSmsService;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
@@ -15,14 +16,14 @@ import java.util.List;
 
 public class OvhInjectorIntegration extends Integration {
   private static final String OVH_SMS_INJECTOR_NAME = "OVHCloud SMS Platform";
-  private static final String OVH_SMS_INJECTOR_ID = "e5aefbca-cf8f-4a57-9384-0503a8ffc22f";
+  public static final String OVH_SMS_INJECTOR_ID = "e5aefbca-cf8f-4a57-9384-0503a8ffc22f";
 
   private final OvhSmsContract ovhSmsContract;
+  private final OvhSmsInjectorConfig config;
   private final InjectorContext injectorContext;
 
   private final InjectorService injectorService;
   private final InjectExpectationService injectExpectationService;
-  private final OvhSmsService smsService;
 
   @QualifiedComponent(identifier = OvhSmsContract.TYPE)
   private OvhSmsExecutor ovhSmsExecutor;
@@ -31,17 +32,17 @@ public class OvhInjectorIntegration extends Integration {
       ComponentRequestEngine componentRequestEngine,
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
+      OvhSmsInjectorConfig config,
       OvhSmsContract ovhSmsContract,
       InjectorContext injectorContext,
       InjectorService injectorService,
-      InjectExpectationService injectExpectationService,
-      OvhSmsService smsService) {
+      InjectExpectationService injectExpectationService) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService);
+    this.config = config;
     this.ovhSmsContract = ovhSmsContract;
     this.injectorContext = injectorContext;
     this.injectorService = injectorService;
     this.injectExpectationService = injectExpectationService;
-    this.smsService = smsService;
   }
 
   @Override
@@ -56,7 +57,8 @@ public class OvhInjectorIntegration extends Integration {
         null,
         false,
         List.of());
-    this.ovhSmsExecutor = new OvhSmsExecutor(injectorContext, smsService, injectExpectationService);
+    OvhSmsService ovhSmsService = new OvhSmsService(this.config);
+    this.ovhSmsExecutor = new OvhSmsExecutor(injectorContext, ovhSmsService, injectExpectationService);
   }
 
   @Override

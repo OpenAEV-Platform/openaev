@@ -27,9 +27,6 @@ public class ContractConfig {
   /** Unique type identifier for this injector (e.g., "email", "sms", "caldera"). */
   private final String type;
 
-  /** Whether this contract should be visible and available for use. */
-  private final boolean expose;
-
   /** Localized display labels, keyed by supported language. */
   private final Map<SupportedLanguage, String> label;
 
@@ -57,10 +54,9 @@ public class ContractConfig {
       Map<SupportedLanguage, String> label,
       String colorDark,
       String colorLight,
-      String icon,
-      boolean expose) {
+      String icon) {
     this.type = type;
-    this.expose = expose;
+//    this.expose = expose;
     this.colorDark = colorDark;
     this.colorLight = colorLight;
     this.label = label;

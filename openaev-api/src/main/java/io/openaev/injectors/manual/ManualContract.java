@@ -38,7 +38,7 @@ public class ManualContract extends Contractor {
     ContractElement expectations = expectationsField();
 
     Map<SupportedLanguage, String> label = Map.of(en, "Manual", fr, "Manuel");
-    config = new ContractConfig(TYPE, label, "#009688", "#009688", "/img/manual.png", isExpose());
+    config = new ContractConfig(TYPE, label, "#009688", "#009688", "/img/manual.png");
 
     List<ContractElement> instance =
         contractBuilder().mandatoryOnCondition(teams, expectations).optional(expectations).build();
@@ -52,11 +52,6 @@ public class ManualContract extends Contractor {
                 List.of(Endpoint.PLATFORM_TYPE.Internal),
                 false,
                 Set.of(PresetDomain.EMAIL_INFILTRATION, PresetDomain.TABLETOP)));
-  }
-
-  @Override
-  public boolean isExpose() {
-    return true;
   }
 
   @Override

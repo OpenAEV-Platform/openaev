@@ -169,8 +169,7 @@ public class PayloadService {
             labels,
             "#000000",
             "#000000",
-            "/img/icon-" + injector.getType() + ".png",
-            true);
+            "/img/icon-" + injector.getType() + ".png");
     ContractAsset assetField = assetField(Multiple);
     ContractAssetGroup assetGroupField = assetGroupField(Multiple);
     ContractExpectations expectationsField = expectations(payload.getExpectations());

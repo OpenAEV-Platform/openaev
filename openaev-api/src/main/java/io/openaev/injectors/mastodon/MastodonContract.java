@@ -39,11 +39,6 @@ public class MastodonContract extends Contractor {
   }
 
   @Override
-  public boolean isExpose() {
-    return Optional.ofNullable(config.getEnable()).orElse(false);
-  }
-
-  @Override
   public String getType() {
     return TYPE;
   }
@@ -51,7 +46,7 @@ public class MastodonContract extends Contractor {
   @Override
   public ContractConfig getConfig() {
     return new ContractConfig(
-        TYPE, Map.of(en, "Mastodon"), "#ad1457", "#ad1457", "/img/mastodon.png", isExpose());
+        TYPE, Map.of(en, "Mastodon"), "#ad1457", "#ad1457", "/img/mastodon.png");
   }
 
   @Override

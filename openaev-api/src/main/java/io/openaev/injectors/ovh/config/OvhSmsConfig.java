@@ -1,3 +1,4 @@
+/*
 package io.openaev.injectors.ovh.config;
 
 import jakarta.validation.constraints.NotBlank;
@@ -24,3 +25,5 @@ public class OvhSmsConfig {
 
   @NotBlank private String sender;
 }
+
+*/

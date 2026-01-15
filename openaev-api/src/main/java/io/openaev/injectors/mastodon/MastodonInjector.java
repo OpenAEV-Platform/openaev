@@ -14,16 +14,16 @@ public class MastodonInjector {
   @Autowired
   public MastodonInjector(InjectorService injectorService, MastodonContract contract) {
     try {
-      injectorService.register(
-          MASTODON_INJECTOR_ID,
-          MASTODON_INJECTOR_NAME,
-          contract,
-          false,
-          "social-media",
-          null,
-          null,
-          false,
-          List.of());
+//      injectorService.register(
+//          MASTODON_INJECTOR_ID,
+//          MASTODON_INJECTOR_NAME,
+//          contract,
+//          false,
+//          "social-media",
+//          null,
+//          null,
+//          false,
+//          List.of());
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

@@ -16,34 +16,23 @@ import io.openaev.injector_contract.Contractor;
 import io.openaev.injector_contract.ContractorIcon;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractExpectations;
-import io.openaev.injectors.ovh.config.OvhSmsConfig;
+import io.openaev.injectors.ovh.config.OvhSmsInjectorConfig;
 import io.openaev.rest.domain.enums.PresetDomain;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
-import org.springframework.beans.factory.annotation.Autowired;
+
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class OvhSmsContract extends Contractor {
 
   public static final String TYPE = "openaev_ovh_sms";
 
   public static final String OVH_DEFAULT = "e9e902bc-b03d-4223-89e1-fca093ac79dd";
-
-  private OvhSmsConfig config;
-
-  @Autowired
-  public void setConfig(OvhSmsConfig config) {
-    this.config = config;
-  }
-
-  @Override
-  public boolean isExpose() {
-    return Optional.ofNullable(config.getEnable()).orElse(false);
-  }
 
   @Override
   public String getType() {
@@ -53,7 +42,7 @@ public class OvhSmsContract extends Contractor {
   @Override
   public ContractConfig getConfig() {
     return new ContractConfig(
-        TYPE, Map.of(en, "SMS (OVH)"), "#9c27b0", "#9c27b0", "/img/sms.png", isExpose());
+        TYPE, Map.of(en, "SMS (OVH)"), "#9c27b0", "#9c27b0", "/img/sms.png");
   }
 
   @Override
