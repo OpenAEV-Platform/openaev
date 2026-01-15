@@ -576,52 +576,60 @@ public class ElasticService implements EngineService {
       Buckets<StringTermsBucket> domainBuckets =
           response.aggregations().get(domainAggregationKey).sterms().buckets();
 
-      Map<String, String> resolutions = new HashMap<>();
-      List<String> ids =
-          domainBuckets.array().stream()
-              .flatMap(s -> Arrays.stream(s.key().stringValue().split(",")))
-              .distinct()
-              .toList();
-      resolutions.putAll(resolveIdsRepresentative(user, ids));
-
-      List<EsDomainsAvgData> data =
-          domainBuckets.array().stream()
-              .map(
-                  b -> {
-                    String key = b.key().stringValue();
-                    String label = resolutions.get(key);
-                    Buckets<StringTermsBucket> typeBuckets =
-                        b.aggregations().get(typeAggregationKey).sterms().buckets();
-                    List<EsSeries> typesData =
-                        typeBuckets.array().stream()
-                            .map(
-                                t -> {
-                                  String typeLabel = t.key().stringValue();
-                                  long typeCount = t.docCount();
-                                  Buckets<StringTermsBucket> statusBuckets =
-                                      t.aggregations().get(statusAggregationKey).sterms().buckets();
-                                  List<EsSeriesData> statusData =
-                                      statusBuckets.array().stream()
-                                          .map(
-                                              s -> {
-                                                String statusLabel = s.key().stringValue();
-                                                return new EsSeriesData(
-                                                    statusLabel, statusLabel, s.docCount());
-                                              })
-                                          .toList();
-                                  return new EsSeries(typeLabel, typeCount, statusData);
-                                })
-                            .toList();
-                    return new EsDomainsAvgData(label, typesData);
-                  })
-              .toList();
-
-      return new EsAvgs(data);
+      return averageSTerms(domainBuckets, user, typeAggregationKey, statusAggregationKey);
 
     } catch (Exception e) {
       log.error(String.format("count exception: %s", e.getMessage()), e);
     }
     return new EsAvgs(new ArrayList<>());
+  }
+
+  private EsAvgs averageSTerms(
+      @NotNull Buckets<StringTermsBucket> domainBuckets,
+      @NotNull final RawUserAuth user,
+      String typeAggregationKey,
+      String statusAggregationKey) {
+    Map<String, String> resolutions = new HashMap<>();
+    List<String> ids =
+        domainBuckets.array().stream()
+            .flatMap(s -> Arrays.stream(s.key().stringValue().split(",")))
+            .distinct()
+            .toList();
+    resolutions.putAll(resolveIdsRepresentative(user, ids));
+
+    List<EsDomainsAvgData> data =
+        domainBuckets.array().stream()
+            .map(
+                b -> {
+                  String key = b.key().stringValue();
+                  String label = resolutions.get(key);
+                  Buckets<StringTermsBucket> typeBuckets =
+                      b.aggregations().get(typeAggregationKey).sterms().buckets();
+                  List<EsSeries> typesData =
+                      typeBuckets.array().stream()
+                          .map(
+                              t -> {
+                                String typeLabel = t.key().stringValue();
+                                long typeCount = t.docCount();
+                                Buckets<StringTermsBucket> statusBuckets =
+                                    t.aggregations().get(statusAggregationKey).sterms().buckets();
+                                List<EsSeriesData> statusData =
+                                    statusBuckets.array().stream()
+                                        .map(
+                                            s -> {
+                                              String statusLabel = s.key().stringValue();
+                                              return new EsSeriesData(
+                                                  statusLabel, statusLabel, s.docCount());
+                                            })
+                                        .toList();
+                                return new EsSeries(typeLabel, typeCount, statusData);
+                              })
+                          .toList();
+                  return new EsDomainsAvgData(label, typesData);
+                })
+            .toList();
+
+    return new EsAvgs(data);
   }
 
   public EsSeries termHistogram(

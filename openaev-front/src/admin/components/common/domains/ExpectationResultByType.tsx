@@ -4,10 +4,10 @@ import { type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { type EsSeries, type EsSeriesData } from '../../../../utils/api-types';
+import { capitalize } from '../../../../utils/String';
 import { calcPercentage, formatPercentage } from '../../workspaces/custom_dashboards/widgets/viz/domains/SecurityDomainsWidgetUtils';
 import { colorByAverage, colorByLabel } from '../ColorByResult';
 import expectationIconByType from '../ExpectationIconByType';
-import { capitalize } from '../../../../utils/String';
 
 const useStyles = makeStyles()({
   contained: {
@@ -18,7 +18,7 @@ const useStyles = makeStyles()({
   inline: {
     display: 'flex',
     gap: 4,
-    alignItems: 'baseline',
+    alignItems: 'center',
   },
 });
 
@@ -50,7 +50,10 @@ const ExpectationResultByType: FunctionComponent<Props> = ({ results, inline }) 
                 <div className={classes.inline}>
                   <Icon
                     key={result.label}
-                    sx={{ color: colorByAverage(successRate) }}
+                    sx={{
+                      color: colorByAverage(successRate),
+                      height: theme.spacing(4),
+                    }}
                   >
                     {expectationIconByType(result.label)}
                   </Icon>
@@ -92,7 +95,10 @@ const ExpectationResultByType: FunctionComponent<Props> = ({ results, inline }) 
                 <div key={result.label}>
                   <Icon
                     key={result.label}
-                    sx={{ color: colorByAverage(successRate) }}
+                    sx={{
+                      color: colorByAverage(successRate),
+                      height: theme.spacing(4),
+                    }}
                   >
                     {expectationIconByType(result.label)}
                   </Icon>
