@@ -6,10 +6,7 @@ import static io.openaev.service.FileService.COLLECTORS_IMAGES_BASE_PATH;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.database.model.CatalogConnector;
-import io.openaev.database.model.Collector;
-import io.openaev.database.model.ConnectorInstancePersisted;
-import io.openaev.database.model.ConnectorType;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
@@ -79,8 +76,8 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   @Override
   protected CollectorOutput mapToOutput(
-      Collector collector, CatalogConnector catalogConnector, boolean isVerified) {
-    return collectorMapper.toCollectorOutput(collector, catalogConnector, isVerified);
+      Collector collector, CatalogConnector catalogConnector, ConnectorInstance connectorInstance) {
+    return collectorMapper.toCollectorOutput(collector, catalogConnector, connectorInstance);
   }
 
   @Override

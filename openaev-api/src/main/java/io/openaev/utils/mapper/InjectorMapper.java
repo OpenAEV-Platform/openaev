@@ -1,6 +1,7 @@
 package io.openaev.utils.mapper;
 
 import io.openaev.database.model.CatalogConnector;
+import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.Injector;
 import io.openaev.rest.injector.form.InjectorOutput;
 import jakarta.annotation.Nullable;
@@ -13,17 +14,21 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class InjectorMapper {
   private final CatalogConnectorMapper catalogConnectorMapper;
+  private final ConnectorInstanceMapper connectorInstanceMapper;
 
   public InjectorOutput toInjectorOutput(
-      Injector injector, @Nullable CatalogConnector catalogConnector, boolean isVerified) {
+      Injector injector,
+      @Nullable CatalogConnector catalogConnector,
+      ConnectorInstance connectorInstance) {
     return InjectorOutput.builder()
         .id(injector.getId())
         .name(injector.getName())
         .type(injector.getType())
         .external(injector.isExternal())
         .catalog(catalogConnectorMapper.toCatalogSimpleOutput(catalogConnector))
-        .verified(isVerified)
+        .verified(connectorInstance != null)
         .updatedAt(injector.getUpdatedAt())
+        .currentStatus(connectorInstance != null ? connectorInstance.getCurrentStatus() : null)
         .build();
   }
 }

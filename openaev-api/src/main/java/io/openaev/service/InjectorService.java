@@ -102,8 +102,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
   @Override
   protected InjectorOutput mapToOutput(
-      Injector injector, CatalogConnector catalogConnector, boolean isVerified) {
-    return injectorMapper.toInjectorOutput(injector, catalogConnector, isVerified);
+      Injector injector, CatalogConnector catalogConnector, ConnectorInstance instance) {
+    return injectorMapper.toInjectorOutput(injector, catalogConnector, instance);
   }
 
   @Override

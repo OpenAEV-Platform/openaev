@@ -1,6 +1,7 @@
 package io.openaev.rest.collector.form;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.database.model.ConnectorInstance;
 import io.openaev.rest.catalog_connector.dto.CatalogConnectorSimpleOutput;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -32,6 +33,9 @@ public class CollectorOutput {
 
   @JsonProperty("catalog")
   private CatalogConnectorSimpleOutput catalog;
+
+  @JsonProperty("current_status")
+  private ConnectorInstance.CURRENT_STATUS_TYPE currentStatus;
 
   @JsonProperty("is_verified")
   private boolean verified = false;
