@@ -2,6 +2,7 @@ package io.openaev.rest.inject_expectation_trace;
 
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.RBAC;
+import io.openaev.aop.WorkflowUpdateEvent;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.InjectExpectationTrace;
@@ -18,11 +19,12 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import java.util.Collections;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Collections;
+import java.util.List;
 
 @RequiredArgsConstructor
 @RestController
@@ -84,6 +86,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
   @LogExecutionTime
   @PostMapping("/bulk")
   @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
+  @WorkflowUpdateEvent(expectationIds = "#inputs.expectationTraces.![injectExpectationId]")
   public void bulkInsertInjectExpectationTraceForCollector(
       @Valid @RequestBody @NotNull InjectExpectationTraceBulkInsertInput inputs) {
     if (inputs.getExpectationTraces().isEmpty()) {
