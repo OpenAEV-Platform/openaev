@@ -52,10 +52,22 @@ const ConnectorList = () => {
     ? rawConnectors.map((c: CollectorOutput | ExecutorOutput | InjectorOutput) => normalizeSingle(c))
     : rawConnectors;
 
+  const isExternal = (connector: ConnectorOutput): boolean => {
+    const rawConnectorOutput = rawConnectors.find(rawConnector =>
+      ((rawConnector as CollectorOutput).collector_id === connector.id)
+      || ((rawConnector as ExecutorOutput).executor_id === connector.id)
+      || ((rawConnector as InjectorOutput).injector_id === connector.id),
+    );
+
+    return rawConnectorOutput ? (rawConnectorOutput as CollectorOutput).collector_external || (rawConnectorOutput as InjectorOutput).injector_external || (rawConnectorOutput as ExecutorOutput).catalog !== null : true;
+  };
+
   useDataLoader(() => {
     dispatch(apiRequest.fetchAll());
   });
   const sortedConnectors = filtering.filterAndSort(connectors);
+
+  console.log(sortedConnectors);
 
   return (
     <>
@@ -79,6 +91,7 @@ const ConnectorList = () => {
                 isVerified: connector.isVerified,
                 connectorUseCases: [],
                 connectorCurrentStatus: connector.currentStatus,
+                isExternal: isExternal(connector),
               }}
               cardActionUrl={routes.detail(connector.id)}
               isNotClickable={connector.catalog === null && connectorType !== 'injector'}
