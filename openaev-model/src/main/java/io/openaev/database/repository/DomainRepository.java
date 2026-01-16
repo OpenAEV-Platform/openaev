@@ -2,6 +2,7 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.Domain;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -19,5 +20,5 @@ public interface DomainRepository
 
   @NotNull
   @Transactional(readOnly = true)
-  Optional<Domain> findByNameIn(Collection<String> names);
+  List<Domain> findByNameIn(Collection<String> names);
 }
