@@ -214,15 +214,6 @@ public class InjectSearchService {
         .toList();
   }
 
-  private List<String> resolveEffectiveDomains(String[] injectorDomains, String[] payloadDomains) {
-    String[] effectiveDomains =
-        (payloadDomains != null && payloadDomains.length > 0) ? payloadDomains : injectorDomains;
-    if (effectiveDomains == null) {
-      return List.of();
-    }
-    return Arrays.stream(effectiveDomains).filter(Objects::nonNull).distinct().toList();
-  }
-
   // -- PAGE INJECT SEARCH --
   public Page<InjectResultOutput> getPageOfInjectResults(
       String exerciseId, @Valid SearchPaginationInput searchPaginationInput) {

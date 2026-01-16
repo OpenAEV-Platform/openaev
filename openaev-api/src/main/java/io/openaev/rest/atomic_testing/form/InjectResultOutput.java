@@ -62,8 +62,6 @@ public class InjectResultOutput {
   @JsonProperty("inject_contract_domains")
   @Schema(description = "Domain of the inject")
   public String[] getDomains() {
-    return injectorContract != null && injectorContract.getPayload() != null
-        ? injectorContract.getPayload().getDomains()
-        : injectorContract.getDomains();
+    return injectorContract.getDomains();
   }
 }
