@@ -67,8 +67,6 @@ const ConnectorList = () => {
   });
   const sortedConnectors = filtering.filterAndSort(connectors);
 
-  console.log(sortedConnectors);
-
   return (
     <>
       <SearchFilter

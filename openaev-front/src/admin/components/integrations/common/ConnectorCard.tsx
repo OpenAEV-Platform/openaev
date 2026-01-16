@@ -114,16 +114,24 @@ const ConnectorCard = ({
             />
             {showStatusOrLastUpdatedAt && connector.connectorCurrentStatus == null
               && (
-                <div className={classes.dotContainer}>
-                  <div
-                    className={`${classes.dot} ${connector.lastUpdatedAt ? classes.green : classes.red}`}
-                  />
-                  <Typography variant="h4" style={{ margin: 0 }}>
-                    {`${t('Updated at')} ${nsdt(connector.lastUpdatedAt)}`}
-                  </Typography>
-                </div>
+                <>
+                  {connector.isExternal
+                    ? (
+                        <>
+                          <div className={classes.dotContainer}>
+                            <div
+                              className={`${classes.dot} ${connector.lastUpdatedAt ? classes.green : classes.red}`}
+                            />
+                            <Typography variant="h4" style={{ margin: 0 }}>
+                              {`${t('Updated at')} ${nsdt(connector.lastUpdatedAt)}`}
+                            </Typography>
+                          </div>
+                        </>
+                      )
+                    : <ConnectorStatus variant="started" />}
+                </>
               )}
-            {showStatusOrLastUpdatedAt && connector.connectorCurrentStatus != null && <ConnectorStatus variant={connector.connectorCurrentStatus} /> }
+            {(showStatusOrLastUpdatedAt && connector.connectorCurrentStatus != null) && <ConnectorStatus variant={connector.connectorCurrentStatus} /> }
             {onDeployBtnClick
               && <DeployButton onDeployBtnClick={onDeployBtnClick} deploymentCount={connector.connectorInstancesCount ?? 0} />}
           </div>
