@@ -104,7 +104,7 @@ const InjectResultList: FunctionComponent<Props> = ({
     },
     {
       field: 'inject_title',
-      label: 'Title',
+      label: 'Name',
       isSortable: true,
       value: (injectResultOutput: InjectResultOutput) => {
         return <>{injectResultOutput.inject_title}</>;
