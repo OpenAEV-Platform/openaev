@@ -1,7 +1,6 @@
 package io.openaev.rest.inject.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.openaev.database.model.*;
 import java.util.List;
