@@ -6,12 +6,12 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_55__Add_unique_constraint_name_security_platform extends BaseJavaMigration {
+public class V4_56__Add_unique_constraint_name_security_platform extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement stmt = context.getConnection().createStatement()) {
-      // 1. Rename securities platformes with same name and type
+      // 1. Rename securities platforms with same name and type
       stmt.execute(
           """
                   WITH ranked AS (
@@ -21,7 +21,7 @@ public class V4_55__Add_unique_constraint_name_security_platform extends BaseJav
                           security_platform_type,
                           ROW_NUMBER() OVER (
                               PARTITION BY LOWER(asset_name), security_platform_type
-                              ORDER BY created_at
+                              ORDER BY asset_created_at
                           ) AS rn
                       FROM assets
                       WHERE asset_type = 'SecurityPlatform'
