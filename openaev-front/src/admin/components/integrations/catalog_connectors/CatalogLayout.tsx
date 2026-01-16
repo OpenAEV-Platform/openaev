@@ -89,7 +89,7 @@ const CatalogLayout = () => {
             {t('Some deployment requires the installation of our')}
             &nbsp;
             <a
-              href="https://docs.openaev.io/latest/deployment/integration-manager/"
+              href="https://docs.openaev.io/latest/deployment/ecosystem/integration-manager/overview/"
               target="_blank"
               rel="noreferrer"
             >
