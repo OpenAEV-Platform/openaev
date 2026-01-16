@@ -305,6 +305,11 @@ const Injects: FunctionComponent<Props> = ({
     });
   };
 
+  const onCreateInjects = (created: InjectOutputType[]) => {
+    setInjects([...created, ...injects]);
+    queryableHelpers.paginationHelpers.handleChangeTotalElements(queryableHelpers.paginationHelpers.getTotalElements() + created.length);
+  };
+
   const onUpdateInject = async (data: Inject) => {
     if (selectedInjectId) {
       await injectContext.onUpdateInject(selectedInjectId, data).then((result: {
@@ -723,6 +728,7 @@ const Injects: FunctionComponent<Props> = ({
                 open
                 handleClose={() => setOpenCreateDrawer(false)}
                 onCreateInject={onCreateInject}
+                onCreateInjects={onCreateInjects}
                 presetInjectDuration={presetInjectDuration}
                 articlesFromExerciseOrScenario={articles}
                 uriVariable={uriVariable}
