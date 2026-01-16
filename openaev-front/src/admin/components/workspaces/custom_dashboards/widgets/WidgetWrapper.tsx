@@ -5,6 +5,7 @@ import { ErrorBoundary } from '../../../../../components/Error';
 import Loader from '../../../../../components/Loader';
 import {
   type EsAttackPath,
+  type EsAvgs,
   type EsBase,
   type EsCountInterval,
   type EsSeries,
@@ -47,7 +48,7 @@ const WidgetWrapper = ({
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
-  const { customDashboardParameters, fetchCount, fetchSeries, fetchEntities, fetchAttackPaths } = useContext(CustomDashboardContext);
+  const { customDashboardParameters, fetchCount, fetchSeries, fetchEntities, fetchAttackPaths, fetchAverage } = useContext(CustomDashboardContext);
 
   // Use ref to track if component is mounted
   const isMountedRef = useRef(true);
@@ -63,7 +64,7 @@ const WidgetWrapper = ({
     setErrorMessage('');
 
     const params = buildParams(customDashboardParameters);
-    type WidgetDataResponse = EsAttackPath[] | EsCountInterval | EsBase[] | EsSeries[];
+    type WidgetDataResponse = EsAttackPath[] | EsCountInterval | EsAvgs | EsBase[] | EsSeries[];
     let fetchFunction: (id: string, p: Record<string, string | undefined>) => Promise<{ data: WidgetDataResponse }>;
     let vizType: WidgetVizDataType;
 
@@ -76,6 +77,11 @@ const WidgetWrapper = ({
         fetchFunction = fetchCount;
         vizType = WidgetVizDataType.NUMBER;
         break;
+      case 'average': {
+        fetchFunction = fetchAverage;
+        vizType = WidgetVizDataType.AVERAGE;
+        break;
+      }
       case 'list':
         fetchFunction = fetchEntities;
         vizType = WidgetVizDataType.ENTITIES;
@@ -112,6 +118,12 @@ const WidgetWrapper = ({
               setVizData({
                 type: WidgetVizDataType.NUMBER,
                 data: response.data as EsCountInterval,
+              });
+              break;
+            case WidgetVizDataType.AVERAGE:
+              setVizData({
+                type: WidgetVizDataType.AVERAGE,
+                data: response.data as EsAvgs,
               });
               break;
             default: break;

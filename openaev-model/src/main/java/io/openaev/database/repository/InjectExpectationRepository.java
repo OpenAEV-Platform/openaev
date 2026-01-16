@@ -238,6 +238,7 @@ public interface InjectExpectationRepository
       i.inject_title as inject_title,
       MAX(ins.tracking_sent_date) AS tracking_sent_date,
       array_agg(DISTINCT ap.attack_pattern_id) FILTER ( WHERE ap.attack_pattern_id IS NOT NULL ) AS attack_pattern_ids,
+      coalesce(array_agg(DISTINCT p_d.domain_id) FILTER (WHERE p_d.domain_id IS NOT NULL ),array_agg(DISTINCT ic_d.domain_id) FILTER (WHERE ic_d.domain_id IS NOT NULL )) domain_ids,
       MAX(se.scenario_id) AS scenario_id,
       array_agg(DISTINCT c.collector_security_platform) FILTER ( WHERE c.collector_security_platform IS NOT NULL ) ||
       array_agg(DISTINCT a.asset_id) FILTER ( WHERE a.asset_id IS NOT NULL ) AS security_platform_ids
@@ -248,6 +249,8 @@ public interface InjectExpectationRepository
     LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract
     LEFT JOIN injectors_contracts_attack_patterns ic_ap ON ic_ap.injector_contract_id = ic.injector_contract_id
     LEFT JOIN attack_patterns ap ON ap.attack_pattern_id = ic_ap.attack_pattern_id
+    LEFT JOIN injectors_contracts_domains ic_d ON ic_d.injector_contract_id = ic.injector_contract_id
+    LEFT JOIN payloads_domains p_d ON p_d.payload_id = ic.injector_contract_payload
     LEFT JOIN users u ON u.user_id = ie.user_id
     LEFT JOIN teams t ON t.team_id = ie.team_id
     LEFT JOIN assets asset ON asset.asset_id = ie.asset_id

@@ -24,6 +24,7 @@ interface Props {
   helpers: FilterHelpers;
   setPristine: (pristine: boolean) => void;
   style?: CSSProperties;
+  domains?: boolean;
 }
 
 const FilterAutocomplete: FunctionComponent<Props> = ({
@@ -32,6 +33,7 @@ const FilterAutocomplete: FunctionComponent<Props> = ({
   helpers,
   setPristine,
   style,
+  domains,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -56,7 +58,7 @@ const FilterAutocomplete: FunctionComponent<Props> = ({
     <div className={classes.container}>
       <MuiAutocomplete
         options={computeOptions()}
-        sx={{ width: 200 }}
+        sx={{ width: domains ? '95%' : 200 }}
         value={null}
         onChange={(_, selectOptionValue) => {
           if (selectOptionValue) {
@@ -75,7 +77,7 @@ const FilterAutocomplete: FunctionComponent<Props> = ({
             {...params}
             variant="outlined"
             size="small"
-            label={t('Add filter')}
+            label={domains ? t('Please choose a scenario or simulation, or leave this field blank to include all scenarios and atomic tests') : t('Add filter')}
             style={style}
           />
         )}

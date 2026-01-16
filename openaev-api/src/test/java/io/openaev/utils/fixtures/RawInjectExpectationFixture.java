@@ -29,6 +29,7 @@ public class RawInjectExpectationFixture {
       Set<String> attackPatternIds,
       String scenarioId,
       Set<String> securityPlatformIds,
+      Set<String> domainIds,
       Instant trackingSentDate)
       implements RawInjectExpectation {
 
@@ -138,6 +139,11 @@ public class RawInjectExpectationFixture {
     }
 
     @Override
+    public Set<String> getDomain_ids() {
+      return domainIds;
+    }
+
+    @Override
     public String getScenario_id() {
       return scenarioId;
     }
@@ -161,6 +167,7 @@ public class RawInjectExpectationFixture {
         expectationExpectedScore,
         null,
         false,
+        null,
         null,
         null,
         null,

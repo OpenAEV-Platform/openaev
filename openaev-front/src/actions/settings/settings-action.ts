@@ -10,6 +10,10 @@ export const homeDashboardCount = (widgetId: string, parameters: Record<string, 
   return simplePostCall(`${SETTINGS_URI}/home-dashboard/count/${widgetId}`, parameters);
 };
 
+export const homeDashboardAverage = (widgetId: string, parameters: Record<string, string | undefined>) => {
+  return simplePostCall(`${SETTINGS_URI}/home-dashboard/average/${widgetId}`, parameters);
+};
+
 export const homeDashboardSeries = (widgetId: string, parameters: Record<string, string | undefined>) => {
   return simplePostCall(`${SETTINGS_URI}/home-dashboard/series/${widgetId}`, parameters);
 };

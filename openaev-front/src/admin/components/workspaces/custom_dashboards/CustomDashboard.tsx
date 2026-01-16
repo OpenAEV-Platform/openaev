@@ -5,6 +5,7 @@ import { useParams } from 'react-router';
 import { fetchCustomDashboard } from '../../../../actions/custom_dashboards/customdashboard-action';
 import {
   attackPaths,
+  average,
   count,
   entities,
   series,
@@ -27,6 +28,7 @@ const CustomDashboard = () => {
     customDashboardId: customDashboardId,
     paramLocalStorageKey: 'custom-dashboard-' + customDashboardId,
     fetchCustomDashboard: () => fetchCustomDashboard(customDashboardId),
+    fetchAverage: (widgetId: string, params: Record<string, string | undefined>) => average(widgetId, params),
     fetchCount: (widgetId: string, params: Record<string, string | undefined>) => count(widgetId, params),
     fetchSeries: (widgetId: string, params: Record<string, string | undefined>) => series(widgetId, params),
     fetchEntities: (widgetId: string, params: Record<string, string | undefined>) => entities(widgetId, params),

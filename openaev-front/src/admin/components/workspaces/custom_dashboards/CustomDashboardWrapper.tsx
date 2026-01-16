@@ -6,7 +6,7 @@ import { useLocalStorage, useReadLocalStorage } from 'usehooks-ts';
 import Loader from '../../../../components/Loader';
 import type {
   CustomDashboard,
-  EsAttackPath,
+  EsAttackPath, EsAvgs,
   EsBase, EsCountInterval,
   EsSeries,
   WidgetToEntitiesInput,
@@ -28,6 +28,7 @@ interface CustomDashboardConfiguration {
   handleSelectNewDashboard?: (dashboardId: string) => void;
   fetchCustomDashboard: () => Promise<AxiosResponse<CustomDashboard>>;
   fetchCount: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsCountInterval>>;
+  fetchAverage: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsAvgs>>;
   fetchSeries: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsSeries[]>>;
   fetchEntities: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsBase[]>>;
   fetchEntitiesRuntime: (widgetId: string, input: WidgetToEntitiesInput) => Promise<AxiosResponse<WidgetToEntitiesOutput>>;
@@ -58,6 +59,7 @@ const CustomDashboardWrapper = ({
     handleSelectNewDashboard,
     fetchCustomDashboard,
     fetchCount,
+    fetchAverage,
     fetchSeries,
     fetchEntities,
     fetchEntitiesRuntime,
@@ -177,6 +179,7 @@ const CustomDashboardWrapper = ({
     fetchEntities,
     fetchEntitiesRuntime,
     fetchCount,
+    fetchAverage,
     fetchSeries,
     fetchAttackPaths,
     openWidgetDataDrawer: handleOpenWidgetDataDrawer,

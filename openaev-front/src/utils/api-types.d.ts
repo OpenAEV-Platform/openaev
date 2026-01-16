@@ -403,6 +403,13 @@ export interface AttackPatternUpsertInput {
   ignore_dependencies?: boolean;
 }
 
+export type AverageConfiguration = UtilRequiredKeys<
+  WidgetConfiguration,
+  "series" | "widget_configuration_type" | "time_range" | "date_attribute"
+> & {
+  field: Record<string, string>;
+};
+
 interface BaseEsBase {
   /** @format date-time */
   base_created_at?: string;
@@ -1948,6 +1955,10 @@ export interface EsAttackPattern {
   stixId?: string;
 }
 
+export interface EsAvgs {
+  security_domain_average: EsDomainsAvgData[];
+}
+
 export type EsBase = BaseEsBase &
   (
     | BaseEsBaseBaseEntityMapping<"attack-pattern", EsAttackPattern>
@@ -1961,6 +1972,7 @@ export type EsBase = BaseEsBase &
     | BaseEsBaseBaseEntityMapping<"vulnerable-endpoint", EsVulnerableEndpoint>
     | BaseEsBaseBaseEntityMapping<"team", EsTeam>
     | BaseEsBaseBaseEntityMapping<"security-platform", EsSecurityPlatform>
+    | BaseEsBaseBaseEntityMapping<"security-domain", EsSecurityDomain>
     | BaseEsBaseBaseEntityMapping<"asset-group", EsAssetGroup>
   );
 
@@ -1971,6 +1983,11 @@ export interface EsCountInterval {
   interval_count: number;
   /** @format int64 */
   previous_interval_count: number;
+}
+
+export interface EsDomainsAvgData {
+  data?: EsSeries[];
+  label?: string;
 }
 
 export interface EsEndpoint {
@@ -2076,6 +2093,8 @@ export interface EsInjectExpectation {
   base_restrictions?: string[];
   base_scenario_side?: string;
   /** @uniqueItems true */
+  base_security_domains_side?: string[];
+  /** @uniqueItems true */
   base_security_platforms_side?: string[];
   base_simulation_side?: string;
   base_team_side?: string;
@@ -2133,6 +2152,19 @@ export interface EsSearch {
   base_updated_at?: string;
 }
 
+export interface EsSecurityDomain {
+  /** @format date-time */
+  base_created_at?: string;
+  base_dependencies?: string[];
+  base_entity?: string;
+  base_id?: string;
+  base_representative?: string;
+  base_restrictions?: string[];
+  /** @format date-time */
+  base_updated_at?: string;
+  domain_color?: string;
+}
+
 export interface EsSecurityPlatform {
   /** @format date-time */
   base_created_at?: string;
@@ -2150,6 +2182,8 @@ export interface EsSeries {
   color?: string;
   data?: EsSeriesData[];
   label?: string;
+  /** @format int64 */
+  value?: number;
 }
 
 export interface EsSeriesData {
@@ -6868,6 +6902,7 @@ export interface VulnerabilityUpdateInput {
 export interface Widget {
   listened?: boolean;
   widget_config:
+    | AverageConfiguration
     | DateHistogramWidget
     | FlatConfiguration
     | ListConfiguration
@@ -6884,7 +6919,8 @@ export interface Widget {
     | "donut"
     | "list"
     | "attack-path"
-    | "number";
+    | "number"
+    | "average";
   /** @format date-time */
   widget_updated_at: string;
 }
@@ -6907,6 +6943,7 @@ export interface WidgetConfiguration {
   title?: string;
   widget_configuration_type:
     | "flat"
+    | "average"
     | "list"
     | "temporal-histogram"
     | "structural-histogram";
@@ -6914,6 +6951,7 @@ export interface WidgetConfiguration {
 
 export interface WidgetInput {
   widget_config:
+    | AverageConfiguration
     | DateHistogramWidget
     | FlatConfiguration
     | ListConfiguration
@@ -6927,7 +6965,8 @@ export interface WidgetInput {
     | "donut"
     | "list"
     | "attack-path"
-    | "number";
+    | "number"
+    | "average";
 }
 
 export interface WidgetLayout {

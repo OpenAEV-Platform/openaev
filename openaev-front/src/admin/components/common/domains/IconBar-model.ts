@@ -1,11 +1,13 @@
 import type { ReactElement } from 'react';
 
 export interface IconBarElement {
-  type: string;
+  type: string | undefined;
+  selectedType?: string | null;
   icon: () => ReactElement;
-  color: 'default' | 'error' | 'success';
+  color: string | undefined;
   name: string;
   function: () => void;
   count?: number;
   results?: () => ReactElement;
+  expandedResults?: () => ReactElement;
 }

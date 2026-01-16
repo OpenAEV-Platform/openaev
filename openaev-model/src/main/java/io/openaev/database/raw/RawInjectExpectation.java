@@ -162,6 +162,13 @@ public interface RawInjectExpectation {
   Set<String> getSecurity_platform_ids();
 
   /**
+   * Returns the set of security domain IDs expected to detect/prevent the inject.
+   *
+   * @return set of security domain IDs
+   */
+  Set<String> getDomain_ids();
+
+  /**
    * Returns the ID of the scenario this expectation belongs to.
    *
    * @return the scenario ID, or {@code null} if part of an exercise only
