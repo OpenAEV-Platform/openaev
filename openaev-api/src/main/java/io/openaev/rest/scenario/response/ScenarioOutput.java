@@ -47,6 +47,10 @@ public class ScenarioOutput {
   @Schema(description = "Severity of the scenario")
   private String severity;
 
+  @JsonProperty("scenario_type_affinity")
+  @Schema(description = "Type affinity of the scenario")
+  private String typeAffinity;
+
   @JsonProperty("scenario_external_url")
   @Schema(description = "External URL of the scenario")
   private String externalUrl;

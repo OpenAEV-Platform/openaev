@@ -5400,6 +5400,7 @@ export interface Scenario {
   scenario_tags?: string[];
   scenario_teams?: string[];
   scenario_teams_users?: ScenarioTeamUser[];
+  scenario_type_affinity?: "ENDPOINT" | "UNKNOWN";
   /** @format date-time */
   scenario_updated_at: string;
   scenario_users?: string[];
@@ -5491,6 +5492,8 @@ export interface ScenarioOutput {
   scenario_tags?: string[];
   /** @uniqueItems true */
   scenario_teams_users?: ScenarioTeamUserOutput[];
+  /** Type affinity of the scenario */
+  scenario_type_affinity?: "ENDPOINT" | "UNKNOWN";
   /**
    * Update date of the scenario
    * @format date-time
