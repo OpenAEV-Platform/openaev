@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Service;
+import static io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegration.CALDERA_EXECUTOR_TYPE;
 
 @Service
 @Profile("!test")
@@ -86,7 +87,7 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
         getClass().getResourceAsStream("/img/icon-caldera.png"));
     CatalogConnector connector = new CatalogConnector();
     connector.setTitle("Caldera Executor");
-    connector.setSlug(getClassName());
+    connector.setSlug(CALDERA_EXECUTOR_TYPE);
     connector.setLogoUrl(logoFilename);
     connector.setDescription(
         "With Caldera executor register your asset in OpenAEV and enable execution of OpenAEV scenarios through your Caldera instance.");

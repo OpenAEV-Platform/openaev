@@ -25,12 +25,12 @@ public class OpenAEVExecutorIntegration extends Integration {
   private OpenAEVExecutorContextService openAEVExecutorContextService;
 
   public OpenAEVExecutorIntegration(
-      ConnectorInstance instance,
+      ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
       ExecutorService executorService,
       AssetAgentJobRepository assetAgentJobRepository,
       ComponentRequestEngine componentRequestEngine) {
-    super(componentRequestEngine, instance, connectorInstanceService);
+    super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.assetAgentJobRepository = assetAgentJobRepository;
     this.executorService = executorService;
   }

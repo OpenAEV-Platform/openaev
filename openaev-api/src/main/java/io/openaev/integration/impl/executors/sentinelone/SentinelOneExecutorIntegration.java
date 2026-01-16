@@ -55,6 +55,8 @@ public class SentinelOneExecutorIntegration extends Integration {
   private final Ee eeService;
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
+  private final ConnectorInstanceService connectorInstanceService;
+  private final ConnectorInstance connectorInstance;
   private final HttpClientFactory httpClientFactory;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
@@ -81,6 +83,8 @@ public class SentinelOneExecutorIntegration extends Integration {
     this.licenseCacheManager = licenseCacheManager;
     this.executorService = executorService;
     this.taskScheduler = taskScheduler;
+    this.connectorInstanceService = connectorInstanceService;
+    this.connectorInstance = connectorInstance;
     this.httpClientFactory = httpClientFactory;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
 
@@ -96,9 +100,13 @@ public class SentinelOneExecutorIntegration extends Integration {
 
   @Override
   protected void innerStart() throws Exception {
+    String executorId =
+            connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
+                    connectorInstance.getId(), "EXECUTOR_ID");
+
     Executor executor =
         executorService.register(
-            config.getId(),
+            executorId,
             SENTINELONE_EXECUTOR_TYPE,
             SENTINELONE_EXECUTOR_NAME,
             SENTINELONE_EXECUTOR_DOCUMENTATION_LINK,

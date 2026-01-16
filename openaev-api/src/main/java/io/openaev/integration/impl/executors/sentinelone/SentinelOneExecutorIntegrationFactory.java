@@ -24,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Service;
+import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
 
 @Service
 @Profile("!test")
@@ -90,7 +91,7 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
         getClass().getResourceAsStream("/img/icon-sentinelone.png"));
     CatalogConnector connector = new CatalogConnector();
     connector.setTitle("SentinelOne Executor");
-    connector.setSlug(getClassName());
+    connector.setSlug(SENTINELONE_EXECUTOR_TYPE);
     connector.setLogoUrl(logoFilename);
     connector.setDescription(
         """

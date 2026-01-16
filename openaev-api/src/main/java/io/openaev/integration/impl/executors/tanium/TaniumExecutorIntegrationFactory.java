@@ -24,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Service;
+import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE;
 
 @Service
 @Profile("!test")
@@ -90,7 +91,7 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
         getClass().getResourceAsStream("/img/icon-tanium.png"));
     CatalogConnector connector = new CatalogConnector();
     connector.setTitle("Tanium Executor");
-    connector.setSlug(getClassName());
+    connector.setSlug(TANIUM_EXECUTOR_TYPE);
     connector.setLogoUrl(logoFilename);
     connector.setDescription(
         """

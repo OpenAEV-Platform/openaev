@@ -161,13 +161,7 @@ public class ConnectorInstanceService {
         .filter(c -> key.equals(c.getKey()))
         .findFirst()
         .map(c -> c.getValue().asText())
-        .orElseThrow(
-            () ->
-                new IllegalStateException(
-                    "Missing connector configuration for instanceId="
-                        + instanceId
-                        + " and key="
-                        + key));
+        .orElse(null);
   }
 
   /**
