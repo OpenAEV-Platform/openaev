@@ -1,5 +1,4 @@
 import {
-  Box,
   Button,
   GridLegacy,
   Switch,
@@ -13,7 +12,7 @@ import { useState } from 'react';
 import { Field, Form } from 'react-final-form';
 
 import CKEditor from '../../../../../components/CKEditor';
-import AutocompleteField from '../../../../../components/fields/AutocompleteField';
+import DomainsAutocompleteField from '../../../../../components/DomainsAutocompleteField.tsx';
 import OldTextField from '../../../../../components/fields/OldTextField';
 import { useFormatter } from '../../../../../components/i18n';
 import OldAttackPatternField from '../../../../../components/OldAttackPatternField';
@@ -42,7 +41,6 @@ const InjectorContractForm = (props) => {
   const domainOptions = useHelper((helper) => {
     return helper.getDomains();
   });
-  const filteredDomains = domainOptions.filter(d => d.domain_name !== 'To classify');
 
   const renderField = (field) => {
     switch (field.type) {
@@ -130,38 +128,16 @@ const InjectorContractForm = (props) => {
             useExternalId={!editing}
           />
           {!isPayloadInjector && (
-            <Box style={{ marginTop: theme.spacing(3) }}>
-              <Field name="injector_contract_domains">
-                {({ input, meta }) => (
-                  <AutocompleteField
-                    label={t('Domains')}
-                    variant="standard"
-                    multiple
-                    options={filteredDomains.map(d => ({
-                      id: d.domain_id,
-                      label: d.domain_name,
-                    }))}
-                    value={Array.isArray(input.value)
-                      ? input.value.map(v => v.domain_id)
-                      : []}
-                    onChange={(ids) => {
-                      const selected = filteredDomains.filter(d =>
-                        ids.includes(d.domain_id),
-                      );
-                      input.onChange(selected);
-                    }}
-                    onInputChange={() => { }}
-                    error={meta.error && meta.touched}
-                    helperText={meta.touched && meta.error ? meta.error : null}
-                    renderOption={(props, option) => (
-                      <Box component="li" {...props} key={option.domain_id}>
-                        {option.domain_name}
-                      </Box>
-                    )}
-                  />
-                )}
-              </Field>
-            </Box>
+            <Field name="injector_contract_domains">
+              {({ input, meta }) => (
+                <DomainsAutocompleteField
+                  input={input}
+                  meta={meta}
+                  domainOptions={domainOptions}
+                  label={t('Domains')}
+                />
+              )}
+            </Field>
           )}
 
           {contract.fields.map((field) => {

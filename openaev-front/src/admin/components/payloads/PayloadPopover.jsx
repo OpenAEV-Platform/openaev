@@ -1,6 +1,5 @@
 import { MoreVert } from '@mui/icons-material';
 import { Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Menu, MenuItem } from '@mui/material';
-import * as R from 'ramda';
 import { useContext, useState } from 'react';
 import { useDispatch } from 'react-redux';
 
@@ -44,21 +43,21 @@ const PayloadPopover = ({ payload, onUpdate, onDelete, onDuplicate, disableUpdat
       return null;
     }
 
-    const inputValues = R.pipe(
-      R.assoc('payload_platforms', data.payload_platforms),
-      R.assoc('payload_tags', data.payload_tags),
-      R.assoc('payload_attack_patterns', data.payload_attack_patterns),
-      R.assoc('payload_domains', data.payload_domains.map(domain => domain.domain_id)),
-      R.assoc('executable_file', data.executable_file),
-      R.assoc('payload_cleanup_executor', handleCleanupExecutorValue(data.payload_cleanup_executor, data.payload_cleanup_command)),
-      R.assoc('payload_cleanup_command', handleCleanupCommandValue(data.payload_cleanup_command)),
-      R.assoc('payload_detection_remediations', Object.entries(data.remediations).filter(value => value[1]).map(value => ({
-        detection_remediation_collector: value[0],
-        detection_remediation_values: value[1].content,
-        detection_remediation_id: value[1].remediationId,
-        author_rule: value[1].author_rule,
-      }))),
-    )(data);
+    const inputValues = {
+      ...data,
+      payload_domains: data.payload_domains.map(domain => domain.domain_id),
+      payload_cleanup_executor: handleCleanupExecutorValue(data.payload_cleanup_executor, data.payload_cleanup_command),
+      payload_cleanup_command: handleCleanupCommandValue(data.payload_cleanup_command),
+      payload_detection_remediations: Object.entries(data.remediations)
+        .filter(([, value]) => value)
+        .map(([key, value]) => ({
+          detection_remediation_collector: key,
+          detection_remediation_values: value.content,
+          detection_remediation_id: value.remediationId,
+          author_rule: value.author_rule,
+        })),
+    };
+
     return dispatch(updatePayload(payload.payload_id, inputValues)).then((result) => {
       if (onUpdate) {
         const payloadUpdated = result.entities.payloads[result.result];

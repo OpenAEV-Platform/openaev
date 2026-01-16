@@ -3,7 +3,7 @@ import { useTheme } from '@mui/material/styles';
 import * as PropTypes from 'prop-types';
 import { Field, Form } from 'react-final-form';
 
-import AutocompleteField from '../../../../../components/fields/AutocompleteField';
+import DomainsAutocompleteField from '../../../../../components/DomainsAutocompleteField.tsx';
 import { useFormatter } from '../../../../../components/i18n';
 import OldAttackPatternField from '../../../../../components/OldAttackPatternField';
 import { useHelper } from '../../../../../store';
@@ -27,7 +27,7 @@ const InjectorContractForm = (props) => {
   const domainOptions = useHelper((helper) => {
     return helper.getDomains();
   });
-  const filteredDomains = domainOptions.filter(d => d.domain_name !== 'To classify');
+
   return (
     <Form
       keepDirtyOnReinitialize={true}
@@ -51,42 +51,15 @@ const InjectorContractForm = (props) => {
           />
           {!isPayloadInjector && (
             <Field name="injector_contract_domains">
-              {({ input, meta }) => {
-                const safeValue = (Array.isArray(input.value) ? input.value : [])
-                  .map((val) => {
-                    if (typeof val === 'string') {
-                      return filteredDomains.find(d => d.domain_id === val);
-                    }
-                    return val;
-                  })
-                  .filter(Boolean);
-
-                const mappedOptions = filteredDomains.map(d => ({
-                  id: d.domain_id,
-                  label: d.domain_name,
-                }));
-
-                const selectedIds = safeValue.map(d => d.domain_id);
-
-                return (
-                  <AutocompleteField
-                    style={{ marginTop: theme.spacing(3) }}
-                    label={t('Domains')}
-                    variant="standard"
-                    multiple
-                    options={mappedOptions}
-                    value={selectedIds}
-                    onInputChange={() => { }}
-                    error={meta.error && meta.touched}
-                    onChange={(ids) => {
-                      const selectedObjects = filteredDomains.filter(d =>
-                        ids.includes(d.domain_id),
-                      );
-                      input.onChange(selectedObjects);
-                    }}
-                  />
-                );
-              }}
+              {({ input, meta }) => (
+                <DomainsAutocompleteField
+                  input={input}
+                  meta={meta}
+                  domainOptions={domainOptions}
+                  label={t('Domains')}
+                  style={{ marginTop: theme.spacing(2) }}
+                />
+              )}
             </Field>
           )}
 
