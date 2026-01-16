@@ -6,9 +6,9 @@ import { makeStyles } from 'tss-react/mui';
 
 import { type InjectorContractHelper } from '../../../../../actions/injector_contracts/injector-contract-helper';
 import { fetchInjectorContract } from '../../../../../actions/InjectorContracts';
-import { useHelper } from '../../../../../store.js';
+import { useHelper } from '../../../../../store';
 import { type Exercise, type InjectorContract } from '../../../../../utils/api-types';
-import { useAppDispatch } from '../../../../../utils/hooks.js';
+import { useAppDispatch } from '../../../../../utils/hooks';
 import { PermissionsContext } from '../../../common/Context';
 import QuickInject, { EMAIL_CONTRACT } from './QuickInject';
 

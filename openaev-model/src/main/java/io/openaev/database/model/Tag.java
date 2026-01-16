@@ -12,6 +12,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Map;
 import java.util.Objects;
 import lombok.Getter;
 import lombok.Setter;
@@ -38,6 +39,23 @@ import org.hibernate.annotations.UuidGenerator;
 @Table(name = "tags")
 @EntityListeners(ModelBaseListener.class)
 public class Tag implements Base {
+
+  public static final String OPENCTI_TAG_NAME = "opencti";
+  public static final String SECURITY_COVERAGE_LINUX_TAG_NAME = "security coverage: linux";
+  public static final String SECURITY_COVERAGE_WINDOWS_TAG_NAME = "security coverage: windows";
+  public static final String SECURITY_COVERAGE_MACOS_TAG_NAME = "security coverage: macos";
+  public static final String CISCO_TAG_NAME = "cisco";
+  public static final String VULNERABILITY_TAG_NAME = "vulnerability";
+
+  // map: name, color
+  public static Map<String, String> WellKnown =
+      Map.of(
+          OPENCTI_TAG_NAME, "#0fbcff",
+          SECURITY_COVERAGE_LINUX_TAG_NAME, "#f5c100",
+          SECURITY_COVERAGE_WINDOWS_TAG_NAME, "#00a2ed",
+          SECURITY_COVERAGE_MACOS_TAG_NAME, "#b7f500",
+          CISCO_TAG_NAME, "#049fd9",
+          VULNERABILITY_TAG_NAME, "#ff0019");
 
   @Setter
   @Id

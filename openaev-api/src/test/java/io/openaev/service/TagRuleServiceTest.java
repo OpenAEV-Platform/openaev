@@ -73,7 +73,7 @@ public class TagRuleServiceTest extends IntegrationTest {
   @Test
   void testDeleteTagRule_WITH_octi_rule() {
     TagRule expected = TagRuleFixture.createTagRule(TAG_RULE_ID);
-    expected.getTag().setName("opencti");
+    expected.setTag(TagFixture.getTagWithText("opencti"));
     when(tagRuleRepository.findById(TAG_RULE_ID)).thenReturn(Optional.of(expected));
 
     assertThrows(
@@ -105,11 +105,11 @@ public class TagRuleServiceTest extends IntegrationTest {
 
   @Test
   void testCreateTagRule_WITH_octi_tag() {
+    Tag octiTag = TagFixture.getTagWithText("opencti");
     TagRule expected = TagRuleFixture.createTagRule(TAG_RULE_ID);
-    expected.getTag().setName("opencti");
+    expected.setTag(octiTag);
     when(tagRuleRepository.save(any())).thenReturn(expected);
-    when(tagRepository.findByName(expected.getTag().getName()))
-        .thenReturn(Optional.of(TagFixture.getTag()));
+    when(tagRepository.findByName(expected.getTag().getName())).thenReturn(Optional.of(octiTag));
     expected
         .getAssetGroups()
         .forEach(
@@ -197,7 +197,7 @@ public class TagRuleServiceTest extends IntegrationTest {
   @Test
   void testUpdateTagRule_WITH_octi_tag() {
     TagRule beforeUpdate = TagRuleFixture.createTagRule(TAG_RULE_ID);
-    beforeUpdate.getTag().setName("opencti");
+    beforeUpdate.setTag(TagFixture.getTagWithText("opencti"));
     TagRule expected = new TagRule();
     expected.setId(TAG_RULE_ID);
     expected.setTag(TagFixture.getTag("test"));
@@ -219,6 +219,36 @@ public class TagRuleServiceTest extends IntegrationTest {
               expected.getId(),
               expected.getTag().getName(),
               expected.getAssetGroups().stream().map(AssetGroup::getId).toList());
+        });
+  }
+
+  @Test
+  void testUpdateTagRule_from_unreserved_to_reserved_should_throw() {
+    Tag unreservedTag = TagFixture.getTag("unreserved");
+    Tag reservedTag =
+        TagFixture.getTagWithText(TagRule.RESERVED_TAG_NAMES.stream().findFirst().get());
+
+    TagRule tagRule = new TagRule();
+    tagRule.setId(TAG_RULE_ID);
+    tagRule.setTag(unreservedTag);
+
+    when(tagRuleRepository.save(any())).thenReturn(tagRule);
+    when(tagRepository.findByName(unreservedTag.getName())).thenReturn(Optional.of(unreservedTag));
+    when(tagRepository.findByName(reservedTag.getName())).thenReturn(Optional.of(reservedTag));
+    when(tagRuleRepository.findById(tagRule.getId())).thenReturn(Optional.of(tagRule));
+    tagRule
+        .getAssetGroups()
+        .forEach(
+            assetGroup ->
+                when(assetGroupRepository.findById(assetGroup.getId()))
+                    .thenReturn(Optional.of(assetGroup)));
+    assertThrows(
+        ForbiddenException.class,
+        () -> {
+          tagRuleService.updateTagRule(
+              tagRule.getId(),
+              reservedTag.getName(),
+              tagRule.getAssetGroups().stream().map(AssetGroup::getId).toList());
         });
   }
 

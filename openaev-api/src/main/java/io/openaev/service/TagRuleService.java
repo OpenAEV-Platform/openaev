@@ -1,6 +1,5 @@
 package io.openaev.service;
 
-import static io.openaev.rest.tag.TagService.OPENCTI_TAG_NAME;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import com.cronutils.utils.VisibleForTesting;
@@ -12,6 +11,7 @@ import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.TagRuleRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.ForbiddenException;
+import io.openaev.rest.tag.TagService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -29,6 +29,7 @@ public class TagRuleService {
 
   private final TagRuleRepository tagRuleRepository;
   private final TagRepository tagRepository;
+  private final TagService tagService;
   private final AssetGroupRepository assetGroupRepository;
 
   public Optional<TagRule> findById(String id) {
@@ -45,23 +46,35 @@ public class TagRuleService {
   }
 
   public TagRule createTagRule(@NotBlank final String tagName, final List<String> assetGroupIds) {
-    // we block creation of tagrule for the opencti tag as the only rule for this tag will be
-    // created by default
-    if (OPENCTI_TAG_NAME.equals(tagName)) {
+    return createTagRule(getTag(tagName), assetGroupIds, false);
+  }
+
+  public TagRule createTagRule(
+      @NotBlank final String tagName,
+      final List<String> assetGroupIds,
+      final boolean allowCreatingReserved) {
+    return createTagRule(getTag(tagName), assetGroupIds, allowCreatingReserved);
+  }
+
+  public TagRule createTagRule(
+      @NotBlank final Tag tag,
+      final List<String> assetGroupIds,
+      final boolean allowCreatingReserved) {
+    // we block creation of tag rules for reserved tags
+    if (TagRule.RESERVED_TAG_NAMES.contains(tag.getName()) && !allowCreatingReserved) {
       throw new ForbiddenException(
-          "Creation of a rule is not allowed for the tag " + OPENCTI_TAG_NAME);
+          "Creating a rule for the reserved tag '%s' is not permitted.".formatted(tag.getName()));
     }
 
     // if the tag  or one of the asset group doesn't exist we exist throw a ElementNotFoundException
     TagRule tagRule = new TagRule();
-    tagRule.setTag(getTag(tagName));
+    tagRule.setTag(tag);
     tagRule.setAssetGroups(getAssetGroups(assetGroupIds));
     return tagRuleRepository.save(tagRule);
   }
 
   public TagRule updateTagRule(
       @NotBlank final String tagRuleId, final String tagName, final List<String> assetGroupIds) {
-
     // verify that the tag rule exists
     TagRule tagRule =
         tagRuleRepository
@@ -69,21 +82,46 @@ public class TagRuleService {
             .orElseThrow(
                 () -> new ElementNotFoundException("TagRule not found with id: " + tagRuleId));
 
-    // we block update of the tag in the opencti tag rule
-    if (OPENCTI_TAG_NAME.equals(tagRule.getTag().getName()) && !OPENCTI_TAG_NAME.equals(tagName)) {
-      throw new ForbiddenException("Update of the tag " + OPENCTI_TAG_NAME + " is not allowed");
-    }
-
-    tagRule.setTag(getTag(tagName));
+    Tag newTag = getTag(tagName);
 
     // if one of the asset groups doesn't exist throw a ResourceNotFoundException
-    tagRule.setAssetGroups(getAssetGroups(assetGroupIds));
+    List<AssetGroup> assetGroups = getAssetGroups(assetGroupIds);
 
+    return updateTagRule(tagRule, newTag, assetGroups);
+  }
+
+  public TagRule updateTagRule(
+      @NotBlank final TagRule tagRule, final Tag newTag, final List<AssetGroup> assetGroups) {
+    try {
+      if (TagRule.RESERVED_TAG_NAMES.contains(newTag.getName()) && isTagChanged(tagRule, newTag)) {
+        throw new ForbiddenException(
+            "Cannot change target tag to reserved tag " + newTag.getName());
+      }
+      tagRule.setTag(newTag);
+    } catch (UnsupportedOperationException e) {
+      throw new ForbiddenException("Cannot change the tag for protected tag rule.", e);
+    }
+    tagRule.setAssetGroups(assetGroups);
     return tagRuleRepository.save(tagRule);
+  }
+
+  public TagRule updateAssetGroups(final TagRule tagRule, final List<AssetGroup> assetGroups) {
+    tagRule.setAssetGroups(assetGroups);
+    return this.tagRuleRepository.save(tagRule);
+  }
+
+  public TagRule addAssetGroup(final TagRule tagRule, AssetGroup assetGroup) {
+    Set<AssetGroup> assetGroups = new HashSet<>(tagRule.getAssetGroups());
+    assetGroups.add(assetGroup);
+    return this.updateAssetGroups(tagRule, new ArrayList<>(assetGroups.stream().toList()));
   }
 
   public Page<TagRule> searchTagRule(SearchPaginationInput searchPaginationInput) {
     return buildPaginationJPA(tagRuleRepository::findAll, searchPaginationInput, TagRule.class);
+  }
+
+  private boolean isTagChanged(TagRule tagRule, Tag newTag) {
+    return tagRule.getTag() != null && !tagRule.getTag().equals(newTag);
   }
 
   public void deleteTagRule(@NotBlank final String tagRuleId) {
@@ -94,9 +132,9 @@ public class TagRuleService {
             .orElseThrow(
                 () -> new ElementNotFoundException("TagRule not found with id: " + tagRuleId));
     // we block deletion of tagrule for the opencti tag
-    if (OPENCTI_TAG_NAME.equals(tagRule.getTag().getName())) {
+    if (tagRule.isProtected()) {
       throw new ForbiddenException(
-          "Deletion of a rule of the tag " + OPENCTI_TAG_NAME + " is not allowed");
+          "Deletion of a rule of the tag " + tagRule.getTag().getName() + " is not allowed");
     }
 
     tagRuleRepository.deleteById(tagRuleId);
@@ -172,5 +210,16 @@ public class TagRuleService {
                                 new ElementNotFoundException(
                                     "Asset Group not found with id: " + id)))
             .collect(Collectors.toList());
+  }
+
+  public Set<TagRule> ensurePresetRules() {
+    Set<TagRule> tagRules = new HashSet<>();
+    for (String tagName : TagRule.RESERVED_TAG_NAMES) {
+      Tag tag = tagRepository.findByName(tagName).orElseGet(() -> tagService.createTag(tagName));
+      tagRules.add(
+          this.findByTagName(tag.getName())
+              .orElseGet(() -> this.createTagRule(tag, new ArrayList<>(), true)));
+    }
+    return tagRules;
   }
 }

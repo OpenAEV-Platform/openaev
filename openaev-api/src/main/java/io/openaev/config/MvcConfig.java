@@ -67,6 +67,8 @@ public class MvcConfig implements WebMvcConfigurer {
   public void addResourceHandlers(@NotNull ResourceHandlerRegistry registry) {
     // React statics
     addPathStaticResolver(registry, "/static/**", "classpath:/build/static/");
+    // React assets (js & css)
+    addPathStaticResolver(registry, "/assets/**", "classpath:/build/assets/");
     // Specific application images
     addPathStaticResolver(registry, "/media/**", "classpath:/build/static/media/");
   }

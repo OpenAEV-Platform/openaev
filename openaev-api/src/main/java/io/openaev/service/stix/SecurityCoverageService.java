@@ -2,7 +2,6 @@ package io.openaev.service.stix;
 
 import static io.openaev.helper.CryptoHelper.md5Hex;
 import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY;
-import static io.openaev.rest.tag.TagService.OPENCTI_TAG_NAME;
 import static io.openaev.stix.objects.constants.CommonProperties.MODIFIED;
 import static io.openaev.utils.SecurityCoverageUtils.extractAndValidateCoverage;
 import static io.openaev.utils.SecurityCoverageUtils.extractObjectReferences;
@@ -27,7 +26,6 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.AssetService;
 import io.openaev.service.PreviewFeatureService;
-import io.openaev.service.period.CronService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.objects.DomainObject;
@@ -67,7 +65,6 @@ public class SecurityCoverageService {
   private final ScenarioService scenarioService;
   private final SecurityCoverageInjectService securityCoverageInjectService;
   private final TagService tagService;
-  private final CronService cronService;
   private final AttackPatternService attackPatternService;
   private final InjectService injectService;
   private final ResultUtils resultUtils;
@@ -155,9 +152,18 @@ public class SecurityCoverageService {
         labels.add(stixString.getValue());
       }
     }
-    // Force opencti tag
-    labels.add(OPENCTI_TAG_NAME);
     securityCoverage.setLabels(labels);
+
+    // platform affinity
+    Set<String> platformAffinity = new HashSet<>();
+    if (stixCoverageObj.hasProperty(STIX_PLATFORMS_AFFINITY)
+        && stixCoverageObj.getProperty(STIX_PLATFORMS_AFFINITY).getValue() != null) {
+      for (StixString stixString :
+          (List<StixString>) stixCoverageObj.getProperty(STIX_PLATFORMS_AFFINITY).getValue()) {
+        platformAffinity.add(stixString.getValue());
+      }
+    }
+    securityCoverage.setPlatformsAffinity(platformAffinity);
 
     // Extract Attack Patterns
     securityCoverage.setAttackPatternRefs(
@@ -332,7 +338,11 @@ public class SecurityCoverageService {
     scenario.setExternalUrl(sa.getExternalUrl());
     scenario.setCategory(ATTACK_SCENARIO);
     setRecurrence(scenario, sa);
-    scenario.setTags(tagService.fetchTagsFromLabels(sa.getLabels()));
+    scenario.setTags(
+        tagService.findOrCreateTagsFromNames(
+            sa.getPlatformsAffinity().stream()
+                .map("security coverage: %s"::formatted)
+                .collect(Collectors.toSet())));
   }
 
   /**
