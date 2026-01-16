@@ -66,7 +66,7 @@ public class Manager {
 
   /** Not thread-safe */
   @Transactional
-  void monitorIntegrations() {
+  public void monitorIntegrations() {
     Map<ConnectorInstance, Integration> newIntegrationsMap =
         factories.stream()
             .flatMap(
