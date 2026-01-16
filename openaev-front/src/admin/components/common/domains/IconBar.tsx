@@ -5,15 +5,10 @@ import type { FunctionComponent } from 'react';
 import { useFormatter } from '../../../../components/i18n';
 import { type IconBarElement } from './IconBar-model';
 
-interface Props {
-  elements: IconBarElement[];
-  variant?: 'grid' | 'scroll';
-}
-const IconBar: FunctionComponent<Props> = ({ elements, variant = 'grid' }) => {
+interface Props { elements: IconBarElement[] }
+const IconBar: FunctionComponent<Props> = ({ elements }) => {
   const { t } = useFormatter();
   const theme = useTheme();
-
-  const isScroll = variant === 'scroll';
 
   return (
     <Paper
@@ -21,16 +16,14 @@ const IconBar: FunctionComponent<Props> = ({ elements, variant = 'grid' }) => {
       sx={{
         overflow: 'hidden',
         bgcolor: theme.palette.background.paper,
-        marginRight: theme.spacing(2.5),
         marginBottom: theme.spacing(2.5),
       }}
     >
       <Box
         sx={{
-          'overflowX': isScroll ? 'auto' : 'visible',
-          'py': 1,
-          'px': 1,
-          '&::-webkit-scrollbar': { height: '8px' },
+          'overflowX': 'auto',
+          'padding': theme.spacing(1),
+          '&::-webkit-scrollbar': { height: theme.spacing(1) },
           '&::-webkit-scrollbar-thumb': {
             backgroundColor: theme.palette.action.focus,
             borderRadius: 2,
@@ -40,24 +33,19 @@ const IconBar: FunctionComponent<Props> = ({ elements, variant = 'grid' }) => {
         <Grid
           container
           spacing={1}
-          wrap={isScroll ? 'nowrap' : 'wrap'}
+          wrap="nowrap"
           sx={{ width: '100%' }}
         >
           {elements.map((element: IconBarElement) => {
             const isSelected = element.color === 'success';
-
             return (
               <Grid
                 key={element.type}
-                size={isScroll ? undefined : {
-                  xs: 12,
-                  sm: 6,
-                  md: 1.5,
-                }}
+                size={{ md: 1.5 }}
                 sx={{
                   flexShrink: 0,
                   flexGrow: 1,
-                  minWidth: isScroll ? '180px' : 'auto',
+                  minWidth: theme.spacing(20),
                 }}
               >
                 <Card
