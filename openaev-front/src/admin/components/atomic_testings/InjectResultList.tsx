@@ -5,7 +5,6 @@ import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { importAtomicTesting } from '../../../actions/atomic_testings/atomic-testing-actions';
-import type { InjectOutputType } from '../../../actions/injects/Inject';
 import { type Page } from '../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { type QueryableHelpers } from '../../../components/common/queryable/QueryableHelpers';
@@ -19,7 +18,6 @@ import ItemStatus from '../../../components/ItemStatus';
 import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import { type InjectResultOutput, type SearchPaginationInput } from '../../../utils/api-types';
-import type { InjectorContractConverted } from '../../../utils/api-types-custom';
 import { Can } from '../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isNotEmptyField } from '../../../utils/utils';
