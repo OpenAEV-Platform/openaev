@@ -33,7 +33,7 @@ public class V4_56__Add_unique_constraint_name_security_platform extends BaseJav
                     AND ranked.rn > 1;
               """);
 
-      // 5. Update inject_expectation_results JSON
+      // 2. Update inject_expectation_results JSON
       stmt.execute(
           """
                  UPDATE injects_expectations ie
