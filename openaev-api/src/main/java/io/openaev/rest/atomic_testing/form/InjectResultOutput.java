@@ -3,7 +3,6 @@ package io.openaev.rest.atomic_testing.form;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.database.model.Domain;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -11,8 +10,6 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
-
 import lombok.Getter;
 import lombok.Setter;
 
@@ -62,11 +59,11 @@ public class InjectResultOutput {
   @JsonProperty("inject_targets")
   private List<TargetSimple> targets = new ArrayList<>();
 
-
   @JsonProperty("inject_contract_domains")
   @Schema(description = "Domain of the inject")
   public String[] getDomains() {
-    return injectorContract!= null && injectorContract.getPayload() != null ? injectorContract.getPayload().getDomains() : injectorContract.getDomains();
+    return injectorContract != null && injectorContract.getPayload() != null
+        ? injectorContract.getPayload().getDomains()
+        : injectorContract.getDomains();
   }
-
 }

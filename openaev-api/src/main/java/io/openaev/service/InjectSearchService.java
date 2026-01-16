@@ -154,8 +154,10 @@ public class InjectSearchService {
     Expression<String[]> assetIdsExpression = createJoinArrayAggOnId(cb, injectRoot, "assets");
     Expression<String[]> assetGroupIdsExpression =
         createJoinArrayAggOnId(cb, injectRoot, "assetGroups");
-    Expression<String[]> domainsPayloadIdExpression = createJoinArrayAggOnIdForJoin(cb, payloadJoin, "domains");
-    Expression<String[]> domainsContractIdExpression = createJoinArrayAggOnIdForJoin(cb, injectorContractJoin, "domains");
+    Expression<String[]> domainsPayloadIdExpression =
+        createJoinArrayAggOnIdForJoin(cb, payloadJoin, "domains");
+    Expression<String[]> domainsContractIdExpression =
+        createJoinArrayAggOnIdForJoin(cb, injectorContractJoin, "domains");
 
     // SELECT
     cq.multiselect(
@@ -442,8 +444,10 @@ public class InjectSearchService {
     Expression<String[]> assetIdsExpression = createJoinArrayAggOnId(cb, injectRoot, "assets");
     Expression<String[]> assetGroupIdsExpression =
         createJoinArrayAggOnId(cb, injectRoot, "assetGroups");
-    Expression<String[]> domainsPayloadIdExpression = createJoinArrayAggOnIdForJoin(cb, payloadJoin, "domains");
-    Expression<String[]> domainsContractIdExpression = createJoinArrayAggOnIdForJoin(cb, injectorContractJoin, "domains");
+    Expression<String[]> domainsPayloadIdExpression =
+        createJoinArrayAggOnIdForJoin(cb, payloadJoin, "domains");
+    Expression<String[]> domainsContractIdExpression =
+        createJoinArrayAggOnIdForJoin(cb, injectorContractJoin, "domains");
 
     // SELECT
     cq.multiselect(
@@ -478,8 +482,7 @@ public class InjectSearchService {
             injectorJoin.get("id"),
             payloadJoin.get("id"),
             collectorJoin.get("id"),
-            statusJoin.get("id"))
-    );
+            statusJoin.get("id")));
   }
 
   private List<InjectResultOutput> execInjects(TypedQuery<Tuple> query) {

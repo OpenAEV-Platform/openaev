@@ -5,6 +5,7 @@ import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { importAtomicTesting } from '../../../actions/atomic_testings/atomic-testing-actions';
+import type { InjectOutputType } from '../../../actions/injects/Inject';
 import { type Page } from '../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { type QueryableHelpers } from '../../../components/common/queryable/QueryableHelpers';
@@ -13,10 +14,12 @@ import useBodyItemsStyles from '../../../components/common/queryable/style/style
 import { type Header } from '../../../components/common/SortHeadersList';
 import Empty from '../../../components/Empty';
 import { useFormatter } from '../../../components/i18n';
+import ItemDomains from '../../../components/ItemDomains';
 import ItemStatus from '../../../components/ItemStatus';
 import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import { type InjectResultOutput, type SearchPaginationInput } from '../../../utils/api-types';
+import type { InjectorContractConverted } from '../../../utils/api-types-custom';
 import { Can } from '../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isNotEmptyField } from '../../../utils/utils';
@@ -25,9 +28,6 @@ import InjectImportJsonDialog from '../common/injects/InjectImportJsonDialog';
 import InjectorContract from '../common/injects/InjectorContract';
 import AtomicTestingPopover from './atomic_testing/AtomicTestingPopover';
 import AtomicTestingResult from './atomic_testing/AtomicTestingResult';
-import type { InjectOutputType } from '../../../actions/injects/Inject';
-import type { InjectorContractConverted } from '../../../utils/api-types-custom';
-import ItemDomains from '../../../components/ItemDomains';
 
 const useStyles = makeStyles()(() => ({
   itemHead: { textTransform: 'uppercase' },
@@ -117,8 +117,8 @@ const InjectResultList: FunctionComponent<Props> = ({
       value: (injectResultOutput: InjectResultOutput) => {
         return injectResultOutput.inject_contract_domains?.length
           ? (
-            <ItemDomains domains={injectResultOutput.inject_contract_domains} variant="reduced-view" />
-          )
+              <ItemDomains domains={injectResultOutput.inject_contract_domains} variant="reduced-view" />
+            )
           : <></>;
       },
     },
