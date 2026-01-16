@@ -1,8 +1,8 @@
 package io.openaev.service.stix;
 
+import static io.openaev.database.model.Tag.OPENCTI_TAG_NAME;
 import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY;
 import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE;
-import static io.openaev.database.model.Tag.OPENCTI_TAG_NAME;
 import static io.openaev.utils.AssetUtils.extractPlatformArchPairs;
 import static io.openaev.utils.SecurityCoverageUtils.getExternalIds;
 
