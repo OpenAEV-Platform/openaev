@@ -579,7 +579,7 @@ public class ElasticService implements EngineService {
       return averageSTerms(domainBuckets, user, typeAggregationKey, statusAggregationKey);
 
     } catch (Exception e) {
-      log.error(String.format("count exception: %s", e.getMessage()), e);
+      log.error(String.format("Elastic client failed to aggregate data: %s", e.getMessage()), e);
     }
     return new EsAvgs(new ArrayList<>());
   }
