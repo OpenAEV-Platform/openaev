@@ -78,7 +78,7 @@ public class DomainService {
   @Transactional
   public Set<Domain> upserts(Set<Domain> domains) {
     if (domains == null || domains.isEmpty()) {
-      return Set.of();
+      return new HashSet<>();
     }
 
     Map<String, Domain> existing =
@@ -92,23 +92,13 @@ public class DomainService {
             d ->
                 existing.computeIfAbsent(
                     d.getName(),
-                    name ->
-                        domainRepository.save(
-                            new Domain(null, name, d.getColor(), Instant.now(), null))))
+                    name -> domainRepository.save(buildSanityDomain(name, d.getColor()))))
         .collect(toSet());
   }
 
   public Domain upsert(final String name, final String color) {
     Optional<Domain> existingDomain = domainRepository.findByName(name);
-    return existingDomain.orElseGet(
-        () ->
-            domainRepository.save(
-                new Domain(
-                    null,
-                    name,
-                    color != null ? color : generateRandomColor(),
-                    Instant.now(),
-                    null)));
+    return existingDomain.orElseGet(() -> domainRepository.save(buildSanityDomain(name, color)));
   }
 
   public Set<Domain> mergeDomains(
@@ -146,5 +136,12 @@ public class DomainService {
     return fromIterable(domainRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();
+  }
+
+  // -- PRIVATE --
+
+  private Domain buildSanityDomain(final String name, final String color) {
+    return new Domain(
+        null, name, color != null ? color : generateRandomColor(), Instant.now(), null);
   }
 }
