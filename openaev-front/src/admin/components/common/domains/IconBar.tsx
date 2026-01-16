@@ -40,7 +40,7 @@ const IconBar: FunctionComponent<Props> = ({ elements, variant = 'grid' }) => {
           container
           spacing={1}
           wrap={isScroll ? 'nowrap' : 'wrap'}
-          sx={{ width: isScroll ? 'max-content' : '100%' }}
+          // sx={{ width: isScroll ? 'max-content' : '100%' }}
         >
           {elements.map((element: IconBarElement) => {
             const isSelected = element.color === 'success';
@@ -55,7 +55,7 @@ const IconBar: FunctionComponent<Props> = ({ elements, variant = 'grid' }) => {
                 }}
                 sx={{
                   flexShrink: isScroll ? 0 : 1,
-                  flexGrow: isScroll ? 0 : 1,
+                  flexGrow: 1,
                   minWidth: isScroll ? '180px' : 'auto',
                 }}
               >
