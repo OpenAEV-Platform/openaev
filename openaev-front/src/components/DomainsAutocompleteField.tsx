@@ -6,8 +6,8 @@ import AutocompleteField from './fields/AutocompleteField';
 
 type DomainValue = Domain | string;
 interface Props {
-    input: FieldRenderProps<DomainValue[]>['input'];
-    meta: FieldRenderProps<DomainValue[]>['meta'];
+  input: FieldRenderProps<DomainValue[]>['input'];
+  meta: FieldRenderProps<DomainValue[]>['meta'];
   domainOptions: Domain[];
   label: string;
   disabled?: boolean;
