@@ -8,6 +8,7 @@ import static io.openaev.utils.constants.StixConstants.STIX_PLATFORMS_AFFINITY;
 import static io.openaev.utils.fixtures.VulnerabilityFixture.CVE_2023_48788;
 import static java.util.Collections.emptyList;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -776,6 +777,27 @@ class StixApiTest extends IntegrationTest {
       injects = injectRepository.findByScenarioId(scenario.getId());
       assertThat(injects).hasSize(1);
       assertThat(injects.stream().findFirst().get().getAssets()).hasSize(3);
+    }
+
+    @Test
+    @DisplayName("Should normalise tag names from platform affinity")
+    void shouldNormaliseTagNamesFromPlatformAffinity() throws Exception {
+      String platformName = "Platform Name";
+      // create a tag for the security coverage
+      tagComposer
+          .forTag(TagFixture.getTagWithText("security coverage: %s".formatted(platformName)))
+          .persist();
+
+      JsonNode updated =
+          updateStixObjectField(
+              stixSecurityCoverageOnlyVulns,
+              STIX_PLATFORMS_AFFINITY,
+              null,
+              List.of(platformName),
+              0);
+
+      assertThatNoException()
+          .isThrownBy(() -> getScenarioIdResponse(mapper.writeValueAsString(updated)));
     }
 
     @Test

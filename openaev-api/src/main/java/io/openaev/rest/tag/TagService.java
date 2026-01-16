@@ -41,7 +41,7 @@ public class TagService {
   }
 
   public Tag upsertTag(TagCreateInput input) {
-    Optional<Tag> tag = tagRepository.findByName(input.getName());
+    Optional<Tag> tag = tagRepository.findByName(input.getName().toLowerCase());
     if (tag.isPresent()) {
       return tag.get();
     } else {
