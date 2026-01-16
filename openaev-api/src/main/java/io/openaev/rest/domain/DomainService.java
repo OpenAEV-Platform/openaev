@@ -5,6 +5,8 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.FilterUtilsJpa.PAGE_NUMBER_OPTION;
 import static io.openaev.utils.FilterUtilsJpa.PAGE_SIZE_OPTION;
 import static io.openaev.utils.StringUtils.generateRandomColor;
+import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.toSet;
 
 import io.openaev.database.model.Domain;
 import io.openaev.database.repository.DomainRepository;
@@ -15,7 +17,7 @@ import io.openaev.utils.FilterUtilsJpa;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
 import java.util.*;
-import java.util.stream.Collectors;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -74,14 +76,26 @@ public class DomainService {
   }
 
   @Transactional
-  public Set<Domain> upserts(final Set<Domain> domains) {
-    if (domains == null) {
-      return new HashSet<>();
+  public Set<Domain> upserts(Set<Domain> domains) {
+    if (domains == null || domains.isEmpty()) {
+      return Set.of();
     }
 
+    Map<String, Domain> existing =
+        domainRepository
+            .findByNameIn(domains.stream().map(Domain::getName).collect(toSet()))
+            .stream()
+            .collect(toMap(Domain::getName, Function.identity()));
+
     return domains.stream()
-        .map(domain -> this.upsert(domain.getName(), domain.getColor()))
-        .collect(Collectors.toSet());
+        .map(
+            d ->
+                existing.computeIfAbsent(
+                    d.getName(),
+                    name ->
+                        domainRepository.save(
+                            new Domain(null, name, d.getColor(), Instant.now(), null))))
+        .collect(toSet());
   }
 
   public Domain upsert(final String name, final String color) {
@@ -108,8 +122,7 @@ public class DomainService {
       return addedDomains;
     }
 
-    return Stream.concat(existingDomains.stream(), addedDomains.stream())
-        .collect(Collectors.toSet());
+    return Stream.concat(existingDomains.stream(), addedDomains.stream()).collect(toSet());
   }
 
   public Set<Domain> findDomainByNameAndDescription(final String name) {
