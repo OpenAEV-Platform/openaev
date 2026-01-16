@@ -3,10 +3,9 @@ package io.openaev.database.repository;
 import io.openaev.database.model.Domain;
 import io.openaev.database.raw.RawDomain;
 import io.openaev.utils.Constants;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
-
-import java.time.Instant;
 import java.util.Optional;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -23,9 +22,11 @@ public interface DomainRepository
   @NotNull
   @Transactional(readOnly = true)
   Optional<Domain> findByName(@NotNull String name);
-@NotNull
+
+  @NotNull
   @Transactional(readOnly = true)
   List<Domain> findByNameIn(Collection<String> names);
+
   @Query(
       value =
           "SELECT d.domain_id, d.domain_name, d.domain_color, "
