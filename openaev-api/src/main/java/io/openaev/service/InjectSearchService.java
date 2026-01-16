@@ -139,6 +139,9 @@ public class InjectSearchService {
     Join<Base, Base> injectorContractJoin = injectRoot.join("injectorContract", JoinType.LEFT);
     joinMap.put("injectorContract", injectorContractJoin);
 
+    Join<Base, Base> payloadJoin = injectorContractJoin.join("payload", JoinType.LEFT);
+    joinMap.put("payload", payloadJoin);
+
     Join<Base, Base> injectorJoin = injectorContractJoin.join("injector", JoinType.LEFT);
     joinMap.put("injector", injectorJoin);
 
@@ -151,6 +154,8 @@ public class InjectSearchService {
     Expression<String[]> assetIdsExpression = createJoinArrayAggOnId(cb, injectRoot, "assets");
     Expression<String[]> assetGroupIdsExpression =
         createJoinArrayAggOnId(cb, injectRoot, "assetGroups");
+    Expression<String[]> domainsPayloadIdExpression = createJoinArrayAggOnIdForJoin(cb, payloadJoin, "domains");
+    Expression<String[]> domainsContractIdExpression = createJoinArrayAggOnIdForJoin(cb, injectorContractJoin, "domains");
 
     // SELECT
     cq.multiselect(
@@ -168,6 +173,8 @@ public class InjectSearchService {
             assetIdsExpression.alias("inject_assets"),
             assetGroupIdsExpression.alias("inject_asset_groups"),
             injectorJoin.get("type").alias("inject_type"),
+            domainsPayloadIdExpression.alias("payload_domains"),
+            domainsContractIdExpression.alias("injector_contract_domains"),
             injectDependency.alias("inject_depends_on"))
         .distinct(true);
 
