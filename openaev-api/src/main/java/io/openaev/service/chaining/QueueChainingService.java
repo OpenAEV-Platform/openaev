@@ -9,7 +9,6 @@ import io.openaev.rest.helper.queue.BatchQueueService;
 import io.openaev.rest.helper.queue.DelayQueueService;
 import io.openaev.rest.helper.queue.QueueExecution;
 import jakarta.annotation.PostConstruct;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +16,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.util.List;
 import java.util.concurrent.TimeoutException;
 
 @Slf4j
@@ -49,7 +47,7 @@ public class QueueChainingService {
     waitQueueService =
       new BatchQueueService<>(
         StepEvent.class,
-        this::handleWaitEvent,
+        null,
         rabbitmqConfig,
         objectMapper,
         openAEVConfig.getQueueConfig().get("workflows-wait"));
@@ -58,7 +56,7 @@ public class QueueChainingService {
     delayQueueService =
       new DelayQueueService<>(
         StepEvent.class,
-        this::handleDelayEvent,
+        null,
         rabbitmqConfig,
         objectMapper,
         openAEVConfig.getQueueConfig().get("workflows-delay"));
@@ -67,7 +65,7 @@ public class QueueChainingService {
     updateQueueService =
       new BatchQueueService<>(
         ExternalUpdateEvent.class,
-        this::handleUpdateEvent,
+        null,
         rabbitmqConfig,
         objectMapper,
         openAEVConfig.getQueueConfig().get("workflows-update"));
@@ -108,7 +106,6 @@ public class QueueChainingService {
     updateQueueService.publish(event);
   }
 
-  // TODO ugly workaround for circular dependencies, to fix
   public void setCallbackForDelayQueue(QueueExecution<StepEvent> callback) {
     delayQueueService.setQueueExecution(callback);
   }
@@ -120,20 +117,4 @@ public class QueueChainingService {
   public void setCallbackForExternalUpdateQueue(QueueExecution<ExternalUpdateEvent> callback) {
     updateQueueService.setQueueExecution(callback);
   }
-
-  @Transactional
-  public List<StepEvent> handleWaitEvent(List<StepEvent> events) {
-    return events;
-  }
-  
-  @Transactional
-  public List<StepEvent> handleDelayEvent(List<StepEvent> events) {
-    return events;
-  }
-
-  @Transactional
-  public List<ExternalUpdateEvent> handleUpdateEvent(List<ExternalUpdateEvent> events) {
-    return events;
-  }
-  // TODO END from previous todo
 }

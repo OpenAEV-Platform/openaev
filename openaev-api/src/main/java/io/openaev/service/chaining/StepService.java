@@ -8,7 +8,6 @@ import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
-import jakarta.annotation.PostConstruct;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -24,20 +23,13 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Service
 public class StepService implements StepEventHandler, ExternalUpdateEventHandler {
+
   private final WorkflowService workflowService;
   private final StepRepository stepRepository;
   private final InjectExecutionStep injectExecutionStep;
 
   public final ConditionService conditionService;
   private final QueueChainingService queueChainingService;
-
-  // TODO: this is an ugly workaround for a circular dependency problem (need fixing)
-  @PostConstruct
-  public void init() {
-    queueChainingService.setCallbackForWaitQueue(this::handleWaitEvent);
-    queueChainingService.setCallbackForDelayQueue(this::handleDelayEvent);
-    queueChainingService.setCallbackForExternalUpdateQueue(this::handleUpdateEvent);
-  }
 
   public void createStepsTemplate(String workflowId, List<StepsCreateInput.StepCreateInput> steps) {
     Workflow workflow = workflowService.getWorkflowById(workflowId);
