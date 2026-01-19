@@ -117,21 +117,35 @@ public class V4_56__Implement_Domains_notion extends BaseJavaMigration {
               + "') ON CONFLICT (domain_name) DO NOTHING;");
 
       stmt.execute(
-          "INSERT INTO payloads_domains (payload_id, domain_id) "
-              + "SELECT p.payload_id, d.domain_id FROM payloads p "
-              + "INNER JOIN domains d ON d.domain_name = '"
-              + PresetDomain.TOCLASSIFY.getName()
-              + "' "
-              + "ON CONFLICT (payload_id, domain_id) DO NOTHING;");
+            """
+            WITH unknown_payloads AS (
+              SELECT p.payload_id
+              FROM payloads p
+                LEFT JOIN payloads_domains pd ON p.payload_id = pd.payload_id
+              WHERE pd.payload_id IS NULL
+            )
+            INSERT INTO payloads_domains (payload_id, domain_id)
+                SELECT p.payload_id, d.domain_id
+                FROM unknown_payloads p
+                  INNER JOIN domains d ON d.domain_name = '%s'
+                ON CONFLICT (payload_id, domain_id) DO NOTHING;
+            """.formatted(PresetDomain.TOCLASSIFY.getName()));
 
       stmt.execute(
-          "INSERT INTO injectors_contracts_domains (injector_contract_id, domain_id) "
-              + "SELECT ic.injector_contract_id, d.domain_id FROM injectors_contracts ic "
-              + "INNER JOIN domains d ON d.domain_name = '"
-              + PresetDomain.TOCLASSIFY.getName()
-              + "' "
-              + "WHERE ic.injector_contract_payload IS NULL "
-              + "ON CONFLICT (injector_contract_id, domain_id) DO NOTHING;");
+            """
+            WITH unknown_contracts AS (
+              SELECT ic.injector_contract_id, ic.injector_contract_payload
+              FROM injectors_contracts ic
+                LEFT JOIN injectors_contracts_domains icd ON ic.injector_contract_id = icd.injector_contract_id
+              WHERE icd.injector_contract_id IS NULL
+            )
+            INSERT INTO injectors_contracts_domains (injector_contract_id, domain_id)
+                SELECT ic.injector_contract_id, d.domain_id
+                FROM unknown_contracts ic
+                  INNER JOIN domains d ON d.domain_name = '%s'
+                WHERE ic.injector_contract_payload IS NULL
+                ON CONFLICT (injector_contract_id, domain_id) DO NOTHING;
+            """.formatted(PresetDomain.TOCLASSIFY.getName()));
     }
   }
 }
