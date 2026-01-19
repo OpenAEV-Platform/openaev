@@ -35,7 +35,6 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
   private final CollectorRepository collectorRepository;
 
   private final FileService fileService;
-  private final ConnectorInstanceService connectorInstanceService;
 
   private final CollectorMapper collectorMapper;
 
@@ -52,22 +51,11 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
         ConnectorType.COLLECTOR,
         connectorInstanceConfigurationRepository,
         catalogConnectorService,
+        connectorInstanceService,
         catalogConnectorMapper);
     this.collectorRepository = collectorRepository;
     this.fileService = fileService;
-    this.connectorInstanceService = connectorInstanceService;
     this.collectorMapper = collectorMapper;
-  }
-
-  @Override
-  protected List<ConnectorInstancePersisted> getRelatedInstances() {
-    return connectorInstanceService.collectorConnectorInstances();
-  }
-
-  @Override
-  protected List<ConnectorInstanceInMemory> getRelatedInstancesInMemory() {
-    System.out.print("MARINE ");
-    return List.of();
   }
 
   @Override

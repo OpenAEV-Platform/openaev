@@ -9,8 +9,6 @@ import io.openaev.database.model.Executor;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.database.repository.ExecutorRepository;
-import io.openaev.integration.Manager;
-import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.executor.form.ExecutorOutput;
@@ -38,10 +36,8 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
   private final ExecutionTraceRepository executionTraceRepository;
 
   private final FileService fileService;
-  private final ConnectorInstanceService connectorInstanceService;
 
   private final ExecutorMapper executorMapper;
-  private final ManagerFactory managerFactory;
 
   @Autowired
   public ExecutorService(
@@ -52,39 +48,17 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       CatalogConnectorService catalogConnectorService,
       ConnectorInstanceService connectorInstanceService,
       ExecutorMapper executorMapper,
-      CatalogConnectorMapper catalogConnectorMapper,
-      ManagerFactory managerFactory) {
+      CatalogConnectorMapper catalogConnectorMapper) {
     super(
         ConnectorType.EXECUTOR,
         connectorInstanceConfigurationRepository,
         catalogConnectorService,
+        connectorInstanceService,
         catalogConnectorMapper);
     this.fileService = fileService;
     this.executorRepository = executorRepository;
     this.executionTraceRepository = executionTraceRepository;
-    this.connectorInstanceService = connectorInstanceService;
     this.executorMapper = executorMapper;
-    this.managerFactory = managerFactory;
-  }
-
-  @Override
-  protected List<ConnectorInstancePersisted> getRelatedInstances() {
-    return connectorInstanceService.executorConnectorInstances();
-  }
-
-  @Override
-  protected List<ConnectorInstanceInMemory> getRelatedInstancesInMemory(){
-//    return connectorInstanceService.executorConnectorInstancesInMemory();
-        try {
-
-      Manager manager = this.managerFactory.getManager();
-      System.out.print("MARINE ");
-      manager.getSpawnedIntegrations();
-    } catch (Exception e){
-      System.out.print("Exception ");
-
-    }
-    return List.of();
   }
 
   @Override

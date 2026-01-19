@@ -1,6 +1,7 @@
 package io.openaev.integration.impl.executors.openaev;
 
 import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorType;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.executors.ExecutorService;
 import io.openaev.integration.ComponentRequestEngine;
@@ -52,7 +53,7 @@ public class OpenAEVExecutorIntegrationFactory extends IntegrationFactory {
   public List<ConnectorInstance> findRelatedInstances() {
     return List.of(
         connectorInstanceService.createAutostartInstance(
-            OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID));
+            OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID, ConnectorType.EXECUTOR));
   }
 
   @Override

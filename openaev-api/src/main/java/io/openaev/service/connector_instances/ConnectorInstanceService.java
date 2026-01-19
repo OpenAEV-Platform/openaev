@@ -21,14 +21,12 @@ import jakarta.persistence.EntityNotFoundException;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ConnectorInstanceService {
 
   private final ObjectMapper objectMapper;
@@ -39,6 +37,24 @@ public class ConnectorInstanceService {
   private final TokenRepository tokenRepository;
 
   private final EncryptionFactory encryptionFactory;
+  private final ManagerFactory managerFactory;
+
+  public ConnectorInstanceService(
+      ObjectMapper objectMapper,
+      ConnectorInstanceMapper connectorInstanceMapper,
+      ConnectorInstanceRepository connectorInstanceRepository,
+      ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository,
+      TokenRepository tokenRepository,
+      EncryptionFactory encryptionFactory,
+      @Lazy ManagerFactory managerFactory) {
+    this.objectMapper = objectMapper;
+    this.connectorInstanceMapper = connectorInstanceMapper;
+    this.connectorInstanceRepository = connectorInstanceRepository;
+    this.connectorInstanceConfigurationRepository = connectorInstanceConfigurationRepository;
+    this.tokenRepository = tokenRepository;
+    this.encryptionFactory = encryptionFactory;
+    this.managerFactory = managerFactory;
+  }
 
   /**
    * Retrieves all connector instances managed by XtmComposer with their configurations.
@@ -50,47 +66,41 @@ public class ConnectorInstanceService {
   }
 
   /**
-   * Retrieves all connector instances of type INJECTOR.
+   * Retrieves all connector instances persisted in database for a specific connector type.
    *
-   * @return the list of injector connector instances
+   * @param connectorType the type of connector to filter by
+   * @return the list of persisted connector instances
    */
-  public List<ConnectorInstancePersisted> injectorConnectorInstances() {
-    return connectorInstanceRepository.findAllByCatalogConnectorContainerType(
-        ConnectorType.INJECTOR);
+  public List<ConnectorInstancePersisted> getAllConnectorInstancesPersistedByConnectorType(
+      ConnectorType connectorType) {
+    return connectorInstanceRepository.findAllByCatalogConnectorContainerType(connectorType);
   }
 
   /**
-   * Retrieves all connector instances of type COLLECTOR.
+   * Retrieves all connector instances in memory for a specific connector type.
    *
-   * @return the list of collector connector instances
+   * @param connectorType the type of connector to filter by
+   * @return the list of connector instances in memory
    */
-  public List<ConnectorInstancePersisted> collectorConnectorInstances() {
-    return connectorInstanceRepository.findAllByCatalogConnectorContainerType(
-        ConnectorType.COLLECTOR);
-  }
+  public List<ConnectorInstanceInMemory> getConnectorInstancesInMemoryByConnectorType(
+      ConnectorType connectorType) {
+    List<ConnectorInstanceInMemory> instancesInMemory = new ArrayList<>();
+    try {
+      Manager manager = this.managerFactory.getManager();
+      instancesInMemory =
+          manager.getSpawnedIntegrations().keySet().stream()
+              .filter(ConnectorInstanceInMemory.class::isInstance)
+              .filter(
+                  instance ->
+                      instance.getConfigurations().stream()
+                          .anyMatch(conf -> connectorType.getIdKeyName().equals(conf.getKey())))
+              .map(ConnectorInstanceInMemory.class::cast)
+              .collect(Collectors.toList());
 
-  /**
-   * Retrieves all connector instances of type EXECUTOR.
-   *
-   * @return the list of executor connector instances
-   */
-  public List<ConnectorInstancePersisted> executorConnectorInstances() {
-    return connectorInstanceRepository.findAllByCatalogConnectorContainerType(
-        ConnectorType.EXECUTOR);
-  }
-
-
-  public List<ConnectorInstanceInMemory> executorConnectorInstancesInMemory() {
-//    try {
-//
-//      Manager manager = this.managerFactory.getManager();
-//      System.out.print("MARINE ");
-//      manager.getSpawnedIntegrations();
-//    } catch (Exception e){
-//      System.out.print("Exception ");
-//
-//    }
-    return List.of();
+    } catch (Exception e) {
+      log.error("Failed to get executor connector instances in memory", e);
+    }
+    return instancesInMemory;
   }
 
   /**
@@ -101,7 +111,6 @@ public class ConnectorInstanceService {
   public List<ConnectorInstancePersisted> connectorInstances() {
     return fromIterable(connectorInstanceRepository.findAll());
   }
-
 
   /**
    * Finds a connector instance by its ID.
@@ -429,18 +438,20 @@ public class ConnectorInstanceService {
 
   public ConnectorInstance refresh(ConnectorInstance instance) {
     if (instance instanceof ConnectorInstancePersisted) {
-      return connectorInstanceRepository
-          .findById(((ConnectorInstancePersisted) instance).getId())
-          .orElse(null);
+      return connectorInstanceRepository.findById(instance.getId()).orElse(null);
     }
     return instance;
   }
 
-  public ConnectorInstance createAutostartInstance(String id) {
+  public ConnectorInstance createAutostartInstance(String connectorId, ConnectorType type) {
     ConnectorInstanceInMemory instance = new ConnectorInstanceInMemory();
-    instance.setId(id);
+    instance.setId(connectorId);
     instance.setRequestedStatus(ConnectorInstancePersisted.REQUESTED_STATUS_TYPE.starting);
     instance.setCurrentStatus(ConnectorInstancePersisted.CURRENT_STATUS_TYPE.stopped);
+    ConnectorInstanceConfiguration conf =
+        createConfiguration(
+            type.getIdKeyName(), objectMapper.getNodeFactory().textNode(connectorId), false, null);
+    instance.setConfigurations(Set.of(conf));
     return instance;
   }
 }

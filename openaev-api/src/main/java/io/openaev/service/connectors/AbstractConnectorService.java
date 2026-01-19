@@ -4,29 +4,31 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Output> {
   protected final ConnectorType connectorType;
   protected final ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
   protected final CatalogConnectorService catalogConnectorService;
+  protected final ConnectorInstanceService connectorInstanceService;
   protected final CatalogConnectorMapper catalogConnectorMapper;
 
   protected AbstractConnectorService(
       ConnectorType connectorType,
       ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository,
       CatalogConnectorService catalogConnectorService,
+      ConnectorInstanceService connectorInstanceService,
       CatalogConnectorMapper catalogConnectorMapper) {
     this.connectorType = connectorType;
     this.connectorInstanceConfigurationRepository = connectorInstanceConfigurationRepository;
     this.catalogConnectorService = catalogConnectorService;
+    this.connectorInstanceService = connectorInstanceService;
     this.catalogConnectorMapper = catalogConnectorMapper;
   }
-
-  protected abstract List<ConnectorInstancePersisted> getRelatedInstances();
-  protected abstract List<ConnectorInstanceInMemory> getRelatedInstancesInMemory();
 
   protected abstract List<T> getAllConnectors();
 
@@ -45,9 +47,9 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
         .orElse(null);
   }
 
-  private Map<String, ConnectorInstancePersisted> mapInstancesByConnectorId(
-      List<ConnectorInstancePersisted> instances) {
-    Map<String, ConnectorInstancePersisted> map = new HashMap<>();
+  private Map<String, ConnectorInstance> mapInstancesByConnectorId(
+      List<ConnectorInstance> instances) {
+    Map<String, ConnectorInstance> map = new HashMap<>();
     instances.forEach(
         instance -> {
           String connectorId = getConnectorIdFromInstance(instance);
@@ -58,13 +60,12 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
     return map;
   }
 
-  private Output toConnectorOutput(
-      T connector, Map<String, ConnectorInstancePersisted> instanceMap) {
-    ConnectorInstancePersisted instance = instanceMap.get(connector.getId());
+  private Output toConnectorOutput(T connector, Map<String, ConnectorInstance> instanceMap) {
+    ConnectorInstance instance = instanceMap.get(connector.getId());
     boolean isVerified = instance != null;
     CatalogConnector catalogConnector =
-        isVerified
-            ? instance.getCatalogConnector()
+        isVerified && instance instanceof ConnectorInstancePersisted
+            ? ((ConnectorInstancePersisted) instance).getCatalogConnector()
             : catalogConnectorService
                 .findBySlug(connector.getType().replace("openaev_", ""))
                 .orElse(null);
@@ -92,10 +93,16 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
    */
   public Iterable<Output> getConnectorsOutput(boolean includeNext) {
     List<T> connectors = getAllConnectors();
-    List<ConnectorInstancePersisted> instancesPersisted = getRelatedInstances();
-    List<ConnectorInstanceInMemory> instancesInMemory = getRelatedInstancesInMemory();
-    Map<String, ConnectorInstancePersisted> instancesByConnectorIdMap =
-        mapInstancesByConnectorId(instancesPersisted);
+    List<ConnectorInstancePersisted> instancesPersisted =
+        this.connectorInstanceService.getAllConnectorInstancesPersistedByConnectorType(
+            connectorType);
+    List<ConnectorInstanceInMemory> instancesInMemory =
+        this.connectorInstanceService.getConnectorInstancesInMemoryByConnectorType(connectorType);
+
+    Map<String, ConnectorInstance> instancesByConnectorIdMap =
+        mapInstancesByConnectorId(
+            Stream.concat(instancesPersisted.stream(), instancesInMemory.stream())
+                .collect(Collectors.toList()));
 
     List<Output> result = new ArrayList<>();
 
@@ -110,6 +117,8 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
       instancesByConnectorIdMap.entrySet().stream()
           .filter(
               entry -> entry.getKey() != null && !existingConnectorsIds.contains(entry.getKey()))
+          .filter(entry -> entry.getValue() instanceof ConnectorInstancePersisted)
+          .map(entry -> Map.entry(entry.getKey(), (ConnectorInstancePersisted) entry.getValue()))
           .forEach(
               entry -> {
                 T newConnector = createExternalCollector(entry.getKey(), entry.getValue());

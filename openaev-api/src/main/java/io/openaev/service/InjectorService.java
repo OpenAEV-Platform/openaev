@@ -14,7 +14,6 @@ import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
-import io.openaev.integration.Manager;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.injector.form.InjectorCreateInput;
@@ -52,7 +51,6 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   private final AttackPatternRepository attackPatternRepository;
 
   private final FileService fileService;
-  private final ConnectorInstanceService connectorInstanceService;
   private final InjectorContractService injectorContractService;
   private final DomainService domainService;
 
@@ -75,26 +73,15 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         ConnectorType.INJECTOR,
         connectorInstanceConfigurationRepository,
         catalogConnectorService,
+        connectorInstanceService,
         catalogConnectorMapper);
     this.injectorRepository = injectorRepository;
     this.injectorContractRepository = injectorContractRepository;
     this.attackPatternRepository = attackPatternRepository;
     this.fileService = fileService;
-    this.connectorInstanceService = connectorInstanceService;
     this.injectorContractService = injectorContractService;
     this.domainService = domainService;
     this.injectorMapper = injectorMapper;
-  }
-
-  @Override
-  protected List<ConnectorInstancePersisted> getRelatedInstances() {
-    return connectorInstanceService.injectorConnectorInstances();
-  }
-
-  @Override
-  protected List<ConnectorInstanceInMemory> getRelatedInstancesInMemory() {
-    System.out.print("MARINE ");
-    return List.of();
   }
 
   @Override
