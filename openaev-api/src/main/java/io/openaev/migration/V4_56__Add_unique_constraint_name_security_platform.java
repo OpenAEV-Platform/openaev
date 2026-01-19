@@ -33,7 +33,7 @@ public class V4_56__Add_unique_constraint_name_security_platform extends BaseJav
                     AND ranked.rn > 1;
               """);
 
-      // 2. Update inject_expectation_results
+      // 2. Update inject_expectation_results to reflect renamed security platforms
       stmt.execute(
           """
                  UPDATE injects_expectations ie
@@ -64,6 +64,7 @@ public class V4_56__Add_unique_constraint_name_security_platform extends BaseJav
                  WHERE ie.inject_expectation_id = sub.inject_expectation_id;
               """);
 
+      // 3. Update inject_expectation_results to add sourcePlatform field
       stmt.execute(
           """
                  UPDATE injects_expectations ie
@@ -101,7 +102,7 @@ public class V4_56__Add_unique_constraint_name_security_platform extends BaseJav
                   WHERE ie.inject_expectation_id = sub.inject_expectation_id;
               """);
 
-      // 3. Add unique index to prevent future duplicates
+      // 4. Add unique index to prevent future duplicates
       stmt.execute(
           """
                   CREATE UNIQUE INDEX unique_security_platform_name_type_ci_idx
