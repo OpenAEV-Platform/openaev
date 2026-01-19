@@ -32,7 +32,10 @@ public class HomeApi {
   private String contextPath;
 
   @GetMapping(
-      path = {"/", "/{path:^(?!api$|login$|logout$|oauth2$|saml2$|static$|swagger-ui$).*$}/**"},
+      path = {
+        "/",
+        "/{path:^(?!api$|login$|logout$|oauth2$|saml2$|assets$|static$|swagger-ui$).*$}/**"
+      },
       produces = MediaType.TEXT_HTML_VALUE)
   @RBAC(skipRBAC = true) // No RBAC check for home endpoint
   public ResponseEntity<String> home() {
@@ -48,8 +51,8 @@ public class HomeApi {
             .replaceAll(
                 "%APP_DESCRIPTION%",
                 "OpenAEV is an open source platform allowing organizations to plan, schedule and conduct adversary simulation campaigns and cyber crisis exercises.")
-            .replaceAll("%APP_FAVICON%", basePath + "/static/ext/favicon.png")
-            .replaceAll("%APP_MANIFEST%", basePath + "/static/ext/manifest.json")
+            .replaceAll("%APP_FAVICON%", basePath + "/static/favicon.png")
+            .replaceAll("%APP_MANIFEST%", basePath + "/static/manifest.json")
             .replaceAll("%BASE_PATH%", basePath);
     return ResponseEntity.ok().header(HttpHeaders.CACHE_CONTROL, "no-cache").body(newIndex);
   }

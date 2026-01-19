@@ -1,8 +1,8 @@
 package io.openaev.service.stix;
 
+import static io.openaev.database.model.Tag.OPENCTI_TAG_NAME;
 import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY;
 import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE;
-import static io.openaev.rest.tag.TagService.OPENCTI_TAG_NAME;
 import static io.openaev.utils.AssetUtils.extractPlatformArchPairs;
 import static io.openaev.utils.SecurityCoverageUtils.getExternalIds;
 
@@ -660,7 +660,7 @@ public class SecurityCoverageInjectService {
       Scenario scenario) {
     List<InjectorContract> injectorContracts =
         injectorContractRepository.findInjectorContractsByPayload(payload);
-    Set<Tag> tags = tagService.fetchTagsFromLabels(new HashSet<>(Set.of(OPENCTI_TAG_NAME)));
+    Set<Tag> tags = tagService.findOrCreateTagsFromNames(new HashSet<>(Set.of(OPENCTI_TAG_NAME)));
 
     List<Inject> injectsToCreate =
         injectorContracts.stream()

@@ -1,6 +1,6 @@
 import { Autocomplete, Box, Checkbox, TextField, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useMemo } from 'react';
+import { type CSSProperties, type FunctionComponent, type HTMLAttributes, type ReactNode, useMemo } from 'react';
 
 import { type GroupOption, type Option } from '../../utils/Option';
 import { useFormatter } from '../i18n';
@@ -16,6 +16,11 @@ interface BaseProps {
   className?: string;
   variant?: 'standard' | 'outlined' | 'filled';
   disabled?: boolean;
+  style?: CSSProperties;
+  renderOption?: (
+    props: HTMLAttributes<HTMLLIElement>,
+    option: AutocompleteOption,
+  ) => ReactNode;
 }
 
 interface SingleProps extends BaseProps {
@@ -73,10 +78,51 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
     }
   };
 
+  const defaultRenderOption = (
+    props: HTMLAttributes<HTMLLIElement>,
+    option: AutocompleteOption,
+  ) => {
+    const checked = multiple
+      ? value?.includes(option.id)
+      : value === option.id;
+
+    return (
+      <Tooltip key={option.id} title={option.label}>
+        <Box
+          component="li"
+          {...props}
+          sx={{
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            padding: 0,
+            margin: 0,
+            display: 'flex',
+            alignItems: 'center',
+          }}
+        >
+          {multiple && <Checkbox checked={checked} />}
+
+          <Box
+            sx={{
+              display: 'inline-block',
+              flexGrow: 1,
+              marginLeft: multiple ? theme.spacing(1) : 0,
+            }}
+          >
+            {option.label}
+          </Box>
+        </Box>
+      </Tooltip>
+    );
+  };
+
   return (
     <Autocomplete<AutocompleteOption, boolean>
+      style={props.style}
       disabled={disabled}
       className={className}
+      size="small"
       selectOnFocus
       openOnFocus
       autoHighlight
@@ -103,40 +149,15 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
           error={error}
         />
       )}
-      renderOption={(props, option) => {
-        const checked = multiple
-          ? value?.includes(option.id)
-          : value === option.id;
+      renderOption={(liProps, option) => {
+        if (props.renderOption) {
+          const custom = props.renderOption(liProps, option);
+          if (custom === null) {
+            return null;
+          }
+        }
 
-        return (
-          <Tooltip key={option.id} title={option.label}>
-            <Box
-              component="li"
-              {...props}
-              sx={{
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                padding: 0,
-                margin: 0,
-                display: 'flex',
-                alignItems: 'center',
-              }}
-            >
-              {multiple && <Checkbox checked={checked} />}
-
-              <Box
-                sx={{
-                  display: 'inline-block',
-                  flexGrow: 1,
-                  marginLeft: multiple ? theme.spacing(1) : 0,
-                }}
-              >
-                {option.label}
-              </Box>
-            </Box>
-          </Tooltip>
-        );
+        return defaultRenderOption(liProps, option);
       }}
     />
   );

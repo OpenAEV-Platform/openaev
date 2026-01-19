@@ -1,8 +1,19 @@
-import { Autocomplete, Box, TextField } from '@mui/material';
+import { Box } from '@mui/material';
 import type { CSSProperties } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
-import { type Domain } from '../../utils/api-types';
+import type { Domain } from '../../utils/api-types';
+import { buildDomainAutocompleteState, cleanSelectedDomains } from '../../utils/domains/domainUtils';
+import AutocompleteField from './AutocompleteField';
+
+interface DomainFieldControllerProps {
+  name: string;
+  label: string;
+  domains: Domain[];
+  style?: CSSProperties;
+  required?: boolean;
+  disabled?: boolean;
+}
 
 interface DomainFieldControllerProps {
   name: string;
@@ -18,50 +29,55 @@ const DomainFieldController = ({
   label,
   domains,
   required,
+  disabled,
+  style,
 }: DomainFieldControllerProps) => {
   const { control } = useFormContext();
-
-  const filteredDomains = domains.filter(d => d.domain_name !== 'To classify');
 
   return (
     <Controller
       name={name}
       control={control}
-      render={({ field: { onChange, value }, fieldState: { error } }) => (
-        <>
-          <Autocomplete
-            size="small"
+      render={({
+        field: { onChange, value },
+        fieldState: { error },
+      }) => {
+        const { currentIds, options }
+          = buildDomainAutocompleteState(domains, value);
+
+        return (
+          <AutocompleteField
+            style={style}
+            label={label}
+            variant="standard"
             multiple
-            options={filteredDomains}
-            getOptionLabel={option => option.domain_name}
-            isOptionEqualToValue={(option, val) => option.domain_id === val.domain_id}
-            disableClearable={false}
-            openOnFocus
-            autoHighlight
-            noOptionsText="No available options"
-            value={Array.isArray(value) ? value : []}
-            onChange={(_event, selectedOptions) => {
-              onChange(selectedOptions);
+            required={required}
+            disabled={disabled}
+            options={options}
+            value={currentIds}
+            error={!!error}
+            onInputChange={() => {}}
+            onChange={(ids: string[]) =>
+              onChange(cleanSelectedDomains(domains, ids))}
+            renderOption={(props, option) => {
+              if (option.label === 'To classify') return null;
+              return (
+                <Box
+                  component="li"
+                  {...props}
+                  key={option.id}
+                  sx={{
+                    px: 2,
+                    py: 1,
+                  }}
+                >
+                  {option.label}
+                </Box>
+              );
             }}
-            renderInput={params => (
-              <TextField
-                {...params}
-                label={`${label}${required ? ' *' : ''}`}
-                variant="standard"
-                size="small"
-                fullWidth
-                error={!!error}
-                helperText={error ? error.message : null}
-              />
-            )}
-            renderOption={(props, option) => (
-              <Box component="li" {...props} key={option.domain_id}>
-                {option.domain_name}
-              </Box>
-            )}
           />
-        </>
-      )}
+        );
+      }}
     />
   );
 };

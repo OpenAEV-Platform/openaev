@@ -3152,6 +3152,38 @@ export interface InjectExpectation {
   target_id?: string;
 }
 
+/** Represents a single inject expectation with agent name */
+export interface InjectExpectationAgentOutput {
+  inject_expectation_agent?: string;
+  inject_expectation_agent_name?: string;
+  inject_expectation_asset?: string;
+  /** @format date-time */
+  inject_expectation_created_at?: string;
+  inject_expectation_group?: boolean;
+  inject_expectation_id: string;
+  inject_expectation_name?: string;
+  inject_expectation_results?: InjectExpectationResult[];
+  /** @format double */
+  inject_expectation_score?: number;
+  inject_expectation_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  inject_expectation_type:
+    | "TEXT"
+    | "DOCUMENT"
+    | "ARTICLE"
+    | "CHALLENGE"
+    | "MANUAL"
+    | "PREVENTION"
+    | "DETECTION"
+    | "VULNERABILITY";
+  /** @format int64 */
+  inject_expiration_time: number;
+}
+
 export interface InjectExpectationBulkUpdateInput {
   inputs: Record<string, InjectExpectationUpdateInput>;
 }
@@ -3335,6 +3367,8 @@ export interface InjectReceptionInput {
 }
 
 export interface InjectResultOutput {
+  /** Domain of the inject */
+  inject_contract_domains?: string[];
   /** Result of expectations */
   inject_expectation_results: ExpectationResultsByType[];
   /** Id of inject */
@@ -3487,7 +3521,14 @@ export interface Injector {
   /** @format date-time */
   injector_created_at: string;
   injector_custom_contracts?: boolean;
-  injector_dependencies?: ("SMTP" | "IMAP" | "NUCLEI" | "NMAP")[];
+  injector_dependencies?: (
+    | "SMTP"
+    | "IMAP"
+    | "NUCLEI"
+    | "NMAP"
+    | "OpenAEV Email"
+    | "OpenAEV Implant"
+  )[];
   injector_executor_clear_commands?: Record<string, string>;
   injector_executor_commands?: Record<string, string>;
   injector_external?: boolean;
@@ -3677,6 +3718,7 @@ export interface InjectorContractSearchPaginationInput {
 export interface InjectorContractSimple {
   convertedContent?: object;
   injector_contract_content: string;
+  injector_contract_domains?: string[];
   injector_contract_id: string;
   injector_contract_labels: Record<string, string>;
   injector_contract_payload?: PayloadSimple;
@@ -5017,6 +5059,7 @@ export interface PayloadPrerequisite {
 
 export interface PayloadSimple {
   payload_collector_type?: string;
+  payload_domains?: string[];
   payload_id?: string;
   payload_type?: string;
 }
@@ -6202,10 +6245,13 @@ export interface TagRuleInput {
 export interface TagRuleOutput {
   /** Asset groups of the tag rule */
   asset_groups?: Record<string, string>;
+  protected?: boolean;
   /** Name of the tag associated with the tag rule */
   tag_name: string;
   /** ID of the tag rule */
   tag_rule_id: string;
+  /** The tag rule is protected and cannot change the associated tag or be deleted. */
+  tag_rule_protected: boolean;
 }
 
 export interface TagUpdateInput {

@@ -7,8 +7,7 @@ import io.openaev.database.model.Endpoint;
 import io.openaev.rest.payload.output.PayloadSimple;
 import jakarta.persistence.Convert;
 import jakarta.validation.constraints.NotBlank;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -30,6 +29,9 @@ public class InjectorContractSimple {
   @Convert(converter = ContentConverter.class)
   private ObjectNode convertedContent;
 
+  @JsonProperty("injector_contract_domains")
+  private String[] domains;
+
   @JsonProperty("injector_contract_platforms")
   private Endpoint.PLATFORM_TYPE[] platforms;
 
@@ -40,4 +42,8 @@ public class InjectorContractSimple {
   @JsonProperty("injector_contract_labels")
   @NotBlank
   private Map<String, String> labels = new HashMap<>();
+
+  public String[] getDomains() {
+    return this.payload != null ? this.payload.getDomains() : this.domains;
+  }
 }

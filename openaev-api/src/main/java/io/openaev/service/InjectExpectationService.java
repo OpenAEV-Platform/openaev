@@ -18,6 +18,7 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.model.Expectation;
+import io.openaev.rest.atomic_testing.form.InjectExpectationAgentOutput;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
@@ -579,6 +580,40 @@ public class InjectExpectationService {
     } catch (IllegalArgumentException e) {
       return Collections.emptyList();
     }
+  }
+
+  private static List<InjectExpectationAgentOutput> toInjectExpectationAgentsOutput(
+      List<InjectExpectation> injectExpectations, String assetId) {
+    return injectExpectations.stream()
+        .map(
+            ie ->
+                InjectExpectationAgentOutput.builder()
+                    .type(ie.getType())
+                    .id(ie.getId())
+                    .name(ie.getName())
+                    .results(ie.getResults())
+                    .score(ie.getScore())
+                    .status(ie.getResponse())
+                    .expirationTime(ie.getExpirationTime())
+                    .createdAt(ie.getCreatedAt())
+                    .expectationGroup(ie.isExpectationGroup())
+                    .agentId(ie.getAgent().getId())
+                    .agentName(ie.getAgent().getExecutedByUser())
+                    .assetId(assetId)
+                    .build())
+        .collect(Collectors.toList());
+  }
+
+  public List<InjectExpectationAgentOutput> findMergedExpectationsWithAgentsByInjectAndAsset(
+      String injectId, String assetId, String expectationType) {
+    List<InjectExpectationAgentOutput> injectExpectationAgentOutputs =
+        toInjectExpectationAgentsOutput(
+            injectExpectationRepository.findAllWithAgentsByInjectAndAsset(
+                injectId, assetId, InjectExpectation.EXPECTATION_TYPE.valueOf(expectationType)),
+            assetId);
+    injectExpectationAgentOutputs.sort(
+        Comparator.comparing(InjectExpectationAgentOutput::getAgentName));
+    return injectExpectationAgentOutputs;
   }
 
   /**

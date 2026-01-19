@@ -136,6 +136,24 @@ public class AtomicTestingApi extends RestBehavior {
         injectId, targetId, parentTargetId, targetType);
   }
 
+  @GetMapping("/{injectId}/target_results/{targetId}/asset_with_agents")
+  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  @Operation(
+      summary = "Get the agents injects expectations from an inject, asset and expectation type")
+  @ApiResponses(
+      value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "The list of the agents injects expectations")
+      })
+  public List<InjectExpectationAgentOutput> findTargetResultAssetWithAgents(
+      @PathVariable String injectId,
+      @PathVariable String targetId,
+      @RequestParam @NotBlank String expectationType) {
+    return injectExpectationService.findMergedExpectationsWithAgentsByInjectAndAsset(
+        injectId, targetId, expectationType);
+  }
+
   /**
    * Returns expectations for inject target with results merged across all expectations of the same
    * type

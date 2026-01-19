@@ -132,6 +132,19 @@ public interface InjectExpectationRepository
       value =
           "SELECT i FROM InjectExpectation i "
               + "WHERE i.inject.id = :injectId "
+              + "AND i.asset.id = :assetId "
+              + "AND i.type = :expectationType "
+              + "AND i.agent IS NOT NULL "
+              + "ORDER BY i.type, i.createdAt")
+  List<InjectExpectation> findAllWithAgentsByInjectAndAsset(
+      @Param("injectId") @NotBlank String injectId,
+      @Param("assetId") @NotBlank String assetId,
+      @Param("expectationType") @NotBlank InjectExpectation.EXPECTATION_TYPE expectationType);
+
+  @Query(
+      value =
+          "SELECT i FROM InjectExpectation i "
+              + "WHERE i.inject.id = :injectId "
               + "AND i.assetGroup.id = :assetGroupId "
               + "AND i.asset IS NULL "
               + "AND i.agent IS NULL ")

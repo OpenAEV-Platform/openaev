@@ -2,6 +2,7 @@ package io.openaev.service;
 
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.utils.JpaUtils.createJoinArrayAggOnId;
+import static io.openaev.utils.JpaUtils.createJoinArrayAggOnIdForJoin;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 import static java.util.Collections.emptyList;
@@ -138,6 +139,9 @@ public class InjectSearchService {
     Join<Base, Base> injectorContractJoin = injectRoot.join("injectorContract", JoinType.LEFT);
     joinMap.put("injectorContract", injectorContractJoin);
 
+    Join<Base, Base> payloadJoin = injectorContractJoin.join("payload", JoinType.LEFT);
+    joinMap.put("payload", payloadJoin);
+
     Join<Base, Base> injectorJoin = injectorContractJoin.join("injector", JoinType.LEFT);
     joinMap.put("injector", injectorJoin);
 
@@ -150,6 +154,10 @@ public class InjectSearchService {
     Expression<String[]> assetIdsExpression = createJoinArrayAggOnId(cb, injectRoot, "assets");
     Expression<String[]> assetGroupIdsExpression =
         createJoinArrayAggOnId(cb, injectRoot, "assetGroups");
+    Expression<String[]> domainsPayloadIdExpression =
+        createJoinArrayAggOnIdForJoin(cb, payloadJoin, "domains");
+    Expression<String[]> domainsContractIdExpression =
+        createJoinArrayAggOnIdForJoin(cb, injectorContractJoin, "domains");
 
     // SELECT
     cq.multiselect(
@@ -167,6 +175,8 @@ public class InjectSearchService {
             assetIdsExpression.alias("inject_assets"),
             assetGroupIdsExpression.alias("inject_asset_groups"),
             injectorJoin.get("type").alias("inject_type"),
+            domainsPayloadIdExpression.alias("payload_domains"),
+            domainsContractIdExpression.alias("injector_contract_domains"),
             injectDependency.alias("inject_depends_on"))
         .distinct(true);
 
@@ -425,6 +435,10 @@ public class InjectSearchService {
     Expression<String[]> assetIdsExpression = createJoinArrayAggOnId(cb, injectRoot, "assets");
     Expression<String[]> assetGroupIdsExpression =
         createJoinArrayAggOnId(cb, injectRoot, "assetGroups");
+    Expression<String[]> domainsPayloadIdExpression =
+        createJoinArrayAggOnIdForJoin(cb, payloadJoin, "domains");
+    Expression<String[]> domainsContractIdExpression =
+        createJoinArrayAggOnIdForJoin(cb, injectorContractJoin, "domains");
 
     // SELECT
     cq.multiselect(
@@ -446,6 +460,8 @@ public class InjectSearchService {
             statusJoin.get("trackingSentDate").alias("status_tracking_sent_date"),
             teamIdsExpression.alias("inject_teams"),
             assetIdsExpression.alias("inject_assets"),
+            domainsPayloadIdExpression.alias("payload_domains"),
+            domainsContractIdExpression.alias("injector_contract_domains"),
             assetGroupIdsExpression.alias("inject_asset_groups"))
         .distinct(true);
 
@@ -485,6 +501,7 @@ public class InjectSearchService {
                         .id(payloadId)
                         .type(tuple.get("payload_type", String.class))
                         .collectorType(tuple.get("payload_collector_type", String.class))
+                        .domains(tuple.get("payload_domains", String[].class))
                         .build();
               }
 
@@ -500,6 +517,7 @@ public class InjectSearchService {
                             tuple.get(
                                 "injector_contract_platforms", Endpoint.PLATFORM_TYPE[].class))
                         .payload(payloadSimple)
+                        .domains(tuple.get("injector_contract_domains", String[].class))
                         .labels(tuple.get("injector_contract_labels", Map.class))
                         .build();
               }

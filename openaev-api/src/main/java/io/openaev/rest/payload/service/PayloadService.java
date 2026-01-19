@@ -2,6 +2,7 @@ package io.openaev.rest.payload.service;
 
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_ASSET_SEPARATOR;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
+import static io.openaev.database.model.Tag.OPENCTI_TAG_NAME;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.SupportedLanguage.en;
 import static io.openaev.helper.SupportedLanguage.fr;
@@ -13,7 +14,6 @@ import static io.openaev.injector_contract.fields.ContractAssetGroup.assetGroupF
 import static io.openaev.injector_contract.fields.ContractExpectations.expectationsField;
 import static io.openaev.injector_contract.fields.ContractSelect.selectFieldWithDefault;
 import static io.openaev.injector_contract.fields.ContractText.textField;
-import static io.openaev.rest.tag.TagService.OPENCTI_TAG_NAME;
 import static io.openaev.service.stix.SecurityCoverageInjectService.ALL_PLATFORMS;
 import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
@@ -370,7 +370,7 @@ public class PayloadService {
             Set.of(PresetDomain.ENDPOINT, PresetDomain.NETWORK, PresetDomain.URL_FILTERING)));
 
     dynamicDnsResolutionPayload.setTags(
-        tagService.fetchTagsFromLabels(new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
+        tagService.findOrCreateTagsFromNames(new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
 
     DnsResolution saved = payloadRepository.save(dynamicDnsResolutionPayload);
     updateInjectorContractsForPayload(saved);

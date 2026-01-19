@@ -33,7 +33,15 @@ public enum ExternalServiceDependency {
 
   /** Nmap network scanner service. */
   @JsonProperty("NMAP")
-  NMAP("openaev_nmap");
+  NMAP("openaev_nmap"),
+
+  /** OpenAEV Implant service. */
+  @JsonProperty("OpenAEV Email")
+  OPENAEV_EMAIL("openaev_email"),
+
+  /** OpenAEV Implant service. */
+  @JsonProperty("OpenAEV Implant")
+  OPENAEV_IMPLANT("openaev_implant");
 
   private final String value;
 

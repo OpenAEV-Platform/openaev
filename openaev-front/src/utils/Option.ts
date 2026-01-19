@@ -1,18 +1,11 @@
-import * as R from 'ramda';
-
 import countriesJson from '../static/geo/countries.json';
 import { type AttackPattern, type Exercise, type KillChainPhase, type Organization, type Scenario, type Tag } from './api-types';
 
-interface CountryFeature {
-  properties: {
-    ISO3: string;
-    NAME: string;
-  };
+interface Country {
+  code: string;
+  name: string;
 }
-
-interface Countries { features: CountryFeature[] }
-
-const countries = countriesJson as Countries;
+type Countries = Country[];
 
 export interface Option {
   id: string;
@@ -21,6 +14,8 @@ export interface Option {
 }
 
 export interface GroupOption extends Option { group: string }
+
+const countries = countriesJson as Countries;
 
 export const createGroupOption: (id: string, label: string, group: string, color?: string) => GroupOption = (id, label, group, color?) => {
   return {
@@ -54,7 +49,7 @@ export const attackPatternOptions = (
   .filter(attackPatternItem => attackPatternItem !== undefined)
   .map(
     (attackPatternItem) => {
-      const killChainPhase = R.head(attackPatternItem.attack_pattern_kill_chain_phases);
+      const killChainPhase = attackPatternItem.attack_pattern_kill_chain_phases?.[0];
       const killChainName = killChainPhase ? killChainPhasesMap[killChainPhase]?.phase_kill_chain_name ?? null : null;
       return {
         id: attackPatternItem.attack_pattern_id,
@@ -118,25 +113,23 @@ export const organizationOption = (
     : undefined;
 };
 
-export const countryOptions = () => countries.features.map(
+export const countryOptions = () => countries.map(
   n => ({
-    id: n.properties.ISO3,
-    label: n.properties.NAME,
+    id: n.code,
+    label: n.name,
   }) as Option,
 );
 
-export const countryOption = (iso3: string | undefined): Option | undefined => {
+export const countryOption = (iso3: string | undefined) => {
   if (!iso3) {
     return undefined;
   }
-  const country = R.head(
-    countries.features.filter(n => n.properties.ISO3 === iso3),
-  );
+  const country = countries.find(n => n.code === iso3);
   if (!country) {
     return undefined;
   }
   return {
-    id: country.properties.ISO3,
-    label: country.properties.NAME,
-  };
+    id: country.code,
+    label: country.name,
+  } as Option;
 };
