@@ -2,16 +2,16 @@
 
 import type { ContractVariable } from '../actions/contract/contract';
 import type { ExpectationInput } from '../admin/components/common/injects/expectations/Expectation';
-import { type Series, type UtilRequiredKeys } from './api-types';
+import type * as ApiTypes from './api-types';
 
-type PayloadCreateInputOmit =
-  'payload_type'
-  | 'payload_source'
-  | 'payload_status'
-  | 'payload_created_at'
-  | 'payload_id'
-  | 'payload_updated_at'
-  | 'payload_output_parsers';
+type PayloadCreateInputOmit
+  = 'payload_type'
+    | 'payload_source'
+    | 'payload_status'
+    | 'payload_created_at'
+    | 'payload_id'
+    | 'payload_updated_at'
+    | 'payload_output_parsers';
 type PayloadCreateInputMore = {
   remediations?: Record<string, DetectionRemediationInput>;
   payload_output_parsers?: (
@@ -30,24 +30,24 @@ export type PayloadCreateInput = Omit<ApiTypes.BasePayload, PayloadCreateInputOm
     | Omit<ApiTypes.DnsResolution, PayloadCreateInputOmit> & PayloadCreateInputMore & { payload_type: 'DnsResolution' }
         );
 
-export type ContractType =
-  'text'
-  | 'number'
-  | 'checkbox'
-  | 'textarea'
-  | 'tags'
-  | 'select'
-  | 'choice'
-  | 'article'
-  | 'challenge'
-  | 'dependency-select'
-  | 'attachment'
-  | 'team'
-  | 'expectation'
-  | 'asset'
-  | 'asset-group'
-  | 'payload'
-  | 'targeted-asset' | 'password';
+export type ContractType
+  = 'text'
+    | 'number'
+    | 'checkbox'
+    | 'textarea'
+    | 'tags'
+    | 'select'
+    | 'choice'
+    | 'article'
+    | 'challenge'
+    | 'dependency-select'
+    | 'attachment'
+    | 'team'
+    | 'expectation'
+    | 'asset'
+    | 'asset-group'
+    | 'payload'
+    | 'targeted-asset' | 'password';
 
 export interface ChoiceItem {
   label: string;
@@ -116,88 +116,18 @@ export type InjectorContractConverted = Omit<InjectorContract, 'convertedContent
   };
 };
 
-export type DateHistogramWidget = UtilRequiredKeys<
-  WidgetConfiguration,
-    'time_range' | 'date_attribute'
-> & {
-  display_legend?: boolean;
-  interval: 'year' | 'month' | 'week' | 'day' | 'hour' | 'quarter';
-  mode: 'temporal';
-  stacked?: boolean;
-  widget_configuration_type: 'temporal-histogram';
-  series: Series[];
-};
-
-export type FlatConfiguration = UtilRequiredKeys<
-  WidgetConfiguration,
-    'time_range' | 'date_attribute'
-> & {
-  widget_configuration_type: 'flat';
-  series: Series[];
-};
-
-export type ListConfiguration = UtilRequiredKeys<
-  WidgetConfiguration,
-    'time_range' | 'date_attribute'
-> & {
-  columns?: string[];
-  /**
-     * @format int32
-     * @min 1
-     */
-  limit?: number;
-  perspective: ListPerspective;
-  sorts?: EngineSortField[];
-  widget_configuration_type: 'list';
-};
-
-export type StructuralHistogramWidget = UtilRequiredKeys<
-  WidgetConfiguration,
-    'time_range' | 'date_attribute'
-> & {
-  display_legend?: boolean;
-  field: string;
-  /**
-     * @format int32
-     * @min 1
-     */
-  limit?: number;
-  mode: 'structural';
-  stacked?: boolean;
-  widget_configuration_type: 'structural-histogram';
-  series: Series[];
-};
-
-export interface WidgetConfiguration {
-  date_attribute: string;
-  end?: string;
-  start?: string;
-  time_range:
-    | 'DEFAULT'
-    | 'ALL_TIME'
-    | 'CUSTOM'
-    | 'LAST_DAY'
-    | 'LAST_WEEK'
-    | 'LAST_MONTH'
-    | 'LAST_QUARTER'
-    | 'LAST_SEMESTER'
-    | 'LAST_YEAR';
-  title?: string;
-}
-
-export interface WidgetInputCustom {
+export type WidgetInput = Omit<ApiTypes.WidgetInput, 'widget_config'> & {
   widget_config:
-    | DateHistogramWidget
-    | FlatConfiguration
-    | ListConfiguration
-    | StructuralHistogramWidget;
-  widget_type:
-    | 'vertical-barchart'
-    | 'horizontal-barchart'
-    | 'security-coverage'
-    | 'line'
-    | 'donut'
-    | 'list'
-    | 'attack-path'
-    | 'number';
-}
+    | ApiTypes.DateHistogramWidget & {
+      mode: 'temporal';
+      widget_configuration_type: 'temporal-histogram';
+    }
+    | ApiTypes.FlatConfiguration & { widget_configuration_type: 'flat' }
+    | ApiTypes.ListConfiguration & { widget_configuration_type: 'list' }
+    | ApiTypes.StructuralHistogramWidget & {
+      mode: 'structural';
+      widget_configuration_type: 'structural-histogram';
+    };
+};
+
+export type WidgetInputWithoutLayout = Omit<WidgetInput, 'widget_layout'>;

@@ -28,7 +28,7 @@ const UserForm = ({ onSubmit, initialValues = {}, editing, handleClose }: UserFo
 
   const userFormSchemaValidation = z.object({
     user_email: z.email(t('Should be a valid email address'))
-            .nonempty(t('This field is required.')),
+      .nonempty(t('This field is required.')),
     ...(requiredFields.includes('user_plain_password') && {
       user_plain_password: z
         .string()

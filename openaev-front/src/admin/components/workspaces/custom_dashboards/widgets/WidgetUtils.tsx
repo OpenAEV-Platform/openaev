@@ -14,10 +14,8 @@ import {
   type Series,
   type Widget,
 } from '../../../../../utils/api-types';
-import { type WidgetInputCustom } from '../../../../../utils/api-types-custom';
 import { createGroupOption, type GroupOption } from '../../../../../utils/Option';
 
-export type WidgetInputWithoutLayout = Omit<WidgetInputCustom, 'widget_layout'>;
 export type StepType = ('type' | 'series' | 'parameters');
 export const steps: StepType[] = ['type', 'series', 'parameters'];
 export const lastStepIndex = steps.length - 1;

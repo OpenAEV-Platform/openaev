@@ -8,10 +8,10 @@ import ButtonPopover, { type PopoverEntry } from '../../../../../components/comm
 import DialogDelete from '../../../../../components/common/DialogDelete';
 import { useFormatter } from '../../../../../components/i18n';
 import { type Widget } from '../../../../../utils/api-types';
+import { type WidgetInputWithoutLayout } from '../../../../../utils/api-types-custom';
 import { AbilityContext } from '../../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import WidgetForm from './configuration/WidgetForm';
-import { type WidgetInputWithoutLayout } from './WidgetUtils';
 
 interface Props {
   customDashboardId: string;
