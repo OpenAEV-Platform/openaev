@@ -117,7 +117,7 @@ public class V4_56__Implement_Domains_notion extends BaseJavaMigration {
               + "') ON CONFLICT (domain_name) DO NOTHING;");
 
       stmt.execute(
-            """
+          """
             WITH unknown_payloads AS (
               SELECT p.payload_id
               FROM payloads p
@@ -129,10 +129,11 @@ public class V4_56__Implement_Domains_notion extends BaseJavaMigration {
                 FROM unknown_payloads p
                   INNER JOIN domains d ON d.domain_name = '%s'
                 ON CONFLICT (payload_id, domain_id) DO NOTHING;
-            """.formatted(PresetDomain.TOCLASSIFY.getName()));
+            """
+              .formatted(PresetDomain.TOCLASSIFY.getName()));
 
       stmt.execute(
-            """
+          """
             WITH unknown_contracts AS (
               SELECT ic.injector_contract_id, ic.injector_contract_payload
               FROM injectors_contracts ic
@@ -145,7 +146,8 @@ public class V4_56__Implement_Domains_notion extends BaseJavaMigration {
                   INNER JOIN domains d ON d.domain_name = '%s'
                 WHERE ic.injector_contract_payload IS NULL
                 ON CONFLICT (injector_contract_id, domain_id) DO NOTHING;
-            """.formatted(PresetDomain.TOCLASSIFY.getName()));
+            """
+              .formatted(PresetDomain.TOCLASSIFY.getName()));
     }
   }
 }
