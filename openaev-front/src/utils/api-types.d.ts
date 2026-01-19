@@ -3487,7 +3487,14 @@ export interface Injector {
   /** @format date-time */
   injector_created_at: string;
   injector_custom_contracts?: boolean;
-  injector_dependencies?: ("SMTP" | "IMAP" | "NUCLEI" | "NMAP")[];
+  injector_dependencies?: (
+    | "SMTP"
+    | "IMAP"
+    | "NUCLEI"
+    | "NMAP"
+    | "OpenAEV Email"
+    | "OpenAEV Implant"
+  )[];
   injector_executor_clear_commands?: Record<string, string>;
   injector_executor_commands?: Record<string, string>;
   injector_external?: boolean;
