@@ -59,7 +59,11 @@ const ConnectorList = () => {
       || ((rawConnector as InjectorOutput).injector_id === connector.id),
     );
 
-    return rawConnectorOutput ? (rawConnectorOutput as CollectorOutput).collector_external || (rawConnectorOutput as InjectorOutput).injector_external || (rawConnectorOutput as ExecutorOutput).catalog !== null : true;
+    return rawConnectorOutput
+      ? (rawConnectorOutput as CollectorOutput).collector_external
+      || (rawConnectorOutput as InjectorOutput).injector_external
+      || (rawConnectorOutput as ExecutorOutput).catalog !== null
+      : true;
   };
 
   useDataLoader(() => {
