@@ -26,6 +26,7 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
   }
 
   protected abstract List<ConnectorInstancePersisted> getRelatedInstances();
+  protected abstract List<ConnectorInstanceInMemory> getRelatedInstancesInMemory();
 
   protected abstract List<T> getAllConnectors();
 
@@ -91,9 +92,10 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
    */
   public Iterable<Output> getConnectorsOutput(boolean includeNext) {
     List<T> connectors = getAllConnectors();
-    List<ConnectorInstancePersisted> instances = getRelatedInstances();
+    List<ConnectorInstancePersisted> instancesPersisted = getRelatedInstances();
+    List<ConnectorInstanceInMemory> instancesInMemory = getRelatedInstancesInMemory();
     Map<String, ConnectorInstancePersisted> instancesByConnectorIdMap =
-        mapInstancesByConnectorId(instances);
+        mapInstancesByConnectorId(instancesPersisted);
 
     List<Output> result = new ArrayList<>();
 

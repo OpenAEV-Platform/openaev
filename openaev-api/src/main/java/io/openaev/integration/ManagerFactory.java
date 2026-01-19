@@ -19,8 +19,8 @@ public class ManagerFactory {
   public Manager getManager() throws Exception {
     if (manager == null) {
       this.manager = new Manager(factories);
-      this.manager.monitorIntegrations();
     }
+    this.manager.monitorIntegrations();
     return this.manager;
   }
 }

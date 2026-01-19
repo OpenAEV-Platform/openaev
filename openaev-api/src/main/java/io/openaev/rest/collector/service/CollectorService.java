@@ -65,6 +65,12 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
   }
 
   @Override
+  protected List<ConnectorInstanceInMemory> getRelatedInstancesInMemory() {
+    System.out.print("MARINE ");
+    return List.of();
+  }
+
+  @Override
   protected List<Collector> getAllConnectors() {
     return fromIterable(this.collectors());
   }

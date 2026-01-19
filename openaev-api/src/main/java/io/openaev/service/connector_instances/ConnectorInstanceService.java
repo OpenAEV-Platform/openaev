@@ -10,6 +10,8 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.database.repository.TokenRepository;
+import io.openaev.integration.Manager;
+import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceOutput;
 import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
@@ -21,6 +23,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -76,6 +79,20 @@ public class ConnectorInstanceService {
         ConnectorType.EXECUTOR);
   }
 
+
+  public List<ConnectorInstanceInMemory> executorConnectorInstancesInMemory() {
+//    try {
+//
+//      Manager manager = this.managerFactory.getManager();
+//      System.out.print("MARINE ");
+//      manager.getSpawnedIntegrations();
+//    } catch (Exception e){
+//      System.out.print("Exception ");
+//
+//    }
+    return List.of();
+  }
+
   /**
    * Retrieves all connector instances.
    *
@@ -84,6 +101,7 @@ public class ConnectorInstanceService {
   public List<ConnectorInstancePersisted> connectorInstances() {
     return fromIterable(connectorInstanceRepository.findAll());
   }
+
 
   /**
    * Finds a connector instance by its ID.
