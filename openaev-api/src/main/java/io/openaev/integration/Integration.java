@@ -18,7 +18,6 @@ public abstract class Integration {
   private final ComponentRequestEngine componentRequestEngine;
   @Getter private ConnectorInstance connectorInstance;
   private final ConnectorInstanceService connectorInstanceService;
-  protected EncryptionService encryptionService;
 
   @Getter
   protected ConnectorInstance.CURRENT_STATUS_TYPE currentStatus =

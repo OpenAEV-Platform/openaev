@@ -39,7 +39,7 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
   private final ThreadPoolTaskScheduler taskScheduler;
   private final CrowdStrikeExecutorConfigurationMigration crowdStrikeExecutorConfigurationMigration;
   private final FileService fileService;
-  private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
+  private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
   public CrowdStrikeExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,

@@ -40,7 +40,6 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final FileService fileService;
-  private final HttpClientFactory httpClientFactory;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
   public TaniumExecutorIntegrationFactory(
@@ -69,7 +68,6 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
     this.licenseCacheManager = licenseCacheManager;
     this.taskScheduler = taskScheduler;
     this.fileService = fileService;
-    this.httpClientFactory = httpClientFactory;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
   }
 
