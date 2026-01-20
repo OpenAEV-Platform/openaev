@@ -4,7 +4,6 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.helper.ConnectorInstanceHashHelper;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import io.openaev.service.connector_instances.EncryptionService;
 import io.openaev.utils.reflection.FieldUtils;
 import java.lang.reflect.Field;
 import java.util.List;
