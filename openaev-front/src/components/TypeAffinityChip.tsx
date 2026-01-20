@@ -1,9 +1,7 @@
 import { Chip } from '@mui/material';
 import type { FunctionComponent } from 'react';
 
-interface Props {
-  affinity_text?: string | null;
-}
+interface Props { affinity_text?: string | null }
 
 const TypeAffinityChip: FunctionComponent<Props> = ({ affinity_text }) => {
   if (!affinity_text) return <>-</>;
