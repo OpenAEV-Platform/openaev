@@ -35,8 +35,11 @@ public abstract class Integration {
 
   protected abstract void innerStart() throws Exception;
 
+  protected abstract void refresh() throws Exception;
+
   private void start() throws Exception {
     if (ConnectorInstancePersisted.CURRENT_STATUS_TYPE.stopped.equals(this.currentStatus)) {
+      this.refresh();
       this.innerStart();
       this.currentStatus = ConnectorInstance.CURRENT_STATUS_TYPE.started;
       this.appliedHash = ConnectorInstanceHashHelper.computeInstanceHash(this.connectorInstance);

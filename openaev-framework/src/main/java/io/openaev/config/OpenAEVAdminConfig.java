@@ -26,4 +26,12 @@ public class OpenAEVAdminConfig {
   @JsonIgnore
   @Value("${openbas.admin.token:${openaev.admin.token:#{null}}}")
   private String token;
+
+  @JsonIgnore
+  @Value("${openaev.admin.encryption_key:#{null}}")
+  private String encryptionKey;
+
+  @JsonIgnore
+  @Value("${openaev.admin.encryption_salt:#{null}}")
+  private String encryptionSalt;
 }

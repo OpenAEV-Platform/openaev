@@ -4,11 +4,9 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.database.model.CatalogConnector;
-import io.openaev.database.model.ConnectorInstance;
-import io.openaev.database.model.ConnectorInstanceConfiguration;
-import io.openaev.database.model.ConnectorInstancePersisted;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorContextService;
@@ -19,6 +17,7 @@ import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
+import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration;
 import io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegrationFactory;
 import io.openaev.integration.migration.TaniumExecutorConfigurationMigration;
@@ -28,6 +27,8 @@ import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.connector_instances.EncryptionFactory;
+import io.openaev.utils.reflection.FieldUtils;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.ArrayList;
 import java.util.List;
@@ -59,6 +60,9 @@ public class TaniumExecutorIntegrationTest {
   @Autowired private CatalogConnectorRepository catalogConnectorRepository;
   @Autowired private ConnectorInstanceService connectorInstanceService;
   @Autowired private TaniumExecutorConfig taniumExecutorConfig;
+  @Autowired private EncryptionFactory encryptionFactory;
+  @Autowired private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
+  @Autowired private HttpClientFactory httpClientFactory;
 
   @Autowired private TaniumExecutorConfigurationMigration taniumExecutorConfigurationMigration;
 
@@ -71,14 +75,15 @@ public class TaniumExecutorIntegrationTest {
         executorService,
         componentRequestEngine,
         taniumExecutorConfigurationMigration,
-        client,
         agentService,
         endpointService,
         assetGroupService,
         eeService,
         licenseCacheManager,
         taskScheduler,
-        fileService);
+        fileService,
+        baseIntegrationConfigurationBuilder,
+        httpClientFactory);
   }
 
   @Test
@@ -165,6 +170,24 @@ public class TaniumExecutorIntegrationTest {
                             left.getKey().compareTo(right.getKey())
                                 & left.getValue().toString().compareTo(right.getValue().toString()),
                         ConnectorInstanceConfiguration.class)
-                    .hasSameElementsAs(taniumExecutorConfig.toInstanceConfigurationSet(instance)));
+                    .hasSameElementsAs(
+                        taniumExecutorConfig.toInstanceConfigurationSet(
+                            instance,
+                            encryptionFactory.getEncryptionService(
+                                instance.getCatalogConnector()))));
+  }
+
+  @Test
+  @DisplayName(
+      "When factory is initialised and an instance is spawned with an unsupported connector instance type, the encryption service is null")
+  public void whenInstanceIsSpawn_encryptionServiceIsNull() throws Exception {
+    IntegrationFactory integrationFactory = getFactory();
+
+    integrationFactory.initialise();
+
+    Integration integration = integrationFactory.spawn(new ConnectorInstanceInMemory());
+    AssertionsForClassTypes.assertThat(
+            FieldUtils.computeAllFieldValues(integration).get("encryptionService"))
+        .isNull();
   }
 }

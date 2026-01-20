@@ -5,6 +5,7 @@ import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.integration.configuration.BaseIntegrationConfiguration;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.connector_instances.EncryptionFactory;
 import java.util.Optional;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
@@ -16,16 +17,19 @@ public abstract class ConfigurationMigration {
   private final String factoryClassName;
   private final CatalogConnectorService catalogConnectorService;
   private final ConnectorInstanceService connectorInstanceService;
+  private final EncryptionFactory encryptionFactory;
 
   protected ConfigurationMigration(
       BaseIntegrationConfiguration configuration,
       String factoryClassName,
       CatalogConnectorService catalogConnectorService,
-      ConnectorInstanceService connectorInstanceService) {
+      ConnectorInstanceService connectorInstanceService,
+      EncryptionFactory encryptionFactory) {
     this.configuration = configuration;
     this.factoryClassName = factoryClassName;
     this.catalogConnectorService = catalogConnectorService;
     this.connectorInstanceService = connectorInstanceService;
+    this.encryptionFactory = encryptionFactory;
   }
 
   @Transactional
@@ -60,7 +64,9 @@ public abstract class ConfigurationMigration {
     }
     instance.setSource(ConnectorInstancePersisted.SOURCE.PROPERTIES_MIGRATION);
 
-    instance.setConfigurations(configuration.toInstanceConfigurationSet(instance));
+    instance.setConfigurations(
+        configuration.toInstanceConfigurationSet(
+            instance, encryptionFactory.getEncryptionService(instance.getCatalogConnector())));
 
     connectorInstanceService.save(instance);
   }

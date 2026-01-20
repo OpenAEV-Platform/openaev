@@ -1,6 +1,7 @@
 package io.openaev.integration;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -12,8 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 public abstract class IntegrationFactory {
-  private final ConnectorInstanceService connectorInstanceService;
-  private final CatalogConnectorService catalogConnectorService;
+  protected final ConnectorInstanceService connectorInstanceService;
+  protected final CatalogConnectorService catalogConnectorService;
+  protected final HttpClientFactory httpClientFactory;
 
   protected abstract void runMigrations() throws Exception;
 

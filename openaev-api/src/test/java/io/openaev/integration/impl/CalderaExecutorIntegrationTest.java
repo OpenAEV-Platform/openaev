@@ -4,11 +4,9 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegration.CALDERA_EXECUTOR_NAME;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.database.model.CatalogConnector;
-import io.openaev.database.model.ConnectorInstance;
-import io.openaev.database.model.ConnectorInstanceConfiguration;
-import io.openaev.database.model.ConnectorInstancePersisted;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorContextService;
@@ -19,6 +17,7 @@ import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
+import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegration;
 import io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegrationFactory;
 import io.openaev.integration.migration.CalderaExecutorConfigurationMigration;
@@ -26,6 +25,8 @@ import io.openaev.integrations.InjectorService;
 import io.openaev.service.*;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.connector_instances.EncryptionFactory;
+import io.openaev.utils.reflection.FieldUtils;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.ArrayList;
 import java.util.List;
@@ -57,6 +58,9 @@ public class CalderaExecutorIntegrationTest {
   @Autowired private CatalogConnectorRepository catalogConnectorRepository;
   @Autowired private ConnectorInstanceService connectorInstanceService;
   @Autowired private CalderaExecutorConfig calderaExecutorConfig;
+  @Autowired private EncryptionFactory encryptionFactory;
+  @Autowired private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
+  @Autowired private HttpClientFactory httpClientFactory;
 
   @Autowired private CalderaExecutorConfigurationMigration calderaExecutorConfigurationMigration;
 
@@ -71,13 +75,14 @@ public class CalderaExecutorIntegrationTest {
         executorService,
         componentRequestEngine,
         calderaExecutorConfigurationMigration,
-        client,
         agentService,
         endpointService,
         injectorService,
         platformSettingsService,
         taskScheduler,
-        fileService);
+        fileService,
+        baseIntegrationConfigurationBuilder,
+        httpClientFactory);
   }
 
   @Test
@@ -164,6 +169,22 @@ public class CalderaExecutorIntegrationTest {
                             left.getKey().compareTo(right.getKey())
                                 & left.getValue().toString().compareTo(right.getValue().toString()),
                         ConnectorInstanceConfiguration.class)
-                    .hasSameElementsAs(calderaExecutorConfig.toInstanceConfigurationSet(instance)));
+                    .hasSameElementsAs(
+                        calderaExecutorConfig.toInstanceConfigurationSet(
+                            instance,
+                            encryptionFactory.getEncryptionService(
+                                instance.getCatalogConnector()))));
+  }
+
+  @Test
+  @DisplayName(
+      "When factory is initialised and an instance is spawned with an unsupported connector instance type, the encryption service is null")
+  public void whenInstanceIsSpawn_encryptionServiceIsNull() throws Exception {
+    IntegrationFactory integrationFactory = getFactory();
+
+    integrationFactory.initialise();
+
+    Integration integration = integrationFactory.spawn(new ConnectorInstanceInMemory());
+    assertThat(FieldUtils.computeAllFieldValues(integration).get("encryptionService")).isNull();
   }
 }

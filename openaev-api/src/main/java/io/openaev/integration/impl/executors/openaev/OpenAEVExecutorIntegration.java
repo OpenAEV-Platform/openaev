@@ -55,6 +55,11 @@ public class OpenAEVExecutorIntegration extends Integration {
   }
 
   @Override
+  protected void refresh() throws Exception {
+    // Nothing to refresh from DB
+  }
+
+  @Override
   protected void innerStop() {
     // it is not possible to stop this integration
   }

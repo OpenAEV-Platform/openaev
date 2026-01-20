@@ -611,6 +611,15 @@ export interface CVEBulkInsertInput {
   source_identifier: string;
 }
 
+export interface CalderaSettings {
+  /** True if the Caldera Executor is enabled */
+  executor_caldera_enable?: boolean;
+  /** Id of the instance linked to the configuration */
+  executor_caldera_instance_id?: string;
+  /** Url of the Caldera Executor */
+  executor_caldera_public_url?: string;
+}
+
 export interface CatalogConnector {
   /** Connector class name */
   catalog_connector_class_name?: string;
@@ -5193,10 +5202,6 @@ export interface PlatformSettings {
     | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
     | "LEGACY_INGESTION_EXECUTION_TRACE"
   )[];
-  /** True if the Caldera Executor is enabled */
-  executor_caldera_enable?: boolean;
-  /** Url of the Caldera Executor */
-  executor_caldera_public_url?: string;
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
   /**

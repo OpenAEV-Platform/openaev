@@ -1,11 +1,14 @@
 package io.openaev.integration.impl.executors.sentinelone;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Executor;
 import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorService;
+import io.openaev.executors.exception.ExecutorException;
 import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
 import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.executors.sentinelone.service.SentinelOneExecutorContextService;
@@ -14,16 +17,20 @@ import io.openaev.executors.sentinelone.service.SentinelOneGarbageCollectorServi
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.QualifiedComponent;
+import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import java.lang.reflect.InvocationTargetException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ScheduledFuture;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
+@Slf4j
 public class SentinelOneExecutorIntegration extends Integration {
   public static final String SENTINELONE_EXECUTOR_DEFAULT_ID =
       "b586bc98-839c-45bd-b9e4-c10830ebfefa";
@@ -39,8 +46,8 @@ public class SentinelOneExecutorIntegration extends Integration {
   private SentinelOneExecutorService sentinelOneExecutorService;
   private SentinelOneGarbageCollectorService sentinelOneGarbageCollectorService;
 
-  private final SentinelOneExecutorConfig config;
-  private final SentinelOneExecutorClient client;
+  private SentinelOneExecutorConfig config;
+  private SentinelOneExecutorClient client;
   private final AgentService agentService;
   private final EndpointService endpointService;
   private final AssetGroupService assetGroupService;
@@ -48,14 +55,14 @@ public class SentinelOneExecutorIntegration extends Integration {
   private final Ee eeService;
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
+  private final HttpClientFactory httpClientFactory;
+  private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
   private final List<ScheduledFuture<?>> timers = new ArrayList<>();
 
   public SentinelOneExecutorIntegration(
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
-      SentinelOneExecutorClient client,
-      SentinelOneExecutorConfig config,
       EndpointService endpointService,
       AgentService agentService,
       AssetGroupService assetGroupService,
@@ -63,10 +70,10 @@ public class SentinelOneExecutorIntegration extends Integration {
       LicenseCacheManager licenseCacheManager,
       ComponentRequestEngine componentRequestEngine,
       ExecutorService executorService,
-      ThreadPoolTaskScheduler taskScheduler) {
+      ThreadPoolTaskScheduler taskScheduler,
+      BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
+      HttpClientFactory httpClientFactory) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService);
-    this.client = client;
-    this.config = config;
     this.endpointService = endpointService;
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;
@@ -74,6 +81,17 @@ public class SentinelOneExecutorIntegration extends Integration {
     this.licenseCacheManager = licenseCacheManager;
     this.executorService = executorService;
     this.taskScheduler = taskScheduler;
+    this.httpClientFactory = httpClientFactory;
+    this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
+
+    // Refresh the context to get the config
+    try {
+      refresh();
+    } catch (Exception e) {
+      log.error("Error during initialization of the SentinelOne Executor", e);
+      throw new ExecutorException(
+          e, "Error during initialization of the Executor", SENTINELONE_EXECUTOR_NAME);
+    }
   }
 
   @Override
@@ -93,6 +111,7 @@ public class SentinelOneExecutorIntegration extends Integration {
               Endpoint.PLATFORM_TYPE.MacOS.name()
             });
 
+    client = new SentinelOneExecutorClient(config, httpClientFactory);
     sentinelOneExecutorContextService =
         new SentinelOneExecutorContextService(
             config, client, eeService, licenseCacheManager, executorService);
@@ -110,6 +129,18 @@ public class SentinelOneExecutorIntegration extends Integration {
         taskScheduler.scheduleAtFixedRate(
             sentinelOneGarbageCollectorService,
             Duration.ofHours(this.config.getCleanImplantInterval())));
+  }
+
+  @Override
+  protected void refresh()
+      throws JsonProcessingException,
+          InvocationTargetException,
+          NoSuchMethodException,
+          InstantiationException,
+          IllegalAccessException {
+    this.config = baseIntegrationConfigurationBuilder.build(SentinelOneExecutorConfig.class);
+    this.config.fromConnectorInstanceConfigurationSet(
+        this.getConnectorInstance(), SentinelOneExecutorConfig.class);
   }
 
   @Override

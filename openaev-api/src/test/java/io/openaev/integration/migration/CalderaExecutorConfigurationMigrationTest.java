@@ -1,6 +1,9 @@
 package io.openaev.integration.migration;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
@@ -8,16 +11,21 @@ import io.openaev.database.model.ConnectorInstanceConfiguration;
 import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.executors.caldera.config.CalderaExecutorConfig;
 import io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegrationFactory;
+import io.openaev.rest.exception.UnencryptableElementException;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.connector_instances.EncryptionFactory;
+import io.openaev.service.connector_instances.EncryptionService;
 import io.openaev.utils.fixtures.CatalogConnectorFixture;
 import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import io.openaev.utils.mockConfig.executors.WithMockCalderaConfig;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.Optional;
+import org.bouncycastle.openssl.EncryptionException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestExecutionListeners;
@@ -44,6 +52,7 @@ public class CalderaExecutorConfigurationMigrationTest {
     @Autowired private CatalogConnectorService catalogConnectorService;
     @Autowired private ConnectorInstanceService connectorInstanceService;
     @Autowired private CatalogConnectorComposer catalogConnectorComposer;
+    @Autowired private EncryptionFactory encryptionFactory;
 
     @Autowired private CalderaExecutorConfig beanConfig;
 
@@ -97,7 +106,43 @@ public class CalderaExecutorConfigurationMigrationTest {
                   left.getKey().compareTo(right.getKey())
                       & left.getValue().toString().compareTo(right.getValue().toString()),
               ConnectorInstanceConfiguration.class)
-          .hasSameElementsAs(beanConfig.toInstanceConfigurationSet(instance));
+          .hasSameElementsAs(
+              beanConfig.toInstanceConfigurationSet(
+                  instance,
+                  encryptionFactory.getEncryptionService(instance.getCatalogConnector())));
+
+      assertThat("caldera_api_key")
+          .isNotEqualTo(
+              instance.getConfigurations().stream()
+                  .filter(
+                      connectorInstanceConfiguration ->
+                          "EXECUTOR_CALDERA_API_KEY"
+                              .equals(connectorInstanceConfiguration.getKey()))
+                  .findFirst()
+                  .orElseThrow()
+                  .getValue()
+                  .asText());
+    }
+
+    @Test
+    @DisplayName("When encryption service is not working throw exception")
+    public void whenEncryptionServiceNotWorking_throwException() throws Exception {
+      catalogConnectorComposer
+          .forCatalogConnector(
+              CatalogConnectorFixture.createCatalogConnectorWithClassName(
+                  CalderaExecutorIntegrationFactory.class.getCanonicalName()))
+          .persist();
+      EncryptionFactory encryptionFactory = Mockito.mock(EncryptionFactory.class);
+      EncryptionService encryptionService = Mockito.mock(EncryptionService.class);
+      when(encryptionFactory.getEncryptionService(any())).thenReturn(encryptionService);
+      when(encryptionService.encrypt(any())).thenThrow(new EncryptionException(""));
+
+      CalderaExecutorConfigurationMigration mockedCalderaExecutorConfigurationMigration =
+          new CalderaExecutorConfigurationMigration(
+              beanConfig, catalogConnectorService, connectorInstanceService, encryptionFactory);
+
+      assertThatThrownBy(mockedCalderaExecutorConfigurationMigration::migrate)
+          .isInstanceOf(UnencryptableElementException.class);
     }
   }
 

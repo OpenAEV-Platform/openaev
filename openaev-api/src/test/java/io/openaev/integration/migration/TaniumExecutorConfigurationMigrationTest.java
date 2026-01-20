@@ -10,6 +10,7 @@ import io.openaev.executors.tanium.config.TaniumExecutorConfig;
 import io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegrationFactory;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.connector_instances.EncryptionFactory;
 import io.openaev.utils.fixtures.CatalogConnectorFixture;
 import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import io.openaev.utils.mockConfig.executors.WithMockTaniumConfig;
@@ -50,6 +51,7 @@ public class TaniumExecutorConfigurationMigrationTest {
     @Autowired private CatalogConnectorService catalogConnectorService;
     @Autowired private ConnectorInstanceService connectorInstanceService;
     @Autowired private CatalogConnectorComposer catalogConnectorComposer;
+    @Autowired private EncryptionFactory encryptionFactory;
 
     @Autowired private TaniumExecutorConfig beanConfig;
 
@@ -103,7 +105,20 @@ public class TaniumExecutorConfigurationMigrationTest {
                   left.getKey().compareTo(right.getKey())
                       & left.getValue().toString().compareTo(right.getValue().toString()),
               ConnectorInstanceConfiguration.class)
-          .hasSameElementsAs(beanConfig.toInstanceConfigurationSet(instance));
+          .hasSameElementsAs(
+              beanConfig.toInstanceConfigurationSet(
+                  instance,
+                  encryptionFactory.getEncryptionService(instance.getCatalogConnector())));
+      assertThat("tanium_api_key")
+          .isNotEqualTo(
+              instance.getConfigurations().stream()
+                  .filter(
+                      connectorInstanceConfiguration ->
+                          "EXECUTOR_TANIUM_API_KEY".equals(connectorInstanceConfiguration.getKey()))
+                  .findFirst()
+                  .orElseThrow()
+                  .getValue()
+                  .asText());
     }
   }
 

@@ -9,6 +9,7 @@ import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.integration.configuration.BaseIntegrationConfiguration;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.connector_instances.EncryptionFactory;
 import io.openaev.utils.fixtures.CatalogConnectorFixture;
 import io.openaev.utils.fixtures.ConnectorInstanceFixture;
 import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
@@ -36,6 +37,7 @@ public class ConfigurationMigrationTest {
 
   @Autowired private CatalogConnectorComposer catalogConnectorComposer;
   @Autowired private ConnectorInstanceComposer connectorInstanceComposer;
+  @Autowired private EncryptionFactory encryptionFactory;
 
   private static class TestIntegrationConfiguration extends BaseIntegrationConfiguration {}
 
@@ -47,7 +49,8 @@ public class ConfigurationMigrationTest {
           new TestIntegrationConfiguration(),
           FACTORY_CLASSNAME,
           catalogConnectorService,
-          connectorInstanceService);
+          connectorInstanceService,
+          encryptionFactory);
     }
   }
 

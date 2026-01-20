@@ -4,6 +4,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_NAME;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
@@ -52,6 +53,7 @@ public class OpenAEVExecutorIntegrationTest {
   @Autowired private CatalogConnectorRepository catalogConnectorRepository;
   @Autowired private ConnectorInstanceService connectorInstanceService;
   @Autowired private AssetAgentJobRepository assetAgentJobRepository;
+  @Autowired private HttpClientFactory httpClientFactory;
 
   @Autowired private FileService fileService;
   @Autowired private InjectorService injectorService;
@@ -63,7 +65,8 @@ public class OpenAEVExecutorIntegrationTest {
         catalogConnectorService,
         executorService,
         componentRequestEngine,
-        assetAgentJobRepository);
+        assetAgentJobRepository,
+        httpClientFactory);
   }
 
   @Test
