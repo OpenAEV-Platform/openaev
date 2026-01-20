@@ -11,7 +11,7 @@ const TypeAffinityChip: FunctionComponent<Props> = ({ affinity_text }) => {
   return (
     <Chip
       variant="outlined"
-      label={affinity_text.toUpperCase()}
+      label={affinity_text}
       style={{
         fontSize: 12,
         height: 25,
