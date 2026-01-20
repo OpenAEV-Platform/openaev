@@ -275,7 +275,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
               >
                 {t('Type Affinity')}
               </Typography>
-              <TypeAffinityChip affinity_text={scenario.scenario_type_affinity} />
+              <TypeAffinityChip affinity_text={scenario?.scenario_type_affinity} />
             </GridLegacy>
             <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
               <Typography
