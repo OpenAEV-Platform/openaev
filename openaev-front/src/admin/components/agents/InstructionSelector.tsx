@@ -32,7 +32,7 @@ const InstructionSelector: React.FC<InstructionSelectorProps> = ({ userToken, pl
   const [selectedOption, setSelectedOption] = useState(USER);
   const [agentFolder] = useState<null | string>(null);
   const [arch, setArch] = useState<string>(x86_64);
-  const [calderaSettings, setCalderaSettings] = useState<CalderaSettings[]>(null);
+  const [calderaSettings, setCalderaSettings] = useState<null | CalderaSettings[]>(null);
 
   // Fetching data
   useEffect(() => {
