@@ -174,7 +174,9 @@ public class UserApi extends RestBehavior {
       User changeUser = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
       changeUser.setPassword(userService.encodeUserPassword(password));
       User savedUser = userRepository.save(changeUser);
-      resetTokenMap.remove(userId);
+      synchronized (resetTokenMap) {
+        resetTokenMap.remove(userId);
+      }
       return savedUser;
     }
     // Bad token or expired token
