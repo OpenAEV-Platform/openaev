@@ -29,9 +29,9 @@ const ConnectorList = () => {
   );
 
   // Fetching data - hooks must be called at top level unconditionally
-  const { executors } = useHelper((helper: ExecutorHelper) => ({ executors: helper.getExecutors() }));
-  const { injectors } = useHelper((helper: InjectorHelper) => ({ injectors: helper.getInjectors() }));
-  const { collectors } = useHelper((helper: CollectorHelper) => ({ collectors: helper.getCollectors() }));
+  const { executors } = useHelper((helper: ExecutorHelper) => ({ executors: helper.getExecutorsIncludingPending() }));
+  const { injectors } = useHelper((helper: InjectorHelper) => ({ injectors: helper.getInjectorsIncludingPending() }));
+  const { collectors } = useHelper((helper: CollectorHelper) => ({ collectors: helper.getCollectorsIncludingPending() }));
 
   // Select the appropriate connectors based on connector type
   const getRawConnectors = (): (CollectorOutput | ExecutorOutput | InjectorOutput)[] => {

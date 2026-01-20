@@ -18,7 +18,8 @@ public class ExecutorMapper {
   public ExecutorOutput toExecutorOutput(
       Executor executor,
       @Nullable CatalogConnector catalogConnector,
-      ConnectorInstance connectorInstance) {
+      ConnectorInstance connectorInstance,
+      boolean existingExecutor) {
     return ExecutorOutput.builder()
         .id(executor.getId())
         .name(executor.getName())
@@ -30,6 +31,7 @@ public class ExecutorMapper {
         .doc(executor.getDoc())
         .backgroundColor(executor.getBackgroundColor())
         .currentStatus(connectorInstance != null ? connectorInstance.getCurrentStatus() : null)
+        .existing(existingExecutor)
         .build();
   }
 }

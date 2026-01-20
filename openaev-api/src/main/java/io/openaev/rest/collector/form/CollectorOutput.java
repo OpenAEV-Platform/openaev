@@ -37,6 +37,9 @@ public class CollectorOutput {
   @JsonProperty("current_status")
   private ConnectorInstance.CURRENT_STATUS_TYPE currentStatus;
 
+  @JsonProperty("existing_collector")
+  private boolean existing;
+
   @JsonProperty("is_verified")
   private boolean verified = false;
 }

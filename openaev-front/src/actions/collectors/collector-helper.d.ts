@@ -1,7 +1,8 @@
-import { type Collector } from '../../utils/api-types';
+import { type Collector, type Executor } from '../../utils/api-types';
 
 export interface CollectorHelper {
   getCollector: (collectorId: string) => Collector;
-  getCollectors: () => Collector[];
+  getExistingCollectors: () => Executor [];
+  getCollectorsIncludingPending: () => Executor [];
   getCollectorsMap: () => Record<string, Collector>;
 }

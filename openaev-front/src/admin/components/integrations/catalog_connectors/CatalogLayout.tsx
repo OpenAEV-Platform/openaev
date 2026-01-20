@@ -35,7 +35,7 @@ const CatalogLayout = () => {
 
   const { catalogConnector, catalogConnectors } = useHelper((helper: CatalogConnectorsHelper) => ({
     catalogConnector: helper.getCatalogConnector(catalogConnectorId),
-    catalogConnectors: helper.getCatalogConnectors(),
+    catalogConnectors: helper.getUndeployCatalogConnectors(),
   }));
 
   useDataLoader(() => {

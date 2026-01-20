@@ -43,6 +43,9 @@ public class ExecutorOutput {
   @JsonProperty("current_status")
   private ConnectorInstance.CURRENT_STATUS_TYPE currentStatus;
 
+  @JsonProperty("existing_executor")
+  private boolean existing;
+
   @JsonProperty("executor_background_color")
   private String backgroundColor;
 }

@@ -19,7 +19,8 @@ public class InjectorMapper {
   public InjectorOutput toInjectorOutput(
       Injector injector,
       @Nullable CatalogConnector catalogConnector,
-      ConnectorInstance connectorInstance) {
+      ConnectorInstance connectorInstance,
+      boolean existingInjector) {
     return InjectorOutput.builder()
         .id(injector.getId())
         .name(injector.getName())
@@ -29,6 +30,7 @@ public class InjectorMapper {
         .verified(connectorInstance != null)
         .updatedAt(injector.getUpdatedAt())
         .currentStatus(connectorInstance != null ? connectorInstance.getCurrentStatus() : null)
+        .existing(existingInjector)
         .build();
   }
 }

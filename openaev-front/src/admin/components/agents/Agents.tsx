@@ -36,7 +36,7 @@ const Executors = () => {
   // Fetching data
   const { settings, executors, tokens } = useHelper((helper: ExecutorHelper & MeTokensHelper & LoggedHelper) => ({
     settings: helper.getPlatformSettings(),
-    executors: helper.getExecutors(),
+    executors: helper.getExistingExecutor(),
     tokens: helper.getMeTokens(),
   }));
   useDataLoader(() => {

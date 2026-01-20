@@ -35,7 +35,10 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
   protected abstract T getConnectorById(String id);
 
   protected abstract Output mapToOutput(
-      T connector, CatalogConnector catalogConnector, ConnectorInstance instance);
+      T connector,
+      CatalogConnector catalogConnector,
+      ConnectorInstance instance,
+      boolean existingConnector);
 
   protected abstract T createNewConnector();
 
@@ -60,7 +63,8 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
     return map;
   }
 
-  private Output toConnectorOutput(T connector, Map<String, ConnectorInstance> instanceMap) {
+  private Output toExistingConnectorOutput(
+      T connector, Map<String, ConnectorInstance> instanceMap) {
     ConnectorInstance instance = instanceMap.get(connector.getId());
     boolean isVerified = instance != null;
     CatalogConnector catalogConnector =
@@ -69,7 +73,7 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
             : catalogConnectorService
                 .findBySlug(connector.getType().replace("openaev_", ""))
                 .orElse(null);
-    return mapToOutput(connector, catalogConnector, instance);
+    return mapToOutput(connector, catalogConnector, instance, true);
   }
 
   private T createExternalCollector(String collectorId, ConnectorInstancePersisted instance) {
@@ -108,7 +112,7 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
 
     // Add existing collectors
     connectors.forEach(
-        connector -> result.add(toConnectorOutput(connector, instancesByConnectorIdMap)));
+        connector -> result.add(toExistingConnectorOutput(connector, instancesByConnectorIdMap)));
 
     if (includeNext) {
       // Add new collectors from instances, these collectors are waiting to be deployed
@@ -124,7 +128,10 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
                 T newConnector = createExternalCollector(entry.getKey(), entry.getValue());
                 result.add(
                     mapToOutput(
-                        newConnector, entry.getValue().getCatalogConnector(), entry.getValue()));
+                        newConnector,
+                        entry.getValue().getCatalogConnector(),
+                        entry.getValue(),
+                        false));
               });
     }
 

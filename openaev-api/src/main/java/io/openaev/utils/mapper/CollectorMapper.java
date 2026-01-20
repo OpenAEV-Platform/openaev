@@ -19,7 +19,8 @@ public class CollectorMapper {
   public CollectorOutput toCollectorOutput(
       Collector collector,
       @Nullable CatalogConnector catalogConnector,
-      ConnectorInstance connectorInstance) {
+      ConnectorInstance connectorInstance,
+      boolean existingCollector) {
     return CollectorOutput.builder()
         .id(collector.getId())
         .name(collector.getName())
@@ -29,6 +30,7 @@ public class CollectorMapper {
         .catalog(catalogConnectorMapper.toCatalogSimpleOutput(catalogConnector))
         .verified(connectorInstance != null)
         .currentStatus(connectorInstance != null ? connectorInstance.getCurrentStatus() : null)
+        .existing(existingCollector)
         .build();
   }
 }

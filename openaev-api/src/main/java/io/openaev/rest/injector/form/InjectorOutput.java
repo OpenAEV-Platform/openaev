@@ -36,6 +36,9 @@ public class InjectorOutput {
   @JsonProperty("current_status")
   private ConnectorInstance.CURRENT_STATUS_TYPE currentStatus;
 
+  @JsonProperty("existing_injector")
+  private boolean existing;
+
   @JsonProperty("injector_updated_at")
   private Instant updatedAt;
 }

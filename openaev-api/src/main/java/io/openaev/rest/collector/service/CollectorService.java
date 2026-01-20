@@ -70,8 +70,12 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   @Override
   protected CollectorOutput mapToOutput(
-      Collector collector, CatalogConnector catalogConnector, ConnectorInstance connectorInstance) {
-    return collectorMapper.toCollectorOutput(collector, catalogConnector, connectorInstance);
+      Collector collector,
+      CatalogConnector catalogConnector,
+      ConnectorInstance connectorInstance,
+      boolean existingInjector) {
+    return collectorMapper.toCollectorOutput(
+        collector, catalogConnector, connectorInstance, existingInjector);
   }
 
   @Override

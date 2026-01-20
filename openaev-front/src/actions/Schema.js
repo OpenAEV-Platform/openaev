@@ -402,7 +402,7 @@ export const storeHelper = state => ({
   getMitigationsMap: () => maps('mitigations', state),
   // injectors
   getInjector: id => entity(id, 'injectors', state),
-  getInjectors: () => entities('injectors', state),
+  getInjectorsIncludingPending: () => entities('injectors', state),
   getInjectorsMap: () => maps('injectors', state),
   // injector contracts
   getInjectorContract: (id) => {
@@ -415,11 +415,13 @@ export const storeHelper = state => ({
   getInjectorContracts: () => entities('injector_contracts', state),
   // collectors
   getCollector: id => entity(id, 'collectors', state),
-  getCollectors: () => entities('collectors', state),
+  getExistingCollectors: () => entities('collectors', state).filter(c => c.get('existing_collector') === true),
+  getCollectorsIncludingPending: () => entities('collectors', state),
   getCollectorsMap: () => maps('collectors', state),
   // executors
   getExecutor: id => entity(id, 'executors', state),
-  getExecutors: () => entities('executors', state),
+  getExistingExecutor: () => entities('executors', state).filter(c => c.get('existing_executor') === true),
+  getExecutorsIncludingPending: () => entities('executors', state),
   getExecutorsMap: () => maps('executors', state),
   // channels
   getChannels: () => entities('channels', state),
@@ -487,6 +489,7 @@ export const storeHelper = state => ({
   getDomains: () => entities('domains', state),
   // catalog
   getCatalogConnectors: () => entities('catalog_connectors', state),
+  getUndeployCatalogConnectors: () => entities('catalog_connectors', state).filter(c => c.get('instance_deployed_count') === 0),
   getCatalogConnector: id => entity(id, 'catalog_connectors', state),
   getConnectorInstance: id => entity(id, 'connectorinstances', state),
 });
