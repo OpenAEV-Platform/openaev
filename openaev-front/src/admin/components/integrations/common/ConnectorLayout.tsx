@@ -20,6 +20,7 @@ import type {
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { ConnectorContext, type ConnectorOutput } from './ConnectorContext';
+import { capitalize } from "@mui/material";
 
 export type ConnectorContextLayoutType = {
   connector: ConnectorOutput;
@@ -91,7 +92,7 @@ const ConnectorLayout = () => {
     ? [
         { label: t('Integrations') },
         {
-          label: t(`${connectorType}s`),
+          label: capitalize(t(`${connectorType}s`)),
           link: routes.list,
         },
         {
@@ -102,7 +103,7 @@ const ConnectorLayout = () => {
     : [
         { label: t('Integrations') },
         {
-          label: t(`${connectorType}s`),
+          label: capitalize(t(`${connectorType}s`)),
           current: true,
         },
       ];
