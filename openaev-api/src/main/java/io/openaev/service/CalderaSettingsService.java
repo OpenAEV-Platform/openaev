@@ -1,10 +1,12 @@
 package io.openaev.service;
 
 import static io.openaev.database.model.SettingKeys.*;
+import static io.openaev.executors.caldera.config.CalderaExecutorConfig.EXECUTOR_CALDERA_PUBLIC_URL;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
 import io.openaev.executors.ExecutorService;
+import io.openaev.injectors.caldera.CalderaContract;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.settings.form.*;
 import io.openaev.rest.settings.response.CalderaSettings;
@@ -32,7 +34,7 @@ public class CalderaSettingsService {
    */
   public List<CalderaSettings> getCalderaSettings() {
     return StreamSupport.stream(executorService.executors().spliterator(), false)
-        .filter(executor -> "openaev_caldera".equals(executor.getType()))
+        .filter(executor -> CalderaContract.TYPE.equals(executor.getType()))
         .map(
             executor -> {
               // Get the connector ids to get the instance
@@ -48,7 +50,7 @@ public class CalderaSettingsService {
                   connectorInstance.getConfigurations().stream()
                       .filter(
                           configuration ->
-                              "EXECUTOR_CALDERA_PUBLIC_URL".equals(configuration.getKey()))
+                              EXECUTOR_CALDERA_PUBLIC_URL.equals(configuration.getKey()))
                       .findFirst()
                       .orElse(
                           ConnectorInstanceConfiguration.builder()
