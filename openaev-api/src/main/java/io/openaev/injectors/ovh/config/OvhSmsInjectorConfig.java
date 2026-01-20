@@ -1,6 +1,7 @@
 package io.openaev.injectors.ovh.config;
 
 import static io.openaev.integration.impl.injectors.ovh.OvhInjectorIntegration.OVH_SMS_INJECTOR_ID;
+import static io.openaev.integration.impl.injectors.ovh.OvhInjectorIntegration.OVH_SMS_INJECTOR_NAME;
 
 import io.openaev.database.model.CatalogConnectorConfiguration;
 import io.openaev.integration.configuration.BaseIntegrationConfiguration;
@@ -25,6 +26,16 @@ public class OvhSmsInjectorConfig extends BaseIntegrationConfiguration {
       isRequired = true)
   @NotBlank
   private String id = OVH_SMS_INJECTOR_ID;
+
+  @IntegrationConfigKey(
+      key = "INJECTOR_NAME",
+      description =
+          """
+                            Name of the builtin Ovh injector
+                            """,
+      isRequired = true)
+  @NotBlank
+  private String name = OVH_SMS_INJECTOR_NAME;
 
   @IntegrationConfigKey(key = "OVH_SMS_AK", description = "OVHCloud Access Key", isRequired = true)
   @NotBlank

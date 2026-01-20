@@ -15,6 +15,7 @@ import java.util.*;
 
 public class OpenctiInjectorIntegration extends Integration {
   public static final String OPENCTI_INJECTOR_NAME = "OpenCTI";
+  public static final String OPENCTI_INJECTOR_ID = "2cbc77af-67f2-46af-bfd2-755d06a46da0";
 
   private final InjectorService injectorService;
   private final OpenCTIContract openCTIContract;

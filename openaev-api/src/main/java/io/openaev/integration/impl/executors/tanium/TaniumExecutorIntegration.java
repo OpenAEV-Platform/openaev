@@ -100,8 +100,8 @@ public class TaniumExecutorIntegration extends Integration {
   @Override
   protected void innerStart() throws Exception {
     String executorId =
-            connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
-                    connectorInstance.getId(), "EXECUTOR_ID");
+        connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
+            connectorInstance.getId(), "EXECUTOR_ID");
 
     Executor executor =
         executorService.register(

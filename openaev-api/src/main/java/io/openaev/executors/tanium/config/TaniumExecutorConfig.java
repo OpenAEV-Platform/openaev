@@ -1,6 +1,7 @@
 package io.openaev.executors.tanium.config;
 
 import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_DEFAULT_ID;
+import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME;
 
 import io.openaev.database.model.CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT;
 import io.openaev.database.model.CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_TYPE;
@@ -28,6 +29,17 @@ public class TaniumExecutorConfig extends BaseIntegrationConfiguration {
   @Getter
   @NotBlank
   private String id = TANIUM_EXECUTOR_DEFAULT_ID;
+
+  @IntegrationConfigKey(
+      key = "EXECUTOR_NAME",
+      description =
+          """
+                  Name of the builtin Caldera executor
+                  """,
+      isRequired = true)
+  @Getter
+  @NotBlank
+  private String name = TANIUM_EXECUTOR_NAME;
 
   @IntegrationConfigKey(
       key = "EXECUTOR_TANIUM_API_URL",

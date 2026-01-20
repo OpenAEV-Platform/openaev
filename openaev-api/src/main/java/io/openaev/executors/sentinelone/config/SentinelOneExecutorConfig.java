@@ -1,6 +1,7 @@
 package io.openaev.executors.sentinelone.config;
 
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_DEFAULT_ID;
+import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
 
 import io.openaev.database.model.CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT;
 import io.openaev.database.model.CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_TYPE;
@@ -28,6 +29,17 @@ public class SentinelOneExecutorConfig extends BaseIntegrationConfiguration {
   @Getter
   @NotBlank
   private String id = SENTINELONE_EXECUTOR_DEFAULT_ID;
+
+  @IntegrationConfigKey(
+      key = "EXECUTOR_NAME",
+      description =
+          """
+                  Name of the builtin Caldera executor
+                  """,
+      isRequired = true)
+  @Getter
+  @NotBlank
+  private String name = SENTINELONE_EXECUTOR_NAME;
 
   @IntegrationConfigKey(
       key = "EXECUTOR_SENTINELONE_URL",

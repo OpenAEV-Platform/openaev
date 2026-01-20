@@ -1,6 +1,7 @@
 package io.openaev.executors.crowdstrike.config;
 
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_DEFAULT_ID;
+import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
 
 import io.openaev.database.model.CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT;
 import io.openaev.database.model.CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_TYPE;
@@ -26,6 +27,17 @@ public class CrowdStrikeExecutorConfig extends BaseIntegrationConfiguration {
   @Getter
   @NotBlank
   private String id = CROWDSTRIKE_EXECUTOR_DEFAULT_ID;
+
+  @IntegrationConfigKey(
+      key = "EXECUTOR_NAME",
+      description =
+          """
+                  Name of the builtin Crowdstrike executor
+                  """,
+      isRequired = true)
+  @Getter
+  @NotBlank
+  private String name = CROWDSTRIKE_EXECUTOR_NAME;
 
   @IntegrationConfigKey(key = "EXECUTOR_CROWDSTRIKE_API_URL", description = "Crowdstrike API url")
   @Getter

@@ -15,7 +15,7 @@ import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.util.List;
 
 public class OvhInjectorIntegration extends Integration {
-  private static final String OVH_SMS_INJECTOR_NAME = "OVHCloud SMS Platform";
+  public static final String OVH_SMS_INJECTOR_NAME = "OVHCloud SMS Platform";
   public static final String OVH_SMS_INJECTOR_ID = "e5aefbca-cf8f-4a57-9384-0503a8ffc22f";
 
   private final OvhSmsContract ovhSmsContract;

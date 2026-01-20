@@ -6,9 +6,11 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.executors.InjectorContext;
 import io.openaev.injectors.opencti.OpenCTIContract;
+import io.openaev.injectors.opencti.config.OpenctiInjectorConfig;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
+import io.openaev.integration.migration.OpenctiInjectorConfigurationMigration;
 import io.openaev.integrations.InjectorService;
 import io.openaev.opencti.service.OpenCTIService;
 import io.openaev.service.FileService;
@@ -33,6 +35,7 @@ public class OpenctiInjectorIntegrationFactory extends IntegrationFactory {
   private final InjectorContext injectorContext;
   private final OpenCTIService openCTIService;
   private final InjectExpectationService injectExpectationService;
+  private final OpenctiInjectorConfigurationMigration openctiInjectorConfigurationMigration;
 
   public OpenctiInjectorIntegrationFactory(
       ComponentRequestEngine componentRequestEngine,
@@ -43,7 +46,8 @@ public class OpenctiInjectorIntegrationFactory extends IntegrationFactory {
       FileService fileService,
       InjectorContext injectorContext,
       OpenCTIService openCTIService,
-      InjectExpectationService injectExpectationService) {
+      InjectExpectationService injectExpectationService,
+      OpenctiInjectorConfigurationMigration openctiInjectorConfigurationMigration) {
     super(connectorInstanceService, catalogConnectorService);
     this.componentRequestEngine = componentRequestEngine;
     this.connectorInstanceService = connectorInstanceService;
@@ -54,6 +58,7 @@ public class OpenctiInjectorIntegrationFactory extends IntegrationFactory {
     this.openCTIService = openCTIService;
     this.injectorContext = injectorContext;
     this.injectExpectationService = injectExpectationService;
+    this.openctiInjectorConfigurationMigration = openctiInjectorConfigurationMigration;
   }
 
   @Override
@@ -63,7 +68,7 @@ public class OpenctiInjectorIntegrationFactory extends IntegrationFactory {
 
   @Override
   protected void runMigrations() throws Exception {
-    // noop
+    openctiInjectorConfigurationMigration.migrate();
   }
 
   @Override
@@ -85,6 +90,8 @@ public class OpenctiInjectorIntegrationFactory extends IntegrationFactory {
     connector.setClassName(getClassName());
     connector.setSubscriptionLink("");
     connector.setContainerType(ConnectorType.INJECTOR);
+    connector.setCatalogConnectorConfigurations(
+        new OpenctiInjectorConfig().toCatalogConfigurationSet(connector));
     catalogConnectorService.saveAll(List.of(connector));
   }
 

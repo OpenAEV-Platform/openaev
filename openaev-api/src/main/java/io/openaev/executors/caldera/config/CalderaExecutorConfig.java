@@ -1,6 +1,7 @@
 package io.openaev.executors.caldera.config;
 
 import static io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegration.CALDERA_EXECUTOR_DEFAULT_ID;
+import static io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegration.CALDERA_EXECUTOR_NAME;
 
 import io.openaev.database.model.CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT;
 import io.openaev.integration.configuration.BaseIntegrationConfiguration;
@@ -29,6 +30,17 @@ public class CalderaExecutorConfig extends BaseIntegrationConfiguration {
   @Getter
   @NotBlank
   private String id = CALDERA_EXECUTOR_DEFAULT_ID;
+
+  @IntegrationConfigKey(
+      key = "EXECUTOR_NAME",
+      description =
+          """
+                  Name of the builtin Caldera executor
+                  """,
+      isRequired = true)
+  @Getter
+  @NotBlank
+  private String name = CALDERA_EXECUTOR_NAME;
 
   @IntegrationConfigKey(
       key = "EXECUTOR_CALDERA_URL",

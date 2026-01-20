@@ -1,6 +1,8 @@
 package io.openaev.integration.impl.executors.tanium;
 
 import io.openaev.authorisation.HttpClientFactory;
+import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE;
+
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
@@ -24,7 +26,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Service;
-import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE;
 
 @Service
 @Profile("!test")
@@ -32,6 +33,8 @@ import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegra
 public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
   private final ExecutorService executorService;
   private final ComponentRequestEngine componentRequestEngine;
+  private final ConnectorInstanceService connectorInstanceService;
+  private final CatalogConnectorService catalogConnectorService;
   private final TaniumExecutorConfigurationMigration taniumExecutorConfigurationMigration;
 
   private final AgentService agentService;
@@ -61,6 +64,8 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;
+    this.connectorInstanceService = connectorInstanceService;
+    this.catalogConnectorService = catalogConnectorService;
     this.taniumExecutorConfigurationMigration = taniumExecutorConfigurationMigration;
     this.agentService = agentService;
     this.endpointService = endpointService;
