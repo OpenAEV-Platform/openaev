@@ -1,6 +1,6 @@
 import { Chip } from '@mui/material';
-import type { FunctionComponent } from 'react';
 import { useTheme } from '@mui/material/styles';
+import type { FunctionComponent } from 'react';
 
 interface Props { affinity_text?: string | null }
 
