@@ -1,9 +1,6 @@
-package io.openaev.service.chaining;
+package io.openaev.database.model;
 
 import com.google.common.hash.Hashing;
-import com.google.gson.Gson;
-import com.google.gson.JsonNull;
-import com.google.gson.JsonPrimitive;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import java.nio.charset.StandardCharsets;
@@ -17,17 +14,15 @@ import lombok.Setter;
 @AllArgsConstructor
 @Getter
 @Setter
-public class StepInputBuffer {
-  /*Computed path are separate by "+" */
-  private final String regexPathComputed = "^.+\\+.+$";
+public class StepStateEntries {
+  /*Correlated path are separate by "+" */
+  private final String regexPathCorrelated = "^.+\\+.+$";
 
   /** Every outputs start by output.NUMBERS */
   private final String regexOutputs = "^(outputs\\.\\d+)";
 
-  private final Gson gson = new Gson();
-
   List<Input> inputs;
-  List<Computed> computed;
+  List<Correlated> correlated;
   Set<Long> hashExecution;
 
   /** List of all keys needs for the execution* */
@@ -48,69 +43,15 @@ public class StepInputBuffer {
   @Getter
   @Setter
   @AllArgsConstructor
-  public static class Computed {
+  public static class Correlated {
     public Set<Pair> values;
   }
 
-  /**
-   * path - key are use during the config of mapped value (see Condition Mapper) path is different
-   * depending on step parent but key is the same for the next step
-   *
-   * @param output
-   * @param path "outputs.message.stdout" or "outputs.message.port+outputs.message.ip"
-   * @param key "stout" or "ip+port"
-   */
-  public void newOutput(String output, String path, String key) {
-    if (isPathComputed(path)) {
-      // Get Mapped condition liked to this step(child) and with idStepFrom(parent)
-      // todo It give you the key <-> path
-      Map<String, String> pathKey = new HashMap<>();
-      // todo remove
-      pathKey.put("outputs.message.ip", "ip");
-      pathKey.put("outputs.message.port", "port");
-      List<String> paths = pathComputed(path);
-
-      Set<Pair> values = new HashSet<>();
-      for (String pathUnit : paths) {
-        // TODO check if we can have other than Primitive
-        String value = getValues(output, pathUnit).stream().findFirst().orElse("");
-        values.add(new Pair(pathKey.get(pathUnit), value));
-      }
-
-      Map<Set<Pair>, Computed> index = getIndexComputedInput();
-      if (!index.containsKey(values)) {
-        Computed newComputed = new Computed(values);
-        computed.add(newComputed);
-        // todo test all combination  and launch the ones not executed
-        // Todo save this StepInputBuffer
-        testAndSaveCombinationsForComputed(newComputed);
-      }
-    } else {
-      Set<String> values = getValues(output, path);
-
-      List<String> newValues = new ArrayList<>();
-
-      Input input = getInputByKey(key);
-      for (String value : values) {
-        if (!input.values.contains(value)) {
-          newValues.add(value);
-          input.values.add(value);
-          // todo test all combination and launch the ones not executed
-          // Todo save this StepInputBuffer
-
-          if (!newValues.isEmpty()) {
-            testAndSaveCombinationsForInput(input, newValues);
-          }
-        }
-      }
-    }
+  public boolean isPathCorrelated(String path) {
+    return path.matches(regexPathCorrelated);
   }
 
-  public boolean isPathComputed(String path) {
-    return path.matches(regexPathComputed);
-  }
-
-  public List<String> pathComputed(String path) {
+  public List<String> pathCorrelated(String path) {
     if (!path.contains("+")) return new ArrayList<>();
 
     String[] parts = path.split("\\+");
@@ -139,27 +80,10 @@ public class StepInputBuffer {
     return input;
   }
 
-  private Set<String> getValues(String output, String path) {
-    Map<String, Object> fields = StepService.getFields(output, path);
+  public Map<Set<Pair>, Correlated> getIndexCorrelatedInput() {
+    Map<Set<Pair>, Correlated> index = new HashMap<>();
 
-    return fields.values().stream()
-        .map(
-            value -> {
-              if (value instanceof JsonNull) {
-                return null;
-              } else if (value instanceof JsonPrimitive) {
-                return ((JsonPrimitive) value).getAsString();
-              } else {
-                return value.toString();
-              }
-            })
-        .collect(Collectors.toSet());
-  }
-
-  private Map<Set<Pair>, Computed> getIndexComputedInput() {
-    Map<Set<Pair>, Computed> index = new HashMap<>();
-
-    for (Computed c : computed) {
+    for (Correlated c : correlated) {
       Set<Pair> keySet =
           c.values.stream().map(v -> new Pair(v.key, v.value)).collect(Collectors.toSet());
       index.put(keySet, c);
@@ -167,8 +91,8 @@ public class StepInputBuffer {
     return index;
   }
 
-  private void testAndSaveCombinationsForComputed(Computed newComputed) {
-    List<Map<String, String>> combinations = generateCombinations(this.inputs, newComputed);
+  public void testAndSaveCombinationsForCorrelated(Correlated newCorrelated) {
+    List<Map<String, String>> combinations = generateCombinations(this.inputs, newCorrelated);
 
     for (Map<String, String> combo : combinations) {
       testAndSaveCombo(combo);
@@ -191,7 +115,7 @@ public class StepInputBuffer {
     }
   }
 
-  private void testAndSaveCombinationsForInput(Input targetInput, List<String> newValues) {
+  public void testAndSaveCombinationsForInput(Input targetInput, List<String> newValues) {
     // Separate the target input from the other inputs
     List<Input> otherInputs =
         this.inputs.stream().filter(in -> !in.getKey().equals(targetInput.getKey())).toList();
@@ -210,8 +134,8 @@ public class StepInputBuffer {
     for (String newValue : newValues) {
       Pair newPair = new Pair(targetInput.getKey(), newValue);
 
-      // Case without Computed
-      if (computed.isEmpty()) {
+      // Case without Correlated
+      if (correlated.isEmpty()) {
         for (List<Pair> comboPairs : otherCombinations) {
           Map<String, String> combo = new TreeMap<>();
           for (Pair p : comboPairs) combo.put(p.key(), p.value());
@@ -219,8 +143,8 @@ public class StepInputBuffer {
           testAndSaveCombo(combo);
         }
       } else {
-        // Case with Computed: for each existing Computed
-        for (Computed comp : computed) {
+        // Case with Correlated: for each existing Computed
+        for (Correlated comp : correlated) {
           for (List<Pair> comboPairs : otherCombinations) {
             Map<String, String> combo = new TreeMap<>();
             for (Pair p : comboPairs) combo.put(p.key(), p.value());
@@ -233,7 +157,7 @@ public class StepInputBuffer {
     }
   }
 
-  private List<Map<String, String>> generateCombinations(List<Input> inputs, Computed comp) {
+  private List<Map<String, String>> generateCombinations(List<Input> inputs, Correlated comp) {
     List<Map<String, String>> results = new ArrayList<>();
 
     // Get all sets of simple values
@@ -282,7 +206,7 @@ public class StepInputBuffer {
    * list, representing the Cartesian product of zero sets.
    *
    * @param <T> the type of elements in the lists
-   * @param lists a list of lists for which the Cartesian product will be computed
+   * @param lists a list of lists for which the Cartesian product will be correlated
    * @return a list of lists containing all possible combinations
    */
   private <T> List<List<T>> cartesianProduct(List<List<T>> lists) {

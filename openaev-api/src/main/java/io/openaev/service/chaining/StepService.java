@@ -10,14 +10,13 @@ import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
+import java.io.IOException;
+import java.util.*;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.springframework.stereotype.Service;
-
-import java.io.IOException;
-import java.util.*;
-import java.util.stream.Collectors;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -314,7 +313,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
       path.append(treeToUpdate.get(indexFieldPath)).append(".");
       if (o != null) {
         if (indexFieldPath == treeToUpdate.size() - 1) {
-            path.deleteCharAt(path.length() - 1);
+          path.deleteCharAt(path.length() - 1);
           actionJson(
               fieldsAndValue,
               field,
@@ -554,11 +553,14 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
 
   @Override
   public void handleDelayStepEvent(StepEvent stepEvent) {
-    stepRepository.findById(stepEvent.getStepId()).ifPresent(step -> {
-      Workflow workflowRun = workflowService.getWorkflowById(stepEvent.getWorkflowId());
-      // TODO: replace null value by actual output from previous step run ?
-      wait(step, workflowRun, null);
-    });
+    stepRepository
+        .findById(stepEvent.getStepId())
+        .ifPresent(
+            step -> {
+              Workflow workflowRun = workflowService.getWorkflowById(stepEvent.getWorkflowId());
+              // TODO: replace null value by actual output from previous step run ?
+              wait(step, workflowRun, null);
+            });
   }
 
   @Override
@@ -572,23 +574,20 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     if (stepUpdated != null) {
       this.saveStep(stepUpdated);
       // GET STEP TEMPLATE
-      Step stepTemplateCurrent =
-        this.findStepTemplateById(stepRun.getStepTemplate().getId());
+      Step stepTemplateCurrent = this.findStepTemplateById(stepRun.getStepTemplate().getId());
       Workflow workflowTemplate = stepTemplateCurrent.getWorkflow();
-      List<Step> stepsTemplate =
-        this.findAllStepTemplateByWorkflow(workflowTemplate.getId());
+      List<Step> stepsTemplate = this.findAllStepTemplateByWorkflow(workflowTemplate.getId());
 
       // FIND OTHER STEP WHO NEED INPUT FROM THIS STEP
       List<Step> nextStepToExecute = new ArrayList<>();
       for (Step stepTemplate : stepsTemplate) {
-        List<Condition> conditions =
-          this.conditionService.findAllByStepId(stepTemplate.getId());
+        List<Condition> conditions = this.conditionService.findAllByStepId(stepTemplate.getId());
         for (Condition conditionTemplate : conditions) {
           if (conditionTemplate.getStepFrom() != null
-            && conditionTemplate
-            .getStepFrom()
-            .getId()
-            .equals(stepRun.getStepTemplate().getId())) {
+              && conditionTemplate
+                  .getStepFrom()
+                  .getId()
+                  .equals(stepRun.getStepTemplate().getId())) {
             nextStepToExecute.add(stepTemplate);
           }
         }

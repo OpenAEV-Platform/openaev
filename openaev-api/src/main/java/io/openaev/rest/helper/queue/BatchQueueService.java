@@ -5,9 +5,6 @@ import com.rabbitmq.client.*;
 import io.openaev.config.QueueConfig;
 import io.openaev.config.RabbitmqConfig;
 import jakarta.annotation.PreDestroy;
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -16,13 +13,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class BatchQueueService<T extends Queueable> {
 
   private final Class<T> clazz;
+
   @Setter
-  // TODO: change back to original code and find a better way to resolve the cicular dependency problem from stepService
+  // TODO: change back to original code and find a better way to resolve the cicular dependency
+  // problem from stepService
   private QueueExecution<T> queueExecution;
 
   public static final String ROUTING_KEY = "_push_routing_%s";

@@ -33,7 +33,7 @@ public class V4_60__Add_workflow_step_entities extends BaseJavaMigration {
         CREATE UNIQUE INDEX IF NOT EXISTS uk_workflow_template
             ON workflows (workflow_id, workflow_simulation_id)
             WHERE workflow_status = 'TEMPLATE';
-            """);
+      """);
 
       select.execute(
           """
@@ -88,6 +88,24 @@ public class V4_60__Add_workflow_step_entities extends BaseJavaMigration {
             UNIQUE ( condition_key, condition_value, condition_type, condition_parent_id, step_id)
           );
             """);
+
+      select.execute(
+          """
+                    CREATE TABLE steps_states (
+                        state_id VARCHAR(255) NOT NULL CONSTRAINT steps_states_pkey PRIMARY KEY,
+                        step_entries JSONB,
+                        workflow_execution_id VARCHAR(255) NOT NULL
+                            CONSTRAINT fk_step_state_workflow
+                            REFERENCES workflows(workflow_id)
+                            ON DELETE CASCADE,
+                        step_template_id VARCHAR(255) NOT NULL
+                            CONSTRAINT fk_step_state_step
+                            REFERENCES steps(step_id),
+                        step_state_created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+                        step_state_updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+                        CONSTRAINT uq_step_state_workflow_step UNIQUE (workflow_execution_id, step_template_id)
+                    );
+                    """);
     }
   }
 }

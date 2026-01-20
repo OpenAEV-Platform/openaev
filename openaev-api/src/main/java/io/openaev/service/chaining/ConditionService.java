@@ -5,14 +5,13 @@ import io.openaev.database.model.Condition;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.ConditionRepository;
-import lombok.AllArgsConstructor;
-import org.springframework.stereotype.Service;
-
 import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import lombok.AllArgsConstructor;
+import org.springframework.stereotype.Service;
 
 @Service
 @AllArgsConstructor
@@ -53,23 +52,25 @@ public class ConditionService {
     return null;
   }
 
-  // TODO: this is for legacy behavior only (compare from start of workflow instead of previous step)
-  public Condition isTimeConditionValid(Condition conditionTemplate, Workflow workflowRun, Instant now, Instant goal) {
+  // TODO: this is for legacy behavior only (compare from start of workflow instead of previous
+  // step)
+  public Condition isTimeConditionValid(
+      Condition conditionTemplate, Workflow workflowRun, Instant now, Instant goal) {
     if (conditionTemplate.getType().equals(CONDITION_TYPE.AFTER)) {
       if (now.isAfter(goal)) {
         return Condition.builder()
-          .key(now.toString())
-          .type(conditionTemplate.getType())
-          .value(goal.toString())
-          .build();
+            .key(now.toString())
+            .type(conditionTemplate.getType())
+            .value(goal.toString())
+            .build();
       }
     } else if (conditionTemplate.getType().equals(CONDITION_TYPE.BEFORE)) {
       // todo check witch case with before?
       return Condition.builder()
-        .key(now.toString())
-        .type(conditionTemplate.getType())
-        .value(goal.toString())
-        .build();
+          .key(now.toString())
+          .type(conditionTemplate.getType())
+          .value(goal.toString())
+          .build();
     }
     return null;
   }

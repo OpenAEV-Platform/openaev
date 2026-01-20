@@ -6,19 +6,22 @@ import com.google.common.hash.Hashing;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import io.openaev.service.chaining.StepInputBuffer;
+import io.openaev.database.model.StepStateEntries;
 import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.StepStateService;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
 public class StepServiceTest {
 
   Gson gson = new Gson();
+  @Autowired StepStateService stepStateService;
 
   @Test
   public void updateFields() {
@@ -185,7 +188,7 @@ public class StepServiceTest {
 
     for (Map.Entry<String, Object> entry : fields.entrySet()) {
       String key = entry.getKey();
-      Object value = entry.getValue();
+
       if (!key.equals("outputs.message.stdout")) {
         Pattern p = Pattern.compile("^(outputs\\.\\d+)");
         Matcher m = p.matcher(key);
@@ -217,56 +220,64 @@ public class StepServiceTest {
 
   @Test
   public void testNewOutputWithComputed() {
-    // Création du buffer vide
+    // Création du stateEntries vide
     Set<String> executionKeys = new HashSet<>();
     executionKeys.add("ip");
     executionKeys.add("port");
     executionKeys.add("stdout");
     executionKeys.add("exit");
-    StepInputBuffer buffer =
-        new StepInputBuffer(new ArrayList<>(), new ArrayList<>(), new HashSet<>(), executionKeys);
+    StepStateEntries stateEntries =
+        new StepStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>(), executionKeys);
 
     System.out.println("output1");
-    buffer.newOutput(
+    stepStateService.newOutput(
+        stateEntries,
         "{\"outputs\": {\"message\": {\"stdout\": \"filigran\"}}}",
         "outputs.message.stdout",
         "stdout");
 
-    assertEquals(1, buffer.getInputs().size());
-    assertTrue(buffer.getInputs().get(0).getValues().contains("filigran"));
+    assertEquals(1, stateEntries.getInputs().size());
+    assertTrue(stateEntries.getInputs().get(0).getValues().contains("filigran"));
 
     System.out.println("output2");
-    buffer.newOutput(
-        "{\"outputs\": {\"message\": {\"exit\": \"0\"}}}", "outputs.message.exit", "exit");
+    stepStateService.newOutput(
+        stateEntries,
+        "{\"outputs\": {\"message\": {\"exit\": \"0\"}}}",
+        "outputs.message.exit",
+        "exit");
 
-    assertEquals(2, buffer.getInputs().size());
-    assertTrue(buffer.getInputByKey("exit").getValues().contains("0"));
+    assertEquals(2, stateEntries.getInputs().size());
+    assertTrue(stateEntries.getInputByKey("exit").getValues().contains("0"));
 
     System.out.println("output3");
-    buffer.newOutput(
+    stepStateService.newOutput(
+        stateEntries,
         "{\"outputs\": {\"message\": {\"port\": \"445\", \"ip\": \"192.168.123.131\"}}}",
         "outputs.message.port+outputs.message.ip",
         "port+ip");
 
-    assertEquals(1, buffer.getComputed().size());
-    StepInputBuffer.Computed c1 = buffer.getComputed().get(0);
-    assertTrue(c1.getValues().contains(new StepInputBuffer.Pair("port", "445")));
-    assertTrue(c1.getValues().contains(new StepInputBuffer.Pair("ip", "192.168.123.131")));
+    assertEquals(1, stateEntries.getCorrelated().size());
+    StepStateEntries.Correlated c1 = stateEntries.getCorrelated().get(0);
+    assertTrue(c1.getValues().contains(new StepStateEntries.Pair("port", "445")));
+    assertTrue(c1.getValues().contains(new StepStateEntries.Pair("ip", "192.168.123.131")));
 
     System.out.println("output4");
-    buffer.newOutput(
+    stepStateService.newOutput(
+        stateEntries,
         "{\"outputs\": {\"message\": {\"port\": \"445\", \"ip\": \"192.168.123.131\"}}}",
         "outputs.message.port+outputs.message.ip",
         "port+ip");
 
-    assertEquals(1, buffer.getComputed().size(), "Computed identique ne doit pas être dupliqué");
+    assertEquals(
+        1, stateEntries.getCorrelated().size(), "Computed identique ne doit pas être dupliqué");
 
     System.out.println("output5");
-    buffer.newOutput(
+    stepStateService.newOutput(
+        stateEntries,
         "{\"outputs\": {\"message\": {\"port\": \"135\", \"ip\": \"192.168.123.132\"}}}",
         "outputs.message.port+outputs.message.ip",
         "port+ip");
 
-    assertEquals(2, buffer.getComputed().size());
+    assertEquals(2, stateEntries.getCorrelated().size());
   }
 }

@@ -5,9 +5,6 @@ import com.rabbitmq.client.*;
 import io.openaev.config.QueueConfig;
 import io.openaev.config.RabbitmqConfig;
 import jakarta.annotation.PreDestroy;
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -16,14 +13,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 // TODO: mutualize with BatchQueueService
 public class DelayQueueService<T extends Queueable> {
 
   private final Class<T> clazz;
+
   @Setter
-  // TODO: change back to original code and find a better way to resolve the cicular dependency problem from stepService
+  // TODO: change back to original code and find a better way to resolve the cicular dependency
+  // problem from stepService
   private QueueExecution<T> queueExecution;
 
   public static final String ROUTING_KEY = "_push_routing_%s";
@@ -55,21 +56,21 @@ public class DelayQueueService<T extends Queueable> {
   /**
    * Public constructor of the BatchQueueService
    *
-   * @param clazz          the class of element that will be processed
+   * @param clazz the class of element that will be processed
    * @param queueExecution the method to handle a list of the class element
    * @param rabbitmqConfig the rabbitmq config object
-   * @param mapper         the mapper to use
-   * @param queueConfig    the queue config to use
-   * @throws IOException      In case of issue when communicating with rabbitMQ
+   * @param mapper the mapper to use
+   * @param queueConfig the queue config to use
+   * @throws IOException In case of issue when communicating with rabbitMQ
    * @throws TimeoutException In case of a non responding rabbitMQ
    */
   public DelayQueueService(
-    Class<T> clazz,
-    QueueExecution<T> queueExecution,
-    RabbitmqConfig rabbitmqConfig,
-    ObjectMapper mapper,
-    QueueConfig queueConfig)
-    throws IOException, TimeoutException {
+      Class<T> clazz,
+      QueueExecution<T> queueExecution,
+      RabbitmqConfig rabbitmqConfig,
+      ObjectMapper mapper,
+      QueueConfig queueConfig)
+      throws IOException, TimeoutException {
     this.clazz = clazz;
     this.queueExecution = queueExecution;
     this.mapper = mapper;
@@ -79,14 +80,14 @@ public class DelayQueueService<T extends Queueable> {
     executor = Executors.newFixedThreadPool(queueConfig.getWorkerNumber());
     shutdownListener = this::handleConnectionShutdown;
     exchangeName =
-      rabbitmqConfig.getPrefix()
-        + String.format(DelayQueueService.EXCHANGE_KEY, queueConfig.getQueueName());
+        rabbitmqConfig.getPrefix()
+            + String.format(DelayQueueService.EXCHANGE_KEY, queueConfig.getQueueName());
     routingKey =
-      rabbitmqConfig.getPrefix()
-        + String.format(DelayQueueService.ROUTING_KEY, queueConfig.getQueueName());
+        rabbitmqConfig.getPrefix()
+            + String.format(DelayQueueService.ROUTING_KEY, queueConfig.getQueueName());
     queueName =
-      rabbitmqConfig.getPrefix()
-        + String.format(DelayQueueService.QUEUE_NAME, queueConfig.getQueueName());
+        rabbitmqConfig.getPrefix()
+            + String.format(DelayQueueService.QUEUE_NAME, queueConfig.getQueueName());
 
     // The queue that will contain the object we need to process
     queue = new HashMap<>();
@@ -99,10 +100,10 @@ public class DelayQueueService<T extends Queueable> {
     // A scheduler to handle batches that did not reached the critical mass
     ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
     scheduledExecutor.scheduleAtFixedRate(
-      () -> queue.keySet().forEach(this::processBufferedBatch),
-      this.queueConfig.getWorkerFrequency(),
-      this.queueConfig.getWorkerFrequency(),
-      TimeUnit.MILLISECONDS);
+        () -> queue.keySet().forEach(this::processBufferedBatch),
+        this.queueConfig.getWorkerFrequency(),
+        this.queueConfig.getWorkerFrequency(),
+        TimeUnit.MILLISECONDS);
 
     // Reconnection executor that we will start if we ever lose connection
     this.reconnectionExecutor = Executors.newScheduledThreadPool(1);
@@ -111,7 +112,7 @@ public class DelayQueueService<T extends Queueable> {
   /**
    * Method to establish connection with rabbitMQ
    *
-   * @throws IOException      in case of issue while connecting to the server
+   * @throws IOException in case of issue while connecting to the server
    * @throws TimeoutException in case of issue while connecting to the server
    */
   private void establishConnection() throws IOException, TimeoutException {
@@ -127,8 +128,8 @@ public class DelayQueueService<T extends Queueable> {
     factory.setRequestedHeartbeat(30);
     factory.setConnectionTimeout(10000);
     factory.setSharedExecutor(
-      Executors.newFixedThreadPool(
-        queueConfig.getConsumerNumber() + queueConfig.getPublisherNumber()));
+        Executors.newFixedThreadPool(
+            queueConfig.getConsumerNumber() + queueConfig.getPublisherNumber()));
 
     connection = factory.newConnection();
 
@@ -157,12 +158,11 @@ public class DelayQueueService<T extends Queueable> {
         // Declare a delayed exchange (type: x-delayed-message)
         String delayedExchangeName = exchangeName; // or some other name
         publisherChannel.exchangeDeclare(
-          delayedExchangeName,
-          "x-delayed-message",   // <-- type provided by the plugin
-          true,                  // durable
-          false,                 // autoDelete
-          exchangeArgs
-        );
+            delayedExchangeName,
+            "x-delayed-message", // <-- type provided by the plugin
+            true, // durable
+            false, // autoDelete
+            exchangeArgs);
         Map<String, Object> queueArgs = new HashMap<>();
         queueArgs.put("x-queue-type", "quorum");
         publisherChannel.queueDeclare(queueName, true, false, false, queueArgs);
@@ -179,46 +179,46 @@ public class DelayQueueService<T extends Queueable> {
 
         // What to do when a message is consumed
         DeliverCallback deliverCallback =
-          (consumerTag, delivery) -> {
-            // We get the object to process
-            String message = new String(delivery.getBody(), StandardCharsets.UTF_8);
-            log.trace("Received message from queue {} : '{}'", queueName, message);
+            (consumerTag, delivery) -> {
+              // We get the object to process
+              String message = new String(delivery.getBody(), StandardCharsets.UTF_8);
+              log.trace("Received message from queue {} : '{}'", queueName, message);
 
-            // Unmarshalling of our object and setting it in the queue for processing
-            T element = mapper.readValue(message, clazz);
-            int elementKey = groupByKey(element);
-            queue
-              .computeIfAbsent(elementKey, integer -> new LinkedBlockingQueue<>())
-              .add(element);
+              // Unmarshalling of our object and setting it in the queue for processing
+              T element = mapper.readValue(message, clazz);
+              int elementKey = groupByKey(element);
+              queue
+                  .computeIfAbsent(elementKey, integer -> new LinkedBlockingQueue<>())
+                  .add(element);
 
-            // Add the message and delivery tag into a hashmap that will allow us to ack when
-            // we've inserted in base
-            deliveryTable.put(
-              element,
-              DeliveryContext.builder()
-                .tag(delivery.getEnvelope().getDeliveryTag())
-                .deliveryChannel(consumerChannel)
-                .build());
+              // Add the message and delivery tag into a hashmap that will allow us to ack when
+              // we've inserted in base
+              deliveryTable.put(
+                  element,
+                  DeliveryContext.builder()
+                      .tag(delivery.getEnvelope().getDeliveryTag())
+                      .deliveryChannel(consumerChannel)
+                      .build());
 
-            // If we reach a critical mass, we take care of it immediately
-            if (queue.get(elementKey).size() > this.queueConfig.getMaxSize()) {
-              processBufferedBatch(elementKey);
-            }
-          };
+              // If we reach a critical mass, we take care of it immediately
+              if (queue.get(elementKey).size() > this.queueConfig.getMaxSize()) {
+                processBufferedBatch(elementKey);
+              }
+            };
 
         CancelCallback cancelCallback =
-          consumerTag -> log.warn("Consumer {} was cancelled", consumerTag);
+            consumerTag -> log.warn("Consumer {} was cancelled", consumerTag);
 
         // Setting up the consumer itself
         consumerChannel.basicConsume(
-          queueName,
-          false,
-          String.format("consumer-%s-%d", queueConfig.getQueueName(), i),
-          false,
-          false,
-          null,
-          deliverCallback,
-          cancelCallback);
+            queueName,
+            false,
+            String.format("consumer-%s-%d", queueConfig.getQueueName(), i),
+            false,
+            false,
+            null,
+            deliverCallback,
+            cancelCallback);
       }
     } catch (IOException e) {
       log.error("Error creating consumer: {}", e.getMessage(), e);
@@ -246,9 +246,7 @@ public class DelayQueueService<T extends Queueable> {
     reconnectionExecutor.schedule(this::attemptReconnection, 10, TimeUnit.SECONDS);
   }
 
-  /**
-   * Reconnection attempt
-   */
+  /** Reconnection attempt */
   private void attemptReconnection() {
     log.info("Attempting RabbitMQ reconnection");
 
@@ -269,9 +267,7 @@ public class DelayQueueService<T extends Queueable> {
     }
   }
 
-  /**
-   * Close the resources
-   */
+  /** Close the resources */
   private void closeResources() throws IOException, TimeoutException {
     try {
       // Close consumer channels
@@ -312,63 +308,63 @@ public class DelayQueueService<T extends Queueable> {
    */
   public void processBufferedBatch(int workerId) {
     if (insertInProgress
-      .computeIfAbsent(workerId, integer -> new AtomicBoolean(false))
-      .compareAndSet(false, true)) {
+        .computeIfAbsent(workerId, integer -> new AtomicBoolean(false))
+        .compareAndSet(false, true)) {
       executor.execute(
-        () -> {
-          do {
-            // Draining the queue into the list with a max size
-            List<T> currentBatch = new ArrayList<>();
-            queue.get(workerId).drainTo(currentBatch);
+          () -> {
+            do {
+              // Draining the queue into the list with a max size
+              List<T> currentBatch = new ArrayList<>();
+              queue.get(workerId).drainTo(currentBatch);
 
-            // If the list is not empty, we process it
-            List<T> processedElement = new ArrayList<>();
-            if (!currentBatch.isEmpty()) {
-              log.info("Processing batch of {}", currentBatch.size());
-              try {
-                processedElement.addAll(queueExecution.perform(currentBatch));
-              } catch (Exception e) {
-                log.error("Error processing batch - Error during ingestion", e);
-              }
-            }
-
-            // Sending Ack for all the processed element in the batch
-            for (T element : processedElement) {
-              try {
-                DeliveryContext elementToAck = deliveryTable.remove(element);
-                if (elementToAck != null) {
-                  elementToAck.getDeliveryChannel().basicAck(elementToAck.getTag(), false);
-                  currentBatch.remove(element);
+              // If the list is not empty, we process it
+              List<T> processedElement = new ArrayList<>();
+              if (!currentBatch.isEmpty()) {
+                log.info("Processing batch of {}", currentBatch.size());
+                try {
+                  processedElement.addAll(queueExecution.perform(currentBatch));
+                } catch (Exception e) {
+                  log.error("Error processing batch - Error during ingestion", e);
                 }
-              } catch (IOException e) {
-                log.error(
-                  String.format(
-                    "Error processing batch - Cannot Ack the message: %s", e.getMessage()),
-                  e);
               }
-            }
 
-            // The elements that were not successfully processed are rejected
-            for (T element : currentBatch) {
-              try {
-                DeliveryContext elementToReject = deliveryTable.remove(element);
-                if (elementToReject != null) {
-                  // To avoid having elements that are not properly processed but can never be,
-                  // we're not requeueing them.
-                  elementToReject
-                    .getDeliveryChannel()
-                    .basicReject(elementToReject.getTag(), false);
+              // Sending Ack for all the processed element in the batch
+              for (T element : processedElement) {
+                try {
+                  DeliveryContext elementToAck = deliveryTable.remove(element);
+                  if (elementToAck != null) {
+                    elementToAck.getDeliveryChannel().basicAck(elementToAck.getTag(), false);
+                    currentBatch.remove(element);
+                  }
+                } catch (IOException e) {
+                  log.error(
+                      String.format(
+                          "Error processing batch - Cannot Ack the message: %s", e.getMessage()),
+                      e);
                 }
-              } catch (IOException e) {
-                log.error(
-                  String.format(
-                    "Error processing batch - Cannot Nack the message: %s", e.getMessage()),
-                  e);
               }
-            }
-          } while (queue.get(workerId).size() > (queueConfig.getMaxSize() * 0.75));
-          insertInProgress.get(workerId).set(false);
-        });
+
+              // The elements that were not successfully processed are rejected
+              for (T element : currentBatch) {
+                try {
+                  DeliveryContext elementToReject = deliveryTable.remove(element);
+                  if (elementToReject != null) {
+                    // To avoid having elements that are not properly processed but can never be,
+                    // we're not requeueing them.
+                    elementToReject
+                        .getDeliveryChannel()
+                        .basicReject(elementToReject.getTag(), false);
+                  }
+                } catch (IOException e) {
+                  log.error(
+                      String.format(
+                          "Error processing batch - Cannot Nack the message: %s", e.getMessage()),
+                      e);
+                }
+              }
+            } while (queue.get(workerId).size() > (queueConfig.getMaxSize() * 0.75));
+            insertInProgress.get(workerId).set(false);
+          });
     }
   }
 
@@ -383,14 +379,14 @@ public class DelayQueueService<T extends Queueable> {
     try {
       byte[] body = mapper.writeValueAsString(element).getBytes();
 
-      AMQP.BasicProperties props = new AMQP.BasicProperties.Builder()
-        .headers(Map.of("x-delay", delayMs)) // delay in ms
-        .build();
+      AMQP.BasicProperties props =
+          new AMQP.BasicProperties.Builder()
+              .headers(Map.of("x-delay", delayMs)) // delay in ms
+              .build();
 
       publisherChannels
-        .get(element.hashCode() % publisherChannels.size())
-        .basicPublish(
-          exchangeName, routingKey, props, body);
+          .get(element.hashCode() % publisherChannels.size())
+          .basicPublish(exchangeName, routingKey, props, body);
     } catch (IOException e) {
       log.error(String.format("Error publishing with a delay: %s", e.getMessage()), e);
       throw e;

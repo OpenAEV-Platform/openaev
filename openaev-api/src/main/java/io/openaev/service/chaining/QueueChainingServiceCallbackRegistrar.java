@@ -9,7 +9,8 @@ public class QueueChainingServiceCallbackRegistrar {
   private final QueueChainingService queueChainingService;
   private final StepService stepService;
 
-  public QueueChainingServiceCallbackRegistrar(QueueChainingService queueChainingService, StepService stepService) {
+  public QueueChainingServiceCallbackRegistrar(
+      QueueChainingService queueChainingService, StepService stepService) {
     this.queueChainingService = queueChainingService;
     this.stepService = stepService;
   }

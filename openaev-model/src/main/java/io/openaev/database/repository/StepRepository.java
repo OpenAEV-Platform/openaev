@@ -2,13 +2,12 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.STEP_STATUS;
 import io.openaev.database.model.Step;
+import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-
-import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface StepRepository extends JpaRepository<Step, String> {
@@ -51,7 +50,8 @@ public interface StepRepository extends JpaRepository<Step, String> {
    * @return An optional filled with the stepId if found
    */
   @Query(
-    value = """
+      value =
+          """
       SELECT step_id
       FROM steps
       WHERE jsonb_path_exists(
@@ -61,7 +61,6 @@ public interface StepRepository extends JpaRepository<Step, String> {
       )
       LIMIT 1
       """,
-    nativeQuery = true
-  )
+      nativeQuery = true)
   Optional<String> findStepIdByInjectId(@Param("injectId") String injectId);
 }

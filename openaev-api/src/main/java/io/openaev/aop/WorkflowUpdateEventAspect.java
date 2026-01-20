@@ -3,6 +3,9 @@ package io.openaev.aop;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.chaining.QueueChainingService;
 import io.openaev.service.chaining.StepService;
+import java.io.IOException;
+import java.util.*;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -16,10 +19,6 @@ import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.stereotype.Component;
-
-import java.io.IOException;
-import java.util.*;
-import java.util.stream.Collectors;
 
 @Aspect
 @Component
@@ -44,10 +43,9 @@ public class WorkflowUpdateEventAspect {
 
     if (hasInjectId == hasExpectation) {
       throw new IllegalStateException(
-        "Annotation @WorkflowUpdateEvent on " +
-          joinPoint.getSignature().toShortString() +
-          " must set exactly one of injectId or expectationTracesIds"
-      );
+          "Annotation @WorkflowUpdateEvent on "
+              + joinPoint.getSignature().toShortString()
+              + " must set exactly one of injectId or expectationTracesIds");
     }
 
     MethodSignature signature = (MethodSignature) joinPoint.getSignature();
@@ -72,16 +70,16 @@ public class WorkflowUpdateEventAspect {
   /**
    * Send a workflow update event related to the given inject to the queue
    *
-   * @param context      the SPEL evaluation context
+   * @param context the SPEL evaluation context
    * @param injectIdSPEL the SPEL expression to fetch the injectId from the request
    */
   private void handleInjectIdParam(EvaluationContext context, String injectIdSPEL) {
     String injectId = "";
     Expression exp = parser.parseExpression(injectIdSPEL);
     injectId =
-      exp.getValue(context) != null
-        ? Objects.requireNonNull(exp.getValue(context)).toString()
-        : "";
+        exp.getValue(context) != null
+            ? Objects.requireNonNull(exp.getValue(context)).toString()
+            : "";
 
     if (!injectId.isEmpty()) {
       Optional<String> stepId = stepService.findStepIdByInjectId(injectId);
@@ -97,33 +95,36 @@ public class WorkflowUpdateEventAspect {
   }
 
   /**
-   * Send a workflow update event related to all the injects related to the given expectation IDs to the queue
+   * Send a workflow update event related to all the injects related to the given expectation IDs to
+   * the queue
    *
-   * @param context             the SPEL evaluation context
+   * @param context the SPEL evaluation context
    * @param expectationIDsdSPEL the SPEL expression to fetch the injectId from the request
    */
   private void handleExpectationTracesParam(EvaluationContext context, String expectationIDsdSPEL) {
     Expression exp = parser.parseExpression(expectationIDsdSPEL);
-    Object expectationIdsFromSPEL = exp.getValue(context) != null
-      ? Objects.requireNonNull(exp.getValue(context))
-      : List.of();
+    Object expectationIdsFromSPEL =
+        exp.getValue(context) != null ? Objects.requireNonNull(exp.getValue(context)) : List.of();
     if (expectationIdsFromSPEL instanceof Collection<?> c) {
       Set<String> expectationIds = c.stream().map(Object::toString).collect(Collectors.toSet());
-      Set<String> injectIds = injectExpectationService.findDistinctInjectIdsByInjectExpectationIds(expectationIds);
+      Set<String> injectIds =
+          injectExpectationService.findDistinctInjectIdsByInjectExpectationIds(expectationIds);
       // TODO: optimize to fetch the whole list of steps instead of a single one
-      injectIds.forEach(injectId -> {
-        try {
-          Optional<String> stepId = stepService.findStepIdByInjectId(injectId);
-          if (stepId.isPresent()) {
-            queueChainingService.updateStep(stepId.get());
-          }
-        } catch (IOException e) {
-          // TODO: exception management
-          throw new RuntimeException(e);
-        }
-      });
+      injectIds.forEach(
+          injectId -> {
+            try {
+              Optional<String> stepId = stepService.findStepIdByInjectId(injectId);
+              if (stepId.isPresent()) {
+                queueChainingService.updateStep(stepId.get());
+              }
+            } catch (IOException e) {
+              // TODO: exception management
+              throw new RuntimeException(e);
+            }
+          });
     } else {
-      throw new IllegalStateException("@WorkflowUpdateEvent.expectationIDsdSPEL must return a Collection");
+      throw new IllegalStateException(
+          "@WorkflowUpdateEvent.expectationIDsdSPEL must return a Collection");
     }
   }
 }

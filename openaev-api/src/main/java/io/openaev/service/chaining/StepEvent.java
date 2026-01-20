@@ -2,9 +2,8 @@ package io.openaev.service.chaining;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.rest.helper.queue.Queueable;
-import lombok.*;
-
 import java.util.UUID;
+import lombok.*;
 
 @Data
 @Builder
@@ -12,8 +11,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class StepEvent implements Queueable {
 
-  @Getter
-  private final String id = UUID.randomUUID().toString();
+  @Getter private final String id = UUID.randomUUID().toString();
 
   @JsonProperty("workflow_id")
   private String workflowId;
