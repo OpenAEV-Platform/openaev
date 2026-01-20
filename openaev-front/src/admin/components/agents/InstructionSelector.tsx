@@ -41,7 +41,7 @@ const InstructionSelector: React.FC<InstructionSelectorProps> = ({ userToken, pl
     });
   }, []);
 
-  const executorCalderaPublicUrl = calderaSettings !== null && calderaSettings.length > 0 ? calderaSettings[0].executor_caldera_public_url : '';
+  const executorCalderaPublicUrl = calderaSettings !== null && Array.isArray(calderaSettings) && calderaSettings.length > 0 ? calderaSettings[0].executor_caldera_public_url : '';
 
   const tabEntries: TabsEntry[] = [{
     key: 'Standard Installation',
