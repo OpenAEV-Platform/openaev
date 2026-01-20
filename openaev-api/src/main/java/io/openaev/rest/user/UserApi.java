@@ -113,7 +113,7 @@ public class UserApi extends RestBehavior {
       User user = optionalUser.get();
       String username = user.getName() != null ? user.getName() : user.getEmail();
       if ("fr".equals(input.getLang())) {
-        String subject = resetToken + " est votre code de récupération de compte OpenAEV";
+        String subject = "Code de récupération OpenAEV: " + resetToken;
         String body =
             "Bonjour "
                 + username
@@ -123,7 +123,7 @@ public class UserApi extends RestBehavior {
                 + resetToken;
         mailingService.sendEmail(subject, body, List.of(user));
       } else {
-        String subject = resetToken + " is your recovery code of your OpenAEV account";
+        String subject = "OpenAEV account recovery code: " + resetToken;
         String body =
             "Hi "
                 + username
