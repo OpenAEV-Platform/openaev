@@ -78,6 +78,7 @@ const ConnectorList = () => {
                 lastUpdatedAt: connector.updatedAt,
                 isVerified: connector.isVerified,
                 connectorUseCases: [],
+                isExternal: connector.isExternal,
                 connectorCurrentStatus: connector.currentStatus,
               }}
               cardActionUrl={routes.detail(connector.id)}
