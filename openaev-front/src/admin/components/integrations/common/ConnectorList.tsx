@@ -23,7 +23,7 @@ const ConnectorList = () => {
   // Filter and sort hook
   const searchColumns = ['name', 'description'];
   const filtering = useSearchAndFilter(
-    connectorType,
+    '', // Due to normalizeSingle
     'name',
     searchColumns,
   );
