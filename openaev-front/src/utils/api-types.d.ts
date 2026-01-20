@@ -913,6 +913,7 @@ export interface CollectorOutput {
   collector_name: string;
   collector_type: string;
   current_status?: "started" | "stopped";
+  existing_collector?: boolean;
   is_verified?: boolean;
 }
 
@@ -2457,6 +2458,7 @@ export interface ExecutorOutput {
   executor_type: string;
   /** @format date-time */
   executor_updated_at?: string;
+  existing_executor?: boolean;
   is_verified?: boolean;
 }
 
@@ -3773,6 +3775,7 @@ export interface InjectorOutput {
   /** Catalog simple output */
   catalog?: CatalogConnectorSimpleOutput;
   current_status?: "started" | "stopped";
+  existing_injector?: boolean;
   injector_external?: boolean;
   /** Injector id */
   injector_id: string;
