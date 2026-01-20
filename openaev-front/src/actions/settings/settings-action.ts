@@ -28,3 +28,6 @@ export const homeWidgetToEntitiesRuntime = (widgetId: string, input: WidgetToEnt
 export const homeDashboardAttackPaths = (widgetId: string, parameters: Record<string, string | undefined>) => {
   return simplePostCall(`${SETTINGS_URI}/home-dashboard/attack-paths/${widgetId}`, parameters);
 };
+export const fetchCalderaSettings = () => {
+  return simpleCall(`${SETTINGS_URI}/caldera`);
+};

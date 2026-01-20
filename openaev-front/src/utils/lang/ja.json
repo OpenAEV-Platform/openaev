@@ -1822,6 +1822,7 @@
   "tuple": "キーバリューペア",
   "tv": "TVチャンネル",
   "Type": "タイプ",
+  "Type Affinity": "タイプ親和性",
   "Type of targets": "ターゲットの種類",
   "TYPE_ARTICLE": "記事",
   "TYPE_CHALLENGE": "チャレンジ",

@@ -165,6 +165,14 @@ public class SecurityCoverageService {
     }
     securityCoverage.setPlatformsAffinity(platformAffinity);
 
+    // type affinity
+    String typeAffinity = null;
+    if (stixCoverageObj.hasProperty(STIX_TYPE_AFFINITY)
+        && stixCoverageObj.getProperty(STIX_TYPE_AFFINITY).getValue() != null) {
+      typeAffinity = ((StixString) stixCoverageObj.getProperty(STIX_TYPE_AFFINITY)).getValue();
+    }
+    securityCoverage.setTypeAffinity(typeAffinity);
+
     // Extract Attack Patterns
     securityCoverage.setAttackPatternRefs(
         extractObjectReferences(bundle.findByType(ObjectTypes.ATTACK_PATTERN)));
@@ -334,6 +342,7 @@ public class SecurityCoverageService {
     scenario.setName(sa.getName());
     scenario.setDescription(sa.getDescription());
     scenario.setSeverity(Scenario.SEVERITY.high);
+    scenario.setTypeAffinity(sa.getTypeAffinity());
     scenario.setMainFocus(Scenario.MAIN_FOCUS_INCIDENT_RESPONSE);
     scenario.setExternalUrl(sa.getExternalUrl());
     scenario.setCategory(ATTACK_SCENARIO);

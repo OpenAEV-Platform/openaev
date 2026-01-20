@@ -53,6 +53,8 @@ steps:
       OPENAEV_ADMIN_EMAIL: admin@openaev.io
       OPENAEV_ADMIN_PASSWORD: admin
       OPENAEV_ADMIN_TOKEN: 0d17ce9a-f3a8-4c6d-9721-c98dc3dc023f
+      OPENAEV_ADMIN_ENCRYPTION_KEY: ThisIsMyUltraSecureEncryptionKey
+      OPENAEV_ADMIN_ENCRYPTION_SALT: ilikesaltyfoodnomnom
       SPRING_PROFILES_ACTIVE: ci
       OPENBAS_RABBITMQ_HOSTNAME: rabbitmq-e2e
     commands:

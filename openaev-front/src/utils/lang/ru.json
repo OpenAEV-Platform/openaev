@@ -1822,6 +1822,7 @@
   "tuple": "Пара ключ-значение",
   "tv": "Телеканал",
   "Type": "Тип",
+  "Type Affinity": "Тип Аффинность",
   "Type of targets": "Тип целей",
   "TYPE_ARTICLE": "Статья",
   "TYPE_CHALLENGE": "Вызов",

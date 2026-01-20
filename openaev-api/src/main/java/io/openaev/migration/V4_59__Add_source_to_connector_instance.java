@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_58__Add_source_to_connector_instance extends BaseJavaMigration {
+public class V4_59__Add_source_to_connector_instance extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

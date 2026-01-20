@@ -7,7 +7,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_56__Implement_Domains_notion extends BaseJavaMigration {
+public class V4_57__Implement_Domains_notion extends BaseJavaMigration {
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement stmt = context.getConnection().createStatement()) {

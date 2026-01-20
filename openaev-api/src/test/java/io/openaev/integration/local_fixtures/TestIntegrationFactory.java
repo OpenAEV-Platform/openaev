@@ -1,8 +1,9 @@
 package io.openaev.integration.local_fixtures;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
@@ -10,8 +11,10 @@ import io.openaev.integration.IntegrationFactory;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import java.lang.reflect.InvocationTargetException;
+import io.openaev.service.connector_instances.EncryptionFactory;
+import io.openaev.service.connector_instances.EncryptionService;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -21,14 +24,16 @@ public class TestIntegrationFactory extends IntegrationFactory {
   private final TestIntegrationConfigurationMigration testIntegrationConfigurationMigration;
   private final ComponentRequestEngine componentRequestEngine;
   private final ConnectorInstanceService connectorInstanceService;
+  @Autowired private EncryptionFactory encryptionFactory;
 
   public TestIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
       CatalogConnectorService catalogConnectorService,
       FileService fileService,
       TestIntegrationConfigurationMigration testIntegrationConfigurationMigration,
-      ComponentRequestEngine componentRequestEngine) {
-    super(connectorInstanceService, catalogConnectorService);
+      ComponentRequestEngine componentRequestEngine,
+      HttpClientFactory httpClientFactory) {
+    super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.fileService = fileService;
     this.catalogConnectorService = catalogConnectorService;
     this.testIntegrationConfigurationMigration = testIntegrationConfigurationMigration;
@@ -68,12 +73,14 @@ public class TestIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
-  public Integration spawn(ConnectorInstance instance)
-      throws JsonProcessingException,
-          InvocationTargetException,
-          NoSuchMethodException,
-          InstantiationException,
-          IllegalAccessException {
-    return new TestIntegration(componentRequestEngine, instance, connectorInstanceService);
+  public Integration spawn(ConnectorInstance instance) {
+    EncryptionService encryptionService = null;
+    if (instance instanceof ConnectorInstancePersisted) {
+      encryptionService =
+          encryptionFactory.getEncryptionService(
+              ((ConnectorInstancePersisted) instance).getCatalogConnector());
+    }
+    return new TestIntegration(
+        componentRequestEngine, instance, connectorInstanceService, encryptionService);
   }
 }

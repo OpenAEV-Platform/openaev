@@ -1,18 +1,17 @@
 package io.openaev.integration.impl.executors.sentinelone;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorService;
-import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
 import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
-import io.openaev.integration.configuration.BaseIntegrationConfiguration;
+import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.integration.migration.SentinelOneExecutorConfigurationMigration;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
@@ -20,22 +19,20 @@ import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import java.lang.reflect.InvocationTargetException;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Service;
 
 @Service
 @Profile("!test")
+@Slf4j
 public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
   private final ExecutorService executorService;
   private final ComponentRequestEngine componentRequestEngine;
-  private final ConnectorInstanceService connectorInstanceService;
-  private final CatalogConnectorService catalogConnectorService;
   private final SentinelOneExecutorConfigurationMigration sentinelOneExecutorConfigurationMigration;
 
-  private final SentinelOneExecutorClient client;
   private final AgentService agentService;
   private final EndpointService endpointService;
   private final AssetGroupService assetGroupService;
@@ -43,6 +40,7 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final FileService fileService;
+  private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
   public SentinelOneExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -50,21 +48,19 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
       ExecutorService executorService,
       ComponentRequestEngine componentRequestEngine,
       SentinelOneExecutorConfigurationMigration sentinelOneExecutorConfigurationMigration,
-      SentinelOneExecutorClient client,
       AgentService agentService,
       EndpointService endpointService,
       AssetGroupService assetGroupService,
       Ee eeService,
       LicenseCacheManager licenseCacheManager,
       ThreadPoolTaskScheduler taskScheduler,
-      FileService fileService) {
-    super(connectorInstanceService, catalogConnectorService);
+      FileService fileService,
+      BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
+      HttpClientFactory httpClientFactory) {
+    super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;
-    this.connectorInstanceService = connectorInstanceService;
-    this.catalogConnectorService = catalogConnectorService;
     this.sentinelOneExecutorConfigurationMigration = sentinelOneExecutorConfigurationMigration;
-    this.client = client;
     this.agentService = agentService;
     this.endpointService = endpointService;
     this.assetGroupService = assetGroupService;
@@ -72,6 +68,7 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
     this.licenseCacheManager = licenseCacheManager;
     this.taskScheduler = taskScheduler;
     this.fileService = fileService;
+    this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
   }
 
   @Override
@@ -110,18 +107,10 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
-  public Integration spawn(ConnectorInstance instance)
-      throws JsonProcessingException,
-          InvocationTargetException,
-          NoSuchMethodException,
-          InstantiationException,
-          IllegalAccessException {
+  public Integration spawn(ConnectorInstance instance) {
     return new SentinelOneExecutorIntegration(
         instance,
         connectorInstanceService,
-        client,
-        BaseIntegrationConfiguration.fromConnectorInstanceConfigurationSet(
-            instance.getConfigurations(), SentinelOneExecutorConfig.class),
         endpointService,
         agentService,
         assetGroupService,
@@ -129,6 +118,8 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
         licenseCacheManager,
         componentRequestEngine,
         executorService,
-        taskScheduler);
+        taskScheduler,
+        baseIntegrationConfigurationBuilder,
+        httpClientFactory);
   }
 }

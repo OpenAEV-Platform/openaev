@@ -9,6 +9,7 @@ public final class StixConstants {
   public static final String STIX_PERIODICITY = "periodicity";
   public static final String STIX_DURATION = "duration";
   public static final String STIX_PLATFORMS_AFFINITY = "platforms_affinity";
+  public static final String STIX_TYPE_AFFINITY = "type_affinity";
   public static final String STIX_CREATED_AT = "created_at";
   public static final String STIX_COVERED_REF = "covered_ref";
   public static final String ATTACK_SCENARIO = "attack-scenario";

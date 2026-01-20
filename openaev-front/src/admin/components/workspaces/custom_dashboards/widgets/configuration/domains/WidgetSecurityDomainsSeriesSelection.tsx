@@ -13,7 +13,7 @@ import { useFormatter } from '../../../../../../../components/i18n';
 import type { PropertySchemaDTO, Series } from '../../../../../../../utils/api-types';
 import { type GroupOption } from '../../../../../../../utils/Option';
 import { CustomDashboardContext } from '../../../CustomDashboardContext';
-import { domainsEntityFilter, getDefaultValuesForType } from '../../WidgetUtils';
+import { domainsEntityFilter, excludeBaseEntities, getDefaultValuesForType } from '../../WidgetUtils';
 import getAuthorizedPerspectives from '../AuthorizedPerspectives';
 
 interface Props {
@@ -23,14 +23,15 @@ interface Props {
   onSubmit: () => void;
 }
 
-const WidgetSecurityDomainsSeriesSelection: FunctionComponent<Props> = ({ onChange, onSubmit, entity }) => {
+const WidgetSecurityDomainsSeriesSelection: FunctionComponent<Props> = ({ onChange, onSubmit, entity, currentSeries }) => {
   // Standard hooks
   const { t } = useFormatter();
   const theme = useTheme();
   const { customDashboard } = useContext(CustomDashboardContext);
 
   // Filters
-  const { queryableHelpers, searchPaginationInput } = useQueryable({}, buildSearchPagination({}));
+  const serie = currentSeries?.[0] ?? {};
+  const { queryableHelpers, searchPaginationInput } = useQueryable({}, buildSearchPagination({ filterGroup: excludeBaseEntities(serie.filter) }));
 
   useEffect(() => {
     onChange([

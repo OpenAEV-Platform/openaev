@@ -97,6 +97,10 @@ public class SecurityCoverage implements Base {
         : platformsAffinity;
   }
 
+  @Column(name = "security_coverage_type_affinity")
+  @JsonProperty("security_coverage_type_affinity")
+  private String typeAffinity;
+
   @Type(JsonType.class)
   @Column(name = "security_coverage_attack_pattern_refs", columnDefinition = "jsonb")
   @JsonProperty("security_coverage_attack_pattern_refs")

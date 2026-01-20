@@ -22,6 +22,7 @@
           "periodicity": "P1D",
           "duration": "P30D",
           "platforms_affinity": ["windows", "linux", "macos"],
+          "type_affinity": "Endpoint",
           "spec_version": "2.1",
           "type": "security-coverage",
           "extensions": {

@@ -1,6 +1,6 @@
 {
   "name": "openaev-front",
-  "version": "2.0.11",
+  "version": "2.0.12",
   "private": true,
   "main": "src/index.tsx",
   "license": "Apache-2.0",

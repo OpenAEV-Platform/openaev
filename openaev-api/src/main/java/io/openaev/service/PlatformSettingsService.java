@@ -16,7 +16,6 @@ import io.openaev.database.repository.SettingRepository;
 import io.openaev.ee.Ee;
 import io.openaev.ee.License;
 import io.openaev.engine.EngineService;
-import io.openaev.executors.caldera.config.CalderaExecutorConfig;
 import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.helper.RabbitMQHelper;
 import io.openaev.opencti.config.OpenCTIConfig;
@@ -63,7 +62,6 @@ public class PlatformSettingsService {
   private final OpenCTIConfig openCTIConfig;
   private final XtmHubConfig xtmHubConfig;
   private final AiConfig aiConfig;
-  private final CalderaExecutorConfig calderaExecutorConfig;
   private final Ee eeService;
   private final EngineService engineService;
   private final XtmHubConnectivityService xtmHubConnectivityService;
@@ -242,8 +240,6 @@ public class PlatformSettingsService {
       platformSettings.setAiHasToken(StringUtils.hasText(aiConfig.getToken()));
       platformSettings.setAiType(aiConfig.getType());
       platformSettings.setAiModel(aiConfig.getModel());
-      platformSettings.setExecutorCalderaEnable(calderaExecutorConfig.isEnable());
-      platformSettings.setExecutorCalderaPublicUrl(calderaExecutorConfig.getPublicUrl());
       platformSettings.setExecutorTaniumEnable(false);
       platformSettings.setTelemetryManagerEnable(true);
 

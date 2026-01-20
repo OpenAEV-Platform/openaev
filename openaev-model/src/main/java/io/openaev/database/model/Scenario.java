@@ -160,6 +160,10 @@ public class Scenario implements GrantableBase {
   @Queryable(filterable = true, sortable = true)
   private SEVERITY severity;
 
+  @Column(name = "scenario_type_affinity")
+  @JsonProperty("scenario_type_affinity")
+  private String typeAffinity;
+
   // -- OCTI GENERATION SCENARIO FROM HTTP CALL--
 
   @Column(name = "scenario_external_reference")

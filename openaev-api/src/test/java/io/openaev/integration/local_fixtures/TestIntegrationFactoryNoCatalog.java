@@ -1,12 +1,11 @@
 package io.openaev.integration.local_fixtures;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import java.lang.reflect.InvocationTargetException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -14,8 +13,9 @@ public class TestIntegrationFactoryNoCatalog extends IntegrationFactory {
 
   public TestIntegrationFactoryNoCatalog(
       ConnectorInstanceService connectorInstanceService,
-      CatalogConnectorService catalogConnectorService) {
-    super(connectorInstanceService, catalogConnectorService);
+      CatalogConnectorService catalogConnectorService,
+      HttpClientFactory httpClientFactory) {
+    super(connectorInstanceService, catalogConnectorService, httpClientFactory);
   }
 
   @Override
@@ -30,12 +30,7 @@ public class TestIntegrationFactoryNoCatalog extends IntegrationFactory {
   }
 
   @Override
-  public Integration spawn(ConnectorInstance instance)
-      throws JsonProcessingException,
-          InvocationTargetException,
-          NoSuchMethodException,
-          InstantiationException,
-          IllegalAccessException {
+  public Integration spawn(ConnectorInstance instance) {
     return null;
   }
 }

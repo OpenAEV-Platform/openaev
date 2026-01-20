@@ -5,6 +5,7 @@ import static io.openaev.injector_contract.InjectorContractContentUtilsTest.crea
 import static io.openaev.injector_contract.InjectorContractContentUtilsTest.createContentWithFieldAssetGroup;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.utils.constants.StixConstants.STIX_PLATFORMS_AFFINITY;
+import static io.openaev.utils.constants.StixConstants.STIX_TYPE_AFFINITY;
 import static io.openaev.utils.fixtures.VulnerabilityFixture.CVE_2023_48788;
 import static java.util.Collections.emptyList;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -104,10 +105,6 @@ class StixApiTest extends IntegrationTest {
 
     stixSecurityCoverage =
         loadJsonWithStixObjects("src/test/resources/stix-bundles/security-coverage.json");
-
-    stixSecurityCoverageNoDuration =
-        loadJsonWithStixObjects(
-            "src/test/resources/stix-bundles/security-coverage-no-duration.json");
 
     stixSecurityCoverageNoDuration =
         loadJsonWithStixObjects(
@@ -486,10 +483,45 @@ class StixApiTest extends IntegrationTest {
       assertThat(createdScenario.getSecurityCoverage().getVulnerabilitiesRefs())
           .containsAll(List.of(stixRefVuln));
       assertThat(createdScenario.getSecurityCoverage().getContent()).isNotBlank();
+      assertThat(createdScenario.getTypeAffinity()).isEqualTo("Endpoint");
 
       // -- ASSERT Injects --
       Set<Inject> injects = injectRepository.findByScenarioId(scenarioId);
       assertThat(injects).hasSize(4);
+    }
+
+    @Test
+    @DisplayName("Should set type affinity null when absent from stix")
+    void shouldSetTypeAffinityNullWhenAbsentFromStix() throws Exception {
+      JsonNode updated = deleteStixObjectField(stixSecurityCoverage, STIX_TYPE_AFFINITY);
+
+      String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
+      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+
+      assertThat(createdScenario.getTypeAffinity()).isNull();
+    }
+
+    @Test
+    @DisplayName("Should update type affinity when changed")
+    void shouldUpdateTypeAffinityWhenChanged() throws Exception {
+      // create once
+      getScenarioIdResponse(mapper.writeValueAsString(stixSecurityCoverage));
+
+      JsonNode updated =
+          updateStixObjectField(stixSecurityCoverage, STIX_TYPE_AFFINITY, "New value", null, 0);
+      updated =
+          updateStixObjectField(
+              updated,
+              CommonProperties.MODIFIED.toString(),
+              Instant.now().toString(),
+              emptyList(),
+              0);
+
+      // should update
+      String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
+      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+
+      assertThat(createdScenario.getTypeAffinity()).isEqualTo("New value");
     }
 
     @Test
@@ -959,14 +991,28 @@ class StixApiTest extends IntegrationTest {
     return rootNode;
   }
 
+  private JsonNode deleteStixObjectField(JsonNode rootNode, String fieldName)
+      throws JsonProcessingException {
+    JsonNode stixTextNode = rootNode.path("event").path("stix_objects");
+    ObjectNode stixNode = (ObjectNode) mapper.readTree(stixTextNode.asText());
+    JsonNode objectsNode = stixNode.path("objects");
+    if (!objectsNode.isArray() || objectsNode.isEmpty()) {
+      return rootNode;
+    }
+
+    ObjectNode objectNode = (ObjectNode) objectsNode.get(0);
+
+    objectNode.remove(fieldName);
+    ((ObjectNode) rootNode.path("event")).put("stix_objects", mapper.writeValueAsString(stixNode));
+
+    return rootNode;
+  }
+
   private JsonNode updateStixObjectField(
       JsonNode rootNode, String fieldName, String newValue, List<String> newValues, int index)
       throws JsonProcessingException {
-
-    ObjectMapper objectMapper = new ObjectMapper();
-
     JsonNode stixTextNode = rootNode.path("event").path("stix_objects");
-    ObjectNode stixNode = (ObjectNode) objectMapper.readTree(stixTextNode.asText());
+    ObjectNode stixNode = (ObjectNode) mapper.readTree(stixTextNode.asText());
 
     JsonNode objectsNode = stixNode.path("objects");
     if (!objectsNode.isArray() || objectsNode.isEmpty()) {
@@ -976,15 +1022,14 @@ class StixApiTest extends IntegrationTest {
     ObjectNode objectNode = (ObjectNode) objectsNode.get(index);
 
     if (newValues != null && !newValues.isEmpty()) {
-      ArrayNode arrayNode = objectMapper.createArrayNode();
+      ArrayNode arrayNode = mapper.createArrayNode();
       newValues.forEach(arrayNode::add);
       objectNode.set(fieldName, arrayNode);
     } else if (newValue != null) {
       objectNode.put(fieldName, newValue);
     }
 
-    ((ObjectNode) rootNode.path("event"))
-        .put("stix_objects", objectMapper.writeValueAsString(stixNode));
+    ((ObjectNode) rootNode.path("event")).put("stix_objects", mapper.writeValueAsString(stixNode));
 
     return rootNode;
   }

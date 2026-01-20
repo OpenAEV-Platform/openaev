@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 public class CalderaExecutorConfig extends BaseIntegrationConfiguration {
   private static final String REST_V2_URI = "/api/v2";
   private static final String PLUGIN_ACCESS_URI = "/plugin/access";
+  public static final String EXECUTOR_CALDERA_PUBLIC_URL = "EXECUTOR_CALDERA_PUBLIC_URL";
 
   @IntegrationConfigKey(
       key = "EXECUTOR_ID",
@@ -41,7 +42,7 @@ public class CalderaExecutorConfig extends BaseIntegrationConfiguration {
   private String url;
 
   @IntegrationConfigKey(
-      key = "EXECUTOR_CALDERA_PUBLIC_URL",
+      key = EXECUTOR_CALDERA_PUBLIC_URL,
       description =
           """
           Caldera URL accessible from endpoints (ex: http://caldera.myopenaev.myorganization.com:8888)

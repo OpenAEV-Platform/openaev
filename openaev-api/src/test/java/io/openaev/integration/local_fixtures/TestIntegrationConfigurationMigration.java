@@ -3,6 +3,7 @@ package io.openaev.integration.local_fixtures;
 import io.openaev.integration.migration.ConfigurationMigration;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.connector_instances.EncryptionFactory;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -10,11 +11,13 @@ public class TestIntegrationConfigurationMigration extends ConfigurationMigratio
   protected TestIntegrationConfigurationMigration(
       TestIntegrationConfiguration configuration,
       CatalogConnectorService catalogConnectorService,
-      ConnectorInstanceService connectorInstanceService) {
+      ConnectorInstanceService connectorInstanceService,
+      EncryptionFactory encryptionFactory) {
     super(
         configuration,
         TestIntegrationFactory.class.getCanonicalName(),
         catalogConnectorService,
-        connectorInstanceService);
+        connectorInstanceService,
+        encryptionFactory);
   }
 }

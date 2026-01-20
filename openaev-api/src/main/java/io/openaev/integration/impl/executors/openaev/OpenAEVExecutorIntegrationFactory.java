@@ -1,5 +1,6 @@
 package io.openaev.integration.impl.executors.openaev;
 
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.executors.ExecutorService;
@@ -18,19 +19,18 @@ public class OpenAEVExecutorIntegrationFactory extends IntegrationFactory {
   private final ExecutorService executorService;
   private final ComponentRequestEngine componentRequestEngine;
   private final AssetAgentJobRepository assetAgentJobRepository;
-  private final ConnectorInstanceService connectorInstanceService;
 
   public OpenAEVExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
       CatalogConnectorService catalogConnectorService,
       ExecutorService executorService,
       ComponentRequestEngine componentRequestEngine,
-      AssetAgentJobRepository assetAgentJobRepository) {
-    super(connectorInstanceService, catalogConnectorService);
+      AssetAgentJobRepository assetAgentJobRepository,
+      HttpClientFactory httpClientFactory) {
+    super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;
     this.assetAgentJobRepository = assetAgentJobRepository;
-    this.connectorInstanceService = connectorInstanceService;
   }
 
   @Override

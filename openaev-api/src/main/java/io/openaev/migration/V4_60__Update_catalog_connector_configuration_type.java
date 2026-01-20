@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_59__Update_catalog_connector_configuration_type extends BaseJavaMigration {
+public class V4_60__Update_catalog_connector_configuration_type extends BaseJavaMigration {
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement select = context.getConnection().createStatement()) {

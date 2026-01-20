@@ -147,6 +147,8 @@ public interface RawScenario {
    */
   String getScenario_severity();
 
+  String getScenario_type_affinity();
+
   /**
    * Returns the set of exercise IDs created from this scenario.
    *

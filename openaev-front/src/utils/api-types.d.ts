@@ -611,6 +611,15 @@ export interface CVEBulkInsertInput {
   source_identifier: string;
 }
 
+export interface CalderaSettings {
+  /** True if the Caldera Executor is enabled */
+  executor_caldera_enable?: boolean;
+  /** Id of the instance linked to the configuration */
+  executor_caldera_instance_id?: string;
+  /** Url of the Caldera Executor */
+  executor_caldera_public_url?: string;
+}
+
 export interface CatalogConnector {
   /** Connector class name */
   catalog_connector_class_name?: string;
@@ -5193,10 +5202,6 @@ export interface PlatformSettings {
     | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
     | "LEGACY_INGESTION_EXECUTION_TRACE"
   )[];
-  /** True if the Caldera Executor is enabled */
-  executor_caldera_enable?: boolean;
-  /** Url of the Caldera Executor */
-  executor_caldera_public_url?: string;
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
   /**
@@ -5821,6 +5826,7 @@ export interface Scenario {
   scenario_tags?: string[];
   scenario_teams?: string[];
   scenario_teams_users?: ScenarioTeamUser[];
+  scenario_type_affinity?: string;
   /** @format date-time */
   scenario_updated_at: string;
   scenario_users?: string[];
@@ -5912,6 +5918,8 @@ export interface ScenarioOutput {
   scenario_tags?: string[];
   /** @uniqueItems true */
   scenario_teams_users?: ScenarioTeamUserOutput[];
+  /** Type affinity of the scenario */
+  scenario_type_affinity?: string;
   /**
    * Update date of the scenario
    * @format date-time

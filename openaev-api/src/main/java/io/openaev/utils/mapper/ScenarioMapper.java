@@ -11,6 +11,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Component;
 
@@ -26,6 +27,7 @@ import org.springframework.stereotype.Component;
  */
 @RequiredArgsConstructor
 @Component
+@Slf4j
 public class ScenarioMapper {
 
   /**
@@ -65,6 +67,7 @@ public class ScenarioMapper {
       RawScenario rawScenario,
       Set<KillChainPhaseOutput> killChainPhases,
       Set<ScenarioTeamUserOutput> scenarioTeamUsers) {
+
     return ScenarioOutput.builder()
         .id(rawScenario.getScenario_id())
         .name(rawScenario.getScenario_name())
@@ -85,6 +88,7 @@ public class ScenarioMapper {
         .subtitle(rawScenario.getScenario_subtitle())
         .dependencies(rawScenario.getScenario_dependencies())
         .severity(rawScenario.getScenario_severity())
+        .typeAffinity(rawScenario.getScenario_type_affinity())
         .exercises(rawScenario.getScenario_exercises())
         .killChainPhases(killChainPhases)
         .platforms(rawScenario.getScenario_platforms())

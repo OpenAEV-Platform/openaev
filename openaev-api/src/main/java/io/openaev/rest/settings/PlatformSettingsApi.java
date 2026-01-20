@@ -15,7 +15,9 @@ import io.openaev.rest.dashboard.model.WidgetToEntitiesInput;
 import io.openaev.rest.dashboard.model.WidgetToEntitiesOutput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.settings.form.*;
+import io.openaev.rest.settings.response.CalderaSettings;
 import io.openaev.rest.settings.response.PlatformSettings;
+import io.openaev.service.CalderaSettingsService;
 import io.openaev.service.PlatformSettingsService;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,7 +28,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -40,20 +42,12 @@ import org.springframework.web.bind.annotation.*;
         @ExternalDocumentation(
             description = "Documentation about settings",
             url = "https://docs.openaev.io/latest/administration/parameters/"))
+@RequiredArgsConstructor
 public class PlatformSettingsApi extends RestBehavior {
 
-  private PlatformSettingsService platformSettingsService;
-  private CustomDashboardService customDashboardService;
-
-  @Autowired
-  public void setPlatformSettingsService(PlatformSettingsService platformSettingsService) {
-    this.platformSettingsService = platformSettingsService;
-  }
-
-  @Autowired
-  public void setCustomDashboardService(CustomDashboardService customDashboardService) {
-    this.customDashboardService = customDashboardService;
-  }
+  private final PlatformSettingsService platformSettingsService;
+  private final CalderaSettingsService calderaSettingsService;
+  private final CustomDashboardService customDashboardService;
 
   @GetMapping()
   @RBAC(skipRBAC = true)
@@ -61,6 +55,19 @@ public class PlatformSettingsApi extends RestBehavior {
   @Operation(summary = "List settings", description = "Return the settings")
   public PlatformSettings settings() {
     return platformSettingsService.findSettings();
+  }
+
+  @GetMapping("/caldera")
+  @ApiResponses(
+      value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "The list of the first caldera instance settings")
+      })
+  @Operation(summary = "List caldera settings", description = "Return the settings")
+  @Deprecated
+  public List<CalderaSettings> getCalderaSettings() {
+    return calderaSettingsService.getCalderaSettings();
   }
 
   @GetMapping("/version")
