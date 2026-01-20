@@ -11,6 +11,7 @@ public class TagRuleMapper {
     return TagRuleOutput.builder()
         .id(tagRule.getId())
         .tagName(tagRule.getTag().getName())
+        .isProtected(tagRule.isProtected())
         .assetGroups(
             tagRule.getAssetGroups().stream()
                 .collect(Collectors.toMap(AssetGroup::getId, AssetGroup::getName)))

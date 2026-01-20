@@ -2307,6 +2307,25 @@ export interface ExercisesGlobalScoresOutput {
   global_scores_by_exercise_ids: Record<string, ExpectationResultsByType[]>;
 }
 
+export interface Expectation {
+  expectation_description?: string;
+  expectation_expectation_group?: boolean;
+  /** @format int64 */
+  expectation_expiration_time?: number;
+  expectation_name?: string;
+  /** @format double */
+  expectation_score?: number;
+  expectation_type?:
+    | "TEXT"
+    | "DOCUMENT"
+    | "ARTICLE"
+    | "CHALLENGE"
+    | "MANUAL"
+    | "PREVENTION"
+    | "DETECTION"
+    | "VULNERABILITY";
+}
+
 export interface ExpectationResultsByType {
   avgResult: "FAILED" | "PENDING" | "PARTIAL" | "UNKNOWN" | "SUCCESS";
   distribution: ResultDistribution[];
@@ -2318,6 +2337,7 @@ export interface ExpectationUpdateInput {
   expectation_score: number;
   source_id: string;
   source_name: string;
+  source_platform?: string;
   source_type: string;
 }
 
@@ -2830,6 +2850,7 @@ export interface InjectExpectationResult {
   score?: number;
   sourceId?: string;
   sourceName?: string;
+  sourcePlatform?: string;
   sourceType?: string;
 }
 
@@ -5381,6 +5402,7 @@ export interface Scenario {
   scenario_tags?: string[];
   scenario_teams?: string[];
   scenario_teams_users?: ScenarioTeamUser[];
+  scenario_type_affinity?: string;
   /** @format date-time */
   scenario_updated_at: string;
   scenario_users?: string[];
@@ -5472,6 +5494,8 @@ export interface ScenarioOutput {
   scenario_tags?: string[];
   /** @uniqueItems true */
   scenario_teams_users?: ScenarioTeamUserOutput[];
+  /** Type affinity of the scenario */
+  scenario_type_affinity?: string;
   /**
    * Update date of the scenario
    * @format date-time
@@ -5805,10 +5829,13 @@ export interface TagRuleInput {
 export interface TagRuleOutput {
   /** Asset groups of the tag rule */
   asset_groups?: Record<string, string>;
+  protected?: boolean;
   /** Name of the tag associated with the tag rule */
   tag_name: string;
   /** ID of the tag rule */
   tag_rule_id: string;
+  /** The tag rule is protected and cannot change the associated tag or be deleted. */
+  tag_rule_protected: boolean;
 }
 
 export interface TagUpdateInput {

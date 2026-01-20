@@ -22,6 +22,7 @@ import io.openaev.rest.user.form.user.UserOutput;
 import io.openaev.rest.user.service.UserCriteriaBuilderService;
 import io.openaev.service.MailingService;
 import io.openaev.service.UserService;
+import io.openaev.utils.RandomUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,10 +36,10 @@ import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.map.PassiveExpiringMap;
-import org.apache.commons.lang3.RandomStringUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -47,6 +48,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@RequiredArgsConstructor
 @UserRoleDescription
 @Tag(
     name = "Users management",
@@ -58,33 +60,16 @@ import org.springframework.web.bind.annotation.*;
 public class UserApi extends RestBehavior {
 
   public static final String USER_URI = "/api/users";
+  private static final long tenMinutes = 1000L * 60L * 10L;
 
-  PassiveExpiringMap<String, String> resetTokenMap = new PassiveExpiringMap<>(1000 * 60 * 10);
   @Resource private SessionManager sessionManager;
-  private UserRepository userRepository;
-  private UserService userService;
-  private MailingService mailingService;
-  private UserCriteriaBuilderService userCriteriaBuilderService;
+  private final UserRepository userRepository;
+  private final UserService userService;
+  private final MailingService mailingService;
+  private final UserCriteriaBuilderService userCriteriaBuilderService;
+  private final RandomUtils randomUtils;
 
-  @Autowired
-  public void setMailingService(MailingService mailingService) {
-    this.mailingService = mailingService;
-  }
-
-  @Autowired
-  public void setUserService(UserService userService) {
-    this.userService = userService;
-  }
-
-  @Autowired
-  public void setUserRepository(UserRepository userRepository) {
-    this.userRepository = userRepository;
-  }
-
-  @Autowired
-  public void setUserCriteriaBuilderService(UserCriteriaBuilderService userCriteriaBuilderService) {
-    this.userCriteriaBuilderService = userCriteriaBuilderService;
-  }
+  private final Map<String, String> resetTokenMap = new PassiveExpiringMap<>(tenMinutes);
 
   @Operation(description = "Endpoint to login", summary = "Endpoint to login")
   @ApiResponses(
@@ -119,12 +104,16 @@ public class UserApi extends RestBehavior {
   @RBAC(skipRBAC = true)
   public ResponseEntity<?> passwordReset(@Valid @RequestBody ResetUserInput input) {
     Optional<User> optionalUser = userRepository.findByEmailIgnoreCase(input.getLogin());
+    // always compute a random value to reduce gap in time
+    // spent between user found and user not found branches
+    // note: we still spend more time in the "user found" branch
+    // due to sending an email
+    String resetToken = randomUtils.getRandomAlphanumeric(64);
     if (optionalUser.isPresent()) {
       User user = optionalUser.get();
-      String resetToken = RandomStringUtils.randomNumeric(8);
       String username = user.getName() != null ? user.getName() : user.getEmail();
       if ("fr".equals(input.getLang())) {
-        String subject = resetToken + " est votre code de récupération de compte OpenAEV";
+        String subject = "Code de récupération OpenAEV: " + resetToken;
         String body =
             "Bonjour "
                 + username
@@ -134,7 +123,7 @@ public class UserApi extends RestBehavior {
                 + resetToken;
         mailingService.sendEmail(subject, body, List.of(user));
       } else {
-        String subject = resetToken + " is your recovery code of your OpenAEV account";
+        String subject = "OpenAEV account recovery code: " + resetToken;
         String body =
             "Hi "
                 + username
@@ -145,10 +134,13 @@ public class UserApi extends RestBehavior {
         mailingService.sendEmail(subject, body, List.of(user));
       }
       // Store in memory reset token
-      resetTokenMap.put(resetToken, user.getId());
-      return ResponseEntity.ok().build();
+      synchronized (resetTokenMap) {
+        resetTokenMap.put(user.getId(), resetToken);
+      }
     }
-    return ResponseEntity.badRequest().build();
+    // force a 200 OK response even if no user was found
+    // to avoid enumeration via status code
+    return ResponseEntity.ok().build();
   }
 
   @Operation(description = "Change the password", summary = "Password change")
@@ -165,7 +157,14 @@ public class UserApi extends RestBehavior {
       @PathVariable @Schema(description = "Token generated during reset") String token,
       @Valid @RequestBody ChangePasswordInput input)
       throws InputValidationException {
-    String userId = resetTokenMap.get(token);
+    String userId = null;
+    synchronized (resetTokenMap) {
+      for (Map.Entry<String, String> entry : resetTokenMap.entrySet()) {
+        if (entry.getValue().equals(token)) {
+          userId = entry.getKey(); // don't break out
+        }
+      }
+    }
     if (userId != null) {
       String password = input.getPassword();
       String passwordValidation = input.getPasswordValidation();
@@ -175,7 +174,9 @@ public class UserApi extends RestBehavior {
       User changeUser = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
       changeUser.setPassword(userService.encodeUserPassword(password));
       User savedUser = userRepository.save(changeUser);
-      resetTokenMap.remove(token);
+      synchronized (resetTokenMap) {
+        resetTokenMap.remove(userId);
+      }
       return savedUser;
     }
     // Bad token or expired token

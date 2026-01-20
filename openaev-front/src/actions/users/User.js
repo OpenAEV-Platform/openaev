@@ -1,5 +1,5 @@
-import { delReferential, getReferential, postReferential, putReferential, simplePostCall } from '../../utils/Action.js';
-import * as schema from '../Schema.js';
+import { delReferential, getReferential, postReferential, putReferential, simplePostCall } from '../../utils/Action';
+import * as schema from '../Schema';
 
 // region players
 export const fetchPlayers = () => dispatch => getReferential(schema.arrayOfUsers, '/api/players')(dispatch);

@@ -10,7 +10,7 @@ import { fetchAttackPatterns } from '../actions/AttackPattern';
 import { type LoggedHelper } from '../actions/helper';
 import { fetchKillChainPhases } from '../actions/KillChainPhase';
 import { fetchTags } from '../actions/Tag';
-import { errorWrapper } from '../components/Error';
+import errorWrapper from '../components/errorWrapper';
 import Loader from '../components/Loader';
 import NotFound from '../components/NotFound';
 import { computeBannerSettings } from '../public/components/systembanners/utils';

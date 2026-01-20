@@ -201,6 +201,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                           .sourceId(securityPlatformWrapper.get().getId())
                           .sourceName("Unit Tests")
                           .sourceType("manual")
+                          .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                           .build())));
     }
 
@@ -240,11 +241,15 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
       // some security platforms
       SecurityPlatformComposer.Composer securityPlatformWrapper =
           securityPlatformComposer
-              .forSecurityPlatform(SecurityPlatformFixture.createDefaultEDR())
+              .forSecurityPlatform(
+                  SecurityPlatformFixture.createDefault(
+                      "Bad EDR", SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name()))
               .persist();
       // another nameless platform not involved in simulation
       securityPlatformComposer
-          .forSecurityPlatform(SecurityPlatformFixture.createDefaultEDR())
+          .forSecurityPlatform(
+              SecurityPlatformFixture.createDefault(
+                  "New SIEM", SecurityPlatform.SECURITY_PLATFORM_TYPE.SIEM.name()))
           .persist();
       // create exercise cover all TTPs
       ExerciseComposer.Composer exerciseWrapper =
@@ -497,11 +502,15 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
             AttackPatternFixture.createAttackPatternsWithExternalId("T5678"));
     SecurityPlatformComposer.Composer securityPlatformWrapper =
         securityPlatformComposer
-            .forSecurityPlatform(SecurityPlatformFixture.createDefaultEDR())
+            .forSecurityPlatform(
+                SecurityPlatformFixture.createDefault(
+                    "Bad EDR", SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name()))
             .persist();
     // another nameless platform not involved in simulation
     securityPlatformComposer
-        .forSecurityPlatform(SecurityPlatformFixture.createDefaultEDR())
+        .forSecurityPlatform(
+            SecurityPlatformFixture.createDefault(
+                "New SIEM", SecurityPlatform.SECURITY_PLATFORM_TYPE.SIEM.name()))
         .persist();
     // create exercise cover all TTPs
     ExerciseComposer.Composer exerciseWrapper =
@@ -528,6 +537,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                             .sourceId(securityPlatformWrapper.get().getId())
                             .sourceName("Unit Tests")
                             .sourceType("manual")
+                            .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                             .build())));
 
     Inject failedInject =
@@ -549,6 +559,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                           .sourceId(securityPlatformWrapper.get().getId())
                           .sourceName("Unit Tests")
                           .sourceType("manual")
+                          .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                           .build()));
               exp.setScore(0.0);
             });
@@ -557,8 +568,10 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
         .forScenario(ScenarioFixture.createDefaultCrisisScenario())
         .withSimulation(exerciseWrapper)
         .persist();
+
     entityManager.flush();
     entityManager.refresh(exerciseWrapper.get());
+
     Optional<SecurityCoverageSendJob> job =
         securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationIfReady(
             exerciseWrapper.get());
@@ -690,7 +703,9 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
             AttackPatternFixture.createAttackPatternsWithExternalId("T1234"));
     SecurityPlatformComposer.Composer securityPlatformWrapper =
         securityPlatformComposer
-            .forSecurityPlatform(SecurityPlatformFixture.createDefaultEDR())
+            .forSecurityPlatform(
+                SecurityPlatformFixture.createDefault(
+                    "Bad EDR", SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name()))
             .persist();
     // create exercise cover all TTPs
     ExerciseComposer.Composer exerciseWrapper =
@@ -717,6 +732,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                             .sourceId(securityPlatformWrapper.get().getId())
                             .sourceName("Unit Tests")
                             .sourceType("manual")
+                            .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                             .build())));
     // start the exercise
     Instant sroStartTime = Instant.parse("2003-02-15T09:45:02Z");
@@ -765,7 +781,9 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
             AttackPatternFixture.createAttackPatternsWithExternalId("T1234"));
     SecurityPlatformComposer.Composer securityPlatformWrapper =
         securityPlatformComposer
-            .forSecurityPlatform(SecurityPlatformFixture.createDefaultEDR())
+            .forSecurityPlatform(
+                SecurityPlatformFixture.createDefault(
+                    "Bad EDR", SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name()))
             .persist();
     // create exercise cover all TTPs
     ExerciseComposer.Composer exerciseWrapper =
@@ -791,6 +809,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                             .sourceId(securityPlatformWrapper.get().getId())
                             .sourceName("Unit Tests")
                             .sourceType("manual")
+                            .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                             .build())));
     // start the exercise
     Instant sroStartTime = Instant.parse("2003-02-15T19:45:02Z");
@@ -835,7 +854,9 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
             AttackPatternFixture.createAttackPatternsWithExternalId("T1234"));
     SecurityPlatformComposer.Composer securityPlatformWrapper =
         securityPlatformComposer
-            .forSecurityPlatform(SecurityPlatformFixture.createDefaultEDR())
+            .forSecurityPlatform(
+                SecurityPlatformFixture.createDefault(
+                    "Bad EDR", SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name()))
             .persist();
     // create exercise cover all TTPs
     ExerciseComposer.Composer exerciseWrapper =
@@ -861,6 +882,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                             .sourceId(securityPlatformWrapper.get().getId())
                             .sourceName("Unit Tests")
                             .sourceType("manual")
+                            .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                             .build())));
     // start the exercise
     Instant sroStartTime = Instant.parse("2003-02-15T19:45:02Z");

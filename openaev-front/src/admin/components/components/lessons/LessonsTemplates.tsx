@@ -6,7 +6,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import { searchLessonsTemplates } from '../../../../actions/Lessons';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import PaginationComponent from '../../../../components/common/pagination/PaginationComponent.js';
+import PaginationComponent from '../../../../components/common/pagination/PaginationComponent';
 import SortHeadersComponent from '../../../../components/common/pagination/SortHeadersComponent';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';

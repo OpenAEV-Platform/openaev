@@ -1,7 +1,6 @@
 package io.openaev.service.stix;
 
 import static io.openaev.helper.CryptoHelper.md5Hex;
-import static io.openaev.rest.tag.TagService.OPENCTI_TAG_NAME;
 import static io.openaev.stix.objects.constants.CommonProperties.MODIFIED;
 import static io.openaev.utils.SecurityCoverageUtils.extractAndValidateCoverage;
 import static io.openaev.utils.SecurityCoverageUtils.extractObjectReferences;
@@ -13,7 +12,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.OpenAEVConfig;
-import io.openaev.cron.ScheduleFrequency;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
@@ -25,8 +23,7 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.AssetService;
 import io.openaev.service.PreviewFeatureService;
-import io.openaev.service.ScenarioService;
-import io.openaev.service.cron.CronService;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.objects.DomainObject;
 import io.openaev.stix.objects.ObjectBase;
@@ -41,8 +38,11 @@ import io.openaev.stix.types.Boolean;
 import io.openaev.stix.types.Dictionary;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.ResultUtils;
+import io.openaev.utils.StringUtils;
+import io.openaev.utils.time.TimeUtils;
 import jakarta.annotation.Resource;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.List;
 import java.util.function.BiFunction;
@@ -62,7 +62,6 @@ public class SecurityCoverageService {
   private final ScenarioService scenarioService;
   private final SecurityCoverageInjectService securityCoverageInjectService;
   private final TagService tagService;
-  private final CronService cronService;
   private final AttackPatternService attackPatternService;
   private final ResultUtils resultUtils;
   private final ExerciseService exerciseService;
@@ -147,9 +146,26 @@ public class SecurityCoverageService {
         labels.add(stixString.getValue());
       }
     }
-    // Force opencti tag
-    labels.add(OPENCTI_TAG_NAME);
     securityCoverage.setLabels(labels);
+
+    // platform affinity
+    Set<String> platformAffinity = new HashSet<>();
+    if (stixCoverageObj.hasProperty(STIX_PLATFORMS_AFFINITY)
+        && stixCoverageObj.getProperty(STIX_PLATFORMS_AFFINITY).getValue() != null) {
+      for (StixString stixString :
+          (List<StixString>) stixCoverageObj.getProperty(STIX_PLATFORMS_AFFINITY).getValue()) {
+        platformAffinity.add(stixString.getValue());
+      }
+    }
+    securityCoverage.setPlatformsAffinity(platformAffinity);
+
+    // type affinity
+    String typeAffinity = null;
+    if (stixCoverageObj.hasProperty(STIX_TYPE_AFFINITY)
+        && stixCoverageObj.getProperty(STIX_TYPE_AFFINITY).getValue() != null) {
+      typeAffinity = ((StixString) stixCoverageObj.getProperty(STIX_TYPE_AFFINITY)).getValue();
+    }
+    securityCoverage.setTypeAffinity(typeAffinity);
 
     // Extract Attack Patterns
     securityCoverage.setAttackPatternRefs(
@@ -163,6 +179,9 @@ public class SecurityCoverageService {
     String scheduling = stixCoverageObj.getOptionalProperty(STIX_PERIODICITY, "");
     securityCoverage.setScheduling(scheduling);
 
+    // security coverage scenario overall duration
+    securityCoverage.setDuration(stixCoverageObj.getOptionalProperty(STIX_DURATION, ""));
+
     // Period Start
     Dictionary extensionObj =
         (Dictionary) stixCoverageObj.getExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION);
@@ -172,6 +191,7 @@ public class SecurityCoverageService {
     }
 
     securityCoverage.setContent(stixCoverageObj.toStix(objectMapper).toString());
+    stixCoverageObj.setInstantIfPresent(MODIFIED, securityCoverage::setStixModified);
 
     log.info("Saving Security coverage with external ID: {}", securityCoverage.getExternalId());
     return save(securityCoverage);
@@ -198,15 +218,15 @@ public class SecurityCoverageService {
       throw new ParsingException("Invalid STIX modified date format", e);
     }
 
-    Instant currentUpdated = securityCoverage.getUpdatedAt();
+    Instant currentModified = securityCoverage.getStixModified();
 
-    // STIX modified date must be newer than the stored updatedAt
+    // Last STIX modified date must be newer than the stored modified
     log.info(
-        "SecurityCoverage Update Check: externalId={}, currentUpdated={}, stixModified={}",
+        "SecurityCoverage Update Check: externalId={}, currentModified={}, stixModified={}",
         externalId,
-        currentUpdated,
+        currentModified,
         stixModified);
-    boolean isNewer = currentUpdated == null || stixModified.isAfter(currentUpdated);
+    boolean isNewer = currentModified == null || stixModified.isAfter(currentModified);
     if (!isNewer) {
       throw new BadRequestException(
           "The STIX package is obsolete because a newer version has already been computed.");
@@ -312,11 +332,16 @@ public class SecurityCoverageService {
     scenario.setName(sa.getName());
     scenario.setDescription(sa.getDescription());
     scenario.setSeverity(Scenario.SEVERITY.high);
+    scenario.setTypeAffinity(sa.getTypeAffinity());
     scenario.setMainFocus(Scenario.MAIN_FOCUS_INCIDENT_RESPONSE);
     scenario.setExternalUrl(sa.getExternalUrl());
     scenario.setCategory(ATTACK_SCENARIO);
     setRecurrence(scenario, sa);
-    scenario.setTags(tagService.fetchTagsFromLabels(sa.getLabels()));
+    scenario.setTags(
+        tagService.findOrCreateTagsFromNames(
+            sa.getPlatformsAffinity().stream()
+                .map("security coverage: %s"::formatted)
+                .collect(Collectors.toSet())));
   }
 
   /**
@@ -328,32 +353,18 @@ public class SecurityCoverageService {
    */
   private void setRecurrence(Scenario scenario, SecurityCoverage securityCoverage) {
     if (scenario.getRecurrence() == null) {
-      // Start date must be before the recurrence and now
-      Instant start = Instant.now().minusSeconds(60);
-      // Recurrence must be at least 1 "true" minute after now to be scheduled and executed (see
-      // ScenarioExecutionJob and examples below)
-      // Example 1: recurrence 11:33:00 + 120 seconds = 11:35:00 -> job each minute to schedule and
-      // execute at recurrence (without second) 11:35 - 1 minute = 11:34
-      // Example 2: recurrence 11:33:59 + 120 seconds = 11:35:59 -> job each minute to schedule and
-      // execute at recurrence (without second) 11:35 - 1 minute = 11:34
-      Instant recurrence = Instant.now().plusSeconds(120);
-      if (securityCoverage.getScheduling() != null && !securityCoverage.getScheduling().isEmpty()) {
+      // schedule first start in 2 minutes
+      // so that it is picked up soon after setting it up
+      Instant start = Instant.now().plus(2, ChronoUnit.MINUTES);
+      if (!StringUtils.isBlank(securityCoverage.getScheduling())) {
         scenario.setRecurrenceStart(start);
-        ScheduleFrequency frequency = ScheduleFrequency.DAILY;
-        if (securityCoverage.getScheduling().contains("W")) {
-          frequency = ScheduleFrequency.WEEKLY;
-        } else if (securityCoverage.getScheduling().contains("M")) {
-          frequency = ScheduleFrequency.MONTHLY;
+        scenario.setRecurrence(securityCoverage.getScheduling());
+        if (!StringUtils.isBlank(securityCoverage.getDuration())) {
+          scenario.setRecurrenceEnd(
+              TimeUtils.incrementInstant(
+                  start,
+                  TimeUtils.ISO8601PeriodToTemporalIncrement(securityCoverage.getDuration())));
         }
-        // TODO cron should be generated from start-date + iso duration
-        // Currently UI is not able to support any cron expression
-        // Parsing is limited to same case like 1 day at 9h00.
-        // Monthly option is not supported yet back in the UI.
-        String cron = cronService.getCronExpression(frequency, recurrence);
-        scenario.setRecurrence(cron);
-      } else {
-        String cron = cronService.getCronExpression(ScheduleFrequency.ONESHOT, recurrence);
-        scenario.setRecurrence(cron);
       }
     }
   }

@@ -253,7 +253,7 @@ public class InjectService {
   @Transactional(rollbackOn = Exception.class)
   public void deleteAllByIds(List<String> injectIds) {
     if (!CollectionUtils.isEmpty(injectIds)) {
-      injectRepository.deleteAllById(injectIds);
+      injectRepository.deleteByAllIdsNative(injectIds);
     }
   }
 
@@ -411,7 +411,6 @@ public class InjectService {
 
   @Transactional
   public void delete(String id) {
-    injectDocumentRepository.deleteDocumentsFromInject(id);
     injectRepository.deleteById(id);
   }
 

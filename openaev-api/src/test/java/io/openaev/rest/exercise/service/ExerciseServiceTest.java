@@ -25,7 +25,8 @@ import io.openaev.service.TagRuleService;
 import io.openaev.service.TeamService;
 import io.openaev.service.UserService;
 import io.openaev.service.VariableService;
-import io.openaev.service.cron.CronService;
+import io.openaev.service.period.CronService;
+import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.openaev.utils.ResultUtils;
@@ -90,6 +91,7 @@ class ExerciseServiceTest extends IntegrationTest {
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private EntityManager entityManager;
   @Autowired private ExerciseService actualExerciseService;
+  @Autowired private ScenarioRecurrenceService scenarioRecurrenceService;
 
   @Mock private InjectExpectationMapper injectExpectationMapper;
 
@@ -125,8 +127,8 @@ class ExerciseServiceTest extends IntegrationTest {
             lessonsCategoryRepository,
             findingRepository,
             communicationRepository,
-            injectExpectationMapper);
-
+            injectExpectationMapper,
+            scenarioRecurrenceService);
     scenarioComposer.reset();
     exerciseComposer.reset();
   }

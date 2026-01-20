@@ -331,6 +331,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                 InjectExpectationResult.builder()
                     .sourceId("collector id")
                     .sourceType("collector")
+                    .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .score(100.0)
                     .sourceName("test collector")
                     .result("Success")
@@ -340,6 +341,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("security-platform")
                     .score(20.0)
                     .sourceName("test SIEM")
+                    .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .result("Meh...")
                     .build());
 
@@ -350,6 +352,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("collector")
                     .score(100.0)
                     .sourceName("test collector")
+                    .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -357,6 +360,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("security-platform")
                     .score(40.0)
                     .sourceName("test SIEM")
+                    .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .result("Meh better...")
                     .build());
 
@@ -411,6 +415,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("collector")
                     .score(100.0)
                     .sourceName("test collector")
+                    .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -418,6 +423,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("security-platform")
                     .score(20.0)
                     .sourceName("test SIEM")
+                    .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .result("Meh...")
                     .build(),
                 InjectExpectationResult.builder()
@@ -425,6 +431,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("security-platform")
                     .score(40.0)
                     .sourceName("test SIEM")
+                    .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .result("Meh better...")
                     .build());
 
@@ -447,6 +454,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("collector")
                     .score(100.0)
                     .sourceName("test collector")
+                    .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -454,6 +462,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("security-platform")
                     .score(20.0)
                     .sourceName("test SIEM")
+                    .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .result("Meh...")
                     .build());
 
@@ -464,6 +473,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("collector")
                     .score(100.0)
                     .sourceName("test collector")
+                    .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -471,6 +481,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("security-platform")
                     .score(40.0)
                     .sourceName("test SIEM")
+                    .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .result("Meh better...")
                     .build());
 
@@ -496,6 +507,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("collector")
                     .score(0.0)
                     .sourceName("test collector")
+                    .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -503,6 +515,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("security-platform")
                     .score(17.0)
                     .sourceName("test SIEM")
+                    .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .result("Meh...")
                     .build());
 
@@ -513,6 +526,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("collector")
                     .score(0.0)
                     .sourceName("test collector")
+                    .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -520,6 +534,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("security-platform")
                     .score(32.0)
                     .sourceName("test SIEM")
+                    .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .result("Meh better...")
                     .build());
 
@@ -585,6 +600,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("collector")
                     .score(100.0)
                     .sourceName("test collector")
+                    .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -592,6 +608,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("security-platform")
                     .score(20.0)
                     .sourceName("test SIEM")
+                    .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .result("Meh...")
                     .build(),
                 InjectExpectationResult.builder()
@@ -599,6 +616,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("security-platform")
                     .score(40.0)
                     .sourceName("test SIEM")
+                    .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .result("Meh better...")
                     .build());
 
@@ -609,6 +627,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("collector")
                     .score(0.0)
                     .sourceName("test collector")
+                    .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -616,6 +635,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("security-platform")
                     .score(17.0)
                     .sourceName("test SIEM")
+                    .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .result("Meh...")
                     .build(),
                 InjectExpectationResult.builder()
@@ -623,6 +643,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("security-platform")
                     .score(32.0)
                     .sourceName("test SIEM")
+                    .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .result("Meh better...")
                     .build());
 

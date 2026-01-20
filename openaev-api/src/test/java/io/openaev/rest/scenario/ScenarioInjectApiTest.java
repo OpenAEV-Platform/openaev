@@ -18,7 +18,7 @@ import io.openaev.rest.inject.form.InjectAssistantInput;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
-import io.openaev.service.ScenarioService;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.AttackPatternComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;

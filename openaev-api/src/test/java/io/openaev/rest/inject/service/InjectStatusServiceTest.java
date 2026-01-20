@@ -1,7 +1,6 @@
 package io.openaev.rest.inject.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.openaev.database.model.*;
 import java.util.List;
@@ -97,29 +96,5 @@ public class InjectStatusServiceTest {
     assertEquals(ExecutionTraceAction.START, executionTrace1.getAction());
     assertEquals(ExecutionTraceStatus.ERROR, executionTrace2.getStatus());
     assertEquals(ExecutionTraceAction.EXECUTION, executionTrace2.getAction());
-  }
-
-  @Test
-  public void givenExecutionTraceWithUnsupportedStatus_whenComputing_thenThrowException() {
-    // given
-    Agent agent = new Agent();
-
-    ExecutionTrace executionTrace = new ExecutionTrace();
-    executionTrace.setStatus(ExecutionTraceStatus.INFO); // unsupported status
-    executionTrace.setAction(ExecutionTraceAction.COMPLETE);
-    executionTrace.setAgent(agent);
-
-    InjectStatus injectStatus = new InjectStatus();
-    injectStatus.setTraces(List.of(executionTrace));
-
-    // when / then
-    IllegalArgumentException exception =
-        assertThrows(
-            IllegalArgumentException.class,
-            () ->
-                injectStatusService.computeExecutionTraceStatusIfNeeded(
-                    injectStatus, executionTrace, agent));
-
-    assertEquals("Invalid execution trace status: INFO", exception.getMessage());
   }
 }

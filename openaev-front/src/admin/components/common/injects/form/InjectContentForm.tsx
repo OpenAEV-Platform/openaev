@@ -142,18 +142,15 @@ const InjectContentForm = ({
     control,
     name: 'inject_content.expectations',
   }) as ExpectationInput[];
-  const predefinedExpectations: ExpectationInput[] = enhancedFields
-    .filter(n => n.type === 'expectation')
-    .flatMap(f => f.predefinedExpectations ?? []);
   const onExpectationChange = (expectationIds: ExpectationInput[]) => setValue('inject_content.expectations', expectationIds, { shouldValidate: true });
 
   const renderExpectations = () => (
     <InjectExpectations
-      predefinedExpectationDatas={predefinedExpectations}
       expectationDatas={injectExpectations}
       handleExpectations={onExpectationChange}
       readOnly={enhancedFieldsMapByType.get('expectation')?.readOnly || readOnly}
       injectId={injectId}
+      injectorContractId={getValues('inject_injector_contract.injector_contract_id')}
     />
   );
 

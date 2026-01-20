@@ -1,14 +1,6 @@
 import react from '@vitejs/plugin-react';
-import { createLogger, defineConfig, loadEnv, transformWithEsbuild } from 'vite';
-
-const logger = createLogger();
-const loggerError = logger.error;
-
-logger.error = (msg, options) => {
-  // Ignore jsx syntax error as it taken into account in a custom plugin
-  if (msg.includes('The JSX syntax extension is not currently enabled')) return;
-  loggerError(msg, options);
-};
+import path from 'path';
+import { defineConfig, loadEnv } from 'vite';
 
 const basePath = '';
 
@@ -29,72 +21,26 @@ export default ({ mode }: { mode: string }) => {
     build: {
       target: ['chrome58'],
       sourcemap: true,
-      minify: false,
+      outDir: 'builder/prod/build',
     },
+
+    experimental: {
+      renderBuiltUrl(filename, { hostId }) {
+        if (path.extname(hostId) === '.js') {
+          return { runtime: `window.__assetsPath(${JSON.stringify(filename)})` };
+        } else if (hostId === 'index.html') {
+          return `%BASE_PATH%/${filename}`;
+        }
+        return { relative: true };
+      },
+    },
+
+    publicDir: 'src/static/public',
 
     resolve: {
-      extensions: ['.js', '.tsx', '.ts', '.jsx', '.json'],
+      extensions: ['.tsx', '.ts', '.jsx', '.js', '.json'],
       conditions: ['mui-modern', 'module', 'browser', 'development|production'],
     },
-
-    optimizeDeps: {
-      entries: [
-        './src/**/*.{js,tsx,ts,jsx}',
-      ],
-      include: [
-        '@ckeditor/ckeditor5-react',
-        '@dagrejs/dagre',
-        '@hookform/resolvers/zod',
-        '@microsoft/fetch-event-source',
-        '@mui/icons-material',
-        '@mui/lab',
-        '@mui/material/colors',
-        '@mui/material/styles',
-        '@mui/material/transitions',
-        '@uiw/react-md-editor/nohighlight',
-        'ckeditor5',
-        'ckeditor5/translations/en.js',
-        'ckeditor5/translations/fr.js',
-        'ckeditor5/translations/zh.js',
-        'classcat',
-        'cronstrue',
-        'd3-hierarchy',
-        'date-fns',
-        'date-fns/locale',
-        'dompurify',
-        'filigran-icon',
-        'final-form-arrays',
-        '@hello-pangea/dnd',
-        'html-react-parser',
-        'js-file-download',
-        'mdi-material-ui',
-        'qs',
-        'react-apexcharts',
-        'react-color',
-        'react-csv',
-        'react-final-form',
-        'react-final-form-arrays',
-        'react-grid-layout',
-        'react-hook-form',
-        'react-markdown',
-        'remark-flexible-markers',
-        '@xyflow/react',
-        'd3-hierarchy',
-        '@dagrejs/dagre',
-        'react-syntax-highlighter',
-        'react-syntax-highlighter/dist/esm/styles/prism',
-        'remark-flexible-markers',
-        'remark-gfm',
-        'remark-parse',
-        'usehooks-ts',
-        'uuid',
-        'zod',
-        'zod/v4',
-        'zustand/shallow',
-      ],
-    },
-
-    customLogger: logger,
 
     plugins: [
       {
@@ -105,20 +51,8 @@ export default ({ mode }: { mode: string }) => {
           return html.replace(/%BASE_PATH%/g, basePath)
             .replace(/%APP_TITLE%/g, 'OpenAEV Dev')
             .replace(/%APP_DESCRIPTION%/g, 'OpenAEV Development platform')
-            .replace(/%APP_FAVICON%/g, `${basePath}/src/static/ext/favicon.png`)
-            .replace(/%APP_MANIFEST%/g, `${basePath}/src/static/ext/manifest.json`);
-        },
-      },
-      {
-        name: 'treat-js-files-as-jsx',
-        async transform(code, id) {
-          if (!id.match(/src\/.*\.js$/)) return null;
-          // Use the exposed transform from vite, instead of directly
-          // transforming with esbuild
-          return transformWithEsbuild(code, id, {
-            loader: 'jsx',
-            jsx: 'automatic',
-          });
+            .replace(/%APP_FAVICON%/g, `${basePath}/static/favicon.png`)
+            .replace(/%APP_MANIFEST%/g, `${basePath}/static/manifest.json`);
         },
       },
       react(),

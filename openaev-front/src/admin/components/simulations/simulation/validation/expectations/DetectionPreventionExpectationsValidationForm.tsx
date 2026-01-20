@@ -57,6 +57,7 @@ const DetectionPreventionExpectationsValidationForm: FunctionComponent<FormProps
       ...data,
       source_id: data.security_platform,
       source_type: 'security-platform',
+      source_platform: securityPlatformsMap[data.security_platform].security_platform_type,
       source_name: securityPlatformsMap[data.security_platform].asset_name,
     })).then(() => {
       onUpdate?.();

@@ -186,6 +186,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
                   .sourceId("collector-id")
                   .sourceName("collector-name")
                   .sourceType("collector-type")
+                  .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                   .result("result")
                   .score(50.0)
                   .build()));
@@ -274,6 +275,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
                         .sourceId("collector-id")
                         .sourceName("collector-name")
                         .sourceType("collector-type")
+                        .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                         .result("result")
                         .score(100.0)
                         .build()));

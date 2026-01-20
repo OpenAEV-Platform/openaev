@@ -35,14 +35,14 @@ export const BasicTextInput: FunctionComponent<Props> = ({
         if (event.key === 'Enter') {
           helpers.handleAddSingleValueFilter(
             filter.key,
-            (event.target as HTMLInputElement).value,
+            (event.target as HTMLInputElement).value.trim(),
           );
         }
       }}
       onBlur={(event) => {
         helpers.handleAddSingleValueFilter(
           filter.key,
-          (event.target as HTMLInputElement).value,
+          (event.target as HTMLInputElement).value.trim(),
         );
       }}
     />

@@ -13,8 +13,7 @@ import io.openaev.driver.MinioDriver;
 import io.openaev.service.exception.HealthCheckFailureException;
 import jakarta.annotation.Resource;
 import java.io.IOException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
+import java.security.*;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,7 +42,11 @@ public class HealthCheckService {
    */
   public void runHealthCheck() throws HealthCheckFailureException {
     runDatabaseCheck();
-    runRabbitMQCheck(createRabbitMQConnectionFactory());
+    try {
+      runRabbitMQCheck(createRabbitMQConnectionFactory());
+    } catch (Exception e) {
+      throw new HealthCheckFailureException(e.getMessage());
+    }
     runFileStorageCheck();
   }
 
@@ -53,13 +56,17 @@ public class HealthCheckService {
   }
 
   @VisibleForTesting
-  protected ConnectionFactory createRabbitMQConnectionFactory() {
+  protected ConnectionFactory createRabbitMQConnectionFactory()
+      throws NoSuchAlgorithmException, KeyManagementException {
     ConnectionFactory factory = new ConnectionFactory();
     factory.setHost(rabbitmqConfig.getHostname());
     factory.setPort(rabbitmqConfig.getPort());
     factory.setUsername(rabbitmqConfig.getUser());
     factory.setPassword(rabbitmqConfig.getPass());
     factory.setVirtualHost(rabbitmqConfig.getVhost());
+    if (rabbitmqConfig.isSsl()) {
+      factory.useSslProtocol();
+    }
     factory.setConnectionTimeout(2000);
     return factory;
   }

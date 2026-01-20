@@ -398,4 +398,8 @@ public interface InjectRepository
   """)
   int resetCollectStatusByExerciseId(
       @Param("exerciseId") String exerciseId, @Param("status") CollectExecutionStatus status);
+
+  @Modifying
+  @Query(value = "DELETE FROM injects WHERE inject_id IN :ids", nativeQuery = true)
+  void deleteByAllIdsNative(@Param("ids") List<String> ids);
 }

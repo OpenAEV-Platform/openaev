@@ -95,7 +95,7 @@ public class TagRuleApi extends RestBehavior {
       })
   public TagRuleOutput createTagRule(@Valid @RequestBody final TagRuleInput input) {
     return tagRuleMapper.toTagRuleOutput(
-        tagRuleService.createTagRule(input.getTagName(), input.getAssetGroups()));
+        tagRuleService.createTagRule(input.getTagName(), input.getAssetGroups(), false));
   }
 
   @LogExecutionTime

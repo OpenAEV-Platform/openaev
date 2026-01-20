@@ -43,6 +43,8 @@ public interface RawScenario {
 
   public String getScenario_severity();
 
+  public String getScenario_type_affinity();
+
   public Set<String> getScenario_exercises();
 
   public String getScenario_kill_chain_phases();
