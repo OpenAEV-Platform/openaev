@@ -1,9 +1,12 @@
 import { Chip } from '@mui/material';
 import type { FunctionComponent } from 'react';
+import { useTheme } from '@mui/material/styles';
 
 interface Props { affinity_text?: string | null }
 
 const TypeAffinityChip: FunctionComponent<Props> = ({ affinity_text }) => {
+  const theme = useTheme();
+
   if (!affinity_text) return <>-</>;
 
   return (
@@ -13,7 +16,7 @@ const TypeAffinityChip: FunctionComponent<Props> = ({ affinity_text }) => {
       style={{
         fontSize: 12,
         height: 25,
-        margin: '0 7px 7px 0',
+        margin: theme.spacing(0, 1, 1, 0),
         textTransform: 'uppercase',
         borderRadius: 4,
         width: 180,
