@@ -1,8 +1,5 @@
-import type { Dispatch } from 'redux';
-
-import { getReferential, simpleCall, simplePostCall } from '../../utils/Action';
+import { simpleCall, simplePostCall } from '../../utils/Action';
 import type { WidgetToEntitiesInput } from '../../utils/api-types';
-import * as schema from '../Schema';
 
 export const SETTINGS_URI = '/api/settings';
 export const fetchHomeDashboard = () => {
@@ -31,6 +28,6 @@ export const homeWidgetToEntitiesRuntime = (widgetId: string, input: WidgetToEnt
 export const homeDashboardAttackPaths = (widgetId: string, parameters: Record<string, string | undefined>) => {
   return simplePostCall(`${SETTINGS_URI}/home-dashboard/attack-paths/${widgetId}`, parameters);
 };
-export const fetchCalderaSettings = () => (dispatch: Dispatch) => {
-  return getReferential(schema.arrayOfCalderaSettings, `${SETTINGS_URI}/caldera`)(dispatch);
+export const fetchCalderaSettings = () => {
+  return simpleCall(`${SETTINGS_URI}/caldera`);
 };

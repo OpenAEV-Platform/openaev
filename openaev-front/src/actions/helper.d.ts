@@ -1,5 +1,4 @@
 import {
-  type CalderaSettings,
   type Challenge,
   type Document,
   type Domain,
@@ -39,7 +38,6 @@ export interface LoggedHelper {
   logged: () => any;
   getMe: () => User;
   getPlatformSettings: () => PlatformSettings;
-  getCalderaSettings: () => CalderaSettings[];
   getPlatformName: () => string;
   getUserLang: () => string;
 }

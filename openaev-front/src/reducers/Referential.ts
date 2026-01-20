@@ -58,7 +58,6 @@ export const entitiesInitializer = Map({
     domains: Map({}),
     catalog_connectors: Map({}),
     connector_instances: Map({}),
-    calderasettings: Map({}),
   }),
 });
 

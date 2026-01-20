@@ -2,18 +2,14 @@ import { ContentCopyOutlined, TerminalOutlined } from '@mui/icons-material';
 import { Alert, Button, FormControl, FormControlLabel, InputLabel, MenuItem, Radio, RadioGroup, Select, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Bash, DownloadCircleOutline, Powershell } from 'mdi-material-ui';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
-import type { LoggedHelper } from '../../../actions/helper';
 import { fetchCalderaSettings } from '../../../actions/settings/settings-action';
 import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
 import useTabs from '../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../components/i18n';
-import { useHelper } from '../../../store';
-import { type ExecutorOutput, type Token } from '../../../utils/api-types';
-import { useAppDispatch } from '../../../utils/hooks';
+import { type CalderaSettings, type ExecutorOutput, type Token } from '../../../utils/api-types';
 import useAuth from '../../../utils/hooks/useAuth';
-import useDataLoader from '../../../utils/hooks/useDataLoader';
 import { copyToClipboard, download } from '../../../utils/utils';
 
 const USER = 'user';
@@ -36,15 +32,16 @@ const InstructionSelector: React.FC<InstructionSelectorProps> = ({ userToken, pl
   const [selectedOption, setSelectedOption] = useState(USER);
   const [agentFolder] = useState<null | string>(null);
   const [arch, setArch] = useState<string>(x86_64);
-  const dispatch = useAppDispatch();
+  const [calderaSettings, setCalderaSettings] = useState<CalderaSettings>(null);
 
   // Fetching data
-  const { calderaSettings } = useHelper((helper: LoggedHelper) => ({ calderaSettings: helper.getCalderaSettings() }));
-  useDataLoader(() => {
-    dispatch(fetchCalderaSettings());
-  });
+  useEffect(() => {
+    fetchCalderaSettings().then(({ data }) => {
+      setCalderaSettings(data);
+    });
+  }, []);
 
-  const executorCalderaPublicUrl = calderaSettings.length > 0 ? calderaSettings[0].executor_caldera_public_url : '';
+  const executorCalderaPublicUrl = calderaSettings !== null && calderaSettings.length > 0 ? calderaSettings[0].executor_caldera_public_url : '';
 
   const tabEntries: TabsEntry[] = [{
     key: 'Standard Installation',
