@@ -132,7 +132,7 @@ const SimulationMainInformation: FunctionComponent<Props> = ({ exercise }) => {
           >
             {t('Type Affinity')}
           </Typography>
-          <TypeAffinityChip affinity_text={scenario.scenario_type_affinity} />
+          <TypeAffinityChip affinity_text={scenario?.scenario_type_affinity} />
         </Grid>
         <Grid size={{ xs: 4 }}>
           <Typography
