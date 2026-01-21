@@ -8,14 +8,15 @@ import io.openaev.injectors.channel.ChannelContract;
 import io.openaev.injectors.channel.ChannelExecutor;
 import io.openaev.injectors.email.service.EmailService;
 import io.openaev.integration.ComponentRequestEngine;
-import io.openaev.integration.Integration;
+import io.openaev.integration.IntegrationWithoutConfig;
 import io.openaev.integration.QualifiedComponent;
 import io.openaev.integrations.InjectorService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+
 import java.util.List;
 
-public class ChannelInjectorIntegration extends Integration {
+public class ChannelInjectorIntegration extends IntegrationWithoutConfig {
   private static final String CHANNEL_INJECTOR_NAME = "Media pressure";
   public static final String CHANNEL_INJECTOR_ID = "8d932e36-353c-48fa-ba6f-86cb7b02ed19";
 

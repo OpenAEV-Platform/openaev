@@ -1,7 +1,9 @@
 package io.openaev.integration.impl.injectors.channel;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorType;
 import io.openaev.database.repository.ArticleRepository;
 import io.openaev.executors.InjectorContext;
 import io.openaev.injectors.channel.ChannelContract;
@@ -40,8 +42,9 @@ public class ChannelInjectorIntegrationFactory extends IntegrationFactory {
       EmailService emailService,
       InjectorService injectorService,
       InjectExpectationService injectExpectationService,
-      ArticleRepository articleRepository) {
-    super(connectorInstanceService, catalogConnectorService);
+      ArticleRepository articleRepository,
+      HttpClientFactory httpClientFactory) {
+    super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.componentRequestEngine = componentRequestEngine;
     this.connectorInstanceService = connectorInstanceService;
     this.channelContract = channelContract;
@@ -71,7 +74,7 @@ public class ChannelInjectorIntegrationFactory extends IntegrationFactory {
   public List<ConnectorInstance> findRelatedInstances() {
     return List.of(
         connectorInstanceService.createAutostartInstance(
-            ChannelInjectorIntegration.CHANNEL_INJECTOR_ID));
+            ChannelInjectorIntegration.CHANNEL_INJECTOR_ID, ConnectorType.INJECTOR));
   }
 
   @Override

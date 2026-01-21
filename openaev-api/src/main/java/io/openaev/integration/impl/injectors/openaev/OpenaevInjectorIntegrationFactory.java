@@ -1,8 +1,10 @@
 package io.openaev.integration.impl.injectors.openaev;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorType;
 import io.openaev.injectors.openaev.OpenAEVImplantContract;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
@@ -31,8 +33,9 @@ public class OpenaevInjectorIntegrationFactory extends IntegrationFactory {
       InjectorService injectorService,
       OpenAEVImplantContract openAEVImplantContract,
       OpenAEVConfig openAEVConfig,
-      CatalogConnectorService catalogConnectorService) {
-    super(connectorInstanceService, catalogConnectorService);
+      CatalogConnectorService catalogConnectorService,
+      HttpClientFactory httpClientFactory) {
+    super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.componentRequestEngine = componentRequestEngine;
     this.connectorInstanceService = connectorInstanceService;
     this.injectorService = injectorService;
@@ -59,7 +62,7 @@ public class OpenaevInjectorIntegrationFactory extends IntegrationFactory {
   public List<ConnectorInstance> findRelatedInstances() {
     return List.of(
         connectorInstanceService.createAutostartInstance(
-            OpenaevInjectorIntegration.OPENAEV_INJECTOR_ID));
+            OpenaevInjectorIntegration.OPENAEV_INJECTOR_ID, ConnectorType.INJECTOR));
   }
 
   @Override

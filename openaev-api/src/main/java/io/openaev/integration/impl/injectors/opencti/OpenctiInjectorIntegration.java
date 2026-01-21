@@ -1,19 +1,24 @@
 package io.openaev.integration.impl.injectors.opencti;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.executors.InjectorContext;
+import io.openaev.executors.caldera.config.CalderaExecutorConfig;
 import io.openaev.injectors.opencti.OpenCTIContract;
 import io.openaev.injectors.opencti.OpenCTIExecutor;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
+import io.openaev.integration.IntegrationWithoutConfig;
 import io.openaev.integration.QualifiedComponent;
 import io.openaev.integrations.InjectorService;
 import io.openaev.opencti.service.OpenCTIService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+
+import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 
-public class OpenctiInjectorIntegration extends Integration {
+public class OpenctiInjectorIntegration extends IntegrationWithoutConfig {
   public static final String OPENCTI_INJECTOR_NAME = "OpenCTI";
   public static final String OPENCTI_INJECTOR_ID = "2cbc77af-67f2-46af-bfd2-755d06a46da0";
 

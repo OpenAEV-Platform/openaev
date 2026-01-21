@@ -1,7 +1,9 @@
 package io.openaev.integration.impl.injectors.challenge;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorType;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.executors.InjectorContext;
 import io.openaev.injectors.challenge.ChallengeContract;
@@ -42,8 +44,9 @@ public class ChallengeInjectorIntegrationFactory extends IntegrationFactory {
       EmailService emailService,
       InjectorService injectorService,
       InjectExpectationService injectExpectationService,
-      ChallengeRepository challengeRepository) {
-    super(connectorInstanceService, catalogConnectorService);
+      ChallengeRepository challengeRepository,
+      HttpClientFactory httpClientFactory) {
+    super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.componentRequestEngine = componentRequestEngine;
     this.connectorInstanceService = connectorInstanceService;
     this.challengeContract = challengeContract;
@@ -73,7 +76,7 @@ public class ChallengeInjectorIntegrationFactory extends IntegrationFactory {
   public List<ConnectorInstance> findRelatedInstances() {
     return List.of(
         connectorInstanceService.createAutostartInstance(
-            ChallengeInjectorIntegration.CHALLENGE_INJECTOR_ID));
+            ChallengeInjectorIntegration.CHALLENGE_INJECTOR_ID, ConnectorType.INJECTOR));
   }
 
   @Override

@@ -1,6 +1,7 @@
 package io.openaev.integration.impl.injectors.ovh;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
@@ -11,6 +12,7 @@ import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.configuration.BaseIntegrationConfiguration;
+import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.integration.migration.OvhInjectorConfigurationMigration;
 import io.openaev.integrations.InjectorService;
 import io.openaev.service.FileService;
@@ -35,6 +37,7 @@ public class OvhInjectorIntegrationFactory extends IntegrationFactory {
   private final InjectorService injectorService;
   private final InjectExpectationService injectExpectationService;
   private final FileService fileService;
+  private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
   private final ComponentRequestEngine componentRequestEngine;
 
@@ -47,8 +50,10 @@ public class OvhInjectorIntegrationFactory extends IntegrationFactory {
       OvhInjectorConfigurationMigration ovhInjectorConfigurationMigration,
       InjectorService injectorService,
       InjectExpectationService injectExpectationService,
-      FileService fileService) {
-    super(connectorInstanceService, catalogConnectorService);
+      FileService fileService,
+      BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
+      HttpClientFactory httpClientFactory) {
+    super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.connectorInstanceService = connectorInstanceService;
     this.componentRequestEngine = componentRequestEngine;
     this.ovhSmsContract = ovhSmsContract;
@@ -58,6 +63,7 @@ public class OvhInjectorIntegrationFactory extends IntegrationFactory {
     this.injectExpectationService = injectExpectationService;
     this.catalogConnectorService = catalogConnectorService;
     this.fileService = fileService;
+    this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
   }
 
   @Override
@@ -106,11 +112,10 @@ public class OvhInjectorIntegrationFactory extends IntegrationFactory {
         componentRequestEngine,
         instance,
         connectorInstanceService,
-        BaseIntegrationConfiguration.fromConnectorInstanceConfigurationSet(
-            instance.getConfigurations(), OvhSmsInjectorConfig.class),
         ovhSmsContract,
         injectorContext,
         injectorService,
-        injectExpectationService);
+        injectExpectationService,
+            baseIntegrationConfigurationBuilder);
   }
 }

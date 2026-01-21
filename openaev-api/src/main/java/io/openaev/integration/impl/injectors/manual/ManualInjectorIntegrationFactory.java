@@ -1,7 +1,9 @@
 package io.openaev.integration.impl.injectors.manual;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorType;
 import io.openaev.executors.InjectorContext;
 import io.openaev.injectors.manual.ManualContract;
 import io.openaev.integration.ComponentRequestEngine;
@@ -36,8 +38,9 @@ public class ManualInjectorIntegrationFactory extends IntegrationFactory {
       ManualContract manualContract,
       InjectorContext injectorContext,
       InjectorService injectorService,
-      InjectExpectationService injectExpectationService) {
-    super(connectorInstanceService, catalogConnectorService);
+      InjectExpectationService injectExpectationService,
+      HttpClientFactory httpClientFactory) {
+    super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.componentRequestEngine = componentRequestEngine;
     this.connectorInstanceService = connectorInstanceService;
     this.manualContract = manualContract;
@@ -65,7 +68,7 @@ public class ManualInjectorIntegrationFactory extends IntegrationFactory {
   public List<ConnectorInstance> findRelatedInstances() {
     return List.of(
         connectorInstanceService.createAutostartInstance(
-            ManualInjectorIntegration.MANUAL_INJECTOR_ID));
+            ManualInjectorIntegration.MANUAL_INJECTOR_ID, ConnectorType.INJECTOR));
   }
 
   @Override

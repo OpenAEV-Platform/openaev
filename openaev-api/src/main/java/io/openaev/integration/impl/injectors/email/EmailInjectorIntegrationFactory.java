@@ -1,7 +1,9 @@
 package io.openaev.integration.impl.injectors.email;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorType;
 import io.openaev.executors.InjectorContext;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.injectors.email.service.EmailService;
@@ -38,8 +40,9 @@ public class EmailInjectorIntegrationFactory extends IntegrationFactory {
       InjectorContext injectorContext,
       EmailService emailService,
       InjectorService injectorService,
-      InjectExpectationService injectExpectationService) {
-    super(connectorInstanceService, catalogConnectorService);
+      InjectExpectationService injectExpectationService,
+      HttpClientFactory httpClientFactory) {
+    super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.connectorInstanceService = connectorInstanceService;
     this.emailContract = emailContract;
     this.injectorContext = injectorContext;
@@ -68,7 +71,7 @@ public class EmailInjectorIntegrationFactory extends IntegrationFactory {
   public List<ConnectorInstance> findRelatedInstances() {
     return List.of(
         connectorInstanceService.createAutostartInstance(
-            EmailInjectorIntegration.EMAIL_INJECTOR_ID));
+            EmailInjectorIntegration.EMAIL_INJECTOR_ID, ConnectorType.INJECTOR));
   }
 
   @Override

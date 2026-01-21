@@ -1,6 +1,7 @@
 package io.openaev.integration.impl.injectors.opencti;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
@@ -47,8 +48,9 @@ public class OpenctiInjectorIntegrationFactory extends IntegrationFactory {
       InjectorContext injectorContext,
       OpenCTIService openCTIService,
       InjectExpectationService injectExpectationService,
-      OpenctiInjectorConfigurationMigration openctiInjectorConfigurationMigration) {
-    super(connectorInstanceService, catalogConnectorService);
+      OpenctiInjectorConfigurationMigration openctiInjectorConfigurationMigration,
+      HttpClientFactory httpClientFactory) {
+    super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.componentRequestEngine = componentRequestEngine;
     this.connectorInstanceService = connectorInstanceService;
     this.injectorService = injectorService;

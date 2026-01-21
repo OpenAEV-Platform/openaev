@@ -1,18 +1,23 @@
 package io.openaev.integration.impl.injectors.manual;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.executors.InjectorContext;
+import io.openaev.executors.caldera.config.CalderaExecutorConfig;
 import io.openaev.injectors.manual.ManualContract;
 import io.openaev.injectors.manual.ManualExecutor;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
+import io.openaev.integration.IntegrationWithoutConfig;
 import io.openaev.integration.QualifiedComponent;
 import io.openaev.integrations.InjectorService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 
-public class ManualInjectorIntegration extends Integration {
+public class ManualInjectorIntegration extends IntegrationWithoutConfig {
   private static final String MANUAL_INJECTOR_NAME = "Manual";
   public static final String MANUAL_INJECTOR_ID = "6981a39d-e219-4016-a235-cf7747994abc";
 

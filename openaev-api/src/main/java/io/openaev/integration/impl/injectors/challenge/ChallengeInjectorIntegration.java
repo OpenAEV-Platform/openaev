@@ -8,14 +8,15 @@ import io.openaev.injectors.challenge.ChallengeContract;
 import io.openaev.injectors.challenge.ChallengeExecutor;
 import io.openaev.injectors.email.service.EmailService;
 import io.openaev.integration.ComponentRequestEngine;
-import io.openaev.integration.Integration;
+import io.openaev.integration.IntegrationWithoutConfig;
 import io.openaev.integration.QualifiedComponent;
 import io.openaev.integrations.InjectorService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+
 import java.util.List;
 
-public class ChallengeInjectorIntegration extends Integration {
+public class ChallengeInjectorIntegration extends IntegrationWithoutConfig {
   private static final String CHALLENGE_INJECTOR_NAME = "Challenges";
   public static final String CHALLENGE_INJECTOR_ID = "49229430-b5b5-431f-ba5b-f36f599b0233";
 
