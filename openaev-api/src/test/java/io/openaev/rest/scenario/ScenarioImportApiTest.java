@@ -47,8 +47,7 @@ public class ScenarioImportApiTest extends IntegrationTest {
   public void setUp() {
     // Injecting mocks into the controller
     scenarioImportApi =
-        new ScenarioImportApi(
-            injectService, injectImportService, importMapperRepository, scenarioService);
+        new ScenarioImportApi(injectImportService, importMapperRepository, scenarioService);
 
     SCENARIO_ID = UUID.randomUUID().toString();
 

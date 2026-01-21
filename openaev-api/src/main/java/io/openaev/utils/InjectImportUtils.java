@@ -1,4 +1,4 @@
-package io.openaev.service.utils;
+package io.openaev.utils;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.RuleAttribute;
