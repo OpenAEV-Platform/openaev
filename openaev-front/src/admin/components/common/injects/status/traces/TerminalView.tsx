@@ -1,9 +1,9 @@
-import { Box, Typography } from '@mui/material';
+import { Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useCallback, useMemo } from 'react';
 
 import ExpandableSection from '../../../../../../components/common/ExpandableSection';
-import { FONT_FAMILY_CODE } from '../../../../../../components/Theme';
+import Terminal, { type TerminalLine } from '../../../../../../components/common/terminal/Terminal';
 import { type ExecutionTraceOutput, type PayloadCommandBlock } from '../../../../../../utils/api-types';
 
 interface Props {
@@ -14,7 +14,6 @@ interface Props {
 
 const TerminalView: FunctionComponent<Props> = ({ payloadCommandBlocks, traces, forceExpanded }) => {
   const theme = useTheme();
-  const isDark = theme.palette.mode === 'dark';
 
   const firstTrace = traces[0];
 
@@ -43,6 +42,41 @@ const TerminalView: FunctionComponent<Props> = ({ payloadCommandBlocks, traces, 
     return `${firstTrace.execution_time} ${commands}\n`;
   }, [firstTrace, payloadCommandBlocks]);
 
+  const lines: TerminalLine[] = useMemo(() => {
+    if (!firstTrace) return [];
+
+    return [
+      {
+        key: 'command',
+        date: firstTrace.execution_time,
+        content: commandLine,
+      },
+      ...traces.flatMap((trace) => {
+        const { stdout, stderr } = parseTraceOutput(trace);
+        const result: TerminalLine[] = [];
+
+        if (stdout) {
+          result.push({
+            key: `${trace.execution_time}-stdout`,
+            date: trace.execution_time,
+            content: stdout,
+          });
+        }
+
+        if (stderr) {
+          result.push({
+            key: `${trace.execution_time}-stderr`,
+            date: trace.execution_time,
+            content: stderr,
+            level: 'error',
+          });
+        }
+
+        return result;
+      }),
+    ];
+  }, [traces, parseTraceOutput, commandLine, firstTrace]);
+
   const header = (
     <Typography gutterBottom sx={{ mr: theme.spacing(1.5) }}>
       {firstTrace?.execution_agent?.agent_executed_by_user}
@@ -58,32 +92,10 @@ const TerminalView: FunctionComponent<Props> = ({ payloadCommandBlocks, traces, 
       forceExpanded={forceExpanded}
       header={header}
     >
-      <div
-        style={{
-          background: isDark ? theme.palette.common.black : theme.palette.common.white,
-          color: isDark ? theme.palette.common.white : theme.palette.common.black,
-          fontFamily: FONT_FAMILY_CODE,
-          padding: theme.spacing(2),
-          borderRadius: theme.spacing(1),
-          whiteSpace: 'pre-wrap',
-          fontSize: theme.typography.h4.fontSize,
-          overflowX: 'auto',
-          maxHeight: '400px',
-        }}
-      >
-        {commandLine}
-        {traces.map((trace) => {
-          const { stdout, stderr } = parseTraceOutput(trace);
-
-          return (
-            <Box key={trace.execution_time}>
-              {trace.execution_time + ' '}
-              {stdout && <span>{stdout}</span>}
-              {stderr && <span style={{ color: theme.palette.error.main }}>{stderr}</span>}
-            </Box>
-          );
-        })}
-      </div>
+      <Terminal
+        maxHeight={400}
+        lines={lines}
+      />
     </ExpandableSection>
   );
 }

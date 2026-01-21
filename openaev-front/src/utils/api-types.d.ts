@@ -1104,6 +1104,11 @@ export interface ConnectorInstanceHealthInput {
 export interface ConnectorInstanceLog {
   /** Connector instance log */
   connector_instance_log?: string;
+  /**
+   * Connector instance log created at
+   * @format date-time
+   */
+  connector_instance_log_created_at?: string;
   connector_instance_log_id: string;
   listened?: boolean;
 }

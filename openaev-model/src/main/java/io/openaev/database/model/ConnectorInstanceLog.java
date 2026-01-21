@@ -13,6 +13,8 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.UuidGenerator;
 
+import java.time.Instant;
+
 @Getter
 @Setter
 @Entity
@@ -38,4 +40,9 @@ public class ConnectorInstanceLog implements Base {
   @NotNull
   @JsonSerialize(using = MonoIdSerializer.class)
   private ConnectorInstancePersisted connectorInstance;
+
+  @Column(name = "connector_instance_log_created_at")
+  @JsonProperty("connector_instance_log_created_at")
+  @Schema(description = "Connector instance log created at")
+  private Instant connector_instance_log_created_at;
 }

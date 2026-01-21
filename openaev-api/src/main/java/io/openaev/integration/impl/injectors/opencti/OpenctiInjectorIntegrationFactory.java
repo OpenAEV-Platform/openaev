@@ -1,5 +1,7 @@
 package io.openaev.integration.impl.injectors.opencti;
 
+import static io.openaev.integration.impl.injectors.opencti.OpenctiInjectorIntegration.OPENCTI_INJECTOR_NAME;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.CatalogConnector;
@@ -22,8 +24,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
-
-import static io.openaev.integration.impl.injectors.opencti.OpenctiInjectorIntegration.OPENCTI_INJECTOR_NAME;
 
 @Service
 @Profile("!test")

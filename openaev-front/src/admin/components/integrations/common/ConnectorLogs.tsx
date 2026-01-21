@@ -1,9 +1,9 @@
 import { Paper } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchConnectorInstanceLogs } from '../../../../actions/connector_instances/connector-instance-actions';
+import Terminal from '../../../../components/common/terminal/Terminal';
 import { useFormatter } from '../../../../components/i18n';
 import { type ConnectorInstanceLog } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
@@ -21,10 +21,8 @@ type ConnectorInstanceLogResponse = { data: ConnectorInstanceLog[] };
 
 const ConnectorLogs = ({ connectorInstanceId }: ConnectorLogsProps) => {
   const dispatch = useAppDispatch();
-  const theme = useTheme();
   const { classes } = useStyles();
-  const { t } = useFormatter();
-  const isDark = theme.palette.mode === 'dark';
+  const { t, fldt } = useFormatter();
 
   const [logs, setLogs] = useState<ConnectorInstanceLog[]>([]);
 
@@ -39,25 +37,18 @@ const ConnectorLogs = ({ connectorInstanceId }: ConnectorLogsProps) => {
 
   return (
     <Paper variant="outlined" className={classes.paper}>
-      <div
-        style={{
-          background: isDark ? theme.palette.common.black : theme.palette.common.white,
-          color: isDark ? theme.palette.common.white : theme.palette.common.black,
-          // fontFamily: FONT_FAMILY_CODE, : TODO : PR ROMU TERMINAL VIEW
-          padding: theme.spacing(2),
-          borderRadius: theme.spacing(1),
-          whiteSpace: 'pre-wrap',
-          fontSize: theme.typography.h4.fontSize,
-          overflowX: 'auto',
-          maxHeight: '400px',
-        }}
-      >
-        {logs.length > 0 ? logs.map(log => (
-          <div key={log.connector_instance_log_id}>
-            {log.connector_instance_log}
-          </div>
-        )) : <div>{t('No log for the moment.')}</div>}
-      </div>
+      {logs.length > 0 ? (
+        <Terminal
+          maxHeight={400}
+          lines={logs.map(log => ({
+            key: log.connector_instance_log_id,
+            date: `[${fldt(log.connector_instance_log_created_at)}]`,
+            content: log.connector_instance_log,
+          }))}
+        />
+      ) : (
+        <div>{t('No log for the moment.')}</div>
+      )}
     </Paper>
   );
 };
