@@ -76,7 +76,7 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
     return mapToOutput(connector, catalogConnector, instance, true);
   }
 
-  private T createExternalCollector(String collectorId, ConnectorInstancePersisted instance) {
+  private T createExternalConnector(String collectorId, ConnectorInstancePersisted instance) {
     T newConnector = createNewConnector();
     newConnector.setId(collectorId);
     newConnector.setName(instance.getCatalogConnector().getTitle());
@@ -115,7 +115,7 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
         connector -> result.add(toExistingConnectorOutput(connector, instancesByConnectorIdMap)));
 
     if (includeNext) {
-      // Add new collectors from instances, these collectors are waiting to be deployed
+      // Add new connectors from instances, these collectors are waiting to be deployed
       Set<String> existingConnectorsIds =
           connectors.stream().map(BaseConnectorEntity::getId).collect(Collectors.toSet());
       instancesByConnectorIdMap.entrySet().stream()
@@ -125,7 +125,7 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
           .map(entry -> Map.entry(entry.getKey(), (ConnectorInstancePersisted) entry.getValue()))
           .forEach(
               entry -> {
-                T newConnector = createExternalCollector(entry.getKey(), entry.getValue());
+                T newConnector = createExternalConnector(entry.getKey(), entry.getValue());
                 result.add(
                     mapToOutput(
                         newConnector,

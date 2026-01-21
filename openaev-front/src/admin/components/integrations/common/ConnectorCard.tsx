@@ -112,7 +112,7 @@ const ConnectorCard = ({
               color="default"
               label={connector.isExternal ? t('External') : t('Built-in')}
             />
-            {showStatusOrLastUpdatedAt && connector.connectorCurrentStatus == null
+            {showStatusOrLastUpdatedAt && connector.connectorCurrentStatus === null
               && (
                 <div className={classes.dotContainer}>
                   <div
@@ -123,7 +123,7 @@ const ConnectorCard = ({
                   </Typography>
                 </div>
               )}
-            {showStatusOrLastUpdatedAt && connector.connectorCurrentStatus != null && <ConnectorStatus variant={connector.connectorCurrentStatus} /> }
+            {showStatusOrLastUpdatedAt && connector.connectorCurrentStatus !== null && <ConnectorStatus variant={connector.connectorCurrentStatus} /> }
             {onDeployBtnClick
               && <DeployButton onDeployBtnClick={onDeployBtnClick} deploymentCount={connector.connectorInstancesCount ?? 0} />}
           </div>

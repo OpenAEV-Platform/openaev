@@ -1,3 +1,4 @@
+import { capitalize } from '@mui/material';
 import { useContext, useEffect, useState } from 'react';
 import { Outlet, useParams } from 'react-router';
 
@@ -20,7 +21,6 @@ import type {
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { ConnectorContext, type ConnectorOutput } from './ConnectorContext';
-import { capitalize } from "@mui/material";
 
 export type ConnectorContextLayoutType = {
   connector: ConnectorOutput;

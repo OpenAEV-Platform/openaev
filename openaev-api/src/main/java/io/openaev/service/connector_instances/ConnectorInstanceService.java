@@ -46,6 +46,7 @@ public class ConnectorInstanceService {
       ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository,
       TokenRepository tokenRepository,
       EncryptionFactory encryptionFactory,
+      // Use lazy injection to break a circular dependency
       @Lazy ManagerFactory managerFactory) {
     this.objectMapper = objectMapper;
     this.connectorInstanceMapper = connectorInstanceMapper;

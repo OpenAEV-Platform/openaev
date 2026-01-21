@@ -420,7 +420,7 @@ export const storeHelper = state => ({
   getCollectorsMap: () => maps('collectors', state),
   // executors
   getExecutor: id => entity(id, 'executors', state),
-  getExistingExecutor: () => entities('executors', state).filter(c => c.get('existing_executor') === true),
+  getExistingExecutors: () => entities('executors', state).filter(c => c.get('existing_executor') === true),
   getExecutorsIncludingPending: () => entities('executors', state),
   getExecutorsMap: () => maps('executors', state),
   // channels
@@ -489,7 +489,7 @@ export const storeHelper = state => ({
   getDomains: () => entities('domains', state),
   // catalog
   getCatalogConnectors: () => entities('catalog_connectors', state),
-  getUndeployCatalogConnectors: () => entities('catalog_connectors', state).filter(c => c.get('instance_deployed_count') === 0),
+  getUnDeployedCatalogConnectors: () => entities('catalog_connectors', state).filter(c => c.get('instance_deployed_count') === 0),
   getCatalogConnector: id => entity(id, 'catalog_connectors', state),
   getConnectorInstance: id => entity(id, 'connectorinstances', state),
 });

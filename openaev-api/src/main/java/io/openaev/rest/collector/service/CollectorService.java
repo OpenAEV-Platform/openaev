@@ -73,9 +73,9 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       Collector collector,
       CatalogConnector catalogConnector,
       ConnectorInstance connectorInstance,
-      boolean existingInjector) {
+      boolean existingCollector) {
     return collectorMapper.toCollectorOutput(
-        collector, catalogConnector, connectorInstance, existingInjector);
+        collector, catalogConnector, connectorInstance, existingCollector);
   }
 
   @Override
