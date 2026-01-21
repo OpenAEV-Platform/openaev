@@ -45,6 +45,7 @@ import { type Error as APIError, notifyErrorHandler } from '../../../../utils/er
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
 import computeAttackPatterns from '../../../../utils/injector_contract/InjectorContractUtils';
 import { isNotEmptyField } from '../../../../utils/utils';
+import { buildOrderedDomains } from '../../workspaces/custom_dashboards/widgets/viz/domains/SecurityDomainsWidgetUtils';
 import { InjectContext } from '../Context';
 import buildIconBarElements from '../domains/DomainsIcons';
 import IconBar from '../domains/IconBar';
@@ -53,7 +54,6 @@ import { type ToolTasks } from '../toolBar/BulkToolBar-model';
 import InjectForm from './form/InjectForm';
 import InjectCardComponent from './InjectCardComponent';
 import InjectIcon from './InjectIcon';
-import { buildOrderedDomains } from '../../workspaces/custom_dashboards/widgets/viz/domains/SecurityDomainsWidgetUtils';
 
 const useStyles = makeStyles()(theme => ({
   itemHead: { textTransform: 'uppercase' },
@@ -455,7 +455,7 @@ const CreateInject: FunctionComponent<Props> = ({
     [domainOptions, selectedDomains, domainCounts],
   );
 
-	const iconBarOrderedDomains = useMemo(() => buildOrderedDomains(iconBarElements), [iconBarElements])
+  const iconBarOrderedDomains = useMemo(() => buildOrderedDomains(iconBarElements), [iconBarElements]);
 
   return (
     <Drawer
