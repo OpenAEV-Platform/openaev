@@ -11,12 +11,11 @@ import io.openaev.injectors.ovh.config.OvhSmsInjectorConfig;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
-import io.openaev.integration.configuration.BaseIntegrationConfiguration;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.integration.migration.OvhInjectorConfigurationMigration;
-import io.openaev.integrations.InjectorService;
 import io.openaev.service.FileService;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.service.InjectorService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.lang.reflect.InvocationTargetException;
@@ -79,7 +78,7 @@ public class OvhInjectorIntegrationFactory extends IntegrationFactory {
   @Override
   protected void insertCatalogEntry() throws Exception {
     CatalogConnector connector = new CatalogConnector();
-    String logoFilename = "%s-logo.png".formatted(getClassName());
+    String logoFilename = "%s-logo.png".formatted(ovhSmsContract.getType());
     fileService.uploadStream(
         FileService.CONNECTORS_LOGO_PATH,
         logoFilename,
@@ -116,6 +115,6 @@ public class OvhInjectorIntegrationFactory extends IntegrationFactory {
         injectorContext,
         injectorService,
         injectExpectationService,
-            baseIntegrationConfigurationBuilder);
+        baseIntegrationConfigurationBuilder);
   }
 }

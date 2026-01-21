@@ -12,9 +12,9 @@ import io.openaev.database.model.Agent.PRIVILEGE;
 import io.openaev.executors.caldera.client.CalderaExecutorClient;
 import io.openaev.executors.caldera.config.CalderaExecutorConfig;
 import io.openaev.executors.model.AgentRegisterInput;
-import io.openaev.integrations.InjectorService;
 import io.openaev.service.AgentService;
 import io.openaev.service.EndpointService;
+import io.openaev.service.InjectorService;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.utils.mapper.EndpointMapper;
 import jakarta.validation.constraints.NotBlank;
@@ -240,7 +240,7 @@ public class CalderaExecutorService implements Runnable {
     if ((now().toEpochMilli() - existingAgent.getClearedAt().toEpochMilli()) > CLEAR_TTL) {
       try {
         log.info("Clearing agent caldera " + existingAgent.getExecutedByUser());
-        Iterable<Injector> injectors = injectorService.injectors();
+        Iterable<Injector> injectors = injectorService.getAllConnectors();
         injectors.forEach(
             injector -> {
               if (injector.getExecutorClearCommands() != null) {

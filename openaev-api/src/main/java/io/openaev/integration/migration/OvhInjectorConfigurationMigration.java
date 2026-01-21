@@ -19,6 +19,6 @@ public class OvhInjectorConfigurationMigration extends ConfigurationMigration {
         OvhInjectorIntegrationFactory.class.getCanonicalName(),
         catalogConnectorService,
         connectorInstanceService,
-            encryptionFactory);
+        encryptionFactory);
   }
 }

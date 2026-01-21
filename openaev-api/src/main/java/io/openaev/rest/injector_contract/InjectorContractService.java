@@ -10,13 +10,16 @@ import static io.openaev.utils.JpaUtils.*;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawInjectorsContracts;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.specification.InjectorContractSpecification;
+import io.openaev.injector_contract.Contract;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.injectors.ovh.OvhSmsContract;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
@@ -33,6 +36,7 @@ import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.UserService;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Tuple;
@@ -42,15 +46,15 @@ import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -68,9 +72,11 @@ import org.springframework.stereotype.Service;
  */
 @RequiredArgsConstructor
 @Service
+@Slf4j
 public class InjectorContractService {
 
   @PersistenceContext private EntityManager entityManager;
+  @Resource private ObjectMapper mapper;
 
   private final InjectorContractRepository injectorContractRepository;
   private final AttackPatternService attackPatternService;
@@ -104,33 +110,6 @@ public class InjectorContractService {
   }
 
   // -- OTHERS --
-
-  /**
-   * Initializes import availability flags on application startup.
-   *
-   * <p>Updates all injector contracts to indicate whether they support XLS import based on
-   * configured email and SMS import settings.
-   */
-  @EventListener(ApplicationReadyEvent.class)
-  public void initImportAvailableOnStartup() {
-    List<String> listOfInjectorImportAvailable = new ArrayList<>();
-    if (mailImportEnabled) {
-      listOfInjectorImportAvailable.addAll(
-          Arrays.asList(EmailContract.EMAIL_GLOBAL, EmailContract.EMAIL_DEFAULT));
-    }
-    if (smsImportEnabled) {
-      listOfInjectorImportAvailable.add(OvhSmsContract.OVH_DEFAULT);
-    }
-
-    List<InjectorContract> listInjectorContract = new ArrayList<>();
-    injectorContractRepository.findAll().spliterator().forEachRemaining(listInjectorContract::add);
-    listInjectorContract.forEach(
-        injectorContract -> {
-          injectorContract.setImportAvailable(
-              listOfInjectorImportAvailable.contains(injectorContract.getId()));
-        });
-    injectorContractRepository.saveAll(listInjectorContract);
-  }
 
   @Setter
   @Getter
@@ -295,6 +274,69 @@ public class InjectorContractService {
             ? this.domainService.upserts(input.getDomains())
             : new HashSet<>());
     return injectorContractRepository.save(injectorContract);
+  }
+
+  public InjectorContract createBuiltinInjectorContract(
+      Contract source, Injector injector, boolean isPayloads) {
+    InjectorContract target = new InjectorContract();
+    target.setId(source.getId());
+    target.setInjector(injector);
+
+    applyBuiltinContractData(target, source, isPayloads);
+    return target;
+  }
+
+  public void updateBuiltInInjectorContract(
+      InjectorContract target, Contract source, boolean isPayloads) {
+    applyBuiltinContractData(target, source, isPayloads);
+  }
+
+  private void applyBuiltinContractData(
+      InjectorContract target, Contract source, boolean isPayloads) {
+    target.setManual(source.isManual());
+    target.setAtomicTesting(source.isAtomicTesting());
+    target.setPlatforms(source.getPlatforms().toArray(new Endpoint.PLATFORM_TYPE[0]));
+    target.setNeedsExecutor(source.isNeedsExecutor());
+
+    Map<String, String> labels =
+        source.getLabel().entrySet().stream()
+            .collect(Collectors.toMap(e -> e.getKey().toString(), Map.Entry::getValue));
+    target.setLabels(labels);
+
+    // Update attack patterns if not overridden
+    if (target.getAttackPatterns().isEmpty() && !source.getAttackPatternsExternalIds().isEmpty()) {
+      List<AttackPattern> attackPatterns =
+          fromIterable(
+              attackPatternRepository.findAllByExternalIdInIgnoreCase(
+                  source.getAttackPatternsExternalIds()));
+      target.setAttackPatterns(attackPatterns);
+    } else {
+      target.setAttackPatterns(new ArrayList<>());
+    }
+
+    try {
+      target.setContent(mapper.writeValueAsString(source));
+    } catch (JsonProcessingException e) {
+      throw new IllegalStateException(
+          "Failed to serialize contract content for: " + target.getId(), e);
+    }
+
+    if (!isPayloads) {
+      Set<Domain> currentDomains = this.domainService.upserts(target.getDomains());
+      Set<Domain> domainsToAdd = this.domainService.upserts(source.getDomains());
+      target.setDomains(this.domainService.mergeDomains(currentDomains, domainsToAdd));
+    }
+    setupImportAvailable(target);
+  }
+
+  private void setupImportAvailable(InjectorContract injectorContract) {
+    if (Arrays.asList(EmailContract.EMAIL_GLOBAL, EmailContract.EMAIL_DEFAULT)
+        .contains(injectorContract.getId())) {
+      injectorContract.setImportAvailable(mailImportEnabled);
+    }
+    if (OvhSmsContract.OVH_DEFAULT.equals(injectorContract.getId())) {
+      injectorContract.setImportAvailable(smsImportEnabled);
+    }
   }
 
   /**

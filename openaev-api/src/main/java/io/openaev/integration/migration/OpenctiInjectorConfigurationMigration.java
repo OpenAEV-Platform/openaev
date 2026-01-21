@@ -19,6 +19,6 @@ public class OpenctiInjectorConfigurationMigration extends ConfigurationMigratio
         OpenctiInjectorIntegrationFactory.class.getCanonicalName(),
         catalogConnectorService,
         connectorInstanceService,
-            encryptionFactory);
+        encryptionFactory);
   }
 }

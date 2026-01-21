@@ -18,6 +18,7 @@ import jakarta.transaction.Transactional;
 import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -33,6 +34,12 @@ public class DomainService {
   private static final String DOMAIN_NAME_NOT_FOUND_MSG = "Domain not found with name";
 
   private final DomainRepository domainRepository;
+
+  /** Default domain name for uncategorized contracts. */
+  private static final String TO_CLASSIFY = "To classify";
+
+  /** Default color for new domains. */
+  private static final String DEFAULT_DOMAIN_COLOR = "#FFFFFF";
 
   public List<Domain> searchDomains() {
     return fromIterable(domainRepository.findAll());
@@ -101,18 +108,44 @@ public class DomainService {
     return existingDomain.orElseGet(() -> domainRepository.save(buildSanityDomain(name, color)));
   }
 
+  @Transactional
   public Set<Domain> mergeDomains(
       final Set<Domain> existingDomains, final Set<Domain> addedDomains) {
-    if (existingDomains == null
-        || existingDomains.isEmpty()
-        || (existingDomains.size() == 1
-            && PresetDomain.TOCLASSIFY
-                .getName()
-                .equals(existingDomains.iterator().next().getName()))) {
-      return addedDomains;
+    final boolean isExistingDomainsEmptyOrToClassify = isEmptyOrToClassify(existingDomains);
+    final boolean domainsEmptyOrToClassify = isEmptyOrToClassify(addedDomains);
+
+    // Both empty or just "To classify" - return placeholder
+    if (isExistingDomainsEmptyOrToClassify && domainsEmptyOrToClassify) {
+      return new HashSet<>(
+          Collections.singletonList(
+              this.upsert(
+                  new Domain(null, TO_CLASSIFY, DEFAULT_DOMAIN_COLOR, Instant.now(), null))));
     }
 
-    return Stream.concat(existingDomains.stream(), addedDomains.stream()).collect(toSet());
+    // Filter out "To classify" from domains to add
+    Set<Domain> domainsToAdd = domainsEmptyOrToClassify ? new HashSet<>() : addedDomains;
+
+    // If existing is empty, just return the new domains
+    if (isExistingDomainsEmptyOrToClassify) {
+      return domainsToAdd;
+    }
+
+    // Merge both sets
+    return Stream.concat(existingDomains.stream(), domainsToAdd.stream())
+        .collect(Collectors.toSet());
+  }
+
+  /**
+   * Checks if a domain set is empty or contains only the "To classify" placeholder.
+   *
+   * @param domains the domains to check
+   * @return true if empty or only contains "To classify"
+   */
+  private boolean isEmptyOrToClassify(final Set<Domain> domains) {
+    if (domains == null || domains.isEmpty()) {
+      return true;
+    }
+    return domains.size() == 1 && TO_CLASSIFY.equals(domains.iterator().next().getName());
   }
 
   public Set<Domain> findDomainByNameAndDescription(final String name) {

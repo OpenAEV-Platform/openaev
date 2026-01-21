@@ -10,10 +10,9 @@ import io.openaev.injectors.email.service.EmailService;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.IntegrationWithoutConfig;
 import io.openaev.integration.QualifiedComponent;
-import io.openaev.integrations.InjectorService;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.service.InjectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-
 import java.util.List;
 
 public class ChallengeInjectorIntegration extends IntegrationWithoutConfig {
@@ -52,7 +51,7 @@ public class ChallengeInjectorIntegration extends IntegrationWithoutConfig {
 
   @Override
   protected void innerStart() throws Exception {
-    injectorService.register(
+    injectorService.registerBuiltinInjector(
         CHALLENGE_INJECTOR_ID,
         CHALLENGE_INJECTOR_NAME,
         challengeContract,

@@ -1,20 +1,15 @@
 package io.openaev.integration.impl.injectors.openaev;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.Endpoint;
-import io.openaev.executors.caldera.config.CalderaExecutorConfig;
 import io.openaev.injectors.openaev.OpenAEVImplantContract;
 import io.openaev.injectors.openaev.OpenAEVImplantExecutor;
 import io.openaev.integration.ComponentRequestEngine;
-import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationWithoutConfig;
 import io.openaev.integration.QualifiedComponent;
-import io.openaev.integrations.InjectorService;
+import io.openaev.service.InjectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-
-import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -70,7 +65,7 @@ public class OpenaevInjectorIntegration extends IntegrationWithoutConfig {
     Map<String, String> executorCommands = buildExecutorCommands(openAEVConfig);
     Map<String, String> executorClearCommands = buildExecutorClearCommands();
 
-    injectorService.register(
+    injectorService.registerBuiltinInjector(
         OPENAEV_INJECTOR_ID,
         OPENAEV_INJECTOR_NAME,
         openAEVImplantContract,

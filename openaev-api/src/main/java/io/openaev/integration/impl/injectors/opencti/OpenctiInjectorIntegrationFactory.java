@@ -12,16 +12,18 @@ import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.migration.OpenctiInjectorConfigurationMigration;
-import io.openaev.integrations.InjectorService;
 import io.openaev.opencti.service.OpenCTIService;
 import io.openaev.service.FileService;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.service.InjectorService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
+
+import static io.openaev.integration.impl.injectors.opencti.OpenctiInjectorIntegration.OPENCTI_INJECTOR_NAME;
 
 @Service
 @Profile("!test")
@@ -75,13 +77,13 @@ public class OpenctiInjectorIntegrationFactory extends IntegrationFactory {
 
   @Override
   protected void insertCatalogEntry() throws Exception {
-    String logoFilename = "%s-logo.png".formatted(getClassName());
+    String logoFilename = "%s-logo.png".formatted(openCTIContract.TYPE);
     fileService.uploadStream(
         FileService.CONNECTORS_LOGO_PATH,
         logoFilename,
         getClass().getResourceAsStream("/img/icon-opencti.png"));
     CatalogConnector connector = new CatalogConnector();
-    connector.setTitle("OpenCTI");
+    connector.setTitle(OPENCTI_INJECTOR_NAME);
     connector.setSlug(openCTIContract.TYPE);
     connector.setLogoUrl(logoFilename);
     connector.setDescription(

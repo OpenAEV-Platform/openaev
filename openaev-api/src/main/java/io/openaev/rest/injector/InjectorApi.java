@@ -117,7 +117,7 @@ public class InjectorApi extends RestBehavior {
       @PathVariable String injectorId, @Valid @RequestBody InjectorUpdateInput input) {
     Injector injector =
         injectorRepository.findById(injectorId).orElseThrow(ElementNotFoundException::new);
-    return injectorService.updateInjector(
+    return injectorService.updateExistingExternalInjector(
         injector,
         injector.getType(),
         input.getName(),
@@ -157,7 +157,7 @@ public class InjectorApi extends RestBehavior {
   public InjectorRegistration registerInjector(
       @Valid @RequestPart("input") InjectorCreateInput input,
       @RequestPart("icon") Optional<MultipartFile> file) {
-    return injectorService.registerInjector(input, file);
+    return injectorService.registerExternalInjector(input, file);
   }
 
   @GetMapping(

@@ -1,22 +1,17 @@
 package io.openaev.integration.impl.injectors.email;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.executors.InjectorContext;
-import io.openaev.executors.caldera.config.CalderaExecutorConfig;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.injectors.email.EmailExecutor;
 import io.openaev.injectors.email.service.EmailService;
 import io.openaev.integration.ComponentRequestEngine;
-import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationWithoutConfig;
 import io.openaev.integration.QualifiedComponent;
-import io.openaev.integrations.InjectorService;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.service.InjectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-
-import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 
 public class EmailInjectorIntegration extends IntegrationWithoutConfig {
@@ -52,7 +47,7 @@ public class EmailInjectorIntegration extends IntegrationWithoutConfig {
 
   @Override
   protected void innerStart() throws Exception {
-    injectorService.register(
+    injectorService.registerBuiltinInjector(
         EMAIL_INJECTOR_ID,
         EMAIL_INJECTOR_NAME,
         emailContract,

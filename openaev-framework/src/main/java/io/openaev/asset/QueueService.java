@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeoutException;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
@@ -91,7 +93,7 @@ public class QueueService {
    *
    * @return a configured ConnectionFactory instance
    */
-  private ConnectionFactory createConnectionFactory() {
+  public ConnectionFactory createConnectionFactory() {
     ConnectionFactory factory = new ConnectionFactory();
     factory.setHost(rabbitmqConfig.getHostname());
     factory.setPort(rabbitmqConfig.getPort());
@@ -138,5 +140,24 @@ public class QueueService {
       factory.useSslProtocol();
     }
     log.debug("SSL configured for RabbitMQ connection");
+  }
+
+  public Channel createChannel(Connection connection, String queueName, String routingKey)
+      throws IOException {
+    String fullQueueName = rabbitmqConfig.getPrefix() + queueName;
+    String fullRoutingKey = rabbitmqConfig.getPrefix() + ROUTING_KEY + routingKey;
+    String fullExchangeKey = rabbitmqConfig.getPrefix() + EXCHANGE_KEY;
+
+    Map<String, Object> queueOptions = new HashMap<>();
+    queueOptions.put("x-queue-type", rabbitmqConfig.getQueueType());
+
+    try (Channel channel = connection.createChannel()) {
+      channel.exchangeDeclare(fullExchangeKey, "direct", true);
+      channel.queueDeclare(fullQueueName, true, false, false, queueOptions);
+      channel.queueBind(fullQueueName, fullExchangeKey, fullRoutingKey);
+      return channel;
+    } catch (TimeoutException e) {
+      throw new RuntimeException(e);
+    }
   }
 }

@@ -3,7 +3,6 @@ package io.openaev.integration.impl.injectors.ovh;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.executors.InjectorContext;
-import io.openaev.executors.caldera.config.CalderaExecutorConfig;
 import io.openaev.executors.exception.ExecutorException;
 import io.openaev.injectors.ovh.OvhSmsContract;
 import io.openaev.injectors.ovh.OvhSmsExecutor;
@@ -13,13 +12,12 @@ import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.QualifiedComponent;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
-import io.openaev.integrations.InjectorService;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.service.InjectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import lombok.extern.slf4j.Slf4j;
-
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class OvhInjectorIntegration extends Integration {
@@ -59,13 +57,13 @@ public class OvhInjectorIntegration extends Integration {
     } catch (Exception e) {
       log.error("Error during initialization of the " + OVH_SMS_INJECTOR_NAME + "  Injector", e);
       throw new ExecutorException(
-              e, "Error during initialization of the Injector", OVH_SMS_INJECTOR_NAME);
+          e, "Error during initialization of the Injector", OVH_SMS_INJECTOR_NAME);
     }
   }
 
   @Override
   protected void innerStart() throws Exception {
-    injectorService.register(
+    injectorService.registerBuiltinInjector(
         OVH_SMS_INJECTOR_ID,
         OVH_SMS_INJECTOR_NAME,
         ovhSmsContract,
@@ -82,14 +80,14 @@ public class OvhInjectorIntegration extends Integration {
 
   @Override
   protected void refresh()
-          throws JsonProcessingException,
+      throws JsonProcessingException,
           InvocationTargetException,
           NoSuchMethodException,
           InstantiationException,
           IllegalAccessException {
     this.config = baseIntegrationConfigurationBuilder.build(OvhSmsInjectorConfig.class);
     this.config.fromConnectorInstanceConfigurationSet(
-            this.getConnectorInstance(), OvhSmsInjectorConfig.class);
+        this.getConnectorInstance(), OvhSmsInjectorConfig.class);
   }
 
   @Override

@@ -3,7 +3,7 @@ package io.openaev.injectors.caldera;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Endpoint;
 import io.openaev.injectors.caldera.config.CalderaInjectorConfig;
-import io.openaev.integrations.InjectorService;
+import io.openaev.service.InjectorService;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
