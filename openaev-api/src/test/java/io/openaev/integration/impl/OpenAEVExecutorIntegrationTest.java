@@ -7,6 +7,7 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorInstanceConfiguration;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.CatalogConnectorRepository;
@@ -153,6 +154,11 @@ public class OpenAEVExecutorIntegrationTest {
 
     assertThat(instances)
         .first()
-        .satisfies(instance -> assertThat(instance.getConfigurations()).isEmpty());
+        .satisfies(
+            instance ->
+                assertThat(instance.getConfigurations())
+                    .first()
+                    .extracting(ConnectorInstanceConfiguration::getKey)
+                    .isEqualTo(ConnectorType.EXECUTOR.getIdKeyName()));
   }
 }
