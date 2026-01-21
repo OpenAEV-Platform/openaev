@@ -147,17 +147,6 @@ public interface ScenarioRepository
 
   @Query(
       value =
-          "SELECT sce.scenario_id, "
-              + "coalesce(array_agg(inj.inject_id) FILTER (WHERE inj.inject_id IS NOT NULL), '{}') as scenario_injects "
-              + "FROM scenarios sce "
-              + "LEFT JOIN injects inj ON inj.inject_scenario = sce.scenario_id "
-              + "WHERE sce.scenario_id IN :ids "
-              + "GROUP BY sce.scenario_id",
-      nativeQuery = true)
-  List<RawScenarioSimple> rawInjectsFromScenarios(@Param("ids") List<String> ids);
-
-  @Query(
-      value =
           "WITH "
               + "all_users AS ( "
               + "  SELECT st.scenario_id, COUNT(DISTINCT ut.user_id) AS scenario_all_users_number "
