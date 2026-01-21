@@ -26,7 +26,6 @@ public class WidgetService {
 
   private final CustomDashboardRepository customDashboardRepository;
   private final WidgetRepository widgetRepository;
-  private final EngineService esService;
 
   // -- CRUD --
 
