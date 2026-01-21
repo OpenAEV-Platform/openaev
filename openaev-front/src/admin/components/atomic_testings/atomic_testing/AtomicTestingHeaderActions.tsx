@@ -9,6 +9,7 @@ import { launchAtomicTesting, relaunchAtomicTesting } from '../../../../actions/
 import { useFormatter } from '../../../../components/i18n';
 import type { InjectResultOverviewOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
+import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import AtomicTestingPopover from './AtomicTestingPopover';
@@ -24,6 +25,7 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
   const theme = useTheme();
   const navigate = useNavigate();
   const ability = useContext(AbilityContext);
+  const { setEEFeatureDetectedInfo } = useEnterpriseEdition();
   const dispatch = useAppDispatch();
   const hasAbility = ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT) || ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, injectResultOverview.inject_id);
 
@@ -45,6 +47,16 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
     if (injectResultOverview?.inject_id) {
       await launchAtomicTesting(injectResultOverview.inject_id).then((result: { data: InjectResultOverviewOutput }) => {
         setInjectResultOverview(result.data);
+      }).catch((error) => {
+        const startMessage = 'Some asset will be executed through ';
+        if (error.message === 'LICENSE_RESTRICTION' && error.errors?.children?.message?.errors?.[0]?.startsWith(startMessage)) {
+          const message = error.errors.children.message.errors[0];
+          const executors = message
+            .slice(startMessage.length, message.length)
+            .split(' and ')
+            .join(` ${t('and')} `);
+          setEEFeatureDetectedInfo(t('some injects will be executed through {executors} agents.', { executors }));
+        }
       });
     }
     handleCanLaunch();

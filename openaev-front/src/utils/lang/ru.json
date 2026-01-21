@@ -1587,6 +1587,7 @@
   "Skip": "Пропустить",
   "SMTP": "SMTP",
   "SOAR": "SOAR",
+  "some injects will be executed through {executors} agents.": "некоторые инъекции будут выполняться через {executors} агентов.",
   "Something went wrong. Please refresh the page or try again later.": "Что-то пошло не так. Пожалуйста, обновите страницу или повторите попытку позже.",
   "Sorry, we have an issue, please retry": "Извините, у нас возникла проблема, пожалуйста, повторите попытку",
   "Sort field": "Поле сортировки",

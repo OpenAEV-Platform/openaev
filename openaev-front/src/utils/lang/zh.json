@@ -1587,6 +1587,7 @@
   "Skip": "跳过",
   "SMTP": "SMTP",
   "SOAR": "SOAR",
+  "some injects will be executed through {executors} agents.": "某些注入将通过 {executors} 代理执行。",
   "Something went wrong. Please refresh the page or try again later.": "发生错误。请刷新页面或稍后再试。",
   "Sorry, we have an issue, please retry": "对不起，我们遇到了问题，请重试",
   "Sort field": "排序字段",

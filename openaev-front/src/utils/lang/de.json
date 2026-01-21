@@ -1587,6 +1587,7 @@
   "Skip": "Überspringen",
   "SMTP": "SMTP",
   "SOAR": "SOAR",
+  "some injects will be executed through {executors} agents.": "einige Injektionen werden durch {executors}-Agenten ausgeführt.",
   "Something went wrong. Please refresh the page or try again later.": "Es ist ein Fehler aufgetreten. Bitte aktualisieren Sie die Seite oder versuchen Sie es später noch einmal.",
   "Sorry, we have an issue, please retry": "Entschuldigung, wir haben ein Problem, bitte versuchen Sie es erneut",
   "Sort field": "Feld sortieren",

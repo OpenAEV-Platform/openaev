@@ -1587,6 +1587,7 @@
   "Skip": "Skip",
   "SMTP": "SMTP",
   "SOAR": "SOAR",
+  "some injects will be executed through {executors} agents.": "some injects will be executed through {executors} agents.",
   "Something went wrong. Please refresh the page or try again later.": "Something went wrong. Please refresh the page or try again later.",
   "Sorry, we have an issue, please retry": "Sorry, we have an issue, please retry",
   "Sort field": "Sort field",
