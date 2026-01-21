@@ -30,6 +30,7 @@ import java.time.temporal.Temporal;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -75,7 +76,7 @@ public class InjectImportService {
    * Store an xls file for ulterior import. The file will be deleted on exit.
    *
    * @param file
-   * @return
+   * @return ImportPostSummary
    */
   public ImportPostSummary storeXlsFileForImport(MultipartFile file) {
     ImportPostSummary result = new ImportPostSummary();
@@ -160,6 +161,9 @@ public class InjectImportService {
       // empty the list of injects, we just keep the messages
       importTestSummary.setTotalNumberOfInjects(0);
       importTestSummary.setInjects(new ArrayList<>());
+    } else if (importTestSummary.getInjects().isEmpty()
+        && !importTestSummary.getImportMessage().isEmpty()) {
+      return importTestSummary;
     } else if (saveAll) {
       importTestSummary.setInjects(
           importTestSummary.getInjects().stream()
@@ -344,6 +348,7 @@ public class InjectImportService {
 
       ZoneOffset zoneOffset = ZoneOffset.ofTotalSeconds(timezoneOffset * 60);
 
+      AtomicInteger count = new AtomicInteger(0);
       // For each rows of the selected sheet
       selectedSheet
           .rowIterator()
@@ -366,7 +371,8 @@ public class InjectImportService {
                         mapPatternByInjectImport,
                         mapTeamByName,
                         mapPatternByAllTeams,
-                        zoneOffset);
+                        zoneOffset,
+                        count);
                 // We set the exercise or scenario
                 Inject inject = rowSummary.getInject();
                 if (scenario != null && inject != null) {
@@ -388,7 +394,7 @@ public class InjectImportService {
       // Now that we did our first pass, we do another one real quick to find out
       // the date relative to each others
       importTestSummary.getImportMessage().addAll(updateInjectDates(mapInstantByRowIndex));
-
+      importTestSummary.setTotalRowsAnalysed(count.get());
       // We get the earliest date
       Optional<Instant> earliestDate =
           mapInstantByRowIndex.values().stream()
@@ -446,7 +452,8 @@ public class InjectImportService {
       Map<String, Pattern> mapPatternByInjectImport,
       Map<String, Team> mapTeamByName,
       Map<String, Pattern> mapPatternByAllTeams,
-      ZoneOffset timezoneOffset) {
+      ZoneOffset timezoneOffset,
+      AtomicInteger count) {
     ImportRow importTestSummary = new ImportRow();
     // The column that differenciate the importer is the same for all so we get it right now
     int colTypeIdx = CellReference.convertColStringToIndex(importMapper.getInjectTypeColumn());
@@ -469,6 +476,8 @@ public class InjectImportService {
     // If the row is completely empty, we ignore it altogether and do not send a warn message
     if (InjectUtils.checkIfRowIsEmpty(row)) {
       return importTestSummary;
+    } else {
+      count.getAndIncrement();
     }
     // First of all, we get the value of the differentiation cell
     Cell typeCell = row.getCell(colTypeIdx);

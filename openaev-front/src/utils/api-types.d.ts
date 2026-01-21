@@ -2643,6 +2643,8 @@ export interface ImportTestSummary {
   injects?: InjectOutput[];
   /** @format int32 */
   total_injects?: number;
+  /** @format int32 */
+  total_rows_analysed?: number;
 }
 
 export interface Inject {
