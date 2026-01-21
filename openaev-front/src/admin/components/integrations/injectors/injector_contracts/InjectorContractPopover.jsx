@@ -42,7 +42,7 @@ const InjectorContractPopover = ({ injectorContract, killChainPhasesMap, attackP
       ...restData,
       contract_attack_patterns_ids:
         injector_contract_attack_patterns?.map(p => p.id),
-      contract_domains: injector_contract_domains?.map(p => p.domain_id),
+      contract_domains: injector_contract_domains,
     };
 
     return dispatch(
