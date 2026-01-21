@@ -45,7 +45,7 @@ public class WorkflowUpdateEventAspect {
       throw new IllegalStateException(
           "Annotation @WorkflowUpdateEvent on "
               + joinPoint.getSignature().toShortString()
-              + " must set exactly one of injectId or expectationTracesIds");
+              + " must set exactly one of injectId or expectationIds");
     }
 
     MethodSignature signature = (MethodSignature) joinPoint.getSignature();
@@ -103,28 +103,31 @@ public class WorkflowUpdateEventAspect {
    */
   private void handleExpectationTracesParam(EvaluationContext context, String expectationIDsdSPEL) {
     Expression exp = parser.parseExpression(expectationIDsdSPEL);
-    Object expectationIdsFromSPEL =
-        exp.getValue(context) != null ? Objects.requireNonNull(exp.getValue(context)) : List.of();
+    Object expectationIdsFromSPEL = exp.getValue(context) != null
+      ? Objects.requireNonNull(exp.getValue(context))
+      : null;
+
+    Set<String> expectationIds = new HashSet<>();
     if (expectationIdsFromSPEL instanceof Collection<?> c) {
-      Set<String> expectationIds = c.stream().map(Object::toString).collect(Collectors.toSet());
-      Set<String> injectIds =
-          injectExpectationService.findDistinctInjectIdsByInjectExpectationIds(expectationIds);
-      // TODO: optimize to fetch the whole list of steps instead of a single one
-      injectIds.forEach(
-          injectId -> {
-            try {
-              Optional<String> stepId = stepService.findStepIdByInjectId(injectId);
-              if (stepId.isPresent()) {
-                queueChainingService.updateStep(stepId.get());
-              }
-            } catch (IOException e) {
-              // TODO: exception management
-              throw new RuntimeException(e);
-            }
-          });
+      c.stream().map(Object::toString).forEach(expectationIds::add);
+    } else if (expectationIdsFromSPEL instanceof String expectationId) {
+      expectationIds.add(expectationId);
     } else {
-      throw new IllegalStateException(
-          "@WorkflowUpdateEvent.expectationIDsdSPEL must return a Collection");
+      throw new IllegalStateException("@WorkflowUpdateEvent.expectationIDsdSPEL must return a Collection");
     }
+
+    // TODO: optimize to fetch the whole list of steps instead of a single one
+    Set<String> injectIds = injectExpectationService.findDistinctInjectIdsByInjectExpectationIds(expectationIds);
+    injectIds.forEach(injectId -> {
+      try {
+        Optional<String> stepId = stepService.findStepIdByInjectId(injectId);
+        if (stepId.isPresent()) {
+          queueChainingService.updateStep(stepId.get());
+        }
+      } catch (IOException e) {
+        // TODO: exception management
+        throw new RuntimeException(e);
+      }
+    });
   }
 }

@@ -49,6 +49,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
               + "/bulk")
   @PostMapping()
   @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
+  @WorkflowUpdateEvent(expectationIds = "#input.injectExpectationId")
   public InjectExpectationTrace createInjectExpectationTraceForCollector(
       @Valid @RequestBody InjectExpectationTraceInput input) {
 
