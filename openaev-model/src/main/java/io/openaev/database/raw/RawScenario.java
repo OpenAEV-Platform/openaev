@@ -55,7 +55,7 @@ public interface RawScenario {
 
   public String getScenario_teams_users();
 
-  public long getScenario_users_number();
+  public Long getScenario_users_number();
 
-  public long getScenario_all_users_number();
+  public Long getScenario_all_users_number();
 }

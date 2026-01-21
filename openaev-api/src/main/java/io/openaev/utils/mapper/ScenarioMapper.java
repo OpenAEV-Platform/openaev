@@ -61,8 +61,14 @@ public class ScenarioMapper {
         .platforms(rawScenario.getScenario_platforms())
         .tags(rawScenario.getScenario_tags())
         .teamUsers(scenarioTeamUsers)
-        .scenarioUsersNumber(rawScenario.getScenario_users_number())
-        .scenarioAllUsersNumber(rawScenario.getScenario_all_users_number())
+        .scenarioUsersNumber(
+            rawScenario.getScenario_users_number() != null
+                ? rawScenario.getScenario_users_number()
+                : 0)
+        .scenarioAllUsersNumber(
+            rawScenario.getScenario_all_users_number() != null
+                ? rawScenario.getScenario_all_users_number()
+                : 0)
         .build();
   }
 
