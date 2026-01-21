@@ -53,6 +53,7 @@ import { type ToolTasks } from '../toolBar/BulkToolBar-model';
 import InjectForm from './form/InjectForm';
 import InjectCardComponent from './InjectCardComponent';
 import InjectIcon from './InjectIcon';
+import { buildOrderedDomains } from '../../workspaces/custom_dashboards/widgets/viz/domains/SecurityDomainsWidgetUtils';
 
 const useStyles = makeStyles()(theme => ({
   itemHead: { textTransform: 'uppercase' },
@@ -454,6 +455,8 @@ const CreateInject: FunctionComponent<Props> = ({
     [domainOptions, selectedDomains, domainCounts],
   );
 
+	const iconBarOrderedDomains = useMemo(() => buildOrderedDomains(iconBarElements), [iconBarElements])
+
   return (
     <Drawer
       open={open}
@@ -463,7 +466,7 @@ const CreateInject: FunctionComponent<Props> = ({
       disableEnforceFocus
     >
       <>
-        <IconBar elements={iconBarElements} />
+        <IconBar elements={iconBarOrderedDomains} />
         <div
           style={{
             display: 'grid',
