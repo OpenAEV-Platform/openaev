@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -469,5 +470,30 @@ public class ConnectorInstanceService {
             type.getIdKeyName(), objectMapper.getNodeFactory().textNode(connectorId), false, null);
     instance.setConfigurations(Set.of(conf));
     return instance;
+  }
+
+  // -- INJECTOR --
+
+  @Transactional(readOnly = true)
+  public boolean hasStartedConnectorInstanceForInjector(final String injectorId) {
+    return this.getConnectorInstancesForInjector(injectorId).stream()
+        .map(ConnectorInstancePersisted::getCurrentStatus)
+        .noneMatch(ConnectorInstance.CURRENT_STATUS_TYPE.stopped::equals);
+  }
+
+  private List<ConnectorInstancePersisted> getConnectorInstancesForInjector(
+      final String injectorId) {
+    List<ConnectorInstancePersisted> instances =
+        connectorInstanceConfigurationRepository
+            .findByKeyAndValue(ConnectorType.INJECTOR.getIdKeyName(), injectorId)
+            .stream()
+            .map(ConnectorInstanceConfiguration::getConnectorInstance)
+            .toList();
+
+    if (instances.isEmpty()) {
+      throw new IllegalStateException("No connector instance found for injector " + injectorId);
+    }
+
+    return instances;
   }
 }

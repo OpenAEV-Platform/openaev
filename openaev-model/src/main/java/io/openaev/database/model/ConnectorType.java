@@ -1,5 +1,8 @@
 package io.openaev.database.model;
 
+import lombok.Getter;
+
+@Getter
 public enum ConnectorType {
   COLLECTOR("COLLECTOR_ID"),
   INJECTOR("INJECTOR_ID"),
@@ -9,9 +12,5 @@ public enum ConnectorType {
 
   ConnectorType(String idKeyName) {
     this.idKeyName = idKeyName;
-  }
-
-  public String getIdKeyName() {
-    return this.idKeyName;
   }
 }

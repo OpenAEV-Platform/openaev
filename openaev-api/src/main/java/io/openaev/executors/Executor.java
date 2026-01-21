@@ -17,6 +17,7 @@ import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.InjectorService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.annotation.Resource;
 import java.io.IOException;
@@ -47,6 +48,7 @@ public class Executor {
   private final ExecutionExecutorService executionExecutorService;
   private final InjectStatusService injectStatusService;
   private final ExecutableInjectDTOMapper executableInjectDTOMapper;
+  private final ConnectorInstanceService connectorInstanceService;
 
   @Qualifier("coreInjectorService")
   private final InjectorService injectorService;
@@ -112,6 +114,13 @@ public class Executor {
                     new IllegalStateException(
                         "Injector not found for type: "
                             + injectorContract.getInjector().getType()));
+
+    boolean hasStartedConnectorInstanceForInjector =
+        this.connectorInstanceService.hasStartedConnectorInstanceForInjector(injector.getId());
+    if (!hasStartedConnectorInstanceForInjector) {
+      throw new IllegalStateException(
+          "No started connector instance found for injector type: " + injector.getType());
+    }
 
     // Status
     InjectStatus updatedStatus =
