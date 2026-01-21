@@ -1,0 +1,67 @@
+package io.openaev.executors.paloaltocortex.service;
+
+import static io.openaev.executors.ExecutorHelper.UNIX_CLEAN_PAYLOADS_COMMAND;
+import static io.openaev.executors.ExecutorHelper.WINDOWS_CLEAN_PAYLOADS_COMMAND;
+import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
+import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
+
+import io.openaev.database.model.Agent;
+import io.openaev.database.model.Endpoint;
+import io.openaev.executors.paloaltocortex.config.PaloAltoCortexExecutorConfig;
+import io.openaev.executors.paloaltocortex.model.PaloAltoCortexAction;
+import io.openaev.service.AgentService;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+public class PaloAltoCortexGarbageCollectorService implements Runnable {
+
+  private final PaloAltoCortexExecutorConfig config;
+  private final PaloAltoCortexExecutorContextService paloAltoCortexExecutorContextService;
+  private final AgentService agentService;
+
+  public PaloAltoCortexGarbageCollectorService(
+      PaloAltoCortexExecutorConfig config,
+      PaloAltoCortexExecutorContextService paloAltoCortexExecutorContextService,
+      AgentService agentService) {
+    this.config = config;
+    this.paloAltoCortexExecutorContextService = paloAltoCortexExecutorContextService;
+    this.agentService = agentService;
+  }
+
+  @Override
+  public void run() {
+    List<Agent> agents = this.agentService.getAgentsByExecutorType(SENTINELONE_EXECUTOR_TYPE);
+    if (!agents.isEmpty()) {
+      List<PaloAltoCortexAction> actions = new ArrayList<>();
+      log.info("Running SentinelOne executor garbage collector on " + agents.size() + " agents");
+      List<Agent> windowsAgents = getAgentsFromOS(agents, Endpoint.PLATFORM_TYPE.Windows);
+      if (!windowsAgents.isEmpty()) {
+        PaloAltoCortexAction action = new PaloAltoCortexAction();
+        action.setAgents(windowsAgents);
+        action.setScriptId(this.config.getWindowsScriptId());
+        action.setCommandEncoded(
+            Base64.getEncoder()
+                .encodeToString(
+                    WINDOWS_CLEAN_PAYLOADS_COMMAND.getBytes(StandardCharsets.UTF_16LE)));
+        actions.add(action);
+      }
+      List<Agent> unixAgents = new ArrayList<>();
+      unixAgents.addAll(getAgentsFromOS(agents, Endpoint.PLATFORM_TYPE.Linux));
+      unixAgents.addAll(getAgentsFromOS(agents, Endpoint.PLATFORM_TYPE.MacOS));
+      if (!unixAgents.isEmpty()) {
+        PaloAltoCortexAction action = new PaloAltoCortexAction();
+        action.setAgents(unixAgents);
+        action.setScriptId(this.config.getUnixScriptId());
+        action.setCommandEncoded(
+            Base64.getEncoder()
+                .encodeToString(UNIX_CLEAN_PAYLOADS_COMMAND.getBytes(StandardCharsets.UTF_8)));
+        actions.add(action);
+      }
+      paloAltoCortexExecutorContextService.executeActions(actions);
+    }
+  }
+}
