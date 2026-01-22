@@ -5,7 +5,10 @@ import static io.openaev.integration.impl.injectors.openaev.OpenaevInjectorInteg
 
 import io.openaev.database.model.Injector;
 import io.openaev.database.repository.InjectorRepository;
+import io.openaev.injectors.email.EmailContract;
+import io.openaev.injectors.openaev.OpenAEVImplantContract;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -41,16 +44,17 @@ public class InjectorFixture {
   }
 
   public Injector createOAEVImplantInjector() {
-    return createInjector(OPENAEV_INJECTOR_ID, "OpenAEV Implant", "openaev_implant");
+    return createInjector(OPENAEV_INJECTOR_ID, "OpenAEV Implant", OpenAEVImplantContract.TYPE);
   }
 
   public Injector createOAEVEmailInjector() {
-    return createInjector(EMAIL_INJECTOR_ID, "Email", "openaev_email");
+    return createInjector(EMAIL_INJECTOR_ID, "Email", EmailContract.TYPE);
   }
 
   public Injector getWellKnownOaevImplantInjector() {
+    Optional<Injector> injectorOptional = injectorRepository.findByType("openaev_implant");
     Injector injector =
-        injectorRepository.findByType("openaev_implant").orElse(createOAEVImplantInjector());
+        injectorOptional.orElseGet(() -> injectorRepository.save(createOAEVImplantInjector()));
     // ensure the injector is marked for payloads
     // some tests not running in a transaction may flip this
     injector.setPayloads(true);
@@ -59,8 +63,9 @@ public class InjectorFixture {
   }
 
   public Injector getWellKnownEmailInjector(boolean isPayload) {
+    Optional<Injector> injectorOptional = injectorRepository.findByType("openaev_email");
     Injector injector =
-        injectorRepository.findByType("openaev_email").orElse(createOAEVEmailInjector());
+        injectorOptional.orElseGet(() -> injectorRepository.save(createOAEVEmailInjector()));
     // ensure the injector is marked for payloads
     // some tests not running in a transaction may flip this
     injector.setPayloads(isPayload);
