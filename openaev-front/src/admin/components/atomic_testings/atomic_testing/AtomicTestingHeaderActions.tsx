@@ -48,14 +48,21 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
       await launchAtomicTesting(injectResultOverview.inject_id).then((result: { data: InjectResultOverviewOutput }) => {
         setInjectResultOverview(result.data);
       }).catch((error) => {
-        const startMessage = 'Some asset will be executed through ';
-        if (error.message === 'LICENSE_RESTRICTION' && error.errors?.children?.message?.errors?.[0]?.startsWith(startMessage)) {
-          const message = error.errors.children.message.errors[0];
-          const executors = message
-            .slice(startMessage.length, message.length)
-            .split(' and ')
-            .join(` ${t('and')} `);
-          setEEFeatureDetectedInfo(t('some injects will be executed through {executors} agents.', { executors }));
+        // NOTE: The parsing below depends on the current backend error message format.
+        // If the backend message for LICENSE_RESTRICTION changes, this logic may need
+        // to be updated to match the new format.
+        if (error?.message === 'LICENSE_RESTRICTION') {
+          const startMessage = 'Some asset will be executed through ';
+          const rawMessage = error?.errors?.children?.message?.errors?.[0];
+          if (typeof rawMessage === 'string' && rawMessage.startsWith(startMessage)) {
+            const executors = rawMessage
+              .slice(startMessage.length)
+              .split(' and ')
+              .join(` ${t('and')} `);
+            setEEFeatureDetectedInfo(
+              t('some injects will be executed through {executors} agents.', { executors }),
+            );
+          }
         }
       });
     }
