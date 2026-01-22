@@ -8,7 +8,6 @@ import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.Widget;
 import io.openaev.database.repository.CustomDashboardRepository;
 import io.openaev.database.repository.WidgetRepository;
-import io.openaev.engine.EngineService;
 import io.openaev.engine.api.*;
 import io.openaev.rest.custom_dashboard.utils.WidgetUtils;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
@@ -17,7 +16,6 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import java.util.Optional;
-
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
@@ -78,7 +76,8 @@ public class WidgetService {
   @Transactional
   public void deleteWidget(
       @NotBlank final String customDashboardId, @NotBlank final String widgetId) {
-    Optional<Widget> widget = this.widgetRepository.findByCustomDashboardIdAndId(customDashboardId, widgetId);
+    Optional<Widget> widget =
+        this.widgetRepository.findByCustomDashboardIdAndId(customDashboardId, widgetId);
     if (widget.isEmpty()) {
       throw new EntityNotFoundException("Widget not found with id: " + widgetId);
     }
@@ -171,16 +170,17 @@ public class WidgetService {
 
   /**
    * Manage telemetry event for widgets management
+   *
    * @param widget to apply telemetry
    * @param isDeletedEvent to manage event
    */
   private void sendTelemetryEvent(Widget widget, boolean isDeletedEvent) {
-      if (WidgetType.AVERAGE.equals(widget.getType())) {
-          if (isDeletedEvent) {
-              actionMetricCollector.removeAverageCreatedCount();
-          } else {
-              actionMetricCollector.addAverageCreatedCount();
-          }
+    if (WidgetType.AVERAGE.equals(widget.getType())) {
+      if (isDeletedEvent) {
+        actionMetricCollector.removeAverageCreatedCount();
+      } else {
+        actionMetricCollector.addAverageCreatedCount();
       }
+    }
   }
 }
