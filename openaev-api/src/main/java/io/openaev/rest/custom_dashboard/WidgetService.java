@@ -11,10 +11,13 @@ import io.openaev.database.repository.WidgetRepository;
 import io.openaev.engine.EngineService;
 import io.openaev.engine.api.*;
 import io.openaev.rest.custom_dashboard.utils.WidgetUtils;
+import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.CustomDashboardTimeRange;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
+import java.util.Optional;
+
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
@@ -26,7 +29,7 @@ public class WidgetService {
 
   private final CustomDashboardRepository customDashboardRepository;
   private final WidgetRepository widgetRepository;
-  private final EngineService esService;
+  private final ActionMetricCollector actionMetricCollector;
 
   // -- CRUD --
 
@@ -44,6 +47,7 @@ public class WidgetService {
                     new EntityNotFoundException(
                         "Custom dashboard not found with id: " + customDashboardId));
     widget.setCustomDashboard(customDashboard);
+    this.sendTelemetryEvent(widget, false);
     return this.widgetRepository.save(widget);
   }
 
@@ -74,9 +78,11 @@ public class WidgetService {
   @Transactional
   public void deleteWidget(
       @NotBlank final String customDashboardId, @NotBlank final String widgetId) {
-    if (!this.widgetRepository.existsWidgetByCustomDashboardIdAndId(customDashboardId, widgetId)) {
+    Optional<Widget> widget = this.widgetRepository.findByCustomDashboardIdAndId(customDashboardId, widgetId);
+    if (widget.isEmpty()) {
       throw new EntityNotFoundException("Widget not found with id: " + widgetId);
     }
+    this.sendTelemetryEvent(widget.get(), true);
     this.widgetRepository.deleteById(widgetId);
   }
 
@@ -161,5 +167,20 @@ public class WidgetService {
         statusFilters,
         Filters.FilterOperator.contains);
     return listInjectExpectationsConfig;
+  }
+
+  /**
+   * Manage telemetry event for widgets management
+   * @param widget to apply telemetry
+   * @param isDeletedEvent to manage event
+   */
+  private void sendTelemetryEvent(Widget widget, boolean isDeletedEvent) {
+      if (WidgetType.AVERAGE.equals(widget.getType())) {
+          if (isDeletedEvent) {
+              actionMetricCollector.removeAverageCreatedCount();
+          } else {
+              actionMetricCollector.addAverageCreatedCount();
+          }
+      }
   }
 }
