@@ -326,8 +326,14 @@ public class XtmComposerApiTest extends IntegrationTest {
             .inPath("[*].connector_image")
             .isArray()
             .contains(
-                instance.getCatalogConnector().getContainerImage(),
-                instance2.getCatalogConnector().getContainerImage());
+                String.format(
+                    "%s:%s",
+                    instance.getCatalogConnector().getContainerImage(),
+                    instance.getCatalogConnector().getContainerVersion()),
+                String.format(
+                    "%s:%s",
+                    instance2.getCatalogConnector().getContainerImage(),
+                    instance2.getCatalogConnector().getContainerVersion()));
         assertThatJson(response)
             .inPath("[0].connector_instance_configurations")
             .isArray()
