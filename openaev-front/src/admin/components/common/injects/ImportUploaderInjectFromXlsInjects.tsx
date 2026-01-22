@@ -191,7 +191,7 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
         }
         const messageInfo: string[] = formatMessages(value.import_message ?? []);
 
-        messageInfo.push(String(value.total_injects ?? 0) + ' / ' + String(value.total_rows_analysed ?? 0) + ' ');
+        messageInfo.push((value.total_injects ?? 0) + ' / ' + (value.total_rows_analysed ?? 0) + ' ');
 
         setMessageInfoMapperXls(messageInfo);
       });
