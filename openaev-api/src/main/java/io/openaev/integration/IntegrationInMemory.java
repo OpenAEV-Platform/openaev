@@ -7,9 +7,9 @@ import java.lang.reflect.InvocationTargetException;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public abstract class IntegrationWithoutConfig extends Integration {
+public abstract class IntegrationInMemory extends Integration {
 
-  protected IntegrationWithoutConfig(
+  protected IntegrationInMemory(
       ComponentRequestEngine componentRequestEngine,
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService) {
