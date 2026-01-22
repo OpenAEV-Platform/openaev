@@ -6,7 +6,7 @@ import io.openaev.database.model.Endpoint;
 import io.openaev.injectors.openaev.OpenAEVImplantContract;
 import io.openaev.injectors.openaev.OpenAEVImplantExecutor;
 import io.openaev.integration.ComponentRequestEngine;
-import io.openaev.integration.IntegrationWithoutConfig;
+import io.openaev.integration.IntegrationInMemory;
 import io.openaev.integration.QualifiedComponent;
 import io.openaev.service.InjectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -14,7 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class OpenaevInjectorIntegration extends IntegrationWithoutConfig {
+public class OpenaevInjectorIntegration extends IntegrationInMemory {
   public static final String OPENAEV_INJECTOR_NAME = "OpenAEV Implant";
   public static final String OPENAEV_INJECTOR_ID = "49229430-b5b5-431f-ba5b-f36f599b0144";
 

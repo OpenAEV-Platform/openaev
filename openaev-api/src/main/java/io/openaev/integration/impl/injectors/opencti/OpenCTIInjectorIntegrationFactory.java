@@ -1,6 +1,6 @@
 package io.openaev.integration.impl.injectors.opencti;
 
-import static io.openaev.integration.impl.injectors.opencti.OpenctiInjectorIntegration.OPENCTI_INJECTOR_NAME;
+import static io.openaev.integration.impl.injectors.opencti.OpenCTIInjectorIntegration.OPENCTI_INJECTOR_NAME;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
@@ -9,11 +9,12 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.executors.InjectorContext;
 import io.openaev.injectors.opencti.OpenCTIContract;
-import io.openaev.injectors.opencti.config.OpenctiInjectorConfig;
+import io.openaev.injectors.opencti.config.OpenCTIInjectorConfig;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
-import io.openaev.integration.migration.OpenctiInjectorConfigurationMigration;
+import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
+import io.openaev.integration.migration.OpenCTIInjectorConfigurationMigration;
 import io.openaev.opencti.service.OpenCTIService;
 import io.openaev.service.FileService;
 import io.openaev.service.InjectExpectationService;
@@ -27,7 +28,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @Profile("!test")
-public class OpenctiInjectorIntegrationFactory extends IntegrationFactory {
+public class OpenCTIInjectorIntegrationFactory extends IntegrationFactory {
 
   private final ComponentRequestEngine componentRequestEngine;
   private final ConnectorInstanceService connectorInstanceService;
@@ -38,9 +39,10 @@ public class OpenctiInjectorIntegrationFactory extends IntegrationFactory {
   private final InjectorContext injectorContext;
   private final OpenCTIService openCTIService;
   private final InjectExpectationService injectExpectationService;
-  private final OpenctiInjectorConfigurationMigration openctiInjectorConfigurationMigration;
+  private final OpenCTIInjectorConfigurationMigration openctiInjectorConfigurationMigration;
+  private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
-  public OpenctiInjectorIntegrationFactory(
+  public OpenCTIInjectorIntegrationFactory(
       ComponentRequestEngine componentRequestEngine,
       ConnectorInstanceService connectorInstanceService,
       InjectorService injectorService,
@@ -50,7 +52,8 @@ public class OpenctiInjectorIntegrationFactory extends IntegrationFactory {
       InjectorContext injectorContext,
       OpenCTIService openCTIService,
       InjectExpectationService injectExpectationService,
-      OpenctiInjectorConfigurationMigration openctiInjectorConfigurationMigration,
+      OpenCTIInjectorConfigurationMigration openctiInjectorConfigurationMigration,
+      BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
       HttpClientFactory httpClientFactory) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.componentRequestEngine = componentRequestEngine;
@@ -63,6 +66,7 @@ public class OpenctiInjectorIntegrationFactory extends IntegrationFactory {
     this.injectorContext = injectorContext;
     this.injectExpectationService = injectExpectationService;
     this.openctiInjectorConfigurationMigration = openctiInjectorConfigurationMigration;
+    this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
   }
 
   @Override
@@ -95,7 +99,7 @@ public class OpenctiInjectorIntegrationFactory extends IntegrationFactory {
     connector.setSubscriptionLink("");
     connector.setContainerType(ConnectorType.INJECTOR);
     connector.setCatalogConnectorConfigurations(
-        new OpenctiInjectorConfig().toCatalogConfigurationSet(connector));
+        new OpenCTIInjectorConfig().toCatalogConfigurationSet(connector));
     catalogConnectorService.saveAll(List.of(connector));
   }
 
@@ -106,7 +110,7 @@ public class OpenctiInjectorIntegrationFactory extends IntegrationFactory {
           NoSuchMethodException,
           InstantiationException,
           IllegalAccessException {
-    return new OpenctiInjectorIntegration(
+    return new OpenCTIInjectorIntegration(
         componentRequestEngine,
         instance,
         connectorInstanceService,
@@ -114,6 +118,7 @@ public class OpenctiInjectorIntegrationFactory extends IntegrationFactory {
         openCTIContract,
         injectorContext,
         openCTIService,
-        injectExpectationService);
+        injectExpectationService,
+        baseIntegrationConfigurationBuilder);
   }
 }

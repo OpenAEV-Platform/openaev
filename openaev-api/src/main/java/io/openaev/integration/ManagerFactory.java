@@ -20,7 +20,6 @@ public class ManagerFactory {
     if (manager == null) {
       this.manager = new Manager(factories);
     }
-    this.manager.monitorIntegrations();
     return this.manager;
   }
 }

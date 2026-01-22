@@ -2,6 +2,7 @@ package io.openaev.integration.impl.injectors.ovh;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorType;
 import io.openaev.executors.InjectorContext;
 import io.openaev.executors.exception.ExecutorException;
 import io.openaev.injectors.ovh.OvhSmsContract;
@@ -27,7 +28,9 @@ public class OvhInjectorIntegration extends Integration {
   private final OvhSmsContract ovhSmsContract;
   private OvhSmsInjectorConfig config;
   private final InjectorContext injectorContext;
+  private final ConnectorInstance connectorInstance;
 
+  private final ConnectorInstanceService connectorInstanceService;
   private final InjectorService injectorService;
   private final InjectExpectationService injectExpectationService;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
@@ -47,8 +50,10 @@ public class OvhInjectorIntegration extends Integration {
     super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.ovhSmsContract = ovhSmsContract;
     this.injectorContext = injectorContext;
+    this.connectorInstanceService = connectorInstanceService;
     this.injectorService = injectorService;
     this.injectExpectationService = injectExpectationService;
+    this.connectorInstance = connectorInstance;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
 
     // Refresh the context to get the config
@@ -63,8 +68,12 @@ public class OvhInjectorIntegration extends Integration {
 
   @Override
   protected void innerStart() throws Exception {
+    String injectorId =
+            connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
+                    connectorInstance.getId(), ConnectorType.INJECTOR.getIdKeyName());
+
     injectorService.registerBuiltinInjector(
-        OVH_SMS_INJECTOR_ID,
+        injectorId,
         OVH_SMS_INJECTOR_NAME,
         ovhSmsContract,
         true,

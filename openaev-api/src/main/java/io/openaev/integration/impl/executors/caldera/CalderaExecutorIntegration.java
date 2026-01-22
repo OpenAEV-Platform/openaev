@@ -91,7 +91,7 @@ public class CalderaExecutorIntegration extends Integration {
   protected void innerStart() throws Exception {
     String executorId =
         connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
-            connectorInstance.getId(), "EXECUTOR_ID");
+            connectorInstance.getId(), ConnectorType.EXECUTOR.getIdKeyName());
 
     Executor executor =
         executorService.register(

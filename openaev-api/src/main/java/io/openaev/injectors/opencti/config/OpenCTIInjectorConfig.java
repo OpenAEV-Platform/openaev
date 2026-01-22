@@ -1,7 +1,7 @@
 package io.openaev.injectors.opencti.config;
 
-import static io.openaev.integration.impl.injectors.opencti.OpenctiInjectorIntegration.OPENCTI_INJECTOR_ID;
-import static io.openaev.integration.impl.injectors.opencti.OpenctiInjectorIntegration.OPENCTI_INJECTOR_NAME;
+import static io.openaev.integration.impl.injectors.opencti.OpenCTIInjectorIntegration.OPENCTI_INJECTOR_ID;
+import static io.openaev.integration.impl.injectors.opencti.OpenCTIInjectorIntegration.OPENCTI_INJECTOR_NAME;
 
 import io.openaev.integration.configuration.BaseIntegrationConfiguration;
 import io.openaev.integration.configuration.IntegrationConfigKey;
@@ -15,13 +15,13 @@ import org.springframework.stereotype.Component;
 @Setter
 @Component
 @ConfigurationProperties(prefix = "injector.opencti")
-public class OpenctiInjectorConfig extends BaseIntegrationConfiguration {
+public class OpenCTIInjectorConfig extends BaseIntegrationConfiguration {
   @IntegrationConfigKey(
       key = "INJECTOR_ID",
       description =
           """
-                            ID of the builtin Opencti injector
-                            """,
+            ID of the builtin Opencti injector
+          """,
       isRequired = true)
   @NotBlank
   private String id = OPENCTI_INJECTOR_ID;
@@ -30,8 +30,8 @@ public class OpenctiInjectorConfig extends BaseIntegrationConfiguration {
       key = "INJECTOR_NAME",
       description =
           """
-                    Name of the builtin opencti injector
-                    """,
+            Name of the builtin opencti injector
+          """,
       isRequired = true)
   @NotBlank
   private String name = OPENCTI_INJECTOR_NAME;

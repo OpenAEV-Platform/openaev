@@ -5,14 +5,14 @@ import io.openaev.executors.InjectorContext;
 import io.openaev.injectors.manual.ManualContract;
 import io.openaev.injectors.manual.ManualExecutor;
 import io.openaev.integration.ComponentRequestEngine;
-import io.openaev.integration.IntegrationWithoutConfig;
+import io.openaev.integration.IntegrationInMemory;
 import io.openaev.integration.QualifiedComponent;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.util.List;
 
-public class ManualInjectorIntegration extends IntegrationWithoutConfig {
+public class ManualInjectorIntegration extends IntegrationInMemory {
   private static final String MANUAL_INJECTOR_NAME = "Manual";
   public static final String MANUAL_INJECTOR_ID = "6981a39d-e219-4016-a235-cf7747994abc";
 
