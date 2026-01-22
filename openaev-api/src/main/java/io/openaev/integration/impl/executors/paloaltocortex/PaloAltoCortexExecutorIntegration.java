@@ -1,29 +1,37 @@
 package io.openaev.integration.impl.executors.paloaltocortex;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Executor;
 import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorService;
+import io.openaev.executors.exception.ExecutorException;
 import io.openaev.executors.paloaltocortex.client.PaloAltoCortexExecutorClient;
 import io.openaev.executors.paloaltocortex.config.PaloAltoCortexExecutorConfig;
 import io.openaev.executors.paloaltocortex.service.PaloAltoCortexExecutorContextService;
 import io.openaev.executors.paloaltocortex.service.PaloAltoCortexExecutorService;
 import io.openaev.executors.paloaltocortex.service.PaloAltoCortexGarbageCollectorService;
+import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.QualifiedComponent;
+import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import java.lang.reflect.InvocationTargetException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ScheduledFuture;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
+@Slf4j
 public class PaloAltoCortexExecutorIntegration extends Integration {
   public static final String PALOALTOCORTEX_EXECUTOR_DEFAULT_ID =
       "2177ceeb-a9e2-4a33-bf30-1bf7c47f150a";
@@ -39,8 +47,8 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
   private PaloAltoCortexExecutorService paloAltoCortexExecutorService;
   private PaloAltoCortexGarbageCollectorService paloAltoCortexGarbageCollectorService;
 
-  private final PaloAltoCortexExecutorConfig config;
-  private final PaloAltoCortexExecutorClient client;
+  private PaloAltoCortexExecutorConfig config;
+  private PaloAltoCortexExecutorClient client;
   private final AgentService agentService;
   private final EndpointService endpointService;
   private final AssetGroupService assetGroupService;
@@ -48,14 +56,14 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
   private final Ee eeService;
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
+  private final HttpClientFactory httpClientFactory;
+  private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
   private final List<ScheduledFuture<?>> timers = new ArrayList<>();
 
   public PaloAltoCortexExecutorIntegration(
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
-      PaloAltoCortexExecutorClient client,
-      PaloAltoCortexExecutorConfig config,
       EndpointService endpointService,
       AgentService agentService,
       AssetGroupService assetGroupService,
@@ -63,10 +71,10 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
       LicenseCacheManager licenseCacheManager,
       ComponentRequestEngine componentRequestEngine,
       ExecutorService executorService,
-      ThreadPoolTaskScheduler taskScheduler) {
+      ThreadPoolTaskScheduler taskScheduler,
+      BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
+      HttpClientFactory httpClientFactory) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService);
-    this.client = client;
-    this.config = config;
     this.endpointService = endpointService;
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;
@@ -74,6 +82,17 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
     this.licenseCacheManager = licenseCacheManager;
     this.executorService = executorService;
     this.taskScheduler = taskScheduler;
+    this.httpClientFactory = httpClientFactory;
+    this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
+
+    // Refresh the context to get the config
+    try {
+      refresh();
+    } catch (Exception e) {
+      log.error("Error during initialization of the Palo Alto Cortex Executor", e);
+      throw new ExecutorException(
+          e, "Error during initialization of the Executor", PALOALTOCORTEX_EXECUTOR_NAME);
+    }
   }
 
   @Override
@@ -93,6 +112,7 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
               Endpoint.PLATFORM_TYPE.MacOS.name()
             });
 
+    client = new PaloAltoCortexExecutorClient(config, httpClientFactory);
     paloAltoCortexExecutorContextService =
         new PaloAltoCortexExecutorContextService(
             config, client, eeService, licenseCacheManager, executorService);
@@ -111,6 +131,18 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
         taskScheduler.scheduleAtFixedRate(
             paloAltoCortexGarbageCollectorService,
             Duration.ofHours(this.config.getCleanImplantInterval())));
+  }
+
+  @Override
+  protected void refresh()
+      throws JsonProcessingException,
+          InvocationTargetException,
+          NoSuchMethodException,
+          InstantiationException,
+          IllegalAccessException {
+    this.config = baseIntegrationConfigurationBuilder.build(PaloAltoCortexExecutorConfig.class);
+    this.config.fromConnectorInstanceConfigurationSet(
+        this.getConnectorInstance(), SentinelOneExecutorConfig.class);
   }
 
   @Override

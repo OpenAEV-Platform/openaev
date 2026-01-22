@@ -4,11 +4,9 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_NAME;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.database.model.CatalogConnector;
-import io.openaev.database.model.ConnectorInstance;
-import io.openaev.database.model.ConnectorInstanceConfiguration;
-import io.openaev.database.model.ConnectorInstancePersisted;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorContextService;
@@ -19,6 +17,7 @@ import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
+import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration;
 import io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegrationFactory;
 import io.openaev.service.AgentService;
@@ -27,6 +26,8 @@ import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.connector_instances.EncryptionFactory;
+import io.openaev.utils.reflection.FieldUtils;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.ArrayList;
 import java.util.List;
@@ -58,6 +59,9 @@ public class PaloAltoCortexExecutorIntegrationTest {
   @Autowired private CatalogConnectorRepository catalogConnectorRepository;
   @Autowired private ConnectorInstanceService connectorInstanceService;
   @Autowired private PaloAltoCortexExecutorConfig config;
+  @Autowired private EncryptionFactory encryptionFactory;
+  @Autowired private HttpClientFactory httpClientFactory;
+  @Autowired private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
   @Autowired private FileService fileService;
 
@@ -67,14 +71,15 @@ public class PaloAltoCortexExecutorIntegrationTest {
         catalogConnectorService,
         executorService,
         componentRequestEngine,
-        client,
         agentService,
         endpointService,
         assetGroupService,
         eeService,
         licenseCacheManager,
         taskScheduler,
-        fileService);
+        fileService,
+        baseIntegrationConfigurationBuilder,
+        httpClientFactory);
   }
 
   @Test
@@ -161,6 +166,24 @@ public class PaloAltoCortexExecutorIntegrationTest {
                             left.getKey().compareTo(right.getKey())
                                 & left.getValue().toString().compareTo(right.getValue().toString()),
                         ConnectorInstanceConfiguration.class)
-                    .hasSameElementsAs(config.toInstanceConfigurationSet(instance)));
+                    .hasSameElementsAs(
+                        config.toInstanceConfigurationSet(
+                            instance,
+                            encryptionFactory.getEncryptionService(
+                                instance.getCatalogConnector()))));
+  }
+
+  @Test
+  @DisplayName(
+      "When factory is initialised and an instance is spawned with an unsupported connector instance type, the encryption service is null")
+  public void whenInstanceIsSpawn_encryptionServiceIsNull() throws Exception {
+    IntegrationFactory integrationFactory = getFactory();
+
+    integrationFactory.initialise();
+
+    Integration integration = integrationFactory.spawn(new ConnectorInstanceInMemory());
+    AssertionsForClassTypes.assertThat(
+            FieldUtils.computeAllFieldValues(integration).get("encryptionService"))
+        .isNull();
   }
 }
