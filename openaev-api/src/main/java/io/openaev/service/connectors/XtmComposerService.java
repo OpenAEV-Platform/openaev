@@ -37,7 +37,11 @@ public class XtmComposerService {
         .name(instance.getCatalogConnector().getTitle())
         .currentStatus(instance.getCurrentStatus())
         .requestedStatus(instance.getRequestedStatus())
-        .image(instance.getCatalogConnector().getContainerImage())
+        .image(
+            String.format(
+                "%s:%s",
+                instance.getCatalogConnector().getContainerImage(),
+                instance.getCatalogConnector().getContainerVersion()))
         .hash(ConnectorInstanceHashHelper.computeInstanceHash(instance))
         .configurations(
             instance.getConfigurations().stream()
