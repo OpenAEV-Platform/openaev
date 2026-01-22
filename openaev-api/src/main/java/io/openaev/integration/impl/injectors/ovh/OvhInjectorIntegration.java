@@ -69,8 +69,8 @@ public class OvhInjectorIntegration extends Integration {
   @Override
   protected void innerStart() throws Exception {
     String injectorId =
-            connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
-                    connectorInstance.getId(), ConnectorType.INJECTOR.getIdKeyName());
+        connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
+            connectorInstance.getId(), ConnectorType.INJECTOR.getIdKeyName());
 
     injectorService.registerBuiltinInjector(
         injectorId,

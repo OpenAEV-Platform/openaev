@@ -16,10 +16,9 @@ import io.openaev.opencti.service.OpenCTIService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import lombok.extern.slf4j.Slf4j;
-
 import java.lang.reflect.InvocationTargetException;
 import java.util.*;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class OpenCTIInjectorIntegration extends Integration {
@@ -34,7 +33,6 @@ public class OpenCTIInjectorIntegration extends Integration {
   private final ConnectorInstanceService connectorInstanceService;
   private final ConnectorInstance connectorInstance;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
-
 
   @QualifiedComponent(identifier = OpenCTIContract.TYPE)
   private OpenCTIExecutor openCTIExecutor;
@@ -65,7 +63,7 @@ public class OpenCTIInjectorIntegration extends Integration {
     } catch (Exception e) {
       log.error("Error during initialization of the " + OPENCTI_INJECTOR_NAME + "  Injector", e);
       throw new ExecutorException(
-              e, "Error during initialization of the Injector", OPENCTI_INJECTOR_NAME);
+          e, "Error during initialization of the Injector", OPENCTI_INJECTOR_NAME);
     }
   }
 
@@ -91,14 +89,15 @@ public class OpenCTIInjectorIntegration extends Integration {
 
   @Override
   protected void refresh()
-          throws JsonProcessingException,
+      throws JsonProcessingException,
           InvocationTargetException,
           NoSuchMethodException,
           InstantiationException,
           IllegalAccessException {
-    OpenCTIInjectorConfig config = baseIntegrationConfigurationBuilder.build(OpenCTIInjectorConfig.class);
+    OpenCTIInjectorConfig config =
+        baseIntegrationConfigurationBuilder.build(OpenCTIInjectorConfig.class);
     config.fromConnectorInstanceConfigurationSet(
-            this.getConnectorInstance(), OpenCTIInjectorConfig.class);
+        this.getConnectorInstance(), OpenCTIInjectorConfig.class);
   }
 
   @Override
