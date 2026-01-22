@@ -169,16 +169,8 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
 
   const formatMessages = (messages: ImportMessage[]): string[] => {
     const grouped = groupMessages(messages);
-
-    return Object.values(grouped).map(({ code, column, rows }) => {
-      const rowList = rows.join(', ');
-
-      if (column) {
-        return `${t(code)}\n ${t('ON COLUMN')}: ${column}\n ${t('ON ROW')}: ${rowList}`;
-      }
-
-      return `${t(code)}\n ${t('ON ROW')}: ${rowList}`;
-    });
+    return Object.values(grouped)
+      .map(({ code, column, rows }) => `${t(code)}\n ${column ? `${t('ON COLUMN')}: ${column}\n ` : ''}${t('ON ROW')}: ${rows.join(', ')}`);
   };
   const checkNeedLaunchDate = () => {
     setMessageInfoMapperXls([]);
@@ -338,16 +330,14 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
 
       {messageInfoMapperXls.length != 0
         && (
-          <>
-            <Alert severity="info">
-              {((messageInfoMapperXls.at(messageInfoMapperXls.length - 1) ?? '') + t('injects are ready to import'))}
-              <p>{t('ERRORS DETECTED:')}</p>
-              {messageInfoMapperXls.map((msg, i) => (
-                (i != messageInfoMapperXls.length - 1)
-                && <p style={{ whiteSpace: 'pre-line' }} key={i}>{msg}</p>
-              ))}
-            </Alert>
-          </>
+          <Alert severity="info">
+            {((messageInfoMapperXls.at(messageInfoMapperXls.length - 1) ?? '') + t('injects are ready to import'))}
+            <p>{t('ERRORS DETECTED:')}</p>
+            {messageInfoMapperXls.map((msg, i) => (
+              (i != messageInfoMapperXls.length - 1)
+              && <p style={{ whiteSpace: 'pre-line' }} key={i}>{msg}</p>
+            ))}
+          </Alert>
         )}
       <div className={classes.buttons}>
         <Button
