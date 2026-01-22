@@ -1,5 +1,7 @@
 package io.openaev.database.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.persistence.Id;
 import java.util.Set;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -9,6 +11,11 @@ import lombok.Setter;
 @Setter
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public abstract class ConnectorInstance {
+
+  @Id
+  @JsonProperty("connector_instance_id")
+  private String id;
+
   public enum CURRENT_STATUS_TYPE {
     started,
     stopped
