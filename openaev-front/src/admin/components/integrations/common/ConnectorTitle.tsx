@@ -1,4 +1,4 @@
-import { VerifiedOutlined } from '@mui/icons-material';
+import { HelpCenterOutlined, VerifiedOutlined } from '@mui/icons-material';
 import { Button, Chip, Tooltip, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -126,11 +126,17 @@ const ConnectorTitle = ({
 
   return (
     <div className={classes.content}>
-      <img
-        src={connector.connectorLogoUrl}
-        alt={connector.connectorLogoName}
-        className={classes.img}
-      />
+      {connector.connectorLogoName.includes('dummy') ? (
+        <HelpCenterOutlined className={classes.img} />
+      )
+        : (
+            <img
+              src={connector.connectorLogoUrl}
+              alt={connector.connectorLogoName}
+              className={classes.img}
+            />
+          )}
+
       <div className={classes.firstLine}>
         <Tooltip title={connector.connectorName}>
           <Typography
