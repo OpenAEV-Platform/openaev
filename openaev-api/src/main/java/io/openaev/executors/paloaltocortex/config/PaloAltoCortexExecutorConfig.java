@@ -103,7 +103,7 @@ public class PaloAltoCortexExecutorConfig extends BaseIntegrationConfiguration {
       isRequired = true)
   @Getter
   @NotBlank
-  private String groupId;
+  private String groupName;
 
   @IntegrationConfigKey(
       key = "EXECUTOR_PALOALTOCORTEX_WINDOWS_SCRIPT_ID",

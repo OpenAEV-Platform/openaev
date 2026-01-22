@@ -14,6 +14,7 @@ public class PaloAltoCortexEndpoint {
   private String os_type;
   private String endpoint_version;
   private String public_ip; // seenIp
-  private String last_seen;
+  private long last_seen;
   private String[] ip;
+  private String[] mac_address;
 }

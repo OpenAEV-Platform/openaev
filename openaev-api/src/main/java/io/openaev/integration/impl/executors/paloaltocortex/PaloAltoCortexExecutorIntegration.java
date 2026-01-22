@@ -98,7 +98,7 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
             config, client, eeService, licenseCacheManager, executorService);
     paloAltoCortexExecutorService =
         new PaloAltoCortexExecutorService(
-            executor, client, endpointService, agentService, assetGroupService);
+            executor, client, config, endpointService, agentService, assetGroupService);
     paloAltoCortexGarbageCollectorService =
         new PaloAltoCortexGarbageCollectorService(
             config, paloAltoCortexExecutorContextService, agentService);

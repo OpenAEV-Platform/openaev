@@ -1,7 +1,7 @@
 package io.openaev.integration.impl;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_NAME;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.config.cache.LicenseCacheManager;
@@ -13,15 +13,14 @@ import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorService;
-import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
-import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
+import io.openaev.executors.paloaltocortex.client.PaloAltoCortexExecutorClient;
+import io.openaev.executors.paloaltocortex.config.PaloAltoCortexExecutorConfig;
 import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
-import io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration;
-import io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegrationFactory;
-import io.openaev.integration.migration.SentinelOneExecutorConfigurationMigration;
+import io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration;
+import io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegrationFactory;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -46,7 +45,7 @@ import org.springframework.transaction.annotation.Transactional;
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 public class PaloAltoCortexExecutorIntegrationTest {
-  @Autowired private SentinelOneExecutorClient client;
+  @Autowired private PaloAltoCortexExecutorClient client;
   @Autowired private EndpointService endpointService;
   @Autowired private AgentService agentService;
   @Autowired private AssetGroupService assetGroupService;
@@ -58,20 +57,16 @@ public class PaloAltoCortexExecutorIntegrationTest {
   @Autowired private CatalogConnectorService catalogConnectorService;
   @Autowired private CatalogConnectorRepository catalogConnectorRepository;
   @Autowired private ConnectorInstanceService connectorInstanceService;
-  @Autowired private SentinelOneExecutorConfig sentinelOneExecutorConfig;
-
-  @Autowired
-  private SentinelOneExecutorConfigurationMigration sentinelOneExecutorConfigurationMigration;
+  @Autowired private PaloAltoCortexExecutorConfig config;
 
   @Autowired private FileService fileService;
 
-  private SentinelOneExecutorIntegrationFactory getFactory() {
-    return new SentinelOneExecutorIntegrationFactory(
+  private PaloAltoCortexExecutorIntegrationFactory getFactory() {
+    return new PaloAltoCortexExecutorIntegrationFactory(
         connectorInstanceService,
         catalogConnectorService,
         executorService,
         componentRequestEngine,
-        sentinelOneExecutorConfigurationMigration,
         client,
         agentService,
         endpointService,
@@ -93,7 +88,7 @@ public class PaloAltoCortexExecutorIntegrationTest {
 
     assertThat(connectors).hasSize(1);
     AssertionsForClassTypes.assertThat(connectors.getFirst().getClassName())
-        .isEqualTo(SentinelOneExecutorIntegrationFactory.class.getCanonicalName());
+        .isEqualTo(PaloAltoCortexExecutorIntegrationFactory.class.getCanonicalName());
   }
 
   @Test
@@ -109,7 +104,7 @@ public class PaloAltoCortexExecutorIntegrationTest {
     List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
 
     assertThat(syncedIntegrations).hasSize(1);
-    assertThat(syncedIntegrations).first().isInstanceOf(SentinelOneExecutorIntegration.class);
+    assertThat(syncedIntegrations).first().isInstanceOf(PaloAltoCortexExecutorIntegration.class);
     assertThat(syncedIntegrations)
         .first()
         .satisfies(
@@ -132,14 +127,14 @@ public class PaloAltoCortexExecutorIntegrationTest {
     List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
 
     assertThat(syncedIntegrations).hasSize(1);
-    assertThat(syncedIntegrations).first().isInstanceOf(SentinelOneExecutorIntegration.class);
+    assertThat(syncedIntegrations).first().isInstanceOf(PaloAltoCortexExecutorIntegration.class);
     assertThat(syncedIntegrations)
         .first()
         .satisfies(
             integration ->
                 assertThat(
                         integration.requestComponent(
-                            new ComponentRequest(SENTINELONE_EXECUTOR_NAME),
+                            new ComponentRequest(PALOALTOCORTEX_EXECUTOR_NAME),
                             ExecutorContextService.class))
                     .isEmpty());
   }
@@ -166,7 +161,6 @@ public class PaloAltoCortexExecutorIntegrationTest {
                             left.getKey().compareTo(right.getKey())
                                 & left.getValue().toString().compareTo(right.getValue().toString()),
                         ConnectorInstanceConfiguration.class)
-                    .hasSameElementsAs(
-                        sentinelOneExecutorConfig.toInstanceConfigurationSet(instance)));
+                    .hasSameElementsAs(config.toInstanceConfigurationSet(instance)));
   }
 }

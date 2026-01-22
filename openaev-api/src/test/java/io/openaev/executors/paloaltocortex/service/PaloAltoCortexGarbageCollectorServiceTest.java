@@ -1,15 +1,13 @@
 package io.openaev.executors.paloaltocortex.service;
 
-import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
+import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_TYPE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.database.model.Agent;
-import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
-import io.openaev.executors.sentinelone.model.SentinelOneAction;
-import io.openaev.executors.sentinelone.service.SentinelOneExecutorContextService;
-import io.openaev.executors.sentinelone.service.SentinelOneGarbageCollectorService;
+import io.openaev.executors.paloaltocortex.config.PaloAltoCortexExecutorConfig;
+import io.openaev.executors.paloaltocortex.model.PaloAltoCortexAction;
 import io.openaev.service.AgentService;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
@@ -25,30 +23,31 @@ import org.mockito.junit.jupiter.MockitoExtension;
 public class PaloAltoCortexGarbageCollectorServiceTest {
 
   @Mock private AgentService agentService;
-  @Mock private SentinelOneExecutorContextService sentinelOneExecutorContextService;
-  @Mock SentinelOneExecutorConfig config;
+  @Mock private PaloAltoCortexExecutorContextService paloAltoCortexExecutorContextService;
+  @Mock private PaloAltoCortexExecutorConfig config;
 
-  @InjectMocks private SentinelOneGarbageCollectorService sentinelOneGarbageCollectorService;
+  @InjectMocks private PaloAltoCortexGarbageCollectorService paloAltoCortexGarbageCollectorService;
 
   @Test
-  void test_run_garbageCollector_withSentinelOneAgents() {
+  void test_run_garbageCollector_withPaloAltoCortexAgents() {
     // Init datas
     Agent agent = AgentFixture.createDefaultAgentService();
+    agent.setExternalReference("agent_external_reference");
     agent.setAsset(EndpointFixture.createEndpoint());
-    when(agentService.getAgentsByExecutorType(SENTINELONE_EXECUTOR_TYPE))
+    when(agentService.getAgentsByExecutorType(PALOALTOCORTEX_EXECUTOR_TYPE))
         .thenReturn(List.of(agent));
     when(config.getWindowsScriptId()).thenReturn("test script");
     // Run method to test
-    sentinelOneGarbageCollectorService.run();
+    paloAltoCortexGarbageCollectorService.run();
     // Asserts
-    ArgumentCaptor<List<SentinelOneAction>> actionsCaptor = ArgumentCaptor.forClass(List.class);
-    verify(sentinelOneExecutorContextService).executeActions(actionsCaptor.capture());
+    ArgumentCaptor<List<PaloAltoCortexAction>> actionsCaptor = ArgumentCaptor.forClass(List.class);
+    verify(paloAltoCortexExecutorContextService).executeActions(actionsCaptor.capture());
     assertEquals(1, actionsCaptor.getValue().size());
-    SentinelOneAction sentinelOneAction = actionsCaptor.getValue().get(0);
-    assertEquals("test script", sentinelOneAction.getScriptId());
+    PaloAltoCortexAction action = actionsCaptor.getValue().get(0);
+    assertEquals("test script", action.getScriptId());
     assertEquals(
         "RwBlAHQALQBDAGgAaQBsAGQASQB0AGUAbQAgAC0AUABhAHQAaAAgACIAQwA6AFwAUAByAG8AZwByAGEAbQAgAEYAaQBsAGUAcwAgACgAeAA4ADYAKQBcAEYAaQBsAGkAZwByAGEAbgBcAE8AQQBFAFYAIABBAGcAZQBuAHQAXABwAGEAeQBsAG8AYQBkAHMAIgAsACIAQwA6AFwAUAByAG8AZwByAGEAbQAgAEYAaQBsAGUAcwAgACgAeAA4ADYAKQBcAEYAaQBsAGkAZwByAGEAbgBcAE8AQQBFAFYAIABBAGcAZQBuAHQAXAByAHUAbgB0AGkAbQBlAHMAIgAgAC0ARABpAHIAZQBjAHQAbwByAHkAIAAtAFIAZQBjAHUAcgBzAGUAIAB8ACAAVwBoAGUAcgBlAC0ATwBiAGoAZQBjAHQAIAB7ACQAXwAuAEMAcgBlAGEAdABpAG8AbgBUAGkAbQBlACAALQBsAHQAIAAoAEcAZQB0AC0ARABhAHQAZQApAC4AQQBkAGQASABvAHUAcgBzACgALQAyADQAKQB9ACAAfAAgAFIAZQBtAG8AdgBlAC0ASQB0AGUAbQAgAC0AUgBlAGMAdQByAHMAZQAgAC0ARgBvAHIAYwBlAA==",
-        sentinelOneAction.getCommandEncoded());
-    assertEquals(List.of(agent), sentinelOneAction.getAgents());
+        action.getCommandEncoded());
+    assertEquals(agent.getExternalReference(), action.getAgentExternalReference());
   }
 }

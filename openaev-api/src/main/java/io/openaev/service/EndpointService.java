@@ -7,6 +7,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE;
 import static io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID;
+import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_TYPE;
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
 import static io.openaev.utils.ArchitectureFilterUtils.handleEndpointFilter;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
@@ -321,8 +322,7 @@ public class EndpointService {
   // -- INSTALLATION AGENT --
 
   /**
-   * Get agents from SentinelOne, Crowdstrike API and register them into OpenAEV agents and
-   * endpoints
+   * Get agents from external executor API and register them into OpenAEV agents and endpoints
    *
    * @param inputs from the API
    * @param existingAgents in the database
@@ -380,7 +380,7 @@ public class EndpointService {
                                     Arrays.asList(input.getMacAddresses()).contains(macAddress)))
                 .findFirst();
         if (optionalInputToSave.isPresent()) {
-          // If no existing agent Crowdstrike/SentinelOne in this endpoint, add to it
+          // If no existing agent in this endpoint, add to it
           if (existingAgents.stream()
               .noneMatch(agent -> agent.getAsset().getId().equals(endpointToUpdate.getId()))) {
             final AgentRegisterInput inputToSave = optionalInputToSave.get();
@@ -544,10 +544,12 @@ public class EndpointService {
 
   private void setUpdatedEndpointAttributes(Endpoint endpoint, AgentRegisterInput input) {
     // Hostname and arch not updated by Crowdstrike because Crowdstrike hostname is 15 length max
-    // and arch is hard coded
+    // and arch is hard coded for Crowdstrike and Palo Alto Cortex
     if (!CROWDSTRIKE_EXECUTOR_TYPE.equals(input.getExecutor().getType())) {
       endpoint.setHostname(input.getHostname());
-      endpoint.setArch(input.getArch());
+      if (!PALOALTOCORTEX_EXECUTOR_TYPE.equals(input.getExecutor().getType())) {
+        endpoint.setArch(input.getArch());
+      }
     }
     endpoint.setIps(EndpointMapper.mergeAddressArrays(endpoint.getIps(), input.getIps()));
     endpoint.setSeenIp(input.getSeenIp());
@@ -578,6 +580,8 @@ public class EndpointService {
   }
 
   private void setNewAgentAttributes(AgentRegisterInput input, Agent agent) {
+    // External reference needs to be the id for Crowdstrike and SentinelOne for the batch "execute
+    // scripts"
     if (CROWDSTRIKE_EXECUTOR_TYPE.equals(input.getExecutor().getType())
         || SENTINELONE_EXECUTOR_TYPE.equals(input.getExecutor().getType())) {
       agent.setId(input.getExternalReference());

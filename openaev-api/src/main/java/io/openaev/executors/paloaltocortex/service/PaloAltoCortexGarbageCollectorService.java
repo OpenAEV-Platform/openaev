@@ -3,7 +3,7 @@ package io.openaev.executors.paloaltocortex.service;
 import static io.openaev.executors.ExecutorHelper.UNIX_CLEAN_PAYLOADS_COMMAND;
 import static io.openaev.executors.ExecutorHelper.WINDOWS_CLEAN_PAYLOADS_COMMAND;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
-import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
+import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_TYPE;
 
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Endpoint;
@@ -34,14 +34,15 @@ public class PaloAltoCortexGarbageCollectorService implements Runnable {
 
   @Override
   public void run() {
-    List<Agent> agents = this.agentService.getAgentsByExecutorType(SENTINELONE_EXECUTOR_TYPE);
+    List<Agent> agents = this.agentService.getAgentsByExecutorType(PALOALTOCORTEX_EXECUTOR_TYPE);
     if (!agents.isEmpty()) {
+      log.info(
+          "Running Palo Alto Cortex executor garbage collector on " + agents.size() + " agents");
       List<PaloAltoCortexAction> actions = new ArrayList<>();
-      log.info("Running SentinelOne executor garbage collector on " + agents.size() + " agents");
       List<Agent> windowsAgents = getAgentsFromOS(agents, Endpoint.PLATFORM_TYPE.Windows);
-      if (!windowsAgents.isEmpty()) {
+      for (Agent agent : windowsAgents) {
         PaloAltoCortexAction action = new PaloAltoCortexAction();
-        action.setAgents(windowsAgents);
+        action.setAgentExternalReference(agent.getExternalReference());
         action.setScriptId(this.config.getWindowsScriptId());
         action.setCommandEncoded(
             Base64.getEncoder()
@@ -52,9 +53,9 @@ public class PaloAltoCortexGarbageCollectorService implements Runnable {
       List<Agent> unixAgents = new ArrayList<>();
       unixAgents.addAll(getAgentsFromOS(agents, Endpoint.PLATFORM_TYPE.Linux));
       unixAgents.addAll(getAgentsFromOS(agents, Endpoint.PLATFORM_TYPE.MacOS));
-      if (!unixAgents.isEmpty()) {
+      for (Agent agent : unixAgents) {
         PaloAltoCortexAction action = new PaloAltoCortexAction();
-        action.setAgents(unixAgents);
+        action.setAgentExternalReference(agent.getExternalReference());
         action.setScriptId(this.config.getUnixScriptId());
         action.setCommandEncoded(
             Base64.getEncoder()
