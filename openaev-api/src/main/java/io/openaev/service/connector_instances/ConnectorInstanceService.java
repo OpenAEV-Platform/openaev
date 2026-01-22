@@ -3,6 +3,7 @@ package io.openaev.service.connector_instances;
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.specification.TokenSpecification.fromUser;
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,6 +11,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.database.repository.TokenRepository;
+import io.openaev.integration.Integration;
 import io.openaev.integration.Manager;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
@@ -103,6 +105,38 @@ public class ConnectorInstanceService {
       log.error("Failed to get executor connector instances in memory", e);
     }
     return instancesInMemory;
+  }
+
+  @Transactional(readOnly = true)
+  public boolean hasStartedConnectorInstanceForInjector(final String injectorId) {
+    return this.getConnectorInstancesByInjectorId(injectorId)
+        .getCurrentStatus()
+        .equals(ConnectorInstance.CURRENT_STATUS_TYPE.started);
+  }
+
+  private ConnectorInstance getConnectorInstancesByInjectorId(final String injectorId) {
+    try {
+      String persistedId =
+          this.connectorInstanceConfigurationRepository
+              .findInstanceAndCatalogIdsByKeyValue(
+                  ConnectorType.INJECTOR.getIdKeyName(), injectorId)
+              .getConnectorInstanceId();
+      if (hasText(persistedId)) {
+        return this.connectorInstanceRepository.findById(persistedId).orElseThrow(); // clear error
+      } else {
+        Map<ConnectorInstance, Integration> integrations =
+            this.managerFactory.getManager().getSpawnedIntegrations();
+        return integrations.keySet().stream()
+            .filter(
+                ci ->
+                    ci.getConfigurations().stream()
+                        .anyMatch(conf -> injectorId.equals(conf.getValue().asText())))
+            .findFirst()
+            .orElseThrow();
+      }
+    } catch (Exception e) {
+      throw new IllegalArgumentException("Failed to get a connector instances");
+    }
   }
 
   /**
@@ -470,30 +504,5 @@ public class ConnectorInstanceService {
             type.getIdKeyName(), objectMapper.getNodeFactory().textNode(connectorId), false, null);
     instance.setConfigurations(Set.of(conf));
     return instance;
-  }
-
-  // -- INJECTOR --
-
-  @Transactional(readOnly = true)
-  public boolean hasStartedConnectorInstanceForInjector(final String injectorId) {
-    return this.getConnectorInstancesForInjector(injectorId).stream()
-        .map(ConnectorInstancePersisted::getCurrentStatus)
-        .noneMatch(ConnectorInstance.CURRENT_STATUS_TYPE.stopped::equals);
-  }
-
-  private List<ConnectorInstancePersisted> getConnectorInstancesForInjector(
-      final String injectorId) {
-    List<ConnectorInstancePersisted> instances =
-        connectorInstanceConfigurationRepository
-            .findByKeyAndValue(ConnectorType.INJECTOR.getIdKeyName(), injectorId)
-            .stream()
-            .map(ConnectorInstanceConfiguration::getConnectorInstance)
-            .toList();
-
-    if (instances.isEmpty()) {
-      throw new IllegalStateException("No connector instance found for injector " + injectorId);
-    }
-
-    return instances;
   }
 }

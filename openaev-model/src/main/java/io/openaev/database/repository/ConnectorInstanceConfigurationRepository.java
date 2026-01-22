@@ -32,16 +32,4 @@ public interface ConnectorInstanceConfigurationRepository
       nativeQuery = true)
   ConnectorIdsFomDatabase findInstanceAndCatalogIdsByKeyValue(
       @Param("key") String key, @Param("value") String value);
-
-  @Query(
-      value =
-          """
-        select *
-        from connector_instance_configurations c
-        where c.connector_instance_configuration_key = :key
-        and c.connector_instance_configuration_value #>> '{}' = :value
-                                    """,
-      nativeQuery = true)
-  List<ConnectorInstanceConfiguration> findByKeyAndValue(
-      @Param("key") String key, @Param("value") String value);
 }
