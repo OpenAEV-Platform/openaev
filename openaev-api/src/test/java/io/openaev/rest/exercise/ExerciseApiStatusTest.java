@@ -1,6 +1,5 @@
 package io.openaev.rest.exercise;
 
-import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
@@ -81,7 +80,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
   @Autowired private PauseRepository pauseRepository;
 
   @Autowired private InjectHelper injectHelper;
-
+  @Autowired private InjectorContractFixture injectorContractFixture;
   @Resource protected ObjectMapper mapper;
 
   @BeforeEach
@@ -94,8 +93,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
     Exercise canceledExercise = ExerciseFixture.createCanceledAttackExercise(REFERENCE_TIME);
     Exercise finishedExercise = ExerciseFixture.createFinishedAttackExercise(REFERENCE_TIME);
 
-    InjectorContract injectorContract =
-        this.injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow();
+    InjectorContract injectorContract = injectorContractFixture.getWellKnownSingleEmailContract();
     Inject inject1 = getInjectForEmailContract(injectorContract);
     EmailContent content = new EmailContent();
     content.setSubject("Subject email");

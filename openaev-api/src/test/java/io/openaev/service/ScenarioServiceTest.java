@@ -1,7 +1,6 @@
 package io.openaev.service;
 
 import static io.openaev.database.specification.TeamSpecification.fromScenario;
-import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
 import static io.openaev.utils.fixtures.TeamFixture.getTeam;
 import static io.openaev.utils.fixtures.UserFixture.getUser;
@@ -51,7 +50,6 @@ class ScenarioServiceTest extends IntegrationTest {
   @Autowired private ArticleRepository articleRepository;
   @Mock ScenarioRepository mockScenarioRepository;
   @Autowired InjectRepository injectRepository;
-  @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private LessonsCategoryRepository lessonsCategoryRepository;
   @Autowired private HealthCheckUtils healthCheckUtils;
 
@@ -74,6 +72,7 @@ class ScenarioServiceTest extends IntegrationTest {
   private static String USER_ID;
   private static String TEAM_ID;
   private static String INJECT_ID;
+  @Autowired private InjectorContractFixture injectorContractFixture;
 
   @BeforeEach
   void setUp() {
@@ -210,8 +209,7 @@ class ScenarioServiceTest extends IntegrationTest {
     scenario.setTeams(List.of(teamSaved));
     Scenario scenarioSaved = this.scenarioRepository.saveAndFlush(scenario);
 
-    InjectorContract injectorContract =
-        this.injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow();
+    InjectorContract injectorContract = injectorContractFixture.getWellKnownSingleEmailContract();
     Inject injectDefaultEmail = getInjectForEmailContract(injectorContract);
     injectDefaultEmail.setScenario(scenarioSaved);
     injectDefaultEmail.setTeams(List.of(teamSaved));

@@ -1,6 +1,5 @@
 package io.openaev.rest;
 
-import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.*;
@@ -16,7 +15,6 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
-import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -51,15 +49,15 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private InjectRepository injectRepository;
-  @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectStatusRepository injectStatusRepository;
   @Autowired private DocumentRepository documentRepository;
   @Autowired private EntityManager entityManager;
   @Autowired private ObjectMapper mapper;
+  @Autowired private InjectorContractFixture injectorContractFixture;
 
   @BeforeEach
   void before() {
-    INJECTOR_CONTRACT = injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow();
+    INJECTOR_CONTRACT = injectorContractFixture.getWellKnownSingleEmailContract();
     Inject injectWithoutPayload = InjectFixture.getInjectForEmailContract(INJECTOR_CONTRACT);
     INJECT_WITHOUT_STATUS = injectRepository.save(injectWithoutPayload);
 

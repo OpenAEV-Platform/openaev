@@ -80,6 +80,9 @@ public class InjectModelHelper {
     }
 
     ObjectNode contractContent = injectorContract.getConvertedContent();
+    if (contractContent == null) {
+      return false;
+    }
     List<JsonNode> contractFields =
         stream(contractContent.get(CONTRACT_CONTENT_FIELDS).spliterator(), false).toList();
 

@@ -13,6 +13,8 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.export.Mixins;
+import io.openaev.integration.Manager;
+import io.openaev.integration.impl.injectors.channel.ChannelInjectorIntegrationFactory;
 import io.openaev.rest.exercise.exports.ExerciseFileExport;
 import io.openaev.rest.exercise.exports.VariableMixin;
 import io.openaev.rest.exercise.exports.VariableWithValueMixin;
@@ -62,6 +64,7 @@ class ExerciseApiExportTest extends IntegrationTest {
   @Autowired private ArticleService articleService;
   @Resource protected ObjectMapper mapper;
   @Autowired private FileService fileService;
+  @Autowired private ChannelInjectorIntegrationFactory channelInjectorIntegrationFactory;
 
   @BeforeEach
   void before() throws Exception {
@@ -80,6 +83,7 @@ class ExerciseApiExportTest extends IntegrationTest {
     tagComposer.reset();
     exerciseComposer.reset();
     payloadComposer.reset();
+    new Manager(List.of(channelInjectorIntegrationFactory)).monitorIntegrations();
 
     // delete the test files from the minio service
     for (String fileName : WELL_KNOWN_FILES.keySet()) {

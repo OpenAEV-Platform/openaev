@@ -29,6 +29,8 @@ import io.openaev.injector_contract.fields.*;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractSelect;
 import io.openaev.injector_contract.fields.ContractTargetedAsset;
+import io.openaev.integration.Manager;
+import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -42,13 +44,35 @@ import org.springframework.util.CollectionUtils;
 public class InjectorContractFixture {
 
   @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
 
   public InjectorContract getWellKnownSingleEmailContract() {
-    return injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow();
+    Optional<InjectorContract> injectorContract =
+        injectorContractRepository.findById(EMAIL_DEFAULT);
+    if (injectorContract.isPresent()) {
+      return injectorContract.get();
+    }
+    try {
+      Manager manager = new Manager(List.of(emailInjectorIntegrationFactory));
+      manager.monitorIntegrations();
+      return injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   public InjectorContract getWellKnownGlobalEmailContract() {
-    return injectorContractRepository.findById(EMAIL_GLOBAL).orElseThrow();
+    Optional<InjectorContract> injectorContract = injectorContractRepository.findById(EMAIL_GLOBAL);
+    if (injectorContract.isPresent()) {
+      return injectorContract.get();
+    }
+    try {
+      Manager manager = new Manager(List.of(emailInjectorIntegrationFactory));
+      manager.monitorIntegrations();
+      return injectorContractRepository.findById(EMAIL_GLOBAL).orElseThrow();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private static ObjectNode createDefaultContent(ObjectMapper objectMapper) {

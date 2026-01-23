@@ -2,6 +2,7 @@ package io.openaev.integration;
 
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstance.CURRENT_STATUS_TYPE;
+import io.openaev.injectors.email.EmailContract;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.Getter;
@@ -62,6 +63,15 @@ public class Manager {
     }
 
     return candidates.getFirst();
+  }
+
+  public io.openaev.executors.Injector requestEmailInjector() {
+    return this.request(
+        new ComponentRequest(EmailContract.TYPE), io.openaev.executors.Injector.class);
+  }
+
+  public io.openaev.executors.Injector requestInjectorExecutorByType(String injectorType) {
+    return this.request(new ComponentRequest(injectorType), io.openaev.executors.Injector.class);
   }
 
   /** Not thread-safe */

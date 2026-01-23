@@ -69,7 +69,8 @@ public class SimulationInjectTestApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public InjectTestStatusOutput testInject(
-      @PathVariable @NotBlank String simulationId, @PathVariable @NotBlank String injectId) {
+      @PathVariable @NotBlank String simulationId, @PathVariable @NotBlank String injectId)
+      throws Exception {
     return injectTestStatusService.testInject(injectId);
   }
 

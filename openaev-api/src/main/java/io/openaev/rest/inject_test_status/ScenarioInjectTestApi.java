@@ -60,7 +60,8 @@ public class ScenarioInjectTestApi extends RestBehavior {
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SCENARIO)
   public InjectTestStatusOutput testInject(
-      @PathVariable @NotBlank final String scenarioId, @PathVariable @NotBlank String injectId) {
+      @PathVariable @NotBlank final String scenarioId, @PathVariable @NotBlank String injectId)
+      throws Exception {
     return injectTestStatusService.testInject(injectId);
   }
 

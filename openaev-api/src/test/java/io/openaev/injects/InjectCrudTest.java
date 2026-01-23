@@ -1,6 +1,5 @@
 package io.openaev.injects;
 
-import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import io.openaev.IntegrationTest;
@@ -9,6 +8,7 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -28,6 +28,7 @@ class InjectCrudTest extends IntegrationTest {
   @Autowired private ExerciseRepository exerciseRepository;
 
   @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private InjectorContractFixture injectorContractFixture;
 
   @DisplayName("Test inject creation with non null depends duration")
   @Test
@@ -40,8 +41,7 @@ class InjectCrudTest extends IntegrationTest {
     Exercise exerciseCreated = this.exerciseRepository.save(exercise);
     Inject inject = new Inject();
     inject.setTitle("test");
-    inject.setInjectorContract(
-        this.injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow());
+    inject.setInjectorContract(injectorContractFixture.getWellKnownSingleEmailContract());
     inject.setExercise(exerciseCreated);
     inject.setDependsDuration(0L);
 

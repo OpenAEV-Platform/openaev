@@ -126,7 +126,7 @@ class InjectImportTest extends IntegrationTest {
     return staticArticleWrappers;
   }
 
-  private List<InjectComposer.Composer> getInjectWrappers() {
+  private List<InjectComposer.Composer> getInjectWrappers() throws Exception {
     // Inject in exercise with an article attached
     ArticleComposer.Composer articleWrapper =
         getStaticArticleWrappers().get(KNOWN_ARTICLE_WRAPPER_KEY);
@@ -237,7 +237,7 @@ class InjectImportTest extends IntegrationTest {
                     TagFixture.getTagWithText("executable inject with payload tag"))));
   }
 
-  private List<InjectComposer.Composer> getInjectFromExerciseWrappers() {
+  private List<InjectComposer.Composer> getInjectFromExerciseWrappers() throws Exception {
     List<InjectComposer.Composer> injectWrappers = getInjectWrappers();
     // wrap it into an exercise
     exerciseComposer
@@ -249,7 +249,7 @@ class InjectImportTest extends IntegrationTest {
     return injectWrappers;
   }
 
-  private List<InjectComposer.Composer> getInjectFromScenarioWrappers() {
+  private List<InjectComposer.Composer> getInjectFromScenarioWrappers() throws Exception {
     List<InjectComposer.Composer> injectWrappers = getInjectWrappers();
     // wrap it into an exercise
     scenarioComposer

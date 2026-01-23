@@ -16,10 +16,14 @@ public class ManagerFactory {
 
   @Transactional
   @Lock(type = MANAGER_FACTORY, key = "manager-factory")
-  public Manager getManager() throws Exception {
+  public Manager getManager() {
     if (manager == null) {
-      this.manager = new Manager(factories);
-      this.manager.monitorIntegrations();
+      try {
+        this.manager = new Manager(factories);
+        this.manager.monitorIntegrations();
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to initialize Manager", e);
+      }
     }
     return this.manager;
   }

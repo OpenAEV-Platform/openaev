@@ -63,7 +63,7 @@ public class InjectorFixture {
   }
 
   public Injector getWellKnownEmailInjector(boolean isPayload) {
-    Optional<Injector> injectorOptional = injectorRepository.findByType("openaev_email");
+    Optional<Injector> injectorOptional = injectorRepository.findByType(EmailContract.TYPE);
     Injector injector =
         injectorOptional.orElseGet(() -> injectorRepository.save(createOAEVEmailInjector()));
     // ensure the injector is marked for payloads

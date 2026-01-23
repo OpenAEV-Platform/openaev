@@ -11,7 +11,7 @@ import io.openaev.database.specification.InjectTestSpecification;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
-import io.openaev.executors.Injector;
+import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.inject.output.InjectTestStatusOutput;
 import io.openaev.utils.mapper.InjectStatusMapper;
@@ -39,6 +39,7 @@ public class InjectTestStatusService {
   private final ExecutionContextService executionContextService;
   private final InjectTestStatusRepository injectTestStatusRepository;
   private final InjectStatusMapper injectStatusMapper;
+  private final ManagerFactory managerFactory;
 
   @Autowired
   public void setContext(ApplicationContext context) {
@@ -116,18 +117,18 @@ public class InjectTestStatusService {
   }
 
   // -- PRIVATE --
-
   private InjectTestStatus testInject(Inject inject, User user) {
     ExecutionContext userInjectContext =
         this.executionContextService.executionContext(user, inject, "Direct test");
 
-    Injector executor =
-        context.getBean(
-            inject
-                .getInjectorContract()
-                .map(contract -> contract.getInjector().getType())
-                .orElseThrow(() -> new EntityNotFoundException("Injector contract not found")),
-            Injector.class);
+    String injectorType =
+        inject
+            .getInjectorContract()
+            .map(contract -> contract.getInjector().getType())
+            .orElseThrow(() -> new EntityNotFoundException("Injector contract not found"));
+
+    io.openaev.executors.Injector executor =
+        managerFactory.getManager().requestInjectorExecutorByType(injectorType);
 
     ExecutableInject injection =
         new ExecutableInject(

@@ -1,7 +1,6 @@
 package io.openaev.injects.email;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,14 +10,15 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.InjectExpectationRepository;
-import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
-import io.openaev.injectors.email.EmailExecutor;
 import io.openaev.injectors.email.model.EmailContent;
+import io.openaev.integration.Manager;
+import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.model.inject.form.Expectation;
+import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.annotation.Resource;
 import java.util.Collections;
@@ -34,12 +34,12 @@ import org.springframework.test.context.TestExecutionListeners;
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 public class EmailExecutorTest extends IntegrationTest {
 
-  @Autowired private EmailExecutor emailExecutor;
   @Autowired private UserRepository userRepository;
-  @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
   @Autowired private ExecutionContextService executionContextService;
   @Resource protected ObjectMapper mapper;
+  @Autowired private InjectorContractFixture injectorContractFixture;
+  @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
 
   @Test
   void process() throws Exception {
@@ -53,8 +53,7 @@ public class EmailExecutorTest extends IntegrationTest {
     expectation.setType(InjectExpectation.EXPECTATION_TYPE.MANUAL);
     content.setExpectations(List.of(expectation));
     Inject inject = new Inject();
-    inject.setInjectorContract(
-        this.injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow());
+    inject.setInjectorContract(injectorContractFixture.getWellKnownGlobalEmailContract());
     inject.setContent(this.mapper.valueToTree(content));
     Iterable<User> users = this.userRepository.findAll();
     List<ExecutionContext> userInjectContexts =
@@ -68,6 +67,9 @@ public class EmailExecutorTest extends IntegrationTest {
     Execution execution = new Execution(executableInject.isRuntime());
 
     // -- EXECUTE --
+    Manager manager = new Manager(List.of(emailInjectorIntegrationFactory));
+    manager.monitorIntegrations();
+    io.openaev.executors.Injector emailExecutor = manager.requestEmailInjector();
     emailExecutor.process(execution, executableInject);
 
     // -- ASSERT --
