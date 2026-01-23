@@ -59,6 +59,7 @@ const ExpectationResultByType: FunctionComponent<Props> = ({ results, inline }) 
                   </Icon>
                   {result.label && <span style={{ fontSize: theme.typography.body2.fontSize }}>{capitalize(result.label)}</span>}
                   {result.data?.map((d: EsSeriesData) => {
+										console.log(d.value, result.value)
                     return (
                       <div className={classes.inline} key={d.key}>
                         {

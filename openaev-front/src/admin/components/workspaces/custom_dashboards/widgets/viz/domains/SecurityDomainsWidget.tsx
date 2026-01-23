@@ -9,7 +9,7 @@ import { colorByAverage, EMPTY_DATA } from '../../../../../common/ColorByResult'
 import ExpectationResultByType from '../../../../../common/domains/ExpectationResultByType';
 import { type IconBarElement } from '../../../../../common/domains/IconBar-model';
 import SecurityDomainsWidgetIconBar from './SecurityDomainsWidgetIconBar';
-import { buildOrderedDomains, getIconByDomain } from './SecurityDomainsWidgetUtils';
+import {buildOrderedDomains, calcPercentage, getIconByDomain} from './SecurityDomainsWidgetUtils';
 
 interface Props { data: EsAvgs }
 
@@ -22,23 +22,50 @@ const SecurityDomainsWidget: FunctionComponent<Props> = ({ data }) => {
 
   const allDomains: Domain[] = useHelper((helper: DomainHelper) => helper.getDomains());
 
-  const globalSuccessRate = (domain: EsDomainsAvgData): number => {
-    if (!domain.data) return 0;
+  // const globalSuccessRate = (domain: EsDomainsAvgData): number => {
+  //   if (!domain.data) return 0;
+	//
+  //   let successTotal = 0;
+  //   let totalData = 0;
+	//
+  //   for (const item of domain.data) {
+  //     totalData += item.value ?? 0;
+	//
+  //     if (item.data) {
+  //       const successEntry = item.data.find(entry => entry.key === 'success');
+  //       successTotal += successEntry?.value ?? 0;
+  //     }
+  //   }
+	//
+  //   return totalData === 0 ? 0 : successTotal / totalData;
+  // };
 
-    let successTotal = 0;
-    let totalData = 0;
+	const globalSuccessRate = (domain: EsDomainsAvgData): number => {
+		console.log('DOMAINS DANS GLOBAL SUCCESS', domain.data)
+		if (!domain.data) return 0;
 
-    for (const item of domain.data) {
-      totalData += item.value ?? 0;
+		let successTotal = 0;
+		let totalData = 0;
 
-      if (item.data) {
-        const successEntry = item.data.find(entry => entry.key === 'success');
-        successTotal += successEntry?.value ?? 0;
-      }
-    }
+		// const expectationsOrPayloadType = domain.data.length;
+		// domain.data.map(domainItem => {
+		// 	d.data?.map(
+		//
+		// 	)
+		// })
 
-    return totalData === 0 ? 0 : successTotal / totalData;
-  };
+
+		for (const item of domain.data) {
+			totalData += item.value ?? 0;
+
+			if (item.data) {
+				const successEntry = item.data.find(entry => entry.key === 'success');
+				successTotal += successEntry?.value ?? 0;
+			}
+		}
+
+		return totalData === 0 ? 0 : successTotal / totalData;
+	};
 
   const iconBarElements: IconBarElement[] = [];
 

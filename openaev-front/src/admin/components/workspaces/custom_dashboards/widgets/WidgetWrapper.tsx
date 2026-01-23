@@ -44,6 +44,127 @@ const WidgetWrapper = ({
 }: WidgetWrapperProps) => {
   const theme = useTheme();
 
+	const mocked: EsAvgs = {
+		"security_domain_average": [
+			{
+				"label": "Endpoint",
+				"data": [
+					{
+						"label": "detection",
+						"color": undefined,
+						"value": 200,
+						"data": [
+							{
+								"key": "success",
+								"label": "success",
+								"value": 200
+							}
+						]
+					},
+					{
+						"label": "prevention",
+						"color": undefined,
+						"value": 11,
+						"data": [
+							{
+								"key": "failed",
+								"label": "failed",
+								"value": 11
+							}
+						]
+					}
+				]
+			},
+			{
+				"label": "Cloud",
+				"data": [
+					{
+						"label": "detection",
+						"color": undefined,
+						"value": 1,
+						"data": [
+							{
+								"key": "success",
+								"label": "success",
+								"value": 1
+							}
+						]
+					},
+					{
+						"label": "prevention",
+						"color": undefined,
+						"value": 1,
+						"data": [
+							{
+								"key": "failed",
+								"label": "failed",
+								"value": 1
+							}
+						]
+					}
+				]
+			},
+			{
+				"label": "To classify",
+				"data": [
+					{
+						"label": "detection",
+						"color": undefined,
+						"value": 1,
+						"data": [
+							{
+								"key": "success",
+								"label": "success",
+								"value": 1
+							}
+						]
+					},
+					{
+						"label": "prevention",
+						"color": undefined,
+						"value": 1,
+						"data": [
+							{
+								"key": "failed",
+								"label": "failed",
+								"value": 1
+							}
+						]
+					}
+				]
+			},
+			{
+				"label": "Data Exfiltration",
+				"data": [
+					{
+						"label": "detection",
+						"color": undefined,
+						"value": 1,
+						"data": [
+							{
+								"key": "success",
+								"label": "success",
+								"value": 1
+							}
+						]
+					},
+					{
+						"label": "prevention",
+						"color": undefined,
+						"value": 1,
+						"data": [
+							{
+								"key": "failed",
+								"label": "failed",
+								"value": 1
+							}
+						]
+					}
+				]
+			}
+		]
+	}
+
   const [vizData, setVizData] = useState<WidgetVizData>({ type: WidgetVizDataType.NONE });
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string>('');
@@ -123,7 +244,7 @@ const WidgetWrapper = ({
             case WidgetVizDataType.AVERAGE:
               setVizData({
                 type: WidgetVizDataType.AVERAGE,
-                data: response.data as EsAvgs,
+                data: mocked as EsAvgs,
               });
               break;
             default: break;

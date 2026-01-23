@@ -1,5 +1,6 @@
 import { simplePostCall } from '../../utils/Action';
 import { type WidgetToEntitiesInput } from '../../utils/api-types';
+import {AxiosResponse} from "axios";
 
 export const DASHBOARD_URI = '/api/dashboards';
 
