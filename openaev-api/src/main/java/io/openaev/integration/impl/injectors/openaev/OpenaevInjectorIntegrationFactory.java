@@ -14,11 +14,9 @@ import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 @Service
-@Profile("!test")
 public class OpenaevInjectorIntegrationFactory extends IntegrationFactory {
 
   private final ComponentRequestEngine componentRequestEngine;
