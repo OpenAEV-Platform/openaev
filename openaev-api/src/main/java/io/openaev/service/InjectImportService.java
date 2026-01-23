@@ -96,7 +96,7 @@ public class InjectImportService {
       Path tempDir =
           Files.createDirectory(FileSecurityUtils.validatePathTraversal(BASE_DIR, fileID));
 
-      // Sanitize filename - only extract extension from the base name
+      // Sanitize filename extracting only extension from the base name
       String extension = getSanitizedExtension(file);
 
       Path tempFile = Files.createTempFile(tempDir, null, "." + extension);
