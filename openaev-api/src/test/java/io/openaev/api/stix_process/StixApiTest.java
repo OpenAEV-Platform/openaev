@@ -28,6 +28,8 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.database.repository.TagRepository;
+import io.openaev.integration.Manager;
+import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
 import io.openaev.service.AssetGroupService;
 import io.openaev.stix.objects.constants.CommonProperties;
 import io.openaev.utils.constants.StixConstants;
@@ -80,6 +82,7 @@ class StixApiTest extends IntegrationTest {
   @Autowired private DomainComposer domainComposer;
 
   @Autowired private InjectorFixture injectorFixture;
+  @Autowired private ManualInjectorIntegrationFactory manualInjectorIntegrationFactory;
 
   private JsonNode stixSecurityCoverage;
   private JsonNode stixSecurityCoverageNoDuration;
@@ -89,11 +92,11 @@ class StixApiTest extends IntegrationTest {
   private JsonNode stixSecurityCoverageWithoutObjects;
   private JsonNode stixSecurityCoverageOnlyVulns;
   private JsonNode stixSecurityCoverageWithDomainName;
-  private AssetGroupComposer.Composer completeAssetGroup;
-  private AssetGroupComposer.Composer emptyAssetGroup;
 
   @BeforeEach
   void setUp() throws Exception {
+    new Manager(List.of(manualInjectorIntegrationFactory)).monitorIntegrations();
+
     attackPatternComposer.reset();
     vulnerabilityComposer.reset();
     tagRuleComposer.reset();
@@ -154,18 +157,15 @@ class StixApiTest extends IntegrationTest {
             .persist()
             .get();
 
-    emptyAssetGroup =
-        assetGroupComposer
-            .forAssetGroup(
-                AssetGroupFixture.createAssetGroupWithAssets("no assets", new ArrayList<>()))
-            .persist();
+    assetGroupComposer
+        .forAssetGroup(AssetGroupFixture.createAssetGroupWithAssets("no assets", new ArrayList<>()))
+        .persist();
 
-    completeAssetGroup =
-        assetGroupComposer
-            .forAssetGroup(
-                AssetGroupFixture.createAssetGroupWithAssets(
-                    "Complete", new ArrayList<>(Arrays.asList(hostname, seenIp, localIp))))
-            .persist();
+    assetGroupComposer
+        .forAssetGroup(
+            AssetGroupFixture.createAssetGroupWithAssets(
+                "Complete", new ArrayList<>(Arrays.asList(hostname, seenIp, localIp))))
+        .persist();
 
     injectorContractComposer
         .forInjectorContract(
