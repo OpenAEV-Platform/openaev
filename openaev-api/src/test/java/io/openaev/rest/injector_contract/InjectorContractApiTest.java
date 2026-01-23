@@ -43,7 +43,6 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.sql.BatchUpdateException;
-import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -391,10 +390,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       @DisplayName("Without attack patterns, creating contract succeeds")
       void createContractSucceeds() throws Exception {
         Set<Domain> domains =
-            domainComposer
-                .forDomain(new Domain(null, "To classify", "#FFFFFF", Instant.now(), null))
-                .persist()
-                .getSet();
+            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(injectorContractInternalId);
         input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
@@ -439,10 +435,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       @DisplayName("With missing attack patterns, creating contract fails with NOT FOUND")
       void withMissingAttackPatternsCreateContractFailsWithNOTFOUND() throws Exception {
         Set<Domain> domains =
-            domainComposer
-                .forDomain(new Domain(null, "To classify", "#FFFFFF", Instant.now(), null))
-                .persist()
-                .getSet();
+            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(injectorContractInternalId);
         input.setAttackPatternsIds(List.of(UUID.randomUUID().toString()));
@@ -461,10 +454,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       @DisplayName("With missing vulnerabilities, creating contract fails with NOT FOUND")
       void withMissingVulnerabilitiesCreateContractFailsWithNOTFOUND() throws Exception {
         Set<Domain> domains =
-            domainComposer
-                .forDomain(new Domain(null, "To classify", "#FFFFFF", Instant.now(), null))
-                .persist()
-                .getSet();
+            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(injectorContractInternalId);
         input.setVulnerabilityIds(List.of(UUID.randomUUID().toString()));
@@ -490,10 +480,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         em.flush();
         em.clear();
         Set<Domain> domains =
-            domainComposer
-                .forDomain(new Domain(null, "To classify", "#FFFFFF", Instant.now(), null))
-                .persist()
-                .getSet();
+            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
 
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(injectorContractInternalId);
@@ -554,10 +541,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         em.clear();
 
         Set<Domain> domains =
-            domainComposer
-                .forDomain(new Domain(null, "To classify", "#FFFFFF", Instant.now(), null))
-                .persist()
-                .getSet();
+            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(injectorContractInternalId);
         input.setAttackPatternsExternalIds(
@@ -683,10 +667,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         em.flush();
         em.clear();
         Set<Domain> domains =
-            domainComposer
-                .forDomain(new Domain(null, "To classify", "#FFFFFF", Instant.now(), null))
-                .persist()
-                .getSet();
+            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
 
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(injectorContractInternalId);
@@ -784,10 +765,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       void updateContractFailsWithNotFound() throws Exception {
         InjectorContractUpdateInput input = new InjectorContractUpdateInput();
         Set<Domain> domains =
-            domainComposer
-                .forDomain(new Domain(null, "To classify", "#FFFFFF", Instant.now(), null))
-                .persist()
-                .getSet();
+            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
         input.setDomains(domains);
         input.setContent("{\"fields\":[], \"arbitrary_field\": \"test\"}");
 
@@ -1169,10 +1147,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       @DisplayName("Updating contract fails with NOT FOUND")
       void updateContractFailsWithNotFound() throws Exception {
         Set<Domain> domains =
-            domainComposer
-                .forDomain(new Domain(null, "To classify", "#FFFFFF", Instant.now(), null))
-                .persist()
-                .getSet();
+            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
         InjectorContractUpdateInput input = new InjectorContractUpdateInput();
         input.setDomains(domains);
         input.setContent("{\"fields\":[], \"arbitrary_field\": \"test\"}");
