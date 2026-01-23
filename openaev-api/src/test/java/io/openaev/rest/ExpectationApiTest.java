@@ -86,6 +86,7 @@ class ExpectationApiTest extends IntegrationTest {
   void beforeAll() throws JsonProcessingException {
     InjectorContract injectorContract =
         InjectorContractFixture.createInjectorContract(Map.of("en", INJECTION_NAME));
+    injectorContract.setCustom(true);
     savedInjector =
         injectorRepository.save(
             InjectorFixture.createInjector(
@@ -128,6 +129,8 @@ class ExpectationApiTest extends IntegrationTest {
   void afterAll() {
     agentRepository.deleteAll();
     injectRepository.deleteAll();
+    injectorContractRepository.deleteAll();
+    injectorRepository.deleteAll();
     endpointRepository.deleteAll();
     collectorRepository.deleteById(savedCollector.getId());
     collectorRepository.deleteById(savedCollector2.getId());
