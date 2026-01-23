@@ -60,3 +60,21 @@ During these updates:
 - The list of Domains associated with their Payloads is synchronized with the platform
 - If a Domain that should be present, according to the latest Injector or Collector definition, has been removed or modified on the platform, it will be restored to its expected value during the next update
 - Domains that have been manually added by the user, in addition to those defined by the Injector or Collector, are preserved. Only missing Domains are re-added; no user-added Domains are removed
+
+## Security Coverage Visualization
+
+Security Domains are also leveraged to provide a **high-level visualization of security posture** through the **Security Coverage dashboard widget**.
+
+This widget displays a set of icons representing the security Domains (Endpoint, Network, Cloud, etc.) and their associated sub-domains (Prevention, Detection, Vulnerability, Table-Top), enabling users to **quickly assess coverage and identify weaknesses**.
+
+Each sub-domain icon is colored according to the **success rate of its associated expectations**, following a standardized heatmap scale.
+
+The main Domain icon reflects the **aggregated state of the Domain**, applying a strict “worst-case wins” rule: if any sub-domain shows weak coverage, the overall Domain status reflects this risk.
+
+The Security Coverage widget allows users to:
+
+- Visualize overall security coverage across all Domains
+- Filter results by Domain or sub-domain to focus on specific security capabilities
+- Identify coverage gaps and prioritize remediation or further testing
+
+This visualization provides a **clear and actionable entry point** for interpreting OpenAEV results, supporting both operational analysis and higher-level security posture assessment.
