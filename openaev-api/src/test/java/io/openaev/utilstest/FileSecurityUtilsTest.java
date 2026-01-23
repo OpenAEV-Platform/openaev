@@ -12,12 +12,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.multipart.MultipartFile;
 
-@DisplayName("Path Validation Utils tests")
+@DisplayName("File Security Utils tests")
 class FileSecurityUtilsTest {
 
   @DisplayName("Test getSanitizedExtension with valid xlsx file")
   @Test
-  void testgetSanitizedExtensionWithValidXlsxFile() {
+  void getSanitizedExtension_whenValidXlsxFile_thenReturnsXlsxExtension() {
     // -- PREPARE --
     MultipartFile file = mock(MultipartFile.class);
     when(file.getOriginalFilename()).thenReturn("report.xlsx");
@@ -31,7 +31,7 @@ class FileSecurityUtilsTest {
 
   @DisplayName("Test getSanitizedExtension with valid xls file")
   @Test
-  void testgetSanitizedExtensionWithValidXlsFile() {
+  void getSanitizedExtension_whenValidXlsFile_thenReturnsXlsExtension() {
     // -- PREPARE --
     MultipartFile file = mock(MultipartFile.class);
     when(file.getOriginalFilename()).thenReturn("report.xls");
@@ -45,7 +45,7 @@ class FileSecurityUtilsTest {
 
   @DisplayName("Test getSanitizedExtension with uppercase extension")
   @Test
-  void testgetSanitizedExtensionWithUppercaseExtension() {
+  void getSanitizedExtension_whenUppercaseExtension_thenReturnsLowercaseExtension() {
     // -- PREPARE --
     MultipartFile file = mock(MultipartFile.class);
     when(file.getOriginalFilename()).thenReturn("REPORT.XLSX");
@@ -59,7 +59,7 @@ class FileSecurityUtilsTest {
 
   @DisplayName("Test getSanitizedExtension with path traversal attempt in filename")
   @Test
-  void testgetSanitizedExtensionWithPathTraversalAttempt() {
+  void getSanitizedExtension_whenPathTraversalAttempt_thenReturnsExtensionSafely() {
     // -- PREPARE --
     MultipartFile file = mock(MultipartFile.class);
     when(file.getOriginalFilename()).thenReturn("../../etc/passwd.xlsx");
@@ -73,7 +73,7 @@ class FileSecurityUtilsTest {
 
   @DisplayName("Test getSanitizedExtension with invalid file type throws exception")
   @Test
-  void testgetSanitizedExtensionWithInvalidFileType() {
+  void getSanitizedExtension_whenInvalidFileType_thenThrowsBadRequestException() {
     // -- PREPARE --
     MultipartFile file = mock(MultipartFile.class);
     when(file.getOriginalFilename()).thenReturn("malicious.exe");
@@ -84,7 +84,7 @@ class FileSecurityUtilsTest {
 
   @DisplayName("Test getSanitizedExtension with null filename throws exception")
   @Test
-  void testgetSanitizedExtensionWithNullFilename() {
+  void getSanitizedExtension_whenNullFilename_thenThrowsBadRequestException() {
     // -- PREPARE --
     MultipartFile file = mock(MultipartFile.class);
     when(file.getOriginalFilename()).thenReturn(null);
@@ -95,7 +95,7 @@ class FileSecurityUtilsTest {
 
   @DisplayName("Test getSanitizedExtension with empty filename throws exception")
   @Test
-  void testgetSanitizedExtensionWithEmptyFilename() {
+  void getSanitizedExtension_whenEmptyFilename_thenThrowsBadRequestException() {
     // -- PREPARE --
     MultipartFile file = mock(MultipartFile.class);
     when(file.getOriginalFilename()).thenReturn("");
@@ -106,7 +106,7 @@ class FileSecurityUtilsTest {
 
   @DisplayName("Test getSanitizedExtension with no extension throws exception")
   @Test
-  void testgetSanitizedExtensionWithNoExtension() {
+  void getSanitizedExtension_whenNoExtension_thenThrowsBadRequestException() {
     // -- PREPARE --
     MultipartFile file = mock(MultipartFile.class);
     when(file.getOriginalFilename()).thenReturn("filename");
@@ -117,7 +117,7 @@ class FileSecurityUtilsTest {
 
   @DisplayName("Test validatePathTraversal accepts valid sub-path")
   @Test
-  void testvalidatePathTraversalAcceptsValidSubPath() {
+  void validatePathTraversal_whenValidSubPath_thenReturnsResolvedPath() {
     // -- PREPARE --
     String validSubPath = "subdir";
 
@@ -131,7 +131,7 @@ class FileSecurityUtilsTest {
 
   @DisplayName("Test validatePathTraversal rejects path traversal with ..")
   @Test
-  void testvalidatePathTraversalRejectsPathTraversal() {
+  void validatePathTraversal_whenPathTraversalAttempt_thenThrowsBadRequestException() {
     // -- PREPARE --
     String pathTraversal = "../../../etc/passwd";
 
@@ -143,7 +143,7 @@ class FileSecurityUtilsTest {
 
   @DisplayName("Test validatePathTraversal rejects escaping path")
   @Test
-  void testvalidatePathTraversalRejectsEscapingPath() {
+  void validatePathTraversal_whenEscapingPath_thenThrowsBadRequestException() {
     // -- PREPARE --
     String escapingPath = "valid/../../../etc/passwd";
 
@@ -155,7 +155,7 @@ class FileSecurityUtilsTest {
 
   @DisplayName("Test validatePathTraversal accepts nested valid path")
   @Test
-  void testvalidatePathTraversalAcceptsNestedPath() {
+  void validatePathTraversal_whenNestedValidPath_thenReturnsResolvedPath() {
     // -- PREPARE --
     String nestedPath = "dir1/dir2/file.txt";
 
@@ -167,3 +167,4 @@ class FileSecurityUtilsTest {
     assertTrue(result.startsWith(Path.of(BASE_DIR).normalize()));
   }
 }
+
