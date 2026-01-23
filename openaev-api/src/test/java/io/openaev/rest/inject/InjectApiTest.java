@@ -1222,7 +1222,8 @@ class InjectApiTest extends IntegrationTest {
         Payload payloadSaved = injectTestHelper.forceSavePayload(payloadCommand);
 
         // Create injectorContract with targeted asset field
-        Injector injector = injectorFixture.getWellKnownOaevImplantInjector();
+        Injector injector = InjectorFixture.createDefaultPayloadInjector();
+        injectTestHelper.forceSaveInjector(injector);
         InjectorContract injectorContract =
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 injector, payloadSaved, List.of());

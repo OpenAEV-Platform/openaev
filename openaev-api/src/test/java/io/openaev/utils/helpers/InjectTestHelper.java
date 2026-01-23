@@ -28,6 +28,7 @@ public class InjectTestHelper {
   private final FindingRepository findingRepository;
   private final AssetRepository assetRepository;
   private final DomainRepository domainRepository;
+  private final InjectorRepository injectorRepository;
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public Inject getPendingInjectWithAssets(
@@ -76,6 +77,11 @@ public class InjectTestHelper {
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public Agent forceSaveAgent(Agent agent) {
     return agentRepository.save(agent);
+  }
+
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public Injector forceSaveInjector(Injector injector) {
+    return injectorRepository.save(injector);
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
