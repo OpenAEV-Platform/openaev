@@ -58,7 +58,7 @@ steps:
       SPRING_PROFILES_ACTIVE: ci
       OPENBAS_RABBITMQ_HOSTNAME: rabbitmq-e2e
     commands:
-      - apt update && apt install -y gnupg nodejs git
+      - apt update && apt install -y gnupg nodejs git npm
       - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
       - npm install --global yarn
       - cd openaev-front
