@@ -19,6 +19,8 @@ import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.LessonsCategoryRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.integration.Manager;
+import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.lessons.form.LessonsSendInput;
 import io.openaev.service.MailingService;
@@ -54,9 +56,11 @@ public class ExerciseLessonsApiTest extends IntegrationTest {
   @SpyBean private MailingService mailingService;
   @Autowired private TeamRepository teamRepository;
   @Autowired private UserRepository userRepository;
+  @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
 
   @BeforeAll
-  void beforeAll() {
+  void beforeAll() throws Exception {
+    new Manager(List.of(emailInjectorIntegrationFactory)).monitorIntegrations();
     LESSONCATEGORY = getLessonCategory();
   }
 
