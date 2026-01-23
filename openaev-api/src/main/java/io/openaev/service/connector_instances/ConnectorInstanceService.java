@@ -125,7 +125,7 @@ public class ConnectorInstanceService {
         return true;
       }
     } catch (Exception e) {
-      throw new IllegalArgumentException("Failed to get a connector instances");
+      throw new IllegalArgumentException("Failed to get a connector instances", e);
     }
   }
 
