@@ -20,6 +20,9 @@ import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.ee.Ee;
+import io.openaev.integration.Manager;
+import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrationFactory;
+import io.openaev.integration.impl.injectors.channel.ChannelInjectorIntegrationFactory;
 import io.openaev.rest.exercise.exports.ExportOptions;
 import io.openaev.rest.inject.service.InjectExportService;
 import io.openaev.service.ArticleService;
@@ -81,9 +84,14 @@ class InjectImportTest extends IntegrationTest {
   @Autowired private ArticleService articleService;
   @Autowired private InjectorFixture injectorFixture;
   @MockBean private Ee eeService;
+  @Autowired private ChannelInjectorIntegrationFactory channelInjectorIntegrationFactory;
+  @Autowired private ChallengeInjectorIntegrationFactory challengeInjectorIntegrationFactory;
 
   @BeforeEach
   void before() throws Exception {
+    new Manager(List.of(channelInjectorIntegrationFactory, challengeInjectorIntegrationFactory))
+        .monitorIntegrations();
+
     teamComposer.reset();
     userComposer.reset();
     organizationComposer.reset();
