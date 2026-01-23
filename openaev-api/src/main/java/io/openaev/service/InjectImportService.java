@@ -1,6 +1,7 @@
 package io.openaev.service;
 
 import static io.openaev.config.SessionHelper.currentUser;
+import static io.openaev.utils.FileSecurityUtils.getSanitizedExtension;
 import static io.openaev.utils.StringUtils.isValidUUID;
 import static java.util.Collections.emptyList;
 
@@ -15,9 +16,9 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.scenario.response.ImportMessage;
 import io.openaev.rest.scenario.response.ImportPostSummary;
 import io.openaev.rest.scenario.response.ImportTestSummary;
+import io.openaev.utils.FileSecurityUtils;
 import io.openaev.utils.InjectImportUtils;
 import io.openaev.utils.InjectUtils;
-import io.openaev.utils.PathValidationUtils;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -42,7 +43,6 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FilenameUtils;
 import org.apache.logging.log4j.util.Strings;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellReference;
@@ -76,7 +76,7 @@ public class InjectImportService {
   /**
    * Store a xls file for ulterior import. The file will be deleted on exit.
    *
-   * @param file
+   * @param file MultipartFile
    * @return ImportPostSummary containing the importId and the list of available sheets
    */
   public ImportPostSummary storeXlsFileForImport(MultipartFile file) {
@@ -91,11 +91,15 @@ public class InjectImportService {
       for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
         result.getAvailableSheets().add(workbook.getSheetName(i));
       }
+
       // Writing the file in a temp dir
-      Path tempDir = Files.createDirectory(Path.of(BASE_DIR, fileID));
-      Path tempFile =
-          Files.createTempFile(
-              tempDir, null, "." + FilenameUtils.getExtension(file.getOriginalFilename()));
+      Path tempDir =
+          Files.createDirectory(FileSecurityUtils.validatePathTraversal(BASE_DIR, fileID));
+
+      // Sanitize filename - only extract extension from the base name
+      String extension = getSanitizedExtension(file);
+
+      Path tempFile = Files.createTempFile(tempDir, null, "." + extension);
       Files.write(tempFile, file.getBytes());
 
       CompletableFuture.delayedExecutor(FILE_STORAGE_DURATION, TimeUnit.MINUTES)
@@ -296,7 +300,7 @@ public class InjectImportService {
 
       // We open the previously saved file
       // Ensure the resolved path is still within the temp directory
-      Path importDir = PathValidationUtils.validatePathTraversal(BASE_DIR, importId);
+      Path importDir = FileSecurityUtils.validatePathTraversal(BASE_DIR, importId);
 
       Path file;
       try (Stream<Path> files = Files.list(importDir)) {
