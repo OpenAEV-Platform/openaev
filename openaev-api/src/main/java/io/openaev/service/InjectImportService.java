@@ -98,7 +98,6 @@ public class InjectImportService {
 
       // Sanitize filename extracting only extension from the base name
       String extension = getSanitizedExtension(file);
-
       Path tempFile = Files.createTempFile(tempDir, null, "." + extension);
       Files.write(tempFile, file.getBytes());
 
