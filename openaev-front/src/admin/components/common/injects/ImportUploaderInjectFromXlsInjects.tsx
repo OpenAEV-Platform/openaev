@@ -1,6 +1,14 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { TableViewOutlined } from '@mui/icons-material';
-import { Autocomplete as MuiAutocomplete, Box, Button, MenuItem, TextField, Tooltip } from '@mui/material';
+import {
+  Autocomplete as MuiAutocomplete,
+  Box,
+  Button,
+  createFilterOptions,
+  MenuItem,
+  TextField,
+  Tooltip,
+} from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers';
 import { InformationOutline } from 'mdi-material-ui';
 import moment from 'moment-timezone';
@@ -102,6 +110,8 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
 
   // Mapper
   const [mapperOptions, setMapperOptions] = useState<MapperOption[]>([]);
+  const [hintOptions, setHintOptions] = useState<MapperOption[]>([]);
+  const createFilterOptionsCustom = createFilterOptions<MapperOption>();
 
   const onChangeSearchInput = (value: string) => {
     searchMappers(buildSearchPagination({
@@ -119,8 +129,7 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
         }));
 
       if (data.totalPages > 1) {
-        setMapperOptions([
-          ...options,
+        setHintOptions([
           {
             id: '__hint__',
             label: t('More items are available — please type the mapper name'),
@@ -128,8 +137,9 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
           },
         ]);
       } else {
-        setMapperOptions(options);
+        setHintOptions([]);
       }
+      setMapperOptions(options);
     });
   };
 
@@ -172,7 +182,6 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
       });
     }
   };
-
   return (
     <form id="importUploadInjectForm" onSubmit={handleSubmitWithoutPropagation}>
       <div className={classes.container}>
@@ -223,6 +232,19 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
               onInputChange={(event, value) => {
                 onChangeSearchInput(value);
               }}
+
+              filterOptions={(options, state) => {
+                const filtered = createFilterOptionsCustom(options, state);
+                hintOptions.forEach((hint) => {
+                  const alreadyIn = filtered.some(o => o.id === hint.id);
+                  if (!alreadyIn) {
+                    filtered.push(hint);
+                  }
+                });
+
+                return filtered;
+              }}
+
               renderOption={(props, option) => {
                 if (option.isHint) {
                   return (
