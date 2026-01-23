@@ -12,6 +12,7 @@ import {
   type Widget,
 } from '../../../../../utils/api-types';
 import { CustomDashboardContext, type ParameterOption } from '../CustomDashboardContext';
+import { determinePercentage } from './viz/domains/SecurityDomainsWidgetUtils';
 import WidgetTitle from './WidgetTitle';
 import { type WidgetVizData, WidgetVizDataType } from './WidgetUtils';
 import WidgetViz from './WidgetViz';
@@ -43,132 +44,9 @@ const WidgetWrapper = ({
   readOnly,
 }: WidgetWrapperProps) => {
   const theme = useTheme();
-
-	const mocked: EsAvgs = {
-		"security_domain_average": [
-			{
-				"label": "Endpoint",
-				"data": [
-					{
-						"label": "detection",
-						"color": undefined,
-						"value": 200,
-						"data": [
-							{
-								"key": "success",
-								"label": "success",
-								"value": 200
-							}
-						]
-					},
-					{
-						"label": "prevention",
-						"color": undefined,
-						"value": 11,
-						"data": [
-							{
-								"key": "failed",
-								"label": "failed",
-								"value": 11
-							}
-						]
-					}
-				]
-			},
-			{
-				"label": "Cloud",
-				"data": [
-					{
-						"label": "detection",
-						"color": undefined,
-						"value": 1,
-						"data": [
-							{
-								"key": "success",
-								"label": "success",
-								"value": 1
-							}
-						]
-					},
-					{
-						"label": "prevention",
-						"color": undefined,
-						"value": 1,
-						"data": [
-							{
-								"key": "failed",
-								"label": "failed",
-								"value": 1
-							}
-						]
-					}
-				]
-			},
-			{
-				"label": "To classify",
-				"data": [
-					{
-						"label": "detection",
-						"color": undefined,
-						"value": 1,
-						"data": [
-							{
-								"key": "success",
-								"label": "success",
-								"value": 1
-							}
-						]
-					},
-					{
-						"label": "prevention",
-						"color": undefined,
-						"value": 1,
-						"data": [
-							{
-								"key": "failed",
-								"label": "failed",
-								"value": 1
-							}
-						]
-					}
-				]
-			},
-			{
-				"label": "Data Exfiltration",
-				"data": [
-					{
-						"label": "detection",
-						"color": undefined,
-						"value": 1,
-						"data": [
-							{
-								"key": "success",
-								"label": "success",
-								"value": 1
-							}
-						]
-					},
-					{
-						"label": "prevention",
-						"color": undefined,
-						"value": 1,
-						"data": [
-							{
-								"key": "failed",
-								"label": "failed",
-								"value": 1
-							}
-						]
-					}
-				]
-			}
-		]
-	}
-
   const [vizData, setVizData] = useState<WidgetVizData>({ type: WidgetVizDataType.NONE });
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string>('');
-
   const { customDashboardParameters, fetchCount, fetchSeries, fetchEntities, fetchAttackPaths, fetchAverage } = useContext(CustomDashboardContext);
 
   // Use ref to track if component is mounted
@@ -244,7 +122,7 @@ const WidgetWrapper = ({
             case WidgetVizDataType.AVERAGE:
               setVizData({
                 type: WidgetVizDataType.AVERAGE,
-                data: mocked as EsAvgs,
+                data: determinePercentage(response.data as EsAvgs),
               });
               break;
             default: break;

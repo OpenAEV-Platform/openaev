@@ -3,10 +3,13 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { type EsSeries, type EsSeriesData } from '../../../../utils/api-types';
 import { capitalize } from '../../../../utils/String';
-import { calcPercentage, formatPercentage } from '../../workspaces/custom_dashboards/widgets/viz/domains/SecurityDomainsWidgetUtils';
-import { colorByAverage, colorByLabel } from '../ColorByResult';
+import {
+  colorByLabel,
+  type EsExpectationDataExtended,
+  type EsExpectationExtended,
+  formatPercentage,
+} from '../../workspaces/custom_dashboards/widgets/viz/domains/SecurityDomainsWidgetUtils';
 import expectationIconByType from '../ExpectationIconByType';
 
 const useStyles = makeStyles()({
@@ -23,7 +26,7 @@ const useStyles = makeStyles()({
 });
 
 interface Props {
-  results: EsSeries[] | undefined;
+  results: EsExpectationExtended[] | undefined;
   inline?: boolean;
 }
 
@@ -34,14 +37,7 @@ const ExpectationResultByType: FunctionComponent<Props> = ({ results, inline }) 
   return (
     inline
       ? (
-          results?.map((result: EsSeries) => {
-            let successValue = 0;
-            result.data?.map((d: EsSeriesData) => {
-              if (d.key === 'success') {
-                successValue = d.value ?? 0;
-              }
-            });
-            const successRate = result.value ? calcPercentage(successValue, result.value) : -1;
+          results?.map((result: EsExpectationExtended) => {
             return (
               <div
                 key={result.label}
@@ -51,15 +47,14 @@ const ExpectationResultByType: FunctionComponent<Props> = ({ results, inline }) 
                   <Icon
                     key={result.label}
                     sx={{
-                      color: colorByAverage(successRate),
+                      color: result.color,
                       height: theme.spacing(4),
                     }}
                   >
                     {expectationIconByType(result.label)}
                   </Icon>
                   {result.label && <span style={{ fontSize: theme.typography.body2.fontSize }}>{capitalize(result.label)}</span>}
-                  {result.data?.map((d: EsSeriesData) => {
-										console.log(d.value, result.value)
+                  {result.data?.map((d: EsExpectationDataExtended) => {
                     return (
                       <div className={classes.inline} key={d.key}>
                         {
@@ -69,7 +64,7 @@ const ExpectationResultByType: FunctionComponent<Props> = ({ results, inline }) 
                               fontSize: theme.typography.h4.fontSize,
                             }}
                             >
-                              {formatPercentage(calcPercentage(d.value, result.value), 1)}
+                              {formatPercentage(d.percentage ?? 0, 1)}
                             </span>
                           )
                         }
@@ -84,20 +79,13 @@ const ExpectationResultByType: FunctionComponent<Props> = ({ results, inline }) 
         )
       : (
           <div className={classes.contained}>
-            {results?.map((result: EsSeries) => {
-              let successValue = 0;
-              result.data?.map((d) => {
-                if (d.key === 'success') {
-                  successValue = d.value ? d.value : 0;
-                }
-              });
-              const successRate = result.value ? calcPercentage(successValue, result.value) : -1;
+            {results?.map((result: EsExpectationExtended) => {
               return (
                 <div key={result.label}>
                   <Icon
                     key={result.label}
                     sx={{
-                      color: colorByAverage(successRate),
+                      color: result.color,
                       height: theme.spacing(4),
                     }}
                   >
