@@ -4,6 +4,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
@@ -11,11 +12,13 @@ import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.integration.local_fixtures.*;
+import io.openaev.service.FileService;
+import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.connector_instances.EncryptionFactory;
 import io.openaev.utils.fixtures.CatalogConnectorFixture;
 import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import io.openaev.utilstest.RabbitMQTestListener;
-import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.NoSuchElementException;
 import org.junit.jupiter.api.DisplayName;
@@ -31,13 +34,38 @@ import org.springframework.transaction.annotation.Transactional;
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 public class ManagerTest {
-  @Autowired private TestIntegrationFactory testIntegrationFactory;
-  @Autowired private TestIntegrationFactoryInitThrows testIntegrationFactoryInitThrows;
   @Autowired private CatalogConnectorRepository catalogConnectorRepository;
   @Autowired private ConnectorInstanceRepository connectorInstanceRepository;
   @Autowired private ConnectorInstanceService connectorInstanceService;
+  @Autowired private CatalogConnectorService catalogConnectorService;
+  @Autowired private FileService fileService;
+  @Autowired private TestIntegrationConfigurationMigration testIntegrationConfigurationMigration;
+  @Autowired private ComponentRequestEngine componentRequestEngine;
+  @Autowired private HttpClientFactory httpClientFactory;
   @Autowired private CatalogConnectorComposer catalogConnectorComposer;
-  @Autowired private EntityManager entityManager;
+  @Autowired private EncryptionFactory encryptionFactory;
+
+  private IntegrationFactory getFactoryInitThrows() {
+    return new TestIntegrationFactoryInitThrows(
+        connectorInstanceService,
+        catalogConnectorService,
+        fileService,
+        testIntegrationConfigurationMigration,
+        componentRequestEngine,
+        httpClientFactory,
+        encryptionFactory);
+  }
+
+  private IntegrationFactory getRegularFactory() {
+    return new TestIntegrationFactory(
+        connectorInstanceService,
+        catalogConnectorService,
+        fileService,
+        testIntegrationConfigurationMigration,
+        componentRequestEngine,
+        httpClientFactory,
+        encryptionFactory);
+  }
 
   @Test
   @DisplayName(
@@ -45,7 +73,7 @@ public class ManagerTest {
   public void whenInstantiatingManager_factoriesAreInitialised() throws Exception {
     // ACT: instantiate the manager
     // this will trigger factories to register their catalog item where applicable
-    new Manager(List.of(testIntegrationFactory));
+    new Manager(List.of(getRegularFactory()));
 
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
 
@@ -59,8 +87,7 @@ public class ManagerTest {
   public void whenAnIntegrationFactoryThrowsDuringInit_throwBack() throws Exception {
     // ACT: instantiate the manager
     // this will trigger factories to register their catalog item where applicable
-    assertThatThrownBy(
-            () -> new Manager(List.of(testIntegrationFactory, testIntegrationFactoryInitThrows)))
+    assertThatThrownBy(() -> new Manager(List.of(getRegularFactory(), getFactoryInitThrows())))
         .isInstanceOf(RuntimeException.class)
         .hasMessageContaining("deliberate throw");
   }
@@ -78,7 +105,7 @@ public class ManagerTest {
 
     // ACT: instantiate the manager
     // this will trigger factories to register their catalog item where applicable
-    new Manager(List.of(testIntegrationFactory));
+    new Manager(List.of(getRegularFactory()));
 
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
 
@@ -90,7 +117,7 @@ public class ManagerTest {
   @Test
   @DisplayName("When the Manager is instantiated, configured factories run their own migrations")
   public void whenInstantiatingManager_migrationsAreRun() throws Exception {
-    new Manager(List.of(testIntegrationFactory));
+    new Manager(List.of(getRegularFactory()));
 
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
 
@@ -115,7 +142,7 @@ public class ManagerTest {
   @DisplayName(
       "When requested state of instance changes state, manager changes state of integration")
   public void whenRequestedStateOfInstanceSetToStopping_managerStopsIntegration() throws Exception {
-    Manager manager = new Manager(List.of(testIntegrationFactory));
+    Manager manager = new Manager(List.of(getRegularFactory()));
 
     // START integrations
     manager.monitorIntegrations();
@@ -169,7 +196,7 @@ public class ManagerTest {
   @Test
   @DisplayName("When instance is deleted, manager stops integration and deletes")
   public void whenInstanceIsDeleted_managerStopsIntegrationAndDeletes() throws Exception {
-    Manager manager = new Manager(List.of(testIntegrationFactory));
+    Manager manager = new Manager(List.of(getRegularFactory()));
 
     // START integrations
     manager.monitorIntegrations();
@@ -202,7 +229,7 @@ public class ManagerTest {
   @DisplayName(
       "When component request matches component in started integration, return typed component")
   public void whenComponentRequestMatchesComponent_returnTypedComponent() throws Exception {
-    Manager manager = new Manager(List.of(testIntegrationFactory));
+    Manager manager = new Manager(List.of(getRegularFactory()));
 
     manager.monitorIntegrations();
 
@@ -216,7 +243,7 @@ public class ManagerTest {
   @Test
   @DisplayName("When component exist in stopped integration, request throws exception")
   public void whenComponentExistsInStoppedIntegration_requestThrowsException() throws Exception {
-    Manager manager = new Manager(List.of(testIntegrationFactory));
+    Manager manager = new Manager(List.of(getRegularFactory()));
 
     // setup to stop instance
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
@@ -239,7 +266,7 @@ public class ManagerTest {
   @Test
   @DisplayName("When component does not exist in any integration, request throws exception")
   public void whenComponentDoesNotExistInAnyIntegration_requestThrowsException() throws Exception {
-    Manager manager = new Manager(List.of(testIntegrationFactory));
+    Manager manager = new Manager(List.of(getRegularFactory()));
 
     // kick off integrations
     manager.monitorIntegrations();

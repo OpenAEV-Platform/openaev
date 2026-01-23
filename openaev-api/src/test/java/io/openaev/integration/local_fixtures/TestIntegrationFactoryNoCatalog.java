@@ -6,9 +6,7 @@ import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import org.springframework.stereotype.Service;
 
-@Service
 public class TestIntegrationFactoryNoCatalog extends IntegrationFactory {
 
   public TestIntegrationFactoryNoCatalog(

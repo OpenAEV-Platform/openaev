@@ -14,17 +14,14 @@ import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.EncryptionFactory;
 import io.openaev.service.connector_instances.EncryptionService;
 import java.util.List;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 
-@Service
 public class TestIntegrationFactory extends IntegrationFactory {
   private final FileService fileService;
   private final CatalogConnectorService catalogConnectorService;
   private final TestIntegrationConfigurationMigration testIntegrationConfigurationMigration;
   private final ComponentRequestEngine componentRequestEngine;
   private final ConnectorInstanceService connectorInstanceService;
-  @Autowired private EncryptionFactory encryptionFactory;
+  private final EncryptionFactory encryptionFactory;
 
   public TestIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -32,13 +29,15 @@ public class TestIntegrationFactory extends IntegrationFactory {
       FileService fileService,
       TestIntegrationConfigurationMigration testIntegrationConfigurationMigration,
       ComponentRequestEngine componentRequestEngine,
-      HttpClientFactory httpClientFactory) {
+      HttpClientFactory httpClientFactory,
+      EncryptionFactory encryptionFactory) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.fileService = fileService;
     this.catalogConnectorService = catalogConnectorService;
     this.testIntegrationConfigurationMigration = testIntegrationConfigurationMigration;
     this.componentRequestEngine = componentRequestEngine;
     this.connectorInstanceService = connectorInstanceService;
+    this.encryptionFactory = encryptionFactory;
   }
 
   @Override
