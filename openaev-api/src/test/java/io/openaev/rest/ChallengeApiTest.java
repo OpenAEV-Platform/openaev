@@ -20,6 +20,8 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.integration.Manager;
+import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrationFactory;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
@@ -28,9 +30,11 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @TestInstance(PER_CLASS)
+@Transactional
 class ChallengeApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
@@ -39,36 +43,30 @@ class ChallengeApiTest extends IntegrationTest {
   @Autowired private InjectRepository injectRepository;
   @Autowired private ChallengeRepository challengeRepository;
   @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private ChallengeInjectorIntegrationFactory challengeInjectorIntegrationFactory;
   @Resource private ObjectMapper objectMapper;
 
-  private static String SCENARIO_ID;
-  private static String CHALLENGE_ID;
-  private static String INJECT_ID;
-
-  @AfterAll
-  void afterAll() {
-    this.scenarioService.deleteScenario(SCENARIO_ID);
-    this.challengeRepository.deleteById(CHALLENGE_ID);
-    this.injectRepository.deleteById(INJECT_ID);
+  @BeforeEach
+  public void before() throws Exception {
+    new Manager(List.of(challengeInjectorIntegrationFactory)).monitorIntegrations();
   }
 
   // -- SCENARIOS --
 
   @DisplayName("Retrieve challenges for scenario")
   @Test
-  @Order(1)
   @WithMockUser(isAdmin = true)
   void retrieveChallengesVariableForScenarioTest() throws Exception {
     // -- PREPARE --
     Scenario scenario = createDefaultCrisisScenario();
     Scenario scenarioCreated = this.scenarioService.createScenario(scenario);
     assertNotNull(scenarioCreated, "Scenario should be successfully created");
-    SCENARIO_ID = scenarioCreated.getId();
+    String SCENARIO_ID = scenarioCreated.getId();
 
     Challenge challenge = createDefaultChallenge();
     Challenge challengeCreated = this.challengeRepository.save(challenge);
     assertNotNull(challengeCreated, "Challenge should be successfully created");
-    CHALLENGE_ID = challengeCreated.getId();
+    String CHALLENGE_ID = challengeCreated.getId();
 
     Inject inject =
         createDefaultInjectChallenge(
@@ -78,7 +76,7 @@ class ChallengeApiTest extends IntegrationTest {
     inject.setScenario(scenarioCreated);
     Inject injectCreated = this.injectRepository.save(inject);
     assertNotNull(injectCreated, "Inject should be successfully created");
-    INJECT_ID = injectCreated.getId();
+    String INJECT_ID = injectCreated.getId();
 
     // -- EXECUTE --
     String response =
