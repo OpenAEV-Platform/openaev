@@ -17,8 +17,11 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 public class InjectExpectationResultUtils {
+
+  private static final String NOT_APPLICABLE = null;
 
   private InjectExpectationResultUtils() {}
 
@@ -50,18 +53,30 @@ public class InjectExpectationResultUtils {
   // -- SETUP --
 
   private static InjectExpectationResult setUp(
-      @NotNull final String sourceId, @NotNull final String sourceName) {
+      @NotNull final String sourceId,
+      @NotNull final String sourceName,
+      @NotNull final String sourcePlatform) {
     return InjectExpectationResult.builder()
         .sourceId(sourceId)
         .sourceType(COLLECTOR)
-        .date(String.valueOf(Instant.now()))
         .sourceName(sourceName)
+        .sourcePlatform(sourcePlatform)
+        .date(String.valueOf(Instant.now()))
         .build();
   }
 
   public static List<InjectExpectationResult> setUpFromCollectors(
       @NotNull final List<Collector> collectors) {
-    return collectors.stream().map(c -> setUp(c.getId(), c.getName())).toList();
+    return collectors.stream()
+        .map(
+            c ->
+                setUp(
+                    c.getId(),
+                    c.getName(),
+                    Optional.ofNullable(c.getSecurityPlatform())
+                        .map(sp -> sp.getSecurityPlatformType().name())
+                        .orElse(null)))
+        .toList();
   }
 
   // -- BUILD --
@@ -81,6 +96,7 @@ public class InjectExpectationResultUtils {
               .sourceId(input.getSourceId())
               .sourceType(input.getSourceType())
               .sourceName(input.getSourceName())
+              .sourcePlatform(input.getSourcePlatform())
               .result(resultMsg)
               .date(now().toString())
               .score(input.getScore())
@@ -109,6 +125,10 @@ public class InjectExpectationResultUtils {
               .sourceId(collector.getId())
               .sourceType(COLLECTOR)
               .sourceName(collector.getName())
+              .sourcePlatform(
+                  Optional.ofNullable(collector.getSecurityPlatform())
+                      .map(sp -> sp.getSecurityPlatformType().name())
+                      .orElse(null))
               .result(input.getResult())
               .date(Instant.now().toString())
               .score(score)
@@ -133,6 +153,7 @@ public class InjectExpectationResultUtils {
         .sourceId("media-pressure")
         .sourceType("media-pressure")
         .sourceName("Media pressure read")
+        .sourcePlatform(NOT_APPLICABLE)
         .result(Instant.now().toString())
         .date(Instant.now().toString())
         .score(injectExpectation.getExpectedScore())
@@ -144,6 +165,7 @@ public class InjectExpectationResultUtils {
         .sourceId(EXPECTATIONS_VULNERABILITY_COLLECTOR_ID)
         .sourceType(EXPECTATIONS_VULNERABILITY_COLLECTOR_TYPE)
         .sourceName(EXPECTATIONS_VULNERABILITY_COLLECTOR_NAME)
+        .sourcePlatform(NOT_APPLICABLE)
         .score(0.0)
         .result(VULNERABILITY.failureLabel)
         .date(String.valueOf(Instant.now()))
@@ -156,6 +178,7 @@ public class InjectExpectationResultUtils {
         .sourceId("player-manual-validation")
         .sourceType("player-manual-validation")
         .sourceName("Player Manual Validation")
+        .sourcePlatform(NOT_APPLICABLE)
         .result(result)
         .score(score)
         .date(String.valueOf(Instant.now()))
@@ -168,6 +191,7 @@ public class InjectExpectationResultUtils {
         .sourceId("team-manual-validation")
         .sourceType("team-manual-validation")
         .sourceName("Team Manual Validation")
+        .sourcePlatform(NOT_APPLICABLE)
         .result(result)
         .score(score)
         .date(String.valueOf(Instant.now()))

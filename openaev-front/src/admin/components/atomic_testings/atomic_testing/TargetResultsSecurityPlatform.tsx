@@ -9,6 +9,7 @@ import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import type { InjectExpectationResult, InjectExpectationTrace } from '../../../../utils/api-types';
 import { type InjectExpectationsStore } from '../../common/injects/expectations/Expectation';
+import { getSourceLabel } from '../../simulations/simulation/validation/expectations/ExpectationUtils';
 
 const useStyles = makeStyles()(() => ({ flexContainer: { display: 'flex' } }));
 
@@ -40,7 +41,7 @@ const TargetResultsSecurityPlatform: FunctionComponent<Props> = ({
     <Drawer
       open={open}
       handleClose={handleClose}
-      title={expectationResult ? t(expectationResult.sourceName || '-') : '-'}
+      title={getSourceLabel(expectationResult)}
     >
       <>
         <Typography variant="body1">

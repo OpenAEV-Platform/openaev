@@ -162,7 +162,7 @@ public class CustomDashboardService {
     if (!this.customDashboardRepository.existsById(id)) {
       throw new EntityNotFoundException("Custom dashboard not found with id: " + id);
     }
-    this.customDashboardRepository.deleteById(id);
+    this.customDashboardRepository.deleteByIdNative(id);
   }
 
   // -- OPTION --

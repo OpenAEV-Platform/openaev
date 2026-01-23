@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { TableViewOutlined } from '@mui/icons-material';
 import {
-  Autocomplete as MuiAutocomplete,
+  Alert, Autocomplete as MuiAutocomplete,
   Box,
   Button,
   createFilterOptions,
@@ -21,7 +21,12 @@ import { searchMappers } from '../../../../actions/mapper/mapper-actions';
 import { initSorting, type Page } from '../../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useFormatter } from '../../../../components/i18n';
-import { type ImportMapper, type ImportMessage, type ImportTestSummary, type InjectsImportInput } from '../../../../utils/api-types';
+import {
+  type ImportMapper,
+  type ImportMessage,
+  type ImportTestSummary,
+  type InjectsImportInput,
+} from '../../../../utils/api-types';
 import { zodImplement } from '../../../../utils/Zod';
 import { InjectContext } from '../Context';
 
@@ -83,6 +88,7 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
 
   // Launch Date
   const [needLaunchDate, setNeedLaunchDate] = useState<boolean>(false);
+  const [messageInfoMapperXls, setMessageInfoMapperXls] = useState<string[]>([]);
   const injectContext = useContext(InjectContext);
 
   // Form
@@ -163,7 +169,50 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
     handleSubmitForm(onSubmitImportInjects)(e);
   };
 
+  type GroupedMessage = {
+    code: NonNullable<ImportMessage['message_code']>;
+    column?: string;
+    rows: string[];
+  };
+
+  type GroupedMessagesMap = Record<string, GroupedMessage>;
+
+  const groupMessages = (
+    messages: ImportMessage[],
+  ): GroupedMessagesMap => {
+    return messages.reduce<GroupedMessagesMap>((acc, msg) => {
+      const { message_code, message_params } = msg;
+
+      if (!message_code || !message_params?.row_num) {
+        return acc;
+      }
+
+      const key
+        = message_code === 'NO_POTENTIAL_MATCH_FOUND'
+          ? `${message_code}_${message_params.column_type_num}`
+          : message_code;
+
+      if (!acc[key]) {
+        acc[key] = {
+          code: message_code,
+          column: message_params.column_type_num,
+          rows: [],
+        };
+      }
+
+      acc[key].rows.push(message_params.row_num);
+
+      return acc;
+    }, {});
+  };
+
+  const formatMessages = (messages: ImportMessage[]): string[] => {
+    const grouped = groupMessages(messages);
+    return Object.values(grouped)
+      .map(({ code, column, rows }) => `${t(code)}\n ${column ? `${t('ON COLUMN')}: ${column}\n ` : ''}${t('ON ROW')}: ${rows.join(', ')}`);
+  };
   const checkNeedLaunchDate = () => {
+    setMessageInfoMapperXls([]);
     const formValues = getValues();
     if (formValues.importMapperId && formValues.sheetName && formValues.timezone) {
       setNeedLaunchDate(false);
@@ -179,6 +228,11 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
         }).length > 0) {
           setNeedLaunchDate(true);
         }
+        const messageInfo: string[] = formatMessages(value.import_message ?? []);
+
+        messageInfo.push((value.total_injects ?? 0) + ' / ' + (value.total_rows_analysed ?? 0) + ' ');
+
+        setMessageInfoMapperXls(messageInfo);
       });
     }
   };
@@ -348,6 +402,18 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
           )}
         />
       </div>
+
+      {messageInfoMapperXls.length != 0
+        && (
+          <Alert severity="info">
+            {((messageInfoMapperXls.at(messageInfoMapperXls.length - 1) ?? '') + t('injects are ready to import'))}
+            <p>{t('ERRORS DETECTED:')}</p>
+            {messageInfoMapperXls.map((msg, i) => (
+              (i != messageInfoMapperXls.length - 1)
+              && <p style={{ whiteSpace: 'pre-line' }} key={i}>{msg}</p>
+            ))}
+          </Alert>
+        )}
       <div className={classes.buttons}>
         <Button
           onClick={handleClose}

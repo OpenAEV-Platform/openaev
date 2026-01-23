@@ -86,7 +86,7 @@ export const resetPassword = (token, values) => (dispatch) => {
 };
 
 export const validateResetToken = token => (dispatch) => {
-  return getReferential(null, `/api/reset/${token}`)(dispatch);
+  return postReferential(null, `/api/reset/${token}`)(dispatch);
 };
 
 export const askToken = (username, password) => (dispatch) => {

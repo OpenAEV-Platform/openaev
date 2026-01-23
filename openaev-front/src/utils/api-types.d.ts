@@ -2337,6 +2337,7 @@ export interface ExpectationUpdateInput {
   expectation_score: number;
   source_id: string;
   source_name: string;
+  source_platform?: string;
   source_type: string;
 }
 
@@ -2642,6 +2643,8 @@ export interface ImportTestSummary {
   injects?: InjectOutput[];
   /** @format int32 */
   total_injects?: number;
+  /** @format int32 */
+  total_rows_analysed?: number;
 }
 
 export interface Inject {
@@ -2849,6 +2852,7 @@ export interface InjectExpectationResult {
   score?: number;
   sourceId?: string;
   sourceName?: string;
+  sourcePlatform?: string;
   sourceType?: string;
 }
 
@@ -5400,6 +5404,7 @@ export interface Scenario {
   scenario_tags?: string[];
   scenario_teams?: string[];
   scenario_teams_users?: ScenarioTeamUser[];
+  scenario_type_affinity?: string;
   /** @format date-time */
   scenario_updated_at: string;
   scenario_users?: string[];
@@ -5491,6 +5496,8 @@ export interface ScenarioOutput {
   scenario_tags?: string[];
   /** @uniqueItems true */
   scenario_teams_users?: ScenarioTeamUserOutput[];
+  /** Type affinity of the scenario */
+  scenario_type_affinity?: string;
   /**
    * Update date of the scenario
    * @format date-time

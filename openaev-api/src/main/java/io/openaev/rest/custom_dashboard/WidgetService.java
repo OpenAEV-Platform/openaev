@@ -8,7 +8,6 @@ import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.Widget;
 import io.openaev.database.repository.CustomDashboardRepository;
 import io.openaev.database.repository.WidgetRepository;
-import io.openaev.engine.EngineService;
 import io.openaev.engine.api.*;
 import io.openaev.rest.custom_dashboard.utils.WidgetUtils;
 import io.openaev.utils.CustomDashboardTimeRange;
@@ -26,7 +25,6 @@ public class WidgetService {
 
   private final CustomDashboardRepository customDashboardRepository;
   private final WidgetRepository widgetRepository;
-  private final EngineService esService;
 
   // -- CRUD --
 

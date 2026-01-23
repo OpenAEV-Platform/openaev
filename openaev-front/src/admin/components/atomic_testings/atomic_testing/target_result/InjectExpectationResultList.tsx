@@ -23,6 +23,7 @@ import {
 } from '../../../../../utils/api-types';
 import { isNotEmptyField } from '../../../../../utils/utils';
 import InjectIcon from '../../../common/injects/InjectIcon';
+import { getSourceLabel } from '../../../simulations/simulation/validation/expectations/ExpectationUtils';
 import TargetResultAlertNumber from './TargetResultAlertNumber';
 
 interface Props {
@@ -144,7 +145,7 @@ const InjectExpectationResultList = ({
                   }}
                   >
                     {getAvatar(expectationResult)}
-                    {expectationResult.sourceName ? t(expectationResult.sourceName) : t('Unknown')}
+                    {getSourceLabel(expectationResult)}
                   </div>
                 </TableCell>
                 <TableCell>
