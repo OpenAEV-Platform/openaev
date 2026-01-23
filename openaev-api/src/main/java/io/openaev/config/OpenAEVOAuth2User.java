@@ -4,14 +4,17 @@ import static io.openaev.database.model.User.ROLE_ADMIN;
 import static io.openaev.database.model.User.ROLE_USER;
 
 import io.openaev.database.model.User;
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.*;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
-public class OpenAEVOAuth2User implements OpenAEVPrincipal, OAuth2User {
+public class OpenAEVOAuth2User implements OpenAEVPrincipal, OAuth2User, Serializable {
 
+  @Serial private static final long serialVersionUID = 1L;
   private final User user;
 
   public OpenAEVOAuth2User(@NotNull final User user) {

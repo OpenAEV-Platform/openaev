@@ -19,6 +19,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.io.Serializable;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -35,7 +36,7 @@ import org.hibernate.annotations.UuidGenerator;
       name = "Player.tags-organization",
       attributeNodes = {@NamedAttributeNode("tags"), @NamedAttributeNode("organization")})
 })
-public class User implements Base {
+public class User implements Base, Serializable {
 
   public static final String ADMIN_UUID = "89206193-dbfb-4513-a186-d72c037dda4c";
   public static final String ADMIN_FIRSTNAME = "admin";

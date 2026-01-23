@@ -6,6 +6,7 @@ import static io.openaev.helper.DatabaseHelper.updateRelation;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static java.time.Instant.now;
 
+import io.openaev.config.DefaultOpenAEVPrincipal;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.SessionManager;
@@ -26,7 +27,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -320,30 +320,11 @@ public class UserService {
     if (user.isAdmin()) {
       roles.add(new SimpleGrantedAuthority(ROLE_ADMIN));
     }
-    return new PreAuthenticatedAuthenticationToken(
-        new OpenAEVPrincipal() {
-          @Override
-          public String getId() {
-            return user.getId();
-          }
 
-          @Override
-          public Collection<? extends GrantedAuthority> getAuthorities() {
-            return roles;
-          }
+    OpenAEVPrincipal principal =
+        new DefaultOpenAEVPrincipal(user.getId(), roles, user.isAdmin(), user.getLang());
 
-          @Override
-          public boolean isAdmin() {
-            return user.isAdmin();
-          }
-
-          @Override
-          public String getLang() {
-            return user.getLang();
-          }
-        },
-        "",
-        roles);
+    return new PreAuthenticatedAuthenticationToken(principal, "", roles);
   }
 
   /**
