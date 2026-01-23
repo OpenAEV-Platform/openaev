@@ -1,13 +1,15 @@
 package io.openaev.utils.fixtures;
 
 import static io.openaev.integration.impl.injectors.email.EmailInjectorIntegration.EMAIL_INJECTOR_ID;
-import static io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegration.OPENAEV_INJECTOR_ID;
 
 import io.openaev.database.model.Injector;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.injectors.openaev.OpenAEVImplantContract;
+import io.openaev.integration.Manager;
+import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class InjectorFixture {
   @Autowired InjectorRepository injectorRepository;
+  @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
 
   public static Injector createDefaultPayloadInjector() {
     Injector injector =
@@ -43,8 +46,19 @@ public class InjectorFixture {
         UUID.randomUUID().toString(), injectorName, injectorName.toLowerCase().replace(" ", "-"));
   }
 
-  public Injector createOAEVImplantInjector() {
-    return createInjector(OPENAEV_INJECTOR_ID, "OpenAEV Implant", OpenAEVImplantContract.TYPE);
+  private Injector initializeOAEVImplantInjector() {
+    try {
+      new Manager(List.of(openaevInjectorIntegrationFactory)).monitorIntegrations();
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to initialize OAEV Implant Injector", e);
+    }
+
+    return injectorRepository
+        .findByType(OpenAEVImplantContract.TYPE)
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    "Injector not found after initialization: " + OpenAEVImplantContract.TYPE));
   }
 
   public Injector createOAEVEmailInjector() {
@@ -52,9 +66,10 @@ public class InjectorFixture {
   }
 
   public Injector getWellKnownOaevImplantInjector() {
-    Optional<Injector> injectorOptional = injectorRepository.findByType("openaev_implant");
     Injector injector =
-        injectorOptional.orElseGet(() -> injectorRepository.save(createOAEVImplantInjector()));
+        injectorRepository
+            .findByType(OpenAEVImplantContract.TYPE)
+            .orElseGet(this::initializeOAEVImplantInjector);
     // ensure the injector is marked for payloads
     // some tests not running in a transaction may flip this
     injector.setPayloads(true);
