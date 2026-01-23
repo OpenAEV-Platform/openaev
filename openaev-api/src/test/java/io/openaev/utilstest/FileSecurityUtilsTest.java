@@ -167,4 +167,3 @@ class FileSecurityUtilsTest {
     assertTrue(result.startsWith(Path.of(BASE_DIR).normalize()));
   }
 }
-
