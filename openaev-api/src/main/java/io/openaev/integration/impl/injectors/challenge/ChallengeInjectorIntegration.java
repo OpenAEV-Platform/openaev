@@ -27,7 +27,7 @@ public class ChallengeInjectorIntegration extends IntegrationInMemory {
   private final InjectExpectationService injectExpectationService;
   private final ChallengeRepository challengeRepository;
 
-  @QualifiedComponent(identifier = ChallengeContract.TYPE)
+  @QualifiedComponent(identifier = {ChallengeContract.TYPE, CHALLENGE_INJECTOR_ID})
   private ChallengeExecutor challengeExecutor;
 
   public ChallengeInjectorIntegration(

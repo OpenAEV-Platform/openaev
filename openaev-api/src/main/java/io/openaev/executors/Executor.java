@@ -93,8 +93,7 @@ public class Executor {
     return injectStatusRepository.save(completeStatus);
   }
 
-  public InjectStatus execute(ExecutableInject executableInject)
-      throws IOException, TimeoutException {
+  public InjectStatus execute(ExecutableInject executableInject) throws Exception {
     Inject inject = executableInject.getInjection().getInject();
     InjectorContract injectorContract =
         inject
@@ -136,8 +135,7 @@ public class Executor {
     }
   }
 
-  public InjectStatus directExecute(ExecutableInject executableInject)
-      throws IOException, TimeoutException {
+  public InjectStatus directExecute(ExecutableInject executableInject) throws Exception {
     boolean isScheduledInject = !executableInject.isDirect();
     // If empty content, inject must be rejected
     Inject inject = executableInject.getInjection().getInject();

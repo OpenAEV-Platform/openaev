@@ -44,7 +44,7 @@ public class OpenaevInjectorIntegration extends IntegrationInMemory {
   private final OpenAEVImplantContract openAEVImplantContract;
   private final OpenAEVConfig openAEVConfig;
 
-  @QualifiedComponent(identifier = OpenAEVImplantContract.TYPE)
+  @QualifiedComponent(identifier = {OpenAEVImplantContract.TYPE, OPENAEV_INJECTOR_ID})
   private OpenAEVImplantExecutor openAEVImplantExecutor;
 
   public OpenaevInjectorIntegration(

@@ -2,6 +2,7 @@ package io.openaev.integration;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
@@ -13,7 +14,7 @@ public class ComponentRequestEngine {
       if (inputField.isAnnotationPresent(QualifiedComponent.class)) {
         QualifiedComponent qualifier = inputField.getAnnotation(QualifiedComponent.class);
 
-        if (qualifier.identifier().equals(request.identifier())) {
+        if (Arrays.stream(qualifier.identifier()).anyMatch(id -> id.equals(request.identifier()))) {
           validFields.add(inputField);
         }
       }

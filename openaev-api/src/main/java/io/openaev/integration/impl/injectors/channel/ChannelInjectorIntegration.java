@@ -27,7 +27,7 @@ public class ChannelInjectorIntegration extends IntegrationInMemory {
   private final InjectExpectationService injectExpectationService;
   private final ArticleRepository articleRepository;
 
-  @QualifiedComponent(identifier = ChannelContract.TYPE)
+  @QualifiedComponent(identifier = {ChannelContract.TYPE, CHANNEL_INJECTOR_ID})
   private ChannelExecutor channelExecutor;
 
   public ChannelInjectorIntegration(

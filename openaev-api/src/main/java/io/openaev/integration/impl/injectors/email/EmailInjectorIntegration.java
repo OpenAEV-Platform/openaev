@@ -25,7 +25,7 @@ public class EmailInjectorIntegration extends IntegrationInMemory {
   private final EmailService emailService;
   private final InjectExpectationService injectExpectationService;
 
-  @QualifiedComponent(identifier = EmailContract.TYPE)
+  @QualifiedComponent(identifier = {EmailContract.TYPE, EMAIL_INJECTOR_ID})
   private EmailExecutor emailExecutor;
 
   public EmailInjectorIntegration(

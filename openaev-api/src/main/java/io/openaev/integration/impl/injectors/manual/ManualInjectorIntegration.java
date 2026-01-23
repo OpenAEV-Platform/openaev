@@ -22,7 +22,7 @@ public class ManualInjectorIntegration extends IntegrationInMemory {
   private final InjectorService injectorService;
   private final InjectExpectationService injectExpectationService;
 
-  @QualifiedComponent(identifier = ManualContract.TYPE)
+  @QualifiedComponent(identifier = {ManualContract.TYPE, MANUAL_INJECTOR_ID})
   private ManualExecutor manualExecutor;
 
   public ManualInjectorIntegration(

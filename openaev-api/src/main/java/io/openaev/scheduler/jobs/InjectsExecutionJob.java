@@ -26,13 +26,11 @@ import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
-import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Spliterators;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
@@ -176,8 +174,7 @@ public class InjectsExecutionJob implements Job {
     injectStatusService.saveAll(updatedStatuses);
   }
 
-  private void executeInject(ExecutableInject executableInject)
-      throws IOException, TimeoutException, ErrorMessagesPreExecutionException {
+  private void executeInject(ExecutableInject executableInject) throws Exception {
     // Depending on injector type (internal or external) execution must be done differently
     Inject inject = executableInject.getInjection().getInject();
     // We are now checking if we depend on another inject and if it did not failed

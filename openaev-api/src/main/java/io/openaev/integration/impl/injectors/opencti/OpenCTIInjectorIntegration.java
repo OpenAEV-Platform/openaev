@@ -34,7 +34,7 @@ public class OpenCTIInjectorIntegration extends Integration {
   private final ConnectorInstance connectorInstance;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
-  @QualifiedComponent(identifier = OpenCTIContract.TYPE)
+  @QualifiedComponent(identifier = {OpenCTIContract.TYPE, OPENCTI_INJECTOR_ID})
   private OpenCTIExecutor openCTIExecutor;
 
   public OpenCTIInjectorIntegration(

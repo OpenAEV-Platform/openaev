@@ -3,7 +3,6 @@ package io.openaev.service.connector_instances;
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.specification.TokenSpecification.fromUser;
 import static io.openaev.helper.StreamHelper.fromIterable;
-import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,7 +10,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.database.repository.TokenRepository;
-import io.openaev.integration.Integration;
+import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.Manager;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
@@ -108,31 +107,22 @@ public class ConnectorInstanceService {
   }
 
   @Transactional(readOnly = true)
-  public boolean hasStartedConnectorInstanceForInjector(final String injectorId) {
-    return this.getConnectorInstancesByInjectorId(injectorId)
-        .getCurrentStatus()
-        .equals(ConnectorInstance.CURRENT_STATUS_TYPE.started);
-  }
-
-  private ConnectorInstance getConnectorInstancesByInjectorId(final String injectorId) {
+  public boolean hasStartedConnectorInstanceForInjector(final String injectorId) throws Exception {
     try {
-      String persistedId =
-          this.connectorInstanceConfigurationRepository
-              .findInstanceAndCatalogIdsByKeyValue(
-                  ConnectorType.INJECTOR.getIdKeyName(), injectorId)
-              .getConnectorInstanceId();
-      if (hasText(persistedId)) {
-        return this.connectorInstanceRepository.findById(persistedId).orElseThrow(); // clear error
+      ConnectorInstanceConfigurationRepository.ConnectorIdsFomDatabase persistedId =
+          this.connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue(
+              ConnectorType.INJECTOR.getIdKeyName(), injectorId);
+      if (persistedId != null) {
+        ConnectorInstance ci =
+            this.connectorInstanceRepository
+                .findById(persistedId.getConnectorInstanceId())
+                .orElseThrow(); // clear error
+        return ci.getCurrentStatus().equals(ConnectorInstance.CURRENT_STATUS_TYPE.started);
       } else {
-        Map<ConnectorInstance, Integration> integrations =
-            this.managerFactory.getManager().getSpawnedIntegrations();
-        return integrations.keySet().stream()
-            .filter(
-                ci ->
-                    ci.getConfigurations().stream()
-                        .anyMatch(conf -> injectorId.equals(conf.getValue().asText())))
-            .findFirst()
-            .orElseThrow();
+        managerFactory
+            .getManager()
+            .request(new ComponentRequest(injectorId), io.openaev.executors.Injector.class);
+        return true;
       }
     } catch (Exception e) {
       throw new IllegalArgumentException("Failed to get a connector instances");

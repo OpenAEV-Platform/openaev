@@ -35,7 +35,7 @@ public class OvhInjectorIntegration extends Integration {
   private final InjectExpectationService injectExpectationService;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
-  @QualifiedComponent(identifier = OvhSmsContract.TYPE)
+  @QualifiedComponent(identifier = {OvhSmsContract.TYPE, OVH_SMS_INJECTOR_ID})
   private OvhSmsExecutor ovhSmsExecutor;
 
   public OvhInjectorIntegration(
