@@ -15,7 +15,6 @@ import lombok.Getter;
  *   <li>Type identifier for the injector
  *   <li>Localized labels for different languages
  *   <li>Theme-specific colors for UI presentation
- *   <li>Visibility control (expose flag)
  * </ul>
  *
  * @see Contract

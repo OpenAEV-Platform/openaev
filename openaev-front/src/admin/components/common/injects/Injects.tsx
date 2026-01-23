@@ -554,8 +554,7 @@ const Injects: FunctionComponent<Props> = ({
             onTimelineClick={openCreateInjectDrawer}
             onSelectedInject={(inject) => {
               const injectContract = inject?.inject_injector_contract.convertedContent;
-              const isContractExposed = injectContract?.config.expose;
-              if (injectContract && isContractExposed) {
+              if (injectContract) {
                 setSelectedInjectId(inject?.inject_id);
               }
             }}
@@ -599,7 +598,6 @@ const Injects: FunctionComponent<Props> = ({
             ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
             : injects.map((inject: InjectOutputType, index) => {
                 const injectContract = inject.inject_injector_contract?.convertedContent;
-                const isContractExposed = injectContract?.config.expose;
                 return (
                   <ListItem
                     key={inject.inject_id}
@@ -609,7 +607,7 @@ const Injects: FunctionComponent<Props> = ({
                         inject={inject}
                         canBeTested
                         setSelectedInjectId={setSelectedInjectId}
-                        isDisabled={!injectContract || !isContractExposed}
+                        isDisabled={!injectContract}
                         onCreate={onCreate}
                         onUpdate={onUpdate}
                         onDelete={onDelete}
@@ -619,7 +617,7 @@ const Injects: FunctionComponent<Props> = ({
                   >
                     <ListItemButton
                       onClick={() => {
-                        if (injectContract && isContractExposed) {
+                        if (injectContract) {
                           setSelectedInjectId(inject.inject_id);
                         }
                       }}
@@ -650,12 +648,12 @@ const Injects: FunctionComponent<Props> = ({
                               || inject.inject_injector_contract?.injector_contract_payload?.payload_type
                               : inject.inject_type
                           }
-                          disabled={!injectContract || !isContractExposed || !inject.inject_enabled}
+                          disabled={!injectContract || !inject.inject_enabled}
                         />
                       </ListItemIcon>
                       <ListItemText
                         primary={(
-                          <div className={(!injectContract || !isContractExposed
+                          <div className={(!injectContract
                             || !inject.inject_enabled) ? classes.disabled : ''}
                           >
                             <div className={classes.bodyItems}>

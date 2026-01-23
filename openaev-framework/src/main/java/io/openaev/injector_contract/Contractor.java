@@ -9,7 +9,6 @@ import java.util.List;
  * injector. Each injector implementation extends this class to specify:
  *
  * <ul>
- *   <li>Whether the injector should be exposed (visible) in the platform
  *   <li>The unique type identifier for the injector
  *   <li>The icon displayed in the UI
  *   <li>The configuration metadata
@@ -20,8 +19,6 @@ import java.util.List;
  *
  * <pre>{@code
  * public class EmailContractor extends Contractor {
- *     @Override
- *     public boolean isExpose() { return true; }
  *
  *     @Override
  *     public String getType() { return "email"; }

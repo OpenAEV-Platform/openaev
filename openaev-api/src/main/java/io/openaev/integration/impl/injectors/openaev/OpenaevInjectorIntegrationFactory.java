@@ -5,10 +5,14 @@ import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
+import io.openaev.executors.InjectorContext;
 import io.openaev.injectors.openaev.OpenAEVImplantContract;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
+import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.AssetGroupService;
+import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -24,6 +28,10 @@ public class OpenaevInjectorIntegrationFactory extends IntegrationFactory {
   private final InjectorService injectorService;
   private final OpenAEVImplantContract openAEVImplantContract;
   private final OpenAEVConfig openAEVConfig;
+  private final InjectorContext injectorContext;
+  private final AssetGroupService assetGroupService;
+  private final InjectExpectationService injectExpectationService;
+  private final InjectService injectService;
 
   public OpenaevInjectorIntegrationFactory(
       ComponentRequestEngine componentRequestEngine,
@@ -32,13 +40,21 @@ public class OpenaevInjectorIntegrationFactory extends IntegrationFactory {
       OpenAEVImplantContract openAEVImplantContract,
       OpenAEVConfig openAEVConfig,
       CatalogConnectorService catalogConnectorService,
-      HttpClientFactory httpClientFactory) {
+      HttpClientFactory httpClientFactory,
+      InjectorContext injectorContext,
+      AssetGroupService assetGroupService,
+      InjectExpectationService injectExpectationService,
+      InjectService injectService) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.componentRequestEngine = componentRequestEngine;
     this.connectorInstanceService = connectorInstanceService;
     this.injectorService = injectorService;
     this.openAEVImplantContract = openAEVImplantContract;
     this.openAEVConfig = openAEVConfig;
+    this.injectorContext = injectorContext;
+    this.assetGroupService = assetGroupService;
+    this.injectExpectationService = injectExpectationService;
+    this.injectService = injectService;
   }
 
   @Override
@@ -76,6 +92,10 @@ public class OpenaevInjectorIntegrationFactory extends IntegrationFactory {
         connectorInstanceService,
         injectorService,
         openAEVImplantContract,
-        openAEVConfig);
+        openAEVConfig,
+        injectorContext,
+        assetGroupService,
+        injectExpectationService,
+        injectService);
   }
 }
