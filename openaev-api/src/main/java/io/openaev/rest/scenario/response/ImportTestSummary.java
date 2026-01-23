@@ -19,6 +19,9 @@ public class ImportTestSummary {
   @JsonProperty("total_injects")
   public int totalNumberOfInjects;
 
+  @JsonProperty("total_rows_analysed")
+  public int totalRowsAnalysed;
+
   @JsonIgnore private List<Inject> injects = new ArrayList<>();
 
   @JsonProperty("injects")
