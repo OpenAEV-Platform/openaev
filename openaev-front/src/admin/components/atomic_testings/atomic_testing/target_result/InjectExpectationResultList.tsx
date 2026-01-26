@@ -99,7 +99,7 @@ const InjectExpectationResultList = ({
                 sx={{ cursor: `${isResultSecurityPlatform ? 'pointer' : 'default'}` }}
                 onClick={() => {
                   if (isResultSecurityPlatform) {
-                    onOpenSecurityPlatform(expectationResult);
+                    onOpenSecurityPlatform(expectationResult, injectExpectation);
                   }
                 }}
               >

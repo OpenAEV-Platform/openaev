@@ -68,13 +68,15 @@ const InjectExpectationProvider = ({ children, inject }: {
     });
   };
 
-  const onOpenSecurityPlatform = (result: InjectExpectationResult | null = null) => {
+  const onOpenSecurityPlatform = (result: InjectExpectationResult | null = null, injectExpectationStore: InjectExpectationsStore | null = null) => {
     setSelectedResult(result);
+    setSelectedInjectExpectation(injectExpectationStore);
     setOpenSecurityPlatform(true);
   };
 
   const onCloseSecurityPlatformResult = () => {
     setSelectedResult(null);
+    setSelectedInjectExpectation(null);
     setOpenSecurityPlatform(false);
   };
 
