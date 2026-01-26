@@ -90,6 +90,18 @@ const ThemeLight = (
       contrastText: '#ffffff',
     },
     xtmhub: { main: '#00f1bd' },
+    widgets: {
+      securityDomains: {
+        colors: {
+          success: 'rgb(2,129,8)',
+          intermediate: 'rgb(255 216 0)',
+          warning: 'rgb(245, 166, 35)',
+          failed: 'rgb(220, 81, 72)',
+          pending: 'rgba(248,243,243,0.37)',
+          unknown: 'rgba(73,72,72,0.37)',
+        },
+      },
+    },
     background: {
       default: background || THEME_LIGHT_DEFAULT_BACKGROUND,
       paper: paper || THEME_LIGHT_DEFAULT_PAPER,

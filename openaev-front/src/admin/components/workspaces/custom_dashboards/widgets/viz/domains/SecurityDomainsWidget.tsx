@@ -5,6 +5,7 @@ import type { DomainHelper } from '../../../../../../../actions/helper';
 import { useFormatter } from '../../../../../../../components/i18n';
 import { useHelper } from '../../../../../../../store';
 import { type Domain } from '../../../../../../../utils/api-types';
+import { TO_CLASSIFY } from '../../../../../../../utils/domains/domainUtils';
 import ExpectationResultByType from '../../../../../common/domains/ExpectationResultByType';
 import { type IconBarElement } from '../../../../../common/domains/IconBar-model';
 import SecurityDomainsWidgetIconBar from './SecurityDomainsWidgetIconBar';
@@ -28,10 +29,10 @@ const SecurityDomainsWidget: FunctionComponent<Props> = ({ data }) => {
   const iconBarElements: IconBarElement[] = [];
 
   allDomains.map((domain: Domain) => {
-    if (domain.domain_name !== 'To classify') {
+    if (domain.domain_name !== TO_CLASSIFY) {
       const selectedDomains: EsDomainsAvgDataExtended | undefined = data.security_domain_average.filter(s => s.label === domain.domain_name).at(0);
       if (selectedDomains) {
-        if (selectedDomains.label !== 'To classify' && selectedDomains.data) {
+        if (selectedDomains.label !== TO_CLASSIFY && selectedDomains.data) {
           const element: IconBarElement = {
             type: selectedDomains.label,
             selectedType: domainType,

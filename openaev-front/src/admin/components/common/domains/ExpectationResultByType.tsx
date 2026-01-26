@@ -60,7 +60,7 @@ const ExpectationResultByType: FunctionComponent<Props> = ({ results, inline }) 
                         {
                           d.label && d.value && result.value && (
                             <span style={{
-                              color: colorByLabel(d.label),
+                              color: colorByLabel(d.label, theme),
                               fontSize: theme.typography.h4.fontSize,
                             }}
                             >

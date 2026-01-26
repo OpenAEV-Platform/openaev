@@ -7,16 +7,18 @@ export interface DomainAutocompleteState {
   }[];
 }
 
+export const TO_CLASSIFY = 'To classify';
+
 export const buildDomainAutocompleteState = (
   domains: Domain[],
   value: Domain[] | string[] | undefined,
 ): DomainAutocompleteState => {
   const selectableDomains = domains.filter(
-    d => d.domain_name !== 'To classify',
+    d => d.domain_name !== TO_CLASSIFY,
   );
 
   const toClassifyDomain = domains.find(
-    d => d.domain_name === 'To classify',
+    d => d.domain_name === TO_CLASSIFY,
   );
 
   const currentIds: string[] = Array.isArray(value)
@@ -52,6 +54,6 @@ export const cleanSelectedDomains = (
   );
 
   return selected.length > 1
-    ? selected.filter(d => d.domain_name !== 'To classify')
+    ? selected.filter(d => d.domain_name !== TO_CLASSIFY)
     : selected;
 };

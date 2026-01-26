@@ -105,6 +105,7 @@ public class OpenaevInjectorIntegration extends IntegrationInMemory {
     Map<String, String> commands = new HashMap<>();
     String tokenVar = "token=\"" + cfg.getAdminToken() + "\"";
     String serverVar = "server=\"" + cfg.getBaseUrlForAgent() + "\"";
+    String maxSizeVar = "max_size=\"" + cfg.getLogsMaxSize() + "\"";
     String unsecuredCertificateVar =
         "unsecured_certificate=\"" + cfg.isUnsecuredCertificate() + "\"";
     String withProxyVar = "with_proxy=\"" + cfg.isWithProxy() + "\"";
@@ -118,6 +119,8 @@ public class OpenaevInjectorIntegration extends IntegrationInMemory {
             + unsecuredCertificateVar
             + ";$"
             + withProxyVar
+            + ";$"
+            + maxSizeVar
             + ";"
             + dlVar(cfg, "windows", "x86_64")
             + ";$wc=New-Object System.Net.WebClient;$data=$wc.DownloadData($url);[io.file]::WriteAllBytes($filename,$data) | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\" -Direction Inbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\" -Direction Outbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Start-Process -FilePath \"$location\\$filename\" -ArgumentList \"--uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject}\" -WindowStyle hidden;");
@@ -131,6 +134,8 @@ public class OpenaevInjectorIntegration extends IntegrationInMemory {
             + unsecuredCertificateVar
             + ";$"
             + withProxyVar
+            + ";$"
+            + maxSizeVar
             + ";"
             + dlVar(cfg, "windows", "arm64")
             + ";$wc=New-Object System.Net.WebClient;$data=$wc.DownloadData($url);[io.file]::WriteAllBytes($filename,$data) | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\" -Direction Inbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\" -Direction Outbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Start-Process -FilePath \"$location\\$filename\" -ArgumentList \"--uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject}\" -WindowStyle hidden;");
@@ -144,6 +149,8 @@ public class OpenaevInjectorIntegration extends IntegrationInMemory {
             + unsecuredCertificateVar
             + ";"
             + withProxyVar
+            + ";"
+            + maxSizeVar
             + ";curl -s -X GET "
             + dlUri(cfg, "linux", "x86_64")
             + " > $location/$filename;chmod +x $location/$filename;$location/$filename --uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject} &");
@@ -157,6 +164,8 @@ public class OpenaevInjectorIntegration extends IntegrationInMemory {
             + unsecuredCertificateVar
             + ";"
             + withProxyVar
+            + ";"
+            + maxSizeVar
             + ";curl -s -X GET "
             + dlUri(cfg, "linux", "arm64")
             + " > $location/$filename;chmod +x $location/$filename;$location/$filename --uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject} &");
@@ -170,6 +179,8 @@ public class OpenaevInjectorIntegration extends IntegrationInMemory {
             + unsecuredCertificateVar
             + ";"
             + withProxyVar
+            + ";"
+            + maxSizeVar
             + ";curl -s -X GET "
             + dlUri(cfg, "macos", "x86_64")
             + " > $location/$filename;chmod +x $location/$filename;$location/$filename --uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject} &");
@@ -183,6 +194,8 @@ public class OpenaevInjectorIntegration extends IntegrationInMemory {
             + unsecuredCertificateVar
             + ";"
             + withProxyVar
+            + ";$"
+            + maxSizeVar
             + ";curl -s -X GET "
             + dlUri(cfg, "macos", "arm64")
             + " > $location/$filename;chmod +x $location/$filename;$location/$filename --uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject} &");

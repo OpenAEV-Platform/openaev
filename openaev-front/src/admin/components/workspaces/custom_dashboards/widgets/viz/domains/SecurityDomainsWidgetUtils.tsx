@@ -1,8 +1,10 @@
 import { Groups, HelpOutlined, ImportantDevices, Language, Lock, Mail, WebAsset } from '@mui/icons-material';
+import { type Theme } from '@mui/material';
 import { Cloud, Database } from 'mdi-material-ui';
 import { type ReactElement } from 'react';
 
 import type { EsAvgs, EsDomainsAvgData, EsSeries, EsSeriesData } from '../../../../../../../utils/api-types';
+import { TO_CLASSIFY } from '../../../../../../../utils/domains/domainUtils';
 import { type IconBarElement } from '../../../../../common/domains/IconBar-model';
 
 // Extend base types to add frontend values on objects
@@ -47,13 +49,6 @@ export const DEFAULT_EMPTY_EXPECTATIONS: EsExpectationExtended[] = [
     data: [],
   },
 ];
-
-const SUCCESS_COLOR = 'rgb(2,129,8)';
-const INTERMEDIATE_COLOR = 'rgb(255 216 0)';
-const WARNING_COLOR = 'rgb(245, 166, 35)';
-const FAILED_COLOR = 'rgb(220, 81, 72)';
-const PENDING = 'rgba(248,243,243,0.37)';
-const UNKNOWN = 'rgba(73,72,72,0.37)';
 
 export function getIconByDomain(name: string | undefined): ReactElement {
   switch (name) {
@@ -124,17 +119,18 @@ export function buildOrderedDomains(items: IconBarElement[]): IconBarElement[] {
 /**
  * Define the color of the icon of a domain
  * @param data to calculate
+ * @param theme to get colors values
  */
-const colorByAverageForDomain = (data: EsExpectationExtended[]): string => {
+const colorByAverageForDomain = (data: EsExpectationExtended[], theme: Theme): string => {
   switch (true) {
-    case data.find(expectationExtended => expectationExtended?.status === STATUS_FAILURE) != null:
-      return FAILED_COLOR;
-    case data.find(expectationExtended => expectationExtended?.status === STATUS_WARNING) != null:
-      return WARNING_COLOR;
-    case data.find(expectationExtended => expectationExtended?.status === STATUS_INTERMEDIATE) != null:
-      return INTERMEDIATE_COLOR;
-    case data.find(expectationExtended => expectationExtended?.status === STATUS_SUCCESS) != null:
-      return SUCCESS_COLOR;
+    case data.some(expectationExtended => expectationExtended?.status === STATUS_FAILURE):
+      return theme.palette.widgets.securityDomains.colors.failed;
+    case data.some(expectationExtended => expectationExtended?.status === STATUS_WARNING):
+      return theme.palette.widgets.securityDomains.colors.warning;
+    case data.some(expectationExtended => expectationExtended?.status === STATUS_INTERMEDIATE):
+      return theme.palette.widgets.securityDomains.colors.intermediate;
+    case data.some(expectationExtended => expectationExtended?.status === STATUS_SUCCESS):
+      return theme.palette.widgets.securityDomains.colors.success;
     default:
       return EMPTY_DATA;
   }
@@ -143,36 +139,38 @@ const colorByAverageForDomain = (data: EsExpectationExtended[]): string => {
 /**
  * Define the color of the icon of a line on a domain
  * @param average to calculate
+ * @param theme to get colors values
  */
-const colorByAverageForExpectation = (average: number): string => {
+const colorByAverageForExpectation = (average: number, theme: Theme): string => {
   switch (true) {
     case average < 0:
       return EMPTY_DATA;
     case average < 25:
-      return FAILED_COLOR;
+      return theme.palette.widgets.securityDomains.colors.failed;
     case average <= 75:
-      return WARNING_COLOR;
+      return theme.palette.widgets.securityDomains.colors.warning;
     case average < 100:
-      return INTERMEDIATE_COLOR;
+      return theme.palette.widgets.securityDomains.colors.intermediate;
     case average === 100:
-      return SUCCESS_COLOR;
+      return theme.palette.widgets.securityDomains.colors.success;
     default:
-      return UNKNOWN;
+      return theme.palette.widgets.securityDomains.colors.unknown;
   }
 };
 
 /**
  * Define the colors of the percentage displayed on each lines of a domain
  * @param label to calculate
+ * @param theme to get colors values
  */
-export const colorByLabel = (label: string): string => {
+export const colorByLabel = (label: string, theme: Theme): string => {
   switch (label) {
     case 'success':
-      return SUCCESS_COLOR;
+      return theme.palette.widgets.securityDomains.colors.success;
     case 'failed':
-      return FAILED_COLOR;
+      return theme.palette.widgets.securityDomains.colors.failed;
     default:
-      return PENDING;
+      return theme.palette.widgets.securityDomains.colors.pending;
   }
 };
 
@@ -200,8 +198,9 @@ export const statusByAverage = (average: number): string => {
 /**
  * Determine all percentage, color and status for a full EsSeries object
  * @param esSerie to determine
+ * @param theme to get colors values
  */
-const manageExpectationExtended = (esSerie: EsSeries): EsExpectationExtended => {
+const manageExpectationExtended = (esSerie: EsSeries, theme: Theme): EsExpectationExtended => {
   const esExpectationExtended: EsExpectationExtended = {
     ...esSerie,
     data: [],
@@ -215,7 +214,7 @@ const manageExpectationExtended = (esSerie: EsSeries): EsExpectationExtended => 
     // Calculate percentage and color of a result (failed or success) from a line of expectation on a domain
     if (expectationData.value != null && esExpectationExtended.value != null && expectationData.label != null) {
       esExpectationDataExtended.percentage = calcPercentage(expectationData.value, esExpectationExtended.value);
-      esExpectationDataExtended.color = colorByLabel(expectationData.label);
+      esExpectationDataExtended.color = colorByLabel(expectationData.label, theme);
     }
     esExpectationExtended.data!.push(esExpectationDataExtended);
 
@@ -228,7 +227,7 @@ const manageExpectationExtended = (esSerie: EsSeries): EsExpectationExtended => 
   const successRate = successEsExpectationDataExtended.value && esSerie.value
     ? calcPercentage(successEsExpectationDataExtended.value, esSerie.value)
     : 0;
-  esExpectationExtended.color = colorByAverageForExpectation(successRate);
+  esExpectationExtended.color = colorByAverageForExpectation(successRate, theme);
   esExpectationExtended.status = statusByAverage(successRate);
   return esExpectationExtended;
 };
@@ -236,8 +235,9 @@ const manageExpectationExtended = (esSerie: EsSeries): EsExpectationExtended => 
 /**
  * Determine all percentage, color and status for a full EsDomainsAvgData object
  * @param domainAvgs to determine
+ * @param theme to get colors values
  */
-const manageDomainAverage = (domainAvgs: EsDomainsAvgData): EsDomainsAvgDataExtended => {
+const manageDomainAverage = (domainAvgs: EsDomainsAvgData, theme: Theme): EsDomainsAvgDataExtended => {
   const domainAvgsExtended: EsDomainsAvgDataExtended = {
     ...domainAvgs,
     data: [],
@@ -245,19 +245,20 @@ const manageDomainAverage = (domainAvgs: EsDomainsAvgData): EsDomainsAvgDataExte
 
   // Manage Domain averages, represent all the lines of a domain on the widget
   domainAvgs.data?.forEach((esSerie) => {
-    const esExpectationExtended = manageExpectationExtended(esSerie);
+    const esExpectationExtended = manageExpectationExtended(esSerie, theme);
     domainAvgsExtended.data!.push(esExpectationExtended);
   });
 
-  domainAvgsExtended.color = colorByAverageForDomain(domainAvgsExtended.data ?? []);
+  domainAvgsExtended.color = colorByAverageForDomain(domainAvgsExtended.data ?? [], theme);
   return domainAvgsExtended;
 };
 
 /**
  * Determine all percentage, color and status for a full EsAvgs object
  * @param esAvgs to determine
+ * @param theme to get colors values
  */
-export const determinePercentage = (esAvgs: EsAvgs): EsAvgsExtended => {
+export const determinePercentage = (esAvgs: EsAvgs, theme: Theme): EsAvgsExtended => {
   const mappedAverage: EsAvgsExtended = {
     ...esAvgs,
     security_domain_average: [],
@@ -265,9 +266,9 @@ export const determinePercentage = (esAvgs: EsAvgs): EsAvgsExtended => {
 
   // Manage Security Domain Average, represent the list of available average to display on the widget
   esAvgs.security_domain_average
-    .filter(domainAvgs => domainAvgs.label !== 'To classify')
+    .filter(domainAvgs => domainAvgs.label !== TO_CLASSIFY)
     .forEach((domainAvgs) => {
-      const domainAvgsExtended = manageDomainAverage(domainAvgs);
+      const domainAvgsExtended = manageDomainAverage(domainAvgs, theme);
       mappedAverage.security_domain_average.push(domainAvgsExtended);
     });
   return mappedAverage;

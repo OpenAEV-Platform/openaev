@@ -2,6 +2,7 @@ import { useTheme } from '@mui/material/styles';
 import { type FieldRenderProps } from 'react-final-form';
 
 import { type Domain } from '../utils/api-types';
+import { TO_CLASSIFY } from '../utils/domains/domainUtils';
 import AutocompleteField from './fields/AutocompleteField';
 
 type DomainValue = Domain | string;
@@ -26,11 +27,11 @@ const DomainsAutocompleteField = ({
   const domains = domainOptions ?? [];
 
   const toClassifyDomain = domains.find(
-    d => d.domain_name === 'To classify',
+    d => d.domain_name === TO_CLASSIFY,
   );
 
   const selectableDomains = domains.filter(
-    d => d.domain_name !== 'To classify',
+    d => d.domain_name !== TO_CLASSIFY,
   );
 
   const currentIds: string[] = Array.isArray(input.value)
@@ -74,7 +75,7 @@ const DomainsAutocompleteField = ({
       onInputChange={() => {}}
       onChange={handleChange}
       renderOption={(props, option) => {
-        if (option.label === 'To classify') {
+        if (option.label === TO_CLASSIFY) {
           return null;
         }
         return undefined;

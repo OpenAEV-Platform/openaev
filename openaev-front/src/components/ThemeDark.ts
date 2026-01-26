@@ -98,6 +98,18 @@ const ThemeDark = (
       code: accent || THEME_DARK_DEFAULT_ACCENT,
       paperInCard: paper || THEME_DARK_DEFAULT_PAPER,
     },
+    widgets: {
+      securityDomains: {
+        colors: {
+          success: 'rgb(2,129,8)',
+          intermediate: 'rgb(255 216 0)',
+          warning: 'rgb(245, 166, 35)',
+          failed: 'rgb(220, 81, 72)',
+          pending: 'rgba(248,243,243,0.37)',
+          unknown: 'rgba(73,72,72,0.37)',
+        },
+      },
+    },
   },
   typography: {
     fontFamily: '"IBM Plex Sans", sans-serif',

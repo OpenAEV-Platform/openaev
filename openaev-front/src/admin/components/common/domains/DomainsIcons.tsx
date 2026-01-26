@@ -13,6 +13,7 @@ import {
 import { type ReactElement } from 'react';
 
 import { type Domain } from '../../../../utils/api-types';
+import { TO_CLASSIFY } from '../../../../utils/domains/domainUtils';
 import { type IconBarElement } from './IconBar-model';
 
 const DOMAIN_ICON_MAP: Record<string, () => ReactElement> = {
@@ -33,7 +34,7 @@ const buildIconBarElements = (
   domainCounts: Record<string, number>,
 ): IconBarElement[] => {
   return domains
-    .filter(domain => domain.domain_name !== 'To classify' && DOMAIN_ICON_MAP[domain.domain_name])
+    .filter(domain => domain.domain_name !== TO_CLASSIFY && DOMAIN_ICON_MAP[domain.domain_name])
     .map((domain) => {
       return {
         type: domain.domain_id,

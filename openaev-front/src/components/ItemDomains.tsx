@@ -6,6 +6,7 @@ import { makeStyles } from 'tss-react/mui';
 import { type DomainHelper } from '../actions/helper';
 import { useHelper } from '../store';
 import { type Domain } from '../utils/api-types';
+import { TO_CLASSIFY } from '../utils/domains/domainUtils';
 import { getLabelOfRemainingItems, truncate } from '../utils/String';
 
 const useStyles = makeStyles()(theme => ({
@@ -68,7 +69,7 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
 
   const renderList = () =>
     resolvedDomains
-      .filter(d => d.domain_name !== 'To classify')
+      .filter(d => d.domain_name !== TO_CLASSIFY)
       .map(domain => (
         <Tooltip key={domain.domain_id} title={domain.domain_name}>
           <Chip
@@ -86,7 +87,7 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
 
   const renderSingle = () => {
     const primaryDomain = resolvedDomains[0];
-    if (!primaryDomain || primaryDomain.domain_name === 'To classify') return null;
+    if (!primaryDomain || primaryDomain.domain_name === TO_CLASSIFY) return null;
 
     const tooltipLabel = getLabelOfRemainingItems(resolvedDomains, 1, 'domain_name');
 
