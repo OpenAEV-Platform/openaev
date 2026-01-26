@@ -1,5 +1,4 @@
 import { Badge, Button, Tooltip } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, type SyntheticEvent } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -14,7 +13,6 @@ interface Props {
 
 const DeployButton = ({ onDeployBtnClick, style = {}, deploymentCount }: Props) => {
   const { t } = useFormatter();
-  const theme = useTheme();
   const {
     isValidated: isEnterpriseEdition,
     openDialog: openEnterpriseEditionDialog,
@@ -34,7 +32,6 @@ const DeployButton = ({ onDeployBtnClick, style = {}, deploymentCount }: Props) 
       <div style={{
         ...style,
         position: 'relative',
-        marginRight: theme.spacing(2),
       }}
       >
         <Button

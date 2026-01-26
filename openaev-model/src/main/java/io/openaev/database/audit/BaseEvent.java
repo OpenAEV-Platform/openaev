@@ -8,6 +8,7 @@ import io.openaev.database.model.Base;
 import jakarta.persistence.Id;
 import java.lang.reflect.Field;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 
@@ -31,6 +32,7 @@ import org.springframework.web.context.request.RequestContextHolder;
  * @see ModelBaseListener
  * @see IndexEvent
  */
+@Slf4j
 @Getter
 public class BaseEvent implements Cloneable {
 
@@ -74,17 +76,47 @@ public class BaseEvent implements Cloneable {
     this.listened = data.isListened();
     RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
     this.sessionId = requestAttributes != null ? requestAttributes.getSessionId() : null;
-    Class<? extends Base> currentClass = data.getClass();
-    boolean isTargetClass = currentClass.getSuperclass().equals(Object.class);
-    Class<?> baseClass = isTargetClass ? currentClass : currentClass.getSuperclass();
-    String className = baseClass.getSimpleName().toLowerCase();
-    Field[] fields = baseClass.getDeclaredFields();
-    for (Field field : fields) {
+    Class<?> baseClass = data.getClass();
+
+    /*
+     * Inspect fields declared directly in the current class.
+     * If an @Id is found, initialize the identifier attribute and schema
+     * based on the current class name.
+     */
+    for (Field field : baseClass.getDeclaredFields()) {
       if (field.isAnnotationPresent(Id.class)) {
-        this.attributeId = field.getAnnotation(JsonProperty.class).value();
+        JsonProperty jp = field.getAnnotation(JsonProperty.class);
+        this.attributeId = (jp != null) ? jp.value() : field.getName();
+
+        String className = baseClass.getSimpleName().toLowerCase();
+        this.schema = className + (className.endsWith("s") ? "es" : "s");
+        break;
       }
     }
-    this.schema = className + (className.endsWith("s") ? "es" : "s");
+
+    /*
+     * If the class has a parent class, inspect its declared fields.
+     * If an @Id is found in the superclass, override the identifier attribute
+     * and schema using the parent class definition.
+     */
+    if (baseClass.getSuperclass() != Object.class) {
+      for (Field fieldSC : baseClass.getSuperclass().getDeclaredFields()) {
+        if (fieldSC.isAnnotationPresent(Id.class)) {
+          if (this.schema != null) {
+            log.warn(
+                "Schema already defined in child class {} but overridden by parent class {} (both define an @Id).",
+                baseClass.getSimpleName(),
+                baseClass.getSuperclass().getSimpleName());
+          }
+          JsonProperty jp = fieldSC.getAnnotation(JsonProperty.class);
+          this.attributeId = (jp != null) ? jp.value() : fieldSC.getName();
+
+          String className = baseClass.getSuperclass().getSimpleName().toLowerCase();
+          this.schema = className + (className.endsWith("s") ? "es" : "s");
+          break;
+        }
+      }
+    }
   }
 
   /**
