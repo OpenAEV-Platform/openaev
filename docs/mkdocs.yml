@@ -137,6 +137,7 @@ nav:
       - Index: deployment/breaking-changes.md
       - Migration guides:
         - OpenAEV renaming: deployment/breaking-changes/2.0.0-openaev-renaming.md
+        - OpenAEV encryption: deployment/breaking-changes/2.1.0-encrypting-password.md
   - User Guide:
     - Getting started: usage/getting-started.md
     - Foundations:

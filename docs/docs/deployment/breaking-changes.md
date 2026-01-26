@@ -10,7 +10,19 @@ This table regroups all the breaking changes introduced, with the corresponding 
 
 | Change                                | Deprecated in | Changed in |
 |:--------------------------------------|:--------------|:-----------|
+| [OpenAEV encryption of secret](#openaev-encryption) | -         | 2.1.0      |
 | [OpenAEV renaming](#openaev-renaming) | 1.18.20       | 2.0.0      |
+
+## OpenAEV 2.1.0
+
+### Introduction
+
+<a id="openaev-encryption"></a>
+#### OpenAEV encryption
+
+With the introduction of the OpenAEV catalog, built-in connectors now store their configuration in the database. To ensure security, secrets and passwords within these configurations must be encrypted. This requires two new mandatory properties to be configured.
+
+For more details, see [this migration guide](breaking-changes/2.1.0-encrypting-password.md)
 
 ## OpenAEV 2.0.0
 
