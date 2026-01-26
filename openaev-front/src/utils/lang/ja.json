@@ -1566,7 +1566,7 @@
   "Should be a valid XLS file": "有効なXLSファイルであること",
   "Should have at least one asset or one asset group": "少なくとも1つの資産または1つの資産グループであること",
   "Should not be empty": "空であってはならない",
-  "Should not exceed {max_length} characters": "0}}文字を超えないこと",
+  "Should not exceed {max_length} characters": "{max_length}文字を超えないこと",
   "Show all assets": "すべてのアセットを表示する",
   "Show covered TTP only": "カバーされたTTPのみを表示する",
   "Show in findings": "所見で表示",

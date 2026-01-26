@@ -56,7 +56,9 @@ const ExerciseForm: FunctionComponent<Props> = ({
     mode: 'onTouched',
     resolver: zodResolver(
       zodImplement<CreateExerciseInput>().with({
-        exercise_name: z.string().min(EXERCISE_NAME_MIN_LENGTH, { message: t('Should not be empty') }).max(EXERCISE_NAME_MAX_LENGTH, { message: t(`Should not exceed ${EXERCISE_NAME_MAX_LENGTH} characters`) }),
+        exercise_name: z.string().min(EXERCISE_NAME_MIN_LENGTH, { message: t('Should not be empty') }).max(EXERCISE_NAME_MAX_LENGTH, { message:t('Should not exceed {max_length} characters', {
+						max_length: EXERCISE_NAME_MAX_LENGTH.toString(),
+					}) }),
         exercise_subtitle: z.string().optional(),
         exercise_category: z.string().optional(),
         exercise_main_focus: z.string().optional(),
