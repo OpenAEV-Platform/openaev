@@ -15,3 +15,7 @@ export const isAgent = (target: InjectTarget) => {
 export const isAgentless = (hasAgents: boolean, hasTeams: boolean) => {
   return !hasAgents && !hasTeams;
 };
+
+export const isTeam = (target: InjectTarget) => {
+  return target.target_type === 'TEAMS';
+};
