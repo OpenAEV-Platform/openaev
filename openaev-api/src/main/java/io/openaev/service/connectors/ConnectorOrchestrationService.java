@@ -31,8 +31,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional
 public class ConnectorOrchestrationService {
-  private final String openAEVPrefix = "openaev_";
-
   private final ConnectorInstanceService connectorInstanceService;
   private final XtmComposerService xtmComposerService;
   private final Ee eeService;
@@ -128,12 +126,11 @@ public class ConnectorOrchestrationService {
       throws DataIntegrityViolationException {
     BaseConnectorEntity connector;
     if (ConnectorType.COLLECTOR.equals(catalogConnectorType)) {
-      connector =
-          collectorService.findCollectorByType(openAEVPrefix + catalogConnectorSlug).orElse(null);
+      connector = collectorService.findCollectorByType(catalogConnectorSlug).orElse(null);
     } else if (ConnectorType.INJECTOR.equals(catalogConnectorType)) {
-      connector = injectorService.injectorByType(openAEVPrefix + catalogConnectorSlug).orElse(null);
+      connector = injectorService.injectorByType(catalogConnectorSlug).orElse(null);
     } else {
-      connector = executorService.executorByType(openAEVPrefix + catalogConnectorSlug).orElse(null);
+      connector = executorService.executorByType(catalogConnectorSlug).orElse(null);
     }
     if (connector != null) {
       throw new DataIntegrityViolationException(

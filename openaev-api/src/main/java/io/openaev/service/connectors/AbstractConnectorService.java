@@ -70,9 +70,7 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
     CatalogConnector catalogConnector =
         isVerified && instance instanceof ConnectorInstancePersisted
             ? ((ConnectorInstancePersisted) instance).getCatalogConnector()
-            : catalogConnectorService
-                .findBySlug(connector.getType().replace("openaev_", ""))
-                .orElse(null);
+            : catalogConnectorService.findBySlug(connector.getType()).orElse(null);
     return mapToOutput(connector, catalogConnector, instance, true);
   }
 
@@ -157,9 +155,7 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
     // connectorType and catalogSlug
     T connector = getConnectorById(connectorId);
     CatalogConnector catalogConnector =
-        catalogConnectorService
-            .findBySlug(connector.getType().replace("openaev_", ""))
-            .orElse(null);
+        catalogConnectorService.findBySlug(connector.getType()).orElse(null);
     if (catalogConnector != null) {
       return catalogConnectorMapper.toConnectorIds(catalogConnector.getId(), null);
     }
