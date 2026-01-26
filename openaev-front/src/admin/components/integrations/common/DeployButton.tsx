@@ -43,7 +43,7 @@ const DeployButton = ({ onDeployBtnClick, style = {}, deploymentCount }: Props) 
           size="small"
           onClick={onDeployClickAction}
           disabled={deploymentCount > 0}
-          endIcon={isEnterpriseEdition ? <></> : <span><EEChip /></span>}
+          endIcon={isEnterpriseEdition ? null : <span><EEChip /></span>}
         >
           {t('Deploy')}
         </Button>
