@@ -1,5 +1,7 @@
 package io.openaev.integration.impl.executors.paloaltocortex;
 
+import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_TYPE;
+
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.CatalogConnector;
@@ -12,6 +14,7 @@ import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
+import io.openaev.integration.migration.PaloAltoCortexExecutorConfigurationMigration;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -38,6 +41,10 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final FileService fileService;
+  private final ConnectorInstanceService connectorInstanceService;
+  private final PaloAltoCortexExecutorConfigurationMigration
+      paloAltoCortexExecutorConfigurationMigration;
+  private final CatalogConnectorService catalogConnectorService;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
   public PaloAltoCortexExecutorIntegrationFactory(
@@ -51,18 +58,23 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
       Ee eeService,
       LicenseCacheManager licenseCacheManager,
       ThreadPoolTaskScheduler taskScheduler,
+      PaloAltoCortexExecutorConfigurationMigration paloAltoCortexExecutorConfigurationMigration,
       FileService fileService,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
       HttpClientFactory httpClientFactory) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;
+    this.connectorInstanceService = connectorInstanceService;
+    this.catalogConnectorService = catalogConnectorService;
     this.agentService = agentService;
     this.endpointService = endpointService;
     this.assetGroupService = assetGroupService;
     this.eeService = eeService;
     this.licenseCacheManager = licenseCacheManager;
     this.taskScheduler = taskScheduler;
+    this.paloAltoCortexExecutorConfigurationMigration =
+        paloAltoCortexExecutorConfigurationMigration;
     this.fileService = fileService;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
   }
@@ -74,19 +86,19 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
 
   @Override
   protected void runMigrations() throws Exception {
-    // noop
+    paloAltoCortexExecutorConfigurationMigration.migrate();
   }
 
   @Override
   protected void insertCatalogEntry() throws Exception {
-    String logoFilename = "%s-logo.png".formatted(getClassName());
+    String logoFilename = "%s-logo.png".formatted(PALOALTOCORTEX_EXECUTOR_TYPE);
     fileService.uploadStream(
         FileService.CONNECTORS_LOGO_PATH,
         logoFilename,
         getClass().getResourceAsStream("/img/icon-paloaltocortex.png"));
     CatalogConnector connector = new CatalogConnector();
     connector.setTitle("Palo Alto Cortex Executor");
-    connector.setSlug(getClassName());
+    connector.setSlug(PALOALTOCORTEX_EXECUTOR_TYPE);
     connector.setLogoUrl(logoFilename);
     connector.setDescription(
         """

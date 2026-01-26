@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Executor;
 import io.openaev.ee.Ee;
@@ -14,7 +15,6 @@ import io.openaev.executors.paloaltocortex.config.PaloAltoCortexExecutorConfig;
 import io.openaev.executors.paloaltocortex.service.PaloAltoCortexExecutorContextService;
 import io.openaev.executors.paloaltocortex.service.PaloAltoCortexExecutorService;
 import io.openaev.executors.paloaltocortex.service.PaloAltoCortexGarbageCollectorService;
-import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.QualifiedComponent;
@@ -56,6 +56,8 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
   private final Ee eeService;
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
+  private final ConnectorInstanceService connectorInstanceService;
+  private final ConnectorInstance connectorInstance;
   private final HttpClientFactory httpClientFactory;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
@@ -82,6 +84,8 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
     this.licenseCacheManager = licenseCacheManager;
     this.executorService = executorService;
     this.taskScheduler = taskScheduler;
+    this.connectorInstanceService = connectorInstanceService;
+    this.connectorInstance = connectorInstance;
     this.httpClientFactory = httpClientFactory;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
 
@@ -97,9 +101,13 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
 
   @Override
   protected void innerStart() throws Exception {
+    String executorId =
+        connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
+            connectorInstance.getId(), ConnectorType.EXECUTOR.getIdKeyName());
+
     Executor executor =
         executorService.register(
-            config.getId(),
+            executorId,
             PALOALTOCORTEX_EXECUTOR_TYPE,
             PALOALTOCORTEX_EXECUTOR_NAME,
             PALOALTOCORTEX_EXECUTOR_DOCUMENTATION_LINK,
@@ -142,7 +150,7 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
           IllegalAccessException {
     this.config = baseIntegrationConfigurationBuilder.build(PaloAltoCortexExecutorConfig.class);
     this.config.fromConnectorInstanceConfigurationSet(
-        this.getConnectorInstance(), SentinelOneExecutorConfig.class);
+        this.getConnectorInstance(), PaloAltoCortexExecutorConfig.class);
   }
 
   @Override

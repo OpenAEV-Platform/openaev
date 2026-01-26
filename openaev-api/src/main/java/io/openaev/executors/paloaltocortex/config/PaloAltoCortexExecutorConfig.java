@@ -1,6 +1,7 @@
 package io.openaev.executors.paloaltocortex.config;
 
 import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_DEFAULT_ID;
+import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_NAME;
 
 import io.openaev.database.model.CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT;
 import io.openaev.database.model.CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_TYPE;
@@ -26,6 +27,17 @@ public class PaloAltoCortexExecutorConfig extends BaseIntegrationConfiguration {
   @Getter
   @NotBlank
   private String id = PALOALTOCORTEX_EXECUTOR_DEFAULT_ID;
+
+  @IntegrationConfigKey(
+      key = "EXECUTOR_NAME",
+      description =
+          """
+                          Name of the builtin Palo Alto Cortex executor
+                          """,
+      isRequired = true)
+  @Getter
+  @NotBlank
+  private String name = PALOALTOCORTEX_EXECUTOR_NAME;
 
   @IntegrationConfigKey(
       key = "EXECUTOR_PALOALTOCORTEX_URL",
