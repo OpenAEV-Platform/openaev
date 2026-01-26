@@ -7,7 +7,7 @@ import { fetchTargetResult } from '../../../../../actions/atomic_testings/atomic
 import Paper from '../../../../../components/common/Paper';
 import { useFormatter } from '../../../../../components/i18n';
 import type { InjectResultOverviewOutput, InjectTarget } from '../../../../../utils/api-types';
-import { isAgent, isAssetGroups, isTeam } from '../../../../../utils/target/TargetUtils';
+import {isAgent, isAssetGroups, isPlayer, isTeam} from '../../../../../utils/target/TargetUtils';
 import { type ExpectationResultType, ExpectationType, type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
 import ExecutionStatusDetail from '../../../common/injects/status/ExecutionStatusDetail';
 import TerminalViewTab from '../../../common/injects/status/traces/TerminalViewTab';
@@ -136,7 +136,7 @@ const TargetResultsDetail = ({ inject, target, isAgentless }: Props) => {
         />
       ),
     });
-    if (!isTeam(target)) {
+    if (!isTeam(target) && !isPlayer(target)) {
       tabs.push({
         key: 'terminal-view',
         label: t('Terminal view'),

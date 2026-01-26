@@ -19,3 +19,7 @@ export const isAgentless = (hasAgents: boolean, hasTeams: boolean) => {
 export const isTeam = (target: InjectTarget) => {
   return target.target_type === 'TEAMS';
 };
+
+export const isPlayer = (target: InjectTarget) => {
+  return target.target_type === 'PLAYERS';
+};
