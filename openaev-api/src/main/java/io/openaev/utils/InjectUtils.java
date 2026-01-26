@@ -73,12 +73,12 @@ public class InjectUtils {
       return inject.getStatus().get().getPayloadOutput();
     }
 
-    if (inject.getInjectorContract().isEmpty()
-        || inject.getInjectorContract().get().getPayload() == null) {
+    InjectorContract injectorContract = inject.getInjectorContract().orElse(null);
+
+    if (injectorContract == null || inject.getInjectorContract().get().getPayload() == null) {
       return null;
     }
 
-    InjectorContract injectorContract = inject.getInjectorContract().get();
     Payload payload = injectorContract.getPayload();
 
     if (COMMAND_TYPE.equals(injectorContract.getPayload().getType())) {
