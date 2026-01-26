@@ -13,6 +13,8 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
+import io.openaev.injectors.caldera.CalderaContract;
+import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
@@ -42,6 +44,7 @@ public class InjectStatusService {
   private final ExecutionTraceRepositoryHelper executionTraceRepositoryHelper;
 
   private final EntityManager entityManager;
+  private final ManagerFactory managerFactory;
 
   public List<InjectStatus> findPendingInjectStatusByType(String injectType) {
     return this.injectStatusRepository.pendingForInjectType(injectType);
@@ -288,6 +291,21 @@ public class InjectStatusService {
             });
   }
 
+  private StatusPayload getPayloadOutput(Inject inject) {
+    InjectorContract injectorContract = inject.getInjectorContract().orElse(null);
+
+    if (injectorContract != null
+        && CalderaContract.TYPE.equals(injectorContract.getInjector().getType())) {
+      io.openaev.executors.Injector executor =
+          managerFactory
+              .getManager()
+              .requestInjectorExecutorByType(injectorContract.getInjector().getType());
+      return executor.getPayloadOutput(injectorContract.getId());
+    }
+
+    return injectUtils.getStatusPayloadFromInject(inject);
+  }
+
   public InjectStatus failInjectStatus(@NotNull String injectId, @Nullable String message) {
     Inject inject = this.injectRepository.findById(injectId).orElseThrow();
     InjectStatus injectStatus = getOrInitializeInjectStatus(inject);
@@ -296,7 +314,7 @@ public class InjectStatusService {
     }
     injectStatus.setName(ExecutionStatus.ERROR);
     injectStatus.setTrackingEndDate(Instant.now());
-    injectStatus.setPayloadOutput(injectUtils.getStatusPayloadFromInject(inject));
+    injectStatus.setPayloadOutput(getPayloadOutput(inject));
     return injectStatusRepository.save(injectStatus);
   }
 
@@ -307,7 +325,7 @@ public class InjectStatusService {
     InjectStatus injectStatus = getOrInitializeInjectStatus(inject);
     injectStatus.setName(status);
     injectStatus.setTrackingSentDate(Instant.now());
-    injectStatus.setPayloadOutput(injectUtils.getStatusPayloadFromInject(inject));
+    injectStatus.setPayloadOutput(getPayloadOutput(inject));
     return injectStatusRepository.save(injectStatus);
   }
 
