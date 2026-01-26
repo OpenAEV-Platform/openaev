@@ -1,6 +1,5 @@
 import { Groups, HelpOutlined, ImportantDevices, Language, Lock, Mail, WebAsset } from '@mui/icons-material';
-import { useTheme } from '@mui/material/styles';
-import { type Theme } from '@mui/material/styles/createTheme';
+import { type Theme } from '@mui/material';
 import { Cloud, Database } from 'mdi-material-ui';
 import { type ReactElement } from 'react';
 
