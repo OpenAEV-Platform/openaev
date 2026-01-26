@@ -64,6 +64,18 @@ declare module '@mui/material/styles' {
     ee: PaletteColor;
     ai: PaletteColor;
     xtmhub: PaletteColor;
+    widgets: {
+      securityDomains: {
+        colors: {
+          success: string;
+          intermediate: string;
+          warning: string;
+          failed: string;
+          pending: string;
+          unknown: string;
+        };
+      };
+    };
     card: { paper: string };
     labelChipMap: Map<string, LabelColor>;
     dangerZone: PaletteColor;
@@ -84,6 +96,18 @@ declare module '@mui/material/styles' {
     ai: PaletteColorOptions;
     labelChipMap: Map<string, LabelColor>;
     xtmhub: PaletteColorOptions;
+    widgets: {
+      securityDomains: {
+        colors: {
+          success: string;
+          intermediate: string;
+          warning: string;
+          failed: string;
+          pending: string;
+          unknown: string;
+        };
+      };
+    };
     dangerZone?: PaletteColorOptions;
     gradient?: PaletteColorOptions;
     border?: {
