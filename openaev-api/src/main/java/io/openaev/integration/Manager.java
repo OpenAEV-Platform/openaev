@@ -61,7 +61,7 @@ public class Manager {
     if (candidates.isEmpty()) {
       throw new NoSuchElementException(
           String.format(
-              "No injector candidate found for requestId=%s, requestedType=%s",
+              "No candidate found for requestId=%s, requestedType=%s",
               request.identifier(), requestedType.getCanonicalName()));
     }
 
