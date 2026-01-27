@@ -143,7 +143,7 @@ const ArticleForm = ({
   const [documentsSortBy, setDocumentsSortBy] = useState('document_name');
   const [documentsOrderAsc, setDocumentsOrderAsc] = useState(true);
   const [documents, setDocuments] = useState<string[]>(documentsIds || []);
-  const watchChannel = watch('article_channel');
+  const watchChannelId = watch('article_channel');
 
   // Fetching data
   const { channels, documentsMap } = useHelper((helper: ChannelsHelper & DocumentHelper) => {
@@ -175,7 +175,7 @@ const ArticleForm = ({
       type: n.channel_type,
     }));
 
-  const selectedChannel = sortedChannels.find(c => c.id === watchChannel);
+  const selectedChannel = sortedChannels.find(c => c.id === watchChannelId);
 
   const documentsReverseBy = (field: string) => {
     setDocumentsSortBy(field);
@@ -227,28 +227,34 @@ const ArticleForm = ({
         name="article_channel"
         control={control}
         rules={{ required: t('This field is required.') }}
-        render={({ field: { onChange, value }, fieldState }) => (
-          <AutocompleteField
-            label={t('Channel')}
-            options={sortedChannels}
-            value={value}
-            onChange={onChange}
-            onInputChange={() => {}}
-            style={{ marginTop: theme.spacing(4.5) }}
-            error={!!fieldState.error}
-            renderOption={(renderProps, option) => (
-              <Box
-                component="li"
-                {...renderProps}
-              >
-                <div className={classes.icon}>
-                  <ChannelIcon type={(option as ArticleChannel).type} />
-                </div>
-                <div className={classes.text}>{t(option.label)}</div>
-              </Box>
-            )}
-          />
-        )}
+        render={({ field: { onChange, value }, fieldState }) => {
+          return (
+            <AutocompleteField
+              label={t('Channel')}
+              options={sortedChannels}
+              value={value}
+              onChange={onChange}
+              onInputChange={() => {}}
+              style={{ marginTop: theme.spacing(4.5) }}
+              error={!!fieldState.error}
+              renderOption={(renderProps, option) => {
+                const channelOption = option as ArticleChannel;
+                return (
+                  <Box
+                    component="li"
+                    {...renderProps}
+                    key={channelOption.id}
+                  >
+                    <div className={classes.icon}>
+                      <ChannelIcon type={channelOption.type} />
+                    </div>
+                    <div className={classes.text}>{t(channelOption.label)}</div>
+                  </Box>
+                );
+              }}
+            />
+          );
+        }}
       />
       <TextFieldController
         name="article_name"

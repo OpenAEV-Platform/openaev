@@ -39,12 +39,7 @@ const CreateArticle: FunctionComponent<CreateArticleProps> = ({
   const { handleSubmit, reset } = methods;
 
   const onSubmit: SubmitHandler<ArticleCreateInput> = async (data) => {
-    const channel = data.article_channel;
-    const inputValues: ArticleCreateInput = {
-      ...data,
-      article_channel: typeof channel === 'object' ? (channel as { id: string }).id : channel,
-    };
-    const result = await onAddArticle(inputValues);
+    const result = await onAddArticle(data);
     if (result.result) {
       onCreate?.(result.result);
       reset();
