@@ -8,22 +8,31 @@ import static org.mockito.Mockito.when;
 import io.openaev.IntegrationTest;
 import io.openaev.aop.RBACAspect;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.EvaluationRepository;
+import io.openaev.database.repository.ObjectiveRepository;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.fixtures.UserFixture;
+import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.*;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.web.bind.annotation.RequestMethod;
 
 @SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 public class PermissionServiceTest extends IntegrationTest {
   private static final String RESOURCE_ID = "resourceid";
   private static final String USER_ID = "userid";
 
   @Mock private GrantService grantService;
   @Mock private InjectService injectService;
+  @Mock private ObjectiveRepository objectiveRepository;
+  @Mock private EvaluationRepository evaluationRepository;
 
   @InjectMocks private PermissionService permissionService;
 
@@ -36,6 +45,42 @@ public class PermissionServiceTest extends IntegrationTest {
             RESOURCE_ID,
             ResourceType.SCENARIO,
             Action.WRITE));
+  }
+
+  @Test
+  public void test_hasPermission_objective_WHEN_has_grant() {
+    String objectiveId = "objectiveId";
+    Objective objective = mock(Objective.class);
+    when(objective.getParentResourceId()).thenReturn(RESOURCE_ID);
+    when(objective.getParentResourceType()).thenReturn(ResourceType.SIMULATION);
+    User user = getUser(USER_ID, false);
+    when(grantService.hasReadGrant(RESOURCE_ID, user)).thenReturn(true);
+    when(objectiveRepository.findById(objectiveId)).thenReturn(Optional.of(objective));
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), objectiveId, ResourceType.OBJECTIVE, Action.READ));
+    when(grantService.hasWriteGrant(RESOURCE_ID, user)).thenReturn(true);
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), objectiveId, ResourceType.OBJECTIVE, Action.WRITE));
+  }
+
+  @Test
+  public void test_hasPermission_evaluation_WHEN_has_grant() {
+    String evaluationId = "evaluationId";
+    Evaluation evaluation = mock(Evaluation.class);
+    when(evaluation.getParentResourceId()).thenReturn(RESOURCE_ID);
+    when(evaluation.getParentResourceType()).thenReturn(ResourceType.SCENARIO);
+    User user = getUser(USER_ID, false);
+    when(grantService.hasReadGrant(RESOURCE_ID, user)).thenReturn(true);
+    when(evaluationRepository.findById(evaluationId)).thenReturn(Optional.of(evaluation));
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), evaluationId, ResourceType.EVALUATION, Action.READ));
+    when(grantService.hasWriteGrant(RESOURCE_ID, user)).thenReturn(true);
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), evaluationId, ResourceType.EVALUATION, Action.WRITE));
   }
 
   @Test

@@ -3,8 +3,8 @@ package io.openaev.database.model;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MonoIdDeserializer;
-import io.openaev.helper.MultiIdListDeserializer;
+import io.openaev.helper.MonoIdSerializer;
+import io.openaev.helper.MultiIdListSerializer;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -68,7 +68,7 @@ public class Comcheck implements Base {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "comcheck_exercise")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("comcheck_exercise")
   @Schema(type = "string")
   private Exercise exercise;
@@ -76,7 +76,7 @@ public class Comcheck implements Base {
   // CascadeType.ALL is required here because comcheck statuses are embedded
   @ArraySchema(schema = @Schema(type = "string"))
   @OneToMany(mappedBy = "comcheck", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("comcheck_statuses")
   private List<ComcheckStatus> comcheckStatus = new ArrayList<>();
 
@@ -90,6 +90,9 @@ public class Comcheck implements Base {
 
   @Override
   public boolean isUserHasAccess(User user) {
+    if (exercise == null) {
+      return user.isAdmin();
+    }
     return exercise.isUserHasAccess(user);
   }
 

@@ -22,7 +22,7 @@ const detectedLocale = R.pipe(
   R.values(), // Get values of the properties
   R.flatten(), // flatten all arrays
   R.reject(R.isNil), // Remove undefined values
-  R.map((x: string) => x.substr(0, 2)),
+  R.map((x: string) => x.substring(0, 2)),
   R.find((x: string) => R.includes(x, supportedLanguages)), // Returns first language matched in languages
 );
 

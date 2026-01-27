@@ -26,6 +26,15 @@ import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+/**
+ * Mapper component for converting Exercise entities to output DTOs.
+ *
+ * <p>Provides methods for transforming exercise domain objects and raw database results into API
+ * response objects, including target resolution and expectation result aggregation.
+ *
+ * @see io.openaev.database.model.Exercise
+ * @see io.openaev.rest.exercise.form.ExerciseSimple
+ */
 @RequiredArgsConstructor
 @Component
 public class ExerciseMapper {
@@ -40,6 +49,16 @@ public class ExerciseMapper {
   private final InjectExpectationMapper injectExpectationMapper;
 
   // -- EXERCISE SIMPLE --
+
+  /**
+   * Converts a raw exercise to a simplified exercise DTO with full target and score resolution.
+   *
+   * <p>Performs additional database queries to resolve teams, assets, and asset groups, then
+   * computes global expectation results.
+   *
+   * @param rawExercise the raw exercise data from database
+   * @return the exercise simple DTO with resolved targets and scores
+   */
   public ExerciseSimple getExerciseSimple(RawExerciseSimple rawExercise) {
 
     ExerciseSimple simple = fromRawExerciseSimple(rawExercise);
@@ -71,6 +90,16 @@ public class ExerciseMapper {
   }
 
   // -- LIST OF EXERCISE SIMPLE --
+
+  /**
+   * Converts a list of raw exercises to simplified DTOs with batched target resolution.
+   *
+   * <p>Optimizes database access by batching target queries across all exercises rather than
+   * querying for each exercise individually.
+   *
+   * @param exercises the list of raw exercise data
+   * @return list of exercise simple DTOs with resolved targets and scores
+   */
   public List<ExerciseSimple> getExerciseSimples(List<RawExerciseSimple> exercises) {
     // -- MAP TO GENERATE TARGETSIMPLEs
     Set<String> exerciseIds =
@@ -152,6 +181,14 @@ public class ExerciseMapper {
     return simple;
   }
 
+  /**
+   * Converts an exercise entity to a simplified DTO.
+   *
+   * <p>Maps basic exercise properties without resolving targets or computing scores.
+   *
+   * @param exercise the exercise entity
+   * @return the simplified exercise DTO
+   */
   public ExerciseSimple toExerciseSimple(Exercise exercise) {
     ExerciseSimple simple = new ExerciseSimple();
     simple.setId(exercise.getId());
@@ -166,6 +203,14 @@ public class ExerciseMapper {
     return simple;
   }
 
+  /**
+   * Converts a set of exercises to related entity outputs.
+   *
+   * <p>Used for showing exercise references in document or other entity contexts.
+   *
+   * @param exercises the exercises to convert
+   * @return set of related entity output DTOs
+   */
   public static Set<RelatedEntityOutput> toRelatedEntityOutputs(Set<Exercise> exercises) {
     return exercises.stream()
         .map(exercise -> toRelatedEntityOutput(exercise))
@@ -176,6 +221,12 @@ public class ExerciseMapper {
     return RelatedEntityOutput.builder().id(exercise.getId()).name(exercise.getName()).build();
   }
 
+  /**
+   * Converts a set of articles to related entity outputs with simulation context.
+   *
+   * @param articles the articles to convert
+   * @return set of related entity output DTOs including exercise context
+   */
   public static Set<RelatedEntityOutput> toSimulationArticles(Set<Article> articles) {
     return articles.stream()
         .map(article -> toSimulationArticle(article))
@@ -190,6 +241,12 @@ public class ExerciseMapper {
         .build();
   }
 
+  /**
+   * Converts a set of injects to related entity outputs with simulation context.
+   *
+   * @param injects the injects to convert
+   * @return set of related entity output DTOs including exercise context
+   */
   public static Set<RelatedEntityOutput> toSimulationInjects(Set<Inject> injects) {
     return injects.stream().map(inject -> toSimulationInject(inject)).collect(Collectors.toSet());
   }

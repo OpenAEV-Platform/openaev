@@ -91,6 +91,11 @@ export const createRunningExerciseFromScenario = (scenarioId: string) => {
 
 // -- TEAMS --
 
+export const fetchPlayersByScenario = (scenarioId: Scenario['scenario_id']) => (dispatch: Dispatch) => {
+  const uri = `/api/scenarios/${scenarioId}/players`;
+  return getReferential(schema.arrayOfUsers, uri)(dispatch);
+};
+
 export const fetchScenarioTeams = (scenarioId: Scenario['scenario_id']) => (dispatch: Dispatch) => {
   const uri = `/api/scenarios/${scenarioId}/teams`;
   return getReferential(schema.arrayOfTeams, uri)(dispatch);
@@ -267,6 +272,10 @@ export const fetchCustomDashboardFromScenario = (scenarioId: string) => {
 
 export const countByScenario = (scenarioId: string, widgetId: string, parameters: Record<string, string | undefined>) => {
   return simplePostCall(`/api/scenarios/${scenarioId}/dashboard/count/${widgetId}`, parameters);
+};
+
+export const averageByScenario = (scenarioId: string, widgetId: string, parameters: Record<string, string | undefined>) => {
+  return simplePostCall(`/api/scenarios/${scenarioId}/dashboard/average/${widgetId}`, parameters);
 };
 
 export const seriesByScenario = (scenarioId: string, widgetId: string, parameters: Record<string, string | undefined>) => {

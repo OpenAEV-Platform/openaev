@@ -2,7 +2,7 @@ package io.openaev.rest;
 
 import static io.openaev.config.AppConfig.EMAIL_FORMAT;
 import static io.openaev.rest.user.PlayerApi.PLAYER_URI;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.PlayerFixture.PLAYER_FIXTURE_FIRSTNAME;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -231,18 +231,19 @@ class PlayerApiTest extends IntegrationTest {
     assertTrue(this.userRepository.findById(user.getId()).isEmpty());
   }
 
-  @DisplayName("Given no existing player ID, should throw an exception")
+  @DisplayName("Given non-existing player ID, when deleting, then return 200")
   @Test
   @WithMockUser(isAdmin = true)
-  void given_notExistingAssetGroup_should_throwAnException() throws Exception {
+  void givenNonExistingPlayerId_whenDelete_thenReturnNoContent() throws Exception {
     // -- PREPARE --
-    String nonexistentAssetGroupId = "nonexistent-id";
+    String nonExistingPlayerId = "nonexistent-id";
 
-    // --EXECUTE--
+    // -- EXECUTE & VERIFY --
     mvc.perform(
-        delete(PLAYER_URI + "/" + nonexistentAssetGroupId)
-            .contentType(MediaType.APPLICATION_JSON)
-            .accept(MediaType.APPLICATION_JSON));
+            delete(PLAYER_URI + "/" + nonExistingPlayerId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk());
   }
 
   // -- PRIVATE --

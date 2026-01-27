@@ -6,7 +6,7 @@ import static java.util.Optional.ofNullable;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MonoIdDeserializer;
+import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import java.time.Instant;
@@ -34,14 +34,14 @@ public class ComcheckStatus implements Base {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "status_user")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("comcheckstatus_user")
   @Schema(type = "string")
   private User user;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "status_comcheck")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("comcheckstatus_comcheck")
   @Schema(type = "string")
   private Comcheck comcheck;
@@ -72,10 +72,14 @@ public class ComcheckStatus implements Base {
     return getReceiveDate()
         .map(receive -> CHECK_STATUS.SUCCESS)
         .orElseGet(
-            () ->
-                EXPIRED.equals(getComcheck().getState())
-                    ? CHECK_STATUS.FAILURE
-                    : CHECK_STATUS.RUNNING);
+            () -> {
+              if (getComcheck() == null) {
+                return CHECK_STATUS.RUNNING;
+              }
+              return EXPIRED.equals(getComcheck().getState())
+                  ? CHECK_STATUS.FAILURE
+                  : CHECK_STATUS.RUNNING;
+            });
   }
 
   // endregion
@@ -87,6 +91,9 @@ public class ComcheckStatus implements Base {
 
   @Override
   public boolean isUserHasAccess(User user) {
+    if (comcheck == null) {
+      return user.isAdmin();
+    }
     return comcheck.isUserHasAccess(user);
   }
 

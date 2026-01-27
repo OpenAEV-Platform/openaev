@@ -6,6 +6,8 @@ import org.springframework.data.domain.Sort;
 
 public class SortUtilsRuntime {
 
+  private SortUtilsRuntime() {}
+
   public static Sort toSortRuntime(@Nullable final List<SortField> sorts) {
     List<Sort.Order> orders;
 

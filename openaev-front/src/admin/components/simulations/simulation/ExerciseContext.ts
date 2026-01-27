@@ -15,17 +15,14 @@ import {
 } from '../../../../actions/Inject';
 import { bulkTestInjects } from '../../../../actions/inject_test/simulation-inject-test-actions';
 import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
-import {
-  importInjectsForSimulation,
-  searchExerciseInjectsSimple,
-} from '../../../../actions/injects/inject-action';
+import { createInjectsForSimulation, importInjectsForSimulation, searchExerciseInjectsSimple } from '../../../../actions/simulations/simulation-inject-actions';
 import { type Page } from '../../../../components/common/queryable/Page';
 import {
   type Exercise,
   type ImportTestSummary,
   type Inject,
   type InjectBulkProcessingInput,
-  type InjectBulkUpdateInputs,
+  type InjectBulkUpdateInputs, type InjectInput,
   type InjectsImportInput,
   type InjectTestStatusOutput,
   type SearchPaginationInput,
@@ -47,6 +44,12 @@ const injectContextForExercise = (exercise: Exercise) => {
       entities: { injects: Record<string, InjectStore> };
     }> {
       return dispatch(addInjectForExercise(exercise.exercise_id, inject));
+    },
+    onAddMultipleInjects(inputs: InjectInput[]): Promise<{
+      result: string[];
+      entities: { injects: Record<string, InjectStore> };
+    }> {
+      return dispatch(createInjectsForSimulation(exercise.exercise_id, inputs));
     },
     onBulkUpdateInject(param: InjectBulkUpdateInputs): Promise<Inject[] | void> {
       return bulkUpdateInjectSimple(param).then((result: { data: Inject[] }) => result?.data);

@@ -5,9 +5,7 @@ import { type Direction, type LayoutAlgorithm } from './index';
 
 // D3 Hierarchy doesn't support layouting in different directions, but we can
 // swap the coordinates around in different ways to get the same effect.
-// eslint-disable-next-line consistent-return
 const getPosition = (x: number, y: number, direction: Direction) => {
-  // eslint-disable-next-line default-case
   switch (direction) {
     case 'TB':
       return {
@@ -25,6 +23,7 @@ const getPosition = (x: number, y: number, direction: Direction) => {
         y: -y,
       };
     case 'RL':
+    default:
       return {
         x: -y,
         y: x,

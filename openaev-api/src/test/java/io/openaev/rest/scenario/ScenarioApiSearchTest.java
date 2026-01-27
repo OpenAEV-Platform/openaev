@@ -4,7 +4,7 @@ import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.model.Filters.FilterOperator.contains;
 import static io.openaev.database.model.Scenario.SEVERITY.critical;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static java.lang.String.valueOf;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;

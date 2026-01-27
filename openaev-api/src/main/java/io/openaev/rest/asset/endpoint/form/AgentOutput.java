@@ -37,7 +37,7 @@ public class AgentOutput {
 
   @Schema(description = "Agent executor")
   @JsonProperty("agent_executor")
-  private ExecutorOutput executor;
+  private AgentExecutorOutput executor;
 
   @Schema(
       description =

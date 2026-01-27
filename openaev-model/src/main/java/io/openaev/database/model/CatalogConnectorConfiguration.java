@@ -4,24 +4,50 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import io.hypersistence.utils.hibernate.type.array.StringArrayType;
+import io.hypersistence.utils.hibernate.type.array.ListArrayType;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MonoIdDeserializer;
+import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
-import lombok.Getter;
-import lombok.Setter;
+import java.util.HashSet;
+import java.util.Set;
+import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.type.SqlTypes;
 
 @Getter
 @Setter
 @Entity
 @Table(name = "catalog_connectors_configuration")
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
 @EntityListeners(ModelBaseListener.class)
 public class CatalogConnectorConfiguration implements Base {
+  public enum CONNECTOR_CONFIGURATION_TYPE {
+    ARRAY,
+    BOOLEAN,
+    INTEGER,
+    OBJECT,
+    STRING
+  }
+
+  public enum CONNECTOR_CONFIGURATION_FORMAT {
+    DEFAULT,
+    DATE,
+    DATETIME,
+    DURATION,
+    EMAIL,
+    PASSWORD,
+    URI
+  }
+
+  public static final Set<CONNECTOR_CONFIGURATION_FORMAT> ENCRYPTED_FORMATS =
+      Set.of(CONNECTOR_CONFIGURATION_FORMAT.PASSWORD);
 
   @Id
   @Column(name = "connector_configuration_id")
@@ -36,11 +62,12 @@ public class CatalogConnectorConfiguration implements Base {
   @JsonIgnore
   @Schema(description = "Catalog connector")
   @NotNull
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   private CatalogConnector catalogConnector;
 
   @Column(name = "connector_configuration_key")
   @JsonProperty("connector_configuration_key")
+  @NotNull
   @Schema(description = "Connector configuration key")
   private String connectorConfigurationKey;
 
@@ -55,21 +82,27 @@ public class CatalogConnectorConfiguration implements Base {
   @Schema(description = "Connector configuration description")
   private String connectorConfigurationDescription;
 
+  @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   @Column(name = "connector_configuration_type")
   @JsonProperty("connector_configuration_type")
+  @NotNull
   @Schema(description = "Connector configuration type")
-  private String connectorConfigurationType;
+  private CONNECTOR_CONFIGURATION_TYPE connectorConfigurationType;
 
+  @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   @Column(name = "connector_configuration_format")
   @JsonProperty("connector_configuration_format")
   @Schema(description = "Connector configuration format")
-  private String connectorConfigurationFormat;
+  private CONNECTOR_CONFIGURATION_FORMAT connectorConfigurationFormat =
+      CONNECTOR_CONFIGURATION_FORMAT.DEFAULT;
 
-  @Type(StringArrayType.class)
+  @Type(ListArrayType.class)
   @Column(name = "connector_configuration_enum")
   @JsonProperty("connector_configuration_enum")
   @Schema(description = "Connector configuration enum")
-  private String[] connectorConfigurationEnum;
+  private Set<String> connectorConfigurationEnum = new HashSet<>();
 
   @Column(name = "connector_configuration_writeonly")
   @JsonProperty("connector_configuration_writeonly")

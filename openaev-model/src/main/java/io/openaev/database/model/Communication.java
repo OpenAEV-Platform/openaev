@@ -7,8 +7,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MonoIdDeserializer;
-import io.openaev.helper.MultiIdListDeserializer;
+import io.openaev.helper.MonoIdSerializer;
+import io.openaev.helper.MultiIdListSerializer;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -71,7 +71,7 @@ public class Communication implements Base {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "communication_inject")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("communication_inject")
   @Schema(type = "string")
   private Inject inject;
@@ -82,7 +82,7 @@ public class Communication implements Base {
       name = "communications_users",
       joinColumns = @JoinColumn(name = "communication_id"),
       inverseJoinColumns = @JoinColumn(name = "user_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("communication_users")
   private List<User> users = new ArrayList<>();
 
@@ -163,9 +163,10 @@ public class Communication implements Base {
 
   @JsonProperty("communication_exercise")
   public String getExercise() {
-    return this.inject.getExercise() != null
-        ? this.inject.getExercise().getId()
-        : StringUtils.EMPTY;
+    if (this.inject == null || this.inject.getExercise() == null) {
+      return StringUtils.EMPTY;
+    }
+    return this.inject.getExercise().getId();
   }
 
   @JsonIgnore

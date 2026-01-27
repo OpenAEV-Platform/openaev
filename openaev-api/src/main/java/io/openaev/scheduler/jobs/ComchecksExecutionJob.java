@@ -19,66 +19,37 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
 import io.openaev.injectors.email.EmailContract;
-import io.openaev.injectors.email.EmailExecutor;
+import io.openaev.integration.ManagerFactory;
 import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
-import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
 @Component
 @DisallowConcurrentExecution
 @Slf4j
+@RequiredArgsConstructor
 public class ComchecksExecutionJob implements Job {
   @Resource private OpenAEVConfig openAEVConfig;
-  private ApplicationContext context;
-  private ComcheckRepository comcheckRepository;
-  private ComcheckStatusRepository comcheckStatusRepository;
+  private final ApplicationContext context;
+  private final ComcheckRepository comcheckRepository;
+  private final ComcheckStatusRepository comcheckStatusRepository;
 
-  private InjectorContractRepository injectorContractRepository;
-  private ExecutionContextService executionContextService;
+  private final InjectorContractRepository injectorContractRepository;
+  private final ExecutionContextService executionContextService;
+
+  private final ManagerFactory managerFactory;
 
   @Resource private ObjectMapper mapper;
-
-  @Autowired
-  public void setComcheckRepository(ComcheckRepository comcheckRepository) {
-    this.comcheckRepository = comcheckRepository;
-  }
-
-  @Autowired
-  public void setOpenAEVConfig(OpenAEVConfig OpenAEVConfig) {
-    this.openAEVConfig = OpenAEVConfig;
-  }
-
-  @Autowired
-  public void setContext(ApplicationContext context) {
-    this.context = context;
-  }
-
-  @Autowired
-  public void setComcheckStatusRepository(ComcheckStatusRepository comcheckStatusRepository) {
-    this.comcheckStatusRepository = comcheckStatusRepository;
-  }
-
-  @Autowired
-  public void setInjectorContractRepository(InjectorContractRepository injectorContractRepository) {
-    this.injectorContractRepository = injectorContractRepository;
-  }
-
-  @Autowired
-  public void setExecutionContextService(
-      @NotNull final ExecutionContextService executionContextService) {
-    this.executionContextService = executionContextService;
-  }
 
   private Inject buildComcheckEmail(Comcheck comCheck) {
     Inject emailInject = new Inject();
@@ -140,7 +111,8 @@ public class ComchecksExecutionJob implements Job {
                 Inject emailInject = buildComcheckEmail(comCheck);
                 ExecutableInject injection =
                     new ExecutableInject(false, true, emailInject, userInjectContexts);
-                EmailExecutor emailExecutor = context.getBean(EmailExecutor.class);
+                io.openaev.executors.Injector emailExecutor =
+                    this.managerFactory.getManager().requestEmailInjector();
                 Execution execution = emailExecutor.executeInjection(injection);
                 // Save the status sent date
                 List<String> usersSuccessfullyNotified =

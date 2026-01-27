@@ -60,6 +60,7 @@ public class AtomicTestingService {
   private final InjectSearchService injectSearchService;
   private final InjectService injectService;
   private final GrantService grantService;
+  private final InjectDocumentRepository injectDocumentRepository;
 
   // -- CRUD --
 
@@ -119,35 +120,38 @@ public class AtomicTestingService {
     injectToSave.setAssetGroups(
         fromIterable(this.assetGroupRepository.findAllById(input.getAssetGroups())));
 
-    List<String> previousDocumentIds =
-        injectToSave.getDocuments().stream()
-            .map(InjectDocument::getDocument)
-            .map(Document::getId)
-            .toList();
+    injectToSave.getDocuments().clear();
 
     Inject finalInjectToSave = injectToSave;
-    List<InjectDocument> injectDocuments =
-        input.getDocuments().stream()
-            .map(
-                i -> {
-                  if (!previousDocumentIds.contains(i.getDocumentId())) {
-                    InjectDocument injectDocument = new InjectDocument();
-                    injectDocument.setInject(finalInjectToSave);
-                    injectDocument.setDocument(
-                        documentRepository.findById(i.getDocumentId()).orElseThrow());
-                    injectDocument.setAttached(i.isAttached());
-                    return injectDocument;
-                  }
-                  return null;
-                })
-            .filter(Objects::nonNull)
-            .toList();
-    injectToSave.getDocuments().addAll(injectDocuments);
+    input
+        .getDocuments()
+        .forEach(
+            i -> {
+              InjectDocumentId injectDocumentId = new InjectDocumentId();
+              injectDocumentId.setInjectId(finalInjectToSave.getId());
+              injectDocumentId.setDocumentId(i.getDocumentId());
+              InjectDocument injectDocument =
+                  injectDocumentRepository.findById(injectDocumentId).orElse(new InjectDocument());
+              if (injectDocument.getInject() == null) {
+                injectDocument.setCompositeId(injectDocumentId);
+                injectDocument.setInject(finalInjectToSave);
+                injectDocument.setDocument(
+                    documentRepository.findById(i.getDocumentId()).orElseThrow());
+              }
+              injectDocument.setAttached(i.isAttached());
+              finalInjectToSave
+                  .getDocuments()
+                  .add(
+                      injectId == null
+                          ? injectDocument
+                          : injectDocumentRepository.save(injectDocument));
+            });
+
     if (injectId == null) {
       actionMetricCollector.addAtomicTestingCreatedCount();
     }
-    Inject inject = injectRepository.save(injectToSave);
-    return injectMapper.toInjectResultOverviewOutput(inject);
+    injectToSave = injectRepository.save(injectToSave);
+    return injectMapper.toInjectResultOverviewOutput(injectToSave);
   }
 
   private ObjectNode setExpectations(

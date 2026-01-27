@@ -49,9 +49,14 @@ export const relaunchAtomicTesting = (injectId: string) => {
   return simplePostCall(uri);
 };
 
-export const fetchTargetResultMerged = (injectId: string, targetId: string, targetType: string) => {
-  const uri = `${ATOMIC_TESTING_URI}/${injectId}/target_results/${targetId}/types/${targetType}/merged`;
+export const fetchTargetResult = (injectId: string, targetId: string, targetType: string) => {
+  const uri = `${ATOMIC_TESTING_URI}/${injectId}/target_results/${targetId}/types/${targetType}`;
   return simpleCall(uri);
+};
+
+export const fetchTargetResultAssetWithAgents = (injectId: string, targetId: string, expectationType: string) => (dispatch: Dispatch) => {
+  const uri = `${ATOMIC_TESTING_URI}/${injectId}/target_results/${targetId}/asset_with_agents?expectationType=${expectationType}`;
+  return getReferential(schema.arrayOfInjectexpectations, uri)(dispatch);
 };
 
 export const createAtomicTesting = (data: AtomicTestingInput) => {

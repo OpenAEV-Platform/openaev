@@ -2,7 +2,7 @@ package io.openaev.rest.scenario;
 
 import static io.openaev.database.model.SettingKeys.DEFAULT_SCENARIO_DASHBOARD;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -163,8 +163,7 @@ public class ScenarioApiTest extends IntegrationTest {
   @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
   void retrieveScenariosTest() throws Exception {
     // -- PREPARE --
-    Scenario testScenario =
-        scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario()).persist().get();
+    scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario()).persist().get();
 
     // -- EXECUTE --
     String response =
@@ -200,6 +199,16 @@ public class ScenarioApiTest extends IntegrationTest {
 
     // -- ASSERT --
     assertNotNull(response);
+  }
+
+  @DisplayName("Requesting non existing scenario by ID fails gracefully")
+  @Test
+  @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
+  void failsafeNonExistScenarioId() throws Exception {
+    // -- EXECUTE --
+    this.mvc
+        .perform(get(SCENARIO_URI + "/DOESNOTEXIST").accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isNotFound());
   }
 
   @DisplayName("Update scenario")
@@ -356,6 +365,22 @@ public class ScenarioApiTest extends IntegrationTest {
     @DisplayName("Throw license restricted error when scheduled scenario with Tanium")
     void given_taniumAsset_should_not_scheduleScenario() throws Exception {
       Scenario scenario = getScenario(null, executorFixture.getTaniumExecutor());
+      ScenarioRecurrenceInput input = new ScenarioRecurrenceInput();
+      input.setRecurrenceStart(Instant.now());
+
+      mvc.perform(
+              put(SCENARIO_URI + "/" + scenario.getId() + "/recurrence")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
+    }
+
+    @Test
+    @DisplayName("Throw license restricted error when scheduled scenario with Sentinel One")
+    void given_sentineloneAsset_should_not_scheduleScenario() throws Exception {
+      Scenario scenario = getScenario(null, executorFixture.getSentineloneExecutor());
       ScenarioRecurrenceInput input = new ScenarioRecurrenceInput();
       input.setRecurrenceStart(Instant.now());
 

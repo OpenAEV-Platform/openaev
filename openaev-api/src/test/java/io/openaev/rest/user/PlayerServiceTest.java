@@ -10,6 +10,7 @@ import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.user.form.player.PlayerInput;
 import jakarta.persistence.EntityManager;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -82,7 +83,7 @@ public class PlayerServiceTest {
     PlayerInput playerInput = new PlayerInput();
     User user = new User();
     user.setEmail("newUser@newUser.com");
-    user.setTags(Set.of(getTag("tag1"), getTag("tag2")));
+    user.setTags(new HashSet<>(Set.of(getTag("tag1"), getTag("tag2"))));
 
     playerInput.setEmail("newUser@newUser.com");
     playerInput.setTagIds(List.of("tag1", "tag2"));

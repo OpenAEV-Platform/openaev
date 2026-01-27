@@ -1,5 +1,5 @@
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useContext } from 'react';
+import { type FunctionComponent, memo, useCallback, useContext, useMemo } from 'react';
 import Chart from 'react-apexcharts';
 import { makeStyles } from 'tss-react/mui';
 
@@ -24,36 +24,46 @@ const HorizontalBarChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, 
 
   const { openWidgetDataDrawer } = useContext(CustomDashboardContext);
 
-  const onBarClick = (_: Event, config: {
+  // Memoize click handler
+  const onBarClick = useCallback((_: Event, config: {
     seriesIndex: number;
     dataPointIndex: number;
   }) => {
     const dataPoint = series[config.seriesIndex].data[config.dataPointIndex] as SerieData;
-
     openWidgetDataDrawer({
       widgetId,
       filter_values: [dataPoint?.meta ?? ''],
       series_index: config.seriesIndex,
     });
-  };
+  }, [series, openWidgetDataDrawer, widgetId]);
 
-  const widgetMode = (): string => {
+  // Memoize widget mode
+  const widgetMode = useMemo((): string => {
     if (widgetConfig.widget_configuration_type === 'temporal-histogram' || widgetConfig.widget_configuration_type === 'structural-histogram') {
       return (widgetConfig as DateHistogramWidget | StructuralHistogramWidget).mode;
     }
     return 'structural';
-  };
+  }, [widgetConfig]);
+
+  // Memoize empty chart text
+  const emptyChartText = useMemo(() => t('No data to display'), [t]);
+
+  // Memoize chart options
+  const options = useMemo(
+    () => horizontalBarsChartOptions({
+      theme,
+      xFormatter: widgetMode === 'temporal' ? fld : null,
+      categories: [],
+      legend: true,
+      emptyChartText,
+      onBarClick,
+    }),
+    [theme, widgetMode, fld, emptyChartText, onBarClick],
+  );
 
   return (
     <Chart
-      options={horizontalBarsChartOptions({
-        theme,
-        xFormatter: widgetMode() === 'temporal' ? fld : null,
-        categories: [],
-        legend: true,
-        emptyChartText: t('No data to display'),
-        onBarClick,
-      })}
+      options={options}
       series={series}
       type="bar"
       width="100%"
@@ -63,4 +73,4 @@ const HorizontalBarChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, 
   );
 };
 
-export default HorizontalBarChart;
+export default memo(HorizontalBarChart);

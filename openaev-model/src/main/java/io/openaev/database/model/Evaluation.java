@@ -2,10 +2,11 @@ package io.openaev.database.model;
 
 import static java.time.Instant.now;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MonoIdDeserializer;
+import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -33,7 +34,7 @@ public class Evaluation implements Base {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "evaluation_objective")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("evaluation_objective")
   @NotNull
   @Schema(type = "string")
@@ -41,7 +42,7 @@ public class Evaluation implements Base {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "evaluation_user")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("evaluation_user")
   @NotNull
   @Schema(type = "string")
@@ -61,8 +62,15 @@ public class Evaluation implements Base {
   @NotNull
   private Instant updated = now();
 
+  @Getter(onMethod_ = @JsonIgnore)
+  @Transient
+  private final ResourceType resourceType = ResourceType.EVALUATION;
+
   @Override
   public boolean isUserHasAccess(User user) {
+    if (getObjective() == null) {
+      return user.isAdmin();
+    }
     return getObjective().isUserHasAccess(user);
   }
 
@@ -77,5 +85,21 @@ public class Evaluation implements Base {
   @Override
   public int hashCode() {
     return Objects.hash(id);
+  }
+
+  @JsonIgnore
+  public String getParentResourceId() {
+    if (this.getObjective() == null) {
+      return this.getId();
+    }
+    return this.getObjective().getParentResourceId();
+  }
+
+  @JsonIgnore
+  public ResourceType getParentResourceType() {
+    if (this.getObjective() == null) {
+      return ResourceType.EVALUATION;
+    }
+    return this.getObjective().getParentResourceType();
   }
 }

@@ -1,22 +1,18 @@
 package io.openaev.executors.caldera.service;
 
-import static io.openaev.executors.caldera.service.CalderaExecutorService.CALDERA_EXECUTOR_NAME;
-
 import io.openaev.database.model.*;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.caldera.client.CalderaExecutorClient;
 import io.openaev.executors.caldera.client.model.Ability;
 import io.openaev.executors.caldera.config.CalderaExecutorConfig;
-import io.openaev.integrations.InjectorService;
 import io.openaev.rest.exception.AgentException;
+import io.openaev.service.InjectorService;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
 @Slf4j
-@Service(CALDERA_EXECUTOR_NAME)
 @RequiredArgsConstructor
 public class CalderaExecutorContextService extends ExecutorContextService {
 
@@ -31,7 +27,7 @@ public class CalderaExecutorContextService extends ExecutorContextService {
     // Create the abilities if not exist for all injectors that need it
     List<Ability> abilities = this.abilities();
 
-    Iterable<Injector> injectors = injectorService.injectors();
+    Iterable<Injector> injectors = injectorService.getAllConnectors();
     injectors.forEach(
         injector -> {
           if (injector.getExecutorCommands() != null) {

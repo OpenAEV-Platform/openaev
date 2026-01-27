@@ -205,7 +205,7 @@ const Teams = () => {
                         ...inlineStyles.team_description,
                       }}
                       >
-                        {team.team_description}
+                        {team.team_description || '-'}
                       </div>
                       <div style={{
                         ...bodyItemsStyles.bodyItem,

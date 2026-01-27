@@ -85,6 +85,8 @@ public class AppSecurityConfig {
                     .permitAll()
                     .requestMatchers("/api/**")
                     .authenticated()
+                    .requestMatchers("/actuator/**")
+                    .authenticated()
                     .anyRequest()
                     .permitAll())
         .logout(
@@ -93,8 +95,7 @@ public class AppSecurityConfig {
                     .invalidateHttpSession(true)
                     .deleteCookies("JSESSIONID", openAEVConfig.getCookieName())
                     .logoutSuccessUrl(
-                        env.getProperty("openaev.base-url", String.class, "/")
-                            + env.getProperty("openaev.logout-success-url", String.class, "/")));
+                        openAEVConfig.getFrontendUrl() + openAEVConfig.getLogoutSuccessUrl()));
 
     if (openAEVConfig.isAuthOpenidEnable()) {
       http.oauth2Login(

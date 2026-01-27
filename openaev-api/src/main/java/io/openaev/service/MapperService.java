@@ -338,7 +338,7 @@ public class MapperService {
               endpointsToExport,
               EndpointExportImport.class);
         } catch (Exception e) {
-          throw new RuntimeException("Error during export csv ", e);
+          throw new RuntimeException("Error during export CSV", e);
         }
         break;
       default:
@@ -420,7 +420,7 @@ public class MapperService {
           try {
             importEndpointsCsv(setEndpointsColumnMapping(), csvReader);
           } catch (Exception e) {
-            throw new RuntimeException("Error during export csv ", e);
+            throw new RuntimeException("Error during export CSV", e);
           }
           break;
         default:

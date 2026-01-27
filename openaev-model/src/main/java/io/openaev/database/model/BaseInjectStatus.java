@@ -45,6 +45,9 @@ public abstract class BaseInjectStatus implements Base {
 
   @Override
   public boolean isUserHasAccess(User user) {
+    if (this.inject == null) {
+      return user.isAdmin();
+    }
     return this.inject.isUserHasAccess(user);
   }
 

@@ -1,8 +1,8 @@
 package io.openaev.rest.inject_expectation;
 
 import static io.openaev.expectation.ExpectationPropertiesConfig.DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME;
-import static io.openaev.injectors.openaev.OpenAEVInjector.OPENAEV_INJECTOR_ID;
-import static io.openaev.injectors.openaev.OpenAEVInjector.OPENAEV_INJECTOR_NAME;
+import static io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegration.OPENAEV_INJECTOR_ID;
+import static io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegration.OPENAEV_INJECTOR_NAME;
 import static io.openaev.utils.fixtures.ExpectationFixture.createDetectionExpectations;
 import static io.openaev.utils.fixtures.ExpectationFixture.createPreventionExpectations;
 import static java.util.Collections.emptyList;

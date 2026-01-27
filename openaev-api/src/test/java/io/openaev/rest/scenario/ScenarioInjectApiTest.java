@@ -2,7 +2,7 @@ package io.openaev.rest.scenario;
 
 import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -14,13 +14,17 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.injectors.manual.ManualContract;
+import io.openaev.integration.Manager;
+import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
+import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
 import io.openaev.rest.inject.form.InjectAssistantInput;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
-import io.openaev.service.ScenarioService;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.AttackPatternComposer;
+import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
@@ -56,17 +60,22 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @Autowired private AttackPatternComposer attackPatternComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private PayloadComposer payloadComposer;
+  @Autowired private DomainComposer domainComposer;
 
   @Autowired private AttackPatternRepository attackPatternRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private AssetGroupService assetGroupService;
   @Autowired private EndpointService endpointService;
   @Autowired private ScenarioService scenarioService;
+  @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
+  @Autowired private ManualInjectorIntegrationFactory manualInjectorIntegrationFactory;
 
   List<InjectorContractComposer.Composer> injectorContractWrapperComposers = new ArrayList<>();
 
   @BeforeAll
-  void beforeAll() {
+  void beforeAll() throws Exception {
+    new Manager(List.of(emailInjectorIntegrationFactory, manualInjectorIntegrationFactory))
+        .monitorIntegrations();
     Scenario scenario = new Scenario();
     scenario.setName("Scenario name");
     scenario.setFrom("test@test.com");
@@ -125,12 +134,14 @@ class ScenarioInjectApiTest extends IntegrationTest {
     assertNotNull(response);
     SCENARIO_INJECT_ID = JsonPath.read(response, "$.inject_id");
     response =
-        mvc.perform(get(SCENARIO_URI + "/" + SCENARIO.getId()).accept(MediaType.APPLICATION_JSON))
+        mvc.perform(
+                get(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects")
+                    .accept(MediaType.APPLICATION_JSON))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
             .getContentAsString();
-    assertEquals(SCENARIO_INJECT_ID, JsonPath.read(response, "$.scenario_injects[0]"));
+    assertEquals(SCENARIO_INJECT_ID, JsonPath.read(response, "$[0].inject_id"));
   }
 
   @DisplayName("Retrieve injects for scenario")
@@ -226,6 +237,8 @@ class ScenarioInjectApiTest extends IntegrationTest {
         AttackPattern attackPattern,
         Endpoint.PLATFORM_TYPE[] platforms,
         Payload.PAYLOAD_EXECUTION_ARCH architecture) {
+      Set<Domain> domains =
+          domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
       InjectorContractComposer.Composer newInjectorContractComposer =
           injectorContractComposer
               .forInjectorContract(
@@ -235,7 +248,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
               .withPayload(
                   payloadComposer.forPayload(
                       PayloadFixture.createDefaultCommandWithPlatformsAndArchitecture(
-                          platforms, architecture)))
+                          platforms, architecture, domains)))
               .persist();
       injectorContractWrapperComposers.add(newInjectorContractComposer);
       return newInjectorContractComposer.get();

@@ -161,7 +161,7 @@ const AssetGroupPopover: FunctionComponent<AssetGroupPopoverProps> = ({
         >
           <AssetGroupForm
             initialValues={initialValues}
-            editing={true}
+            editing
             onSubmit={submitEdit}
             handleClose={() => setEdition(false)}
           />
@@ -174,7 +174,7 @@ const AssetGroupPopover: FunctionComponent<AssetGroupPopoverProps> = ({
         >
           <AssetGroupForm
             initialValues={initialValues}
-            editing={true}
+            editing
             onSubmit={submitEdit}
             handleClose={() => setEdition(false)}
           />

@@ -1,7 +1,7 @@
 package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.hypersistence.utils.hibernate.type.array.StringArrayType;
+import io.hypersistence.utils.hibernate.type.array.ListArrayType;
 import io.openaev.database.audit.ModelBaseListener;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -12,8 +12,10 @@ import java.util.HashSet;
 import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.type.SqlTypes;
 
 @Getter
 @Setter
@@ -21,13 +23,9 @@ import org.hibernate.annotations.UuidGenerator;
 @Table(name = "catalog_connectors")
 @EntityListeners(ModelBaseListener.class)
 public class CatalogConnector implements Base {
-  public enum CONNECTOR_TYPE {
-    COLLECTOR,
-    INJECTOR,
-    EXECUTOR
-  }
 
   @Id
+  @NotNull
   @Column(name = "catalog_connector_id")
   @GeneratedValue(generator = "UUID")
   @UuidGenerator
@@ -61,11 +59,11 @@ public class CatalogConnector implements Base {
   @Schema(description = "Connector logo")
   private String logoUrl;
 
-  @Type(StringArrayType.class)
+  @Type(ListArrayType.class)
   @Column(name = "catalog_connector_use_cases")
   @JsonProperty("catalog_connector_use_cases")
-  @Schema(description = "Connector use_cases")
-  private String[] useCases;
+  @Schema(description = "Connector use cases")
+  private Set<String> useCases = new HashSet<>();
 
   @Column(name = "catalog_connector_verified")
   @JsonProperty("catalog_connector_verified")
@@ -117,10 +115,12 @@ public class CatalogConnector implements Base {
   @Schema(description = "Connector container image")
   private String containerImage;
 
+  @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   @Column(name = "catalog_connector_type")
   @JsonProperty("catalog_connector_type")
   @Schema(description = "Connector type")
-  private CONNECTOR_TYPE containerType;
+  private ConnectorType containerType;
 
   @Column(name = "catalog_connector_class_name")
   @JsonProperty("catalog_connector_class_name")
@@ -134,19 +134,15 @@ public class CatalogConnector implements Base {
 
   @OneToMany(
       mappedBy = "catalogConnector",
-      fetch = FetchType.EAGER,
+      fetch = FetchType.LAZY,
       cascade = CascadeType.ALL,
       orphanRemoval = true)
   @JsonProperty("catalog_connector_configuration")
   @NotNull
   private Set<CatalogConnectorConfiguration> catalogConnectorConfigurations = new HashSet<>();
 
-  @OneToMany(
-      mappedBy = "catalogConnector",
-      fetch = FetchType.LAZY,
-      cascade = CascadeType.ALL,
-      orphanRemoval = true)
+  @OneToMany(mappedBy = "catalogConnector", fetch = FetchType.LAZY, orphanRemoval = true)
   @JsonProperty("catalog_connector_instances")
   @NotNull
-  private Set<ConnectorInstance> configurations = new HashSet<>();
+  private Set<ConnectorInstancePersisted> instances = new HashSet<>();
 }

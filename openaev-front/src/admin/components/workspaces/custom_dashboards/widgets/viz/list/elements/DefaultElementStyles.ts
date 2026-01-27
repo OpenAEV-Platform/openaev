@@ -1,4 +1,4 @@
-import type { CSSProperties } from '@mui/material/styles';
+import { type CSSProperties } from 'react';
 
 const DefaultElementStyles: Record<string, CSSProperties> = {};
 

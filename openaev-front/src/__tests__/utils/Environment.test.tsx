@@ -43,7 +43,9 @@ describe('exportData tests', () => {
       it('returns line with no other keys than specified', () => {
         Object.keys(obj).forEach(k =>
           keys.includes(k)
+          // eslint-disable-next-line vitest/no-conditional-expect
             ? expect(Object.keys(line)).toContain(k)
+              // eslint-disable-next-line vitest/no-conditional-expect
             : expect(Object.keys(line)).not.toContain(k),
         );
       });
@@ -188,7 +190,7 @@ describe('exportData tests', () => {
         objtype,
         keys,
         [obj],
-        null, // tagMap
+        undefined, // tagMap
         orgMap,
       );
 
@@ -219,7 +221,7 @@ describe('exportData tests', () => {
         objtype,
         keys,
         [obj],
-        null, // tagMap
+        undefined, // tagMap
         orgMap,
       );
 
@@ -272,8 +274,8 @@ describe('exportData tests', () => {
         objtype,
         keys,
         [obj],
-        null, // tagMap
-        null, // orgMap
+        undefined, // tagMap
+        undefined, // orgMap
         exerciseMap,
       );
 
@@ -304,8 +306,8 @@ describe('exportData tests', () => {
         objtype,
         keys,
         [obj],
-        null, // tagMap
-        null, // orgMap
+        undefined, // tagMap
+        undefined, // orgMap
         exerciseMap,
       );
 
@@ -359,9 +361,9 @@ describe('exportData tests', () => {
         objtype,
         keys,
         [obj],
-        null, // tagMap
-        null, // orgMap
-        null, // exerciseMap
+        undefined, // tagMap
+        undefined, // orgMap
+        undefined, // exerciseMap
         scenarioMap,
       );
 
@@ -393,9 +395,9 @@ describe('exportData tests', () => {
         objtype,
         keys,
         [obj],
-        null, // tagMap
-        null, // orgMap
-        null, // exerciseMap
+        undefined, // tagMap
+        undefined, // orgMap
+        undefined, // exerciseMap
         scenarioMap,
       );
 

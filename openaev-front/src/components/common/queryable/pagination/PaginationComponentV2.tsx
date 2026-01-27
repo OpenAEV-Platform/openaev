@@ -2,7 +2,6 @@ import { Box, Button, Chip } from '@mui/material';
 import { cloneElement, type ReactElement, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import InjectorContractSwitchFilter from '../../../../admin/components/common/filters/InjectorContractSwitchFilter';
 import MitreFilter, { MITRE_FILTER_KEY } from '../../../../admin/components/common/filters/MitreFilter';
 import mitreAttack from '../../../../static/images/misc/attack.png';
 import { type AttackPattern, type Filter, type PropertySchemaDTO, type SearchPaginationInput } from '../../../../utils/api-types';
@@ -208,11 +207,6 @@ const PaginationComponentV2 = <T extends object>({
                 />
               </Drawer>
             </>
-          )}
-          {availableFilterNames?.includes('injector_contract_players') && (
-            <div style={{ marginLeft: 10 }}>
-              <InjectorContractSwitchFilter filterHelpers={queryableHelpers.filterHelpers} filterGroup={searchPaginationInput.filterGroup} />
-            </div>
           )}
         </div>
         {!topPagination

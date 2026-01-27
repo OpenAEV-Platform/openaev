@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
@@ -131,6 +132,19 @@ public interface InjectExpectationRepository
       value =
           "SELECT i FROM InjectExpectation i "
               + "WHERE i.inject.id = :injectId "
+              + "AND i.asset.id = :assetId "
+              + "AND i.type = :expectationType "
+              + "AND i.agent IS NOT NULL "
+              + "ORDER BY i.type, i.createdAt")
+  List<InjectExpectation> findAllWithAgentsByInjectAndAsset(
+      @Param("injectId") @NotBlank String injectId,
+      @Param("assetId") @NotBlank String assetId,
+      @Param("expectationType") @NotBlank InjectExpectation.EXPECTATION_TYPE expectationType);
+
+  @Query(
+      value =
+          "SELECT i FROM InjectExpectation i "
+              + "WHERE i.inject.id = :injectId "
               + "AND i.assetGroup.id = :assetGroupId "
               + "AND i.asset IS NULL "
               + "AND i.agent IS NULL ")
@@ -192,6 +206,23 @@ public interface InjectExpectationRepository
           "select i from InjectExpectation i where i.inject.id in :injectIds and i.agent is null and i.user is null")
   List<InjectExpectation> findAllForGlobalScoreByInjects(@Param("injectIds") Set<String> injectIds);
 
+  @Modifying
+  @Query(
+      value =
+          """
+                UPDATE injects_expectations
+                SET inject_expectation_signatures =
+                    COALESCE(inject_expectation_signatures, '[]'::jsonb) ||
+                    jsonb_build_array(jsonb_build_object('type', :sigType, 'value', :sigValue))
+                WHERE inject_id = :injectId AND agent_id = :agentId
+                """,
+      nativeQuery = true)
+  void insertSignature(
+      @Param("sigType") String sigType,
+      @Param("sigValue") String sigValue,
+      @Param("injectId") String injectId,
+      @Param("agentId") String agentId);
+
   // -- INDEXING --
 
   @Query(
@@ -220,6 +251,7 @@ public interface InjectExpectationRepository
       i.inject_title as inject_title,
       MAX(ins.tracking_sent_date) AS tracking_sent_date,
       array_agg(DISTINCT ap.attack_pattern_id) FILTER ( WHERE ap.attack_pattern_id IS NOT NULL ) AS attack_pattern_ids,
+      coalesce(array_agg(DISTINCT p_d.domain_id) FILTER (WHERE p_d.domain_id IS NOT NULL ),array_agg(DISTINCT ic_d.domain_id) FILTER (WHERE ic_d.domain_id IS NOT NULL )) domain_ids,
       MAX(se.scenario_id) AS scenario_id,
       array_agg(DISTINCT c.collector_security_platform) FILTER ( WHERE c.collector_security_platform IS NOT NULL ) ||
       array_agg(DISTINCT a.asset_id) FILTER ( WHERE a.asset_id IS NOT NULL ) AS security_platform_ids
@@ -230,6 +262,8 @@ public interface InjectExpectationRepository
     LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract
     LEFT JOIN injectors_contracts_attack_patterns ic_ap ON ic_ap.injector_contract_id = ic.injector_contract_id
     LEFT JOIN attack_patterns ap ON ap.attack_pattern_id = ic_ap.attack_pattern_id
+    LEFT JOIN injectors_contracts_domains ic_d ON ic_d.injector_contract_id = ic.injector_contract_id
+    LEFT JOIN payloads_domains p_d ON p_d.payload_id = ic.injector_contract_payload
     LEFT JOIN users u ON u.user_id = ie.user_id
     LEFT JOIN teams t ON t.team_id = ie.team_id
     LEFT JOIN assets asset ON asset.asset_id = ie.asset_id

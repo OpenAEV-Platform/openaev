@@ -7,12 +7,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.openaev.database.model.Filters;
+import io.openaev.jsonapi.CanRemapWeakRelationships;
 import io.openaev.utils.CustomDashboardTimeRange;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
@@ -43,6 +45,9 @@ import lombok.Setter;
     visible = true)
 @JsonSubTypes({
   @JsonSubTypes.Type(value = FlatConfiguration.class, name = WidgetConfigurationType.Values.FLAT),
+  @JsonSubTypes.Type(
+      value = AverageConfiguration.class,
+      name = WidgetConfigurationType.Values.AVERAGE),
   @JsonSubTypes.Type(value = ListConfiguration.class, name = WidgetConfigurationType.Values.LIST),
   @JsonSubTypes.Type(
       value = DateHistogramWidget.class,
@@ -51,7 +56,7 @@ import lombok.Setter;
       value = StructuralHistogramWidget.class,
       name = WidgetConfigurationType.Values.STRUCTURAL_HISTOGRAM)
 })
-public abstract class WidgetConfiguration {
+public abstract class WidgetConfiguration implements CanRemapWeakRelationships {
 
   @Setter(NONE)
   @NotNull
@@ -83,5 +88,27 @@ public abstract class WidgetConfiguration {
 
   WidgetConfiguration(WidgetConfigurationType configurationType) {
     this.configurationType = configurationType;
+  }
+
+  @Override
+  public void remap(Map<String, String> map) {
+    if (this.series != null && !this.series.isEmpty()) {
+      for (Series currentSeries : this.series) {
+        if (currentSeries.getFilter() != null
+            && currentSeries.getFilter().getFilters() != null
+            && !currentSeries.getFilter().getFilters().isEmpty()) {
+          for (Filters.Filter filter : currentSeries.getFilter().getFilters()) {
+            if (filter.getValues() != null) {
+              for (Map.Entry<String, String> switchPair : map.entrySet()) {
+                if (filter.getValues().contains(switchPair.getKey())) {
+                  filter.getValues().remove(switchPair.getKey());
+                  filter.getValues().add(switchPair.getValue());
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }

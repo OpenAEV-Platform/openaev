@@ -21,6 +21,7 @@ public class ActionMetricCollector {
   private final AtomicLong simulationPlayedCount = new AtomicLong(0);
   private final AtomicLong injectsPlayedByAgentCount = new AtomicLong(0);
   private final AtomicLong injectPlayedWithoutAgentsCount = new AtomicLong(0);
+  private final AtomicLong averageWidgetsCount = new AtomicLong(0);
 
   @PostConstruct
   public void init() {
@@ -36,7 +37,6 @@ public class ActionMetricCollector {
         "atomic_testings_created_count",
         "Number of atomic testings created",
         () -> atomicTestingCreatedCount.getAndSet(0));
-
     metricRegistry.registerGauge(
         "simulations_played_count",
         "Number of simulations played",
@@ -49,6 +49,10 @@ public class ActionMetricCollector {
         "injects_played_without_agents_count",
         "Number of injects played without requiring agents",
         () -> injectPlayedWithoutAgentsCount.getAndSet(0));
+    metricRegistry.registerGauge(
+        "average_widgets_created_count",
+        "Number of widget Average created",
+        () -> averageWidgetsCount.getAndSet(0));
   }
 
   public void addScenarioCreatedCount() {
@@ -74,6 +78,16 @@ public class ActionMetricCollector {
   public void addSimulationPlayedCount(long count) {
     simulationPlayedCount.addAndGet(count);
     log.info("Increment Simulation Played Counter");
+  }
+
+  public void addAverageCreatedCount() {
+    averageWidgetsCount.incrementAndGet();
+    log.info("Increment Average Created Counter");
+  }
+
+  public void removeAverageCreatedCount() {
+    averageWidgetsCount.decrementAndGet();
+    log.info("Decrement Average Created Counter");
   }
 
   private void addInjectsPlayedByAgentCount() {

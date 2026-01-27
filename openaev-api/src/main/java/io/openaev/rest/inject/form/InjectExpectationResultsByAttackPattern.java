@@ -3,7 +3,7 @@ package io.openaev.rest.inject.form;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.model.AttackPattern;
-import io.openaev.helper.MonoIdDeserializer;
+import io.openaev.helper.MonoIdSerializer;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
@@ -21,7 +21,7 @@ public class InjectExpectationResultsByAttackPattern {
   @JsonProperty("inject_expectation_results")
   private List<InjectExpectationResultsByType> results;
 
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("inject_attack_pattern")
   @Schema(type = "string")
   private AttackPattern attackPattern;

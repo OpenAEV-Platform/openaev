@@ -137,7 +137,7 @@ public class RestBehavior {
       })
   public ValidationErrorBag handleValidationExceptions() {
     ValidationErrorBag bag =
-        new ValidationErrorBag(HttpStatus.UNAUTHORIZED.value(), "AUTHENTIFICATION_FAILED");
+        new ValidationErrorBag(HttpStatus.UNAUTHORIZED.value(), "AUTHENTICATION_FAILED");
     ValidationError errors = new ValidationError();
     Map<String, ValidationContent> errorsBag = new HashMap<>();
     errorsBag.put("username", new ValidationContent("Invalid user or password"));
@@ -218,7 +218,7 @@ public class RestBehavior {
       })
   public ResponseEntity<ErrorMessage> handleEntityNotFoundException(EntityNotFoundException ex) {
     ErrorMessage message = new ErrorMessage("Element not found: " + ex.getMessage());
-    log.warn(String.format("ElementNotFoundException: %s", ex.getMessage()), ex);
+    log.warn(String.format("EntityNotFoundException: %s", ex.getMessage()), ex);
     return new ResponseEntity<>(message, HttpStatus.NOT_FOUND);
   }
 
@@ -226,7 +226,7 @@ public class RestBehavior {
   public ResponseEntity<ErrorMessage> handleUnsupportedMediaTypeException(
       UnsupportedMediaTypeException ex) {
     ErrorMessage message = new ErrorMessage(ex.getMessage());
-    log.warn(String.format("UnsupportedMediaTypeException: " + ex.getMessage()), ex);
+    log.warn(String.format("UnsupportedMediaTypeException: %s", ex.getMessage()), ex);
     return new ResponseEntity<>(message, HttpStatus.UNSUPPORTED_MEDIA_TYPE);
   }
 

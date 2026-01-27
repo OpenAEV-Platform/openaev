@@ -35,11 +35,9 @@ import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.service.ScenarioStatisticService;
 import io.openaev.rest.team.output.TeamOutput;
-import io.openaev.service.TagRuleService;
-import io.openaev.service.TeamService;
-import io.openaev.service.UserService;
-import io.openaev.service.VariableService;
-import io.openaev.service.cron.CronService;
+import io.openaev.service.*;
+import io.openaev.service.period.CronService;
+import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
@@ -110,6 +108,8 @@ public class ExerciseService {
   private final LessonsCategoryRepository lessonsCategoryRepository;
 
   private final InjectExpectationMapper injectExpectationMapper;
+
+  private final ScenarioRecurrenceService scenarioRecurrenceService;
 
   // region properties
   @Value("${openaev.mail.imap.enabled}")
@@ -232,8 +232,8 @@ public class ExerciseService {
     }
 
     return exercise.getStart().isPresent() && exercise.getScenario() != null
-        ? cronService.getNextExecutionFromInstant(
-            exercise.getStart().get(), ZoneId.of("UTC"), exercise.getScenario().getRecurrence())
+        ? scenarioRecurrenceService.getNextExecutionTime(
+            exercise.getScenario(), exercise.getStart().get())
         : Optional.empty();
   }
 

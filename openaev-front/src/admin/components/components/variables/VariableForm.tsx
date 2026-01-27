@@ -63,7 +63,7 @@ const VariableForm: FunctionComponent<Props> = ({
       />
       <MuiTextField
         variant="standard"
-        fullWidth={true}
+        fullWidth
         label={t('Value')}
         style={{ marginTop: 20 }}
         error={!!errors.variable_value}
@@ -89,6 +89,7 @@ const VariableForm: FunctionComponent<Props> = ({
       }}
       >
         <Button
+          variant="contained"
           onClick={handleClose}
           style={{ marginRight: 10 }}
           disabled={isSubmitting}
@@ -96,6 +97,7 @@ const VariableForm: FunctionComponent<Props> = ({
           {t('Cancel')}
         </Button>
         <Button
+          variant="contained"
           color="secondary"
           type="submit"
           disabled={!isDirty || isSubmitting}

@@ -47,7 +47,7 @@ public class ComcheckApi extends RestBehavior {
   }
 
   @GetMapping("/api/comcheck/{comcheckStatusId}")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
+  @RBAC(skipRBAC = true)
   @Transactional(rollbackOn = Exception.class)
   public ComcheckStatus checkValidation(@PathVariable String comcheckStatusId) {
     ComcheckStatus comcheckStatus =

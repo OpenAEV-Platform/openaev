@@ -51,6 +51,10 @@ public class TagRuleFixture {
     return rule;
   }
 
+  public static TagRule createDefaultTagRule() {
+    return new TagRule();
+  }
+
   public static TagRuleOutput createTagRuleOutput() {
     return TagRuleOutput.builder()
         .tagName(TAG_NAME)

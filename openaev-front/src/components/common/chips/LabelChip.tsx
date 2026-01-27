@@ -5,10 +5,10 @@ import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../i18n';
 
-const useStyles = makeStyles()(() => ({
+const useStyles = makeStyles()(theme => ({
   labelChip: {
     textTransform: 'uppercase',
-    borderRadius: 5,
+    borderRadius: theme.borderRadius,
     marginBottom: 5,
     height: 20,
   },

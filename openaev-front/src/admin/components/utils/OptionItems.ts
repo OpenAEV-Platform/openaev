@@ -19,6 +19,10 @@ export const langItems = (t: (text: string) => string) => [
     label: t('Automatic'),
   },
   {
+    value: 'de',
+    label: t('German'),
+  },
+  {
     value: 'en',
     label: t('English'),
   },
@@ -29,6 +33,18 @@ export const langItems = (t: (text: string) => string) => [
   {
     value: 'fr',
     label: t('French'),
+  },
+  {
+    value: 'it',
+    label: t('Italian'),
+  },
+  {
+    value: 'ja',
+    label: t('Japanese'),
+  },
+  {
+    value: 'ru',
+    label: t('Russian'),
   },
   {
     value: 'zh',

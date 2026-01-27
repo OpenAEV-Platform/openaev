@@ -1,5 +1,8 @@
 name: Check signed commits in PR
 on: [pull_request,pull_request_target]
+permissions:
+  contents: read
+  pull-requests: write
 jobs:
   check-signed-commits:
     name: Check signed commits in PR

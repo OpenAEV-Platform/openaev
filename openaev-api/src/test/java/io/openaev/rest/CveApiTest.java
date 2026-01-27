@@ -1,7 +1,7 @@
 package io.openaev.rest;
 
 import static io.openaev.rest.cve.CveApi.CVE_API;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.VulnerabilityFixture.CVE_2025_5678;
 import static io.openaev.utils.fixtures.VulnerabilityFixture.VULNERABILITY_EXTERNAL_ID;
 import static java.time.Instant.now;
@@ -128,14 +128,9 @@ class CveApiTest extends IntegrationTest {
           .getResponse()
           .getContentAsString();
 
-      Assertions.assertTrue(
-          updateInput
-              .getDescription()
-              .equals(
-                  vulnerabilityRepository
-                      .findById(cve.getId())
-                      .map(cve1 -> cve1.getDescription())
-                      .get()));
+      Assertions.assertEquals(
+          updateInput.getDescription(),
+          vulnerabilityRepository.findById(cve.getId()).map(cve1 -> cve1.getDescription()).get());
     }
 
     @Test

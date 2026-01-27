@@ -16,7 +16,6 @@ import io.openaev.database.repository.SettingRepository;
 import io.openaev.ee.Ee;
 import io.openaev.ee.License;
 import io.openaev.engine.EngineService;
-import io.openaev.executors.caldera.config.CalderaExecutorConfig;
 import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.helper.RabbitMQHelper;
 import io.openaev.opencti.config.OpenCTIConfig;
@@ -32,6 +31,7 @@ import io.openaev.xtmhub.XtmHubRegistrationStatus;
 import io.openaev.xtmhub.config.XtmHubConfig;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
@@ -62,7 +62,6 @@ public class PlatformSettingsService {
   private final OpenCTIConfig openCTIConfig;
   private final XtmHubConfig xtmHubConfig;
   private final AiConfig aiConfig;
-  private final CalderaExecutorConfig calderaExecutorConfig;
   private final Ee eeService;
   private final EngineService engineService;
   private final XtmHubConnectivityService xtmHubConnectivityService;
@@ -137,12 +136,12 @@ public class PlatformSettingsService {
   }
 
   // -- MAP UTILS --
-  private Map<String, Setting> mapOfSettings(@NotBlank List<Setting> settings) {
+  private Map<String, Setting> mapOfSettings(@NotNull List<Setting> settings) {
     return settings.stream().collect(Collectors.toMap(Setting::getKey, Function.identity()));
   }
 
   private String getValueFromMapOfSettings(
-      @NotBlank Map<String, Setting> dbSettings, @NotBlank final String key) {
+      @NotNull Map<String, Setting> dbSettings, @NotBlank final String key) {
     return Optional.ofNullable(dbSettings.get(key)).map(Setting::getValue).orElse(null);
   }
 
@@ -158,6 +157,16 @@ public class PlatformSettingsService {
       return updateSetting;
     }
     return new Setting(themeKey, value);
+  }
+
+  /**
+   * Save setting
+   *
+   * @param setting setting to save
+   * @return setting saved
+   */
+  public Setting save(Setting setting) {
+    return this.settingRepository.save(setting);
   }
 
   // -- FIND SETTINGS --
@@ -231,8 +240,6 @@ public class PlatformSettingsService {
       platformSettings.setAiHasToken(StringUtils.hasText(aiConfig.getToken()));
       platformSettings.setAiType(aiConfig.getType());
       platformSettings.setAiModel(aiConfig.getModel());
-      platformSettings.setExecutorCalderaEnable(calderaExecutorConfig.isEnable());
-      platformSettings.setExecutorCalderaPublicUrl(calderaExecutorConfig.getPublicUrl());
       platformSettings.setExecutorTaniumEnable(false);
       platformSettings.setTelemetryManagerEnable(true);
 
@@ -334,6 +341,19 @@ public class PlatformSettingsService {
     platformSettings.setXtmHubShouldSendConnectivityEmail(
         getValueFromMapOfSettings(dbSettings, XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key()));
     return platformSettings;
+  }
+
+  /**
+   * Get platform version
+   *
+   * @return platform version
+   */
+  public String getPlatformVersion() {
+    return openAEVConfig.getVersion();
+  }
+
+  public Map<String, Setting> findSettingsByKeys(List<String> keys) {
+    return mapOfSettings(fromIterable(this.settingRepository.findAllByKeyIn(keys)));
   }
 
   private ThemeInput createThemeInput(Map<String, Setting> dbSettings, String themeType) {
@@ -531,6 +551,38 @@ public class PlatformSettingsService {
     settingRepository.deleteAllById(delete);
     settingRepository.saveAll(update);
     return findSettings();
+  }
+
+  /**
+   * Saves a map of settings
+   *
+   * @param settingsMap map of settings to save
+   * @return map of settings saved
+   */
+  public Map<String, Setting> saveSettings(Map<String, String> settingsMap) {
+    Map<String, Setting> dbSettings =
+        this.findSettingsByKeys(new ArrayList<>(settingsMap.keySet()));
+
+    List<Setting> settingsToSave = new ArrayList<>();
+    settingsMap.forEach(
+        (key, value) -> {
+          settingsToSave.add(resolveFromMap(dbSettings, key, value));
+        });
+
+    return mapOfSettings(fromIterable(this.settingRepository.saveAll(settingsToSave)));
+  }
+
+  /**
+   * Saves a setting by key. Updates the value if the key exists, creates a new setting otherwise.
+   *
+   * @param key the setting key
+   * @param value the setting value
+   * @return the saved setting
+   */
+  public Setting saveSetting(String key, String value) {
+    Setting setting = settingRepository.findByKey(key).orElse(new Setting(key, value));
+    setting.setValue(value);
+    return settingRepository.save(setting);
   }
 
   public PlatformSettings updateXTMHubRegistration(

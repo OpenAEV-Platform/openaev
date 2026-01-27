@@ -1,10 +1,16 @@
 package io.openaev.executors.crowdstrike.client;
 
+import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.executors.crowdstrike.model.*;
+import io.openaev.executors.crowdstrike.model.Authentication;
+import io.openaev.executors.crowdstrike.model.ResourcesHosts;
+import io.openaev.executors.crowdstrike.model.ResourcesSession;
+import io.openaev.executors.exception.ExecutorException;
 import io.openaev.service.EndpointService;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -14,10 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.ClientProtocolException;
@@ -83,7 +86,7 @@ public class CrowdStrikeExecutorClient {
       return hosts;
     } catch (Exception e) {
       log.error(String.format("Unexpected error occurred. Error: %s", e.getMessage()), e);
-      throw new RuntimeException(e);
+      throw new ExecutorException(e, e.getMessage(), CROWDSTRIKE_EXECUTOR_NAME);
     }
   }
 
@@ -130,7 +133,7 @@ public class CrowdStrikeExecutorClient {
               "Error occurred during Crowdstrike getResourcesHosts API request. Error: %s",
               e.getMessage()),
           e);
-      throw new RuntimeException(e);
+      throw new ExecutorException(e, e.getMessage(), CROWDSTRIKE_EXECUTOR_NAME);
     }
   }
 
@@ -144,7 +147,7 @@ public class CrowdStrikeExecutorClient {
           String.format(
               "Error occurred during Crowdstrike hostGroup API request. Error: %s", e.getMessage()),
           e);
-      throw new RuntimeException(e);
+      throw new ExecutorException(e, e.getMessage(), CROWDSTRIKE_EXECUTOR_NAME);
     }
   }
 
@@ -159,7 +162,8 @@ public class CrowdStrikeExecutorClient {
           this.objectMapper.readValue(jsonSessionResponse, new TypeReference<>() {});
       if (session == null) {
         log.error("Cannot get the session on the selected device");
-        throw new RuntimeException("Cannot get the session on the selected device");
+        throw new ExecutorException(
+            "Cannot get the session on the selected device", CROWDSTRIKE_EXECUTOR_NAME);
       }
       // Execute the command
       Map<String, Object> bodyCommand = new HashMap<>();
@@ -174,7 +178,7 @@ public class CrowdStrikeExecutorClient {
               + "\"}'```");
       this.postAsync(REAL_TIME_RESPONSE_URI, bodyCommand);
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      throw new ExecutorException(e, e.getMessage(), CROWDSTRIKE_EXECUTOR_NAME);
     }
   }
 

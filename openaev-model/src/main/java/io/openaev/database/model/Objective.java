@@ -2,11 +2,12 @@ package io.openaev.database.model;
 
 import static java.time.Instant.now;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MonoIdDeserializer;
-import io.openaev.helper.MultiIdListDeserializer;
+import io.openaev.helper.MonoIdSerializer;
+import io.openaev.helper.MultiIdListSerializer;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -37,14 +38,14 @@ public class Objective implements Base {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "objective_exercise")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("objective_exercise")
   @Schema(type = "string")
   private Exercise exercise;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "objective_scenario")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("objective_scenario")
   @Schema(type = "string")
   private Scenario scenario;
@@ -73,7 +74,7 @@ public class Objective implements Base {
 
   @ArraySchema(schema = @Schema(type = "string"))
   @OneToMany(mappedBy = "objective", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("objective_evaluations")
   private List<Evaluation> evaluations = new ArrayList<>();
 
@@ -83,11 +84,21 @@ public class Objective implements Base {
     return getEvaluations().stream().mapToDouble(Evaluation::getScore).average().orElse(0D);
   }
 
+  @Getter(onMethod_ = @JsonIgnore)
+  @Transient
+  private final ResourceType resourceType = ResourceType.OBJECTIVE;
+
   // endregion
 
   @Override
   public boolean isUserHasAccess(User user) {
-    return getExercise().isUserHasAccess(user);
+    if (getExercise() != null) {
+      return getExercise().isUserHasAccess(user);
+    }
+    if (getScenario() != null) {
+      return getScenario().isUserHasAccess(user);
+    }
+    return user.isAdmin();
   }
 
   @Override
@@ -101,5 +112,19 @@ public class Objective implements Base {
   @Override
   public int hashCode() {
     return Objects.hash(id);
+  }
+
+  @JsonIgnore
+  public String getParentResourceId() {
+    return this.getScenario() != null
+        ? this.getScenario().getId()
+        : this.getExercise() != null ? this.getExercise().getId() : this.getId();
+  }
+
+  @JsonIgnore
+  public ResourceType getParentResourceType() {
+    return this.getScenario() != null
+        ? ResourceType.SCENARIO
+        : this.getExercise() != null ? ResourceType.SIMULATION : ResourceType.OBJECTIVE;
   }
 }

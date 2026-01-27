@@ -22,6 +22,7 @@ import org.springframework.stereotype.Component;
 public class XtmHubClient {
   private final XtmHubConfig config;
   private final HttpClientFactory httpClientFactory;
+  private static final String platformIdentifier = "openaev";
 
   public XtmHubConnectivityStatus refreshRegistrationStatus(
       String platformId, String platformVersion, String token) {
@@ -57,12 +58,13 @@ public class XtmHubClient {
             "input": {
               "platformId": "%s",
               "platformVersion": "%s",
-              "token": "%s"
+              "token": "%s",
+              "platformIdentifier": "%s"
             }
           }
         }
         """,
-            platformId, platformVersion, token);
+            platformId, platformVersion, token, platformIdentifier);
 
     JsonElement element = JsonParser.parseString(mutationBody);
     return new StringEntity(element.toString());
@@ -88,6 +90,10 @@ public class XtmHubClient {
               .getAsString();
       if (status.equals(XtmHubConnectivityStatus.ACTIVE.label)) {
         return XtmHubConnectivityStatus.ACTIVE;
+      }
+
+      if (status.equals(XtmHubConnectivityStatus.NOT_FOUND.label)) {
+        return XtmHubConnectivityStatus.NOT_FOUND;
       }
 
       return XtmHubConnectivityStatus.INACTIVE;

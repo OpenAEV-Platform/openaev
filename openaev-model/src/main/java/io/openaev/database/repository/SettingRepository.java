@@ -22,6 +22,8 @@ public interface SettingRepository
 
   Optional<Setting> findByKey(@NotNull final String key);
 
+  List<Setting> findAllByKeyIn(List<String> keys);
+
   @Query(value = "SHOW server_version", nativeQuery = true)
   String getServerVersion();
 

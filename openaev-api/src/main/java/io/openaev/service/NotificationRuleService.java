@@ -5,6 +5,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.NotificationRuleRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.ImageUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.transaction.Transactional;

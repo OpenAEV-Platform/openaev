@@ -12,6 +12,7 @@ import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.RBAC;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawPaginationScenario;
+import io.openaev.database.raw.RawPlayer;
 import io.openaev.database.repository.*;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
@@ -23,8 +24,10 @@ import io.openaev.rest.exercise.form.LessonsInput;
 import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.scenario.form.*;
+import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -131,8 +134,8 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public Scenario scenario(@PathVariable @NotBlank final String scenarioId) {
-    return scenarioService.scenario(scenarioId);
+  public ScenarioOutput scenario(@PathVariable @NotBlank final String scenarioId) {
+    return scenarioService.getScenarioById(scenarioId);
   }
 
   @GetMapping(SCENARIO_URI + "/{scenarioId}/healthchecks")
@@ -249,6 +252,15 @@ public class ScenarioApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final ScenarioUpdateTeamsInput input) {
     return this.scenarioService.replaceTeams(scenarioId, input.getTeamIds());
+  }
+
+  @GetMapping(SCENARIO_URI + "/{scenarioId}/players")
+  @RBAC(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.SCENARIO)
+  public Iterable<RawPlayer> getPlayersByScenario(@PathVariable String scenarioId) {
+    return userRepository.rawPlayersByScenarioId(scenarioId);
   }
 
   @Transactional(rollbackOn = Exception.class)

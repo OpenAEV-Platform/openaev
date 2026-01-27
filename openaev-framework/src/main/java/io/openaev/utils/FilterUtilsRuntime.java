@@ -11,18 +11,42 @@ import io.openaev.database.model.Filters.FilterMode;
 import io.openaev.database.model.Filters.FilterOperator;
 import io.openaev.schema.PropertySchema;
 import io.openaev.schema.SchemaUtils;
-import jakarta.validation.constraints.NotNull;
+import jakarta.annotation.Nullable;
 import java.lang.reflect.Field;
 import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
-import javax.annotation.Nullable;
 
-public class FilterUtilsRuntime {
+/**
+ * Utility class for building runtime predicates from filter groups.
+ *
+ * <p>This class provides methods to convert filter definitions into Java Predicates that can be
+ * used for in-memory filtering of collections. This is useful when filtering needs to happen
+ * outside of the database layer.
+ *
+ * <p>Supported filter operators:
+ *
+ * <ul>
+ *   <li>{@code eq} - Equals (case-insensitive)
+ *   <li>{@code not_eq} - Not equals
+ *   <li>{@code contains} - Contains substring (case-insensitive)
+ *   <li>{@code not_contains} - Does not contain substring
+ *   <li>{@code starts_with} - Starts with prefix (case-insensitive)
+ *   <li>{@code not_starts_with} - Does not start with prefix
+ *   <li>{@code empty} - Is null or blank
+ *   <li>{@code not_empty} - Is not null or blank
+ * </ul>
+ *
+ * @see FilterUtilsJpa for JPA-based filtering
+ */
+public final class FilterUtilsRuntime {
 
-  private FilterUtilsRuntime() {}
+  private FilterUtilsRuntime() {
+    // Utility class - prevent instantiation
+  }
 
-  private static final Predicate<Object> EMPTY_PREDICATE = (value) -> true;
+  /** Predicate that always returns true (matches all values). */
+  private static final Predicate<Object> EMPTY_PREDICATE = value -> true;
 
   public static Predicate<Object> computeFilterGroupRuntime(
       @Nullable final FilterGroup filterGroup) {
@@ -111,34 +135,30 @@ public class FilterUtilsRuntime {
       throw new RuntimeException(e);
     }
 
+    if (currentObject == null) {
+      return null;
+    }
+
     return Map.entry((Class<Object>) currentObject.getClass(), currentObject);
   }
 
   // -- OPERATOR --
 
   private static BiFunction<Object, List<String>, Boolean> computeOperation(
-      @NotNull final FilterOperator operator) {
+      @Nullable final FilterOperator operator) {
     if (operator == null) {
-      // Default case
       return OperationUtilsRuntime::equalsTexts;
     }
 
-    if (operator.equals(FilterOperator.not_contains)) {
-      return OperationUtilsRuntime::notContainsTexts;
-    } else if (operator.equals(FilterOperator.contains)) {
-      return OperationUtilsRuntime::containsTexts;
-    } else if (operator.equals(FilterOperator.not_starts_with)) {
-      return OperationUtilsRuntime::notStartWithTexts;
-    } else if (operator.equals(FilterOperator.starts_with)) {
-      return OperationUtilsRuntime::startWithTexts;
-    } else if (operator.equals(FilterOperator.not_eq)) {
-      return OperationUtilsRuntime::notEqualsTexts;
-    } else if (operator.equals(FilterOperator.empty)) {
-      return (value, texts) -> OperationUtilsRuntime.empty(value);
-    } else if (operator.equals(FilterOperator.not_empty)) {
-      return (value, texts) -> OperationUtilsRuntime.notEmpty(value);
-    } else { // Default case
-      return OperationUtilsRuntime::equalsTexts;
-    }
+    return switch (operator) {
+      case not_contains -> OperationUtilsRuntime::notContainsTexts;
+      case contains -> OperationUtilsRuntime::containsTexts;
+      case not_starts_with -> OperationUtilsRuntime::notStartWithTexts;
+      case starts_with -> OperationUtilsRuntime::startWithTexts;
+      case not_eq -> OperationUtilsRuntime::notEqualsTexts;
+      case empty -> (value, texts) -> OperationUtilsRuntime.empty(value);
+      case not_empty -> (value, texts) -> OperationUtilsRuntime.notEmpty(value);
+      default -> OperationUtilsRuntime::equalsTexts;
+    };
   }
 }

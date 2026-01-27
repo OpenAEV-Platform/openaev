@@ -17,7 +17,7 @@ import { useHelper } from '../../../../store';
 import { type Article } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import useSearchAnFilter from '../../../../utils/SortingFiltering';
+import useSearchAndFilter from '../../../../utils/SortingFiltering';
 import ChannelIcon from '../../components/channels/ChannelIcon';
 import { type ChannelOption } from '../../components/channels/ChannelOption';
 import ChannelsFilter from '../../components/channels/ChannelsFilter';
@@ -80,7 +80,7 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
     setChannels([]);
   };
   const searchColumns = ['name', 'type', 'content'];
-  const filtering = useSearchAnFilter('article', 'name', searchColumns);
+  const filtering = useSearchAndFilter('article', 'name', searchColumns);
   // Rendering
   const fullArticles = articles.map(item => ({
     ...item,

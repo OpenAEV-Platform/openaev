@@ -11,14 +11,11 @@ import io.openaev.config.RabbitmqConfig;
 import io.openaev.database.repository.HealthCheckRepository;
 import io.openaev.driver.MinioDriver;
 import io.openaev.service.exception.HealthCheckFailureException;
-import jakarta.annotation.Resource;
 import java.io.IOException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
+import java.security.*;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /** Service containing the logic related to service health checks */
@@ -27,13 +24,10 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class HealthCheckService {
 
-  @Autowired private HealthCheckRepository healthCheckRepository;
-
-  @Autowired private MinioConfig minioConfig;
-
-  @Autowired private MinioDriver minioDriver;
-
-  @Resource private RabbitmqConfig rabbitmqConfig;
+  private final HealthCheckRepository healthCheckRepository;
+  private final MinioConfig minioConfig;
+  private final MinioDriver minioDriver;
+  private final RabbitmqConfig rabbitmqConfig;
 
   /**
    * Run health checks by testing connection to the service dependencies (database/rabbitMq/file
@@ -43,7 +37,11 @@ public class HealthCheckService {
    */
   public void runHealthCheck() throws HealthCheckFailureException {
     runDatabaseCheck();
-    runRabbitMQCheck(createRabbitMQConnectionFactory());
+    try {
+      runRabbitMQCheck(createRabbitMQConnectionFactory());
+    } catch (Exception e) {
+      throw new HealthCheckFailureException(e.getMessage());
+    }
     runFileStorageCheck();
   }
 
@@ -53,13 +51,17 @@ public class HealthCheckService {
   }
 
   @VisibleForTesting
-  protected ConnectionFactory createRabbitMQConnectionFactory() {
+  protected ConnectionFactory createRabbitMQConnectionFactory()
+      throws NoSuchAlgorithmException, KeyManagementException {
     ConnectionFactory factory = new ConnectionFactory();
     factory.setHost(rabbitmqConfig.getHostname());
     factory.setPort(rabbitmqConfig.getPort());
     factory.setUsername(rabbitmqConfig.getUser());
     factory.setPassword(rabbitmqConfig.getPass());
     factory.setVirtualHost(rabbitmqConfig.getVhost());
+    if (rabbitmqConfig.isSsl()) {
+      factory.useSslProtocol();
+    }
     factory.setConnectionTimeout(2000);
     return factory;
   }

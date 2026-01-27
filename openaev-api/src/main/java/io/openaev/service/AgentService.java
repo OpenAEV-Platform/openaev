@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
@@ -45,8 +46,19 @@ public class AgentService {
     return this.agentRepository.save(agent);
   }
 
-  public Iterable<Agent> saveAllAgents(List<Agent> agents) {
-    return agentRepository.saveAll(agents);
+  @Transactional
+  public List<Agent> saveAllAgents(List<Agent> agents) {
+    List<Agent> agentsSaved = new ArrayList<>();
+    // Improve perfs for save all
+    for (int i = 0; i < agents.size(); i++) {
+      agentsSaved.add(agentRepository.save(agents.get(i)));
+      // Flush and clear the session every 50 (batch_size property) inserts
+      if (i % 50 == 0) {
+        entityManager.flush();
+        entityManager.clear();
+      }
+    }
+    return agentsSaved;
   }
 
   public void deleteAgent(@NotBlank final String agentId) {

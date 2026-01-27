@@ -20,7 +20,9 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
-import io.openaev.service.ScenarioService;
+import io.openaev.integration.Manager;
+import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrationFactory;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
 import java.util.List;
@@ -41,7 +43,13 @@ class ChallengeApiTest extends IntegrationTest {
   @Autowired private InjectRepository injectRepository;
   @Autowired private ChallengeRepository challengeRepository;
   @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private ChallengeInjectorIntegrationFactory challengeInjectorIntegrationFactory;
   @Resource private ObjectMapper objectMapper;
+
+  @BeforeEach
+  public void before() throws Exception {
+    new Manager(List.of(challengeInjectorIntegrationFactory)).monitorIntegrations();
+  }
 
   // -- SCENARIOS --
 
@@ -53,27 +61,28 @@ class ChallengeApiTest extends IntegrationTest {
     Scenario scenario = createDefaultCrisisScenario();
     Scenario scenarioCreated = this.scenarioService.createScenario(scenario);
     assertNotNull(scenarioCreated, "Scenario should be successfully created");
-    String scenarioId = scenarioCreated.getId();
+    String SCENARIO_ID = scenarioCreated.getId();
 
     Challenge challenge = createDefaultChallenge();
     Challenge challengeCreated = this.challengeRepository.save(challenge);
     assertNotNull(challengeCreated, "Challenge should be successfully created");
-    String challengeId = challengeCreated.getId();
+    String CHALLENGE_ID = challengeCreated.getId();
 
     Inject inject =
         createDefaultInjectChallenge(
             this.injectorContractRepository.findById(CHALLENGE_PUBLISH).orElseThrow(),
             this.objectMapper,
-            List.of(challengeId));
+            List.of(CHALLENGE_ID));
     inject.setScenario(scenarioCreated);
     Inject injectCreated = this.injectRepository.save(inject);
     assertNotNull(injectCreated, "Inject should be successfully created");
+    String INJECT_ID = injectCreated.getId();
 
     // -- EXECUTE --
     String response =
         this.mvc
             .perform(
-                get(SCENARIO_URI + "/" + scenarioId + "/challenges")
+                get(SCENARIO_URI + "/" + SCENARIO_ID + "/challenges")
                     .accept(MediaType.APPLICATION_JSON))
             .andExpect(status().is2xxSuccessful())
             .andReturn()

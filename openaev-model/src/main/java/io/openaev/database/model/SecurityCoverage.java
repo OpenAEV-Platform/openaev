@@ -9,6 +9,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -25,6 +26,14 @@ import org.hibernate.annotations.UuidGenerator;
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class SecurityCoverage implements Base {
+
+  private Set<String> getDefaultPlatformsAffinity() {
+    return new HashSet<>(
+        List.of(
+            Endpoint.PLATFORM_TYPE.Windows.toString().toLowerCase(),
+            Endpoint.PLATFORM_TYPE.Linux.toString().toLowerCase(),
+            Endpoint.PLATFORM_TYPE.MacOS.toString().toLowerCase()));
+  }
 
   @Id
   @Column(name = "security_coverage_id")
@@ -53,7 +62,11 @@ public class SecurityCoverage implements Base {
 
   @Column(name = "security_coverage_scheduling", nullable = false)
   @JsonProperty("security_coverage_scheduling")
-  private String scheduling; // duration
+  private String scheduling;
+
+  @Transient
+  @JsonProperty("security_coverage_duration")
+  private String duration;
 
   @Column(name = "security_coverage_period_start")
   @JsonProperty("security_coverage_period_start")
@@ -63,25 +76,59 @@ public class SecurityCoverage implements Base {
   @JsonProperty("security_coverage_period_end")
   private Instant periodEnd;
 
+  @Column(name = "security_coverage_stix_modified")
+  @JsonProperty("security_coverage_stix_modified")
+  private Instant stixModified;
+
   @Type(ListArrayType.class)
   @Column(name = "security_coverage_labels", columnDefinition = "text[]")
   @JsonProperty("security_coverage_labels")
   private Set<String> labels = new HashSet<>();
 
+  @Type(ListArrayType.class)
+  @Column(name = "security_coverage_platforms_affinity", columnDefinition = "text[]")
+  @JsonProperty("security_coverage_platforms_affinity")
+  // not we want to force a default to these values
+  private Set<String> platformsAffinity = getDefaultPlatformsAffinity();
+
+  public Set<String> getPlatformsAffinity() {
+    return platformsAffinity == null || platformsAffinity.isEmpty()
+        ? getDefaultPlatformsAffinity()
+        : platformsAffinity;
+  }
+
+  @Column(name = "security_coverage_type_affinity")
+  @JsonProperty("security_coverage_type_affinity")
+  private String typeAffinity;
+
   @Type(JsonType.class)
   @Column(name = "security_coverage_attack_pattern_refs", columnDefinition = "jsonb")
   @JsonProperty("security_coverage_attack_pattern_refs")
-  private Set<StixRefToExternalRef> attackPatternRefs;
+  private Set<StixRefToExternalRef> attackPatternRefs = new HashSet<>();
 
   @Type(JsonType.class)
   @Column(name = "security_coverage_content", columnDefinition = "jsonb", nullable = false)
   @JsonProperty("security_coverage_content")
   private String content;
 
+  @Column(
+      name = "security_coverage_bundle_hash_md5",
+      nullable = false,
+      unique = true,
+      length = 32 // MD5 produces a 32-character hex string
+      )
+  @JsonIgnore
+  private String bundleHashMd5;
+
   @Type(JsonType.class)
   @Column(name = "security_coverage_vulnerabilities_refs", columnDefinition = "jsonb")
   @JsonProperty("security_coverage_vulnerabilities_refs")
-  private Set<StixRefToExternalRef> vulnerabilitiesRefs;
+  private Set<StixRefToExternalRef> vulnerabilitiesRefs = new HashSet<>();
+
+  @Type(JsonType.class)
+  @Column(name = "security_coverage_indicators_refs", columnDefinition = "jsonb")
+  @JsonProperty("security_coverage_indicators_refs")
+  private Set<StixRefToExternalRef> indicatorsRefs = new HashSet<>();
 
   @OneToOne
   @JoinColumn(name = "security_coverage_scenario")

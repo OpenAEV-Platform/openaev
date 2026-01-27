@@ -1,10 +1,11 @@
 import { Alert, AlertTitle } from '@mui/material';
-import { useContext } from 'react';
+import { useContext, useMemo } from 'react';
 import { useParams } from 'react-router';
 
 import { fetchCustomDashboard } from '../../../../actions/custom_dashboards/customdashboard-action';
 import {
   attackPaths,
+  average,
   count,
   entities,
   series,
@@ -23,16 +24,17 @@ const CustomDashboard = () => {
   const ability = useContext(AbilityContext);
   const { customDashboardId } = useParams() as { customDashboardId: CustomDashboard['custom_dashboard_id'] };
 
-  const configuration = {
+  const configuration = useMemo(() => ({
     customDashboardId: customDashboardId,
     paramLocalStorageKey: 'custom-dashboard-' + customDashboardId,
     fetchCustomDashboard: () => fetchCustomDashboard(customDashboardId),
+    fetchAverage: (widgetId: string, params: Record<string, string | undefined>) => average(widgetId, params),
     fetchCount: (widgetId: string, params: Record<string, string | undefined>) => count(widgetId, params),
     fetchSeries: (widgetId: string, params: Record<string, string | undefined>) => series(widgetId, params),
     fetchEntities: (widgetId: string, params: Record<string, string | undefined>) => entities(widgetId, params),
     fetchEntitiesRuntime: (widgetId: string, input: WidgetToEntitiesInput) => widgetToEntitiesRuntime(widgetId, input),
     fetchAttackPaths: (widgetId: string, params: Record<string, string | undefined>) => attackPaths(widgetId, params),
-  };
+  }), [customDashboardId]);
 
   return (
     <CustomDashboardWrapper

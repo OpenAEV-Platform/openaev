@@ -3,36 +3,39 @@ package io.openaev.injectors.email;
 import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
 import static io.openaev.injectors.email.EmailContract.EMAIL_GLOBAL;
 
-import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.executors.Injector;
+import io.openaev.executors.InjectorContext;
 import io.openaev.injectors.email.model.EmailContent;
 import io.openaev.injectors.email.service.EmailService;
 import io.openaev.model.ExecutionProcess;
 import io.openaev.model.Expectation;
 import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.service.InjectExpectationService;
-import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 
-@Component(EmailContract.TYPE)
-@RequiredArgsConstructor
 public class EmailExecutor extends Injector {
 
-  @Resource private OpenAEVConfig openAEVConfig;
   private final EmailService emailService;
   private final InjectExpectationService injectExpectationService;
 
   @Value("${openaev.mail.imap.enabled}")
   private boolean imapEnabled;
+
+  public EmailExecutor(
+      InjectorContext injectorContext,
+      EmailService emailService,
+      InjectExpectationService injectExpectationService) {
+    super(injectorContext);
+    this.emailService = emailService;
+    this.injectExpectationService = injectExpectationService;
+  }
 
   private void sendMulti(
       Execution execution,
@@ -102,11 +105,12 @@ public class EmailExecutor extends Injector {
       throw new UnsupportedOperationException("Email needs at least one user");
     }
     Exercise exercise = injection.getInjection().getExercise();
-    String from = exercise != null ? exercise.getFrom() : this.openAEVConfig.getDefaultMailer();
+    String from =
+        exercise != null ? exercise.getFrom() : this.context.getOpenAEVConfig().getDefaultMailer();
     List<String> replyTos =
         exercise != null
             ? exercise.getReplyTos()
-            : new ArrayList<>(List.of(this.openAEVConfig.getDefaultReplyTo()));
+            : new ArrayList<>(List.of(this.context.getOpenAEVConfig().getDefaultReplyTo()));
     //noinspection SwitchStatementWithTooFewBranches
     switch (inject
         .getInjectorContract()

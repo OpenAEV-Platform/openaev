@@ -6,9 +6,8 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MultiIdListDeserializer;
-import io.openaev.helper.MultiIdSetDeserializer;
-import io.openaev.helper.MultiModelDeserializer;
+import io.openaev.helper.MultiIdListSerializer;
+import io.openaev.helper.MultiModelSerializer;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -54,16 +53,20 @@ public class Group implements Base {
       cascade = CascadeType.ALL,
       orphanRemoval = true)
   @JsonProperty("group_grants")
-  @JsonSerialize(using = MultiModelDeserializer.class)
+  @JsonSerialize(using = MultiModelSerializer.class)
   @Fetch(value = FetchMode.SUBSELECT)
   private List<Grant> grants = new ArrayList<>();
 
   @ArraySchema(schema = @Schema(type = "string"))
-  @ManyToMany(mappedBy = "groups", fetch = FetchType.EAGER)
-  @JsonSerialize(using = MultiIdSetDeserializer.class)
+  @ManyToMany(fetch = FetchType.EAGER)
+  @JoinTable(
+      name = "users_groups",
+      joinColumns = @JoinColumn(name = "group_id"),
+      inverseJoinColumns = @JoinColumn(name = "user_id"))
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("group_users")
   @Fetch(value = FetchMode.SUBSELECT)
-  private Set<User> users = new HashSet<>();
+  private List<User> users = new ArrayList<>();
 
   @ArraySchema(schema = @Schema(type = "string"))
   @ManyToMany(fetch = FetchType.EAGER)
@@ -71,7 +74,7 @@ public class Group implements Base {
       name = "groups_roles",
       joinColumns = @JoinColumn(name = "group_id"),
       inverseJoinColumns = @JoinColumn(name = "role_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("group_roles")
   private List<Role> roles = new ArrayList<>();
 
@@ -83,22 +86,15 @@ public class Group implements Base {
 
   @Override
   public boolean isUserHasAccess(User user) {
-    return users.contains(user);
+    return user.isAdmin() || users.contains(user);
   }
 
-  //  @Override
-  //  public boolean equals(Object o) {
-  //    if (this == o) return true;
-  //    if (o == null || !Base.class.isAssignableFrom(o.getClass())) return false;
-  //    Base base = (Base) o;
-  //    return id.equals(base.getId());
-  //  }
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-    Group group = (Group) o;
-    return Objects.equals(id, group.id);
+    if (o == null || !Base.class.isAssignableFrom(o.getClass())) return false;
+    Base base = (Base) o;
+    return id.equals(base.getId());
   }
 
   @Override

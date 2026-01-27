@@ -16,7 +16,9 @@ import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.util.CellReference;
 
-public class InjectImportUtils {
+public final class InjectImportUtils {
+
+  private InjectImportUtils() {}
 
   /**
    * Returns the date as string from an excel cell

@@ -38,7 +38,7 @@ const FilterChips: FunctionComponent<Props> = ({
   return (
     <Box
       sx={{
-        padding: '12px 4px',
+        padding: '12px 0',
         display: 'flex',
         flexWrap: 'wrap',
         gap: 1,

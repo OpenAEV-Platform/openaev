@@ -7,8 +7,8 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.Exercise;
-import io.openaev.helper.MonoIdDeserializer;
-import io.openaev.helper.MultiModelDeserializer;
+import io.openaev.helper.MonoIdSerializer;
+import io.openaev.helper.MultiModelSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -69,7 +69,7 @@ public class Report implements Base {
       joinColumns = @JoinColumn(name = "report_id"),
       inverseJoinColumns = @JoinColumn(name = "exercise_id"))
   @JsonProperty("report_exercise")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @Schema(type = "string")
   private Exercise exercise;
 
@@ -79,7 +79,7 @@ public class Report implements Base {
       orphanRemoval = true,
       fetch = FetchType.EAGER)
   @JsonProperty("report_injects_comments")
-  @JsonSerialize(using = MultiModelDeserializer.class)
+  @JsonSerialize(using = MultiModelSerializer.class)
   private List<ReportInjectComment> reportInjectsComments = new ArrayList<>();
 
   @Override

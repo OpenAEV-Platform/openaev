@@ -61,6 +61,7 @@ const InjectDocumentsList = ({ readOnly, hasAttachments }: Props) => {
   useEffect(() => {
     const test = (injectDocuments || [])
       .map(d => ({
+        ...d,
         ...documentsMap[d.document_id],
         document_attached: d.document_attached,
       }))
@@ -92,8 +93,29 @@ const InjectDocumentsList = ({ readOnly, hasAttachments }: Props) => {
     document_attached: boolean;
   }[]) => {
     const docIds = injectDocuments.map(d => d.document_id);
-    const newDocs = documents.filter(d => !docIds.includes(d.document_id));
-    appendInjectDocuments(newDocs);
+    const selectedIds = documents.map(d => d.document_id);
+
+    // Add only documents that are not already present
+    const newDocs = documents
+      .filter(d => !docIds.includes(d.document_id))
+      .map(d => ({
+        document_id: d.document_id,
+        document_attached: hasAttachments,
+      }));
+
+    if (newDocs.length > 0) {
+      appendInjectDocuments(newDocs);
+    }
+
+    // Remove documents that are currently stored but no longer selected
+    const idsToRemove = docIds.filter(id => !selectedIds.includes(id));
+
+    idsToRemove.forEach((id) => {
+      const index = injectDocuments.findIndex(d => d.document_id === id);
+      if (index !== -1) {
+        removeInjectDocuments(index);
+      }
+    });
   };
 
   return (

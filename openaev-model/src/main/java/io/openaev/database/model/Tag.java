@@ -12,17 +12,50 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Map;
 import java.util.Objects;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang3.StringUtils;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
+/**
+ * Entity representing a tag for categorizing and organizing entities.
+ *
+ * <p>Tags provide a flexible labeling system that can be applied to scenarios, exercises, injects,
+ * and other entities. They support:
+ *
+ * <ul>
+ *   <li>Free-form categorization with custom names
+ *   <li>Visual distinction through customizable colors
+ *   <li>Filtering and search across the platform
+ * </ul>
+ *
+ * <p>Tags are globally accessible to all users (no RBAC restrictions).
+ */
 @Entity
 @Table(name = "tags")
 @EntityListeners(ModelBaseListener.class)
 public class Tag implements Base {
+
+  public static final String OPENCTI_TAG_NAME = "opencti";
+  public static final String SECURITY_COVERAGE_LINUX_TAG_NAME = "security coverage: linux";
+  public static final String SECURITY_COVERAGE_WINDOWS_TAG_NAME = "security coverage: windows";
+  public static final String SECURITY_COVERAGE_MACOS_TAG_NAME = "security coverage: macos";
+  public static final String CISCO_TAG_NAME = "cisco";
+  public static final String VULNERABILITY_TAG_NAME = "vulnerability";
+
+  // map: name, color
+  public static Map<String, String> WellKnown =
+      Map.of(
+          OPENCTI_TAG_NAME, "#0fbcff",
+          SECURITY_COVERAGE_LINUX_TAG_NAME, "#f5c100",
+          SECURITY_COVERAGE_WINDOWS_TAG_NAME, "#00a2ed",
+          SECURITY_COVERAGE_MACOS_TAG_NAME, "#b7f500",
+          CISCO_TAG_NAME, "#049fd9",
+          VULNERABILITY_TAG_NAME, "#ff0019");
 
   @Setter
   @Id
@@ -31,7 +64,7 @@ public class Tag implements Base {
   @UuidGenerator
   @JsonProperty("tag_id")
   @NotBlank
-  @Schema(description = "ID of the tag")
+  @Schema(description = "Unique identifier of the tag")
   private String id;
 
   @Getter
@@ -87,7 +120,7 @@ public class Tag implements Base {
   }
 
   public void setColor(String color) {
-    this.color = color.toLowerCase();
+    this.color = color != null ? color.toLowerCase() : null;
   }
 
   @Override
@@ -98,8 +131,11 @@ public class Tag implements Base {
     if (o == null || !Base.class.isAssignableFrom(o.getClass())) {
       return false;
     }
-    Base base = (Base) o;
-    return id.equals(base.getId());
+    Tag other = (Tag) o;
+    if (StringUtils.isBlank(id) || StringUtils.isBlank(other.getId())) {
+      return !StringUtils.isBlank(name) && name.equals(other.getName());
+    }
+    return id.equals(other.getId());
   }
 
   @Override

@@ -6,6 +6,35 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Builder class for constructing contract field definitions.
+ *
+ * <p>This class provides a fluent API for defining the fields that make up an injection contract
+ * form. It supports various field requirement patterns:
+ *
+ * <ul>
+ *   <li>{@link #mandatory(ContractElement)} - Always required fields
+ *   <li>{@link #optional(ContractElement)} - Optional fields
+ *   <li>{@link #mandatoryGroup(ContractElement...)} - At least one must be filled
+ *   <li>{@link #mandatoryOnCondition(ContractElement, ContractElement)} - Required when another
+ *       field is set
+ *   <li>{@link #mandatoryOnConditionValue(ContractElement, ContractElement, String)} - Required
+ *       when another field has specific value
+ * </ul>
+ *
+ * <p>Example usage:
+ *
+ * <pre>{@code
+ * List<ContractElement> fields = ContractDef.contractBuilder()
+ *     .mandatory(ContractText.textField("subject", "Subject"))
+ *     .optional(ContractText.textField("body", "Body"))
+ *     .mandatoryGroup(emailField, phoneField)
+ *     .build();
+ * }</pre>
+ *
+ * @see ContractElement
+ * @see Contract
+ */
 public class ContractDef {
 
   private final List<ContractElement> fields = new ArrayList<>();
@@ -14,11 +43,22 @@ public class ContractDef {
     // private constructor
   }
 
+  /**
+   * Creates a new contract definition builder.
+   *
+   * @return a new ContractDef instance
+   */
   public static ContractDef contractBuilder() {
     return new ContractDef();
   }
 
-  /** Adds a mandatory field to the contract */
+  /**
+   * Adds a mandatory field to the contract.
+   *
+   * @param element the field to add (must not be null)
+   * @return this builder for method chaining
+   * @throws IllegalArgumentException if element is null
+   */
   public ContractDef mandatory(final ContractElement element) {
     if (element == null) {
       throw new IllegalArgumentException("Field cannot be null");
@@ -27,7 +67,13 @@ public class ContractDef {
     return this;
   }
 
-  /** Adds an optional field to the contract */
+  /**
+   * Adds an optional field to the contract.
+   *
+   * @param element the field to add (must not be null)
+   * @return this builder for method chaining
+   * @throws IllegalArgumentException if element is null
+   */
   public ContractDef optional(final ContractElement element) {
     if (element == null) {
       throw new IllegalArgumentException("Field cannot be null");
@@ -58,10 +104,15 @@ public class ContractDef {
   }
 
   /**
-   * Add a field that will be mandatory if another field is set
+   * Adds a field that becomes mandatory when another field is set.
    *
-   * @param element element to be mandatory
-   * @param conditionalElement if this field is set the element will be mandatory
+   * <p>This creates a conditional validation rule where filling in the conditional field triggers
+   * the requirement for this field.
+   *
+   * @param element the field that becomes mandatory when the condition is met
+   * @param conditionalElement the field that triggers the mandatory condition when set
+   * @return this builder for method chaining
+   * @throws IllegalArgumentException if either element is null
    */
   public ContractDef mandatoryOnCondition(
       ContractElement element, ContractElement conditionalElement) {
@@ -76,17 +127,31 @@ public class ContractDef {
   }
 
   /**
-   * Add a field that will be mandatory if another field is set with specific value
+   * Adds a field that becomes mandatory when another field has a specific value.
    *
-   * @param element element to be mandatory
-   * @param conditionalElement if this field is set with a specific value the element will be
-   *     mandatory
+   * <p>This creates a conditional validation rule where setting the conditional field to the
+   * specified value triggers the requirement for this field.
+   *
+   * @param element the field that becomes mandatory when the condition is met
+   * @param conditionalElement the field whose value triggers the mandatory condition
+   * @param value the value that triggers the mandatory condition
+   * @return this builder for method chaining
+   * @throws IllegalArgumentException if element or conditionalElement is null
    */
   public ContractDef mandatoryOnConditionValue(
       ContractElement element, ContractElement conditionalElement, String value) {
     return setMandatoryOnCondition(element, conditionalElement, value);
   }
 
+  /**
+   * Adds a field that is mandatory when another field has any of the specified values.
+   *
+   * @param element the field that becomes mandatory
+   * @param conditionalElement the field that triggers the mandatory condition
+   * @param values the values that trigger the mandatory condition
+   * @return this builder for method chaining
+   * @throws IllegalArgumentException if any field is null
+   */
   public ContractDef mandatoryOnConditionValue(
       ContractElement element, ContractElement conditionalElement, List<String> values) {
     return setMandatoryOnCondition(element, conditionalElement, values);
@@ -105,6 +170,11 @@ public class ContractDef {
     return this;
   }
 
+  /**
+   * Builds and returns the list of configured contract elements.
+   *
+   * @return an unmodifiable list of contract elements
+   */
   public List<ContractElement> build() {
     return this.fields;
   }

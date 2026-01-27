@@ -1,8 +1,9 @@
 package io.openaev.rest.custom_dashboard;
 
+import static io.openaev.engine.api.WidgetType.AVERAGE;
 import static io.openaev.engine.api.WidgetType.VERTICAL_BAR_CHART;
 import static io.openaev.rest.custom_dashboard.CustomDashboardApi.CUSTOM_DASHBOARDS_URI;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.CustomDashboardFixture.createDefaultCustomDashboard;
 import static io.openaev.utils.fixtures.WidgetFixture.NAME;
 import static io.openaev.utils.fixtures.WidgetFixture.createDefaultWidget;
@@ -56,6 +57,39 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
     WidgetInput input = new WidgetInput();
     input.setType(VERTICAL_BAR_CHART);
     String name = "My new widget";
+    DateHistogramWidget widgetConfig = new DateHistogramWidget();
+    widgetConfig.setTitle(name);
+    widgetConfig.setDateAttribute("base_updated_at");
+    widgetConfig.setTimeRange(CustomDashboardTimeRange.CUSTOM);
+    widgetConfig.setSeries(new ArrayList<>());
+    widgetConfig.setInterval(HistogramInterval.day);
+    widgetConfig.setStart("2012-12-21T10:45:23Z");
+    widgetConfig.setEnd("2012-12-22T10:45:23Z");
+    input.setWidgetConfiguration(widgetConfig);
+    WidgetLayout widgetLayout = new WidgetLayout();
+    input.setWidgetLayout(widgetLayout);
+
+    // -- EXECUTE & ASSERT --
+    mockMvc
+        .perform(
+            post(CUSTOM_DASHBOARDS_URI + "/" + customDashboard.getId() + "/widgets")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(input)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.widget_config.title").value(name));
+  }
+
+  @Test
+  @WithMockUser(isAdmin = true)
+  void
+      given_valid_average_widget_input_when_creating_widget_should_return_created_widget_and_can_be_deleted()
+          throws Exception {
+    // -- PREPARE --
+    WidgetComposer.Composer composer = createWidgetComposer();
+    CustomDashboard customDashboard = composer.get().getCustomDashboard();
+    WidgetInput input = new WidgetInput();
+    input.setType(AVERAGE);
+    String name = "My new average widget";
     DateHistogramWidget widgetConfig = new DateHistogramWidget();
     widgetConfig.setTitle(name);
     widgetConfig.setDateAttribute("base_updated_at");

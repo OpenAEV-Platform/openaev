@@ -51,7 +51,7 @@ type SeriesData = {
 };
 
 const customTooltip = (simulationEndDateLabel: string): CustomTooltipFunction => {
-  return function ({ _, seriesIndex, dataPointIndex, w }: CustomTooltipOptions) {
+  return function ({ series: _series, seriesIndex, dataPointIndex, w }: CustomTooltipOptions) {
     const { simulationEndDate, simulationSuccessPercentage, successfulExpectationLabel } = w.globals.initialSeries[seriesIndex].data[dataPointIndex] as SeriesData;
 
     return `<div class="apexcharts-tooltip-title" style="font-family: Helvetica, Arial, sans-serif; font-size: 12px;">

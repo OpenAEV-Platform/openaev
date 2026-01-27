@@ -4,7 +4,7 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
 import io.openaev.rest.user.form.login.LoginUserInput;
 import io.openaev.rest.user.form.login.ResetUserInput;
-import java.util.HashSet;
+import io.openaev.rest.user.form.user.ChangePasswordInput;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
@@ -48,7 +48,7 @@ public class UserFixture {
 
   public static User getUser(String firstName, String lastName, String email, List<Group> groups) {
     User user = getUser(firstName, lastName, email);
-    user.setGroups(new HashSet<>(groups));
+    user.setGroups(groups);
     return user;
   }
 
@@ -81,5 +81,13 @@ public class UserFixture {
     resetUserInput.setLogin(EMAIL);
 
     return resetUserInput;
+  }
+
+  public static ChangePasswordInput getChangePasswordInput(String password) {
+    ChangePasswordInput input = new ChangePasswordInput();
+    input.setPassword(password);
+    input.setPasswordValidation(password);
+
+    return input;
   }
 }

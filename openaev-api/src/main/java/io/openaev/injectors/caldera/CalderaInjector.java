@@ -3,9 +3,8 @@ package io.openaev.injectors.caldera;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Endpoint;
 import io.openaev.injectors.caldera.config.CalderaInjectorConfig;
-import io.openaev.integrations.InjectorService;
+import io.openaev.service.InjectorService;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -66,16 +65,16 @@ public class CalderaInjector {
         Endpoint.PLATFORM_TYPE.MacOS.name() + "." + Endpoint.PLATFORM_ARCH.arm64,
         "x=\"#{location}\";location=$(echo \"$x\" | sed \"s#/openaev-caldera-agent##\");cd \"$location\"; rm *implant*");
     try {
-      injectorService.register(
-          calderaInjectorConfig.getId(),
-          CALDERA_INJECTOR_NAME,
-          contract,
-          false,
-          "simulation-implant",
-          executorCommands,
-          executorClearCommands,
-          false,
-          List.of());
+      //      injectorService.register(
+      //          calderaInjectorConfig.getId(),
+      //          CALDERA_INJECTOR_NAME,
+      //          contract,
+      //          false,
+      //          "simulation-implant",
+      //          executorCommands,
+      //          executorClearCommands,
+      //          false,
+      //          List.of());
     } catch (Exception e) {
       log.error(String.format("Error creating Caldera injector (%s)", e.getMessage()), e);
     }

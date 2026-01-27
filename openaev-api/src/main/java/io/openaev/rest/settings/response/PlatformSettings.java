@@ -155,14 +155,6 @@ public class PlatformSettings {
   @Schema(description = "Chosen model of AI")
   private String aiModel;
 
-  @JsonProperty("executor_caldera_enable")
-  @Schema(description = "True if the Caldera Executor is enabled")
-  private Boolean executorCalderaEnable;
-
-  @JsonProperty("executor_caldera_public_url")
-  @Schema(description = "Url of the Caldera Executor")
-  private String executorCalderaPublicUrl;
-
   @JsonProperty("executor_tanium_enable")
   @Schema(description = "True if the Tanium Executor is enabled")
   private Boolean executorTaniumEnable;

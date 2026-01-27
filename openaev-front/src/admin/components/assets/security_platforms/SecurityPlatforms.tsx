@@ -192,7 +192,7 @@ const SecurityPlatforms = () => {
                           ...inlineStyles.asset_description,
                         }}
                         >
-                          {securityPlatform.asset_description}
+                          {securityPlatform.asset_description || '-'}
                         </div>
                         <div style={{
                           ...bodyItemsStyles.bodyItem,

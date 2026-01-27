@@ -1,15 +1,21 @@
 package io.openaev.service.stix;
 
+import static io.openaev.database.model.Tag.OPENCTI_TAG_NAME;
+import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY;
+import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE;
 import static io.openaev.utils.AssetUtils.extractPlatformArchPairs;
 import static io.openaev.utils.SecurityCoverageUtils.getExternalIds;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.injectors.manual.ManualContract;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.inject.service.InjectAssistantService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.rest.payload.service.PayloadService;
+import io.openaev.rest.tag.TagService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.AssetGroupService;
 import java.util.*;
@@ -29,6 +35,10 @@ import org.springframework.validation.annotation.Validated;
 public class SecurityCoverageInjectService {
 
   public static final int TARGET_NUMBER_OF_INJECTS = 1;
+  public static final Endpoint.PLATFORM_TYPE[] ALL_PLATFORMS =
+      new Endpoint.PLATFORM_TYPE[] {
+        Endpoint.PLATFORM_TYPE.Windows, Endpoint.PLATFORM_TYPE.Linux, Endpoint.PLATFORM_TYPE.MacOS
+      };
 
   private final InjectService injectService;
   private final InjectAssistantService injectAssistantService;
@@ -36,8 +46,11 @@ public class SecurityCoverageInjectService {
   private final VulnerabilityService vulnerabilityService;
   private final AssetGroupService assetGroupService;
   private final InjectorContractService injectorContractService;
+  private final PayloadService payloadService;
 
   private final InjectRepository injectRepository;
+  private final InjectorContractRepository injectorContractRepository;
+  private final TagService tagService;
 
   /**
    * Creates and manages injects for the given scenario based on the associated security coverage.
@@ -77,12 +90,93 @@ public class SecurityCoverageInjectService {
         requiredAssetGroupMap,
         contractForInjectPlaceholders);
 
+    // 7. Build injects from Indicators
+    createInjectsByIndicators(
+        scenario, securityCoverage.getIndicatorsRefs(), requiredAssetGroupMap);
+
     return injectRepository.findByScenarioId(scenario.getId());
   }
 
   private void cleanInjectPlaceholders(String scenarioId) {
     injectRepository.deleteAllByScenarioIdAndInjectorContract(
         ManualContract.MANUAL_DEFAULT, scenarioId);
+  }
+
+  // -- INJECTS BY INDICATORS --
+
+  /**
+   * Create injects for the given scenario based on the associated security coverage and indicators
+   * refs.
+   *
+   * <p>Steps:
+   *
+   * <ul>
+   *   <li>Resolves internal indicators from the coverage
+   *   <li>Remove all inject from scenario linked to dns resolution if there is no indicators to
+   *       manage
+   *   <li>Generates injects based on injector contract related to these indicators
+   *   <li>Delete injects who doesn't exist anymore on the STIX
+   * </ul>
+   *
+   * @param scenario the scenario for which injects are managed
+   * @param indicatorsRefs the related security coverage providing Indicator references
+   * @param assetsFromGroupMap the asset groups to add on new injects
+   */
+  private void createInjectsByIndicators(
+      Scenario scenario,
+      Set<StixRefToExternalRef> indicatorsRefs,
+      Map<AssetGroup, List<Endpoint>> assetsFromGroupMap) {
+    Set<StixRefToExternalRef> dnsResolutionRefs =
+        indicatorsRefs.stream()
+            .filter(indicator -> indicator.getExternalRef() != null)
+            .collect(Collectors.toSet());
+
+    // 1. Remove Inject with contract related to Dns Resolution if there is no any DNS Indicator to
+    // manage
+    if (dnsResolutionRefs.isEmpty()) {
+      injectRepository.deleteAllInjectsWithDnsResolutionContractsByScenarioId(scenario.getId());
+      return;
+    }
+
+    // 2. Copy existing injects on scenario
+    final List<Inject> previousExistingInject =
+        scenario.getInjects().stream()
+            .filter(
+                inject ->
+                    inject.getInjectorContract().isPresent()
+                        && inject.getInjectorContract().get().getPayload() instanceof DnsResolution)
+            .toList();
+    List<String> managedInjectsIds = new ArrayList<>();
+
+    // 3. Manage all indicators with hostname value to create
+    dnsResolutionRefs.forEach(
+        indicator -> {
+          // 4. Search for existing inject on scenario by hostname
+          String existingInjectId =
+              findExistingInjectIdByHostname(scenario, indicator.getExternalRef());
+          if (existingInjectId != null) {
+            managedInjectsIds.add(existingInjectId);
+            return;
+          }
+
+          // 5. Fetch Dynamic DNS Resolution Payload
+          DnsResolution dynamicDnsResolutionPayload =
+              payloadService.getDynamicDnsResolutionPayload();
+
+          // 6. Create an inject, linked to the scenario for each contract
+          createInjectsByInjectorContracts(
+              indicator.getExternalRef(),
+              dynamicDnsResolutionPayload,
+              assetsFromGroupMap,
+              scenario);
+        });
+
+    // 7. Delete all previous injects non existing anymore on the OpenCTI report
+    injectRepository.deleteAllByIdInBatch(
+        previousExistingInject.stream()
+            .map(Inject::getId)
+            .filter(id -> !managedInjectsIds.contains(id))
+            .collect(Collectors.toSet()));
   }
 
   // -- INJECTS BY VULNERABILITIES --
@@ -512,4 +606,100 @@ public class SecurityCoverageInjectService {
   private record MissingCombinations(
       Set<String> filteredAttackPatterns,
       Map<AssetGroup, List<Endpoint>> filteredAssetsFromGroupMap) {}
+
+  /**
+   * Retrieve an existing inject on the given scenario by Payload hostname
+   *
+   * @param scenario to retrieve injects
+   * @param hostname to find
+   * @return founded inject id, null if not
+   */
+  private String findExistingInjectIdByHostname(Scenario scenario, String hostname) {
+    return scenario.getInjects().stream()
+        .filter(inject -> hasDnsResolutionFor(inject, hostname))
+        .findAny()
+        .map(Inject::getId)
+        .orElse(null);
+  }
+
+  /**
+   * Check if the inject has a payload of DnsResolution type with given hostname
+   *
+   * @param inject to check
+   * @param hostname to find
+   * @return true if the inject have a DnsResolution with given hostname, false if not
+   */
+  private boolean hasDnsResolutionFor(Inject inject, String hostname) {
+    if (inject.getInjectorContract().isEmpty()) {
+      return false;
+    }
+
+    Object payload = inject.getInjectorContract().get().getPayload();
+    if (!(payload instanceof DnsResolution dns)) {
+      return false;
+    }
+
+    return inject.getContent() != null
+        && inject.getContent().has(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY)
+        && inject.getContent().get(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY).textValue().equals(hostname)
+        && DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE.equals(dns.getHostname());
+  }
+
+  /**
+   * Create an inject for all the injector contracts by payload, and link them to the scenario
+   *
+   * @param hostname to set on inject
+   * @param payload to filter injector contracts
+   * @param assetsFromGroupMap to set on inject
+   * @param scenario to link
+   */
+  private void createInjectsByInjectorContracts(
+      String hostname,
+      Payload payload,
+      Map<AssetGroup, List<Endpoint>> assetsFromGroupMap,
+      Scenario scenario) {
+    List<InjectorContract> injectorContracts =
+        injectorContractRepository.findInjectorContractsByPayload(payload);
+    Set<Tag> tags = tagService.findOrCreateTagsFromNames(new HashSet<>(Set.of(OPENCTI_TAG_NAME)));
+
+    List<Inject> injectsToCreate =
+        injectorContracts.stream()
+            .map(
+                injectorContract ->
+                    createInjectAndAssociateToScenario(
+                        hostname,
+                        injectorContract,
+                        new ArrayList<>(assetsFromGroupMap.keySet()),
+                        scenario,
+                        tags))
+            .collect(Collectors.toList());
+    injectRepository.saveAll(injectsToCreate);
+  }
+
+  /**
+   * Create an inject from an injector contract, and link it to the given scenario
+   *
+   * @param hostname to set on inject
+   * @param injectorContract to create inject
+   * @param assetGroups to create inject
+   * @param scenario to link inject to
+   * @param tags to add to the injects
+   * @return created inject
+   */
+  private Inject createInjectAndAssociateToScenario(
+      String hostname,
+      InjectorContract injectorContract,
+      List<AssetGroup> assetGroups,
+      Scenario scenario,
+      Set<Tag> tags) {
+    Inject inject =
+        injectService.buildInject(
+            injectorContract, "Resolve DNS " + hostname, "Resolve Domain Name " + hostname, true);
+    inject.setTags(tags);
+    inject.setScenario(scenario);
+    inject.setAssetGroups(assetGroups);
+    // Add hostname in arguments of the inject to be set and used at execution on payload
+    inject.setContent(inject.getContent().put(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY, hostname));
+    return inject;
+  }
 }

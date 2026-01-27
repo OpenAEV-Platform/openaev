@@ -1,14 +1,13 @@
 package io.openaev.rest;
 
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.UserFixture.EMAIL;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -20,12 +19,13 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.*;
-import io.openaev.helper.StreamHelper;
 import io.openaev.rest.user.form.login.LoginUserInput;
 import io.openaev.rest.user.form.login.ResetUserInput;
+import io.openaev.rest.user.form.user.ChangePasswordInput;
 import io.openaev.rest.user.form.user.CreateUserInput;
 import io.openaev.rest.user.form.user.UpdateUserInput;
 import io.openaev.service.MailingService;
+import io.openaev.utils.RandomUtils;
 import io.openaev.utils.fixtures.OrganizationFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.TagFixture;
@@ -33,6 +33,7 @@ import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.OrganizationComposer;
 import io.openaev.utils.fixtures.composers.TagComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -45,13 +46,9 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
-import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
-@Transactional
 class UserApiTest extends IntegrationTest {
-
-  private User savedUser;
 
   @Autowired private MockMvc mvc;
 
@@ -64,17 +61,33 @@ class UserApiTest extends IntegrationTest {
   @Autowired private TagComposer tagComposer;
 
   @MockitoBean private MailingService mailingService;
+  @MockitoBean private RandomUtils randomUtils;
+
   @Autowired private UserComposer userComposer;
   @Autowired private OrganizationComposer organisationComposer;
   @Autowired private TagRepository tagRepository;
 
-  @BeforeEach
+  @BeforeAll
   public void setup() {
     // Create user
     User user = new User();
     user.setEmail(EMAIL);
     user.setPassword(UserFixture.ENCODED_PASSWORD);
-    savedUser = this.userRepository.save(user);
+    if (this.userRepository.findByEmailIgnoreCase(EMAIL).isEmpty()) {
+      this.userRepository.save(user);
+    } else {
+      this.userRepository.findByEmailIgnoreCase(EMAIL).get();
+    }
+  }
+
+  @AfterAll
+  public void teardown() {
+    this.scenarioRepository.deleteAll();
+    this.userRepository.deleteAll();
+    this.groupRepository.deleteAll();
+    this.grantRepository.deleteAll();
+    this.organizationRepository.deleteAll();
+    tagRepository.deleteAll(this.tagComposer.generatedItems);
   }
 
   @Nested
@@ -164,7 +177,6 @@ class UserApiTest extends IntegrationTest {
     @Test
     @io.openaev.utils.mockUser.WithMockUser(isAdmin = true)
     void given_known_create_user_in_uppercase_input_should_return_conflict() throws Exception {
-
       CreateUserInput input = new CreateUserInput();
       input.setEmail(EMAIL.toUpperCase());
 
@@ -289,7 +301,84 @@ class UserApiTest extends IntegrationTest {
       assertEquals(EMAIL, userCaptor.getValue().get(0).getEmail());
     }
 
-    @DisplayName("With a unknown email")
+    @DisplayName("Asking reset twice invalidates previous token")
+    @Test
+    void askingResetTwiceInvalidatesPreviousToken() throws Exception {
+      // -- PREPARE --
+      String firstToken = "et la tête";
+      String secondToken = "alouette";
+      when(randomUtils.getRandomAlphanumeric(anyInt())).thenReturn(firstToken, secondToken);
+
+      ResetUserInput input = UserFixture.getResetUserInput();
+      ChangePasswordInput changePasswordInput = UserFixture.getChangePasswordInput("le password");
+
+      // -- EXECUTE --
+      mvc.perform(
+              post("/api/reset")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input)))
+          .andExpect(status().isOk());
+
+      mvc.perform(
+              post("/api/reset")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input)))
+          .andExpect(status().isOk());
+
+      // -- ASSERT --
+      mvc.perform(
+              post("/api/reset/" + firstToken)
+                  .content(asJsonString(changePasswordInput))
+                  .contentType(MediaType.APPLICATION_JSON))
+          // should be 401 Access Denied
+          // but some black magic is changing the actual status code
+          // see RestBehavior.java
+          // expecting vague 4xx code in case we fix this some day
+          .andExpect(status().is4xxClientError());
+    }
+
+    @DisplayName("Consume token on successful reset")
+    @Test
+    void consumeTokenOnSuccessfulReset() throws Exception {
+      // -- PREPARE --
+      String firstToken = "et la tête";
+      when(randomUtils.getRandomAlphanumeric(anyInt())).thenReturn(firstToken);
+
+      ResetUserInput input = UserFixture.getResetUserInput();
+      ChangePasswordInput changePasswordInput = UserFixture.getChangePasswordInput("le password");
+
+      // -- EXECUTE --
+      mvc.perform(
+              post("/api/reset")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input)))
+          .andExpect(status().isOk());
+
+      mvc.perform(
+              post("/api/reset/" + firstToken)
+                  .content(asJsonString(changePasswordInput))
+                  .contentType(MediaType.APPLICATION_JSON))
+          // should be 401 Access Denied
+          // but some black magic is changing the actual status code
+          // see RestBehavior.java
+          // expecting vague 4xx code in case we fix this some day
+          .andExpect(status().isOk());
+
+      // -- ASSERT --
+
+      // cannot use same token again
+      mvc.perform(
+              post("/api/reset/" + firstToken)
+                  .content(asJsonString(changePasswordInput))
+                  .contentType(MediaType.APPLICATION_JSON))
+          // should be 401 Access Denied
+          // but some black magic is changing the actual status code
+          // see RestBehavior.java
+          // expecting vague 4xx code in case we fix this some day
+          .andExpect(status().is4xxClientError());
+    }
+
+    @DisplayName("With a unknown email should return 200 OK")
     @Test
     void resetPasswordWithUnknownEmail() throws Exception {
       // -- PREPARE --
@@ -301,7 +390,7 @@ class UserApiTest extends IntegrationTest {
               post("/api/reset")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(input)))
-          .andExpect(status().isBadRequest());
+          .andExpect(status().isOk());
 
       // -- ASSERT --
       verify(mailingService, never()).sendEmail(anyString(), anyString(), any(List.class));
@@ -316,14 +405,10 @@ class UserApiTest extends IntegrationTest {
       throws Exception {
 
     Scenario scenario = scenarioRepository.save(ScenarioFixture.createDefaultCrisisScenario());
-
+    User user = userRepository.save(UserFixture.getUser("test", "test", "test3@gmail.com"));
     Group group = new Group();
     group.setName("test");
     group = groupRepository.save(group);
-
-    User userToSave = UserFixture.getUser("test", "test", "test3@gmail.com");
-    userToSave.getGroups().add(group);
-    User user = userRepository.save(userToSave);
 
     Grant grantObserver = new Grant();
     grantObserver.setResourceId(scenario.getId());
@@ -335,9 +420,10 @@ class UserApiTest extends IntegrationTest {
     grantPlanner.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.SCENARIO);
     grantPlanner.setGroup(group);
     grantPlanner.setName(Grant.GRANT_TYPE.PLANNER);
-    Iterable<Grant> grants = grantRepository.saveAll(List.of(grantObserver, grantPlanner));
-    group.getGrants().addAll(StreamHelper.fromIterable(grants));
-    group = groupRepository.save(group);
+    grantRepository.saveAll(List.of(grantObserver, grantPlanner));
+    group.setGrants(new ArrayList<>(List.of(grantObserver, grantPlanner)));
+    group.setUsers(new ArrayList<>(List.of(user)));
+    groupRepository.save(group);
 
     UpdateUserInput updateUserInput = new UpdateUserInput();
     updateUserInput.setFirstname(user.getFirstname());
@@ -354,8 +440,8 @@ class UserApiTest extends IntegrationTest {
             .getResponse()
             .getContentAsString();
 
-    Map<String, Object> grantsResults = JsonPath.read(response, "$.user_grants");
-    assertEquals(1, grantsResults.size(), 1);
-    assertEquals(Grant.GRANT_TYPE.PLANNER.name(), grantsResults.get(scenario.getId()));
+    Map<String, Object> grants = JsonPath.read(response, "$.user_grants");
+    assertEquals(1, grants.size(), 1);
+    assertEquals(Grant.GRANT_TYPE.PLANNER.name(), grants.get(scenario.getId()));
   }
 }

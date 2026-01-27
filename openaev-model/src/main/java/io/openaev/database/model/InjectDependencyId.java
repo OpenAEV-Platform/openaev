@@ -2,7 +2,7 @@ package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import io.openaev.helper.MonoIdDeserializer;
+import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.JoinColumn;
@@ -25,14 +25,14 @@ public class InjectDependencyId implements Serializable {
   @ManyToOne
   @JsonProperty("inject_parent_id")
   @JoinColumn(referencedColumnName = "inject_id", name = "inject_parent_id")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @Schema(type = "string")
   private Inject injectParent;
 
   @ManyToOne
   @JsonProperty("inject_children_id")
   @JoinColumn(referencedColumnName = "inject_id", name = "inject_children_id")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @Schema(type = "string")
   private Inject injectChildren;
 

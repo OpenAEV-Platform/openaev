@@ -5,7 +5,7 @@ import { useLocalStorage } from 'usehooks-ts';
 
 import { type FilterGroup, type SearchPaginationInput, type SortField } from '../../../utils/api-types';
 import useFiltersState from './filter/useFiltersState';
-import usPaginationState from './pagination/usPaginationState';
+import usePaginationState from './pagination/usePaginationState';
 import { type QueryableHelpers } from './QueryableHelpers';
 import { buildSearchPagination } from './QueryableUtils';
 import useSortState from './sort/useSortState';
@@ -26,7 +26,7 @@ const buildUseQueryable = (
   }));
 
   // Pagination
-  const paginationHelpers = usPaginationState(searchPaginationInput.size, (page: number, size: number) => setSearchPaginationInput({
+  const paginationHelpers = usePaginationState(searchPaginationInput.size, (page: number, size: number) => setSearchPaginationInput({
     ...searchPaginationInput,
     page,
     size,

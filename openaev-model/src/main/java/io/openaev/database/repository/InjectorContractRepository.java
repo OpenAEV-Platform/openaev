@@ -3,7 +3,7 @@ package io.openaev.database.repository;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
-import io.openaev.database.raw.RawInjectorsContrats;
+import io.openaev.database.raw.RawInjectorsContracts;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Optional;
@@ -14,10 +14,34 @@ import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+/**
+ * Repository interface for {@link InjectorContract} entities.
+ *
+ * <p>This repository provides data access operations for injector contracts, which define the
+ * capabilities and parameters of attack simulation injectors. It supports:
+ *
+ * <ul>
+ *   <li>CRUD operations via {@link CrudRepository}
+ *   <li>Dynamic filtering via {@link JpaSpecificationExecutor}
+ *   <li>Custom queries for contract lookup by various criteria
+ *   <li>Access-controlled queries respecting user grants
+ * </ul>
+ *
+ * @see InjectorContract
+ * @see Injector
+ */
 @Repository
 public interface InjectorContractRepository
     extends CrudRepository<InjectorContract, String>, JpaSpecificationExecutor<InjectorContract> {
 
+  /**
+   * Retrieves all injector contracts with their associated attack pattern external IDs.
+   *
+   * <p>Returns a lightweight projection containing only the contract ID and aggregated attack
+   * pattern IDs for efficient bulk operations.
+   *
+   * @return list of raw injector contract projections
+   */
   @Query(
       value =
           "SELECT injcon.injector_contract_id, "
@@ -27,8 +51,17 @@ public interface InjectorContractRepository
               + "LEFT JOIN attack_patterns attpatt ON injconatt.attack_pattern_id = attpatt.attack_pattern_id "
               + "GROUP BY injcon.injector_contract_id",
       nativeQuery = true)
-  List<RawInjectorsContrats> getAllRawInjectorsContracts();
+  List<RawInjectorsContracts> getAllRawInjectorsContracts();
 
+  /**
+   * Retrieves injector contracts accessible to a specific user.
+   *
+   * <p>Returns contracts that either have no payload (public contracts) or where the user has been
+   * granted access to the payload through their group memberships.
+   *
+   * @param userId the ID of the user to check access for
+   * @return list of raw injector contract projections the user can access
+   */
   @Query(
       value =
           "SELECT injcon.injector_contract_id, "
@@ -47,7 +80,7 @@ public interface InjectorContractRepository
               + ") "
               + "GROUP BY injcon.injector_contract_id",
       nativeQuery = true)
-  List<RawInjectorsContrats> getAllRawInjectorsContractsWithoutPayloadOrGranted(
+  List<RawInjectorsContracts> getAllRawInjectorsContractsWithoutPayloadOrGranted(
       @Param("userId") String userId);
 
   @NotNull
@@ -62,6 +95,9 @@ public interface InjectorContractRepository
   @NotNull
   Optional<InjectorContract> findInjectorContractByInjectorAndPayload(
       @NotNull Injector injector, @NotNull Payload payload);
+
+  @NotNull
+  List<InjectorContract> findInjectorContractsByPayload(@NotNull Payload payload);
 
   @Query(
       value =

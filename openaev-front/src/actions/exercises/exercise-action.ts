@@ -213,6 +213,10 @@ export const countBySimulation = (simulationId: string, widgetId: string, parame
   return simplePostCall(`${EXERCISE_URI}/${simulationId}/dashboard/count/${widgetId}`, parameters);
 };
 
+export const averageBySimulation = (simulationId: string, widgetId: string, parameters: Record<string, string | undefined>) => {
+  return simplePostCall(`${EXERCISE_URI}/${simulationId}/dashboard/average/${widgetId}`, parameters);
+};
+
 export const seriesBySimulation = (simulationId: string, widgetId: string, parameters: Record<string, string | undefined>) => {
   return simplePostCall(`${EXERCISE_URI}/${simulationId}/dashboard/series/${widgetId}`, parameters);
 };

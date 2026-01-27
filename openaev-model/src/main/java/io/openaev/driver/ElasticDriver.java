@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.openaev.config.EngineConfig;
+import io.openaev.database.model.IndexingStatus;
 import io.openaev.database.repository.IndexingStatusRepository;
 import io.openaev.engine.EngineContext;
 import io.openaev.engine.EsModel;
@@ -209,6 +210,8 @@ public class ElasticDriver {
                     .index(indexName + config.getIndexSuffix())
                     .aliases(indexName, new Alias.Builder().build())
                     .build());
+        Optional<IndexingStatus> status = indexingStatusRepository.findByType(name);
+        status.ifPresent(indexingStatusRepository::delete);
       } catch (ElasticsearchException e2) {
         log.error("cannot create index", e2);
       }

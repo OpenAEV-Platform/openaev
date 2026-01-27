@@ -8,7 +8,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.AgentHelper;
-import io.openaev.helper.MonoIdDeserializer;
+import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -53,7 +53,7 @@ public class Agent implements Base {
   @Queryable(sortable = true, filterable = true, path = "asset.id")
   @ManyToOne
   @JoinColumn(name = "agent_asset")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("agent_asset")
   @Schema(type = "string")
   @NotNull
@@ -82,7 +82,7 @@ public class Agent implements Base {
   @Queryable(sortable = true)
   @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "agent_executor")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("agent_executor")
   @Schema(type = "string")
   private Executor executor;
@@ -94,7 +94,7 @@ public class Agent implements Base {
 
   /** Used for Caldera only */
   @ManyToOne(fetch = FetchType.EAGER)
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JoinColumn(name = "agent_parent")
   @JsonProperty("agent_parent")
   @Schema(type = "string")
@@ -102,7 +102,7 @@ public class Agent implements Base {
 
   /** Used for Caldera only */
   @OneToOne(fetch = FetchType.EAGER)
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JoinColumn(name = "agent_inject")
   @JsonProperty("agent_inject")
   @Schema(type = "string")

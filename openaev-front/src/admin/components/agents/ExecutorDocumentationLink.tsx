@@ -3,12 +3,12 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
-import { type Executor } from '../../../utils/api-types';
+import { type ExecutorOutput } from '../../../utils/api-types';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
 import EEChip from '../common/entreprise_edition/EEChip';
 
 interface Props {
-  executor: Executor;
+  executor: ExecutorOutput;
   showEEChip?: boolean;
 }
 

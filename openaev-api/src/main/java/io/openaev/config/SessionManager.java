@@ -6,9 +6,9 @@ import io.openaev.database.model.User;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpSessionEvent;
 import jakarta.servlet.http.HttpSessionListener;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,7 +21,7 @@ import org.springframework.security.web.authentication.preauth.PreAuthenticatedA
 @Configuration
 public class SessionManager {
 
-  private static final Map<String, HttpSession> sessions = new HashMap<>();
+  private static final Map<String, HttpSession> sessions = new ConcurrentHashMap<>();
 
   @Bean
   public HttpSessionListener httpSessionListener() {

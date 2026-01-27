@@ -21,7 +21,7 @@ const useStyles = makeStyles()(theme => ({
     width: '100%',
     minHeight: '100%',
     padding: 20,
-    border: '1px dashed rgba(255, 255, 255, 0.3)',
+    border: `1px dashed ${theme.palette.divider}`,
   },
   chip: { margin: '0 10px 10px 0' },
   item: {
@@ -69,12 +69,18 @@ const FileTransferDialog: FunctionComponent<Props> = ({
   const { documents }: { documents: [RawDocument] } = useHelper((helper: DocumentHelper & UserHelper) => ({ documents: helper.getDocuments() }));
 
   useEffect(() => {
-    if (initialDocumentIds.length > 0) {
-      setSelectedDocuments(documents.filter((document) => {
-        const docId = document.document_id;
-        return docId && initialDocumentIds.includes(docId);
-      }));
-    }
+    // If initial data hasn't arrived yet, do nothing
+    if (initialDocumentIds.length === 0) return;
+
+    // If we already have selected documents, don't override user changes
+    if (selectedDocuments.length > 0) return;
+
+    // Initialize selectedDocuments from initialDocumentIds (only once)
+    setSelectedDocuments(
+      documents.filter(
+        doc => doc.document_id && initialDocumentIds.includes(doc.document_id),
+      ),
+    );
   }, [initialDocumentIds]);
 
   const handleSearchDocuments = (value?: string) => {
@@ -137,9 +143,11 @@ const FileTransferDialog: FunctionComponent<Props> = ({
     return tags.length === 0 || tags.every(tag => document.document_tags?.includes(tag.id));
   };
 
+  const selectedIds = selectedDocuments.map(d => d.document_id);
+
   const filteredDocuments = documents.filter((document) => {
-    const isInitialValue = document.document_id && initialDocumentIds?.includes(document.document_id);
-    return !isInitialValue
+    const isSelected = document.document_id && selectedIds.includes(document.document_id);
+    return !isSelected
       && filterByExtensions(document)
       && filterByKeyword(document)
       && filterByTag(document);
@@ -151,14 +159,16 @@ const FileTransferDialog: FunctionComponent<Props> = ({
       onClose={handleClose}
       fullWidth
       maxWidth="lg"
-      PaperProps={{
-        elevation: 1,
-        sx: {
-          minHeight: 580,
-          maxHeight: 580,
+      slotProps={{
+        paper: {
+          elevation: 1,
+          sx: {
+            minHeight: 580,
+            maxHeight: 580,
+          },
         },
       }}
-      TransitionComponent={Transition}
+      slots={{ transition: Transition }}
     >
       <DialogTitle>{t(label)}</DialogTitle>
       <DialogContent>

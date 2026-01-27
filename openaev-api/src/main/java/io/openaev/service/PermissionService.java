@@ -2,6 +2,8 @@ package io.openaev.service;
 
 import io.openaev.aop.RBACAspect;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.EvaluationRepository;
+import io.openaev.database.repository.ObjectiveRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
@@ -46,12 +48,18 @@ public class PermissionService {
 
   private static final EnumSet<ResourceType> RESOURCES_USING_PARENT_PERMISSION =
       EnumSet.of(
-          ResourceType.INJECT, ResourceType.NOTIFICATION_RULE, ResourceType.INJECTOR_CONTRACT);
+          ResourceType.INJECT,
+          ResourceType.NOTIFICATION_RULE,
+          ResourceType.INJECTOR_CONTRACT,
+          ResourceType.OBJECTIVE,
+          ResourceType.EVALUATION);
 
   private final GrantService grantService;
   private final InjectService injectService;
   private final NotificationRuleService notificationRuleService;
   private final InjectorContractService injectorContractService;
+  private final ObjectiveRepository objectiveRepository;
+  private final EvaluationRepository evaluationRepository;
 
   @Transactional
   public boolean hasPermission(
@@ -190,6 +198,27 @@ public class PermissionService {
         return new Target(ic.getPayload().getId(), ResourceType.PAYLOAD, action);
       }
       return new Target(ic.getId(), ResourceType.INJECTOR_CONTRACT, action);
+    } else if (resourceType == ResourceType.OBJECTIVE) {
+      Objective objective =
+          objectiveRepository
+              .findById(resourceId)
+              .orElseThrow(
+                  () -> new ElementNotFoundException("Objective not found with id: " + resourceId));
+      // parent action rule: anything non-READ becomes WRITE on the parent
+      Action parentAction = (action == Action.READ) ? Action.READ : Action.WRITE;
+      return new Target(
+          objective.getParentResourceId(), objective.getParentResourceType(), parentAction);
+    } else if (resourceType == ResourceType.EVALUATION) {
+      Evaluation evaluation =
+          evaluationRepository
+              .findById(resourceId)
+              .orElseThrow(
+                  () ->
+                      new ElementNotFoundException("Evaluation not found with id: " + resourceId));
+      // parent action rule: anything non-READ becomes WRITE on the parent
+      Action parentAction = (action == Action.READ) ? Action.READ : Action.WRITE;
+      return new Target(
+          evaluation.getParentResourceId(), evaluation.getParentResourceType(), parentAction);
     }
     return new Target(resourceId, resourceType, action);
   }

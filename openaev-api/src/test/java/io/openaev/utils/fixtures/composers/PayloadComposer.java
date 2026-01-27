@@ -21,6 +21,8 @@ public class PayloadComposer extends ComposerBase<Payload> {
     private final List<OutputParserComposer.Composer> outputParserComposers = new ArrayList<>();
     private final List<DetectionRemediationComposer.Composer> detectionRemediationComposers =
         new ArrayList<>();
+    private final List<AttackPatternComposer.Composer> attackPatternComposers = new ArrayList<>();
+    private final List<DomainComposer.Composer> domainComposers = new ArrayList<>();
 
     public Composer(Payload payload) {
       this.payload = payload;
@@ -52,12 +54,28 @@ public class PayloadComposer extends ComposerBase<Payload> {
       return this;
     }
 
+    public Composer withDomain(DomainComposer.Composer domainWrapper) {
+      this.domainComposers.add(domainWrapper);
+      Set<Domain> tempDomains = payload.getDomains();
+      tempDomains.add(domainWrapper.get());
+      payload.setDomains(tempDomains);
+      return this;
+    }
+
     public Composer withExecutable(DocumentComposer.Composer newDocumentComposer) {
       if (!(payload instanceof Executable)) {
         throw new IllegalArgumentException("Payload is not a Executable");
       }
       documentComposer = Optional.of(newDocumentComposer);
       ((Executable) payload).setExecutableFile(newDocumentComposer.get());
+      return this;
+    }
+
+    public Composer withAttackPattern(AttackPatternComposer.Composer attackPatternWrapper) {
+      attackPatternComposers.add(attackPatternWrapper);
+      List<AttackPattern> tempList = new ArrayList<>(payload.getAttackPatterns());
+      tempList.add(attackPatternWrapper.get());
+      payload.setAttackPatterns(tempList);
       return this;
     }
 
@@ -72,8 +90,9 @@ public class PayloadComposer extends ComposerBase<Payload> {
     @Override
     public Composer persist() {
       documentComposer.ifPresent(DocumentComposer.Composer::persist);
+      domainComposers.forEach(DomainComposer.Composer::persist);
       tagComposers.forEach(TagComposer.Composer::persist);
-      detectionRemediationComposers.forEach(DetectionRemediationComposer.Composer::persist);
+      attackPatternComposers.forEach(AttackPatternComposer.Composer::persist);
       payload.setId(null);
       payloadRepository.save(payload);
       return this;
@@ -84,7 +103,9 @@ public class PayloadComposer extends ComposerBase<Payload> {
       documentComposer.ifPresent(DocumentComposer.Composer::delete);
       tagComposers.forEach(TagComposer.Composer::delete);
       payloadRepository.delete(payload);
+      domainComposers.forEach(DomainComposer.Composer::delete);
       detectionRemediationComposers.forEach(DetectionRemediationComposer.Composer::delete);
+      attackPatternComposers.forEach(AttackPatternComposer.Composer::delete);
       return this;
     }
 

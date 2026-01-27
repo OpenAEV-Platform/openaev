@@ -3,7 +3,7 @@ package io.openaev.database.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import io.openaev.helper.MonoIdDeserializer;
+import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import lombok.Data;
@@ -19,7 +19,7 @@ public class ScenarioTeamUser {
   @MapsId("scenarioId")
   @JoinColumn(name = "scenario_id")
   @JsonProperty("scenario_id")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @Schema(type = "string")
   private Scenario scenario;
 
@@ -27,7 +27,7 @@ public class ScenarioTeamUser {
   @MapsId("teamId")
   @JoinColumn(name = "team_id")
   @JsonProperty("team_id")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @Schema(type = "string")
   private Team team;
 
@@ -35,7 +35,7 @@ public class ScenarioTeamUser {
   @MapsId("userId")
   @JoinColumn(name = "user_id")
   @JsonProperty("user_id")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @Schema(type = "string")
   private User user;
 }

@@ -4,7 +4,9 @@ import io.openaev.database.model.*;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
 import jakarta.validation.constraints.NotNull;
 
-public class FindingUtils {
+public final class FindingUtils {
+
+  private FindingUtils() {}
 
   public static Finding createFinding(@NotNull final InjectorContractContentOutputElement element) {
     Finding finding = new Finding();

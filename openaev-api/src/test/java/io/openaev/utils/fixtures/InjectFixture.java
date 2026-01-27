@@ -1,6 +1,7 @@
 package io.openaev.utils.fixtures;
 
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS;
+import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -8,6 +9,8 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.injectors.challenge.model.ChallengeContent;
+import io.openaev.rest.atomic_testing.form.AtomicTestingInput;
+import io.openaev.rest.inject.form.InjectDocumentInput;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -17,12 +20,41 @@ public class InjectFixture {
   public static final String INJECT_EMAIL_NAME = "Test email inject";
   public static final String INJECT_CHALLENGE_NAME = "Test challenge inject";
 
+  public static AtomicTestingInput createAtomicTesting(String title, String documentId) {
+    AtomicTestingInput input = new AtomicTestingInput();
+    input.setInjectorContract(EMAIL_DEFAULT);
+    input.setContent(injectContent());
+    input.setTitle(title);
+    input.setAllTeams(false);
+    if (documentId != null) {
+      InjectDocumentInput documentInput = new InjectDocumentInput();
+      documentInput.setDocumentId(documentId);
+      documentInput.setAttached(true);
+      input.setDocuments(List.of(documentInput));
+    }
+    return input;
+  }
+
   public static Inject createInject(InjectorContract injectorContract, String title) {
     Inject inject = createInjectWithTitle(title);
     inject.setInjectorContract(injectorContract);
     inject.setEnabled(true);
     inject.setDependsDuration(0L);
+    inject.setContent(injectContent());
+    return inject;
+  }
 
+  public static Inject createInjectWithManualExpectation(
+      InjectorContract injectorContract, String title, String manualExpectationTitle) {
+    Inject inject = createInjectWithTitle(title);
+    inject.setInjectorContract(injectorContract);
+    inject.setEnabled(true);
+    inject.setDependsDuration(0L);
+    inject.setContent(injectContent(manualExpectationTitle));
+    return inject;
+  }
+
+  private static ObjectNode injectContent() {
     ObjectMapper objectMapper = new ObjectMapper();
     ObjectNode injectContent = objectMapper.createObjectNode();
     injectContent.set(
@@ -31,9 +63,20 @@ public class InjectFixture {
             List.of(
                 ExpectationFixture.createExpectation(InjectExpectation.EXPECTATION_TYPE.MANUAL)),
             ArrayNode.class));
-    inject.setContent(injectContent);
+    return injectContent;
+  }
 
-    return inject;
+  private static ObjectNode injectContent(String expectationName) {
+    ObjectMapper objectMapper = new ObjectMapper();
+    ObjectNode injectContent = objectMapper.createObjectNode();
+    injectContent.set(
+        CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS,
+        objectMapper.convertValue(
+            List.of(
+                ExpectationFixture.createExpectation(
+                    InjectExpectation.EXPECTATION_TYPE.MANUAL, expectationName)),
+            ArrayNode.class));
+    return injectContent;
   }
 
   public static Inject createTechnicalInject(
@@ -101,10 +144,8 @@ public class InjectFixture {
     return inject;
   }
 
-  public static Inject createInjectWithPayloadArg(
-      InjectorContract injectorContract, Map<String, Object> payloadArguments) {
-
-    Inject inject = createInject(injectorContract, "Inject title");
+  public static Inject createInjectWithPayloadArg(Map<String, Object> payloadArguments) {
+    Inject inject = createInjectWithTitle("Inject title");
     ObjectMapper objectMapper = new ObjectMapper();
     ObjectNode injectContent = objectMapper.createObjectNode();
     payloadArguments.forEach(
@@ -124,7 +165,14 @@ public class InjectFixture {
         });
 
     inject.setContent(injectContent);
+    return inject;
+  }
 
+  public static Inject createInjectWithPayloadArg(
+      InjectorContract injectorContract, Map<String, Object> payloadArguments) {
+
+    Inject inject = createInjectWithPayloadArg(payloadArguments);
+    inject.setInjectorContract(injectorContract);
     return inject;
   }
 
@@ -135,6 +183,7 @@ public class InjectFixture {
   private static Inject createInjectWithTitle(String title) {
     String new_title = title == null ? "inject-%s".formatted(UUID.randomUUID()) : title;
     Inject inject = new Inject();
+    inject.setDependsDuration(0L);
     inject.setTitle(new_title);
     return inject;
   }

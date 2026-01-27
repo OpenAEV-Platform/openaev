@@ -109,14 +109,14 @@ public class TeamSimple {
 
   @JsonProperty("team_injects_expectations_number")
   @Schema(description = "Number of expectations linked to this team")
-  public long getInjectExceptationsNumber() {
+  public long getInjectExpectationsNumber() {
     return getInjectExpectations().size();
   }
 
   @JsonProperty("team_injects_expectations_total_score")
   @NotNull
   @Schema(description = "Total score of expectations linked to this team")
-  public double getInjectExceptationsTotalScore() {
+  public double getInjectExpectationsTotalScore() {
     return getInjectExpectations().stream()
         .filter((inject) -> inject.getScore() != null)
         .mapToDouble(InjectExpectation::getScore)
@@ -126,7 +126,7 @@ public class TeamSimple {
   @JsonProperty("team_injects_expectations_total_score_by_exercise")
   @NotNull
   @Schema(description = "Total score of expectations by simulation linked to this team")
-  public Map<String, Double> getInjectExceptationsTotalScoreByExercise() {
+  public Map<String, Double> getInjectExpectationsTotalScoreByExercise() {
     return getInjectExpectations().stream()
         .filter(
             expectation ->
@@ -141,7 +141,7 @@ public class TeamSimple {
   @JsonProperty("team_injects_expectations_total_expected_score")
   @NotNull
   @Schema(description = "Total expected score of expectations linked to this team")
-  public double getInjectExceptationsTotalExpectedScore() {
+  public double getInjectExpectationsTotalExpectedScore() {
     return getInjectExpectations().stream()
         .filter(expectation -> Objects.nonNull(expectation.getExpectedScore()))
         .mapToDouble(InjectExpectation::getExpectedScore)
@@ -188,11 +188,11 @@ public class TeamSimple {
     if (this == o) {
       return true;
     }
-    if (o == null || !Base.class.isAssignableFrom(o.getClass())) {
+    if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    Base base = (Base) o;
-    return id.equals(base.getId());
+    TeamSimple that = (TeamSimple) o;
+    return Objects.equals(id, that.id);
   }
 
   @Override

@@ -1,7 +1,7 @@
 package io.openaev.rest;
 
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.ExerciseFixture.getExercise;
 import static io.openaev.utils.fixtures.ExerciseLessonsCategoryFixture.getLessonsCategory;
 import static io.openaev.utils.fixtures.TeamFixture.getTeam;
@@ -19,23 +19,35 @@ import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.LessonsCategoryRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.integration.Manager;
+import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.lessons.form.LessonsSendInput;
 import io.openaev.service.MailingService;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.List;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
 
+@SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
+@AutoConfigureMockMvc
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@Transactional
 public class ExerciseLessonsApiTest extends IntegrationTest {
+
+  static Exercise EXERCISE;
+  static LessonsCategory LESSONCATEGORY;
+  static Team TEAM;
+  static User USER;
 
   @Autowired private MockMvc mvc;
   @Autowired private ExerciseService exerciseService;
@@ -44,12 +56,27 @@ public class ExerciseLessonsApiTest extends IntegrationTest {
   @MockitoSpyBean private MailingService mailingService;
   @Autowired private TeamRepository teamRepository;
   @Autowired private UserRepository userRepository;
+  @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
+
+  @BeforeAll
+  void beforeAll() throws Exception {
+    new Manager(List.of(emailInjectorIntegrationFactory)).monitorIntegrations();
+    LESSONCATEGORY = getLessonCategory();
+  }
+
+  @AfterAll
+  void afterAll() {
+    this.exerciseRepository.delete(EXERCISE);
+    this.lessonsCategoryRepository.delete(LESSONCATEGORY);
+    this.teamRepository.delete(TEAM);
+    this.userRepository.delete(USER);
+  }
 
   private LessonsCategory getLessonCategory() {
-    User user = this.userRepository.save(getUser());
-    Team team = teamRepository.save(getTeam(user, "My team", false));
-    Exercise simulation = this.exerciseService.createExercise(getExercise(List.of(team)));
-    return this.lessonsCategoryRepository.save(getLessonsCategory(simulation, List.of(team)));
+    USER = this.userRepository.save(getUser());
+    TEAM = teamRepository.save(getTeam(USER, "My team", false));
+    EXERCISE = this.exerciseService.createExercise(getExercise(List.of(TEAM)));
+    return this.lessonsCategoryRepository.save(getLessonsCategory(EXERCISE, List.of(TEAM)));
   }
 
   @DisplayName("Send surveys for exercise lessons")
@@ -58,18 +85,16 @@ public class ExerciseLessonsApiTest extends IntegrationTest {
   void sendExerciseLessonsTest() throws Exception {
 
     // -- PREPARE --
-    LessonsCategory lessonsCategory = getLessonCategory();
-
     String lessonSubject = "Subject";
     String lessonBody = "This is a lesson";
     LessonsSendInput lessonsSendInput = new LessonsSendInput();
     lessonsSendInput.setSubject(lessonSubject);
     lessonsSendInput.setBody(lessonBody);
-    User user = userRepository.findById(lessonsCategory.getUsers().getFirst()).orElseThrow();
+    User user = userRepository.findById(LESSONCATEGORY.getUsers().getFirst()).orElseThrow();
 
     // -- EXECUTE --
     mvc.perform(
-            post(EXERCISE_URI + "/" + lessonsCategory.getExercise().getId() + "/lessons_send")
+            post(EXERCISE_URI + "/" + EXERCISE.getId() + "/lessons_send")
                 .content(asJsonString(lessonsSendInput))
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON))
@@ -81,6 +106,6 @@ public class ExerciseLessonsApiTest extends IntegrationTest {
             lessonSubject,
             lessonBody,
             List.of(user),
-            exerciseRepository.findById(lessonsCategory.getExercise().getId()));
+            exerciseRepository.findById(EXERCISE.getId()));
   }
 }

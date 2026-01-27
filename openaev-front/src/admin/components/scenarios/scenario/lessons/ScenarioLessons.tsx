@@ -15,7 +15,7 @@ import {
   deleteLessonsQuestion,
   emptyLessonsCategories,
   fetchLessonsCategories,
-  fetchLessonsQuestions,
+  fetchLessonsQuestions, fetchPlayersByScenario,
   fetchScenarioTeams,
   updateLessonsCategory,
   updateLessonsCategoryTeams,
@@ -78,6 +78,7 @@ const ScenarioLessons = () => {
   });
   useDataLoader(() => {
     dispatch(fetchTeams());
+    dispatch(fetchPlayersByScenario(scenarioId));
     dispatch(fetchLessonsCategories(scenarioId));
     dispatch(fetchLessonsQuestions(scenarioId));
     dispatch(fetchScenarioObjectives(scenarioId));
@@ -123,7 +124,7 @@ const ScenarioLessons = () => {
     onDeleteObjective: (objectiveId: string) => dispatch(deleteScenarioObjective(scenarioId, objectiveId)),
     // Evaluation
     onAddEvaluation: (objectiveId: string, data: EvaluationInput) => dispatch(addScenarioEvaluation(scenarioId, objectiveId, data)),
-    onUpdateEvaluation: (objectiveId: string, evaluationId: string, data: EvaluationInput) => dispatch(updateScenarioEvaluation(objectiveId, evaluationId, data)),
+    onUpdateEvaluation: (objectiveId: string, evaluationId: string, data: EvaluationInput) => dispatch(updateScenarioEvaluation(scenarioId, objectiveId, evaluationId, data)),
     onFetchEvaluation: (objectiveId: string) => dispatch(fetchScenarioEvaluations(scenarioId, objectiveId)),
   };
 

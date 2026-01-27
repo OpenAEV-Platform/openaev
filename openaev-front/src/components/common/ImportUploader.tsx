@@ -23,7 +23,7 @@ const ImportUploader: FunctionComponent<Props> = ({
   color,
   isIconButton = true,
   fileAccepted = '',
-  allowReUpload = false,
+  allowReUpload = true,
   disabled = false,
 }) => {
   // Standard hooks

@@ -1,9 +1,7 @@
 package io.openaev.rest.exercise;
 
 import io.openaev.aop.RBAC;
-import io.openaev.database.model.Action;
 import io.openaev.database.model.Exercise;
-import io.openaev.database.model.ResourceType;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -26,10 +24,7 @@ public class ExercisePlayerApi extends RestBehavior {
   private final ExerciseRepository exerciseRepository;
 
   @GetMapping(EXERCISE_URI + "/{exerciseId}")
-  @RBAC(
-      resourceId = "#exerciseId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.SIMULATION)
+  @RBAC(skipRBAC = true)
   public PublicExercise playerExercise(
       @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
     impersonateUser(this.userRepository, userId);

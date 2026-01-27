@@ -9,14 +9,40 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+/**
+ * Configuration properties for expectation expiration times and default scores.
+ *
+ * <p>This component provides configurable expiration times for different expectation types and
+ * default score values. The configuration follows a hierarchy where specific values override
+ * category defaults:
+ *
+ * <ul>
+ *   <li><b>Technical expectations</b> (detection, prevention, vulnerability): Default 6 hours
+ *   <li><b>Human expectations</b> (challenge, article, manual, document, text): Default 24 hours
+ * </ul>
+ *
+ * <p>Configuration can be provided via properties with either {@code openbas.expectation.*} or
+ * {@code openaev.expectation.*} prefixes for backward compatibility.
+ */
 @Component
 @Setter
 @Slf4j
 public class ExpectationPropertiesConfig {
 
-  public static long DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME = 21600L; // 6 hours
-  public static long DEFAULT_HUMAN_EXPECTATION_EXPIRATION_TIME = 86400L; // 24 hours
-  public static int DEFAULT_MANUAL_EXPECTATION_SCORE = 50;
+  /** Default expiration time for technical expectations (6 hours in seconds). */
+  public static final long DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME = 21600L;
+
+  /** Default expiration time for human expectations (24 hours in seconds). */
+  public static final long DEFAULT_HUMAN_EXPECTATION_EXPIRATION_TIME = 86400L;
+
+  /** Default score for manual expectations (0-100 range). */
+  public static final int DEFAULT_MANUAL_EXPECTATION_SCORE = 50;
+
+  /** Minimum valid score value. */
+  private static final int MIN_SCORE = 0;
+
+  /** Maximum valid score value. */
+  private static final int MAX_SCORE = 100;
 
   @Value(
       "${openbas.expectation.technical.expiration-time:${openaev.expectation.technical.expiration-time:#{null}}}")
@@ -54,6 +80,13 @@ public class ExpectationPropertiesConfig {
       "${openbas.expectation.manual.default-score-value:${openaev.expectation.manual.default-score-value:#{null}}}")
   private Integer defaultManualExpectationScore;
 
+  /**
+   * Gets the expiration time for detection expectations.
+   *
+   * <p>Falls back to technical expiration time, then to the default technical expiration.
+   *
+   * @return expiration time in seconds
+   */
   public long getDetectionExpirationTime() {
     return ofNullable(this.detectionExpirationTime)
         .orElse(
@@ -61,6 +94,13 @@ public class ExpectationPropertiesConfig {
                 .orElse(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME));
   }
 
+  /**
+   * Gets the expiration time for prevention expectations.
+   *
+   * <p>Falls back to technical expiration time, then to the default technical expiration.
+   *
+   * @return expiration time in seconds
+   */
   public long getPreventionExpirationTime() {
     return ofNullable(this.preventionExpirationTime)
         .orElse(
@@ -68,6 +108,13 @@ public class ExpectationPropertiesConfig {
                 .orElse(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME));
   }
 
+  /**
+   * Gets the expiration time for vulnerability expectations.
+   *
+   * <p>Falls back to technical expiration time, then to the default technical expiration.
+   *
+   * @return expiration time in seconds
+   */
   public long getVulnerabilityExpirationTime() {
     return ofNullable(this.vulnerabilityExpirationTime)
         .orElse(
@@ -75,35 +122,75 @@ public class ExpectationPropertiesConfig {
                 .orElse(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME));
   }
 
+  /**
+   * Gets the expiration time for challenge expectations.
+   *
+   * <p>Falls back to human expiration time, then to the default human expiration.
+   *
+   * @return expiration time in seconds
+   */
   public long getChallengeExpirationTime() {
     return ofNullable(this.challengeExpirationTime)
         .orElse(
             ofNullable(this.humanExpirationTime).orElse(DEFAULT_HUMAN_EXPECTATION_EXPIRATION_TIME));
   }
 
+  /**
+   * Gets the expiration time for article expectations.
+   *
+   * <p>Falls back to human expiration time, then to the default human expiration.
+   *
+   * @return expiration time in seconds
+   */
   public long getArticleExpirationTime() {
     return ofNullable(this.articleExpirationTime)
         .orElse(
             ofNullable(this.humanExpirationTime).orElse(DEFAULT_HUMAN_EXPECTATION_EXPIRATION_TIME));
   }
 
+  /**
+   * Gets the expiration time for manual expectations.
+   *
+   * <p>Falls back to human expiration time, then to the default human expiration.
+   *
+   * @return expiration time in seconds
+   */
   public long getManualExpirationTime() {
     return ofNullable(this.manualExpirationTime)
         .orElse(
             ofNullable(this.humanExpirationTime).orElse(DEFAULT_HUMAN_EXPECTATION_EXPIRATION_TIME));
   }
 
+  /**
+   * Gets the default score value for manual expectations.
+   *
+   * <p>Validates that the configured score is within the acceptable range (0-100). If invalid,
+   * returns the default score and logs a warning.
+   *
+   * @return the default score value (0-100)
+   */
   public int getDefaultExpectationScoreValue() {
     if (defaultManualExpectationScore == null
-        || defaultManualExpectationScore < 1
-        || defaultManualExpectationScore > 100) {
+        || defaultManualExpectationScore < MIN_SCORE
+        || defaultManualExpectationScore > MAX_SCORE) {
       log.warn(
-          "The provided default score value is invalid. It should be within the acceptable range of 0 to 100. The score will be set to the default of 50.");
+          "Invalid default score value configured: {}. Expected range: {}-{}. Using default: {}",
+          defaultManualExpectationScore,
+          MIN_SCORE,
+          MAX_SCORE,
+          DEFAULT_MANUAL_EXPECTATION_SCORE);
       return DEFAULT_MANUAL_EXPECTATION_SCORE;
     }
     return defaultManualExpectationScore;
   }
 
+  /**
+   * Gets the expiration time for a specific expectation type.
+   *
+   * @param type the expectation type
+   * @return the expiration time in seconds for the given type
+   * @throws NullPointerException if type is null
+   */
   public long getExpirationTimeByType(@NotNull final EXPECTATION_TYPE type) {
     return switch (type) {
       case DETECTION -> getDetectionExpirationTime();
@@ -112,8 +199,16 @@ public class ExpectationPropertiesConfig {
       case CHALLENGE -> getChallengeExpirationTime();
       case ARTICLE -> getArticleExpirationTime();
       case MANUAL -> getManualExpirationTime();
-      case DOCUMENT, TEXT ->
-          ofNullable(this.humanExpirationTime).orElse(DEFAULT_HUMAN_EXPECTATION_EXPIRATION_TIME);
+      case DOCUMENT, TEXT -> getHumanExpirationTimeOrDefault();
     };
+  }
+
+  /**
+   * Gets the human expiration time or the default if not configured.
+   *
+   * @return expiration time in seconds
+   */
+  private long getHumanExpirationTimeOrDefault() {
+    return ofNullable(this.humanExpirationTime).orElse(DEFAULT_HUMAN_EXPECTATION_EXPIRATION_TIME);
   }
 }

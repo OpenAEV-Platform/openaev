@@ -1,33 +1,33 @@
 package io.openaev.executors.crowdstrike.service;
 
 import static io.openaev.executors.ExecutorHelper.replaceArgs;
-import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_NAME;
+import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
+import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
 
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorHelper;
+import io.openaev.executors.ExecutorService;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeAction;
 import jakarta.validation.constraints.NotNull;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
-import org.springframework.stereotype.Service;
 
 @Slf4j
-@Service(CrowdStrikeExecutorContextService.SERVICE_NAME)
 @RequiredArgsConstructor
 public class CrowdStrikeExecutorContextService extends ExecutorContextService {
   public static final String SERVICE_NAME = CROWDSTRIKE_EXECUTOR_NAME;
-
-  private static final int SLEEP_INTERVAL_BATCH_EXECUTIONS = 1000;
 
   private static final String AGENT_ID_VARIABLE = "$agentID";
   private static final String ARCH_VARIABLE = "$architecture";
@@ -46,22 +46,23 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
   private final CrowdStrikeExecutorClient crowdStrikeExecutorClient;
   private final Ee eeService;
   private final LicenseCacheManager licenseCacheManager;
-  private final ExecutionTraceRepository executionTraceRepository;
+  private final ExecutorService executorService;
 
+  ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+
+  @Override
   public void launchExecutorSubprocess(
       @NotNull final Inject inject,
       @NotNull final Endpoint assetEndpoint,
       @NotNull final Agent agent) {}
 
+  @Override
   public List<Agent> launchBatchExecutorSubprocess(
-      Inject inject, Set<Agent> agents, InjectStatus injectStatus) throws InterruptedException {
+      Inject inject, Set<Agent> agents, InjectStatus injectStatus) {
 
     eeService.throwEEExecutorService(
         licenseCacheManager.getEnterpriseEditionInfo(), SERVICE_NAME, injectStatus);
 
-    if (!this.crowdStrikeExecutorConfig.isEnable()) {
-      throw new RuntimeException("Fatal error: CrowdStrike executor is not enabled");
-    }
     List<Agent> csAgents = new ArrayList<>(agents);
 
     // Sometimes, assets from agents aren't fetched even with the EAGER property from Hibernate
@@ -74,7 +75,7 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
             .orElseThrow(
                 () -> new UnsupportedOperationException("Inject does not have a contract"));
 
-    csAgents = manageWithoutPlatformAgents(csAgents, injectStatus);
+    csAgents = executorService.manageWithoutPlatformAgents(csAgents, injectStatus);
     List<CrowdStrikeAction> actions = new ArrayList<>();
     // Set implant script for Windows CS agents
     actions.addAll(
@@ -93,70 +94,24 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
     return csAgents;
   }
 
-  private List<Agent> getAgentsFromOS(List<Agent> agents, Endpoint.PLATFORM_TYPE platform) {
-    return agents.stream()
-        .filter(agent -> ((Endpoint) agent.getAsset()).getPlatform().equals(platform))
-        .toList();
-  }
-
-  private List<Agent> manageWithoutPlatformAgents(List<Agent> agents, InjectStatus injectStatus) {
-    List<Agent> csAgents = new ArrayList<>(agents);
-    List<Agent> withoutPlatformAgents =
-        csAgents.stream()
-            .filter(
-                agent ->
-                    ((Endpoint) agent.getAsset()).getPlatform() == null
-                        || ((Endpoint) agent.getAsset()).getPlatform()
-                            == Endpoint.PLATFORM_TYPE.Unknown
-                        || ((Endpoint) agent.getAsset()).getArch() == null)
-            .toList();
-    csAgents.removeAll(withoutPlatformAgents);
-    // Agents with no platform or unknown platform, traces to save
-    if (!withoutPlatformAgents.isEmpty()) {
-      executionTraceRepository.saveAll(
-          withoutPlatformAgents.stream()
-              .map(
-                  agent ->
-                      new ExecutionTrace(
-                          injectStatus,
-                          ExecutionTraceStatus.ERROR,
-                          List.of(),
-                          "Unsupported platform: "
-                              + ((Endpoint) agent.getAsset()).getPlatform()
-                              + " (arch:"
-                              + ((Endpoint) agent.getAsset()).getArch()
-                              + ")",
-                          ExecutionTraceAction.COMPLETE,
-                          agent,
-                          null))
-              .toList());
-    }
-    return csAgents;
-  }
-
-  private void executeActions(List<CrowdStrikeAction> actions) throws InterruptedException {
+  public void executeActions(List<CrowdStrikeAction> actions) {
+    int paginationLimit = this.crowdStrikeExecutorConfig.getApiBatchExecutionActionPagination();
     for (CrowdStrikeAction action : actions) {
-      int paginationLimit = this.crowdStrikeExecutorConfig.getApiBatchExecutionActionPagination();
-      // Pagination with 1s wait if needed because each implant will call OpenAEV API to set traces
-      if (action.getAgents().size() > paginationLimit) {
-        int numberOfExecution = Math.ceilDiv(action.getAgents().size(), paginationLimit);
-        int fromIndex = 0;
-        int toIndex = paginationLimit;
-        for (int callNumber = 0; callNumber < numberOfExecution; callNumber += 1) {
-          this.crowdStrikeExecutorClient.executeAction(
-              action.getAgents().subList(fromIndex, toIndex).stream().map(Agent::getId).toList(),
-              action.getScriptName(),
-              action.getCommandEncoded());
-          fromIndex = toIndex;
-          toIndex = Math.min(action.getAgents().size(), fromIndex + paginationLimit);
-          Thread.sleep(SLEEP_INTERVAL_BATCH_EXECUTIONS);
-        }
-      } else {
-        this.crowdStrikeExecutorClient.executeAction(
-            action.getAgents().stream().map(Agent::getId).toList(),
-            action.getScriptName(),
-            action.getCommandEncoded());
-        Thread.sleep(SLEEP_INTERVAL_BATCH_EXECUTIONS);
+      int paginationCount = (int) Math.ceil(action.getAgents().size() / (double) paginationLimit);
+      for (int batchIndex = 0; batchIndex < paginationCount; batchIndex++) {
+        int fromIndex = (batchIndex * paginationLimit);
+        int toIndex = Math.min(fromIndex + paginationLimit, action.getAgents().size());
+        List<String> batchAgentIds =
+            action.getAgents().subList(fromIndex, toIndex).stream().map(Agent::getId).toList();
+        // Pagination of XXX agents (paginationLimit) per batch with 5s waiting
+        // because each XXX actions will call the CS API to execute the implants
+        // and each implant will call OpenAEV API to set traces
+        scheduledExecutorService.schedule(
+            () ->
+                this.crowdStrikeExecutorClient.executeAction(
+                    batchAgentIds, action.getScriptName(), action.getCommandEncoded()),
+            batchIndex * 5L,
+            TimeUnit.SECONDS);
       }
     }
   }

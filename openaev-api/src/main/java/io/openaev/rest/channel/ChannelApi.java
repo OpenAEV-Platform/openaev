@@ -14,7 +14,7 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.ChannelService;
-import io.openaev.service.ScenarioService;
+import io.openaev.service.scenario.ScenarioService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -145,10 +145,7 @@ public class ChannelApi extends RestBehavior {
   }
 
   @GetMapping("/api/player/channels/{exerciseId}/{channelId}")
-  @RBAC(
-      resourceId = "#exerciseId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.SIMULATION)
+  @RBAC(skipRBAC = true)
   public ChannelReader playerArticles(
       @PathVariable String exerciseId,
       @PathVariable String channelId,

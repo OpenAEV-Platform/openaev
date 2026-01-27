@@ -17,6 +17,12 @@ public class StixRefToExternalRef {
   @JsonProperty("external_ref")
   private String externalRef;
 
+  /**
+   * StixRefToExternalRef object to use when only external reference is necessary
+   *
+   * @param stixRef id
+   * @param externalRef stix external reference
+   */
   public StixRefToExternalRef(String stixRef, String externalRef) {
     this.stixRef = stixRef;
     this.externalRef = externalRef;

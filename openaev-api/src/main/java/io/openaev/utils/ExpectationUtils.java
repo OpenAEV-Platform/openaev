@@ -11,7 +11,7 @@ import static io.openaev.model.expectation.PreventionExpectation.preventionExpec
 import static io.openaev.model.expectation.PreventionExpectation.preventionExpectationForAsset;
 import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpectationForAgent;
 import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpectationForAsset;
-import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.buildForMediaPressure;
+import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildForMediaPressure;
 
 import io.openaev.database.model.*;
 import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
@@ -29,16 +29,53 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+/**
+ * Utility class for creating and managing inject expectations.
+ *
+ * <p>Provides factory methods for creating different types of expectations (Prevention, Detection,
+ * Manual, Vulnerability) for various target types (Assets, Agents, Asset Groups). Also includes
+ * helper methods for filtering and categorizing expectations.
+ *
+ * <p>Expectations are the core mechanism for evaluating the effectiveness of security controls
+ * during simulations. Each expectation type has specific scoring and validation logic.
+ *
+ * <p>This is a utility class and cannot be instantiated.
+ *
+ * @see io.openaev.database.model.InjectExpectation
+ * @see io.openaev.model.expectation.PreventionExpectation
+ * @see io.openaev.model.expectation.DetectionExpectation
+ */
 public class ExpectationUtils {
 
+  /** Prefix for OpenAEV implant-based signatures. */
   public static final String OAEV_IMPLANT = "oaev-implant-";
+
+  /** Prefix for Caldera-specific implant signatures. */
   public static final String OAEV_IMPLANT_CALDERA = "oaev-implant-caldera-";
 
+  /** Expectation types that require human validation (manual review, challenges, articles). */
   public static final List<EXPECTATION_TYPE> HUMAN_EXPECTATION =
       List.of(MANUAL, CHALLENGE, ARTICLE);
 
   private ExpectationUtils() {}
 
+  /**
+   * Processes expectations based on validation type and updates parent expectations with aggregated
+   * scores.
+   *
+   * <p>Handles two validation modes:
+   *
+   * <ul>
+   *   <li><b>At least one target</b>: Parent succeeds if any child has a positive score
+   *   <li><b>All targets</b>: Parent score is the average of all children scores
+   * </ul>
+   *
+   * @param isaNewExpectationResult whether this is a new expectation result (adds result entry)
+   * @param childrenExpectations the child expectations to aggregate from
+   * @param parentExpectations the parent expectations to update with aggregated scores
+   * @param playerByTeam map of teams to their player expectations
+   * @return list of updated parent expectations
+   */
   public static List<InjectExpectation> processByValidationType(
       boolean isaNewExpectationResult,
       List<InjectExpectation> childrenExpectations,
@@ -351,7 +388,16 @@ public class ExpectationUtils {
     return Collections.emptyList();
   }
 
-  // Set Result for Vulnerability
+  /**
+   * Sets the result for vulnerability expectations based on the vulnerability assessment outcome.
+   *
+   * <p>Updates all provided expectations with the vulnerability result, setting the score to the
+   * expected score if the vulnerability was successfully exploited, or 0.0 otherwise.
+   *
+   * @param expectations the vulnerability expectations to update
+   * @param result the result object to populate with outcome details
+   * @param vulnerabilityResult the vulnerability assessment result string
+   */
   public static void setResultExpectationVulnerable(
       List<InjectExpectation> expectations,
       InjectExpectationResult result,
@@ -402,6 +448,15 @@ public class ExpectationUtils {
 
   // -- PLAYER --
 
+  /**
+   * Retrieves all player expectations for the same team and type as the given expectation.
+   *
+   * <p>Filters expectations to find those belonging to individual players within the same team and
+   * of the same expectation type.
+   *
+   * @param injectExpectation the reference expectation to match against
+   * @return list of matching player expectations for the team
+   */
   public static List<InjectExpectation> getExpectationsPlayersForTeam(
       @NotNull final InjectExpectation injectExpectation) {
     return injectExpectation.getInject().getExpectations().stream()
@@ -417,6 +472,15 @@ public class ExpectationUtils {
 
   // -- TEAM --
 
+  /**
+   * Retrieves team-level expectations matching the given expectation's team and type.
+   *
+   * <p>Filters to find team expectations (those with a team but no individual user) that match the
+   * reference expectation's team and type.
+   *
+   * @param injectExpectation the reference expectation to match against
+   * @return list of matching team-level expectations
+   */
   public static List<InjectExpectation> getExpectationTeams(
       @NotNull final InjectExpectation injectExpectation) {
     return injectExpectation.getInject().getExpectations().stream()
@@ -432,21 +496,49 @@ public class ExpectationUtils {
 
   // -- AGENT --
 
+  /**
+   * Retrieves agent expectations for the same asset and type as the given expectation.
+   *
+   * <p>Filters to find agent-level expectations (those with an agent association) that match the
+   * reference expectation's asset and type.
+   *
+   * @param injectExpectation the reference expectation to match against
+   * @return list of matching agent expectations for the asset
+   */
   public static List<InjectExpectation> getExpectationsAgentsForAsset(
       @NotNull final InjectExpectation injectExpectation) {
     return injectExpectation.getInject().getExpectations().stream()
         .filter(ExpectationUtils::isAgentExpectation)
-        .filter(e -> e.getAsset().getId().equals(injectExpectation.getAsset().getId()))
+        .filter(
+            e ->
+                e.getAsset() != null
+                    && injectExpectation.getAsset() != null
+                    && e.getAsset().getId().equals(injectExpectation.getAsset().getId()))
         .filter(e -> e.getType().equals(injectExpectation.getType()))
         .toList();
   }
 
+  /**
+   * Determines if an expectation is an agent-level expectation.
+   *
+   * @param e the expectation to check
+   * @return {@code true} if the expectation has an agent association
+   */
   public static boolean isAgentExpectation(InjectExpectation e) {
     return e.getAgent() != null;
   }
 
   // -- ASSET --
 
+  /**
+   * Retrieves asset-level expectations matching the given expectation's asset and type.
+   *
+   * <p>Filters to find asset expectations (those with an asset but no agent) that match the
+   * reference expectation's asset and type.
+   *
+   * @param injectExpectation the reference expectation to match against
+   * @return list of matching asset-level expectations
+   */
   public static List<InjectExpectation> getExpectationsAssets(
       @NotNull final InjectExpectation injectExpectation) {
     return injectExpectation.getInject().getExpectations().stream()
@@ -456,6 +548,15 @@ public class ExpectationUtils {
         .toList();
   }
 
+  /**
+   * Retrieves asset expectations belonging to the same asset group as the given expectation.
+   *
+   * <p>Filters to find asset expectations that are part of the same asset group and have the same
+   * expectation type as the reference expectation.
+   *
+   * @param injectExpectation the reference expectation to match against
+   * @return list of matching asset expectations within the asset group
+   */
   public static List<InjectExpectation> getExpectationsAssetsForAssetGroup(
       @NotNull final InjectExpectation injectExpectation) {
     return injectExpectation.getInject().getExpectations().stream()
@@ -472,12 +573,30 @@ public class ExpectationUtils {
         .toList();
   }
 
+  /**
+   * Determines if an expectation is an asset-level expectation.
+   *
+   * <p>An asset expectation has an asset but no agent association (agent expectations are more
+   * granular).
+   *
+   * @param e the expectation to check
+   * @return {@code true} if the expectation is asset-level (has asset, no agent)
+   */
   public static boolean isAssetExpectation(InjectExpectation e) {
     return e.getAsset() != null && e.getAgent() == null;
   }
 
   // -- ASSET GROUP --
 
+  /**
+   * Retrieves asset group-level expectations matching the given expectation's group and type.
+   *
+   * <p>Filters to find asset group expectations (those with only an asset group, no individual
+   * asset or agent) that match the reference expectation's group and type.
+   *
+   * @param injectExpectation the reference expectation to match against
+   * @return list of matching asset group-level expectations
+   */
   public static List<InjectExpectation> getExpectationAssetGroups(
       @NotNull final InjectExpectation injectExpectation) {
     return injectExpectation.getInject().getExpectations().stream()
@@ -487,6 +606,14 @@ public class ExpectationUtils {
         .toList();
   }
 
+  /**
+   * Determines if an expectation is an asset group-level expectation.
+   *
+   * <p>An asset group expectation has an asset group but no individual asset or agent associations.
+   *
+   * @param e the expectation to check
+   * @return {@code true} if the expectation is asset group-level
+   */
   public static boolean isAssetGroupExpectation(InjectExpectation e) {
     return e.getAssetGroup() != null && e.getAsset() == null && e.getAgent() == null;
   }

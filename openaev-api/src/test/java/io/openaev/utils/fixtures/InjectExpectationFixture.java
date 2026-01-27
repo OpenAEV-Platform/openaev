@@ -23,6 +23,7 @@ public class InjectExpectationFixture {
       case FAILED -> expectation.setScore(0.0);
       case PENDING -> expectation.setScore(null);
       case PARTIAL -> expectation.setScore(EXPECTED_SCORE / 2);
+      default -> throw new IllegalArgumentException("Invalid status: " + status);
     }
     return expectation;
   }
@@ -40,12 +41,9 @@ public class InjectExpectationFixture {
 
   public static InjectExpectation createDetectionInjectExpectation(
       Inject inject, @Nullable Agent agent) {
-    InjectExpectation injectExpectation = new InjectExpectation();
+    InjectExpectation injectExpectation = createDefaultDetectionInjectExpectation();
     injectExpectation.setInject(inject);
-    injectExpectation.setType(InjectExpectation.EXPECTATION_TYPE.DETECTION);
     injectExpectation.setAgent(agent);
-    injectExpectation.setExpectedScore(EXPECTED_SCORE);
-    injectExpectation.setExpirationTime(EXPIRATION_TIME_SIX_HOURS);
     return injectExpectation;
   }
 
@@ -90,6 +88,14 @@ public class InjectExpectationFixture {
     injectExpectation.setExpirationTime(EXPIRATION_TIME_ONE_HOUR);
     injectExpectation.setExercise(exercise);
     injectExpectation.setName(expectationName);
+    return injectExpectation;
+  }
+
+  public static InjectExpectation createDefaultDetectionInjectExpectation() {
+    InjectExpectation injectExpectation = new InjectExpectation();
+    injectExpectation.setType(InjectExpectation.EXPECTATION_TYPE.DETECTION);
+    injectExpectation.setExpectedScore(EXPECTED_SCORE);
+    injectExpectation.setExpirationTime(EXPIRATION_TIME_SIX_HOURS);
     return injectExpectation;
   }
 

@@ -22,7 +22,6 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.ChannelService;
 import io.openaev.service.FileService;
-import io.openaev.service.UserService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -70,16 +69,6 @@ public class DocumentApi extends RestBehavior {
   private final FileService fileService;
   private final InjectService injectService;
   private final ChannelService channelService;
-  private final UserService userService;
-
-  private Optional<Document> resolveDocument(String documentId) {
-    User user = userService.currentUser();
-    if (user.isAdminOrBypass()) {
-      return documentRepository.findById(documentId);
-    } else {
-      return documentRepository.findByIdGranted(documentId, user.getId());
-    }
-  }
 
   @PostMapping(DOCUMENT_API)
   @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.DOCUMENT)
@@ -557,10 +546,7 @@ public class DocumentApi extends RestBehavior {
 
   // -- EXERCISE & SENARIO--
   @GetMapping("/api/player/{exerciseOrScenarioId}/documents")
-  @RBAC(
-      resourceId = "#exerciseOrScenarioId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+  @RBAC(skipRBAC = true)
   public List<Document> playerDocuments(
       @PathVariable String exerciseOrScenarioId, @RequestParam Optional<String> userId) {
     Optional<Exercise> exerciseOpt = this.exerciseRepository.findById(exerciseOrScenarioId);
@@ -589,10 +575,7 @@ public class DocumentApi extends RestBehavior {
   }
 
   @GetMapping("/api/player/{exerciseOrScenarioId}/documents/{documentId}/file")
-  @RBAC(
-      resourceId = "#exerciseOrScenarioId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+  @RBAC(skipRBAC = true)
   public void downloadPlayerDocument(
       @PathVariable String exerciseOrScenarioId,
       @PathVariable String documentId,
