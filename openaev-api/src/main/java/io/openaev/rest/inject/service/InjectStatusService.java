@@ -297,6 +297,7 @@ public class InjectStatusService {
 
     if (injectorContract != null
         && CalderaContract.TYPE.equals(injectorContract.getInjector().getType())) {
+      // Caldera Injector is deprecated and not migrate to catalog-supported for now.
       try {
         io.openaev.executors.Injector executor =
             managerFactory
