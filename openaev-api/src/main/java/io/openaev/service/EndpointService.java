@@ -37,8 +37,10 @@ import jakarta.validation.constraints.NotNull;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -73,8 +75,6 @@ public class EndpointService {
   public static final String SERVICE = "service";
   public static final String SERVICE_USER = "service-user";
   public static final String SESSION_USER = "session-user";
-
-  public static String JFROG_BASE = "https://filigran.jfrog.io/artifactory";
 
   public static final String OPENAEV_INSTALL_DIR_WINDOWS_SERVICE =
       "C:\\Program Files (x86)\\Filigran\\OAEV Agent";
@@ -644,7 +644,7 @@ public class EndpointService {
     } else if (executorOpenaevBinariesOrigin.equals(
         "repository")) { // if we want a specific version from artifactory
       filename = file + "-" + executorOpenaevBinariesVersion + "." + extension;
-      in = new BufferedInputStream(new URL(JFROG_BASE + resourcePath + filename).openStream());
+      in = new BufferedInputStream(getJFrogUrl(resourcePath, filename).openStream());
     }
     if (in == null) {
       throw new UnsupportedOperationException(
@@ -806,5 +806,26 @@ public class EndpointService {
     return results.stream()
         .map(i -> new FilterUtilsJpa.Option((String) i[0], (String) i[1]))
         .toList();
+  }
+
+  /**
+   * Construct sanitized JFrog URL from resource path and filename
+   *
+   * @param resourcePath to file
+   * @param filename of the file
+   * @return sanitized URL
+   * @throws MalformedURLException if the url is not well formatted
+   */
+  public URL getJFrogUrl(String resourcePath, String filename) throws MalformedURLException {
+    // Clean inputs
+    String sanitizedPath = Paths.get(resourcePath).normalize().toString();
+    String sanitizedFilename = Paths.get(filename).normalize().toString();
+
+    // Verify that there are no path traversals after normalization
+    if (sanitizedPath.contains("..") || sanitizedFilename.contains("..")) {
+      throw new SecurityException("Path traversal detected");
+    }
+
+    return new URL("https://filigran.jfrog.io/artifactory" + resourcePath + filename);
   }
 }

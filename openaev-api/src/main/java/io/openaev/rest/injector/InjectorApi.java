@@ -2,7 +2,6 @@ package io.openaev.rest.injector;
 
 import static io.openaev.database.specification.InjectorSpecification.byName;
 import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.service.EndpointService.JFROG_BASE;
 import static io.openaev.utils.AgentUtils.AVAILABLE_ARCHITECTURES;
 import static io.openaev.utils.AgentUtils.AVAILABLE_PLATFORMS;
 
@@ -17,6 +16,7 @@ import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.injector.form.InjectorCreateInput;
 import io.openaev.rest.injector.form.InjectorUpdateInput;
 import io.openaev.rest.injector.response.InjectorRegistration;
+import io.openaev.service.EndpointService;
 import io.openaev.service.InjectorService;
 import io.openaev.utils.FilterUtilsJpa;
 import jakarta.transaction.Transactional;
@@ -24,7 +24,6 @@ import jakarta.validation.Valid;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -57,6 +56,7 @@ public class InjectorApi extends RestBehavior {
   private final InjectorContractRepository injectorContractRepository;
   private final InjectStatusService injectStatusService;
   private final InjectorService injectorService;
+  private final EndpointService endpointService;
 
   @GetMapping("/api/injectors")
   @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
@@ -201,7 +201,8 @@ public class InjectorApi extends RestBehavior {
           "openaev-implant-"
               + executorOpenaevBinariesVersion
               + (platform.equals("windows") ? ".exe" : "");
-      in = new BufferedInputStream(new URL(JFROG_BASE + resourcePath + filename).openStream());
+      in =
+          new BufferedInputStream(endpointService.getJFrogUrl(resourcePath, filename).openStream());
     }
 
     if (in != null) {
