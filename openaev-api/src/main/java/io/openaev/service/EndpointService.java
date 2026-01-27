@@ -8,6 +8,7 @@ import static io.openaev.executors.openaev.OpenAEVExecutor.OPENAEV_EXECUTOR_ID;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.ArchitectureFilterUtils.handleEndpointFilter;
+import static io.openaev.utils.FileSecurityUtils.*;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.pagination.PaginationUtils.buildPageable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
@@ -40,7 +41,6 @@ import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -817,15 +817,6 @@ public class EndpointService {
    * @throws MalformedURLException if the url is not well formatted
    */
   public URL getJFrogUrl(String resourcePath, String filename) throws MalformedURLException {
-    // Clean inputs
-    String sanitizedPath = Paths.get(resourcePath).normalize().toString();
-    String sanitizedFilename = Paths.get(filename).normalize().toString();
-
-    // Verify that there are no path traversals after normalization
-    if (sanitizedPath.contains("..") || sanitizedFilename.contains("..")) {
-      throw new SecurityException("Path traversal detected");
-    }
-
-    return new URL("https://filigran.jfrog.io/artifactory" + resourcePath + filename);
+    return validateUri("https://filigran.jfrog.io/artifactory" + resourcePath + filename).toURL();
   }
 }

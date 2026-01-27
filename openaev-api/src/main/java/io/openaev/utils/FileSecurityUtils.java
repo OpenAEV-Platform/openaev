@@ -1,6 +1,8 @@
 package io.openaev.utils;
 
 import io.openaev.rest.exception.BadRequestException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
@@ -51,5 +53,33 @@ public class FileSecurityUtils {
     }
 
     return resolvedPath;
+  }
+
+  /**
+   * Validates that the resolved uri does not escape the base directory.
+   *
+   * @param stringUri to check
+   * @return the full checked uri
+   * @throws SecurityException when a path traversal attempt is detected
+   */
+  public static URI validateUri(String stringUri) throws SecurityException {
+    // Verify path traversals
+    if (stringUri != null && stringUri.contains("..")) {
+      throw new SecurityException("Path traversal detected in URL");
+    }
+
+    try {
+      URI uri = new URI(stringUri).normalize();
+      String path = uri.getPath();
+
+      // Additional checks
+      if (path != null && (path.contains("\\") || path.contains("%2e%2e"))) {
+        throw new SecurityException("Suspicious characters in URL path");
+      }
+
+      return uri;
+    } catch (URISyntaxException e) {
+      throw new SecurityException("Invalid URL format", e);
+    }
   }
 }
