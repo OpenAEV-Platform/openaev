@@ -10,10 +10,12 @@ import io.openaev.integration.configuration.IntegrationConfigKey;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 @Setter
 @Component
+@ConfigurationProperties(prefix = "executor.paloaltocortex")
 public class PaloAltoCortexExecutorConfig extends BaseIntegrationConfiguration {
   private static final String API_URI = "/public_api/v1/";
 
