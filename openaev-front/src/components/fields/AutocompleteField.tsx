@@ -155,6 +155,7 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
           if (custom === null) {
             return null;
           }
+					return custom
         }
 
         return defaultRenderOption(liProps, option);

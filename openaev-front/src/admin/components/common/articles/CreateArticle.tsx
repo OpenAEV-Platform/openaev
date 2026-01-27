@@ -1,12 +1,15 @@
 import { Add, ControlPointOutlined } from '@mui/icons-material';
 import { Dialog, DialogContent, DialogTitle, IconButton, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { useContext } from 'react';
+import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
+import {  type ArticleCreateInput } from '../../../../utils/api-types';
 import { ArticleContext } from '../Context';
-import ArticleForm from './ArticleForm';
+// @ts-ignore
+import ArticleForm from './ArticleForm.tsx';
 
 const useStyles = makeStyles()(theme => ({
   createButton: {
@@ -20,35 +23,57 @@ const useStyles = makeStyles()(theme => ({
   },
 }));
 
-const CreateArticle = (props) => {
-  const { onCreate, inline, openCreate, handleOpenCreate, handleCloseCreate } = props;
+interface CreateArticleProps {
+  onCreate?: (articleId: string) => void;
+  inline?: boolean;
+  openCreate: boolean;
+  isOpen: (open: boolean) => void;
+}
+
+const CreateArticle = ({
+  onCreate,
+  inline,
+  openCreate,
+  isOpen,
+}: CreateArticleProps) => {
   const { classes } = useStyles();
   const { t } = useFormatter();
 
   // Context
   const { onAddArticle } = useContext(ArticleContext);
 
-  const onSubmit = (data) => {
+  const methods = useForm<ArticleCreateInput>({
+    defaultValues: {
+      article_name: '',
+      article_channel: '',
+      article_content: '',
+      article_author: '',
+    },
+  });
+
+  const { handleSubmit, reset } = methods;
+
+  const onSubmit: SubmitHandler<ArticleCreateInput> = async (data) => {
     const inputValues = {
       ...data,
-      article_channel: data.article_channel.id,
+      article_channel: typeof data.article_channel === 'object'
+        ? (data.article_channel as any).id
+        : data.article_channel,
     };
-    return onAddArticle(inputValues).then(
-      (result) => {
-        if (result.result) {
-          if (onCreate) {
-            onCreate(result.result);
-          }
-          return handleCloseCreate();
-        }
-        return result;
-      },
-    );
+    const result = await onAddArticle(inputValues);
+    if (result.result) {
+      if (onCreate) {
+        onCreate(result.result);
+      }
+      reset();
+      isOpen(false);
+    }
   };
+
   return (
     <>
-      {inline === true ? (
-        <ListItemButton divider onClick={handleOpenCreate} color="primary">
+      {inline ? (
+        <ListItemButton divider onClick={() => isOpen(true)} color="primary">
           <ListItemIcon color="primary">
             <ControlPointOutlined color="primary" />
           </ListItemIcon>
@@ -61,7 +86,7 @@ const CreateArticle = (props) => {
         <IconButton
           color="primary"
           aria-label="Add"
-          onClick={handleOpenCreate}
+          onClick={() => isOpen(true)}
           classes={{ root: classes.createButton }}
           size="large"
         >
@@ -71,22 +96,21 @@ const CreateArticle = (props) => {
       <Dialog
         open={openCreate}
         TransitionComponent={Transition}
-        onClose={handleCloseCreate}
+        onClose={() => isOpen(false)}
         fullWidth
         maxWidth="md"
         PaperProps={{ elevation: 1 }}
       >
         <DialogTitle>{t('Create a new media pressure article')}</DialogTitle>
         <DialogContent style={{ overflowX: 'hidden' }}>
-          <ArticleForm
-            editing={false}
-            onSubmit={onSubmit}
-            handleClose={handleCloseCreate}
-            initialValues={{
-              article_name: '',
-              article_channel: '',
-            }}
-          />
+          <FormProvider {...methods}>
+            <form onSubmit={handleSubmit(onSubmit)}>
+              <ArticleForm
+                editing={false}
+                handleClose={() => isOpen(false)}
+              />
+            </form>
+          </FormProvider>
         </DialogContent>
       </Dialog>
     </>

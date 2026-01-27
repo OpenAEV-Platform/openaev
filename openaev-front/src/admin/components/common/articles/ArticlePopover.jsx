@@ -6,7 +6,7 @@ import ButtonPopover from '../../../../components/common/ButtonPopover';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { ArticleContext, PermissionsContext } from '../Context';
-import ArticleForm from './ArticleForm';
+import ArticleForm from './ArticleForm.tsx';
 
 const ArticlePopover = ({ article, onRemoveArticle, disabled = false }) => {
   // Standard hooks
