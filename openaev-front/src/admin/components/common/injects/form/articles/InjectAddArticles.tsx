@@ -144,7 +144,6 @@ const InjectAddArticles: FunctionComponent<Props> = ({
       buttonComponent={permissions.canManage
         ? (
             <CreateArticle
-              inline
               openCreate={openCreate}
               onCreate={onCreate}
               handleOpenCreate={handleOpenCreate}
