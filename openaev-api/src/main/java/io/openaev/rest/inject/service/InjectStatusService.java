@@ -27,6 +27,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
+import java.util.NoSuchElementException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -296,11 +297,15 @@ public class InjectStatusService {
 
     if (injectorContract != null
         && CalderaContract.TYPE.equals(injectorContract.getInjector().getType())) {
-      io.openaev.executors.Injector executor =
-          managerFactory
-              .getManager()
-              .requestInjectorExecutorByType(injectorContract.getInjector().getType());
-      return executor.getPayloadOutput(injectorContract.getId());
+      try {
+        io.openaev.executors.Injector executor =
+            managerFactory
+                .getManager()
+                .requestInjectorExecutorByType(injectorContract.getInjector().getType());
+        return executor.getPayloadOutput(injectorContract.getId());
+      } catch (NoSuchElementException ne) {
+        return null;
+      }
     }
 
     return injectUtils.getStatusPayloadFromInject(inject);
