@@ -6,10 +6,9 @@ import { makeStyles } from 'tss-react/mui';
 
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
-import {  type ArticleCreateInput } from '../../../../utils/api-types';
+import { type ArticleCreateInput } from '../../../../utils/api-types';
 import { ArticleContext } from '../Context';
-// @ts-ignore
-import ArticleForm from './ArticleForm.tsx';
+import ArticleForm from './ArticleForm';
 
 const useStyles = makeStyles()(theme => ({
   createButton: {
@@ -54,13 +53,7 @@ const CreateArticle = ({
   const { handleSubmit, reset } = methods;
 
   const onSubmit: SubmitHandler<ArticleCreateInput> = async (data) => {
-    const inputValues = {
-      ...data,
-      article_channel: typeof data.article_channel === 'object'
-        ? (data.article_channel as any).id
-        : data.article_channel,
-    };
-    const result = await onAddArticle(inputValues);
+    const result = await onAddArticle(data);
     if (result.result) {
       if (onCreate) {
         onCreate(result.result);
