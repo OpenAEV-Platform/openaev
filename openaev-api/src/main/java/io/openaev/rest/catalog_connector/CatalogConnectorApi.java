@@ -8,7 +8,6 @@ import io.openaev.rest.catalog_connector.dto.CatalogConnectorOutput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
-import io.openaev.utils.mapper.CatalogConnectorMapper;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
@@ -28,7 +27,6 @@ public class CatalogConnectorApi extends RestBehavior {
   public static final String CATALOG_CONNECTOR_URI = "/api/catalog-connector";
   private final CatalogConnectorService catalogConnectorService;
   private final FileService fileService;
-  private final CatalogConnectorMapper catalogConnectorMapper;
 
   @GetMapping(CATALOG_CONNECTOR_URI + "/undeployed")
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)

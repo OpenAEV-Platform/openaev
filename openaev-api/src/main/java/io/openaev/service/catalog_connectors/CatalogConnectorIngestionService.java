@@ -23,6 +23,7 @@ public class CatalogConnectorIngestionService {
   private static final Set<String> PROTECTED_KEYS =
       Set.of("COLLECTOR_ID", "INJECTOR_ID", "EXECUTOR_ID");
   private static final String openAEVKeyName = "OPENAEV_URL";
+  private static final String openAEVKeyToken = "OPENAEV_TOKEN";
   private final CatalogConnectorService catalogConnectorService;
   private final FileService fileService;
   private final ConnectorInstanceService connectorInstanceService;
@@ -152,7 +153,8 @@ public class CatalogConnectorIngestionService {
         boolean mustDeleteBecausePassword =
             schemaConf != null && isFormatPasswordButNotEncrypted(schemaConf, instConf);
 
-        if (keyRemovedFromSchema || mustDeleteBecausePassword) {
+        if ((keyRemovedFromSchema || mustDeleteBecausePassword)
+            && !instConf.getKey().equalsIgnoreCase(openAEVKeyToken)) {
           toDelete.add(instConf);
         }
       }

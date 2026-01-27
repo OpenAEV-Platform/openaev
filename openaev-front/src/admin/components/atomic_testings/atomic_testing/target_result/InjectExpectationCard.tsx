@@ -120,7 +120,7 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
           <Tooltip title={t('Add a result')}>
             <IconButton
               aria-label="Add"
-              onClick={() => onOpenEditInjectExpectationResultResult((injectExpectation?.inject_expectation_results || [])[0], injectExpectation)}
+              onClick={() => onOpenEditInjectExpectationResultResult(null, injectExpectation)}
             >
               {['DETECTION', 'PREVENTION'].includes(injectExpectation.inject_expectation_type)
                 ? <AddModeratorOutlined color="primary" fontSize="medium" />

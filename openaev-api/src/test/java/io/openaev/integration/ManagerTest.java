@@ -260,7 +260,7 @@ public class ManagerTest {
 
     assertThatThrownBy(() -> manager.request(cr, TestIntegrationComponent.class))
         .isInstanceOf(NoSuchElementException.class)
-        .hasMessage("No candidate for request");
+        .hasMessageContaining("No candidate found for");
   }
 
   @Test
@@ -275,6 +275,6 @@ public class ManagerTest {
 
     assertThatThrownBy(() -> manager.request(cr, TestIntegrationComponent.class))
         .isInstanceOf(NoSuchElementException.class)
-        .hasMessage("No candidate for request");
+        .hasMessageContaining("No candidate found for");
   }
 }
