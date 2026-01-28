@@ -1,7 +1,8 @@
 package io.openaev.service;
 
 import static io.openaev.config.SessionHelper.currentUser;
-import static io.openaev.utils.FileSecurityUtils.getSanitizedExtension;
+import static io.openaev.utils.SecurityUtils.getSanitizedExtension;
+import static io.openaev.utils.SecurityUtils.validatePathTraversal;
 import static io.openaev.utils.StringUtils.isValidUUID;
 import static java.util.Collections.emptyList;
 
@@ -16,7 +17,6 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.scenario.response.ImportMessage;
 import io.openaev.rest.scenario.response.ImportPostSummary;
 import io.openaev.rest.scenario.response.ImportTestSummary;
-import io.openaev.utils.FileSecurityUtils;
 import io.openaev.utils.InjectImportUtils;
 import io.openaev.utils.InjectUtils;
 import java.io.IOException;
@@ -93,8 +93,7 @@ public class InjectImportService {
       }
 
       // Writing the file in a temp dir
-      Path tempDir =
-          Files.createDirectory(FileSecurityUtils.validatePathTraversal(BASE_DIR, fileID));
+      Path tempDir = Files.createDirectory(validatePathTraversal(BASE_DIR, fileID));
 
       // Sanitize filename extracting only extension from the base name
       String extension = getSanitizedExtension(file);
@@ -299,7 +298,7 @@ public class InjectImportService {
 
       // We open the previously saved file
       // Ensure the resolved path is still within the temp directory
-      Path importDir = FileSecurityUtils.validatePathTraversal(BASE_DIR, importId);
+      Path importDir = validatePathTraversal(BASE_DIR, importId);
 
       Path file;
       try (Stream<Path> files = Files.list(importDir)) {

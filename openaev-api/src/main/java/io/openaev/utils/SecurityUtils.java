@@ -9,9 +9,9 @@ import java.util.Optional;
 import org.apache.commons.io.FilenameUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-public class FileSecurityUtils {
+public class SecurityUtils {
 
-  private FileSecurityUtils() {
+  private SecurityUtils() {
     // Utility class
   }
 
@@ -58,13 +58,20 @@ public class FileSecurityUtils {
   /**
    * Validates that the resolved uri does not escape the base directory.
    *
-   * @param stringUri to check
-   * @return the full checked uri
-   * @throws SecurityException when a path traversal attempt is detected
+   * @param ressourcePath to test
+   * @param filename to test
+   * @return constructed and validated URI
+   * @throws SecurityException if an error is detected
    */
-  public static URI validateUri(String stringUri) throws SecurityException {
+  public static URI validateJFrogUri(String ressourcePath, String filename)
+      throws SecurityException {
+    if (StringUtils.isBlank(ressourcePath) || StringUtils.isBlank(filename)) {
+      throw new SecurityException("Invalid URL format");
+    }
+
+    String stringUri = "https://filigran.jfrog.io/artifactory" + ressourcePath + filename;
     // Verify path traversals
-    if (stringUri != null && stringUri.contains("..")) {
+    if (stringUri.contains("..")) {
       throw new SecurityException("Path traversal detected in URL");
     }
 

@@ -4,6 +4,7 @@ import static io.openaev.database.specification.InjectorSpecification.byName;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.AgentUtils.AVAILABLE_ARCHITECTURES;
 import static io.openaev.utils.AgentUtils.AVAILABLE_PLATFORMS;
+import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -201,8 +202,7 @@ public class InjectorApi extends RestBehavior {
           "openaev-implant-"
               + executorOpenaevBinariesVersion
               + (platform.equals("windows") ? ".exe" : "");
-      in =
-          new BufferedInputStream(endpointService.getJFrogUrl(resourcePath, filename).openStream());
+      in = new BufferedInputStream(validateJFrogUri(resourcePath, filename).toURL().openStream());
     }
 
     if (in != null) {

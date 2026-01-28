@@ -8,8 +8,8 @@ import static io.openaev.executors.openaev.OpenAEVExecutor.OPENAEV_EXECUTOR_ID;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.ArchitectureFilterUtils.handleEndpointFilter;
-import static io.openaev.utils.FileSecurityUtils.*;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
+import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 import static io.openaev.utils.pagination.PaginationUtils.buildPageable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static java.time.Instant.now;
@@ -38,8 +38,6 @@ import jakarta.validation.constraints.NotNull;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -644,7 +642,7 @@ public class EndpointService {
     } else if (executorOpenaevBinariesOrigin.equals(
         "repository")) { // if we want a specific version from artifactory
       filename = file + "-" + executorOpenaevBinariesVersion + "." + extension;
-      in = new BufferedInputStream(getJFrogUrl(resourcePath, filename).openStream());
+      in = new BufferedInputStream(validateJFrogUri(resourcePath, filename).toURL().openStream());
     }
     if (in == null) {
       throw new UnsupportedOperationException(
@@ -806,17 +804,5 @@ public class EndpointService {
     return results.stream()
         .map(i -> new FilterUtilsJpa.Option((String) i[0], (String) i[1]))
         .toList();
-  }
-
-  /**
-   * Construct sanitized JFrog URL from resource path and filename
-   *
-   * @param resourcePath to file
-   * @param filename of the file
-   * @return sanitized URL
-   * @throws MalformedURLException if the url is not well formatted
-   */
-  public URL getJFrogUrl(String resourcePath, String filename) throws MalformedURLException {
-    return validateUri("https://filigran.jfrog.io/artifactory" + resourcePath + filename).toURL();
   }
 }
