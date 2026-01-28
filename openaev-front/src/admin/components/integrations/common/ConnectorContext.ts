@@ -22,6 +22,7 @@ export interface ConnectorOutput {
   isVerified: boolean;
   currentStatus?: ConnectorInstanceOutput['connector_instance_current_status'];
   isExternal?: boolean;
+  isExisting?: boolean;
 }
 
 export interface ConnectorContextType<T> {
@@ -63,6 +64,7 @@ export const injectorConfig: ConnectorContextType<InjectorOutput> = {
     isVerified: data?.is_verified ?? false,
     currentStatus: data?.current_status,
     isExternal: data?.injector_external,
+    isExisting: data?.existing_injector,
   }),
 };
 
@@ -83,6 +85,7 @@ export const collectorConfig: ConnectorContextType<CollectorOutput> = {
     isVerified: data?.is_verified ?? false,
     currentStatus: data?.current_status,
     isExternal: data?.collector_external,
+    isExisting: data?.existing_collector,
   }),
   routes: {
     list: '/admin/integrations/collectors',
@@ -110,6 +113,7 @@ export const executorConfig: ConnectorContextType<ExecutorOutput> = {
     updatedAt: data?.executor_updated_at,
     isVerified: data?.is_verified ?? false,
     currentStatus: data?.current_status,
+    isExisting: data?.existing_executor,
   }),
 };
 
