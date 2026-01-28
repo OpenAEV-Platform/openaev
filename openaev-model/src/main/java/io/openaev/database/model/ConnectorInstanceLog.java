@@ -43,5 +43,5 @@ public class ConnectorInstanceLog implements Base {
   @Column(name = "connector_instance_log_created_at")
   @JsonProperty("connector_instance_log_created_at")
   @Schema(description = "Connector instance log created at")
-  private Instant connector_instance_log_created_at;
+  private Instant connector_instance_log_created_at = Instant.now();
 }

@@ -59,7 +59,10 @@ public class Manager {
     }
 
     if (candidates.isEmpty()) {
-      throw new NoSuchElementException("No candidate for request");
+      throw new NoSuchElementException(
+          String.format(
+              "No candidate found for requestId=%s, requestedType=%s",
+              request.identifier(), requestedType.getCanonicalName()));
     }
 
     return candidates.getFirst();

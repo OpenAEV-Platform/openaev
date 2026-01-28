@@ -31,8 +31,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional
 public class ConnectorOrchestrationService {
-  private final String openAEVPrefix = "openaev_";
-
   private final ConnectorInstanceService connectorInstanceService;
   private final XtmComposerService xtmComposerService;
   private final Ee eeService;
@@ -128,12 +126,11 @@ public class ConnectorOrchestrationService {
       throws DataIntegrityViolationException {
     BaseConnectorEntity connector;
     if (ConnectorType.COLLECTOR.equals(catalogConnectorType)) {
-      connector =
-          collectorService.findCollectorByType(openAEVPrefix + catalogConnectorSlug).orElse(null);
+      connector = collectorService.findCollectorByType(catalogConnectorSlug).orElse(null);
     } else if (ConnectorType.INJECTOR.equals(catalogConnectorType)) {
-      connector = injectorService.injectorByType(openAEVPrefix + catalogConnectorSlug).orElse(null);
+      connector = injectorService.injectorByType(catalogConnectorSlug).orElse(null);
     } else {
-      connector = executorService.executorByType(openAEVPrefix + catalogConnectorSlug).orElse(null);
+      connector = executorService.executorByType(catalogConnectorSlug).orElse(null);
     }
     if (connector != null) {
       throw new DataIntegrityViolationException(
@@ -146,6 +143,13 @@ public class ConnectorOrchestrationService {
       throws DataIntegrityViolationException {
     throwIfConnectorInstanceAlreadyExist(catalogConnectorId);
     throwIfConnectorAlreadyExist(catalogConnectorSlug, catalogConnectorType);
+  }
+
+  private void cleanDummyInjectorsIfItExists(
+      String catalogConnectorSlug, ConnectorType catalogConnectorType) {
+    if (ConnectorType.INJECTOR.equals(catalogConnectorType)) {
+      injectorService.deleteDummyInjectorIfItExists(catalogConnectorSlug);
+    }
   }
 
   /**
@@ -203,7 +207,14 @@ public class ConnectorOrchestrationService {
         catalogConnectorWithConfigMap.catalogConnector.getSlug(),
         catalogConnectorWithConfigMap.catalogConnector.getContainerType());
 
-    return connectorInstanceService.createConnectorInstance(catalogConnectorWithConfigMap, input);
+    ConnectorInstancePersisted connectorInstance =
+        connectorInstanceService.createConnectorInstance(catalogConnectorWithConfigMap, input);
+
+    cleanDummyInjectorsIfItExists(
+        catalogConnectorWithConfigMap.catalogConnector.getSlug(),
+        catalogConnectorWithConfigMap.catalogConnector.getContainerType());
+
+    return connectorInstance;
   }
 
   /**

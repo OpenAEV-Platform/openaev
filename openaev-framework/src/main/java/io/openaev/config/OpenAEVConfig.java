@@ -120,6 +120,10 @@ public class OpenAEVConfig {
   @Value("${openbas.with-proxy:${openaev.with-proxy:false}}")
   private boolean withProxy;
 
+  @JsonProperty("max_size")
+  @Value("${openaev.implant-logs-max-size:1000000}")
+  private int logsMaxSize;
+
   @JsonProperty("extra_trusted_certs_dir")
   @Value("${openbas.extra-trusted-certs-dir:${openaev.extra-trusted-certs-dir:#{null}}}")
   private String extraTrustedCertsDir;

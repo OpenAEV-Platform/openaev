@@ -122,7 +122,7 @@ const WidgetWrapper = ({
             case WidgetVizDataType.AVERAGE:
               setVizData({
                 type: WidgetVizDataType.AVERAGE,
-                data: determinePercentage(response.data as EsAvgs),
+                data: determinePercentage(response.data as EsAvgs, theme),
               });
               break;
             default: break;

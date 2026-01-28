@@ -92,11 +92,11 @@ public class OpenCTIInjectorIntegrationFactory extends IntegrationFactory {
     connector.setLogoUrl(logoFilename);
     connector.setDescription(
         """
-                        Description opencti
+                        Allow OAEV to create report and case based on OpenCTI injector
                         """);
-    connector.setShortDescription("short description opencti");
+    connector.setShortDescription("Allow OAEV to create report and case based on OpenCTI injector");
     connector.setClassName(getClassName());
-    connector.setSubscriptionLink("");
+    connector.setSubscriptionLink("https://filigran.io/platforms/opencti/");
     connector.setContainerType(ConnectorType.INJECTOR);
     connector.setCatalogConnectorConfigurations(
         new OpenCTIInjectorConfig().toCatalogConfigurationSet(connector));
