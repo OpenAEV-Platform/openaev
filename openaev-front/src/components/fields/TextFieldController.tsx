@@ -65,18 +65,17 @@ const TextFieldController = ({
       control={control}
       defaultValue={defaultValue}
       render={({ field, fieldState: { error } }) => {
-        const isMasked = writeOnly && isOriginalValue && Boolean(field.value);
+        const isMasked = writeOnly && isOriginalValue && !!field.value;
 
         const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
           // First user input replaces the masked value
           if (isMasked) {
             const next = stripDots(e.target.value);
             field.onChange(next);
-            setIsOriginalValue(false);
-            return;
+          } else {
+            field.onChange(e);
           }
-          field.onChange(e);
-          if (isOriginalValue) setIsOriginalValue(false);
+          setIsOriginalValue(false);
         };
 
         return (
