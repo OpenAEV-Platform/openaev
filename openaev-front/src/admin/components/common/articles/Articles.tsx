@@ -158,7 +158,6 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
           } else if (headersDocs.length >= 4) {
             columns = 3;
           }
-          // const shouldBeTruncated = (article.article_content || '').length > 500;
           return (
             <Grid key={article.article_id} size={{ xs: 4 }} style={index < 3 ? { paddingTop: 0 } : undefined}>
               <Card
@@ -203,7 +202,7 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
                       >
                         <VisibilityOutlined />
                       </IconButton>
-                      <ArticlePopover article={article} onRemoveArticle={undefined} />
+                      <ArticlePopover article={article} />
                     </Fragment>
                   )}
                 />
