@@ -1,4 +1,4 @@
-import { Box } from '@mui/material';
+import { Box, Checkbox } from '@mui/material';
 import type { CSSProperties } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
@@ -70,6 +70,7 @@ const DomainFieldController = ({
                     py: 1,
                   }}
                 >
+                  <Checkbox checked={currentIds.includes(option.id)} style={{ marginRight: 8 }} />
                   {option.label}
                 </Box>
               );

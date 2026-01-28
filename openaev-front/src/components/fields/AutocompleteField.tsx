@@ -182,10 +182,9 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
       renderOption={(liProps, option) => {
         if (props.renderOption) {
           const custom = props.renderOption(liProps, option);
-          if (custom === null) {
-            return null;
+          if (custom !== undefined) {
+            return custom;
           }
-          return custom;
         }
 
         return defaultRenderOption(liProps, option);
