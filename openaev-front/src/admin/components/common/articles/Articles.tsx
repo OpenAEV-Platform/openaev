@@ -1,5 +1,8 @@
 import { ChatBubbleOutlineOutlined, FavoriteBorderOutlined, NewspaperOutlined, ShareOutlined, VisibilityOutlined } from '@mui/icons-material';
-import { Avatar, Button, Card, CardContent, CardHeader, CardMedia, Chip, GridLegacy, IconButton, Tooltip, Typography } from '@mui/material';
+import {
+  Avatar, Button, Card, CardContent, CardHeader, CardMedia, Chip,
+  Grid, IconButton, Tooltip, Typography,
+} from '@mui/material';
 import { green, orange } from '@mui/material/colors';
 import * as R from 'ramda';
 import { Fragment, type FunctionComponent, useContext, useState } from 'react';
@@ -100,8 +103,6 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
         <CreateArticle
           openCreate={openCreate}
           isOpen={setOpenCreate}
-          // handleOpenCreate={handleOpenCreate}
-          // handleCloseCreate={handleCloseCreate}
         />
       )}
       {fullArticles.length > 0 && (
@@ -134,7 +135,7 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
         )}
         />
       )}
-      <GridLegacy container spacing={3}>
+      <Grid container spacing={3}>
         {sortedArticles.map((article, index) => {
           const docs = (article.article_documents ?? [])
             .map(docId => (documentsMap[docId] ? documentsMap[docId] : undefined))
@@ -159,7 +160,7 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
           }
           // const shouldBeTruncated = (article.article_content || '').length > 500;
           return (
-            <GridLegacy key={article.article_id} item xs={4} style={index < 3 ? { paddingTop: 0 } : undefined}>
+            <Grid key={article.article_id} size={{ xs: 4 }} style={index < 3 ? { paddingTop: 0 } : undefined}>
               <Card
                 variant="outlined"
                 classes={{ root: classes.card }}
@@ -206,9 +207,9 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
                     </Fragment>
                   )}
                 />
-                <GridLegacy container={true} spacing={3}>
+                <Grid container={true} spacing={3}>
                   {headersDocs.map(doc => (
-                    <GridLegacy key={doc.document_id} item xs={columns}>
+                    <Grid key={doc.document_id} size={{ xs: columns }}>
                       {doc.document_type.includes('image/') && (
                         <CardMedia
                           component="img"
@@ -224,9 +225,9 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
                           controls
                         />
                       )}
-                    </GridLegacy>
+                    </Grid>
                   ))}
-                </GridLegacy>
+                </Grid>
                 <CardContent style={{ marginBottom: 30 }}>
                   <Typography
                     gutterBottom
@@ -290,10 +291,10 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
                   </div>
                 </CardContent>
               </Card>
-            </GridLegacy>
+            </Grid>
           );
         })}
-      </GridLegacy>
+      </Grid>
     </div>
   );
 };
