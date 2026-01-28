@@ -38,7 +38,7 @@ const useConnectorInstanceForm = (
 
       const initialConfigurations: ConfigurationInput[] = Object.entries(defMap).map(([key, def]) => {
         const matchingValues = instanceConfigs.find(v => v.connector_instance_configuration_key === key)?.connector_instance_configuration_value;
-        const value = matchingValues ? matchingValues : (def.connector_configuration_default || '');
+        const value = matchingValues ? matchingValues : (def.connector_configuration_default ?? '');
         return {
           configuration_key: key,
           configuration_value: def.connector_configuration_type == 'INTEGER' ? value.toString() : value,

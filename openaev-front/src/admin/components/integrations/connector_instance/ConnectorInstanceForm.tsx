@@ -215,6 +215,7 @@ const ConnectorInstanceForm = ({
   return (
     <FormProvider {...methods}>
       <form
+        noValidate // disabled tooltip
         style={{
           display: 'flex',
           flexDirection: 'column',
@@ -284,7 +285,7 @@ const ConnectorInstanceForm = ({
                   >
                     <InjectContentFieldComponent
                       key={field.id}
-                      field={formatCatalogConnectorConfigurationToObject(definition, index, true)}
+                      field={formatCatalogConnectorConfigurationToObject(definition, index, false)}
                       readOnly={disabled}
                     />
                     <Tooltip title={definition.connector_configuration_description}>
