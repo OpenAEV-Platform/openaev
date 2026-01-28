@@ -17,7 +17,6 @@ import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.injector.form.InjectorCreateInput;
 import io.openaev.rest.injector.form.InjectorUpdateInput;
 import io.openaev.rest.injector.response.InjectorRegistration;
-import io.openaev.service.EndpointService;
 import io.openaev.service.InjectorService;
 import io.openaev.utils.FilterUtilsJpa;
 import jakarta.transaction.Transactional;
