@@ -83,7 +83,7 @@ const AgentList: FunctionComponent<Props> = ({ agents }) => {
         }
 
         const { executor_type, executor_name } = executor;
-        const showEEChip = !settings.platform_license?.license_is_validated && (executor_type === 'openaev_tanium' || executor_type === 'openaev_crowdstrike' || executor_type === 'openaev_sentinelone');
+        const showEEChip = !settings.platform_license?.license_is_validated && (executor_type === 'openaev_tanium' || executor_type === 'openaev_crowdstrike_executor' || executor_type === 'openaev_sentinelone_executor');
 
         return (
           <>

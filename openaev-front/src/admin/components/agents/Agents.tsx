@@ -20,9 +20,9 @@ import PlatformSelector from './PlatformSelector';
 
 const OPENAEV_CALDERA = 'openaev_caldera';
 const OPENAEV_AGENT = 'openaev_agent';
-const OPENAEV_CROWDSTRIKE = 'openaev_crowdstrike';
+const OPENAEV_CROWDSTRIKE = 'openaev_crowdstrike_executor';
 const OPENAEV_TANIUM = 'openaev_tanium';
-const OPENAEV_SENTINELONE = 'openaev_sentinelone';
+const OPENAEV_SENTINELONE = 'openaev_sentinelone_executor';
 
 const Executors = () => {
   // Standard hooks
