@@ -4,7 +4,7 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
-import io.openaev.integration.local_fixtures.TestIntegration;
+import io.openaev.integration.local_fixtures.regular.TestIntegration;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.lang.reflect.Field;

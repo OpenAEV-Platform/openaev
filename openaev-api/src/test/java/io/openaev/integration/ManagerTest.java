@@ -11,7 +11,9 @@ import io.openaev.database.model.ConnectorInstanceConfiguration;
 import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
-import io.openaev.integration.local_fixtures.*;
+import io.openaev.integration.local_fixtures.factory_throws.TestIntegrationFactoryInitThrows;
+import io.openaev.integration.local_fixtures.integration_throws.TestIntegrationFactoryIntegrationThrows;
+import io.openaev.integration.local_fixtures.regular.*;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -65,6 +67,37 @@ public class ManagerTest {
         componentRequestEngine,
         httpClientFactory,
         encryptionFactory);
+  }
+
+  private IntegrationFactory getFactoryWithThrowingIntegration() {
+    return new TestIntegrationFactoryIntegrationThrows(
+        connectorInstanceService,
+        catalogConnectorService,
+        httpClientFactory,
+        componentRequestEngine);
+  }
+
+  @Test
+  @DisplayName("When new integration throws at initialise don't prevent others from initialising")
+  public void whenNewIntegrationThrowsAtInitialise_dontPreventOthersFromInitialising() throws Exception {
+    Manager manager = new Manager(List.of(getRegularFactory(), getFactoryWithThrowingIntegration()));
+
+    manager.monitorIntegrations();
+
+    List<ConnectorInstancePersisted> instances = fromIterable(connectorInstanceRepository.findAll());
+
+    assertThat(instances).hasSize(1);
+
+    ConnectorInstance singleInstance = instances.getFirst();
+    assertThat(singleInstance.getConfigurations()).hasSize(1);
+
+    ConnectorInstanceConfiguration configItem =
+            singleInstance.getConfigurations().stream().findFirst().get();
+    assertThat(configItem.getConnectorInstance()).isEqualTo(singleInstance);
+    assertThat(configItem.getKey()).isEqualTo("TEST_INTEGRATION_ID");
+    assertThat(configItem.getValue().asText())
+            .isEqualTo(TestIntegrationConfiguration.TEST_INTEGRATION_ID);
+    assertThat(configItem.isEncrypted()).isFalse();
   }
 
   @Test
