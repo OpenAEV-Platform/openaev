@@ -6,7 +6,9 @@ import io.openaev.integration.Integration;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 
 public class TestIntegrationStartThrows extends Integration {
-  protected TestIntegrationStartThrows(
+  public static final String THROWING_INTEGRATION_ID = "cc35b890-3d4a-4a1f-842b-857736f34783";
+
+  public TestIntegrationStartThrows(
       ComponentRequestEngine componentRequestEngine,
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService) {

@@ -1,5 +1,7 @@
 package io.openaev.integration.local_fixtures.integration_throws;
 
+import static io.openaev.integration.local_fixtures.integration_throws.TestIntegrationStartThrows.THROWING_INTEGRATION_ID;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.ConnectorInstance;
@@ -7,7 +9,6 @@ import io.openaev.database.model.ConnectorType;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
-import io.openaev.integration.impl.injectors.email.EmailInjectorIntegration;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.lang.reflect.InvocationTargetException;
@@ -35,14 +36,14 @@ public class TestIntegrationFactoryIntegrationThrows extends IntegrationFactory 
 
   @Override
   protected String getClassName() {
-    return "";
+    return this.getClass().getCanonicalName();
   }
 
   @Override
   public List<ConnectorInstance> findRelatedInstances() {
     return List.of(
-            connectorInstanceService.createAutostartInstance(
-                    "cc35b890-3d4a-4a1f-842b-857736f34783", ConnectorType.INJECTOR));
+        connectorInstanceService.createAutostartInstance(
+            THROWING_INTEGRATION_ID, this.getClassName(), ConnectorType.INJECTOR));
   }
 
   @Override

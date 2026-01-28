@@ -100,10 +100,10 @@ public class Manager {
         }
       } catch (Exception e) {
         log.error(
-            "There was a problem maintaining the state of integration {}.",
+            "There was a problem maintaining the state of integration id '{}' of type {}.",
+            entry.getKey().getId(),
             entry.getValue().getClass().getCanonicalName(),
             e);
-        throw e;
         // do not rethrow; don't break the loop
       }
     }

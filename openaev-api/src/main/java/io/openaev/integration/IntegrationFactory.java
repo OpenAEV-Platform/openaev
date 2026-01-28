@@ -45,12 +45,11 @@ public abstract class IntegrationFactory {
         list.add(integration);
       } catch (Exception e) {
         log.error(
-            "There was a problem initialising the integration from instance {} of type {}.",
+            "There was a problem initialising the integration from instance id '{}' from factory type {}.",
             connectorInstance.getId(),
             connectorInstance.getClassName(),
             e);
         // do not rethrow; don't break the loop
-        throw e;
       }
     }
     return list;

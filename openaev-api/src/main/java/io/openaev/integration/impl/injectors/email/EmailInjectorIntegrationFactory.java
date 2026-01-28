@@ -69,7 +69,9 @@ public class EmailInjectorIntegrationFactory extends IntegrationFactory {
   public List<ConnectorInstance> findRelatedInstances() {
     return List.of(
         connectorInstanceService.createAutostartInstance(
-            EmailInjectorIntegration.EMAIL_INJECTOR_ID, ConnectorType.INJECTOR));
+            EmailInjectorIntegration.EMAIL_INJECTOR_ID,
+            this.getClassName(),
+            ConnectorType.INJECTOR));
   }
 
   @Override

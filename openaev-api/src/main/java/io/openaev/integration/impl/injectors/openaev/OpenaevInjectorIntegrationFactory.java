@@ -76,7 +76,9 @@ public class OpenaevInjectorIntegrationFactory extends IntegrationFactory {
   public List<ConnectorInstance> findRelatedInstances() {
     return List.of(
         connectorInstanceService.createAutostartInstance(
-            OpenaevInjectorIntegration.OPENAEV_INJECTOR_ID, ConnectorType.INJECTOR));
+            OpenaevInjectorIntegration.OPENAEV_INJECTOR_ID,
+            this.getClassName(),
+            ConnectorType.INJECTOR));
   }
 
   @Override
