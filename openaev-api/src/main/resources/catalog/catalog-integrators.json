@@ -6,7 +6,7 @@
     "contracts": [
         {
             "title": "Crowdstrike",
-            "slug": "openaev_crowdstrike_collector",
+            "slug": "openaev_crowdstrike",
             "description": "Collect responses from Crowdstrike EDR",
             "short_description": "Collect responses from Crowdstrike EDR",
             "use_cases": [
@@ -896,26 +896,26 @@
                         "type": "string"
                     },
                     "NVDNISTCVE_API_KEY": {
-                        "description": "The nvd nst cve API key.",
+                        "default": "",
+                        "description": "The NVD API key.",
                         "format": "password",
                         "type": "string",
                         "writeOnly": true
                     },
                     "NVDNISTCVE_API_BASE_URL": {
                         "default": "https://services.nvd.nist.gov/rest/json",
-                        "description": "The base URL for the nvd nst cve APIs. ",
+                        "description": "The base URL for the NVD APIs. ",
                         "type": "string"
                     },
                     "NVDNISTCVE_START_YEAR": {
                         "default": "2019",
-                        "description": "The nvd nst cve start year.",
+                        "description": "The earliest year from which to start fetching CVEs.",
                         "type": "string"
                     }
                 },
                 "required": [
                     "OPENAEV_URL",
-                    "OPENAEV_TOKEN",
-                    "NVDNISTCVE_API_KEY"
+                    "OPENAEV_TOKEN"
                 ],
                 "additionalProperties": true
             }
@@ -1529,7 +1529,7 @@
         },
         {
             "title": "SentinelOne",
-            "slug": "openaev_sentinelone_collector",
+            "slug": "openaev_sentinelone",
             "description": "Collect responses from SentinelOne",
             "short_description": "Collect responses from SentinelOne",
             "use_cases": [
