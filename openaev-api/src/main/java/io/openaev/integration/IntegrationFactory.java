@@ -35,7 +35,7 @@ public abstract class IntegrationFactory {
     runMigrations();
   }
 
-  public List<Integration> sync(List<ConnectorInstance> instances) throws Exception {
+  public List<Integration> sync(List<ConnectorInstance> instances) {
     List<Integration> list = new ArrayList<>();
     for (ConnectorInstance connectorInstance : instances) {
       try {

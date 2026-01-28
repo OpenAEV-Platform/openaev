@@ -78,7 +78,7 @@ public class Manager {
 
   /** Not thread-safe */
   @Transactional
-  public void monitorIntegrations() throws Exception {
+  public void monitorIntegrations() {
     for (IntegrationFactory factory : factories) {
       List<ConnectorInstance> newInstances =
           factory.findRelatedInstances().stream()
