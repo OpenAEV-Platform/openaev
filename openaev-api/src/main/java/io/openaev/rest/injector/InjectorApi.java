@@ -57,7 +57,6 @@ public class InjectorApi extends RestBehavior {
   private final InjectorContractRepository injectorContractRepository;
   private final InjectStatusService injectStatusService;
   private final InjectorService injectorService;
-  private final EndpointService endpointService;
 
   @GetMapping("/api/injectors")
   @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
