@@ -484,9 +484,11 @@ public class ConnectorInstanceService {
     return instance;
   }
 
-  public ConnectorInstance createAutostartInstance(String connectorId, ConnectorType type) {
+  public ConnectorInstance createAutostartInstance(
+      String connectorId, String className, ConnectorType type) {
     ConnectorInstanceInMemory instance = new ConnectorInstanceInMemory();
     instance.setId(connectorId);
+    instance.setClassName(className);
     instance.setRequestedStatus(ConnectorInstancePersisted.REQUESTED_STATUS_TYPE.starting);
     instance.setCurrentStatus(ConnectorInstancePersisted.CURRENT_STATUS_TYPE.stopped);
     ConnectorInstanceConfiguration conf =

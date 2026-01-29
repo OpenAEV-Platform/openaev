@@ -53,7 +53,9 @@ public class OpenAEVExecutorIntegrationFactory extends IntegrationFactory {
   public List<ConnectorInstance> findRelatedInstances() {
     return List.of(
         connectorInstanceService.createAutostartInstance(
-            OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID, ConnectorType.EXECUTOR));
+            OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID,
+            this.getClassName(),
+            ConnectorType.EXECUTOR));
   }
 
   @Override

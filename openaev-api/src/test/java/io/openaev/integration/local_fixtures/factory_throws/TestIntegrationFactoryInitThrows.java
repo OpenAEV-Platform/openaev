@@ -1,4 +1,4 @@
-package io.openaev.integration.local_fixtures;
+package io.openaev.integration.local_fixtures.factory_throws;
 
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.CatalogConnector;
@@ -8,6 +8,9 @@ import io.openaev.database.model.ConnectorType;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
+import io.openaev.integration.local_fixtures.regular.TestIntegration;
+import io.openaev.integration.local_fixtures.regular.TestIntegrationConfiguration;
+import io.openaev.integration.local_fixtures.regular.TestIntegrationConfigurationMigration;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
