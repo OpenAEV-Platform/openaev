@@ -29,6 +29,7 @@
         <jacoco-plugin.version>0.8.14</jacoco-plugin.version>
         <pyroscope.version>2.1.2</pyroscope.version>
         <spring-security-crypto.version>6.5.7</spring-security-crypto.version>
+        <deepl-java.version>1.14.0</deepl-java.version>
     </properties>
 
     <distributionManagement>
@@ -81,6 +82,11 @@
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-crypto</artifactId>
             <version>${spring-security-crypto.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.deepl.api</groupId>
+            <artifactId>deepl-java</artifactId>
+            <version>${deepl-java.version}</version>
         </dependency>
     </dependencies>
 
