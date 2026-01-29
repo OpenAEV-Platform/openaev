@@ -1,7 +1,6 @@
 package io.openaev.executors.paloaltocortex.service;
 
-import static io.openaev.executors.ExecutorHelper.UNIX_CLEAN_PAYLOADS_COMMAND;
-import static io.openaev.executors.ExecutorHelper.WINDOWS_CLEAN_PAYLOADS_COMMAND;
+import static io.openaev.executors.ExecutorHelper.*;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
 import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_TYPE;
 
@@ -9,6 +8,8 @@ import io.openaev.database.model.Agent;
 import io.openaev.database.model.Endpoint;
 import io.openaev.executors.paloaltocortex.config.PaloAltoCortexExecutorConfig;
 import io.openaev.executors.paloaltocortex.model.PaloAltoCortexAction;
+import io.openaev.executors.paloaltocortex.model.PaloAltoCortexCommand;
+import io.openaev.executors.paloaltocortex.model.PaloAltoCortexCommandList;
 import io.openaev.service.AgentService;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -44,10 +45,14 @@ public class PaloAltoCortexGarbageCollectorService implements Runnable {
         PaloAltoCortexAction action = new PaloAltoCortexAction();
         action.setAgentExternalReference(agent.getExternalReference());
         action.setScriptId(this.config.getWindowsScriptId());
-        action.setCommandEncoded(
-            Base64.getEncoder()
-                .encodeToString(
-                    WINDOWS_CLEAN_PAYLOADS_COMMAND.getBytes(StandardCharsets.UTF_16LE)));
+        PaloAltoCortexCommandList commandWindows = new PaloAltoCortexCommandList();
+        commandWindows.setCommands_list(
+            List.of(
+                POWERSHELL_CMD
+                    + Base64.getEncoder()
+                        .encodeToString(
+                            WINDOWS_CLEAN_PAYLOADS_COMMAND.getBytes(StandardCharsets.UTF_16LE))));
+        action.setCommandWindows(commandWindows);
         actions.add(action);
       }
       List<Agent> unixAgents = new ArrayList<>();
@@ -57,9 +62,11 @@ public class PaloAltoCortexGarbageCollectorService implements Runnable {
         PaloAltoCortexAction action = new PaloAltoCortexAction();
         action.setAgentExternalReference(agent.getExternalReference());
         action.setScriptId(this.config.getUnixScriptId());
-        action.setCommandEncoded(
+        PaloAltoCortexCommand commandUnix = new PaloAltoCortexCommand();
+        commandUnix.setCommand(
             Base64.getEncoder()
                 .encodeToString(UNIX_CLEAN_PAYLOADS_COMMAND.getBytes(StandardCharsets.UTF_8)));
+        action.setCommandUnix(commandUnix);
         actions.add(action);
       }
       paloAltoCortexExecutorContextService.executeActions(actions);

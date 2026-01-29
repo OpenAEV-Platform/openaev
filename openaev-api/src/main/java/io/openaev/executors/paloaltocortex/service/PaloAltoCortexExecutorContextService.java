@@ -10,10 +10,11 @@ import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorHelper;
 import io.openaev.executors.ExecutorService;
-import io.openaev.executors.exception.ExecutorException;
 import io.openaev.executors.paloaltocortex.client.PaloAltoCortexExecutorClient;
 import io.openaev.executors.paloaltocortex.config.PaloAltoCortexExecutorConfig;
 import io.openaev.executors.paloaltocortex.model.PaloAltoCortexAction;
+import io.openaev.executors.paloaltocortex.model.PaloAltoCortexCommand;
+import io.openaev.executors.paloaltocortex.model.PaloAltoCortexCommandList;
 import jakarta.validation.constraints.NotNull;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -53,10 +54,6 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
     eeService.throwEEExecutorService(
         licenseCacheManager.getEnterpriseEditionInfo(), SERVICE_NAME, injectStatus);
 
-    if (!this.config.isEnable()) {
-      throw new ExecutorException(
-          "Fatal error: Palo Alto Cortex executor is not enabled", PALOALTOCORTEX_EXECUTOR_NAME);
-    }
     List<Agent> paloAltoCortexAgents = new ArrayList<>(agents);
 
     // Sometimes, assets from agents aren't fetched even with the EAGER property from Hibernate
@@ -115,7 +112,9 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
                       this.client.executeScript(
                           action.getAgentExternalReference(),
                           action.getScriptId(),
-                          action.getCommandEncoded())),
+                          action.getCommandWindows() != null
+                              ? action.getCommandWindows()
+                              : action.getCommandUnix())),
           batchIndex * 5L,
           TimeUnit.SECONDS);
     }
@@ -153,8 +152,13 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
           command.replaceFirst(
               "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",
               Matcher.quoteReplacement(implantLocation));
-      actionWindows.setCommandEncoded(
-          Base64.getEncoder().encodeToString(command.getBytes(StandardCharsets.UTF_16LE)));
+      PaloAltoCortexCommandList commandWindows = new PaloAltoCortexCommandList();
+      commandWindows.setCommands_list(
+          List.of(
+              POWERSHELL_CMD
+                  + Base64.getEncoder()
+                      .encodeToString(command.getBytes(StandardCharsets.UTF_16LE))));
+      actionWindows.setCommandWindows(commandWindows);
       actionWindows.setAgentExternalReference(agent.getExternalReference());
       actions.add(actionWindows);
     }
@@ -186,7 +190,9 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
       command =
           command.replaceFirst(
               "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));
-      actionUnix.setCommandEncoded(Base64.getEncoder().encodeToString(command.getBytes()));
+      PaloAltoCortexCommand commandUnix = new PaloAltoCortexCommand();
+      commandUnix.setCommand(Base64.getEncoder().encodeToString(command.getBytes()));
+      actionUnix.setCommandUnix(commandUnix);
       actionUnix.setAgentExternalReference(agent.getExternalReference());
       actions.add(actionUnix);
     }

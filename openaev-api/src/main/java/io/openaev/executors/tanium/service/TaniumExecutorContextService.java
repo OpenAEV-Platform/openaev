@@ -10,7 +10,6 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorHelper;
 import io.openaev.executors.ExecutorService;
-import io.openaev.executors.exception.ExecutorException;
 import io.openaev.executors.tanium.client.TaniumExecutorClient;
 import io.openaev.executors.tanium.config.TaniumExecutorConfig;
 import io.openaev.executors.tanium.model.TaniumAction;
@@ -53,11 +52,6 @@ public class TaniumExecutorContextService extends ExecutorContextService {
 
     enterpriseEditionService.throwEEExecutorService(
         licenseCacheManager.getEnterpriseEditionInfo(), SERVICE_NAME, injectStatus);
-
-    if (!this.taniumExecutorConfig.isEnable()) {
-      throw new ExecutorException(
-          "Fatal error: Tanium executor is not enabled", TANIUM_EXECUTOR_NAME);
-    }
 
     List<Agent> taniumAgents = new ArrayList<>(agents);
 

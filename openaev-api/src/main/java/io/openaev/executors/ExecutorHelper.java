@@ -22,6 +22,9 @@ public class ExecutorHelper {
   public static final String WINDOWS_ARCH =
       "switch ($env:PROCESSOR_ARCHITECTURE) { \"AMD64\" {$architecture = \"x86_64\"; Break} \"ARM64\" {$architecture = \"arm64\"; Break} \"x86\" { switch ($env:PROCESSOR_ARCHITEW6432) { \"AMD64\" {$architecture = \"x86_64\"; Break} \"ARM64\" {$architecture = \"arm64\"; Break} } } };";
   public static final String UNIX_ARCH = "architecture=$(uname -m);";
+  // PowerShell command for base64 implant command to decode
+  public static final String POWERSHELL_CMD =
+      "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -NonInteractive -NoProfile -encodedCommand ";
 
   private ExecutorHelper() {}
 

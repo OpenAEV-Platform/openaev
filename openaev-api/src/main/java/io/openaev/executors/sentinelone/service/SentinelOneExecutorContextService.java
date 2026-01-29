@@ -10,7 +10,6 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorHelper;
 import io.openaev.executors.ExecutorService;
-import io.openaev.executors.exception.ExecutorException;
 import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
 import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.executors.sentinelone.model.SentinelOneAction;
@@ -64,10 +63,6 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
     enterpriseEditionService.throwEEExecutorService(
         licenseCacheManager.getEnterpriseEditionInfo(), SERVICE_NAME, injectStatus);
 
-    if (!this.config.isEnable()) {
-      throw new ExecutorException(
-          "Fatal error: SentinelOne executor is not enabled", SENTINELONE_EXECUTOR_NAME);
-    }
     List<Agent> sentinelOneAgents = new ArrayList<>(agents);
 
     // Sometimes, assets from agents aren't fetched even with the EAGER property from Hibernate

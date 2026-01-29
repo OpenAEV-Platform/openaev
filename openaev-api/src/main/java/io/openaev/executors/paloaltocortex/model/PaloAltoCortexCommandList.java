@@ -6,9 +6,7 @@ import lombok.Data;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class BodyScriptRun {
+public class PaloAltoCortexCommandList {
 
-  private List<PaloAltoCortexFilter> filters;
-  private String script_uid;
-  private Object parameters_values;
+  private List<String> commands_list;
 }

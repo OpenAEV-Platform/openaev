@@ -7,8 +7,6 @@ import lombok.Data;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class PaloAltoCortexEndpoint {
 
-  private String group_name;
-
   private String endpoint_id;
   private String endpoint_name;
   private String os_type;

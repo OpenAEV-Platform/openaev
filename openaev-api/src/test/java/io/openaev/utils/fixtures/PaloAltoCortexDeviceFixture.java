@@ -13,7 +13,6 @@ public class PaloAltoCortexDeviceFixture {
     endpoint.setMac_address(new String[] {"aa:aa:aa:aa:aa:aa"});
     endpoint.setPublic_ip("192.168.1.1");
     endpoint.setLast_seen(1769086767939L);
-    endpoint.setGroup_name("groupName");
     return endpoint;
   }
 }

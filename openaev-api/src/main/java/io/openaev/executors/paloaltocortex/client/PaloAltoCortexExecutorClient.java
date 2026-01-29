@@ -92,15 +92,19 @@ public class PaloAltoCortexExecutorClient {
       PaloAltoCortexFilter filterLastSeen = new PaloAltoCortexFilter();
       filterLastSeen.setField("last_seen");
       filterLastSeen.setOperator("gte");
-      filterLastSeen.setValue(
-          List.of(
-              String.valueOf(
-                  Instant.now().minusMillis(EndpointService.DELETE_TTL).toEpochMilli())));
+      Instant dateLastSeen = Instant.now().minusMillis(EndpointService.DELETE_TTL);
+      filterLastSeen.setValue(dateLastSeen.toEpochMilli());
       bodyEndpoint.setFilters(List.of(filterGroupName, filterLastSeen));
       Map<String, Object> bodyCommand = new HashMap<>();
       bodyCommand.put("request_data", bodyEndpoint);
       String jsonResponse = this.post(ENDPOINTS_URI, bodyCommand);
-      return this.objectMapper.readValue(jsonResponse, new TypeReference<>() {});
+      if (jsonResponse.isBlank()) {
+        ResponseEndpoint response = new ResponseEndpoint();
+        response.setReply(new PaloAltoCortexEndpointReply());
+        return response;
+      } else {
+        return this.objectMapper.readValue(jsonResponse, new TypeReference<>() {});
+      }
     } catch (IOException e) {
       log.error(
           String.format(
@@ -118,17 +122,16 @@ public class PaloAltoCortexExecutorClient {
    * @param scriptId to use for the payload
    * @param command to use for the payload
    */
-  public void executeScript(String agentExternalReference, String scriptId, String command) {
+  public void executeScript(String agentExternalReference, String scriptId, Object command) {
     try {
       BodyScriptRun bodyScriptRun = new BodyScriptRun();
       bodyScriptRun.setScript_uid(scriptId);
-      PaloAltoCortexCommand paloAltoCortexCommand = new PaloAltoCortexCommand();
-      paloAltoCortexCommand.setCommand(command);
-      bodyScriptRun.setParameters_values(paloAltoCortexCommand);
+      bodyScriptRun.setParameters_values(command);
       PaloAltoCortexFilter filter = new PaloAltoCortexFilter();
       filter.setField("endpoint_id_list");
       filter.setOperator("in");
       filter.setValue(List.of(agentExternalReference));
+      bodyScriptRun.setFilters(List.of(filter));
       Map<String, Object> bodyCommand = new HashMap<>();
       bodyCommand.put("request_data", bodyScriptRun);
       String jsonResponse = this.post(RUN_SCRIPT_URI, bodyCommand);

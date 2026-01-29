@@ -1,5 +1,6 @@
 package io.openaev.executors.paloaltocortex.service;
 
+import static io.openaev.executors.ExecutorHelper.POWERSHELL_CMD;
 import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_NAME;
 import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_TYPE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -14,6 +15,7 @@ import io.openaev.executors.ExecutorService;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.executors.paloaltocortex.client.PaloAltoCortexExecutorClient;
 import io.openaev.executors.paloaltocortex.config.PaloAltoCortexExecutorConfig;
+import io.openaev.executors.paloaltocortex.model.PaloAltoCortexCommandList;
 import io.openaev.executors.paloaltocortex.model.PaloAltoCortexEndpoint;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
@@ -78,7 +80,7 @@ public class PaloAltoCortexExecutorServiceTest {
     verify(assetGroupService)
         .createOrUpdateAssetGroupWithoutDynamicAssets(assetGroupCaptor.capture());
     assertEquals(
-        PALOALTOCORTEX_EXECUTOR_TYPE + "_" + paloAltoCortexEndpoint.getGroup_name(),
+        PALOALTOCORTEX_EXECUTOR_TYPE + "_groupName",
         assetGroupCaptor.getValue().getExternalReference());
   }
 
@@ -88,7 +90,6 @@ public class PaloAltoCortexExecutorServiceTest {
     // Init datas
     when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(null);
     doNothing().when(eeService).throwEEExecutorService(any(), any(), any());
-    when(config.isEnable()).thenReturn(true);
     when(config.getApiBatchExecutionActionPagination()).thenReturn(1);
     when(config.getWindowsScriptId()).thenReturn("1234567890");
     Command payloadCommand =
@@ -121,12 +122,14 @@ public class PaloAltoCortexExecutorServiceTest {
     // Asserts
     ArgumentCaptor<String> agentId = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<String> scriptId = ArgumentCaptor.forClass(String.class);
-    ArgumentCaptor<String> commandEncoded = ArgumentCaptor.forClass(String.class);
+    ArgumentCaptor<PaloAltoCortexCommandList> commandEncoded =
+        ArgumentCaptor.forClass(PaloAltoCortexCommandList.class);
     verify(client).executeScript(agentId.capture(), scriptId.capture(), commandEncoded.capture());
     assertEquals("12345", agentId.getValue());
     assertEquals("1234567890", scriptId.getValue());
     assertEquals(
-        "cwB3AGkAdABjAGgAIAAoACQAZQBuAHYAOgBQAFIATwBDAEUAUwBTAE8AUgBfAEEAUgBDAEgASQBUAEUAQwBUAFUAUgBFACkAIAB7ACAAIgBBAE0ARAA2ADQAIgAgAHsAJABhAHIAYwBoAGkAdABlAGMAdAB1AHIAZQAgAD0AIAAiAHgAOAA2AF8ANgA0ACIAOwAgAEIAcgBlAGEAawB9ACAAIgBBAFIATQA2ADQAIgAgAHsAJABhAHIAYwBoAGkAdABlAGMAdAB1AHIAZQAgAD0AIAAiAGEAcgBtADYANAAiADsAIABCAHIAZQBhAGsAfQAgACIAeAA4ADYAIgAgAHsAIABzAHcAaQB0AGMAaAAgACgAJABlAG4AdgA6AFAAUgBPAEMARQBTAFMATwBSAF8AQQBSAEMASABJAFQARQBXADYANAAzADIAKQAgAHsAIAAiAEEATQBEADYANAAiACAAewAkAGEAcgBjAGgAaQB0AGUAYwB0AHUAcgBlACAAPQAgACIAeAA4ADYAXwA2ADQAIgA7ACAAQgByAGUAYQBrAH0AIAAiAEEAUgBNADYANAAiACAAewAkAGEAcgBjAGgAaQB0AGUAYwB0AHUAcgBlACAAPQAgACIAYQByAG0ANgA0ACIAOwAgAEIAcgBlAGEAawB9ACAAfQAgAH0AIAB9ADsAJABhAHIAYwBoAGkAdABlAGMAdAB1AHIAZQBgAA==",
-        commandEncoded.getValue());
+        POWERSHELL_CMD
+            + "cwB3AGkAdABjAGgAIAAoACQAZQBuAHYAOgBQAFIATwBDAEUAUwBTAE8AUgBfAEEAUgBDAEgASQBUAEUAQwBUAFUAUgBFACkAIAB7ACAAIgBBAE0ARAA2ADQAIgAgAHsAJABhAHIAYwBoAGkAdABlAGMAdAB1AHIAZQAgAD0AIAAiAHgAOAA2AF8ANgA0ACIAOwAgAEIAcgBlAGEAawB9ACAAIgBBAFIATQA2ADQAIgAgAHsAJABhAHIAYwBoAGkAdABlAGMAdAB1AHIAZQAgAD0AIAAiAGEAcgBtADYANAAiADsAIABCAHIAZQBhAGsAfQAgACIAeAA4ADYAIgAgAHsAIABzAHcAaQB0AGMAaAAgACgAJABlAG4AdgA6AFAAUgBPAEMARQBTAFMATwBSAF8AQQBSAEMASABJAFQARQBXADYANAAzADIAKQAgAHsAIAAiAEEATQBEADYANAAiACAAewAkAGEAcgBjAGgAaQB0AGUAYwB0AHUAcgBlACAAPQAgACIAeAA4ADYAXwA2ADQAIgA7ACAAQgByAGUAYQBrAH0AIAAiAEEAUgBNADYANAAiACAAewAkAGEAcgBjAGgAaQB0AGUAYwB0AHUAcgBlACAAPQAgACIAYQByAG0ANgA0ACIAOwAgAEIAcgBlAGEAawB9ACAAfQAgAH0AIAB9ADsAJABhAHIAYwBoAGkAdABlAGMAdAB1AHIAZQBgAA==",
+        commandEncoded.getValue().getCommands_list().getFirst());
   }
 }

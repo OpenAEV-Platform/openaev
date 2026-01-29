@@ -9,5 +9,7 @@ public class PaloAltoCortexAction {
 
   private String agentExternalReference;
   private String scriptId;
-  private String commandEncoded;
+  // The parameters to send a payload to SentinelOne API are different if we are on Unix or Windows
+  private PaloAltoCortexCommand commandUnix;
+  private PaloAltoCortexCommandList commandWindows;
 }
