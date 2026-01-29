@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_66__Rename_caldera_executor_slug extends BaseJavaMigration {
+public class V4_67__Rename_caldera_executor_slug extends BaseJavaMigration {
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement stmt = context.getConnection().createStatement()) {
