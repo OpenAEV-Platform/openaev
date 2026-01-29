@@ -82,7 +82,8 @@ public class ConnectorInstanceApi extends RestBehavior {
                       schema = @Schema(implementation = ConnectorInstanceConfiguration.class))))
   public Set<ConnectorInstanceConfiguration> getConnectorInstanceConfiguration(
       @PathVariable @NotBlank final String connectorInstanceId) {
-    return connectorInstanceService.getConnectorInstanceConfigurations(connectorInstanceId);
+    return connectorInstanceService.getConnectorInstanceConfigurationsNoSecrets(
+        connectorInstanceId);
   }
 
   @PutMapping(value = CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/configurations")

@@ -170,8 +170,20 @@ public class ConnectorInstanceService {
    * @return a set of connector instance configurations
    */
   public Set<ConnectorInstanceConfiguration> getConnectorInstanceConfigurations(String instanceId) {
-    ConnectorInstance connectorInstance = connectorInstanceById(instanceId);
-    return connectorInstance.getConfigurations();
+    return connectorInstanceById(instanceId).getConfigurations();
+  }
+
+  /**
+   * Retrieve all connector instance configurations for a specific instance, except encrypted fields
+   *
+   * @param instanceId the connector instance ID to search for the configurations
+   * @return a set of connector instance configurations
+   */
+  public Set<ConnectorInstanceConfiguration> getConnectorInstanceConfigurationsNoSecrets(
+      String instanceId) {
+    return getConnectorInstanceConfigurations(instanceId).stream()
+        .filter(conf -> !conf.isEncrypted())
+        .collect(Collectors.toSet());
   }
 
   /**

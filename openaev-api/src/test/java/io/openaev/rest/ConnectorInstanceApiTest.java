@@ -366,6 +366,38 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
         .containsExactlyInAnyOrderElementsOf(List.of("value3", "value1"));
   }
 
+  @Test
+  @DisplayName("Given connector instance id should not retrieve secrets")
+  void givenConnectorInstanceId_shouldNotRetrieveSecrets() throws Exception {
+    ConnectorInstanceConfiguration confValue1 =
+        createConnectorInstanceConfiguration("key1", "value1");
+    ConnectorInstanceConfiguration secretConf =
+        createConnectorInstanceSecretConfiguration("key_secret", "secret!");
+    CatalogConnector catalogConnector = getCatalogConnector();
+    ConnectorInstance instance =
+        getConnectorInstance(catalogConnector, Set.of(confValue1, secretConf));
+
+    String response =
+        mvc.perform(
+                get(CONNECTOR_INSTANCE_URI + "/" + instance.getId() + "/configurations")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    assertThatJson(response).isArray().size().isEqualTo(1);
+    assertThatJson(response)
+        .inPath("[*].connector_instance_configuration_key")
+        .isArray()
+        .containsExactlyInAnyOrderElementsOf(List.of("key1"));
+    assertThatJson(response)
+        .inPath("[*].connector_instance_configuration_value")
+        .isArray()
+        .containsExactlyInAnyOrderElementsOf(List.of("value1"));
+  }
+
   @Nested
   @DisplayName("Update connector instance configuration")
   class UpdateConnectorInstanceConfigurations {

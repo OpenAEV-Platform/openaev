@@ -37,6 +37,18 @@ public class ConnectorInstanceFixture {
     return connectorInstanceConfiguration;
   }
 
+  public static ConnectorInstanceConfiguration createConnectorInstanceSecretConfiguration(
+      String key, String value) throws JsonProcessingException {
+    ConnectorInstanceConfiguration connectorInstanceConfiguration =
+        new ConnectorInstanceConfiguration();
+    connectorInstanceConfiguration.setKey(key);
+    connectorInstanceConfiguration.setEncrypted(true);
+    ObjectMapper mapper = new ObjectMapper();
+    String jsonValue = mapper.writeValueAsString(value);
+    connectorInstanceConfiguration.setValue(mapper.readTree(jsonValue));
+    return connectorInstanceConfiguration;
+  }
+
   public static ConnectorInstanceConfiguration createDefaultConnectorInstanceConfiguration()
       throws JsonProcessingException {
     return createConnectorInstanceConfiguration("default-key", "default-value");
