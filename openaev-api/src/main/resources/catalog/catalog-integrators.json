@@ -48,11 +48,6 @@
                         "description": "Name of the collector",
                         "type": "string"
                     },
-                    "COLLECTOR_PLATFORM": {
-                        "default": "EDR",
-                        "description": "Platform type for the collector (e.g., EDR, SIEM, etc.).",
-                        "type": "string"
-                    },
                     "COLLECTOR_LOG_LEVEL": {
                         "default": "error",
                         "description": "Determines the verbosity of the logs.",
@@ -73,6 +68,11 @@
                     "COLLECTOR_ICON_FILEPATH": {
                         "default": "crowdstrike/img/icon-crowdstrike.png",
                         "description": "Path to the icon file",
+                        "type": "string"
+                    },
+                    "COLLECTOR_PLATFORM": {
+                        "default": "EDR",
+                        "description": "Platform type for the collector (e.g., EDR, SIEM, etc.).",
                         "type": "string"
                     },
                     "CROWDSTRIKE_CLIENT_ID": {
@@ -151,11 +151,6 @@
                     "COLLECTOR_NAME": {
                         "default": "Microsoft Entra",
                         "description": "Collector display name",
-                        "type": "string"
-                    },
-                    "COLLECTOR_PLATFORM": {
-                        "default": "SIEM",
-                        "description": "Platform type for the collector (e.g., EDR, SIEM, etc.).",
                         "type": "string"
                     },
                     "COLLECTOR_LOG_LEVEL": {
@@ -254,11 +249,6 @@
                     "COLLECTOR_NAME": {
                         "default": "Microsoft Intune",
                         "description": "Collector display name",
-                        "type": "string"
-                    },
-                    "COLLECTOR_PLATFORM": {
-                        "default": "SIEM",
-                        "description": "Platform type for the collector (e.g., EDR, SIEM, etc.).",
                         "type": "string"
                     },
                     "COLLECTOR_LOG_LEVEL": {
@@ -364,11 +354,6 @@
                         "description": "Collector display name",
                         "type": "string"
                     },
-                    "COLLECTOR_PLATFORM": {
-                        "default": "EDR",
-                        "description": "Platform type for the collector (e.g., EDR, SIEM, etc.).",
-                        "type": "string"
-                    },
                     "COLLECTOR_LOG_LEVEL": {
                         "default": "error",
                         "description": "Determines the verbosity of the logs.",
@@ -389,6 +374,11 @@
                     "COLLECTOR_ICON_FILEPATH": {
                         "default": "microsoft_defender/img/icon-microsoft-defender.png",
                         "description": "Path to the icon file",
+                        "type": "string"
+                    },
+                    "COLLECTOR_PLATFORM": {
+                        "default": "EDR",
+                        "description": "Platform type for the collector (e.g., EDR, SIEM, etc.).",
                         "type": "string"
                     },
                     "COLLECTOR_MICROSOFT_DEFENDER_TENANT_ID": {
@@ -458,11 +448,6 @@
                     "COLLECTOR_NAME": {
                         "default": "Microsoft Azure",
                         "description": "Collector display name",
-                        "type": "string"
-                    },
-                    "COLLECTOR_PLATFORM": {
-                        "default": "SIEM",
-                        "description": "Platform type for the collector (e.g., EDR, SIEM, etc.).",
                         "type": "string"
                     },
                     "COLLECTOR_LOG_LEVEL": {
@@ -568,11 +553,6 @@
                         "description": "Collector display name",
                         "type": "string"
                     },
-                    "COLLECTOR_PLATFORM": {
-                        "default": "SIEM",
-                        "description": "Platform type for the collector (e.g., EDR, SIEM, etc.).",
-                        "type": "string"
-                    },
                     "COLLECTOR_LOG_LEVEL": {
                         "default": "error",
                         "description": "Determines the verbosity of the logs.",
@@ -593,6 +573,11 @@
                     "COLLECTOR_ICON_FILEPATH": {
                         "default": "microsoft_sentinel/img/icon-microsoft-sentinel.png",
                         "description": "Path to the icon file",
+                        "type": "string"
+                    },
+                    "COLLECTOR_PLATFORM": {
+                        "default": "SIEM",
+                        "description": "Platform type for the collector (e.g., EDR, SIEM, etc.).",
                         "type": "string"
                     },
                     "COLLECTOR_MICROSOFT_SENTINEL_TENANT_ID": {
@@ -686,11 +671,6 @@
                         "description": "Collector display name",
                         "type": "string"
                     },
-                    "COLLECTOR_PLATFORM": {
-                        "default": "SIEM",
-                        "description": "Platform type for the collector (e.g., EDR, SIEM, etc.).",
-                        "type": "string"
-                    },
                     "COLLECTOR_LOG_LEVEL": {
                         "default": "error",
                         "description": "Determines the verbosity of the logs.",
@@ -767,11 +747,6 @@
                         "description": "Collector display name",
                         "type": "string"
                     },
-                    "COLLECTOR_PLATFORM": {
-                        "default": "EDR",
-                        "description": "Platform type for the collector (e.g., EDR, SIEM, etc.).",
-                        "type": "string"
-                    },
                     "COLLECTOR_LOG_LEVEL": {
                         "default": "error",
                         "description": "Determines the verbosity of the logs.",
@@ -792,6 +767,11 @@
                     "COLLECTOR_ICON_FILEPATH": {
                         "default": "tanium_threat_response/img/icon-tanium.png",
                         "description": "Path to the icon file",
+                        "type": "string"
+                    },
+                    "COLLECTOR_PLATFORM": {
+                        "default": "EDR",
+                        "description": "Platform type for the collector (e.g., EDR, SIEM, etc.).",
                         "type": "string"
                     },
                     "COLLECTOR_TANIUM_URL": {
@@ -866,11 +846,6 @@
                     "COLLECTOR_NAME": {
                         "default": "CVE by NVD NIST",
                         "description": "Collector display name",
-                        "type": "string"
-                    },
-                    "COLLECTOR_PLATFORM": {
-                        "default": "SIEM",
-                        "description": "Platform type for the collector (e.g., EDR, SIEM, etc.).",
                         "type": "string"
                     },
                     "COLLECTOR_LOG_LEVEL": {
@@ -966,11 +941,6 @@
                         "description": "Collector display name",
                         "type": "string"
                     },
-                    "COLLECTOR_PLATFORM": {
-                        "default": "SIEM",
-                        "description": "Platform type for the collector (e.g., EDR, SIEM, etc.).",
-                        "type": "string"
-                    },
                     "COLLECTOR_LOG_LEVEL": {
                         "default": "error",
                         "description": "Determines the verbosity of the logs.",
@@ -1055,11 +1025,6 @@
                         "description": "Name of the collector",
                         "type": "string"
                     },
-                    "COLLECTOR_PLATFORM": {
-                        "default": "SIEM",
-                        "description": "Platform type for the collector (e.g., EDR, SIEM, etc.).",
-                        "type": "string"
-                    },
                     "COLLECTOR_LOG_LEVEL": {
                         "default": "error",
                         "description": "Determines the verbosity of the logs.",
@@ -1135,11 +1100,6 @@
                     "COLLECTOR_NAME": {
                         "default": "Google Workspace",
                         "description": "Collector display name",
-                        "type": "string"
-                    },
-                    "COLLECTOR_PLATFORM": {
-                        "default": "SIEM",
-                        "description": "Platform type for the collector (e.g., EDR, SIEM, etc.).",
                         "type": "string"
                     },
                     "COLLECTOR_LOG_LEVEL": {
@@ -1243,11 +1203,6 @@
                         "description": "Name of the injector.",
                         "type": "string"
                     },
-                    "INJECTOR_PLATFORM": {
-                        "default": "SIEM",
-                        "description": "Platform type for the collector (e.g., EDR, SIEM, etc.).",
-                        "type": "string"
-                    },
                     "INJECTOR_LOG_LEVEL": {
                         "default": "error",
                         "description": "Determines the verbosity of the logs.",
@@ -1322,11 +1277,6 @@
                     "INJECTOR_NAME": {
                         "default": "Nuclei",
                         "description": "Name of the injector.",
-                        "type": "string"
-                    },
-                    "INJECTOR_PLATFORM": {
-                        "default": "SIEM",
-                        "description": "Platform type for the collector (e.g., EDR, SIEM, etc.).",
                         "type": "string"
                     },
                     "INJECTOR_LOG_LEVEL": {
@@ -1410,11 +1360,6 @@
                         "description": "Name of the injector.",
                         "type": "string"
                     },
-                    "INJECTOR_PLATFORM": {
-                        "default": "SIEM",
-                        "description": "Platform type for the collector (e.g., EDR, SIEM, etc.).",
-                        "type": "string"
-                    },
                     "INJECTOR_LOG_LEVEL": {
                         "default": "error",
                         "description": "Determines the verbosity of the logs.",
@@ -1489,11 +1434,6 @@
                     "INJECTOR_NAME": {
                         "default": "AWS",
                         "description": "Name of the injector.",
-                        "type": "string"
-                    },
-                    "INJECTOR_PLATFORM": {
-                        "default": "SIEM",
-                        "description": "Platform type for the collector (e.g., EDR, SIEM, etc.).",
                         "type": "string"
                     },
                     "INJECTOR_LOG_LEVEL": {
@@ -1800,11 +1740,6 @@
                     "COLLECTOR_NAME": {
                         "default": "AWS Resources",
                         "description": "Collector display name",
-                        "type": "string"
-                    },
-                    "COLLECTOR_PLATFORM": {
-                        "default": "SIEM",
-                        "description": "Platform type for the collector (e.g., EDR, SIEM, etc.).",
                         "type": "string"
                     },
                     "COLLECTOR_LOG_LEVEL": {
