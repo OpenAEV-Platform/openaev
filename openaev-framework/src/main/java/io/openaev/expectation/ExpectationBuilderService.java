@@ -3,6 +3,7 @@ package io.openaev.expectation;
 import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.*;
 
 import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
+import io.openaev.helper.I18n;
 import io.openaev.model.inject.form.Expectation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -45,17 +46,11 @@ public class ExpectationBuilderService {
   /** Default name for vulnerability expectations. */
   public static final String VULNERABILITY_NAME = "Vulnerability";
 
-  /** Default name for challenge expectations. */
-  public static final String CHALLENGE_NAME = "Expect targets to complete the challenge(s)";
-
   /** Default name for article/channel expectations. */
   public static final String ARTICLE_NAME = "Expect targets to read the article(s)";
 
   /** Default name for text expectations. */
   public static final String TEXT_NAME = "Simple expectation";
-
-  /** Default name for manual expectations. */
-  public static final String MANUAL_NAME = "Manual expectation";
 
   /** Default name for document expectations. */
   public static final String DOCUMENT_NAME = "A document must be sent / uploaded";
@@ -64,6 +59,8 @@ public class ExpectationBuilderService {
   public static final Double DEFAULT_EXPECTATION_SCORE = 100.0;
 
   private final ExpectationPropertiesConfig expectationPropertiesConfig;
+
+  private final I18n i18n;
 
   /**
    * Builds a prevention expectation with default configuration.
@@ -104,7 +101,7 @@ public class ExpectationBuilderService {
    */
   public Expectation buildChallengeExpectation() {
     return buildExpectation(
-        CHALLENGE, CHALLENGE_NAME, expectationPropertiesConfig.getChallengeExpirationTime());
+        CHALLENGE, i18n.t("challenge.name"), expectationPropertiesConfig.getChallengeExpirationTime());
   }
 
   /**
@@ -133,7 +130,7 @@ public class ExpectationBuilderService {
    */
   public Expectation buildManualExpectation() {
     return buildExpectation(
-        MANUAL, MANUAL_NAME, expectationPropertiesConfig.getManualExpirationTime());
+        MANUAL, i18n.t("manual.name"), expectationPropertiesConfig.getManualExpirationTime());
   }
 
   /**
