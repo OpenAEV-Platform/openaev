@@ -177,7 +177,7 @@ public class ImapService extends ExternalServiceBase {
 
   private List<String> computeParticipants(Message message) throws Exception {
     List<String> from =
-        Arrays.stream(message.getFrom() != null ? message.getFrom() : new Address[] {})
+        Arrays.stream(message.getFrom())
             .map(addr -> (((InternetAddress) addr).getAddress()))
             .toList();
     List<String> recipients =
