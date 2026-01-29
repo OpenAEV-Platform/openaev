@@ -10,7 +10,7 @@ public class V4_66__Delete_caldera_injector extends BaseJavaMigration {
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement statement = context.getConnection().createStatement()) {
-      statement.executeUpdate("DELETE FROM injectors WHERE injector_type = 'openaev_caldera';");
+      statement.executeUpdate("UPDATE injectors SET injector_type = 'openaev_caldera_dummy' WHERE injector_type = 'openaev_caldera';");
     }
   }
 }
