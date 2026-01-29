@@ -1,10 +1,5 @@
 package io.openaev.service;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 import io.openaev.IntegrationTest;
 import io.openaev.aop.RBACAspect;
 import io.openaev.database.model.*;
@@ -13,13 +8,19 @@ import io.openaev.database.repository.ObjectiveRepository;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utilstest.RabbitMQTestListener;
-import java.util.*;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.web.bind.annotation.RequestMethod;
+
+import java.util.*;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest
 @TestExecutionListeners(
@@ -104,7 +105,7 @@ public class PermissionServiceTest extends IntegrationTest {
   @Test
   public void test_hasPermission_write_WHEN_has_no_grant_but_Capa() {
     User user = getUser(USER_ID, false);
-    user.setGroups(Set.of(getGroup(Capability.ACCESS_ASSESSMENT)));
+    user.setGroups(List.of(getGroup(Capability.ACCESS_ASSESSMENT)));
     when(grantService.hasWriteGrant(RESOURCE_ID, user)).thenReturn(false);
     assertTrue(
         permissionService.hasPermission(
@@ -140,7 +141,7 @@ public class PermissionServiceTest extends IntegrationTest {
   @Test
   public void test_hasPermission_read_WHEN_has_read_capa() {
     User user = getUser(USER_ID, false);
-    user.setGroups(Set.of(getGroup(Capability.ACCESS_CHANNELS)));
+    user.setGroups(List.of(getGroup(Capability.ACCESS_CHANNELS)));
     assertTrue(
         permissionService.hasPermission(
             user, Optional.empty(), RESOURCE_ID, ResourceType.CHANNEL, Action.READ));
@@ -149,7 +150,7 @@ public class PermissionServiceTest extends IntegrationTest {
   @Test
   public void test_hasPermission_read_WHEN_has_bypass_capa() {
     User user = getUser(USER_ID, false);
-    user.setGroups(Set.of(getGroup(Capability.BYPASS)));
+    user.setGroups(List.of(getGroup(Capability.BYPASS)));
     assertTrue(
         permissionService.hasPermission(
             user, Optional.empty(), RESOURCE_ID, ResourceType.CHANNEL, Action.READ));
@@ -158,7 +159,7 @@ public class PermissionServiceTest extends IntegrationTest {
   @Test
   public void test_hasPermission_write_WHEN_has_read_capa() {
     User user = getUser(USER_ID, false);
-    user.setGroups(Set.of(getGroup(Capability.ACCESS_CHANNELS)));
+    user.setGroups(List.of(getGroup(Capability.ACCESS_CHANNELS)));
     assertFalse(
         permissionService.hasPermission(
             user, Optional.empty(), RESOURCE_ID, ResourceType.CHANNEL, Action.WRITE));
@@ -199,7 +200,7 @@ public class PermissionServiceTest extends IntegrationTest {
   @Test
   public void test_hasPermission_create_WHEN_has_create_capa() {
     User user = getUser(USER_ID, false);
-    user.setGroups(Set.of(getGroup(Capability.MANAGE_ASSESSMENT)));
+    user.setGroups(List.of(getGroup(Capability.MANAGE_ASSESSMENT)));
     assertTrue(
         permissionService.hasPermission(
             user, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.CREATE));
@@ -208,7 +209,7 @@ public class PermissionServiceTest extends IntegrationTest {
   @Test
   public void test_hasPermission_duplicate_WHEN_has_manage_capa() {
     User user = getUser(USER_ID, false);
-    user.setGroups(Set.of(getGroup(Capability.MANAGE_ASSESSMENT)));
+    user.setGroups(List.of(getGroup(Capability.MANAGE_ASSESSMENT)));
     when(grantService.hasReadGrant(RESOURCE_ID, user)).thenReturn(true);
     assertTrue(
         permissionService.hasPermission(

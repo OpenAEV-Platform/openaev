@@ -1,16 +1,5 @@
 package io.openaev.rest.scenario;
 
-import static io.openaev.config.SessionHelper.currentUser;
-import static io.openaev.database.model.Filters.FilterOperator.contains;
-import static io.openaev.database.model.Scenario.SEVERITY.critical;
-import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
-import static io.openaev.utils.JsonTestUtils.asJsonString;
-import static java.lang.String.valueOf;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.GrantRepository;
@@ -23,13 +12,24 @@ import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import static io.openaev.config.SessionHelper.currentUser;
+import static io.openaev.database.model.Filters.FilterOperator.contains;
+import static io.openaev.database.model.Scenario.SEVERITY.critical;
+import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static java.lang.String.valueOf;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @TestInstance(PER_CLASS)
 public class ScenarioApiSearchTest extends IntegrationTest {
@@ -266,7 +266,7 @@ public class ScenarioApiSearchTest extends IntegrationTest {
         grantPlanner.setName(Grant.GRANT_TYPE.PLANNER);
         grantRepository.saveAll(List.of(grantObserver, grantPlanner));
         group.setGrants(List.of(grantObserver, grantPlanner));
-        group.setUsers(Set.of(user));
+        group.setUsers(List.of(user));
         groupRepository.save(group);
         SCENARIO_IDS.add(scenarioGranted.getId());
 

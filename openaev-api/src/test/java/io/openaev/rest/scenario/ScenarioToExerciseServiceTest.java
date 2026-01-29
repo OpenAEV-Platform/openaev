@@ -73,19 +73,19 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
 
   @AfterAll
   public void teardown() {
-    this.scenarioService.deleteScenario(SCENARIO_ID);
-    this.exerciseRepository.deleteById(EXERCISE_ID);
-    this.userRepository.deleteById(USER_ID);
-    this.teamRepository.deleteById(TEAM_ID);
-    this.teamRepository.deleteById(TEAM_CONTEXTUAL_ID);
-    this.tagRepository.deleteById(TAG_ID);
-    this.documentRepository.deleteById(DOCUMENT_ARTICLE_ID);
-    this.channelRepository.deleteById(CHANNEL_ID);
-    this.lessonsCategoryRepository.deleteById(LESSON_CATEGORY_ID);
-    this.lessonsQuestionRepository.deleteById(LESSON_QUESTION_ID);
-    this.injectRepository.deleteById(INJECT_ID);
-    this.documentRepository.deleteById(DOCUMENT_ID);
-    this.variableRepository.deleteById(VARIABLE_ID);
+    if (SCENARIO_ID != null) this.scenarioService.deleteScenario(SCENARIO_ID);
+    if (EXERCISE_ID != null) this.exerciseRepository.deleteById(EXERCISE_ID);
+    if (USER_ID != null) this.userRepository.deleteById(USER_ID);
+    if (TEAM_ID != null) this.teamRepository.deleteById(TEAM_ID);
+    if (TEAM_CONTEXTUAL_ID != null) this.teamRepository.deleteById(TEAM_CONTEXTUAL_ID);
+    if (TAG_ID != null) this.tagRepository.deleteById(TAG_ID);
+    if (DOCUMENT_ARTICLE_ID != null) this.documentRepository.deleteById(DOCUMENT_ARTICLE_ID);
+    if (CHANNEL_ID != null) this.channelRepository.deleteById(CHANNEL_ID);
+    if (LESSON_CATEGORY_ID != null) this.lessonsCategoryRepository.deleteById(LESSON_CATEGORY_ID);
+    if (LESSON_QUESTION_ID != null) this.lessonsQuestionRepository.deleteById(LESSON_QUESTION_ID);
+    if (INJECT_ID != null) this.injectRepository.deleteById(INJECT_ID);
+    if (DOCUMENT_ID != null) this.documentRepository.deleteById(DOCUMENT_ID);
+    if (VARIABLE_ID != null) this.variableRepository.deleteById(VARIABLE_ID);
   }
 
   @DisplayName("Scenario to Exercise test")

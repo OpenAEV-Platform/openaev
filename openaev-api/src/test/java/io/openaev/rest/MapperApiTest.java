@@ -142,7 +142,7 @@ public class MapperApiTest extends IntegrationTest {
     String response =
         this.mvc
             .perform(
-                MockMvcRequestBuilders.post("/api/mappers/")
+                MockMvcRequestBuilders.post("/api/mappers")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(asJsonString(importMapperInput)))
             .andExpect(status().is2xxSuccessful())

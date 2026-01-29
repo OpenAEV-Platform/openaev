@@ -82,10 +82,10 @@ class UserApiTest extends IntegrationTest {
 
   @AfterAll
   public void teardown() {
+    this.grantRepository.deleteAll();
     this.scenarioRepository.deleteAll();
     this.userRepository.deleteAll();
     this.groupRepository.deleteAll();
-    this.grantRepository.deleteAll();
     this.organizationRepository.deleteAll();
     tagRepository.deleteAll(this.tagComposer.generatedItems);
   }

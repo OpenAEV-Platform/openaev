@@ -1,15 +1,5 @@
 package io.openaev.rest;
 
-import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
-import static io.openaev.utils.JsonTestUtils.asJsonString;
-import static io.openaev.utils.fixtures.ExerciseFixture.getExercise;
-import static io.openaev.utils.fixtures.ExerciseLessonsCategoryFixture.getLessonsCategory;
-import static io.openaev.utils.fixtures.TeamFixture.getTeam;
-import static io.openaev.utils.fixtures.UserFixture.getUser;
-import static org.mockito.Mockito.verify;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.LessonsCategory;
@@ -26,15 +16,26 @@ import io.openaev.rest.lessons.form.LessonsSendInput;
 import io.openaev.service.MailingService;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
-import java.util.List;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestExecutionListeners;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.List;
+
+import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static io.openaev.utils.fixtures.ExerciseFixture.getExercise;
+import static io.openaev.utils.fixtures.ExerciseLessonsCategoryFixture.getLessonsCategory;
+import static io.openaev.utils.fixtures.TeamFixture.getTeam;
+import static io.openaev.utils.fixtures.UserFixture.getUser;
+import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @TestExecutionListeners(
@@ -66,8 +67,8 @@ public class ExerciseLessonsApiTest extends IntegrationTest {
 
   @AfterAll
   void afterAll() {
-    this.exerciseRepository.delete(EXERCISE);
     this.lessonsCategoryRepository.delete(LESSONCATEGORY);
+    this.exerciseRepository.delete(EXERCISE);
     this.teamRepository.delete(TEAM);
     this.userRepository.delete(USER);
   }

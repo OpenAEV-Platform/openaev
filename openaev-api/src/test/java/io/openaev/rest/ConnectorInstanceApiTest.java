@@ -41,7 +41,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -59,11 +59,11 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
   @Autowired
   private ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
 
-  @MockBean private TokenRepository tokenRepository;
+  @MockitoBean private TokenRepository tokenRepository;
 
   @Autowired private PlatformSettingsService platformSettingsService;
-  @MockBean private Ee eeService;
-  @MockBean private XtmComposerEncryptionService xtmComposerEncryptionService;
+  @MockitoBean private Ee eeService;
+  @MockitoBean private XtmComposerEncryptionService xtmComposerEncryptionService;
 
   @Autowired private CatalogConnectorComposer catalogConnectorComposer;
   @Autowired private CatalogConnectorConfigurationComposer catalogConfigurationComposer;

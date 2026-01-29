@@ -1,7 +1,5 @@
 package io.openaev.opencti.connectors.service;
 
-import static io.openaev.opencti.connectors.Constants.*;
-
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
@@ -12,11 +10,16 @@ import io.openaev.rest.user.form.user.UpdateUserInput;
 import io.openaev.service.GroupService;
 import io.openaev.service.RoleService;
 import io.openaev.service.UserService;
-import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+import static io.openaev.opencti.connectors.Constants.*;
 
 @Service
 @RequiredArgsConstructor
@@ -48,7 +51,7 @@ public class PrivilegeService {
                     List.of(
                         userService.createUserToken(
                             existingEmailUser.get(), connector.getToken()))));
-        existingEmailUser.get().setGroups(new HashSet<>(Set.of(group)));
+        existingEmailUser.get().setGroups(new ArrayList<>(List.of(group)));
         userService.updateUser(existingEmailUser.get());
         return;
       }
@@ -60,7 +63,7 @@ public class PrivilegeService {
       input.setToken(connector.getToken());
       input.setEmail("connector-%s@openaev.invalid".formatted(connector.getId()));
       User u = userService.createUser(input, 1); // magic number; Active
-      u.setGroups(new HashSet<>(Set.of(group)));
+      u.setGroups(new ArrayList<>(List.of(group)));
       userService.updateUser(u);
     } else {
       UpdateUserInput input = new UpdateUserInput();
@@ -68,7 +71,7 @@ public class PrivilegeService {
       input.setFirstname(connector.getName());
       input.setLastname("OpenCTI Connector");
       input.setEmail("connector-%s@openaev.invalid".formatted(connector.getId()));
-      connectorUser.get().setGroups(new HashSet<>(Set.of(group)));
+      connectorUser.get().setGroups(new ArrayList<>(List.of(group)));
       userService.updateUser(connectorUser.get(), input);
     }
   }
