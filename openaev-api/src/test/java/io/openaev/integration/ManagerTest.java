@@ -1,17 +1,19 @@
 package io.openaev.integration;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.integration.local_fixtures.integration_throws.TestIntegrationStartThrows.THROWING_INTEGRATION_ID;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatNoException;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.authorisation.HttpClientFactory;
-import io.openaev.database.model.CatalogConnector;
-import io.openaev.database.model.ConnectorInstance;
-import io.openaev.database.model.ConnectorInstanceConfiguration;
-import io.openaev.database.model.ConnectorInstancePersisted;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
-import io.openaev.integration.local_fixtures.*;
+import io.openaev.integration.local_fixtures.factory_throws.TestIntegrationFactoryInitThrows;
+import io.openaev.integration.local_fixtures.integration_throws.TestIntegrationFactoryIntegrationThrows;
+import io.openaev.integration.local_fixtures.integration_throws.TestIntegrationStartThrows;
+import io.openaev.integration.local_fixtures.regular.*;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -65,6 +67,106 @@ public class ManagerTest {
         componentRequestEngine,
         httpClientFactory,
         encryptionFactory);
+  }
+
+  private IntegrationFactory getFactoryWithThrowingIntegration() {
+    return new TestIntegrationFactoryIntegrationThrows(
+        connectorInstanceService,
+        catalogConnectorService,
+        httpClientFactory,
+        componentRequestEngine);
+  }
+
+  private ConnectorInstance getThrowingInstance() {
+    return connectorInstanceService.createAutostartInstance(
+        THROWING_INTEGRATION_ID,
+        TestIntegrationFactoryIntegrationThrows.class.getCanonicalName(),
+        ConnectorType.INJECTOR);
+  }
+
+  @Test
+  @DisplayName("When new integration throws at initialise don't prevent others from initialising")
+  public void whenNewIntegrationThrowsAtInitialise_dontPreventOthersFromInitialising()
+      throws Exception {
+    Manager manager =
+        new Manager(List.of(getRegularFactory(), getFactoryWithThrowingIntegration()));
+
+    assertThatNoException().isThrownBy(manager::monitorIntegrations);
+
+    // assert: only one single instance should be active in the database
+    List<ConnectorInstancePersisted> instances =
+        fromIterable(connectorInstanceRepository.findAll());
+
+    assertThat(instances).hasSize(1);
+
+    ConnectorInstance singleInstance = instances.getFirst();
+
+    assertThat(singleInstance)
+        .satisfies(
+            instance ->
+                assertThat(instance.getCurrentStatus())
+                    .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.started))
+        .satisfies(
+            instance ->
+                assertThat(singleInstance.getRequestedStatus())
+                    .isEqualTo(ConnectorInstance.REQUESTED_STATUS_TYPE.starting));
+
+    assertThat(singleInstance.getConfigurations()).hasSize(1);
+
+    ConnectorInstanceConfiguration configItem =
+        singleInstance.getConfigurations().stream().findFirst().get();
+    assertThat(configItem.getConnectorInstance()).isEqualTo(singleInstance);
+    assertThat(configItem.getKey()).isEqualTo("TEST_INTEGRATION_ID");
+    assertThat(configItem.getValue().asText())
+        .isEqualTo(TestIntegrationConfiguration.TEST_INTEGRATION_ID);
+    assertThat(configItem.isEncrypted()).isFalse();
+  }
+
+  @Test
+  @DisplayName(
+      "When existing integration throws at initialise don't prevent others from initialising")
+  public void whenExistingIntegrationThrowsAtInitialise_dontPreventOthersFromInitialising()
+      throws Exception {
+    Manager manager =
+        new Manager(List.of(getRegularFactory(), getFactoryWithThrowingIntegration()));
+    // prepopulate integrations
+    ConnectorInstance throwingInstance = getThrowingInstance();
+    manager
+        .getSpawnedIntegrations()
+        .put(
+            throwingInstance,
+            new TestIntegrationStartThrows(
+                componentRequestEngine, throwingInstance, connectorInstanceService));
+
+    assertThatNoException().isThrownBy(manager::monitorIntegrations);
+
+    // assert: only one single instance should be active in the database
+    List<ConnectorInstancePersisted> instances =
+        fromIterable(connectorInstanceRepository.findAll());
+
+    assertThat(instances).hasSize(1);
+
+    ConnectorInstance singleInstance = instances.getFirst();
+
+    assertThat(singleInstance)
+        .satisfies(
+            instance ->
+                assertThat(instance.getCurrentStatus())
+                    .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.started))
+        .satisfies(
+            instance ->
+                assertThat(singleInstance.getRequestedStatus())
+                    .isEqualTo(ConnectorInstance.REQUESTED_STATUS_TYPE.starting));
+
+    assertThat(singleInstance.getConfigurations()).hasSize(1);
+
+    ConnectorInstanceConfiguration configItem =
+        singleInstance.getConfigurations().stream().findFirst().get();
+    assertThat(configItem.getConnectorInstance()).isEqualTo(singleInstance);
+    assertThat(configItem.getKey()).isEqualTo("TEST_INTEGRATION_ID");
+    assertThat(configItem.getValue().asText())
+        .isEqualTo(TestIntegrationConfiguration.TEST_INTEGRATION_ID);
+    assertThat(configItem.isEncrypted()).isFalse();
   }
 
   @Test

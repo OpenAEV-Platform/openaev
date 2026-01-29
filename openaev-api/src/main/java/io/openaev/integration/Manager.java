@@ -4,7 +4,6 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstance.CURRENT_STATUS_TYPE;
 import io.openaev.injectors.email.EmailContract;
 import java.util.*;
-import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
@@ -80,39 +79,33 @@ public class Manager {
   /** Not thread-safe */
   @Transactional
   public void monitorIntegrations() {
-    Map<ConnectorInstance, Integration> newIntegrationsMap =
-        factories.stream()
-            .flatMap(
-                factory -> {
-                  try {
-                    List<ConnectorInstance> newInstances =
-                        factory.findRelatedInstances().stream()
-                            .filter(ci -> !spawnedIntegrations.containsKey(ci))
-                            .toList();
-                    return factory.sync(newInstances).stream();
-                  } catch (Exception e) {
-                    log.error("There was a problem syncing integration factories.", e);
-                    throw new RuntimeException(e);
-                  }
-                })
-            .map(integration -> Map.entry(integration.getConnectorInstance(), integration))
-            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    for (IntegrationFactory factory : factories) {
+      List<ConnectorInstance> newInstances =
+          factory.findRelatedInstances().stream()
+              .filter(ci -> !spawnedIntegrations.containsKey(ci))
+              .toList();
 
-    spawnedIntegrations.putAll(newIntegrationsMap);
+      List<Integration> newIntegrations = factory.sync(newInstances);
 
-    Set<Map.Entry<ConnectorInstance, Integration>> iterator =
-        new HashSet<>(spawnedIntegrations.entrySet());
-    iterator.forEach(
-        entry -> {
-          try {
-            entry.getValue().initialise();
-            if (entry.getValue().getConnectorInstance() == null) {
-              spawnedIntegrations.remove(entry.getKey());
-            }
-          } catch (Exception e) {
-            log.error("There was a problem maintaining running integrations.", e);
-            throw new RuntimeException(e);
-          }
-        });
+      for (Integration integration : newIntegrations) {
+        spawnedIntegrations.put(integration.getConnectorInstance(), integration);
+      }
+    }
+
+    for (Map.Entry<ConnectorInstance, Integration> entry : spawnedIntegrations.entrySet()) {
+      try {
+        entry.getValue().initialise();
+        if (entry.getValue().getConnectorInstance() == null) {
+          spawnedIntegrations.remove(entry.getKey());
+        }
+      } catch (Exception e) {
+        log.error(
+            "There was a problem maintaining the state of integration id '{}' of type {}.",
+            entry.getKey().getId(),
+            entry.getValue().getClass().getCanonicalName(),
+            e);
+        // do not rethrow; don't break the loop
+      }
+    }
   }
 }

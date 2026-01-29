@@ -144,5 +144,6 @@ public class CalderaExecutorIntegration extends Integration {
   protected void innerStop() {
     this.platformSettingsService.cleanMessage(BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE);
     timers.forEach(timer -> timer.cancel(true));
+    timers.clear();
   }
 }

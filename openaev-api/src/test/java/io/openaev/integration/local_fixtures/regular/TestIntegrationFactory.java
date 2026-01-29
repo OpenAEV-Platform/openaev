@@ -1,4 +1,4 @@
-package io.openaev.integration.local_fixtures;
+package io.openaev.integration.local_fixtures.regular;
 
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.CatalogConnector;

@@ -72,7 +72,9 @@ public class ChannelInjectorIntegrationFactory extends IntegrationFactory {
   public List<ConnectorInstance> findRelatedInstances() {
     return List.of(
         connectorInstanceService.createAutostartInstance(
-            ChannelInjectorIntegration.CHANNEL_INJECTOR_ID, ConnectorType.INJECTOR));
+            ChannelInjectorIntegration.CHANNEL_INJECTOR_ID,
+            this.getClassName(),
+            ConnectorType.INJECTOR));
   }
 
   @Override

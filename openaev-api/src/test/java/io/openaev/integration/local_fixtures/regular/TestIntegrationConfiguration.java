@@ -1,4 +1,4 @@
-package io.openaev.integration.local_fixtures;
+package io.openaev.integration.local_fixtures.regular;
 
 import io.openaev.integration.configuration.BaseIntegrationConfiguration;
 import io.openaev.integration.configuration.IntegrationConfigKey;

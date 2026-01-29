@@ -74,7 +74,9 @@ public class ChallengeInjectorIntegrationFactory extends IntegrationFactory {
   public List<ConnectorInstance> findRelatedInstances() {
     return List.of(
         connectorInstanceService.createAutostartInstance(
-            ChallengeInjectorIntegration.CHALLENGE_INJECTOR_ID, ConnectorType.INJECTOR));
+            ChallengeInjectorIntegration.CHALLENGE_INJECTOR_ID,
+            this.getClassName(),
+            ConnectorType.INJECTOR));
   }
 
   @Override
