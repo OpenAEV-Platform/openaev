@@ -29,7 +29,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 @Slf4j
 public class CalderaExecutorIntegration extends Integration {
   public static final String CALDERA_EXECUTOR_DEFAULT_ID = "20696a66-5780-4cbe-b5c1-be43efddb3f7";
-  public static final String CALDERA_EXECUTOR_TYPE = "openaev_caldera";
+  public static final String CALDERA_EXECUTOR_TYPE = "openaev_caldera_executor";
   public static final String CALDERA_EXECUTOR_NAME = "Caldera";
   public static final String CALDERA_BACKGROUND_COLOR = "#8B1316";
 

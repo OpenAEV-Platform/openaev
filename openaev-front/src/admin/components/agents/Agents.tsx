@@ -18,7 +18,7 @@ import ExecutorSelector from './ExecutorSelector';
 import InstructionSelector from './InstructionSelector';
 import PlatformSelector from './PlatformSelector';
 
-const OPENAEV_CALDERA = 'openaev_caldera';
+const OPENAEV_CALDERA = 'openaev_caldera_executor';
 const OPENAEV_AGENT = 'openaev_agent';
 const OPENAEV_CROWDSTRIKE = 'openaev_crowdstrike';
 const OPENAEV_TANIUM = 'openaev_tanium';

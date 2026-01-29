@@ -38,7 +38,7 @@ public class CalderaExecutorServiceTest {
   private static final String CALDERA_AGENT_IP = "10.10.10.10";
   private static final String CALDERA_AGENT_USERNAME = "openaev_user";
 
-  private static final String CALDERA_EXECUTOR_TYPE = "openaev_caldera";
+  private static final String CALDERA_EXECUTOR_TYPE = "openaev_caldera_executor";
   private static final String CALDERA_EXECUTOR_NAME = "Caldera";
 
   private String DATE;

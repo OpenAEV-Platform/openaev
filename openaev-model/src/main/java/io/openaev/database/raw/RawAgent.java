@@ -28,7 +28,7 @@ public interface RawAgent {
   /**
    * Returns the type of executor managing this agent.
    *
-   * @return the executor type (e.g., "openaev_caldera", "openaev_agent")
+   * @return the executor type (e.g., "openaev_caldera_executor", "openaev_agent")
    */
   String getExecutor_type();
 }

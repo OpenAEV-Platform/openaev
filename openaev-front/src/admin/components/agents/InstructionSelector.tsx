@@ -17,7 +17,7 @@ const WINDOWS = 'Windows';
 const MACOS = 'MacOS';
 const LINUX = 'Linux';
 const x86_64 = 'x86_64';
-const OPENAEV_CALDERA = 'openaev_caldera';
+const OPENAEV_CALDERA = 'openaev_caldera_executor';
 const OPENAEV_AGENT = 'openaev_agent';
 
 interface InstructionSelectorProps {
