@@ -155,5 +155,6 @@ public class SentinelOneExecutorIntegration extends Integration {
   @Override
   protected void innerStop() {
     timers.forEach(timer -> timer.cancel(true));
+    timers.clear();
   }
 }
