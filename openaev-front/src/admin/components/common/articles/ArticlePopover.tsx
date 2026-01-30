@@ -10,6 +10,7 @@ import { useFormatter } from '../../../../components/i18n';
 import type { Article, ArticleUpdateInput } from '../../../../utils/api-types';
 import { ArticleContext, PermissionsContext } from '../Context';
 import ArticleForm from './ArticleForm';
+import { resolveChannelId } from './ArticleUtils';
 
 interface ArticlePopoverProps {
   article: Article;
@@ -24,16 +25,16 @@ const buildFormValues = (article: Article): ArticleUpdateInput => ({
   article_name: article.article_name ?? '',
   article_author: article.article_author,
   article_content: article.article_content,
-  article_channel: article.article_channel,
+  article_channel: resolveChannelId(article.article_channel),
   article_comments: article.article_comments,
   article_shares: article.article_shares,
   article_likes: article.article_likes,
+  article_documents: article.article_documents,
 });
 
 const ArticlePopover = ({ article, onRemoveArticle, disabled = false, inline = false }: ArticlePopoverProps) => {
   // Standard hooks
   const { t } = useFormatter();
-
   // Context
   const { onUpdateArticle, onDeleteArticle } = useContext(ArticleContext);
   const { permissions } = useContext(PermissionsContext);

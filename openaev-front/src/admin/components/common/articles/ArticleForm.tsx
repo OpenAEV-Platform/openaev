@@ -13,7 +13,7 @@ import { type ChannelsHelper } from '../../../../actions/channels/channel-helper
 import { fetchDocuments } from '../../../../actions/Document';
 import { type DocumentHelper } from '../../../../actions/helper';
 import AutocompleteField from '../../../../components/fields/AutocompleteField';
-import MarkDownField from '../../../../components/fields/MarkDownField';
+import MarkDownFieldController from '../../../../components/fields/MarkDownFieldController';
 import TextFieldController from '../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
@@ -28,7 +28,7 @@ import { buildTenantApiPath } from '../../../../utils/url-helper';
 import ChannelIcon from '../../components/channels/ChannelIcon';
 import DocumentPopover from '../../components/documents/DocumentPopover';
 import DocumentType from '../../components/documents/DocumentType';
-import ArticleAddDocuments from './ArticleAddDocuments';
+import ArticleAddDocuments, { type ChannelType } from './ArticleAddDocuments';
 
 const useStyles = makeStyles()(() => ({
   icon: {
@@ -129,7 +129,6 @@ interface ArticleData {
 
 const ArticleForm = ({
   handleClose,
-  documentsIds,
   editing,
 }: ArticleFormProps) => {
   const theme = useTheme();
@@ -138,12 +137,11 @@ const ArticleForm = ({
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
 
-  const { control, watch, formState: { isSubmitting } } = useFormContext<ArticleCreateInput | ArticleUpdateInput>();
-
+  const { control, watch, setValue, formState: { isSubmitting } } = useFormContext<ArticleCreateInput | ArticleUpdateInput>();
   const [documentsSortBy, setDocumentsSortBy] = useState('document_name');
   const [documentsOrderAsc, setDocumentsOrderAsc] = useState(true);
-  const [documents, setDocuments] = useState<string[]>(documentsIds || []);
   const watchChannelId = watch('article_channel');
+  const currentDocuments = watch('article_documents') || [];
 
   // Fetching data
   const { channels, documentsMap } = useHelper((helper: ChannelsHelper & DocumentHelper) => {
@@ -163,8 +161,15 @@ const ArticleForm = ({
     }
   });
 
-  const handleAddDocuments = (docsIds: string[]) => setDocuments([...documents, ...docsIds]);
-  const handleRemoveDocument = (docId: string) => setDocuments(documents.filter(n => n !== docId));
+  const handleAddDocuments = (docsIds: string[]) => {
+    setValue('article_documents', [...currentDocuments, ...docsIds], {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+  };
+  const handleRemoveDocument = (docId: string) => {
+    setValue('article_documents', currentDocuments.filter(id => id !== docId));
+  };
 
   // Preparing data
   const sortedChannels: ArticleChannel[] = [...channels]
@@ -272,22 +277,16 @@ const ArticleForm = ({
       <Controller
         name="article_content"
         control={control}
-        render={({ field: { onChange, value, onBlur } }) => (
+        render={() => (
           <div style={{ marginTop: 20 }}>
-            <Typography
-              variant="caption"
-              sx={{
-                color: 'text.secondary',
-                fontWeight: 500,
-              }}
-            >
-              {t('Content')}
-            </Typography>
-            <MarkDownField
-              initialValue={value || ''}
-              onChange={onChange}
-              onBlur={onBlur}
+            <MarkDownFieldController
+              name="article_content"
+              label={t('Content')}
+              style={{ marginTop: 20 }}
               disabled={isSubmitting}
+              askAi
+              inInject={false}
+              inArticle
             />
           </div>
         )}
@@ -335,7 +334,6 @@ const ArticleForm = ({
               fontSize: 12,
             }}
             >
-        &nbsp;
             </span>
           </ListItemIcon>
           <ListItemText
@@ -349,7 +347,7 @@ const ArticleForm = ({
           />
         </ListItem>
 
-        {documents.map((documentId) => {
+        {currentDocuments.map((documentId) => {
           const document = documentsMap[documentId] || {};
           return (
             <ListItem
@@ -410,9 +408,9 @@ const ArticleForm = ({
         {selectedChannel?.type && (
           <Can I={ACTIONS.ACCESS} a={SUBJECTS.DOCUMENTS}>
             <ArticleAddDocuments
-              articleDocumentsIds={documents}
+              articleDocumentsIds={currentDocuments}
               handleAddDocuments={handleAddDocuments}
-              channelType={selectedChannel.type}
+              channelType={selectedChannel.type as ChannelType}
             />
           </Can>
         )}
