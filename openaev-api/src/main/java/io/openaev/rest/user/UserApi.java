@@ -160,7 +160,8 @@ public class UserApi extends RestBehavior {
     String userId = null;
     synchronized (resetTokenMap) {
       for (Map.Entry<String, String> entry : resetTokenMap.entrySet()) {
-        if (entry.getValue().equals(token)) {
+        // Use token.equals() to handle null values from expired entries in PassiveExpiringMap
+        if (token.equals(entry.getValue())) {
           userId = entry.getKey(); // don't break out
         }
       }

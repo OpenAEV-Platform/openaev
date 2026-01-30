@@ -36,8 +36,8 @@ import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.UserService;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.pagination.SearchPaginationInput;
-import jakarta.annotation.Resource;
 import jakarta.annotation.Nullable;
+import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Tuple;
@@ -618,7 +618,8 @@ public class InjectorContractService {
 
     Specification<InjectorContract> filterSpec = computeFilterGroupJpa(input.getFilterGroup());
     Specification<InjectorContract> searchSpec = computeSearchJpa(input.getTextSearch());
-    Specification<InjectorContract> baseSpec = Specification.where(filterSpec).and(searchSpec);
+    Specification<InjectorContract> baseSpec =
+        Specification.<InjectorContract>unrestricted().and(filterSpec).and(searchSpec);
 
     CriteriaQuery<InjectorContractDomainCountOutput> qPayload =
         cb.createQuery(InjectorContractDomainCountOutput.class);

@@ -413,7 +413,9 @@ public class ScenarioApiTest extends IntegrationTest {
       AssetGroup dynamicAssetGroupSaved = assetGroupRepository.save(dynamicAssetGroup);
 
       // Create windows endpoint with crowdstrike agent
+      entityManager.flush();
       endpointRepository.deleteAll();
+      entityManager.clear();
       endpointComposer
           .forEndpoint(EndpointFixture.createEndpoint())
           .withAgent(

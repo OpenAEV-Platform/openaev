@@ -1,5 +1,10 @@
 package io.openaev.service;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import io.openaev.IntegrationTest;
 import io.openaev.aop.RBACAspect;
 import io.openaev.database.model.*;
@@ -8,19 +13,13 @@ import io.openaev.database.repository.ObjectiveRepository;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utilstest.RabbitMQTestListener;
+import java.util.*;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.web.bind.annotation.RequestMethod;
-
-import java.util.*;
-
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 @SpringBootTest
 @TestExecutionListeners(

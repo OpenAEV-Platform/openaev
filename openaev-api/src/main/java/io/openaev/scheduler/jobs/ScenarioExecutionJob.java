@@ -10,7 +10,6 @@ import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.period.CronService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.service.scenario.ScenarioService;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.time.ZoneId;

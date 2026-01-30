@@ -1,9 +1,5 @@
 package io.openaev.database.model;
 
-import static java.time.Instant.now;
-import static java.util.Optional.ofNullable;
-import static lombok.AccessLevel.NONE;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -21,14 +17,19 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.time.Instant;
-import java.util.*;
-import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
+
+import javax.annotation.Nullable;
+import java.time.Instant;
+import java.util.*;
+
+import static java.time.Instant.now;
+import static java.util.Optional.ofNullable;
+import static lombok.AccessLevel.NONE;
 
 @Getter
 @Setter
@@ -169,13 +170,15 @@ public class InjectorContract implements Base {
     this.vulnerabilities = vulnerabilities;
   }
 
+  // Fixes a bug due to a new version of jackson and lombok https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("injector_contract_atomic_testing"))
   @Column(name = "injector_contract_atomic_testing")
-  @JsonProperty("injector_contract_atomic_testing")
   @Queryable(filterable = true)
   private boolean isAtomicTesting;
 
+  // Fixes a bug due to a new version of jackson and lombok https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("injector_contract_import_available"))
   @Column(name = "injector_contract_import_available")
-  @JsonProperty("injector_contract_import_available")
   @Queryable(filterable = true)
   private boolean isImportAvailable;
 

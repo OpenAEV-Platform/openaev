@@ -9,8 +9,8 @@ import io.openaev.database.repository.TagRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.tag.form.TagCreateInput;
 import io.openaev.rest.tag.form.TagUpdateInput;
-import java.util.*;
 import jakarta.validation.constraints.NotNull;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

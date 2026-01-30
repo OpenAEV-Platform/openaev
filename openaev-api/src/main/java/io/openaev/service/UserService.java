@@ -185,6 +185,11 @@ public class UserService {
    * @return the created user
    */
   public User createUser(CreateUserInput input, int status) {
+    // Check for existing user with same email
+    if (userRepository.findByEmailIgnoreCase(input.getEmail()).isPresent()) {
+      throw new DataIntegrityViolationException(
+          "User with email " + input.getEmail() + " already exists");
+    }
     User user = new User();
     user.setUpdateAttributes(input);
     user.setStatus((short) status);

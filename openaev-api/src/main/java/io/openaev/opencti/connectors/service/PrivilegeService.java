@@ -1,5 +1,7 @@
 package io.openaev.opencti.connectors.service;
 
+import static io.openaev.opencti.connectors.Constants.*;
+
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
@@ -10,16 +12,13 @@ import io.openaev.rest.user.form.user.UpdateUserInput;
 import io.openaev.service.GroupService;
 import io.openaev.service.RoleService;
 import io.openaev.service.UserService;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-
-import static io.openaev.opencti.connectors.Constants.*;
 
 @Service
 @RequiredArgsConstructor

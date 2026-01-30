@@ -1,5 +1,9 @@
 package io.openaev.rest.group;
 
+import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.StreamSupport.stream;
+
 import io.openaev.aop.RBAC;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.GrantRepository;
@@ -21,15 +25,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
+import java.util.Spliterator;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Spliterator;
-
-import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
-import static java.util.stream.Collectors.toList;
-import static java.util.stream.StreamSupport.stream;
 
 @RestController
 @AllArgsConstructor

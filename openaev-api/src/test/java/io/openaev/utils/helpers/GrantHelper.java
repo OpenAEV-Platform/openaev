@@ -1,16 +1,15 @@
 package io.openaev.utils.helpers;
 
+import static io.openaev.config.SessionHelper.currentUser;
+
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.GrantRepository;
 import io.openaev.database.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-
 import java.util.List;
 import java.util.Optional;
-
-import static io.openaev.config.SessionHelper.currentUser;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 @Component
 public class GrantHelper {
