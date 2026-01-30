@@ -7,28 +7,30 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  GridLegacy,
+  Grid,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
 } from '@mui/material';
-import * as R from 'ramda';
-import { useContext, useState } from 'react';
+import { useContext, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchDocuments } from '../../../../actions/Document';
+import type { DocumentHelper } from '../../../../actions/helper';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import SearchFilter from '../../../../components/SearchFilter';
 import { useHelper } from '../../../../store';
+import { type Document, type Tag } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { truncate } from '../../../../utils/String';
 import CreateDocument from '../../components/documents/CreateDocument';
 import { PermissionsContext } from '../Context';
 import TagsFilter from '../filters/TagsFilter';
+import { isMimeTypeValid, matchesSearch, matchesTags } from './ArticleUtils';
 
 const useStyles = makeStyles()(theme => ({
   box: {
@@ -49,8 +51,15 @@ const useStyles = makeStyles()(theme => ({
   },
 }));
 
-const ArticleAddDocuments = (props) => {
-  const { handleAddDocuments, articleDocumentsIds, channelType } = props;
+export type ChannelType = 'newspaper' | 'tv' | 'microblogging';
+
+interface ArticleAddDocumentsProps {
+  handleAddDocuments: (docsIds: string[]) => void;
+  articleDocumentsIds: string[];
+  channelType: ChannelType;
+}
+
+const ArticleAddDocuments = ({ handleAddDocuments, articleDocumentsIds, channelType }: ArticleAddDocumentsProps) => {
   // Standard hooks
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
@@ -58,11 +67,11 @@ const ArticleAddDocuments = (props) => {
 
   const [open, setOpen] = useState(false);
   const [keyword, setKeyword] = useState('');
-  const [documentsIds, setDocumentsIds] = useState([]);
-  const [tags, setTags] = useState([]);
+  const [documentsIds, setDocumentsIds] = useState<string[]>([]);
+  const [tags, setTags] = useState<Tag[]>();
 
   // Fetching data
-  const { documents } = useHelper(helper => ({ documents: helper.getDocumentsMap() }));
+  const { documents } = useHelper((helper: DocumentHelper) => ({ documents: helper.getDocumentsMap() }));
   useDataLoader(() => {
     dispatch(fetchDocuments());
   });
@@ -77,11 +86,11 @@ const ArticleAddDocuments = (props) => {
     setDocumentsIds([]);
   };
 
-  const handleSearchDocuments = (value) => {
-    setKeyword(value);
+  const handleSearchDocuments = (value: string | undefined) => {
+    setKeyword(value ?? '');
   };
 
-  const handleAddTag = (value) => {
+  const handleAddTag = (value: Tag | null) => {
     if (value) {
       setTags([value]);
     }
@@ -91,64 +100,47 @@ const ArticleAddDocuments = (props) => {
     setTags([]);
   };
 
-  const addDocument = (documentId) => {
-    setDocumentsIds(R.append(documentId, documentsIds));
+  const addDocument = (documentId: string) => {
+    setDocumentsIds(prev => [...prev, documentId]);
   };
 
-  const removeDocument = (documentId) => {
-    setDocumentsIds(R.filter(u => u !== documentId, documentsIds));
+  const removeDocument = (documentId: string) => {
+    setDocumentsIds(prev => prev.filter(id => id !== documentId));
   };
 
   const submitAddDocuments = () => {
-    handleAddDocuments(documentsIds);
-    handleClose();
+    if (documentsIds) {
+      handleAddDocuments(documentsIds);
+      handleClose();
+    }
   };
 
-  const onCreate = (result) => {
+  const onCreate = (result: Document) => {
     addDocument(result.document_id);
   };
-  const filterByKeyword = n => keyword === ''
-    || (n.document_name || '').toLowerCase().indexOf(keyword.toLowerCase())
-    !== -1
-    || (n.document_description || '')
-      .toLowerCase()
-      .indexOf(keyword.toLowerCase()) !== -1
-      || (n.document_type || '').toLowerCase().indexOf(keyword.toLowerCase())
-      !== -1;
-  const filteredDocuments = R.pipe(
-    R.filter(
-      n => tags.length === 0
-        || R.any(
-          filter => R.includes(filter, n.document_tags),
-          R.pluck('id', tags),
-        ),
-    ),
-    R.filter(filterByKeyword),
-  )(Object.values(documents));
-  let finalDocuments = R.take(10, filteredDocuments);
-  let filters = null;
-  if (channelType === 'newspaper') {
-    finalDocuments = R.take(
-      10,
-      filteredDocuments.filter(d => d.document_type.includes('image/')),
-    );
-    filters = ['image/'];
-  } else if (channelType === 'microblogging') {
-    finalDocuments = R.take(
-      10,
-      filteredDocuments.filter(
-        d => d.document_type.includes('image/')
-          || d.document_type.includes('video/'),
-      ),
-    );
-    filters = ['image/', 'video/'];
-  } else if (channelType === 'tv') {
-    finalDocuments = R.take(
-      10,
-      filteredDocuments.filter(d => d.document_type.includes('video/')),
-    );
-    filters = ['video/'];
-  }
+
+  const allowedMimeTypes = useMemo(() => {
+    switch (channelType) {
+      case 'newspaper': return ['image/'];
+      case 'microblogging': return ['image/', 'video/'];
+      case 'tv': return ['video/'];
+      default: return [];
+    }
+  }, [channelType]);
+
+  const filters = allowedMimeTypes.length > 0 ? allowedMimeTypes : null;
+
+  const finalDocuments = useMemo(() => {
+    const allDocuments: Document[] = Object.values(documents);
+
+    return allDocuments
+      .filter(doc =>
+        matchesTags(doc.document_tags, tags ?? [])
+        && matchesSearch(doc, keyword)
+        && isMimeTypeValid(doc.document_type, allowedMimeTypes),
+      )
+      .slice(0, 10);
+  }, [documents, tags, keyword, allowedMimeTypes]);
 
   // Context
   const { permissions } = useContext(PermissionsContext);
@@ -173,38 +165,40 @@ const ArticleAddDocuments = (props) => {
         </ListItemButton>
         <Dialog
           open={open}
-          TransitionComponent={Transition}
           onClose={handleClose}
           fullWidth
           maxWidth="lg"
-          PaperProps={{
-            elevation: 1,
-            sx: {
-              minHeight: 580,
-              maxHeight: 580,
+          slots={{ transition: Transition }}
+          slotProps={{
+            paper: {
+              elevation: 1,
+              sx: {
+                minHeight: 580,
+                maxHeight: 580,
+              },
             },
           }}
         >
           <DialogTitle>{t('Add documents in this media pressure article')}</DialogTitle>
           <DialogContent>
-            <GridLegacy container spacing={3} style={{ marginTop: -15 }}>
-              <GridLegacy item xs={8}>
-                <GridLegacy container spacing={3}>
-                  <GridLegacy item xs={6}>
+            <Grid container spacing={3}>
+              <Grid size={{ xs: 8 }}>
+                <Grid container spacing={3}>
+                  <Grid size={{ xs: 6 }}>
                     <SearchFilter
-                      onChange={handleSearchDocuments}
+                      onChange={value => handleSearchDocuments(value)}
                       fullWidth
                     />
-                  </GridLegacy>
-                  <GridLegacy item xs={6}>
+                  </Grid>
+                  <Grid size={{ xs: 6 }}>
                     <TagsFilter
                       onAddTag={handleAddTag}
                       onClearTag={handleClearTag}
                       currentTags={tags}
                       fullWidth
                     />
-                  </GridLegacy>
-                </GridLegacy>
+                  </Grid>
+                </Grid>
                 <List>
                   {finalDocuments.map((document) => {
                     const disabled = documentsIds.includes(document.document_id)
@@ -239,8 +233,8 @@ const ArticleAddDocuments = (props) => {
                     filters={filters}
                   />
                 </List>
-              </GridLegacy>
-              <GridLegacy item xs={4}>
+              </Grid>
+              <Grid size={{ xs: 4 }}>
                 <Box className={classes.box}>
                   {documentsIds.map((documentId) => {
                     const document = documents[documentId];
@@ -248,15 +242,15 @@ const ArticleAddDocuments = (props) => {
                       <Chip
                         key={documentId}
                         onDelete={() => removeDocument(documentId)}
-                        label={truncate(document.document_name, 22)}
+                        label={truncate(document?.document_name, 22)}
                         icon={<DescriptionOutlined />}
                         classes={{ root: classes.chip }}
                       />
                     );
                   })}
                 </Box>
-              </GridLegacy>
-            </GridLegacy>
+              </Grid>
+            </Grid>
           </DialogContent>
           <DialogActions>
             <Button onClick={handleClose}>{t('Cancel')}</Button>

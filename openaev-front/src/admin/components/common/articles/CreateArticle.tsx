@@ -88,11 +88,11 @@ const CreateArticle = ({
       )}
       <Dialog
         open={openCreate}
-        TransitionComponent={Transition}
         onClose={() => isOpen(false)}
         fullWidth
         maxWidth="md"
-        PaperProps={{ elevation: 1 }}
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogTitle>{t('Create a new media pressure article')}</DialogTitle>
         <DialogContent style={{ overflowX: 'hidden' }}>

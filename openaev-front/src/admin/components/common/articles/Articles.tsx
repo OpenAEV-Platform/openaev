@@ -4,7 +4,6 @@ import {
   Grid, IconButton, Tooltip, Typography,
 } from '@mui/material';
 import { green, orange } from '@mui/material/colors';
-import * as R from 'ramda';
 import { Fragment, type FunctionComponent, useContext, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -88,11 +87,17 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
     ...item,
     article_fullchannel: item.article_channel ? channelsMap[item.article_channel] : {},
   }));
-  const sortedArticles: FullArticleStore[] = R.filter(
-    (n: FullArticleStore) => channels.length === 0
-      || channels.map(o => o.id).includes(n.article_fullchannel?.channel_id ?? ''),
-    filtering.filterAndSort(fullArticles),
-  );
+
+	const selectedChannelIds = channels.map((c) => c.id);
+	const sortedArticles: FullArticleStore[] = filtering
+		.filterAndSort(fullArticles)
+		.filter((n: FullArticleStore) => {
+			if (selectedChannelIds.length === 0) {
+				return true;
+			}
+			const articleChannelId = n.article_fullchannel?.channel_id;
+			return articleChannelId ? selectedChannelIds.includes(articleChannelId) : false;
+		});
 
   return (
     <div>
@@ -142,7 +147,7 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
             .filter(d => d !== undefined);
           const images = docs.filter(d => d.document_type.includes('image/'));
           const videos = docs.filter(d => d.document_type.includes('video/'));
-          let headersDocs = [];
+          let headersDocs;
           if (article.article_fullchannel?.channel_type === 'newspaper') {
             headersDocs = images;
           } else if (article.article_fullchannel?.channel_type === 'tv') {

@@ -8,6 +8,7 @@ import { useFormatter } from '../../../../components/i18n';
 import type { Article, ArticleUpdateInput } from '../../../../utils/api-types';
 import { ArticleContext, PermissionsContext } from '../Context';
 import ArticleForm from './ArticleForm';
+import { resolveChannelId } from './ArticleUtils';
 
 interface ArticlePopoverProps {
   article: Article;
@@ -18,7 +19,6 @@ interface ArticlePopoverProps {
 const ArticlePopover = ({ article, onRemoveArticle, disabled = false }: ArticlePopoverProps) => {
   // Standard hooks
   const { t } = useFormatter();
-  console.log('article', article);
   // Context
   const { onUpdateArticle, onDeleteArticle } = useContext(ArticleContext);
   const { permissions } = useContext(PermissionsContext);
@@ -34,12 +34,11 @@ const ArticlePopover = ({ article, onRemoveArticle, disabled = false }: ArticleP
       article_name: article.article_name,
       article_author: article.article_author,
       article_content: article.article_content,
-      article_channel: typeof article.article_channel === 'object'
-        ? (article.article_channel as any).id
-        : article.article_channel,
+      article_channel: resolveChannelId(article.article_channel),
       article_comments: article.article_comments,
       article_shares: article.article_shares,
       article_likes: article.article_likes,
+      article_documents: article.article_documents,
     },
   });
 
@@ -47,7 +46,10 @@ const ArticlePopover = ({ article, onRemoveArticle, disabled = false }: ArticleP
 
   // Edit action
   const handleOpenEdit = () => setOpenEdit(true);
-  const handleCloseEdit = () => { methods.reset(); setOpenEdit(false); };
+  const handleCloseEdit = () => {
+    methods.reset();
+    setOpenEdit(false);
+  };
 
   const onSubmitEdit: SubmitHandler<ArticleUpdateInput> = (data) => {
     const result = onUpdateArticle(article, data);
@@ -99,12 +101,11 @@ const ArticlePopover = ({ article, onRemoveArticle, disabled = false }: ArticleP
       article_name: article.article_name,
       article_author: article.article_author,
       article_content: article.article_content,
-      article_channel: typeof article.article_channel === 'object'
-        ? (article.article_channel as any).id
-        : article.article_channel,
+      article_channel: resolveChannelId(article.article_channel),
       article_comments: article.article_comments,
       article_shares: article.article_shares,
       article_likes: article.article_likes,
+      article_documents: article.article_documents,
     });
   }, [article, methods]);
 
@@ -118,12 +119,8 @@ const ArticlePopover = ({ article, onRemoveArticle, disabled = false }: ArticleP
       <Dialog
         open={openDelete}
         onClose={handleCloseDelete}
-				slots={{ transition: Transition }}
-				slotProps={{
-					paper: {
-						elevation: 1
-					}
-				}}
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogContent>
           <DialogContentText>
@@ -142,12 +139,8 @@ const ArticlePopover = ({ article, onRemoveArticle, disabled = false }: ArticleP
         onClose={handleCloseEdit}
         fullWidth={true}
         maxWidth="md"
-				slots={{ transition: Transition }}
-				slotProps={{
-					paper: {
-						elevation: 1
-					}
-				}}
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogTitle>{t('Update the media pressure article')}</DialogTitle>
         <DialogContent style={{ overflowX: 'hidden' }}>
@@ -156,7 +149,7 @@ const ArticlePopover = ({ article, onRemoveArticle, disabled = false }: ArticleP
               <ArticleForm
                 editing
                 handleClose={handleCloseEdit}
-                documentsIds={article.article_documents ?? []}
+                documentsIds={article.article_documents}
               />
             </form>
           </FormProvider>
@@ -165,12 +158,8 @@ const ArticlePopover = ({ article, onRemoveArticle, disabled = false }: ArticleP
       <Dialog
         open={openRemove}
         onClose={handleCloseRemove}
-				slots={{ transition: Transition }}
-				slotProps={{
-					paper: {
-						elevation: 1
-					}
-				}}
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogContent>
           <DialogContentText>
