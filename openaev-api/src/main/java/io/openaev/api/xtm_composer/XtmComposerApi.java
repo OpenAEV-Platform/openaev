@@ -6,7 +6,6 @@ import io.openaev.api.xtm_composer.dto.XtmComposerOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerRegisterInput;
 import io.openaev.api.xtm_composer.dto.XtmComposerUpdateStatusInput;
 import io.openaev.database.model.Action;
-import io.openaev.database.model.ConnectorInstanceLog;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceLogsInput;
@@ -103,11 +102,11 @@ public class XtmComposerApi extends RestBehavior {
       description = "Receive logs from connector instances")
   @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Successful reception")})
-  public ConnectorInstanceLog receiveConnectorInstanceLogs(
+  public void receiveConnectorInstanceLogs(
       @PathVariable @NotBlank final String xtmComposerId,
       @PathVariable @NotBlank final String connectorInstanceId,
       @Valid @RequestBody ConnectorInstanceLogsInput input) {
-    return orchestrationService.pushLogsByConnectorInstance(
+    orchestrationService.pushLogsByConnectorInstance(
         xtmComposerId, connectorInstanceId, input.getLogs());
   }
 

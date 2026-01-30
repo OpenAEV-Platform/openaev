@@ -244,17 +244,16 @@ public class ConnectorOrchestrationService {
    * @param xtmComposerId the unique identifier of the XTM composer to validate
    * @param connectorInstanceId the unique identifier of the connector instance to receive the logs
    * @param logs a set of log messages to be pushed to the connector instance
-   * @return the updated ConnectorInstanceLog
    */
-  public ConnectorInstanceLog pushLogsByConnectorInstance(
+  public void pushLogsByConnectorInstance(
       String xtmComposerId, String connectorInstanceId, Set<String> logs) {
     this.xtmComposerService.throwIfInvalidXtmComposerId(xtmComposerId);
     if (logs.isEmpty()) {
-      return null;
+      return;
     }
     ConnectorInstancePersisted instance =
         connectorInstanceService.connectorInstanceById(connectorInstanceId);
-    return connectorInstanceLogService.pushLogByConnectorInstance(
+    connectorInstanceLogService.pushLogByConnectorInstance(
         instance, connectorInstanceLogService.transformRawLogsLineToLog(logs));
   }
 
