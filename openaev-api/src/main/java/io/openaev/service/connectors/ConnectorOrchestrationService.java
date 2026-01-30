@@ -102,7 +102,9 @@ public class ConnectorOrchestrationService {
    */
   public ConnectorInstancePersisted updateRequestedStatus(
       String connectorInstanceId, ConnectorInstance.REQUESTED_STATUS_TYPE requestedStatus) {
-    throwIfEnterpriseLicenseNotActive();
+    if (requestedStatus.equals(ConnectorInstance.REQUESTED_STATUS_TYPE.starting)) {
+      throwIfEnterpriseLicenseNotActive();
+    }
 
     ConnectorInstancePersisted instance =
         connectorInstanceService.connectorInstanceById(connectorInstanceId);
