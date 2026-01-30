@@ -1,6 +1,13 @@
 package io.openaev.helper;
 
+import com.deepl.api.DeepLException;
+import com.deepl.api.TextResult;
+import com.deepl.api.Translator;
+
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Properties;
 
 public class MessagesAutoTranslator {
 

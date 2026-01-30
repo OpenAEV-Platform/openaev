@@ -1,3 +1,7 @@
+import io.openaev.helper.MessagesAutoTranslator;
+
+import java.util.List;
+
 public class MessagesAutoTranslatorRunner {
   public static void main(String[] args) throws Exception {
     String apiKey = System.getenv("DEEPL_API_KEY");
