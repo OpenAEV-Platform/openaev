@@ -9,6 +9,8 @@ import { type CSSProperties, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
+import DOTS from '../../constants/Strings';
+
 interface Props {
   name: string;
   label?: string;
@@ -55,7 +57,6 @@ const TextFieldController = ({
   const [showPassword, setShowPassword] = useState(false);
   const handleClickShowPassword = () => setShowPassword(show => !show);
 
-  const DOTS = '••••••••';
   // Remove mask dots to keep only user input
   const stripDots = (s: string) => s.replaceAll('•', '');
 

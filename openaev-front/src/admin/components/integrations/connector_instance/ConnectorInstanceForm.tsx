@@ -10,6 +10,7 @@ import { Accordion, AccordionSummary } from '../../../../components/common/Accor
 import TextField from '../../../../components/fields/TextField';
 import TextFieldController from '../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../components/i18n';
+import DOTS from '../../../../constants/Strings';
 import {
   type CatalogConnectorConfiguration, type ConfigurationInput,
   type CreateConnectorInstanceInput,
@@ -82,7 +83,10 @@ const ConnectorInstanceForm = ({
           return;
         }
 
-        if (matchingConf.connector_configuration_required && (!value || value === '')) {
+        if (matchingConf.connector_configuration_required
+        // should only require password inputs ("writeOnly") during creation, NOT modification
+          && (!isEditing || !matchingConf.connector_configuration_writeonly)
+          && (!value || value === '')) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: t('Should not be empty'),
@@ -162,7 +166,7 @@ const ConnectorInstanceForm = ({
         value,
       })),
       cardinality: definition.connector_configuration_type == 'ARRAY' ? 'n' : '1',
-      defaultValue: definition.connector_configuration_default || '',
+      defaultValue: (isEditing && definition.connector_configuration_writeonly) ? DOTS : (definition.connector_configuration_default || ''),
       settings: { required },
       writeOnly: isEditing && definition.connector_configuration_writeonly,
     };

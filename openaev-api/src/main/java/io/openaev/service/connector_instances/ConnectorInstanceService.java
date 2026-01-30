@@ -344,7 +344,9 @@ public class ConnectorInstanceService {
                       catalogConnectorWithConfigMap.configurationsMap().get(conf.getKey());
                   if (definition == null) {
                     throw new IllegalArgumentException(
-                        String.format("Configuration key '%s' not found", conf.getKey()));
+                        String.format(
+                            "Configuration key '%s' not a valid key for this integration",
+                            conf.getKey()));
                   }
                   conf.setValue(encryptIfSensitive(conf.getValue(), definition, encryptionService));
                   return conf;

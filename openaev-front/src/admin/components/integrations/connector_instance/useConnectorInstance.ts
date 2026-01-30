@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { fetchCatalogConnectorConfigurations } from '../../../../actions/catalog/catalog-actions';
 import { fetchConnectorInstanceConfigurations } from '../../../../actions/connector_instances/connector-instance-actions';
+import DOTS from '../../../../constants/Strings';
 import type {
   CatalogConnectorConfiguration,
   ConfigurationInput,
@@ -38,7 +39,9 @@ const useConnectorInstanceForm = (
 
       const initialConfigurations: ConfigurationInput[] = Object.entries(defMap).map(([key, def]) => {
         const matchingValues = instanceConfigs.find(v => v.connector_instance_configuration_key === key)?.connector_instance_configuration_value;
-        const value = matchingValues ? matchingValues : (def.connector_configuration_default ?? '');
+        // a secret in editing mode must display "DOTS" instead of something else
+        const defaultValue = (isEditing && def.connector_configuration_writeonly) ? DOTS : (def.connector_configuration_default ?? '');
+        const value = matchingValues ? matchingValues : defaultValue;
         return {
           configuration_key: key,
           configuration_value: def.connector_configuration_type == 'INTEGER' ? value.toString() : value,
