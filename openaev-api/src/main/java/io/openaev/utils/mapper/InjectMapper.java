@@ -228,9 +228,8 @@ public class InjectMapper {
    * @param title the inject title
    * @param enabled whether the inject is enabled
    * @param content the inject content as JSON
-   * @param allTeams whether all teams are targeted
-   * @param exerciseId the parent exercise ID
-   * @param scenarioId the parent scenario ID
+   * @param exercise the parent exercise ID
+   * @param scenario the parent scenario ID
    * @param dependsDuration the duration dependency
    * @param injectorContract the injector contract
    * @param tags array of tag IDs
@@ -238,7 +237,8 @@ public class InjectMapper {
    * @param assets array of asset IDs
    * @param assetGroups array of asset group IDs
    * @param injectType the inject type identifier
-   * @param injectDependency the inject dependency if any
+   * @param injectDependencies the inject dependencies if any
+   * @param healthchecks the inject healthchecks
    * @return the assembled inject output DTO
    */
   public InjectOutput toInjectOutput(
@@ -255,6 +255,8 @@ public class InjectMapper {
       List<Team> teams,
       List<Asset> assets,
       List<AssetGroup> assetGroups,
+      String injectType,
+      List<InjectDependency> injectDependencies,
       List<HealthCheck> healthchecks) {
     InjectOutput injectOutput = new InjectOutput();
     injectOutput.setId(id);
@@ -270,12 +272,16 @@ public class InjectMapper {
     injectOutput.setTeams(teams);
     injectOutput.setAssets(assets);
     injectOutput.setAssetGroups(assetGroups);
+    injectOutput.setInjectType(injectType);
     injectOutput.setHealthchecks(healthchecks);
+    injectOutput.setDependsOn(injectDependencies);
     return injectOutput;
   }
 
   public InjectOutput toInjectOutput(Inject inject, List<HealthCheck> healthchecks) {
-    return toInjectOutput(
+      InjectorContract injectorContract = inject.getInjectorContract().orElse(null);
+      String type = injectorContract != null ? injectorContract.getInjector().getType() : null;
+      return toInjectOutput(
         inject.getId(),
         inject.getTitle(),
         inject.isEnabled(),
@@ -284,11 +290,13 @@ public class InjectMapper {
         inject.getScenario(),
         inject.getDependsOn(),
         inject.getDependsDuration(),
-        inject.getInjectorContract().orElse(null),
+        injectorContract,
         inject.getTags(),
         inject.getTeams(),
         inject.getAssets(),
         inject.getAssetGroups(),
+        type,
+        inject.getDependsOn(),
         healthchecks);
   }
 }

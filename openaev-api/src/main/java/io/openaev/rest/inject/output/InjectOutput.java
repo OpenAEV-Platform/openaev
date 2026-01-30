@@ -10,6 +10,7 @@ import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
+import io.openaev.helper.MultiModelSerializer;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.injectors.ovh.OvhSmsContract;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -17,6 +18,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
 import java.util.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -94,17 +96,17 @@ public class InjectOutput {
   private ObjectNode content;
 
   @JsonProperty("inject_documents")
-  @JsonSerialize(using = MultiModelDeserializer.class)
+  @JsonSerialize(using = MultiModelSerializer.class)
   @ArraySchema(schema = @Schema(type = "string", description = "Document of the inject"))
   private List<InjectDocument> documents = new ArrayList<>();
 
   @JsonProperty("inject_communications")
-  @JsonSerialize(using = MultiModelDeserializer.class)
+  @JsonSerialize(using = MultiModelSerializer.class)
   @ArraySchema(schema = @Schema(type = "string", description = "Communication of the inject"))
   private List<Communication> communications = new ArrayList<>();
 
   @JsonProperty("inject_expectations")
-  @JsonSerialize(using = MultiModelDeserializer.class)
+  @JsonSerialize(using = MultiModelSerializer.class)
   @ArraySchema(schema = @Schema(type = "string", description = "Expectation of the inject"))
   private List<InjectExpectation> expectations = new ArrayList<>();
 
@@ -155,7 +157,7 @@ public class InjectOutput {
   @JsonProperty("inject_testable")
   @Schema(description = "Testable state of the inject")
   public boolean canBeTested() {
-    return EmailContract.TYPE.equals(this.getType()) || OvhSmsContract.TYPE.equals(this.getType());
+    return EmailContract.TYPE.equals(this.getInjectType()) || OvhSmsContract.TYPE.equals(this.getInjectType());
   }
 
   @JsonProperty("inject_healthchecks")
@@ -168,13 +170,13 @@ public class InjectOutput {
     return injectorContract != null ? injectorContract.getDomains() : new HashSet<>();
   }
 
-    @JsonProperty("inject_ready")
-    @Schema(description = "Ready state of the inject")
-    public boolean isReady() {
-        return healthchecks.isEmpty()
-                || healthchecks.stream()
-                .noneMatch(
-                        healthcheck ->
-                                HealthCheck.Detail.MANDATORY_CONTENT.equals(healthcheck.getDetail()));
-    }
+  @JsonProperty("inject_ready")
+  @Schema(description = "Ready state of the inject")
+  public boolean isReady() {
+    return healthchecks.isEmpty()
+        || healthchecks.stream()
+            .noneMatch(
+                healthcheck ->
+                    HealthCheck.Detail.MANDATORY_CONTENT.equals(healthcheck.getDetail()));
+  }
 }

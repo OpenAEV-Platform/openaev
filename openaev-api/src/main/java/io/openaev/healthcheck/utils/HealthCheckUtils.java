@@ -347,6 +347,15 @@ public class HealthCheckUtils {
     }
 
     ObjectNode contractContent = injectorContract.getConvertedContent();
+    if (contractContent == null) {
+      result.add(
+          new HealthCheck(
+              HealthCheck.Type.INJECTOR_CONTRACT,
+              HealthCheck.Detail.MANDATORY_CONTENT,
+              HealthCheck.Status.ERROR,
+              now()));
+      return result;
+    }
     List<JsonNode> contractFields =
         stream(contractContent.get(CONTRACT_CONTENT_FIELDS).spliterator(), false).toList();
 

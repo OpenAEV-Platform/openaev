@@ -171,7 +171,7 @@ public class InjectModelHelper {
     return status.map(InjectStatus::getTrackingSentDate).orElse(null);
   }
 
-  private static boolean isFieldSet(
+  public static boolean isFieldSet(
       final boolean allTeams,
       @NotNull final List<String> teams,
       @NotNull final List<String> assets,
