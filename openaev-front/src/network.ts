@@ -1,5 +1,6 @@
 import axios, { type AxiosInstance, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import { normalize, type Schema } from 'normalizr';
+import { LANG } from './components/AppIntlProvider';
 
 interface ExtendedAxiosRequestConfig extends InternalAxiosRequestConfig {
   // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -14,6 +15,11 @@ interface ApiErrorResponse {
 // eslint-disable-next-line import/prefer-default-export
 export const api = <T>(schema?: Schema<T> | null): AxiosInstance => {
   const instance = axios.create({ headers: { responseType: 'json' } });
+  instance.interceptors.request.use((config) => {
+    config.headers["Accept-language"] = LANG;
+    //config.headers["X-Lang"] = LANG;
+    return config;
+  })
   // Intercept to apply schema and test unauthorized users
   instance.interceptors.response.use(
     (response: AxiosResponse) => {
