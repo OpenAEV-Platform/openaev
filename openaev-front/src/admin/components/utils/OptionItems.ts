@@ -43,6 +43,10 @@ export const langItems = (t: (text: string) => string) => [
     label: t('Japanese'),
   },
   {
+    value: 'ko',
+    label: t('Koren'),
+  },
+  {
     value: 'ru',
     label: t('Russian'),
   },
