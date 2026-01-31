@@ -1,5 +1,9 @@
 package io.openaev.database.model;
 
+import static java.time.Instant.now;
+import static java.util.Optional.ofNullable;
+import static lombok.AccessLevel.NONE;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -17,19 +21,14 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
+import java.util.*;
+import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
-
-import javax.annotation.Nullable;
-import java.time.Instant;
-import java.util.*;
-
-import static java.time.Instant.now;
-import static java.util.Optional.ofNullable;
-import static lombok.AccessLevel.NONE;
 
 @Getter
 @Setter
