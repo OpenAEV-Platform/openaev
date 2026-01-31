@@ -1,5 +1,35 @@
 package io.openaev.rest.exercise;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jayway.jsonpath.JsonPath;
+import io.openaev.IntegrationTest;
+import io.openaev.database.model.*;
+import io.openaev.database.repository.*;
+import io.openaev.rest.exercise.form.*;
+import io.openaev.rest.inject.form.InjectInput;
+import io.openaev.utils.fixtures.*;
+import io.openaev.utils.fixtures.composers.*;
+import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.RabbitMQTestListener;
+import jakarta.annotation.Nullable;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.TestExecutionListeners;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
 import static io.openaev.database.model.SettingKeys.DEFAULT_SIMULATION_DASHBOARD;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
@@ -10,39 +40,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
-import io.openaev.database.model.*;
-import io.openaev.database.model.Tag;
-import io.openaev.database.repository.*;
-import io.openaev.rest.exercise.form.*;
-import io.openaev.rest.inject.form.InjectInput;
-import io.openaev.utils.fixtures.*;
-import io.openaev.utils.fixtures.composers.*;
-import io.openaev.utils.mockUser.WithMockUser;
-import io.openaev.utilstest.RabbitMQTestListener;
-import jakarta.annotation.Nullable;
-import jakarta.transaction.Transactional;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import org.junit.jupiter.api.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
-import org.springframework.test.context.TestExecutionListeners;
-import org.springframework.test.web.servlet.MockMvc;
-
 @SpringBootTest
 @TestExecutionListeners(
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @AutoConfigureMockMvc
 @TestInstance(PER_CLASS)
+@Transactional
 public class ExerciseApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper objectMapper;
@@ -64,26 +68,14 @@ public class ExerciseApiTest extends IntegrationTest {
   @Autowired private CustomDashboardRepository customDashboardRepository;
   @Autowired private SettingRepository settingRepository;
 
-  List<ExerciseComposer.Composer> exerciseWrapperComposers = new ArrayList<>();
+  private static final List<String> COMPOSER_EXERCISE_IDS = new ArrayList<>();
   private static final List<String> EXERCISE_IDS = new ArrayList<>();
   private static final List<String> USER_IDS = new ArrayList<>();
   private static final List<String> TEAM_IDS = new ArrayList<>();
 
-  @AfterAll
-  void afterAll() {
-    exerciseWrapperComposers.forEach(ExerciseComposer.Composer::delete);
-    this.exerciseRepository.deleteAllById(EXERCISE_IDS);
-    this.userRepository.deleteAllById(USER_IDS);
-    this.teamRepository.deleteAllById(TEAM_IDS);
-    this.tagRuleRepository.deleteAll();
-    this.assetGroupRepository.deleteAll();
-    this.tagRepository.deleteAll();
-  }
-
   @DisplayName("Create simulation succeed with default dashboard")
   @Test
   @WithMockUser(isAdmin = true)
-  @Transactional
   void given_exercise_creation_should_set_default_custom_dashboard() throws Exception {
     // -- PREPARE --
     CustomDashboard defaultDashboard = new CustomDashboard();
@@ -317,7 +309,7 @@ public class ExerciseApiTest extends IntegrationTest {
                           injectStatusComposer.forInjectStatus(
                               InjectStatusFixture.createDraftInjectStatus())))
               .persist();
-      exerciseWrapperComposers.add(newExerciseComposer);
+      COMPOSER_EXERCISE_IDS.add(newExerciseComposer.get().getId());
       return newExerciseComposer.get();
     }
 
@@ -380,7 +372,7 @@ public class ExerciseApiTest extends IntegrationTest {
               .withAgent(
                   agentComposer.forAgent(
                       AgentFixture.createDefaultAgentSession(
-                          executorFixture.getCrowdstrikeExecutor())))
+                        executorFixture.getTaniumExecutor())))
               .persist()
               .get();
 
@@ -402,7 +394,6 @@ public class ExerciseApiTest extends IntegrationTest {
   }
 
   @Test
-  @Transactional
   @DisplayName("Should enable all users of newly added teams when replacing exercise teams")
   @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
   void replacingTeamsShouldEnableNewTeamUsers() throws Exception {

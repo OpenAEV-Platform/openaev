@@ -1,19 +1,5 @@
 package io.openaev.rest.inject.service;
 
-import static io.openaev.database.model.CollectExecutionStatus.COLLECTING;
-import static io.openaev.database.model.ExecutionStatus.*;
-import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
-import static io.openaev.database.model.Payload.PAYLOAD_EXECUTION_ARCH.*;
-import static io.openaev.database.specification.InjectSpecification.*;
-import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.helper.StreamHelper.iterableToSet;
-import static io.openaev.utils.AgentUtils.isPrimaryAgent;
-import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
-import static io.openaev.utils.StringUtils.duplicateString;
-import static io.openaev.utils.mapper.InjectStatusMapper.toExecutionTracesOutput;
-import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
-import static java.time.Instant.now;
-
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -61,13 +47,6 @@ import jakarta.persistence.criteria.Subquery;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.time.Instant;
-import java.util.*;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -79,6 +58,28 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
+
+import java.time.Instant;
+import java.util.*;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+
+import static io.openaev.database.model.CollectExecutionStatus.COLLECTING;
+import static io.openaev.database.model.ExecutionStatus.*;
+import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
+import static io.openaev.database.model.Payload.PAYLOAD_EXECUTION_ARCH.*;
+import static io.openaev.database.specification.InjectSpecification.*;
+import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.helper.StreamHelper.iterableToSet;
+import static io.openaev.utils.AgentUtils.isPrimaryAgent;
+import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
+import static io.openaev.utils.StringUtils.duplicateString;
+import static io.openaev.utils.mapper.InjectStatusMapper.toExecutionTracesOutput;
+import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
+import static java.time.Instant.now;
 
 @RequiredArgsConstructor
 @Service
@@ -653,6 +654,10 @@ public class InjectService {
       @NotBlank final String injectId, @jakarta.validation.constraints.NotNull InjectInput input) {
     Inject inject =
         this.injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
+    // Managing case where input.dependsDuration is null, as the field is marked as NotNull
+    if (input.getDependsDuration() == null) {
+      input.setDependsDuration(inject.getDependsDuration());
+    }
     inject.setUpdateAttributes(input);
 
     // Set dependencies
