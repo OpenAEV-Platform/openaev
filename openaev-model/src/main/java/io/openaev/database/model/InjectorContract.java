@@ -87,7 +87,7 @@ public class InjectorContract implements Base {
   @JsonProperty("injector_contract_arch")
   @Enumerated(EnumType.STRING)
   public Payload.PAYLOAD_EXECUTION_ARCH getArch() {
-    return ofNullable(getPayload()).map(payload -> payload.getExecutionArch()).orElse(null);
+    return ofNullable(getPayload()).map(Payload::getExecutionArch).orElse(null);
   }
 
   @Queryable(filterable = true)
@@ -170,7 +170,8 @@ public class InjectorContract implements Base {
     this.vulnerabilities = vulnerabilities;
   }
 
-  // Fixes a bug due to a new version of jackson and lombok https://github.com/projectlombok/lombok/issues/3978
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
   @Getter(onMethod_ = @JsonProperty("injector_contract_atomic_testing"))
   @Column(name = "injector_contract_atomic_testing")
   @Queryable(filterable = true)
