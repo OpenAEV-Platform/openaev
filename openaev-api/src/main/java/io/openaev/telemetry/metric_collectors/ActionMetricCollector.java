@@ -1,6 +1,5 @@
 package io.openaev.telemetry.metric_collectors;
 
-import io.openaev.injectors.caldera.CalderaContract;
 import io.openaev.injectors.openaev.OpenAEVImplantContract;
 import jakarta.annotation.PostConstruct;
 import java.util.concurrent.atomic.AtomicLong;
@@ -102,8 +101,7 @@ public class ActionMetricCollector {
 
   public void addInjectPlayedCount(String injectorType) {
     try {
-      if (CalderaContract.TYPE.equals(injectorType)
-          || OpenAEVImplantContract.TYPE.equals(injectorType)) {
+      if (OpenAEVImplantContract.TYPE.equals(injectorType)) {
         addInjectsPlayedByAgentCount();
       } else {
         addInjectPlayedWithoutAgentsCount();

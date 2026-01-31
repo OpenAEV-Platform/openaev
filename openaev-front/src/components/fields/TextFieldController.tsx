@@ -9,6 +9,8 @@ import { type CSSProperties, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
+import DOTS from '../../constants/Strings';
+
 interface Props {
   name: string;
   label?: string;
@@ -55,27 +57,27 @@ const TextFieldController = ({
   const [showPassword, setShowPassword] = useState(false);
   const handleClickShowPassword = () => setShowPassword(show => !show);
 
+  // Remove mask dots to keep only user input
+  const stripDots = (s: string) => s.replaceAll('•', '');
+
   return (
     <Controller
       name={name}
       control={control}
       defaultValue={defaultValue}
       render={({ field, fieldState: { error } }) => {
+        const isMasked = writeOnly && isOriginalValue && !!field.value;
+
         const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-          if (writeOnly && isOriginalValue) {
-            // Clear the field and replace with just what was typed
-            const typedChar = e.target.value.slice(-1);
-            field.onChange(typedChar);
+          // First user input replaces the masked value
+          if (isMasked) {
+            const next = stripDots(e.target.value);
+            field.onChange(next);
           } else {
             field.onChange(e);
           }
           setIsOriginalValue(false);
         };
-
-        // For write-only fields, show placeholder dots if still original value
-        const displayValue = writeOnly && isOriginalValue && field.value
-          ? '••••••••'
-          : field.value;
 
         return (
           <TextField
@@ -94,7 +96,7 @@ const TextFieldController = ({
             placeholder={placeholder}
             style={style}
             variant={variant}
-            value={displayValue}
+            value={isMasked ? DOTS : field.value}
             size={size}
             slotProps={{
               input: {

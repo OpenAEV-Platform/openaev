@@ -229,6 +229,45 @@ services:
     depends_on:
       openaev-test-elasticsearch:
         condition: service_healthy
+  rsa-key-generator:
+    image: alpine/openssl:3.5.4
+    volumes:
+      - rsakeys:/keys
+    entrypoint: [ "/bin/ash" ]
+    command: [ "-c", "if [ ! -f /keys/private_key.pem ]; then openssl genpkey -algorithm RSA -out /keys/private_key.pem -pkeyopt rsa_keygen_bits:4096; fi && tail -f /dev/null" ]
+    healthcheck:
+      test: [ "CMD", "test", "-f", "/keys/private_key.pem" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: always
+  xtm-composer:
+    image: filigran/xtm-composer:latest
+    platform: linux/amd64
+    network_mode: host # allow connecting to non docker local instance
+    environment:
+      - MANAGER__ID=${XTM_COMPOSER_ID}
+      - "MANAGER__NAME=XTM Integrations Manager"
+      - MANAGER__CREDENTIALS_KEY_FILEPATH=/keys/private_key.pem
+      - OPENAEV__ENABLE=true
+      - OPENCTI__ENABLE=false
+      - OPENAEV__URL=http://localhost:8080
+      - OPENAEV__TOKEN=${OPENAEV_ADMIN_TOKEN}
+      - OPENAEV__DAEMON__SELECTOR=docker
+      # Workaround: pending https://github.com/FiligranHQ/xtm-composer/issues/64,
+      # use OPENCTI__ keys to customise the docker daemon
+      - OPENCTI__DAEMON__DOCKER__NETWORK_MODE=host
+      # Provision the equivalent OPENAEV__ key for when this is fixed
+      - OPENAEV__DAEMON__DOCKER__NETWORK_MODE=host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - rsakeys:/keys:ro  # RSA key mounted as read-only
+    depends_on:
+      rsa-key-generator:
+        condition: service_healthy
+      openaev-dev-rabbitmq:
+        condition: service_healthy
+    restart: always
 volumes:
   esdata:
     driver: local
@@ -239,4 +278,6 @@ volumes:
   ossnapshots:
     driver: local
   pgdata:
+    driver: local
+  rsakeys:
     driver: local

@@ -48,7 +48,11 @@ public class InjectExecutionResultService {
         injectService.getInjectTracesFromInjectAndTarget(injectId, targetId, targetType);
 
     Set<String> agentIds =
-        traces.stream().map(ExecutionTrace::getAgent).map(Agent::getId).collect(toSet());
+        traces.stream()
+            .map(ExecutionTrace::getAgent)
+            .filter(Objects::nonNull)
+            .map(Agent::getId)
+            .collect(toSet());
 
     Map<String, List<ExecutionTraceOutput>> executionByAgent =
         toExecutionTracesOutput(

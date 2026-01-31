@@ -66,7 +66,9 @@ public class ManualInjectorIntegrationFactory extends IntegrationFactory {
   public List<ConnectorInstance> findRelatedInstances() {
     return List.of(
         connectorInstanceService.createAutostartInstance(
-            ManualInjectorIntegration.MANUAL_INJECTOR_ID, ConnectorType.INJECTOR));
+            ManualInjectorIntegration.MANUAL_INJECTOR_ID,
+            this.getClassName(),
+            ConnectorType.INJECTOR));
   }
 
   @Override

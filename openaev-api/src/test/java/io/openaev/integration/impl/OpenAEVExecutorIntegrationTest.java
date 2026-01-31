@@ -98,7 +98,9 @@ public class OpenAEVExecutorIntegrationTest {
         .hasSameElementsAs(
             List.of(
                 connectorInstanceService.createAutostartInstance(
-                    OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID, ConnectorType.EXECUTOR)));
+                    OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID,
+                    integrationFactory.getClass().getCanonicalName(),
+                    ConnectorType.EXECUTOR)));
   }
 
   @Test

@@ -1,5 +1,6 @@
 import { HelpCenterOutlined, VerifiedOutlined } from '@mui/icons-material';
-import { Button, Chip, Tooltip, Typography } from '@mui/material';
+import { Chip, Tooltip, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -8,6 +9,7 @@ import colorStyles from '../../../../components/Color';
 import { useFormatter } from '../../../../components/i18n';
 import { type ConnectorInstanceOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
+import ActionButton from './ActionButton';
 import { type ConnectorMainInfo } from './ConnectorCard';
 import ConnectorPopover from './ConnectorPopover';
 import ConnectorStatus from './ConnectorStatus';
@@ -95,6 +97,7 @@ const ConnectorTitle = ({
 }: ConnectorHeaderProps) => {
   // Standard hooks
   const { classes } = useStyles();
+  const theme = useTheme();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
 
@@ -161,30 +164,34 @@ const ConnectorTitle = ({
               && <ConnectorStatus variant={isStatusLoading ? 'loading' : instanceCurrentStatus} />
             }
 
-            {showUpdateButtons && connector?.instanceId && (
-              <ConnectorPopover
-                connectorInstanceId={connector.instanceId}
-                connectorName={connector.connectorName}
-              />
-            )}
-            {showDeployButton && (
-              <DeployButton
-                style={{ marginLeft: 'auto' }}
-                onDeployBtnClick={onDeployBtnClick}
-                deploymentCount={connector.connectorInstancesCount ?? 0}
-              />
-            )}
-            {showUpdateButtons && (
-              <Button
-                variant="outlined"
-                color={instanceRequestedStatus == 'starting' ? 'error' : 'success'}
-                size="small"
-                onClick={onUpdateRequestedStatusClick}
-                disabled={disabledUpdateButtons}
-              >
-                {instanceRequestedStatus == 'starting' ? t('Stop') : t('Start')}
-              </Button>
-            )}
+            <div style={{
+              display: 'flex',
+              gap: theme.spacing(1),
+              alignItems: 'center',
+              marginLeft: 'auto',
+            }}
+            >
+              {showUpdateButtons && connector?.instanceId && (
+                <ConnectorPopover
+                  connectorInstanceId={connector.instanceId}
+                  connectorName={connector.connectorName}
+                />
+              )}
+
+              {showDeployButton ? (
+                <DeployButton
+                  onDeployBtnClick={onDeployBtnClick}
+                  deploymentCount={connector.connectorInstancesCount ?? 0}
+                />
+              )
+                : (
+                    <ActionButton
+                      onUpdate={onUpdateRequestedStatusClick}
+                      disabled={showUpdateButtons || disabledUpdateButtons}
+                      status={instanceRequestedStatus}
+                    />
+                  )}
+            </div>
           </>
         )}
       </div>

@@ -170,8 +170,20 @@ public class ConnectorInstanceService {
    * @return a set of connector instance configurations
    */
   public Set<ConnectorInstanceConfiguration> getConnectorInstanceConfigurations(String instanceId) {
-    ConnectorInstance connectorInstance = connectorInstanceById(instanceId);
-    return connectorInstance.getConfigurations();
+    return connectorInstanceById(instanceId).getConfigurations();
+  }
+
+  /**
+   * Retrieve all connector instance configurations for a specific instance, except encrypted fields
+   *
+   * @param instanceId the connector instance ID to search for the configurations
+   * @return a set of connector instance configurations
+   */
+  public Set<ConnectorInstanceConfiguration> getConnectorInstanceConfigurationsNoSecrets(
+      String instanceId) {
+    return getConnectorInstanceConfigurations(instanceId).stream()
+        .filter(conf -> !conf.isEncrypted())
+        .collect(Collectors.toSet());
   }
 
   /**
@@ -332,7 +344,9 @@ public class ConnectorInstanceService {
                       catalogConnectorWithConfigMap.configurationsMap().get(conf.getKey());
                   if (definition == null) {
                     throw new IllegalArgumentException(
-                        String.format("Configuration key '%s' not found", conf.getKey()));
+                        String.format(
+                            "Configuration key '%s' not a valid key for this integration",
+                            conf.getKey()));
                   }
                   conf.setValue(encryptIfSensitive(conf.getValue(), definition, encryptionService));
                   return conf;
@@ -484,9 +498,11 @@ public class ConnectorInstanceService {
     return instance;
   }
 
-  public ConnectorInstance createAutostartInstance(String connectorId, ConnectorType type) {
+  public ConnectorInstance createAutostartInstance(
+      String connectorId, String className, ConnectorType type) {
     ConnectorInstanceInMemory instance = new ConnectorInstanceInMemory();
     instance.setId(connectorId);
+    instance.setClassName(className);
     instance.setRequestedStatus(ConnectorInstancePersisted.REQUESTED_STATUS_TYPE.starting);
     instance.setCurrentStatus(ConnectorInstancePersisted.CURRENT_STATUS_TYPE.stopped);
     ConnectorInstanceConfiguration conf =

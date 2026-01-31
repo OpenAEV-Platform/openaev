@@ -9,8 +9,10 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @RequiredArgsConstructor
 public abstract class IntegrationFactory {
   protected final ConnectorInstanceService connectorInstanceService;
@@ -33,15 +35,22 @@ public abstract class IntegrationFactory {
     runMigrations();
   }
 
-  @Transactional(rollbackFor = Exception.class)
-  public List<Integration> sync(List<ConnectorInstance> instances) throws Exception {
+  public List<Integration> sync(List<ConnectorInstance> instances) {
     List<Integration> list = new ArrayList<>();
     for (ConnectorInstance connectorInstance : instances) {
+      try {
+        Integration integration = this.spawn(connectorInstance);
+        integration.initialise();
 
-      Integration integration = this.spawn(connectorInstance);
-      integration.initialise();
-
-      list.add(integration);
+        list.add(integration);
+      } catch (Exception e) {
+        log.error(
+            "There was a problem initialising the integration from instance id '{}' from factory type {}.",
+            connectorInstance.getId(),
+            connectorInstance.getClassName(),
+            e);
+        // do not rethrow; don't break the loop
+      }
     }
     return list;
   }

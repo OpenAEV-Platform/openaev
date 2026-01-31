@@ -5,8 +5,9 @@ import { updateConnectorInstance } from '../../../../actions/connector_instances
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
+import DOTS from '../../../../constants/Strings';
 import type {
-  CatalogConnector,
+  CatalogConnector, ConfigurationInput,
   ConnectorInstanceOutput,
   CreateConnectorInstanceInput,
 } from '../../../../utils/api-types';
@@ -45,9 +46,15 @@ const UpdateConnectorInstanceDrawer = ({
   );
 
   const onUpdateConnectorInstance = (data: Omit<CreateConnectorInstanceInput, 'catalog_connector_id'>) => {
+    // don't submit empty secrets
+    const shouldFilter = (conf: ConfigurationInput) => {
+      return configurationsDefinitionMap[conf.configuration_key].connector_configuration_writeonly
+        && (!conf.configuration_value || conf.configuration_value.toString() === DOTS);
+    };
+    const filteredConfigs = data.connector_instance_configurations?.filter(conf => !shouldFilter(conf));
     updateConnectorInstance(connectorInstanceId, {
       catalog_connector_id: catalogConnectorId,
-      ...data,
+      connector_instance_configurations: filteredConfigs,
     }).then(() => {
       onClose();
     }).catch((error) => {

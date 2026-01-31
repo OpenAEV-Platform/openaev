@@ -409,21 +409,29 @@ class StixApiTest extends IntegrationTest {
     @Test
     @DisplayName("Should throw bad request when security coverage is Obsolete")
     void shouldThrowBadRequestWhenSecurityCoverageIsObsolete() throws Exception {
+      Instant reference = Instant.parse("2025-12-31T10:43:56Z");
+      JsonNode referenceInput =
+          updateStixObjectField(
+              stixSecurityCoverage,
+              CommonProperties.MODIFIED.toString(),
+              reference.toString(),
+              emptyList(),
+              0);
+
       mvc.perform(
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(mapper.writeValueAsString(stixSecurityCoverage)))
+                  .content(mapper.writeValueAsString(referenceInput)))
           .andExpect(status().isOk());
 
       entityManager.flush();
       entityManager.clear();
 
-      // Use a date that's definitely older than the stored date (2025-12-31T14:00:00Z)
       JsonNode updated =
           updateStixObjectField(
               stixSecurityCoverage,
               CommonProperties.MODIFIED.toString(),
-              "2025-11-01T00:00:00Z",
+              reference.minus(30, ChronoUnit.DAYS).toString(),
               emptyList(),
               0);
 

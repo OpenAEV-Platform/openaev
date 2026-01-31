@@ -13,7 +13,6 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
-import io.openaev.injectors.caldera.CalderaContract;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectExecutionAction;
@@ -292,17 +291,6 @@ public class InjectStatusService {
   }
 
   private StatusPayload getPayloadOutput(Inject inject) {
-    InjectorContract injectorContract = inject.getInjectorContract().orElse(null);
-
-    if (injectorContract != null
-        && CalderaContract.TYPE.equals(injectorContract.getInjector().getType())) {
-      io.openaev.executors.Injector executor =
-          managerFactory
-              .getManager()
-              .requestInjectorExecutorByType(injectorContract.getInjector().getType());
-      return executor.getPayloadOutput(injectorContract.getId());
-    }
-
     return injectUtils.getStatusPayloadFromInject(inject);
   }
 

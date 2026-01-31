@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class ConnectorInstanceLogService {
-  public static final long LOG_SIZE_LIMIT = 1000L;
+  public static final long LOG_SIZE_LIMIT = 10L;
   private final ConnectorInstanceLogRepository connectorInstanceLogRepository;
 
   private void cleanupExcessLogs(String connectorInstanceId) {
