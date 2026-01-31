@@ -1,5 +1,15 @@
 package io.openaev.rest.exercise;
 
+import static io.openaev.database.model.SettingKeys.DEFAULT_SIMULATION_DASHBOARD;
+import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
@@ -12,6 +22,11 @@ import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.annotation.Nullable;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -23,22 +38,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-
-import static io.openaev.database.model.SettingKeys.DEFAULT_SIMULATION_DASHBOARD;
-import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
-import static io.openaev.utils.JsonTestUtils.asJsonString;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @TestExecutionListeners(
@@ -371,8 +370,7 @@ public class ExerciseApiTest extends IntegrationTest {
               .forEndpoint(EndpointFixture.createEndpoint())
               .withAgent(
                   agentComposer.forAgent(
-                      AgentFixture.createDefaultAgentSession(
-                        executorFixture.getTaniumExecutor())))
+                      AgentFixture.createDefaultAgentSession(executorFixture.getTaniumExecutor())))
               .persist()
               .get();
 
