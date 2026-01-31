@@ -144,6 +144,10 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // delete scenario and payload before reimporting to verify that the killchainphase is not
     // recreated
+    // Clear the persistence context to avoid TransientObjectException from stale references
+    entityManager.clear();
+    // Delete injects first (they reference Scenario), then scenarios, then payloads
+    injectRepository.deleteAll();
     scenarioRepository.deleteAll();
     payloadRepository.deleteAll();
 

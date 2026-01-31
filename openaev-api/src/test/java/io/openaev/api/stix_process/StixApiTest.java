@@ -39,7 +39,7 @@ import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -418,11 +418,12 @@ class StixApiTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
 
+      // Use a date that's definitely older than the stored date (2025-12-31T14:00:00Z)
       JsonNode updated =
           updateStixObjectField(
               stixSecurityCoverage,
               CommonProperties.MODIFIED.toString(),
-              Instant.now().minus(30, ChronoUnit.DAYS).toString(),
+              "2025-11-01T00:00:00Z",
               emptyList(),
               0);
 
