@@ -177,7 +177,8 @@ public class InjectorContract implements Base {
   @Queryable(filterable = true)
   private boolean isAtomicTesting;
 
-  // Fixes a bug due to a new version of jackson and lombok https://github.com/projectlombok/lombok/issues/3978
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
   @Getter(onMethod_ = @JsonProperty("injector_contract_import_available"))
   @Column(name = "injector_contract_import_available")
   @Queryable(filterable = true)
