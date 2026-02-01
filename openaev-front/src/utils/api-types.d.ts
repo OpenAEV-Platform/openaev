@@ -6266,7 +6266,6 @@ export interface TagRuleInput {
 export interface TagRuleOutput {
   /** Asset groups of the tag rule */
   asset_groups?: Record<string, string>;
-  protected?: boolean;
   /** Name of the tag associated with the tag rule */
   tag_name: string;
   /** ID of the tag rule */
@@ -6736,30 +6735,6 @@ export interface UserOutput {
   user_tags?: string[];
 }
 
-/** Map of errors by input */
-export interface ValidationContent {
-  /** A list of errors */
-  errors?: string[];
-}
-
-/** Errors raised */
-export interface ValidationError {
-  /** Map of errors by input */
-  children?: Record<string, ValidationContent>;
-}
-
-export interface ValidationErrorBag {
-  /**
-   * Return code
-   * @format int32
-   */
-  code?: number;
-  /** Errors raised */
-  errors?: ValidationError;
-  /** Return message */
-  message?: string;
-}
-
 export interface Variable {
   listened?: boolean;
   /** @format date-time */
@@ -6781,15 +6756,6 @@ export interface VariableInput {
   /** @pattern ^[a-z_]+$ */
   variable_key: string;
   variable_value?: string;
-}
-
-export interface ViolationErrorBag {
-  /** The error */
-  error?: string;
-  /** The message of the error */
-  message?: string;
-  /** The type of error */
-  type?: string;
 }
 
 export interface VulnerabilityBulkInsertInput {

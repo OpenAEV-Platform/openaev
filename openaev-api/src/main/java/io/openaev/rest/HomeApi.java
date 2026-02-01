@@ -34,7 +34,7 @@ public class HomeApi {
   @GetMapping(
       path = {
         "/",
-        "/{path:^(?!api$|login$|logout$|oauth2$|saml2$|assets$|static$|swagger-ui$).*$}/**"
+        "/{path:^(?!api|login$|logout$|oauth2$|saml2$|assets$|static$|swagger-ui).*$}/**"
       },
       produces = MediaType.TEXT_HTML_VALUE)
   @RBAC(skipRBAC = true) // No RBAC check for home endpoint

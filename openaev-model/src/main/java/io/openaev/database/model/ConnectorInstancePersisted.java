@@ -6,14 +6,15 @@ import io.openaev.database.audit.ModelBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.time.Instant;
-import java.util.HashSet;
-import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
+
+import java.time.Instant;
+import java.util.HashSet;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -44,6 +45,9 @@ public class ConnectorInstancePersisted extends ConnectorInstance implements Bas
   @JsonProperty("connector_instance_started_at")
   private Instant startedAt;
 
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("connector_instance_is_in_reboot_loop"))
   @Column(name = "connector_instance_is_in_reboot_loop")
   @JsonProperty("connector_instance_is_in_reboot_loop")
   private boolean isInRebootLoop;
