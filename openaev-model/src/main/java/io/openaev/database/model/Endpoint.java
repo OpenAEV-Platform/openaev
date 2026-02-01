@@ -10,10 +10,9 @@ import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MultiModelSerializer;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
+import java.util.*;
 import lombok.*;
 import org.hibernate.annotations.Type;
-
-import java.util.*;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
