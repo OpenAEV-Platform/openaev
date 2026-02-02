@@ -1931,7 +1931,7 @@
   "vulnerable-endpoint-singular": "취약한 엔드포인트",
   "Waiting Response": "대기 중인 응답",
   "Warning": "경고",
-  "was previously": "(</a> 이전)",
+  "was previously": "({previous_number} 이전)",
   "We detected that your change will trigger an {assetrule}. Would you like to apply the defined asset groups on your current existing injects?": "변경으로 인해 {assetrule}이 트리거되는 것을 감지했습니다. 정의된 에셋 그룹을 현재 기존 인젝트에 적용하시겠습니까?",
   "We would like thank your for your participation in this simulation. You are kindly requested to fill this lessons learned questionnaire: <a href='${lessons_uri}'>${lessons_uri}</a>.": "이 시뮬레이션에 참여해 주셔서 감사합니다. 이 교훈을 얻은 설문지를 작성해 주시기 바랍니다: <a href='${lessons_uri}'>${lessons_uri}</a>.",
   "Weakness Enumeration": "약점 열거",
