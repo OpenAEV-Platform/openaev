@@ -1,5 +1,4 @@
 import { Button } from '@mui/material';
-import type { CSSProperties } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
