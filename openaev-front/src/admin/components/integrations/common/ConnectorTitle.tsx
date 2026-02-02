@@ -187,7 +187,7 @@ const ConnectorTitle = ({
                 : (
                     <ActionButton
                       onUpdate={onUpdateRequestedStatusClick}
-                      disabled={showUpdateButtons || disabledUpdateButtons}
+                      disabled={disabledUpdateButtons}
                       status={instanceRequestedStatus}
                     />
                   )}
