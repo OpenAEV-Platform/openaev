@@ -123,7 +123,7 @@ public class Team implements Base {
   @JsonProperty("team_scenarios")
   private List<Scenario> scenarios = new ArrayList<>();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "injects_teams",

@@ -16,7 +16,6 @@ import io.openaev.database.converter.ContentConverter;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -114,10 +113,10 @@ public class InjectorContract implements Base {
   @JsonProperty("injector_contract_injector")
   @Queryable(filterable = true, dynamicValues = true)
   @NotNull
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Injector injector;
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
       name = "injectors_contracts_attack_patterns",
@@ -152,7 +151,7 @@ public class InjectorContract implements Base {
     return this.payload != null ? this.payload.getDomains() : this.domains;
   }
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
       name = "injectors_contracts_vulnerabilities",

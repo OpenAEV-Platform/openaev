@@ -26,14 +26,14 @@ public class InjectDependencyId implements Serializable {
   @JsonProperty("inject_parent_id")
   @JoinColumn(referencedColumnName = "inject_id", name = "inject_parent_id")
   @JsonSerialize(using = MonoIdSerializer.class)
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Inject injectParent;
 
   @ManyToOne
   @JsonProperty("inject_children_id")
   @JoinColumn(referencedColumnName = "inject_id", name = "inject_children_id")
   @JsonSerialize(using = MonoIdSerializer.class)
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Inject injectChildren;
 
   @Override

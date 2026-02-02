@@ -23,7 +23,7 @@ public class InjectDocument {
   @JoinColumn(name = "inject_id")
   @JsonProperty("inject_id")
   @JsonSerialize(using = MonoIdSerializer.class)
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Inject inject;
 
   @ManyToOne(fetch = FetchType.EAGER)
@@ -31,7 +31,7 @@ public class InjectDocument {
   @JoinColumn(name = "document_id")
   @JsonProperty("document_id")
   @JsonSerialize(using = MonoIdSerializer.class)
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Document document;
 
   @Column(name = "document_attached")

@@ -9,7 +9,6 @@ import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -73,10 +72,10 @@ public class Communication implements Base {
   @JoinColumn(name = "communication_inject")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("communication_inject")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Inject inject;
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "communications_users",

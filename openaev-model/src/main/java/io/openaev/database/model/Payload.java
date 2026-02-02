@@ -18,7 +18,6 @@ import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
 import io.openaev.jsonapi.IncludeOption;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -113,7 +112,7 @@ public class Payload implements GrantableBase {
   @NotEmpty
   private PLATFORM_TYPE[] platforms = new PLATFORM_TYPE[0];
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @Setter
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
@@ -198,7 +197,7 @@ public class Payload implements GrantableBase {
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("payload_collector")
   @IncludeOption(key = "exclude from payload export")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Collector collector;
 
   @OneToMany(
@@ -211,7 +210,7 @@ public class Payload implements GrantableBase {
 
   // -- TAG --
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @Queryable(filterable = true, dynamicValues = true)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(

@@ -48,7 +48,6 @@ export interface AgentExecutorOutput {
 }
 
 export interface AgentOutput {
-  active?: boolean;
   /** Indicates whether the endpoint is active. The endpoint is considered active if it was seen in the last 3 minutes. */
   agent_active?: boolean;
   /** Agent deployment mode */
@@ -196,7 +195,7 @@ export interface Article {
   article_content?: string;
   /** @format date-time */
   article_created_at: string;
-  article_documents?: Document[];
+  article_documents?: string[];
   article_exercise?: string;
   /** @minLength 1 */
   article_id: string;
@@ -248,23 +247,6 @@ export interface ArticleUpdateInput {
   article_shares?: number;
 }
 
-export interface Asset {
-  /** @format date-time */
-  asset_created_at: string;
-  asset_description?: string;
-  asset_external_reference?: string;
-  /** @minLength 1 */
-  asset_id: string;
-  /** @minLength 1 */
-  asset_name: string;
-  /** @uniqueItems true */
-  asset_tags?: Tag[];
-  asset_type?: string;
-  /** @format date-time */
-  asset_updated_at: string;
-  listened?: boolean;
-}
-
 export interface AssetAgentJob {
   asset_agent_agent?: string;
   /** @deprecated */
@@ -278,19 +260,18 @@ export interface AssetAgentJob {
 }
 
 export interface AssetGroup {
-  asset_group_assets?: Asset[];
+  asset_group_assets?: string[];
   /** @format date-time */
   asset_group_created_at: string;
   asset_group_description?: string;
-  asset_group_dynamic_assets?: Asset[];
+  asset_group_dynamic_assets?: string[];
   asset_group_dynamic_filter: FilterGroup;
   asset_group_external_reference?: string;
   /** @minLength 1 */
   asset_group_id: string;
   /** @minLength 1 */
   asset_group_name: string;
-  /** @uniqueItems true */
-  asset_group_tags?: Tag[];
+  asset_group_tags?: string[];
   /** @format date-time */
   asset_group_updated_at: string;
   listened?: boolean;
@@ -416,7 +397,7 @@ export interface AttackPattern {
   attack_pattern_external_id: string;
   /** @minLength 1 */
   attack_pattern_id: string;
-  attack_pattern_kill_chain_phases?: KillChainPhase[];
+  attack_pattern_kill_chain_phases?: string[];
   /** @minLength 1 */
   attack_pattern_name: string;
   attack_pattern_parent?: string;
@@ -557,7 +538,7 @@ type BaseInjectorContractBaseOutputInjectorContractHasFullDetailsMapping<
 interface BasePayload {
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
-  payload_attack_patterns?: AttackPattern[];
+  payload_attack_patterns?: string[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector?: string;
@@ -604,8 +585,7 @@ interface BasePayload {
   payload_prerequisites?: PayloadPrerequisite[];
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
-  /** @uniqueItems true */
-  payload_tags?: Tag[];
+  payload_tags?: string[];
   payload_type?: string;
   /** @format date-time */
   payload_updated_at: string;
@@ -831,7 +811,7 @@ export interface Challenge {
   challenge_content?: string;
   /** @format date-time */
   challenge_created_at: string;
-  challenge_documents?: Document[];
+  challenge_documents?: string[];
   challenge_exercises?: string[];
   /** @minItems 1 */
   challenge_flags: ChallengeFlag[];
@@ -844,8 +824,7 @@ export interface Challenge {
   challenge_scenarios?: string[];
   /** @format double */
   challenge_score?: number;
-  /** @uniqueItems true */
-  challenge_tags?: Tag[];
+  challenge_tags?: string[];
   /** @format date-time */
   challenge_updated_at: string;
   /** @format date-time */
@@ -1055,7 +1034,7 @@ export interface Comcheck {
   /** @format date-time */
   comcheck_start_date: string;
   comcheck_state?: "RUNNING" | "EXPIRED" | "FINISHED";
-  comcheck_statuses?: ComcheckStatus[];
+  comcheck_statuses?: string[];
   comcheck_subject?: string;
   /** @format int64 */
   comcheck_users_number?: number;
@@ -1091,7 +1070,7 @@ export interface Command {
   command_executor: string;
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
-  payload_attack_patterns?: AttackPattern[];
+  payload_attack_patterns?: string[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector?: string;
@@ -1138,8 +1117,7 @@ export interface Command {
   payload_prerequisites?: PayloadPrerequisite[];
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
-  /** @uniqueItems true */
-  payload_tags?: Tag[];
+  payload_tags?: string[];
   payload_type?: string;
   /** @format date-time */
   payload_updated_at: string;
@@ -1172,7 +1150,7 @@ export interface Communication {
   communication_subject?: string;
   /** @minLength 1 */
   communication_to: string;
-  communication_users?: User[];
+  communication_users?: string[];
   listened?: boolean;
 }
 
@@ -1301,8 +1279,7 @@ export interface ContractOutputElement {
   contract_output_element_regex_groups: RegexGroup[];
   /** @minLength 1 */
   contract_output_element_rule: string;
-  /** @uniqueItems true */
-  contract_output_element_tags?: Tag[];
+  contract_output_element_tags?: string[];
   contract_output_element_type:
     | "text"
     | "number"
@@ -1628,20 +1605,6 @@ export interface CveSimple {
   cve_published?: string;
 }
 
-export interface Cwe {
-  /** @format date-time */
-  cwe_created_at?: string;
-  /** @minLength 1 */
-  cwe_external_id: string;
-  /** @minLength 1 */
-  cwe_id: string;
-  cwe_source?: string;
-  /** @format date-time */
-  cwe_updated_at?: string;
-  listened?: boolean;
-  vulnerabilities?: Vulnerability[];
-}
-
 /** CWE input used in vulnerability creation/update */
 export interface CweInput {
   /**
@@ -1760,7 +1723,7 @@ export interface DnsResolution {
   dns_resolution_hostname: string;
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
-  payload_attack_patterns?: AttackPattern[];
+  payload_attack_patterns?: string[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector?: string;
@@ -1807,8 +1770,7 @@ export interface DnsResolution {
   payload_prerequisites?: PayloadPrerequisite[];
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
-  /** @uniqueItems true */
-  payload_tags?: Tag[];
+  payload_tags?: string[];
   payload_type?: string;
   /** @format date-time */
   payload_updated_at: string;
@@ -1822,16 +1784,13 @@ export interface DnsResolution {
 
 export interface Document {
   document_description?: string;
-  /** @uniqueItems true */
-  document_exercises?: Exercise[];
+  document_exercises?: string[];
   /** @minLength 1 */
   document_id: string;
   /** @minLength 1 */
   document_name: string;
-  /** @uniqueItems true */
-  document_scenarios?: Scenario[];
-  /** @uniqueItems true */
-  document_tags?: Tag[];
+  document_scenarios?: string[];
+  document_tags?: string[];
   document_target?: string;
   /** @minLength 1 */
   document_type: string;
@@ -1916,8 +1875,7 @@ export interface Endpoint {
   asset_id: string;
   /** @minLength 1 */
   asset_name: string;
-  /** @uniqueItems true */
-  asset_tags?: Tag[];
+  asset_tags?: string[];
   asset_type?: string;
   /** @format date-time */
   asset_updated_at: string;
@@ -2571,7 +2529,7 @@ export interface Executable {
   executable_file: string;
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
-  payload_attack_patterns?: AttackPattern[];
+  payload_attack_patterns?: string[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector?: string;
@@ -2618,8 +2576,7 @@ export interface Executable {
   payload_prerequisites?: PayloadPrerequisite[];
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
-  /** @uniqueItems true */
-  payload_tags?: Tag[];
+  payload_tags?: string[];
   payload_type?: string;
   /** @format date-time */
   payload_updated_at: string;
@@ -2761,7 +2718,7 @@ export interface ExecutorUpdateInput {
 export interface Exercise {
   /** @format int64 */
   exercise_all_users_number?: number;
-  exercise_articles?: Article[];
+  exercise_articles?: string[];
   exercise_category?: string;
   /** @format int64 */
   exercise_communications_number?: number;
@@ -2769,18 +2726,18 @@ export interface Exercise {
   exercise_created_at: string;
   exercise_custom_dashboard?: string;
   exercise_description?: string;
-  exercise_documents?: Document[];
+  exercise_documents?: string[];
   /** @format date-time */
   exercise_end_date?: string;
   /** @minLength 1 */
   exercise_id: string;
-  exercise_injects?: Inject[];
+  exercise_injects?: string[];
   exercise_injects_statistics?: Record<string, number>;
   exercise_kill_chain_phases?: KillChainPhase[];
   exercise_lessons_anonymized?: boolean;
   /** @format int64 */
   exercise_lessons_answers_number?: number;
-  exercise_lessons_categories?: LessonsCategory[];
+  exercise_lessons_categories?: string[];
   exercise_logo_dark?: string;
   exercise_logo_light?: string;
   /** @format int64 */
@@ -2805,9 +2762,9 @@ export interface Exercise {
     | "PAUSED"
     | "FINISHED"
   )[];
-  exercise_observers?: User[];
-  exercise_pauses?: Pause[];
-  exercise_planners?: User[];
+  exercise_observers?: string[];
+  exercise_pauses?: string[];
+  exercise_planners?: string[];
   exercise_platforms?: (
     | "Linux"
     | "Windows"
@@ -2826,16 +2783,15 @@ export interface Exercise {
   exercise_start_date?: string;
   exercise_status: "SCHEDULED" | "CANCELED" | "RUNNING" | "PAUSED" | "FINISHED";
   exercise_subtitle?: string;
-  /** @uniqueItems true */
-  exercise_tags?: Tag[];
-  exercise_teams?: Team[];
+  exercise_tags?: string[];
+  exercise_teams?: string[];
   exercise_teams_users?: ExerciseTeamUser[];
   /** @format date-time */
   exercise_updated_at: string;
-  exercise_users?: User[];
+  exercise_users?: string[];
   /** @format int64 */
   exercise_users_number?: number;
-  exercise_variables?: Variable[];
+  exercise_variables?: string[];
   listened?: boolean;
 }
 
@@ -2975,7 +2931,7 @@ export interface FileDrop {
   file_drop_file: string;
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
-  payload_attack_patterns?: AttackPattern[];
+  payload_attack_patterns?: string[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector?: string;
@@ -3022,8 +2978,7 @@ export interface FileDrop {
   payload_prerequisites?: PayloadPrerequisite[];
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
-  /** @uniqueItems true */
-  payload_tags?: Tag[];
+  payload_tags?: string[];
   payload_type?: string;
   /** @format date-time */
   payload_updated_at: string;
@@ -3062,7 +3017,7 @@ export interface FilterGroup {
 export interface Finding {
   /** @uniqueItems true */
   finding_asset_groups?: AssetGroup[];
-  finding_assets?: Asset[];
+  finding_assets?: string[];
   /** @format date-time */
   finding_created_at: string;
   /** @minLength 1 */
@@ -3075,9 +3030,8 @@ export interface Finding {
   finding_name?: string;
   finding_scenario?: Scenario;
   finding_simulation?: Exercise;
-  /** @uniqueItems true */
-  finding_tags?: Tag[];
-  finding_teams?: Team[];
+  finding_tags?: string[];
+  finding_teams?: string[];
   finding_type:
     | "text"
     | "number"
@@ -3089,7 +3043,7 @@ export interface Finding {
     | "cve";
   /** @format date-time */
   finding_updated_at: string;
-  finding_users?: User[];
+  finding_users?: string[];
   /** @minLength 1 */
   finding_value: string;
   listened?: boolean;
@@ -3182,8 +3136,8 @@ export interface Group {
   group_id: string;
   /** @minLength 1 */
   group_name: string;
-  group_roles?: Role[];
-  group_users?: User[];
+  group_roles?: string[];
+  group_users?: string[];
   listened?: boolean;
 }
 
@@ -3302,12 +3256,12 @@ export interface Inject {
   footer?: string;
   header?: string;
   inject_all_teams?: boolean;
-  inject_asset_groups?: AssetGroup[];
-  inject_assets?: Asset[];
+  inject_asset_groups?: string[];
+  inject_assets?: string[];
   inject_attack_patterns?: AttackPattern[];
   inject_city?: string;
   inject_collect_status?: "COLLECTING" | "COMPLETED";
-  inject_communications?: Communication[];
+  inject_communications?: string[];
   /** @format int64 */
   inject_communications_not_ack_number?: number;
   /** @format int64 */
@@ -3327,10 +3281,10 @@ export interface Inject {
   inject_depends_duration: number;
   inject_depends_on?: InjectDependency[];
   inject_description?: string;
-  inject_documents?: InjectDocument[];
+  inject_documents?: string[];
   inject_enabled?: boolean;
   inject_exercise?: string;
-  inject_expectations?: InjectExpectation[];
+  inject_expectations?: string[];
   /** @minLength 1 */
   inject_id: string;
   inject_injector_contract?: InjectorContract;
@@ -3340,9 +3294,8 @@ export interface Inject {
   /** @format date-time */
   inject_sent_at?: string;
   inject_status?: InjectStatus;
-  /** @uniqueItems true */
-  inject_tags?: Tag[];
-  inject_teams?: Team[];
+  inject_tags?: string[];
+  inject_teams?: string[];
   inject_testable?: boolean;
   /** @minLength 1 */
   inject_title: string;
@@ -3423,13 +3376,6 @@ export interface InjectDependencyIdInput {
 export interface InjectDependencyInput {
   dependency_condition?: InjectDependencyCondition;
   dependency_relationship?: InjectDependencyIdInput;
-}
-
-export interface InjectDocument {
-  document_attached?: boolean;
-  document_id?: string;
-  document_name?: string;
-  inject_id?: string;
 }
 
 export interface InjectDocumentInput {
@@ -3954,7 +3900,7 @@ export interface InjectorContract {
   convertedContent?: object;
   injector_contract_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   injector_contract_atomic_testing?: boolean;
-  injector_contract_attack_patterns?: AttackPattern[];
+  injector_contract_attack_patterns?: string[];
   /** @minLength 1 */
   injector_contract_content: string;
   /** @format date-time */
@@ -3985,8 +3931,7 @@ export interface InjectorContract {
   )[];
   /** @format date-time */
   injector_contract_updated_at: string;
-  /** @uniqueItems true */
-  injector_contract_vulnerabilities?: Vulnerability[];
+  injector_contract_vulnerabilities?: string[];
   listened?: boolean;
 }
 
@@ -4390,9 +4335,9 @@ export interface LessonsCategory {
   lessons_category_name: string;
   /** @format int32 */
   lessons_category_order?: number;
-  lessons_category_questions?: LessonsQuestion[];
+  lessons_category_questions?: string[];
   lessons_category_scenario?: string;
-  lessons_category_teams?: Team[];
+  lessons_category_teams?: string[];
   /** @format date-time */
   lessons_category_updated_at: string;
   lessons_category_users?: string[];
@@ -4426,7 +4371,7 @@ export interface LessonsInput {
 }
 
 export interface LessonsQuestion {
-  lessons_question_answers?: LessonsAnswer[];
+  lessons_question_answers?: string[];
   lessons_question_category: string;
   /** @minLength 1 */
   lessons_question_content: string;
@@ -4486,7 +4431,7 @@ export interface LessonsTemplateCategory {
   lessons_template_category_name: string;
   /** @format int32 */
   lessons_template_category_order: number;
-  lessons_template_category_questions?: LessonsTemplateQuestion[];
+  lessons_template_category_questions?: string[];
   lessons_template_category_template?: string;
   /** @format date-time */
   lessons_template_category_updated_at: string;
@@ -4593,8 +4538,7 @@ export interface Log {
   log_exercise?: string;
   /** @minLength 1 */
   log_id: string;
-  /** @uniqueItems true */
-  log_tags?: Tag[];
+  log_tags?: string[];
   /** @minLength 1 */
   log_title: string;
   /** @format date-time */
@@ -4623,7 +4567,7 @@ export interface LoginUserInput {
 
 export interface Mitigation {
   listened?: boolean;
-  mitigation_attack_patterns?: AttackPattern[];
+  mitigation_attack_patterns?: string[];
   /** @format date-time */
   mitigation_created_at: string;
   mitigation_description?: string;
@@ -4676,7 +4620,7 @@ export interface NetworkTraffic {
   network_traffic_port_src: number;
   network_traffic_protocol: string;
   payload_arguments?: PayloadArgument[];
-  payload_attack_patterns?: AttackPattern[];
+  payload_attack_patterns?: string[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector?: string;
@@ -4723,8 +4667,7 @@ export interface NetworkTraffic {
   payload_prerequisites?: PayloadPrerequisite[];
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
-  /** @uniqueItems true */
-  payload_tags?: Tag[];
+  payload_tags?: string[];
   payload_type?: string;
   /** @format date-time */
   payload_updated_at: string;
@@ -4762,7 +4705,7 @@ export interface Objective {
   /** @format date-time */
   objective_created_at: string;
   objective_description?: string;
-  objective_evaluations?: Evaluation[];
+  objective_evaluations?: string[];
   objective_exercise?: string;
   /** @minLength 1 */
   objective_id: string;
@@ -4796,13 +4739,12 @@ export interface Organization {
   organization_description?: string;
   /** @minLength 1 */
   organization_id: string;
-  organization_injects?: Inject[];
+  organization_injects?: string[];
   /** @format int64 */
   organization_injects_number?: number;
   /** @minLength 1 */
   organization_name: string;
-  /** @uniqueItems true */
-  organization_tags?: Tag[];
+  organization_tags?: string[];
   /** @format date-time */
   organization_updated_at: string;
 }
@@ -5478,16 +5420,6 @@ export interface PageableObject {
   paged?: boolean;
   sort?: SortObject;
   unpaged?: boolean;
-}
-
-export interface Pause {
-  listened?: boolean;
-  /** @format date-time */
-  pause_date?: string;
-  /** @format int64 */
-  pause_duration?: number;
-  pause_exercise?: string;
-  pause_id?: string;
 }
 
 export type Payload = BasePayload &
@@ -6194,7 +6126,7 @@ export interface Report {
   report_global_observation?: string;
   report_id: string;
   report_informations?: ReportInformation[];
-  report_injects_comments?: ReportInjectComment[];
+  report_injects_comments?: string[];
   /** @minLength 1 */
   report_name: string;
   /** @format date-time */
@@ -6225,12 +6157,6 @@ export interface ReportInformationInput {
     | "GLOBAL_OBSERVATION"
     | "PLAYER_SURVEYS"
     | "EXERCISE_DETAILS";
-}
-
-export interface ReportInjectComment {
-  inject_id?: string;
-  report_id?: string;
-  report_inject_comment?: string;
 }
 
 export interface ReportInjectCommentInput {
@@ -6266,65 +6192,6 @@ export interface ResultDistribution {
   label: string;
   /** @format int32 */
   value: number;
-}
-
-export interface Role {
-  /** @uniqueItems true */
-  capabilities?: (
-    | "BYPASS"
-    | "ACCESS_ASSESSMENT"
-    | "MANAGE_ASSESSMENT"
-    | "DELETE_ASSESSMENT"
-    | "LAUNCH_ASSESSMENT"
-    | "MANAGE_TEAMS_AND_PLAYERS"
-    | "DELETE_TEAMS_AND_PLAYERS"
-    | "ACCESS_ASSETS"
-    | "MANAGE_ASSETS"
-    | "DELETE_ASSETS"
-    | "ACCESS_PAYLOADS"
-    | "MANAGE_PAYLOADS"
-    | "DELETE_PAYLOADS"
-    | "ACCESS_DASHBOARDS"
-    | "MANAGE_DASHBOARDS"
-    | "DELETE_DASHBOARDS"
-    | "ACCESS_FINDINGS"
-    | "MANAGE_FINDINGS"
-    | "DELETE_FINDINGS"
-    | "ACCESS_DOCUMENTS"
-    | "MANAGE_DOCUMENTS"
-    | "DELETE_DOCUMENTS"
-    | "ACCESS_CHANNELS"
-    | "MANAGE_CHANNELS"
-    | "DELETE_CHANNELS"
-    | "ACCESS_CHALLENGES"
-    | "MANAGE_CHALLENGES"
-    | "DELETE_CHALLENGES"
-    | "ACCESS_LESSONS_LEARNED"
-    | "MANAGE_LESSONS_LEARNED"
-    | "DELETE_LESSONS_LEARNED"
-    | "ACCESS_SECURITY_PLATFORMS"
-    | "MANAGE_SECURITY_PLATFORMS"
-    | "DELETE_SECURITY_PLATFORMS"
-    | "ACCESS_PLATFORM_SETTINGS"
-    | "MANAGE_PLATFORM_SETTINGS"
-    | "MANAGE_STIX_BUNDLE"
-  )[];
-  listened?: boolean;
-  /**
-   * Creation date of the role
-   * @format date-time
-   */
-  role_created_at: string;
-  role_description?: string;
-  /** @minLength 1 */
-  role_id: string;
-  /** @minLength 1 */
-  role_name: string;
-  /**
-   * Update date of the role
-   * @format date-time
-   */
-  role_updated_at: string;
 }
 
 export interface RoleInput {
@@ -6420,7 +6287,7 @@ export interface Scenario {
   listened?: boolean;
   /** @format int64 */
   scenario_all_users_number?: number;
-  scenario_articles?: Article[];
+  scenario_articles?: string[];
   scenario_category?: string;
   /** @format int64 */
   scenario_communications_number?: number;
@@ -6429,17 +6296,17 @@ export interface Scenario {
   scenario_custom_dashboard?: string;
   scenario_dependencies?: "STARTERPACK"[];
   scenario_description?: string;
-  scenario_documents?: Document[];
-  scenario_exercises?: Exercise[];
+  scenario_documents?: string[];
+  scenario_exercises?: string[];
   scenario_external_reference?: string;
   scenario_external_url?: string;
   /** @minLength 1 */
   scenario_id: string;
-  scenario_injects?: Inject[];
+  scenario_injects?: string[];
   scenario_injects_statistics?: Record<string, number>;
   scenario_kill_chain_phases?: KillChainPhase[];
   scenario_lessons_anonymized?: boolean;
-  scenario_lessons_categories?: LessonsCategory[];
+  scenario_lessons_categories?: string[];
   /**
    * @format email
    * @minLength 1
@@ -6451,8 +6318,8 @@ export interface Scenario {
   scenario_message_header?: string;
   /** @minLength 1 */
   scenario_name: string;
-  scenario_observers?: User[];
-  scenario_planners?: User[];
+  scenario_observers?: string[];
+  scenario_planners?: string[];
   scenario_platforms?: (
     | "Linux"
     | "Windows"
@@ -6470,14 +6337,13 @@ export interface Scenario {
   scenario_recurrence_start?: string;
   scenario_severity?: "low" | "medium" | "high" | "critical";
   scenario_subtitle?: string;
-  /** @uniqueItems true */
-  scenario_tags?: Tag[];
-  scenario_teams?: Team[];
+  scenario_tags?: string[];
+  scenario_teams?: string[];
   scenario_teams_users?: ScenarioTeamUser[];
   scenario_type_affinity?: string;
   /** @format date-time */
   scenario_updated_at: string;
-  scenario_users?: User[];
+  scenario_users?: string[];
   /** @format int64 */
   scenario_users_number?: number;
 }
@@ -6603,8 +6469,7 @@ export interface ScenarioSimple {
   scenario_id?: string;
   scenario_name?: string;
   scenario_subtitle?: string;
-  /** @uniqueItems true */
-  scenario_tags?: Tag[];
+  scenario_tags?: string[];
 }
 
 export interface ScenarioStatistic {
@@ -6673,8 +6538,7 @@ export interface SecurityPlatform {
   asset_id: string;
   /** @minLength 1 */
   asset_name: string;
-  /** @uniqueItems true */
-  asset_tags?: Tag[];
+  asset_tags?: string[];
   asset_type?: string;
   /** @format date-time */
   asset_updated_at: string;
@@ -7507,33 +7371,6 @@ export interface VariableInput {
    */
   variable_key: string;
   variable_value?: string;
-}
-
-export interface Vulnerability {
-  vulnerability_cvss_v31: number;
-  listened?: boolean;
-  vulnerabilities_cwes?: Cwe[];
-  /** @format date-time */
-  vulnerability_cisa_action_due?: string;
-  /** @format date-time */
-  vulnerability_cisa_exploit_add?: string;
-  vulnerability_cisa_required_action?: string;
-  vulnerability_cisa_vulnerability_name?: string;
-  /** @format date-time */
-  vulnerability_created_at?: string;
-  vulnerability_description?: string;
-  /** @minLength 1 */
-  vulnerability_external_id: string;
-  /** @minLength 1 */
-  vulnerability_id: string;
-  /** @format date-time */
-  vulnerability_published?: string;
-  vulnerability_reference_urls?: string[];
-  vulnerability_remediation?: string;
-  vulnerability_source_identifier?: string;
-  /** @format date-time */
-  vulnerability_updated_at?: string;
-  vulnerability_vuln_status?: "ANALYZED" | "DEFERRED" | "MODIFIED";
 }
 
 export interface VulnerabilityBulkInsertInput {
