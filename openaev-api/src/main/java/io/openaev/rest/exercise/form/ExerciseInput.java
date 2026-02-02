@@ -56,4 +56,7 @@ public class ExerciseInput {
 
   @JsonProperty("exercise_message_footer")
   private String footer;
+
+  @JsonProperty("exercise_is_chaining")
+  private boolean isChaining = false;
 }

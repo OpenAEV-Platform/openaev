@@ -23,6 +23,7 @@ import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.scheduler.jobs.exception.ErrorMessagesPreExecutionException;
 import io.openaev.service.NotificationEventService;
 import io.openaev.service.SecurityCoverageSendJobService;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
@@ -84,6 +85,7 @@ public class InjectsExecutionJob implements Job {
   private final List<InjectExpectation.EXPECTATION_STATUS> expectationStatusesSuccess =
       List.of(InjectExpectation.EXPECTATION_STATUS.SUCCESS);
 
+  private final WorkflowService workflowService;
   @Resource protected ObjectMapper mapper;
 
   @PostConstruct
@@ -114,6 +116,10 @@ public class InjectsExecutionJob implements Job {
   public void handleAutoClosingExercises() {
     // Change status of finished exercises.
     List<Exercise> mustBeFinishedSimulations = exerciseRepository.thatMustBeFinished();
+    mustBeFinishedSimulations =
+        mustBeFinishedSimulations.stream()
+            .filter(exercise -> !workflowService.isExerciseChaining(exercise.getId()))
+            .toList();
     List<Exercise> exercisesFinished =
         exerciseRepository.saveAll(
             mustBeFinishedSimulations.stream()
