@@ -57,11 +57,11 @@ public class PayloadUpsertInput {
   private String description;
 
   @JsonProperty("command_executor")
-  @Schema(nullable = true)
+  @Schema(types = {"string", "null"})
   private String executor;
 
   @JsonProperty("command_content")
-  @Schema(nullable = true)
+  @Schema(types = {"string", "null"})
   private String content;
 
   @JsonProperty("executable_file")
@@ -80,11 +80,11 @@ public class PayloadUpsertInput {
   private List<PayloadPrerequisite> prerequisites;
 
   @JsonProperty("payload_cleanup_executor")
-  @Schema(nullable = true)
+  @Schema(types = {"string", "null"})
   private String cleanupExecutor;
 
   @JsonProperty("payload_cleanup_command")
-  @Schema(nullable = true)
+  @Schema(types = {"string", "null"})
   private String cleanupCommand;
 
   @JsonProperty("payload_tags")

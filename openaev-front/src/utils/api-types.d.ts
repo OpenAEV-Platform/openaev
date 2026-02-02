@@ -598,15 +598,15 @@ interface BasePayload {
 }
 
 interface BasePayloadCreateInput {
-  command_content?: string;
-  command_executor?: string;
+  command_content?: string | null;
+  command_executor?: string | null;
   dns_resolution_hostname?: string;
   executable_file?: string;
   file_drop_file?: string;
   payload_arguments?: PayloadArgument[];
   payload_attack_patterns?: string[];
-  payload_cleanup_command?: string;
-  payload_cleanup_executor?: string;
+  payload_cleanup_command?: string | null;
+  payload_cleanup_executor?: string | null;
   payload_description?: string;
   /** List of detection remediation gaps for collectors */
   payload_detection_remediations?: DetectionRemediationInput[];
@@ -1390,7 +1390,7 @@ export interface CreateExerciseInput {
   exercise_name: string;
   exercise_severity?: string;
   /** @format date-time */
-  exercise_start_date?: string;
+  exercise_start_date?: string | null;
   exercise_subtitle?: string;
   exercise_tags?: string[];
 }
@@ -5434,10 +5434,10 @@ export type Payload = BasePayload &
 export interface PayloadArgument {
   /** @minLength 1 */
   default_value: string;
-  description?: string;
+  description?: string | null;
   /** @minLength 1 */
   key: string;
-  separator?: string;
+  separator?: string | null;
   /** @minLength 1 */
   type: string;
 }
@@ -5466,15 +5466,15 @@ export interface PayloadExportTarget {
 }
 
 export interface PayloadInput {
-  command_content?: string;
-  command_executor?: string;
+  command_content?: string | null;
+  command_executor?: string | null;
   dns_resolution_hostname?: string;
   executable_file?: string;
   file_drop_file?: string;
   payload_arguments?: PayloadArgument[];
   payload_attack_patterns?: string[];
-  payload_cleanup_command?: string;
-  payload_cleanup_executor?: string;
+  payload_cleanup_command?: string | null;
+  payload_cleanup_executor?: string | null;
   payload_description?: string;
   /** List of detection remediation gaps for collectors */
   payload_detection_remediations?: DetectionRemediationInput[];
@@ -5515,7 +5515,7 @@ export interface PayloadInput {
 
 export interface PayloadPrerequisite {
   check_command?: string;
-  description?: string;
+  description?: string | null;
   /** @minLength 1 */
   executor: string;
   /** @minLength 1 */
@@ -5530,15 +5530,15 @@ export interface PayloadSimple {
 }
 
 export interface PayloadUpdateInput {
-  command_content?: string;
-  command_executor?: string;
+  command_content?: string | null;
+  command_executor?: string | null;
   dns_resolution_hostname?: string;
   executable_file?: string;
   file_drop_file?: string;
   payload_arguments?: PayloadArgument[];
   payload_attack_patterns?: string[];
-  payload_cleanup_command?: string;
-  payload_cleanup_executor?: string;
+  payload_cleanup_command?: string | null;
+  payload_cleanup_executor?: string | null;
   payload_description?: string;
   /** List of detection remediation gaps for collectors */
   payload_detection_remediations?: DetectionRemediationInput[];
@@ -5577,15 +5577,15 @@ export interface PayloadUpdateInput {
 }
 
 export interface PayloadUpsertInput {
-  command_content?: string;
-  command_executor?: string;
+  command_content?: string | null;
+  command_executor?: string | null;
   dns_resolution_hostname?: string;
   executable_file?: string;
   file_drop_file?: string;
   payload_arguments?: PayloadArgument[];
   payload_attack_patterns?: string[];
-  payload_cleanup_command?: string;
-  payload_cleanup_executor?: string;
+  payload_cleanup_command?: string | null;
+  payload_cleanup_executor?: string | null;
   payload_collector?: string;
   payload_description?: string;
   /** List of detection remediation gaps for collectors */
@@ -6268,7 +6268,7 @@ export interface RuleAttribute {
 
 export interface RuleAttributeAddInput {
   rule_attribute_additional_config?: Record<string, string>;
-  rule_attribute_columns?: string;
+  rule_attribute_columns?: string | null;
   rule_attribute_default_value?: string;
   /** @minLength 1 */
   rule_attribute_name: string;
@@ -6276,7 +6276,7 @@ export interface RuleAttributeAddInput {
 
 export interface RuleAttributeUpdateInput {
   rule_attribute_additional_config?: Record<string, string>;
-  rule_attribute_columns?: string;
+  rule_attribute_columns?: string | null;
   rule_attribute_default_value?: string;
   rule_attribute_id?: string;
   /** @minLength 1 */
@@ -6555,8 +6555,8 @@ export interface SecurityPlatformInput {
   /** @minLength 1 */
   asset_name: string;
   asset_tags?: string[];
-  security_platform_logo_dark?: string;
-  security_platform_logo_light?: string;
+  security_platform_logo_dark?: string | null;
+  security_platform_logo_light?: string | null;
   security_platform_type: "EDR" | "XDR" | "SIEM" | "SOAR" | "NDR" | "ISPM";
 }
 

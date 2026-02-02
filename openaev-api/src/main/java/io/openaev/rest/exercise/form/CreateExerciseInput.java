@@ -14,7 +14,9 @@ import lombok.Setter;
 @Setter
 public class CreateExerciseInput extends ExerciseInput {
 
-  @Schema(nullable = true)
+  @Schema(
+      types = {"string", "null"},
+      format = "date-time")
   @JsonProperty("exercise_start_date")
   @FutureOrPresent(message = NOW_FUTURE_MESSAGE)
   private Instant start;
