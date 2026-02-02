@@ -1,4 +1,4 @@
-import {Box, Chip, CircularProgress, Tooltip} from '@mui/material';
+import { Box, Chip, CircularProgress, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
