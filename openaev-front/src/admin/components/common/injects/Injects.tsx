@@ -1,5 +1,5 @@
 import { HelpOutlineOutlined } from '@mui/icons-material';
-import { Checkbox, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
+import { Checkbox, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { type CSSProperties, type FunctionComponent, type SyntheticEvent, useContext, useMemo, useState } from 'react';

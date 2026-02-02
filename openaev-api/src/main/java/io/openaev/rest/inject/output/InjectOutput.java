@@ -150,10 +150,6 @@ public class InjectOutput {
   @ArraySchema(schema = @Schema(description = "Attack pattern of the inject"))
   public List<AttackPattern> attackPatterns;
 
-  @JsonProperty("inject_type")
-  @Schema(description = "Type of the inject")
-  private String type;
-
   @JsonProperty("inject_testable")
   @Schema(description = "Testable state of the inject")
   public boolean canBeTested() {
