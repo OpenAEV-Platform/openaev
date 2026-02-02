@@ -66,6 +66,8 @@ export default ({ mode }: { mode: string }) => {
         '/logout': backProxy(),
         '/oauth2': backProxy(),
         '/saml2': backProxy(),
+        '/actuator': backProxy(),
+        '/metrics': backProxy(),
       },
     },
   });
