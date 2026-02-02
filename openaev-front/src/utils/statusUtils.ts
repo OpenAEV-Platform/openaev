@@ -7,7 +7,7 @@ const injectExpectationMap = {
   SUCCESS: {
     PREVENTION: 'Prevented',
     DETECTION: 'Detected',
-    VULNERABILITY: 'Not Vulnerable',
+    VULNERABILITY: 'Not vulnerable',
   },
   FAILED: {
     PREVENTION: 'Not Prevented',
