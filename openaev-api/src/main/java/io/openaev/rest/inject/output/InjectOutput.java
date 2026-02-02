@@ -157,7 +157,8 @@ public class InjectOutput {
   @JsonProperty("inject_testable")
   @Schema(description = "Testable state of the inject")
   public boolean canBeTested() {
-    return EmailContract.TYPE.equals(this.getInjectType()) || OvhSmsContract.TYPE.equals(this.getInjectType());
+    return EmailContract.TYPE.equals(this.getInjectType())
+        || OvhSmsContract.TYPE.equals(this.getInjectType());
   }
 
   @JsonProperty("inject_healthchecks")

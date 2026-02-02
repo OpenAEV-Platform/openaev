@@ -279,9 +279,9 @@ public class InjectMapper {
   }
 
   public InjectOutput toInjectOutput(Inject inject, List<HealthCheck> healthchecks) {
-      InjectorContract injectorContract = inject.getInjectorContract().orElse(null);
-      String type = injectorContract != null ? injectorContract.getInjector().getType() : null;
-      return toInjectOutput(
+    InjectorContract injectorContract = inject.getInjectorContract().orElse(null);
+    String type = injectorContract != null ? injectorContract.getInjector().getType() : null;
+    return toInjectOutput(
         inject.getId(),
         inject.getTitle(),
         inject.isEnabled(),

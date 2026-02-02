@@ -33,8 +33,6 @@ import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import jakarta.validation.Valid;
-
-import java.sql.Array;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -280,9 +278,10 @@ public class InjectSearchService {
                                   .collect(Collectors.toList()))
                       .orElse(new ArrayList<>()));
               inject.setDependsOn(
-                  tuple.get("inject_depends_on", InjectDependency.class) != null ?
-                    new ArrayList<>(List.of(tuple.get("inject_depends_on", InjectDependency.class))) : null
-              );
+                  tuple.get("inject_depends_on", InjectDependency.class) != null
+                      ? new ArrayList<>(
+                          List.of(tuple.get("inject_depends_on", InjectDependency.class)))
+                      : null);
               // Check only for content checks because this result is only used to display the
               // inject list on scenario
               return injectMapper.toInjectOutput(inject, healthCheckUtils.runContentChecks(inject));
