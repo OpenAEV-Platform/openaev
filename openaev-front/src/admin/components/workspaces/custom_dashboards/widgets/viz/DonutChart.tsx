@@ -55,10 +55,8 @@ const DonutChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, datas }:
     return isStatusBreakdown ? labels.map(label => getStatusColor(theme, label)) : [];
   }, [widgetConfig, labels, theme]);
 
-
   // Memoize empty chart text
   const emptyChartText = useMemo(() => t('No data to display'), [t]);
-
 
   // Memoize chart options
   const options = useMemo(
@@ -77,7 +75,6 @@ const DonutChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, datas }:
     () => datas.map(s => s?.y ?? 0),
     [datas],
   );
-
 
   return (
     <Chart

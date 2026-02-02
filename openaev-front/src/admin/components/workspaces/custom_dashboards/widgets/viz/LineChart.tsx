@@ -14,7 +14,7 @@ interface Props {
 
 const LineChart: FunctionComponent<Props> = ({ widgetId, series }) => {
   const theme = useTheme();
-  const { t,fld } = useFormatter();
+  const { t, fld } = useFormatter();
 
   const { openWidgetDataDrawer } = useContext(CustomDashboardContext);
 
