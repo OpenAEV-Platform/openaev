@@ -82,7 +82,7 @@ public class Report implements Base {
       fetch = FetchType.EAGER)
   @JsonProperty("report_injects_comments")
   @JsonSerialize(using = MultiModelSerializer.class)
-  @Schema(implementation = String[].class)
+  @Schema(implementation = ReportInjectComment[].class)
   private List<ReportInjectComment> reportInjectsComments = new ArrayList<>();
 
   @Override

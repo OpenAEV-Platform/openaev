@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
@@ -35,5 +36,8 @@ public class EndpointInput extends AssetInput {
 
   @Schema(description = "True if the endpoint is in an End of Life state")
   @JsonProperty("endpoint_is_eol")
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("endpoint_is_eol"))
   private boolean isEol;
 }

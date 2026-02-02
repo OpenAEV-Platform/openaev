@@ -25,6 +25,7 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.exports.ExportOptions;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.helper.ValidationErrorBag;
 import io.openaev.rest.helper.queue.BatchQueueService;
 import io.openaev.rest.helper.queue.executor.BatchExecutionTraceExecutor;
 import io.openaev.rest.inject.form.*;
@@ -42,6 +43,8 @@ import io.openaev.utils.TargetType;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.annotation.PostConstruct;
@@ -407,6 +410,13 @@ public class InjectApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
+  @ApiResponse(
+      responseCode = "403",
+      description = "License restriction",
+      content =
+          @Content(
+              mediaType = "application/json",
+              schema = @Schema(implementation = ValidationErrorBag.class)))
   public Inject updateInject(
       @PathVariable String exerciseId,
       @PathVariable String injectId,

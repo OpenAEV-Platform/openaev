@@ -1330,7 +1330,6 @@ export interface ContractOutputElementInput {
     | "ipv6"
     | "credentials"
     | "cve";
-  finding?: boolean;
 }
 
 /** Represents the rules for parsing the output of an execution. */
@@ -1919,7 +1918,6 @@ export interface EndpointInput {
     | "Generic"
     | "Internal"
     | "Unknown";
-  eol?: boolean;
 }
 
 export interface EndpointOutput {
@@ -2020,7 +2018,6 @@ export interface EndpointOverviewOutput {
     | "Unknown";
   /** Seen IP */
   endpoint_seen_ip?: string;
-  eol?: boolean;
 }
 
 export interface EndpointRegisterInput {
@@ -2052,7 +2049,6 @@ export interface EndpointRegisterInput {
     | "Generic"
     | "Internal"
     | "Unknown";
-  eol?: boolean;
   seenIp?: string;
   service?: boolean;
 }
@@ -4032,7 +4028,6 @@ export interface InjectorContractFullOutput {
 }
 
 export interface InjectorContractInput {
-  atomicTesting?: boolean;
   contract_attack_patterns_external_ids?: string[];
   /** @minLength 1 */
   contract_content: string;
@@ -4099,7 +4094,6 @@ export interface InjectorContractSimple {
 }
 
 export interface InjectorContractUpdateInput {
-  atomicTesting?: boolean;
   contract_attack_patterns_ids?: string[];
   /** @minLength 1 */
   contract_content: string;
@@ -4479,12 +4473,6 @@ export interface LessonsTemplateQuestionInput {
 }
 
 export interface License {
-  globalLicense?: boolean;
-  licenseByConfiguration?: boolean;
-  licenseEnterprise?: boolean;
-  licenseExpired?: boolean;
-  licensePrevention?: boolean;
-  licenseValidated?: boolean;
   license_creator?: string;
   license_customer?: string;
   /** @format date-time */
@@ -4505,9 +4493,6 @@ export interface License {
   /** @format date-time */
   license_start_date?: string;
   license_type?: "trial" | "nfr" | "standard" | "lts";
-  platformMatch?: boolean;
-  validCert?: boolean;
-  validProduct?: boolean;
 }
 
 export type ListConfiguration = UtilRequiredKeys<
@@ -4814,7 +4799,7 @@ export interface PageAggregatedFindingOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -4833,7 +4818,7 @@ export interface PageAssetGroupOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -4852,7 +4837,7 @@ export interface PageAttackPattern {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -4871,7 +4856,7 @@ export interface PageCustomDashboard {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -4890,7 +4875,7 @@ export interface PageCveSimple {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -4909,7 +4894,7 @@ export interface PageEndpointOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -4928,7 +4913,7 @@ export interface PageEndpointTargetOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -4947,7 +4932,7 @@ export interface PageExerciseSimple {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -4966,7 +4951,7 @@ export interface PageFullTextSearchResult {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -4985,7 +4970,7 @@ export interface PageGroup {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -5004,7 +4989,7 @@ export interface PageInjectResultOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -5023,7 +5008,7 @@ export interface PageInjectTarget {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -5042,7 +5027,7 @@ export interface PageInjectTestStatusOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -5061,7 +5046,7 @@ export interface PageInjectorContractBaseOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -5080,7 +5065,7 @@ export interface PageKillChainPhase {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -5099,7 +5084,7 @@ export interface PageLessonsTemplate {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -5118,7 +5103,7 @@ export interface PageMitigation {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -5137,7 +5122,7 @@ export interface PageNotificationRuleOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -5156,7 +5141,7 @@ export interface PageOrganization {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -5175,7 +5160,7 @@ export interface PagePayload {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -5194,7 +5179,7 @@ export interface PagePlayerOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -5213,7 +5198,7 @@ export interface PageRawPaginationDocument {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -5232,7 +5217,7 @@ export interface PageRawPaginationImportMapper {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -5251,7 +5236,7 @@ export interface PageRawPaginationScenario {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -5270,7 +5255,7 @@ export interface PageRelatedFindingOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -5289,7 +5274,7 @@ export interface PageRoleOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -5308,7 +5293,7 @@ export interface PageSecurityPlatform {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -5327,7 +5312,7 @@ export interface PageTag {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -5346,7 +5331,7 @@ export interface PageTagRuleOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -5365,7 +5350,7 @@ export interface PageTeamOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -5384,7 +5369,7 @@ export interface PageUserOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -5403,7 +5388,7 @@ export interface PageVulnerabilitySimple {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject;
+  sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -5418,7 +5403,7 @@ export interface PageableObject {
   /** @format int32 */
   pageSize?: number;
   paged?: boolean;
-  sort?: SortObject;
+  sort?: SortObject[];
   unpaged?: boolean;
 }
 
@@ -5879,7 +5864,6 @@ export interface PolicyInput {
 }
 
 export interface PropertySchemaDTO {
-  array?: boolean;
   schema_property_entity: string;
   schema_property_has_dynamic_value?: boolean;
   schema_property_label: string;
@@ -6126,7 +6110,7 @@ export interface Report {
   report_global_observation?: string;
   report_id: string;
   report_informations?: ReportInformation[];
-  report_injects_comments?: string[];
+  report_injects_comments?: ReportInjectComment[];
   /** @minLength 1 */
   report_name: string;
   /** @format date-time */
@@ -6157,6 +6141,14 @@ export interface ReportInformationInput {
     | "GLOBAL_OBSERVATION"
     | "PLAYER_SURVEYS"
     | "EXERCISE_DETAILS";
+}
+
+export interface ReportInjectComment {
+  /** ID of the inject */
+  inject_id?: string;
+  /** ID of the report */
+  report_id?: string;
+  report_inject_comment?: string;
 }
 
 export interface ReportInjectCommentInput {
@@ -6686,9 +6678,11 @@ export interface SortField {
 }
 
 export interface SortObject {
-  empty?: boolean;
-  sorted?: boolean;
-  unsorted?: boolean;
+  ascending?: boolean;
+  direction?: string;
+  ignoreCase?: boolean;
+  nullHandling?: string;
+  property?: string;
 }
 
 export interface StatusPayload {
@@ -6863,20 +6857,20 @@ export interface Team {
   team_created_at: string;
   /** Description of the team */
   team_description?: string;
-  team_exercise_injects?: Inject[];
+  team_exercise_injects?: string[];
   /**
    * Number of injects of all simulations of the team
    * @format int64
    */
   team_exercise_injects_number?: number;
-  team_exercises?: Exercise[];
-  team_exercises_users?: ExerciseTeamUser[];
+  team_exercises?: string[];
+  team_exercises_users?: string[];
   /**
    * ID of the team
    * @minLength 1
    */
   team_id: string;
-  team_inject_expectations?: InjectExpectation[];
+  team_inject_expectations?: string[];
   /**
    * Number of expectations linked to this team
    * @format int64
@@ -6906,21 +6900,21 @@ export interface Team {
   team_name: string;
   /** Organization of the team */
   team_organization?: string;
-  team_scenario_injects?: Inject[];
+  team_scenario_injects?: string[];
   /**
    * Number of injects of all scenarios of the team
    * @format int64
    */
   team_scenario_injects_number?: number;
-  team_scenarios?: Scenario[];
+  team_scenarios?: string[];
   /** @uniqueItems true */
-  team_tags?: Tag[];
+  team_tags?: string[];
   /**
    * Update date of the team
    * @format date-time
    */
   team_updated_at: string;
-  team_users?: User[];
+  team_users?: string[];
   /**
    * Number of users of the team
    * @format int64
@@ -7062,7 +7056,6 @@ export interface ThemeInput {
   logo_url?: string;
   /** 'true' if the logo needs to be collapsed */
   logo_url_collapsed?: string;
-  navigationColor?: string;
   /** Navigation color of the theme */
   navigation_color?: string;
   /** Paper color of the theme */
@@ -7205,7 +7198,7 @@ export interface User {
   /** Secondary phone number of the user */
   user_phone2?: string;
   listened?: boolean;
-  team_exercises_users?: ExerciseTeamUser[];
+  team_exercises_users?: string[];
   /** True if the user is admin */
   user_admin?: boolean;
   /** @uniqueItems true */
@@ -7250,7 +7243,7 @@ export interface User {
   )[];
   /** City of the user */
   user_city?: string;
-  user_communications?: Communication[];
+  user_communications?: string[];
   /** Country of the user */
   user_country?: string;
   /**
@@ -7268,7 +7261,7 @@ export interface User {
   user_grants?: Record<string, string>;
   /** Gravatar of the user */
   user_gravatar?: string;
-  user_groups?: Group[];
+  user_groups?: string[];
   /**
    * User ID
    * @minLength 1
@@ -7304,8 +7297,8 @@ export interface User {
    */
   user_status: number;
   /** @uniqueItems true */
-  user_tags?: Tag[];
-  user_teams?: Team[];
+  user_tags?: string[];
+  user_teams?: string[];
   /** Theme of the user */
   user_theme?: string;
   /**
@@ -7343,6 +7336,28 @@ export interface UserOutput {
   user_tags?: string[];
 }
 
+export interface ValidationContent {
+  /** A list of errors */
+  errors?: string[];
+}
+
+export interface ValidationError {
+  /** Map of errors by input */
+  children?: Record<string, ValidationContent>;
+}
+
+export interface ValidationErrorBag {
+  /**
+   * Return code
+   * @format int32
+   */
+  code?: number;
+  /** Errors raised */
+  errors?: ValidationError;
+  /** Return message */
+  message?: string;
+}
+
 export interface Variable {
   listened?: boolean;
   /** @format date-time */
@@ -7371,6 +7386,15 @@ export interface VariableInput {
    */
   variable_key: string;
   variable_value?: string;
+}
+
+export interface ViolationErrorBag {
+  /** The error */
+  error?: string;
+  /** The message of the error */
+  message?: string;
+  /** The type of error */
+  type?: string;
 }
 
 export interface VulnerabilityBulkInsertInput {

@@ -39,11 +39,13 @@ public class ReportInjectComment {
   private String comment;
 
   @JsonProperty("inject_id")
+  @Schema(description = "ID of the inject")
   public String getInjectId() {
     return inject != null ? inject.getId() : null; // Customize serialization to return ID
   }
 
   @JsonProperty("report_id")
+  @Schema(description = "ID of the report")
   public String getReportId() {
     return report != null ? report.getId() : null; // Customize serialization to return ID
   }
