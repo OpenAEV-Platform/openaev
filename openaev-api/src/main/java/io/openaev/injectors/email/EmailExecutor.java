@@ -97,7 +97,9 @@ public class EmailExecutor extends Injector {
     List<DataAttachment> attachments = resolveAttachments(execution, injection, documents);
     String inReplyTo = content.getInReplyTo();
     String subject = content.getSubject();
-    String message = content.buildMessage(injection, this.imapEnabled);
+    String message =
+        content.buildMessage(
+            injection, this.imapEnabled, this.context.getOpenAEVConfig().getBaseUrl());
     boolean mustBeEncrypted = content.isEncrypted();
     // Resolve the attachments only once
     List<ExecutionContext> users = injection.getUsers();

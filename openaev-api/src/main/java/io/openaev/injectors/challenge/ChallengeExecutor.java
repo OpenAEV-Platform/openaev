@@ -96,7 +96,9 @@ public class ChallengeExecutor extends Injector {
                 .map(InjectDocument::getDocument)
                 .toList();
         List<DataAttachment> attachments = resolveAttachments(execution, injection, documents);
-        String message = content.buildMessage(injection, imapEnabled);
+        String message =
+            content.buildMessage(
+                injection, imapEnabled, this.context.getOpenAEVConfig().getBaseUrl());
         boolean encrypted = content.isEncrypted();
         users.forEach(
             userInjectContext -> {

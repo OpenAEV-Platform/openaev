@@ -38,7 +38,7 @@ public class EmailContent {
     // For mapper
   }
 
-  public String buildMessage(ExecutableInject injection, boolean imapEnabled) {
+  public String buildMessage(ExecutableInject injection, boolean imapEnabled, String baseUrl) {
     // String footer = inject.getFooter();
     String header = injection.getInjection().getInject().getHeader();
     StringBuilder data = new StringBuilder();
@@ -55,6 +55,10 @@ public class EmailContent {
           .append("OpenAEV internal information, do not remove!<br/>")
           .append("[inject_id=")
           .append(injection.getInjection().getId())
+          .append("[scenario_id=")
+          .append(injection.getInjection().getExercise().getId())
+          .append("[base_url=")
+          .append(baseUrl)
           .append("]<br/>")
           .append(
               "---------------------------------------------------------------------------------<br/>")
