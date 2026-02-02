@@ -38,7 +38,7 @@ public class EmailContent {
     // For mapper
   }
 
-  public String buildMessage(ExecutableInject injection, boolean imapEnabled, String baseUrl) {
+  public String buildMessage(ExecutableInject injection, String baseUrl) {
     // String footer = inject.getFooter();
     String header = injection.getInjection().getInject().getHeader();
     StringBuilder data = new StringBuilder();
@@ -47,7 +47,7 @@ public class EmailContent {
     }
     data.append(START_DIV).append(body).append(END_DIV);
     // If imap is enable we need to inject the id marker
-    if (injection.isRuntime() && imapEnabled) {
+    if (injection.isRuntime()) {
       data.append(START_DIV)
           .append("<br/><br/><br/><br/>")
           .append(
