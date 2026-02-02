@@ -7,16 +7,24 @@ import io.openaev.config.RabbitmqConfig;
 import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class BatchQueueService<T extends Queueable> {
 
   private final Class<T> clazz;
-  private final QueueExecution<T> queueExecution;
+
+  @Setter
+  // TODO: change back to original code and find a better way to resolve the cicular dependency
+  // problem from stepService
+  private QueueExecution<T> queueExecution;
 
   public static final String ROUTING_KEY = "_push_routing_%s";
   public static final String EXCHANGE_KEY = "_amqp.%s.exchange";
