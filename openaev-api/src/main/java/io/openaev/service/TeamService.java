@@ -135,4 +135,8 @@ public class TeamService {
     TypedQuery<Tuple> query = entityManager.createQuery(cq);
     return execution(query);
   }
+
+  public List<Team> getTeamsByIds(List<String> teams) {
+    return teamRepository.findAllById(teams);
+  }
 }
