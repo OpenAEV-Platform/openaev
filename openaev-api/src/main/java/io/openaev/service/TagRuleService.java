@@ -193,11 +193,7 @@ public class TagRuleService {
     List<AssetGroup> assetGroupsToAdd =
         getAssetGroupsFromTagIds(
             newTags.stream().filter(tag -> !currentTags.contains(tag)).toList());
-    if (assetGroupsToAdd.size() > 0) {
-      return true;
-    } else {
-      return false;
-    }
+    return !assetGroupsToAdd.isEmpty();
   }
 
   @VisibleForTesting

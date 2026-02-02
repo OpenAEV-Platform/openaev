@@ -40,7 +40,7 @@ const TeamForm: FunctionComponent<TeamFormProps> = ({
   const teamFormSchemaValidation = z.object({ team_name: z.string().min(2, t('This field is mandatory')) });
   return (
     <Form
-      keepDirtyOnReinitialize={true}
+      keepDirtyOnReinitialize
       initialValues={initialValues}
       onSubmit={onSubmit}
       validate={schemaValidator(teamFormSchemaValidation)}
@@ -55,13 +55,13 @@ const TeamForm: FunctionComponent<TeamFormProps> = ({
           <OldTextField
             variant="standard"
             name="team_name"
-            fullWidth={true}
+            fullWidth
             label={t('Name')}
           />
           <OldTextField
             variant="standard"
             name="team_description"
-            fullWidth={true}
+            fullWidth
             label={t('Description')}
             style={{ marginTop: 20 }}
           />

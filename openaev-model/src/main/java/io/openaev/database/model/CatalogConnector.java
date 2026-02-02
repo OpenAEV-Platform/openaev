@@ -12,8 +12,10 @@ import java.util.HashSet;
 import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.type.SqlTypes;
 
 @Getter
 @Setter
@@ -21,13 +23,9 @@ import org.hibernate.annotations.UuidGenerator;
 @Table(name = "catalog_connectors")
 @EntityListeners(ModelBaseListener.class)
 public class CatalogConnector implements Base {
-  public enum CONNECTOR_TYPE {
-    COLLECTOR,
-    INJECTOR,
-    EXECUTOR
-  }
 
   @Id
+  @NotNull
   @Column(name = "catalog_connector_id")
   @GeneratedValue(generator = "UUID")
   @UuidGenerator
@@ -118,10 +116,11 @@ public class CatalogConnector implements Base {
   private String containerImage;
 
   @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   @Column(name = "catalog_connector_type")
   @JsonProperty("catalog_connector_type")
   @Schema(description = "Connector type")
-  private CONNECTOR_TYPE containerType;
+  private ConnectorType containerType;
 
   @Column(name = "catalog_connector_class_name")
   @JsonProperty("catalog_connector_class_name")
@@ -135,19 +134,15 @@ public class CatalogConnector implements Base {
 
   @OneToMany(
       mappedBy = "catalogConnector",
-      fetch = FetchType.EAGER,
+      fetch = FetchType.LAZY,
       cascade = CascadeType.ALL,
       orphanRemoval = true)
   @JsonProperty("catalog_connector_configuration")
   @NotNull
   private Set<CatalogConnectorConfiguration> catalogConnectorConfigurations = new HashSet<>();
 
-  @OneToMany(
-      mappedBy = "catalogConnector",
-      fetch = FetchType.LAZY,
-      cascade = CascadeType.ALL,
-      orphanRemoval = true)
+  @OneToMany(mappedBy = "catalogConnector", fetch = FetchType.LAZY, orphanRemoval = true)
   @JsonProperty("catalog_connector_instances")
   @NotNull
-  private Set<ConnectorInstance> instances = new HashSet<>();
+  private Set<ConnectorInstancePersisted> instances = new HashSet<>();
 }

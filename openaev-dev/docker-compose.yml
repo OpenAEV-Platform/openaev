@@ -1,4 +1,5 @@
 services:
+  # Development PostgreSQL database (persistent storage)
   openaev-dev-pgsql:
     container_name: openaev-dev-pgsql
     image: postgres:17-alpine
@@ -11,6 +12,12 @@ services:
     restart: unless-stopped
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d openaev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  # Test PostgreSQL database (ephemeral - no volume for clean test runs)
   openaev-test-pgsql:
     container_name: openaev-test-pgsql
     image: postgres:17-alpine
@@ -21,6 +28,14 @@ services:
     ports:
       - "5433:5432"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d openaev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  # MinIO object storage (S3-compatible)
+  # API: http://localhost:10000, Console: http://localhost:10001
+  # Credentials: minioadmin/minioadmin
   openaev-dev-minio:
     container_name: openaev-dev-minio
     image: minio/minio:RELEASE.2025-06-13T11-33-47Z
@@ -31,7 +46,13 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
     restart: unless-stopped
+  # RabbitMQ message queue with management UI (default credentials: guest/guest)
   openaev-dev-rabbitmq:
     container_name: openaev-dev-rabbitmq
     image: rabbitmq:4.1-management
@@ -41,6 +62,13 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+  # Caldera adversary simulation platform
+  # See caldera.yml for configuration (update credentials before production use)
   openaev-dev-caldera:
     container_name: openaev-dev-caldera
     image: openbas/caldera-server:5.1.0
@@ -51,8 +79,13 @@ services:
       CALDERA_URL: http://localhost:8888
     volumes:
       - type: bind
-        source: caldera.yml
+        source: ./caldera.yml
         target: /usr/src/app/conf/local.yml
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 #  openaev-pyroscope:
 #    container_name: openaev-pyroscope
 #    image: grafana/pyroscope:latest
@@ -70,15 +103,21 @@ services:
 #      - '--config=/etc/config/otlp-config.yaml'
 #    ports:
 #      - "1010:1010"
+  # pgAdmin - PostgreSQL management UI
+  # Default credentials: see PGADMIN_USER/PGADMIN_PASSWORD in .env
   openaev-dev-pgadmin:
     image: dpage/pgadmin4
-    container_name: pgadmin
-    restart: always
+    container_name: openaev-dev-pgadmin
+    restart: unless-stopped
     ports:
       - "5050:80"
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_USER}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+    depends_on:
+      openaev-dev-pgsql:
+        condition: service_healthy
+  # Development Elasticsearch (persistent storage)
   openaev-dev-elasticsearch:
     container_name: openaev-dev-elasticsearch
     image: docker.elastic.co/elasticsearch/elasticsearch:8.18.3
@@ -89,7 +128,7 @@ services:
       - discovery.type=single-node
       - xpack.ml.enabled=false
       - xpack.security.enabled=false
-      # -XX:UseSVE=0 is necessary for Apple M4 architecture
+      # -XX:UseSVE=0 is necessary for Apple Silicon architecture (M1/M2/M3/M4)
       - "ES_JAVA_OPTS=-Xms2G -Xmx2G -XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
       - "CLI_JAVA_OPTS=-XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
     restart: unless-stopped
@@ -103,6 +142,15 @@ services:
     ports:
       - 9200:9200
       - 9300:9300
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+  # Development OpenSearch (alternative to Elasticsearch, persistent storage)
+  # NOTE: OpenSearch and Elasticsearch both use port 9200 by default internally.
+  # OpenSearch is mapped to external port 9202 to avoid conflicts.
+  # You typically only need to run one search engine at a time.
   openaev-dev-opensearch:
     container_name: openaev-dev-opensearch
     image: opensearchproject/opensearch:3.3.2
@@ -111,10 +159,9 @@ services:
       - ossnapshots:/usr/share/opensearch/snapshots
     environment:
       - discovery.type=single-node
-      # -XX:UseSVE=0 is necessary for Apple M4 architecture
-      - "ES_JAVA_OPTS=-Xms2G -Xmx2G -XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
-      - "CLI_JAVA_OPTS=-XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
-      - "DISABLE_SECURITY_PLUGIN=true" # Disables Security plugin
+      # -XX:UseSVE=0 is necessary for Apple Silicon architecture (M1/M2/M3/M4)
+      - "OPENSEARCH_JAVA_OPTS=-Xms2G -Xmx2G -XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
+      - "DISABLE_SECURITY_PLUGIN=true"
     restart: unless-stopped
     ulimits:
       memlock:
@@ -124,8 +171,14 @@ services:
         soft: 65536
         hard: 65536
     ports:
-      - 9200:9200
+      - 9202:9200
       - 9600:9600
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+  # Test Elasticsearch (ephemeral - no volume for clean test runs)
   openaev-test-elasticsearch:
     container_name: openaev-test-elasticsearch
     image: docker.elastic.co/elasticsearch/elasticsearch:8.18.3
@@ -133,7 +186,7 @@ services:
       - discovery.type=single-node
       - xpack.ml.enabled=false
       - xpack.security.enabled=false
-      # -XX:UseSVE=0 is necessary for Apple M4 architecture
+      # -XX:UseSVE=0 is necessary for Apple Silicon architecture (M1/M2/M3/M4)
       - "ES_JAVA_OPTS=-Xms2G -Xmx2G -XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
       - "CLI_JAVA_OPTS=-XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
     restart: unless-stopped
@@ -147,6 +200,12 @@ services:
     ports:
       - 9201:9200
       - 9301:9300
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+  # Kibana - Elasticsearch UI for development
   openaev-dev-kibana:
     container_name: openaev-dev-kibana
     image: docker.elastic.co/kibana/kibana:8.18.3
@@ -156,7 +215,9 @@ services:
     ports:
       - 5601:5601
     depends_on:
-      - openaev-dev-elasticsearch
+      openaev-dev-elasticsearch:
+        condition: service_healthy
+  # Kibana - Elasticsearch UI for testing
   openaev-test-kibana:
     container_name: openaev-test-kibana
     image: docker.elastic.co/kibana/kibana:8.18.3
@@ -166,7 +227,47 @@ services:
     ports:
       - 5602:5601
     depends_on:
-      - openaev-dev-elasticsearch
+      openaev-test-elasticsearch:
+        condition: service_healthy
+  rsa-key-generator:
+    image: alpine/openssl:3.5.4
+    volumes:
+      - rsakeys:/keys
+    entrypoint: [ "/bin/ash" ]
+    command: [ "-c", "if [ ! -f /keys/private_key.pem ]; then openssl genpkey -algorithm RSA -out /keys/private_key.pem -pkeyopt rsa_keygen_bits:4096; fi && tail -f /dev/null" ]
+    healthcheck:
+      test: [ "CMD", "test", "-f", "/keys/private_key.pem" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: always
+  xtm-composer:
+    image: filigran/xtm-composer:latest
+    platform: linux/amd64
+    network_mode: host # allow connecting to non docker local instance
+    environment:
+      - MANAGER__ID=${XTM_COMPOSER_ID}
+      - "MANAGER__NAME=XTM Integrations Manager"
+      - MANAGER__CREDENTIALS_KEY_FILEPATH=/keys/private_key.pem
+      - OPENAEV__ENABLE=true
+      - OPENCTI__ENABLE=false
+      - OPENAEV__URL=http://localhost:8080
+      - OPENAEV__TOKEN=${OPENAEV_ADMIN_TOKEN}
+      - OPENAEV__DAEMON__SELECTOR=docker
+      # Workaround: pending https://github.com/FiligranHQ/xtm-composer/issues/64,
+      # use OPENCTI__ keys to customise the docker daemon
+      - OPENCTI__DAEMON__DOCKER__NETWORK_MODE=host
+      # Provision the equivalent OPENAEV__ key for when this is fixed
+      - OPENAEV__DAEMON__DOCKER__NETWORK_MODE=host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - rsakeys:/keys:ro  # RSA key mounted as read-only
+    depends_on:
+      rsa-key-generator:
+        condition: service_healthy
+      openaev-dev-rabbitmq:
+        condition: service_healthy
+    restart: always
 volumes:
   esdata:
     driver: local
@@ -176,5 +277,7 @@ volumes:
     driver: local
   ossnapshots:
     driver: local
-  pgdata  :
+  pgdata:
+    driver: local
+  rsakeys:
     driver: local

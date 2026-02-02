@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router';
 
-import errorWrapper from '../../../components/errorWrapper';
+import { errorWrapper } from '../../../components/Error';
 import NotFound from '../../../components/NotFound';
 import Organizations from '../teams/Organizations';
 import AttackPatterns from './attack_patterns/AttackPatterns';

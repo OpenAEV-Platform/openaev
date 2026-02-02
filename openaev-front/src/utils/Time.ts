@@ -25,27 +25,29 @@ export const splitDuration = (duration = 0) => {
 
 export const minutesInFuture = (minutes: number) => moment().utc().add(minutes, 'minutes');
 
-export const calcEndDate = (startDate: string, interval: string) => {
-  let endDate = null;
-  if (interval === 'day') {
-    endDate = moment(startDate).add(1, 'days');
-  } else if (interval === 'week') {
-    endDate = moment(startDate).add(7, 'days');
-  } else if (interval === 'month') {
-    endDate = moment(startDate).add(1, 'months');
-  } else if (interval === 'quarter') {
-    endDate = moment(startDate).add(3, 'months');
-  } else if (interval === 'year') {
-    endDate = moment(startDate).add(12, 'months');
+export const calcEndDate = (startDate: string, interval: string): moment.Moment | null => {
+  switch (interval) {
+    case 'day':
+      return moment(startDate).add(1, 'days');
+    case 'week':
+      return moment(startDate).add(7, 'days');
+    case 'month':
+      return moment(startDate).add(1, 'months');
+    case 'quarter':
+      return moment(startDate).add(3, 'months');
+    case 'year':
+      return moment(startDate).add(12, 'months');
+    default:
+      return null;
   }
-  return endDate;
 };
 
-export const secondsFromToNow = (date: Date) => {
+export const secondsFromToNow = (date: Date | string | number) => {
   if (!date) {
     return 0;
   }
-  const timestamp = Math.floor(new Date(date).getTime() / 1000);
+  // Handle both Date objects and date strings/timestamps
+  const timestamp = Math.floor((date instanceof Date ? date.getTime() : new Date(date).getTime()) / 1000);
   const now = Math.floor(Date.now() / 1000);
   return now - timestamp;
 };

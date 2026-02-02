@@ -3,7 +3,7 @@ import { Route, Routes, useParams } from 'react-router';
 import { fetchLessonsTemplates } from '../../../../actions/Lessons';
 import { type LessonsTemplatesHelper } from '../../../../actions/lessons/lesson-helper';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import errorWrapper from '../../../../components/errorWrapper';
+import { errorWrapper } from '../../../../components/Error';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import NotFound from '../../../../components/NotFound';

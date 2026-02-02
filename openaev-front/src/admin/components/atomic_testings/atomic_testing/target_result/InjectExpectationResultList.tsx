@@ -1,8 +1,4 @@
-import { MoreVertOutlined } from '@mui/icons-material';
 import {
-  IconButton,
-  Menu,
-  MenuItem,
   Table,
   TableBody,
   TableCell,
@@ -11,8 +7,9 @@ import {
   TableRow,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type MouseEvent as ReactMouseEvent, useState } from 'react';
+import { useContext } from 'react';
 
+import ButtonPopover from '../../../../../components/common/ButtonPopover';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemStatus from '../../../../../components/ItemStatus';
 import {
@@ -22,36 +19,31 @@ import {
   type PayloadSimple,
 } from '../../../../../utils/api-types';
 import { isNotEmptyField } from '../../../../../utils/utils';
+import { type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
 import InjectIcon from '../../../common/injects/InjectIcon';
 import { getSourceLabel } from '../../../simulations/simulation/validation/expectations/ExpectationUtils';
+import InjectExpectationContext from '../context/InjectExpectationContext';
 import TargetResultAlertNumber from './TargetResultAlertNumber';
 
 interface Props {
-  injectExpectationId: InjectExpectation['inject_expectation_id'];
+  injectExpectation: InjectExpectationsStore;
   injectExpectationResults: InjectExpectationResult[];
   injectExpectationAgent: InjectExpectation['inject_expectation_agent'];
   injectorContractPayload?: PayloadSimple;
   injectType: Inject['inject_type'];
-  handleOpenEditResult: (result: InjectExpectationResult) => void;
-  handleOpenDeleteResult: (result: InjectExpectationResult) => void;
-  handleOpenSecurityPlatform: (result: InjectExpectationResult) => void;
 }
 
 const InjectExpectationResultList = ({
-  injectExpectationId,
+  injectExpectation,
   injectExpectationResults,
   injectExpectationAgent,
   injectorContractPayload,
   injectType,
-  handleOpenEditResult,
-  handleOpenDeleteResult,
-  handleOpenSecurityPlatform,
 }: Props) => {
   const { nsdt, t } = useFormatter();
   const theme = useTheme();
 
-  const [anchorEditButton, setAnchorEditButton] = useState<null | HTMLElement>(null);
-  const [selectedExpectationResult, setSelectedExpectationResult] = useState<InjectExpectationResult>();
+  const { onOpenDeleteInjectExpectationResult, onOpenEditInjectExpectationResultResult, onOpenSecurityPlatform } = useContext(InjectExpectationContext);
 
   const getAvatar = (expectationResult: InjectExpectationResult) => {
     if (expectationResult.sourceType === 'collector' || expectationResult.sourceType === 'security-platform') {
@@ -81,33 +73,6 @@ const InjectExpectationResultList = ({
     );
   };
 
-  const onOpenMenu = (event: ReactMouseEvent<HTMLButtonElement>, expectationResult: InjectExpectationResult) => {
-    event.stopPropagation();
-    setAnchorEditButton(event.currentTarget);
-    setSelectedExpectationResult(expectationResult);
-  };
-  const onCloseMenu = () => {
-    setAnchorEditButton(null);
-    setSelectedExpectationResult(undefined);
-  };
-
-  const onOpenEditResult = () => {
-    if (selectedExpectationResult) {
-      handleOpenEditResult(selectedExpectationResult);
-    }
-    onCloseMenu();
-  };
-  const onOpenDeleteResult = () => {
-    if (selectedExpectationResult) {
-      handleOpenDeleteResult(selectedExpectationResult);
-    }
-    onCloseMenu();
-  };
-
-  const handleClickSecurityPlatformResult = (expectationResult: InjectExpectationResult) => {
-    handleOpenSecurityPlatform(expectationResult);
-  };
-
   return (
     <TableContainer>
       <Table>
@@ -134,7 +99,7 @@ const InjectExpectationResultList = ({
                 sx={{ cursor: `${isResultSecurityPlatform ? 'pointer' : 'default'}` }}
                 onClick={() => {
                   if (isResultSecurityPlatform) {
-                    handleClickSecurityPlatformResult(expectationResult);
+                    onOpenSecurityPlatform(expectationResult, injectExpectation);
                   }
                 }}
               >
@@ -163,7 +128,7 @@ const InjectExpectationResultList = ({
                 <TableCell>
                   {
                     expectationResult.sourceId && injectExpectationAgent && expectationResult.sourceType === 'collector' && (expectationResult.result === 'Prevented' || expectationResult.result === 'Detected') && (
-                      <TargetResultAlertNumber expectationResult={expectationResult} injectExpectationId={injectExpectationId} />
+                      <TargetResultAlertNumber expectationResult={expectationResult} injectExpectationId={injectExpectation.inject_expectation_id} />
                     )
                   }
                   {(!injectExpectationAgent
@@ -174,27 +139,22 @@ const InjectExpectationResultList = ({
                   )}
                 </TableCell>
                 <TableCell>
-                  <IconButton
-                    color="primary"
-                    onClick={event => onOpenMenu(event, expectationResult)}
-                    aria-haspopup="true"
-                    size="large"
+                  <ButtonPopover
                     disabled={['collector', 'media-pressure', 'challenge'].includes(expectationResult.sourceType ?? 'unknown')}
-                  >
-                    <MoreVertOutlined />
-                  </IconButton>
-                  <Menu
-                    anchorEl={anchorEditButton}
-                    open={Boolean(anchorEditButton)}
-                    onClose={onCloseMenu}
-                  >
-                    <MenuItem onClick={onOpenEditResult}>
-                      {t('Update')}
-                    </MenuItem>
-                    <MenuItem onClick={onOpenDeleteResult}>
-                      {t('Delete')}
-                    </MenuItem>
-                  </Menu>
+                    entries={[{
+                      label: t('Update'),
+                      action: () => onOpenEditInjectExpectationResultResult(expectationResult, injectExpectation),
+                      disabled: false,
+                      userRight: true,
+                    },
+                    {
+                      label: t('Delete'),
+                      action: () => onOpenDeleteInjectExpectationResult(expectationResult, injectExpectation),
+                      disabled: false,
+                      userRight: true,
+                    }]}
+                    variant="icon"
+                  />
                 </TableCell>
               </TableRow>
             );

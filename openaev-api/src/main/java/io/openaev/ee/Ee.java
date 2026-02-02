@@ -18,9 +18,10 @@ package io.openaev.ee;
 import static io.openaev.database.model.SettingKeys.PLATFORM_ENTERPRISE_LICENSE;
 import static io.openaev.database.model.SettingKeys.PLATFORM_INSTANCE;
 import static io.openaev.ee.Pem.*;
-import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_NAME;
-import static io.openaev.executors.tanium.service.TaniumExecutorService.TANIUM_EXECUTOR_NAME;
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME;
 import static java.util.Optional.ofNullable;
 
 import io.openaev.config.OpenAEVConfig;
@@ -28,7 +29,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.rest.exception.LicenseRestrictionException;
 import jakarta.annotation.Resource;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.nio.charset.StandardCharsets;
 import java.security.cert.*;
 import java.time.Instant;
@@ -50,7 +51,7 @@ public class Ee {
   public static final String LICENSE_OPTION_PRODUCT = "2.14521.4.4.20";
   public static final String LICENSE_OPTION_CREATOR = "2.14521.4.4.30";
   private final List<String> eeExecutorsNames =
-      List.of(CROWDSTRIKE_EXECUTOR_NAME, TANIUM_EXECUTOR_NAME);
+      List.of(CROWDSTRIKE_EXECUTOR_NAME, TANIUM_EXECUTOR_NAME, SENTINELONE_EXECUTOR_NAME);
 
   @Resource private OpenAEVConfig openAEVConfig;
 
@@ -92,7 +93,7 @@ public class Ee {
     }
   }
 
-  private Map<String, Setting> mapOfSettings(@NotBlank List<Setting> settings) {
+  private Map<String, Setting> mapOfSettings(@NotNull List<Setting> settings) {
     return settings.stream().collect(Collectors.toMap(Setting::getKey, Function.identity()));
   }
 

@@ -2,101 +2,164 @@ package io.openaev.expectation;
 
 import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.*;
 
+import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
 import io.openaev.model.inject.form.Expectation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+/**
+ * Service for building pre-configured expectation instances.
+ *
+ * <p>This service provides factory methods for creating expectations with default configurations.
+ * Each expectation type has appropriate default names and expiration times based on the platform
+ * configuration.
+ *
+ * <p>Supported expectation types:
+ *
+ * <ul>
+ *   <li><b>Technical:</b> Prevention, Detection, Vulnerability
+ *   <li><b>Human:</b> Challenge, Article, Manual, Document, Text
+ * </ul>
+ *
+ * <p>Usage example:
+ *
+ * <pre>{@code
+ * Expectation prevention = expectationBuilderService.buildPreventionExpectation();
+ * Expectation detection = expectationBuilderService.buildDetectionExpectation();
+ * }</pre>
+ *
+ * @see ExpectationPropertiesConfig for expiration time configuration
+ * @see io.openaev.model.Expectation
+ */
 @RequiredArgsConstructor
 @Service
 public class ExpectationBuilderService {
 
+  // Default expectation names
+  /** Default name for prevention expectations. */
   public static final String PREVENTION_NAME = "Prevention";
+
+  /** Default name for detection expectations. */
   public static final String DETECTION_NAME = "Detection";
+
+  /** Default name for vulnerability expectations. */
   public static final String VULNERABILITY_NAME = "Vulnerability";
+
+  /** Default name for challenge expectations. */
   public static final String CHALLENGE_NAME = "Expect targets to complete the challenge(s)";
+
+  /** Default name for article/channel expectations. */
   public static final String ARTICLE_NAME = "Expect targets to read the article(s)";
+
+  /** Default name for text expectations. */
   public static final String TEXT_NAME = "Simple expectation";
+
+  /** Default name for manual expectations. */
   public static final String MANUAL_NAME = "Manual expectation";
+
+  /** Default name for document expectations. */
   public static final String DOCUMENT_NAME = "A document must be sent / uploaded";
+
+  /** Default score for all expectations (100%). */
+  public static final Double DEFAULT_EXPECTATION_SCORE = 100.0;
+
   private final ExpectationPropertiesConfig expectationPropertiesConfig;
 
-  public static Double DEFAULT_EXPECTATION_SCORE = 100.0;
-
+  /**
+   * Builds a prevention expectation with default configuration.
+   *
+   * @return a configured prevention expectation
+   */
   public Expectation buildPreventionExpectation() {
-    Expectation preventionExpectation = new Expectation();
-    preventionExpectation.setType(PREVENTION);
-    preventionExpectation.setName(PREVENTION_NAME);
-    preventionExpectation.setScore(DEFAULT_EXPECTATION_SCORE);
-    preventionExpectation.setExpirationTime(
-        this.expectationPropertiesConfig.getPreventionExpirationTime());
-    return preventionExpectation;
+    return buildExpectation(
+        PREVENTION, PREVENTION_NAME, expectationPropertiesConfig.getPreventionExpirationTime());
   }
 
+  /**
+   * Builds a detection expectation with default configuration.
+   *
+   * @return a configured detection expectation
+   */
   public Expectation buildDetectionExpectation() {
-    Expectation detectionExpectation = new Expectation();
-    detectionExpectation.setType(DETECTION);
-    detectionExpectation.setName(DETECTION_NAME);
-    detectionExpectation.setScore(DEFAULT_EXPECTATION_SCORE);
-    detectionExpectation.setExpirationTime(
-        this.expectationPropertiesConfig.getDetectionExpirationTime());
-    return detectionExpectation;
+    return buildExpectation(
+        DETECTION, DETECTION_NAME, expectationPropertiesConfig.getDetectionExpirationTime());
   }
 
+  /**
+   * Builds a vulnerability expectation with default configuration.
+   *
+   * @return a configured vulnerability expectation
+   */
   public Expectation buildVulnerabilityExpectation() {
-    Expectation vulnerabilityExpectation = new Expectation();
-    vulnerabilityExpectation.setType(VULNERABILITY);
-    vulnerabilityExpectation.setName(VULNERABILITY_NAME);
-    vulnerabilityExpectation.setScore(DEFAULT_EXPECTATION_SCORE);
-    vulnerabilityExpectation.setExpirationTime(
-        this.expectationPropertiesConfig.getVulnerabilityExpirationTime());
-    return vulnerabilityExpectation;
+    return buildExpectation(
+        VULNERABILITY,
+        VULNERABILITY_NAME,
+        expectationPropertiesConfig.getVulnerabilityExpirationTime());
   }
 
+  /**
+   * Builds a challenge expectation with default configuration.
+   *
+   * @return a configured challenge expectation
+   */
   public Expectation buildChallengeExpectation() {
-    Expectation challengeExpectation = new Expectation();
-    challengeExpectation.setType(CHALLENGE);
-    challengeExpectation.setName(CHALLENGE_NAME);
-    challengeExpectation.setScore(DEFAULT_EXPECTATION_SCORE);
-    challengeExpectation.setExpirationTime(
-        this.expectationPropertiesConfig.getChallengeExpirationTime());
-    return challengeExpectation;
+    return buildExpectation(
+        CHALLENGE, CHALLENGE_NAME, expectationPropertiesConfig.getChallengeExpirationTime());
   }
 
+  /**
+   * Builds an article/channel expectation with default configuration.
+   *
+   * @return a configured article expectation
+   */
   public Expectation buildArticleExpectation() {
-    Expectation articleExpectation = new Expectation();
-    articleExpectation.setType(ARTICLE);
-    articleExpectation.setName(ARTICLE_NAME);
-    articleExpectation.setScore(DEFAULT_EXPECTATION_SCORE);
-    articleExpectation.setExpirationTime(
-        this.expectationPropertiesConfig.getArticleExpirationTime());
-    return articleExpectation;
+    return buildExpectation(
+        ARTICLE, ARTICLE_NAME, expectationPropertiesConfig.getArticleExpirationTime());
   }
 
+  /**
+   * Builds a text expectation with default configuration.
+   *
+   * @return a configured text expectation
+   */
   public Expectation buildTextExpectation() {
-    Expectation textExpectation = new Expectation();
-    textExpectation.setType(TEXT);
-    textExpectation.setName(TEXT_NAME);
-    textExpectation.setScore(DEFAULT_EXPECTATION_SCORE);
-    textExpectation.setExpirationTime(this.expectationPropertiesConfig.getManualExpirationTime());
-    return textExpectation;
+    return buildExpectation(TEXT, TEXT_NAME, expectationPropertiesConfig.getManualExpirationTime());
   }
 
+  /**
+   * Builds a manual expectation with default configuration.
+   *
+   * @return a configured manual expectation
+   */
   public Expectation buildManualExpectation() {
-    Expectation manualExpectation = new Expectation();
-    manualExpectation.setType(MANUAL);
-    manualExpectation.setName(MANUAL_NAME);
-    manualExpectation.setScore(DEFAULT_EXPECTATION_SCORE);
-    manualExpectation.setExpirationTime(this.expectationPropertiesConfig.getManualExpirationTime());
-    return manualExpectation;
+    return buildExpectation(
+        MANUAL, MANUAL_NAME, expectationPropertiesConfig.getManualExpirationTime());
   }
 
+  /**
+   * Builds a document upload expectation with default configuration.
+   *
+   * @return a configured document expectation
+   */
   public Expectation buildDocumentExpectation() {
-    Expectation documentExpectation = new Expectation();
-    documentExpectation.setType(DOCUMENT);
-    documentExpectation.setName(DOCUMENT_NAME);
-    documentExpectation.setScore(DEFAULT_EXPECTATION_SCORE);
-    documentExpectation.setExpirationTime(
-        this.expectationPropertiesConfig.getManualExpirationTime());
-    return documentExpectation;
+    return buildExpectation(
+        DOCUMENT, DOCUMENT_NAME, expectationPropertiesConfig.getManualExpirationTime());
+  }
+
+  /**
+   * Internal helper to build an expectation with the specified parameters.
+   *
+   * @param type the expectation type
+   * @param name the display name
+   * @param expirationTime the expiration time in seconds
+   * @return a configured expectation
+   */
+  private Expectation buildExpectation(EXPECTATION_TYPE type, String name, long expirationTime) {
+    Expectation expectation = new Expectation();
+    expectation.setType(type);
+    expectation.setName(name);
+    expectation.setScore(DEFAULT_EXPECTATION_SCORE);
+    expectation.setExpirationTime(expirationTime);
+    return expectation;
   }
 }

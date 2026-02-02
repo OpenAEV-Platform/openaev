@@ -1,7 +1,8 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
+import { Dialog, DialogContent, DialogTitle } from '@mui/material';
 import { type FunctionComponent, useContext, useState } from 'react';
 
 import ButtonPopover from '../../../../components/common/ButtonPopover';
+import DialogDelete from '../../../../components/common/DialogDelete';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { type Variable, type VariableInput } from '../../../../utils/api-types';
@@ -55,11 +56,11 @@ const VariablePopover: FunctionComponent<Props> = ({
 
   // Button Popover
   const entries = [{
-    label: t('Update'),
+    label: 'Update',
     action: () => handleUpdate(),
     userRight: permissions.canManage,
   }, {
-    label: t('Delete'),
+    label: 'Delete',
     action: () => handleDelete(),
     userRight: permissions.canManage,
   }];
@@ -70,31 +71,19 @@ const VariablePopover: FunctionComponent<Props> = ({
         entries={entries}
         variant="icon"
       />
-      <Dialog
+      <DialogDelete
         open={deleteVar}
-        TransitionComponent={Transition}
-        onClose={() => setDeleteVar(false)}
-        PaperProps={{ elevation: 1 }}
-      >
-        <DialogContent>
-          <DialogContentText>
-            {t('Do you want to delete the variable?')}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteVar(false)}>{t('Cancel')}</Button>
-          <Button color="secondary" onClick={submitDelete}>
-            {t('Delete')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        handleClose={() => setDeleteVar(false)}
+        handleSubmit={submitDelete}
+        text={t('Do you want to delete the variable?')}
+      />
       <Dialog
-        TransitionComponent={Transition}
+        slots={{ transition: Transition }}
         open={editVar}
         onClose={() => setEditVar(false)}
         fullWidth
         maxWidth="md"
-        PaperProps={{ elevation: 1 }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogTitle>{t('Update the variable')}</DialogTitle>
         <DialogContent>

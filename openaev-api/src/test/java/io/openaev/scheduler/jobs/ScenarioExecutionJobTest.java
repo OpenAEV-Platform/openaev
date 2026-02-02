@@ -14,6 +14,7 @@ import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
+import io.openaev.utilstest.RabbitMQTestListener;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -23,8 +24,15 @@ import org.junit.jupiter.api.*;
 import org.mockito.MockedStatic;
 import org.quartz.JobExecutionException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
 
+@SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @Transactional
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ScenarioExecutionJobTest extends IntegrationTest {

@@ -43,6 +43,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.Join;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletResponse;
@@ -92,6 +93,7 @@ public class ExerciseApi extends RestBehavior {
   private final EvaluationRepository evaluationRepository;
   private final KillChainPhaseRepository killChainPhaseRepository;
   private final GrantRepository grantRepository;
+  private final EntityManager entityManager;
   // endregion
 
   // region services
@@ -685,7 +687,7 @@ public class ExerciseApi extends RestBehavior {
     List<ExerciseStatus> nextPossibleStatus = exercise.nextPossibleStatus();
     if (!nextPossibleStatus.contains(status)) {
       throw new UnsupportedOperationException(
-          "Exercise cant support moving to status " + status.name());
+          "Exercise can't support moving to status " + status.name());
     }
     // In case of rescheduled of an exercise.
     boolean isCloseState =
@@ -724,6 +726,8 @@ public class ExerciseApi extends RestBehavior {
                                       .stream()))
               .toList();
       lessonsAnswerRepository.deleteAll(lessonsAnswers);
+      entityManager.flush();
+      entityManager.clear();
       // Delete exercise transient files (communications, ...)
       fileService.deleteDirectory(exerciseId);
     }

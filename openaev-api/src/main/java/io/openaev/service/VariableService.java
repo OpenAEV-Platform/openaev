@@ -6,6 +6,7 @@ import static java.time.Instant.now;
 import io.openaev.database.model.Variable;
 import io.openaev.database.repository.VariableRepository;
 import io.openaev.database.specification.VariableSpecification;
+import io.openaev.rest.exception.ElementNotFoundException;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -27,7 +28,10 @@ public class VariableService {
   }
 
   public Variable variable(@NotBlank final String variableId) {
-    return this.variableRepository.findById(variableId).orElseThrow();
+    return this.variableRepository
+        .findById(variableId)
+        .orElseThrow(
+            () -> new ElementNotFoundException("Variable not found with id: " + variableId));
   }
 
   public List<Variable> variablesFromExercise(@NotBlank final String exerciseId) {

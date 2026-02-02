@@ -7,10 +7,10 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.InjectExpectationUtils.*;
 import static io.openaev.utils.AgentUtils.getPrimaryAgents;
 import static io.openaev.utils.ExpectationUtils.*;
-import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.*;
-import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.computeScore;
+import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.database.helper.InjectExpectationRepositoryHelper;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.specification.InjectExpectationSpecification;
@@ -18,6 +18,7 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.model.Expectation;
+import io.openaev.rest.atomic_testing.form.InjectExpectationAgentOutput;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
@@ -55,6 +56,7 @@ public class InjectExpectationService {
   public static final String PENDING = "Pending";
   public static final String COLLECTOR = "collector";
   private final InjectExpectationRepository injectExpectationRepository;
+  private final InjectExpectationRepositoryHelper injectExpectationRepositoryHelper;
   private final CollectorService collectorService;
   @Resource private ExpectationPropertiesConfig expectationPropertiesConfig;
   private final SecurityCoverageSendJobService securityCoverageSendJobService;
@@ -580,6 +582,40 @@ public class InjectExpectationService {
     }
   }
 
+  private static List<InjectExpectationAgentOutput> toInjectExpectationAgentsOutput(
+      List<InjectExpectation> injectExpectations, String assetId) {
+    return injectExpectations.stream()
+        .map(
+            ie ->
+                InjectExpectationAgentOutput.builder()
+                    .type(ie.getType())
+                    .id(ie.getId())
+                    .name(ie.getName())
+                    .results(ie.getResults())
+                    .score(ie.getScore())
+                    .status(ie.getResponse())
+                    .expirationTime(ie.getExpirationTime())
+                    .createdAt(ie.getCreatedAt())
+                    .expectationGroup(ie.isExpectationGroup())
+                    .agentId(ie.getAgent().getId())
+                    .agentName(ie.getAgent().getExecutedByUser())
+                    .assetId(assetId)
+                    .build())
+        .collect(Collectors.toList());
+  }
+
+  public List<InjectExpectationAgentOutput> findMergedExpectationsWithAgentsByInjectAndAsset(
+      String injectId, String assetId, String expectationType) {
+    List<InjectExpectationAgentOutput> injectExpectationAgentOutputs =
+        toInjectExpectationAgentsOutput(
+            injectExpectationRepository.findAllWithAgentsByInjectAndAsset(
+                injectId, assetId, InjectExpectation.EXPECTATION_TYPE.valueOf(expectationType)),
+            assetId);
+    injectExpectationAgentOutputs.sort(
+        Comparator.comparing(InjectExpectationAgentOutput::getAgentName));
+    return injectExpectationAgentOutputs;
+  }
+
   /**
    * Add a date signature to all inject expectations by agent.
    *
@@ -593,16 +629,8 @@ public class InjectExpectationService {
       @NotBlank final String agentId,
       @NotBlank final Instant date,
       @NotBlank final String signatureType) {
-    List<InjectExpectation> injectExpectations =
-        this.injectExpectationRepository.findAllByInjectAndAgent(injectId, agentId);
-
-    injectExpectations.forEach(
-        expectation -> {
-          List<InjectExpectationSignature> signatures = expectation.getSignatures();
-          signatures.add(new InjectExpectationSignature(signatureType, date.toString()));
-        });
-
-    injectExpectationRepository.saveAll(injectExpectations);
+    // Insert the signature for all agent and inject in one query
+    injectExpectationRepository.insertSignature(signatureType, date.toString(), injectId, agentId);
   }
 
   /**
@@ -627,6 +655,7 @@ public class InjectExpectationService {
    * @param agentId the agentId for which to add the start date signature
    * @param date the date to set as the start date signature
    */
+  @Transactional
   public void addStartDateSignatureToInjectExpectationsByAgent(
       @NotBlank final String injectId,
       @NotBlank final String agentId,

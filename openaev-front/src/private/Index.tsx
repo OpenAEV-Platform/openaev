@@ -2,7 +2,7 @@ import { Route, Routes } from 'react-router';
 import { type CSSObject } from 'tss-react';
 import { makeStyles } from 'tss-react/mui';
 
-import errorWrapper from '../components/errorWrapper';
+import { errorWrapper } from '../components/Error';
 import NotFound from '../components/NotFound';
 import useDataLoader from '../utils/hooks/useDataLoader';
 import Dashboard from './components/Dashboard';

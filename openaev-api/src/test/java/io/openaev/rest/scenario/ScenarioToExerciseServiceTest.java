@@ -1,7 +1,6 @@
 package io.openaev.rest.scenario;
 
 import static io.openaev.database.model.SettingKeys.DEFAULT_SIMULATION_DASHBOARD;
-import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openaev.utils.fixtures.ArticleFixture.ARTICLE_NAME;
 import static io.openaev.utils.fixtures.ArticleFixture.getArticle;
 import static io.openaev.utils.fixtures.DocumentFixture.getDocumentJpeg;
@@ -19,7 +18,9 @@ import io.openaev.database.repository.*;
 import io.openaev.service.LoadService;
 import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
+import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -29,8 +30,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestExecutionListeners;
 
 @SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ScenarioToExerciseServiceTest extends IntegrationTest {
 
@@ -48,9 +53,9 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
   @Autowired private LessonsQuestionRepository lessonsQuestionRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private VariableRepository variableRepository;
-  @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private SettingRepository settingRepository;
   @Autowired private CustomDashboardRepository customDashboardRepository;
+  @Autowired private InjectorContractFixture injectorContractFixture;
 
   private static String SCENARIO_ID;
   private static String EXERCISE_ID;
@@ -215,8 +220,7 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
 
     // Inject
     Inject inject =
-        getInjectForEmailContract(
-            this.injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow());
+        getInjectForEmailContract(injectorContractFixture.getWellKnownSingleEmailContract());
     inject.setTeams(
         new ArrayList<>() {
           {

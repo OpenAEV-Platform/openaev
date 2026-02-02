@@ -17,12 +17,12 @@ import io.openaev.database.model.Variable.VariableType;
 import io.openaev.injector_contract.*;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractExpectations;
-import io.openaev.opencti.config.OpenCTIConfig;
+import io.openaev.rest.domain.enums.PresetDomain;
 import java.io.InputStream;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -30,20 +30,7 @@ public class OpenCTIContract extends Contractor {
 
   public static final String TYPE = "openaev_opencti";
   public static final String OPENCTI_CREATE_CASE = "88db2075-ae49-4fe9-a64c-08da2ed07637";
-
   public static final String OPENCTI_CREATE_REPORT = "b535f011-3a03-46e7-800a-74f01cd8865e";
-
-  private OpenCTIConfig config;
-
-  @Autowired
-  public void setConfig(OpenCTIConfig config) {
-    this.config = config;
-  }
-
-  @Override
-  public boolean isExpose() {
-    return Optional.ofNullable(config.getEnable()).orElse(false);
-  }
 
   @Override
   public String getType() {
@@ -53,12 +40,7 @@ public class OpenCTIContract extends Contractor {
   @Override
   public ContractConfig getConfig() {
     return new ContractConfig(
-        TYPE,
-        Map.of(en, "OpenCTI", fr, "OpenCTI"),
-        "#0fbcff",
-        "#001bda",
-        "/img/icon-opencti.png",
-        isExpose());
+        TYPE, Map.of(en, "OpenCTI", fr, "OpenCTI"), "#0fbcff", "#001bda", "/img/icon-opencti.png");
   }
 
   @Override
@@ -87,7 +69,8 @@ public class OpenCTIContract extends Contractor {
             Map.of(en, "Create a new case", fr, "Créer un nouveau case"),
             createCaseInstance,
             List.of(Endpoint.PLATFORM_TYPE.Service),
-            false);
+            false,
+            new HashSet<>(Collections.singletonList(PresetDomain.TOCLASSIFY)));
     createCase.addVariable(documentUriVariable);
     List<ContractElement> createReportInstance =
         contractBuilder()
@@ -103,7 +86,8 @@ public class OpenCTIContract extends Contractor {
             Map.of(en, "Create a new report", fr, "Créer un nouveau rapport"),
             createReportInstance,
             List.of(Endpoint.PLATFORM_TYPE.Service),
-            false);
+            false,
+            new HashSet<>(Collections.singletonList(PresetDomain.TOCLASSIFY)));
     createReport.addVariable(documentUriVariable);
     return List.of(createCase, createReport);
   }

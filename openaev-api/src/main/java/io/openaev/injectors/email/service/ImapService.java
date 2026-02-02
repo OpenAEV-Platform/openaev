@@ -318,7 +318,7 @@ public class ImapService extends ExternalServiceBase {
         syncFolders();
         break;
       } catch (MessagingException e) {
-        log.warn(String.format("Retrying connection..." + e.getMessage()), e);
+        log.warn(String.format("Retrying connection... %s", e.getMessage()), e);
         Thread.sleep(2000);
         if (i == 2 && imapStore != null && imapStore.isConnected()) {
           imapStore.close();

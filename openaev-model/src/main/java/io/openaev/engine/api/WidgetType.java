@@ -19,7 +19,9 @@ public enum WidgetType {
   @JsonProperty("attack-path")
   ATTACK_PATH("attack-path"),
   @JsonProperty("number")
-  NUMBER("number");
+  NUMBER("number"),
+  @JsonProperty("average")
+  AVERAGE("average");
 
   public final String type;
 

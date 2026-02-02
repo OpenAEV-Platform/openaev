@@ -1,7 +1,6 @@
 package io.openaev.service;
 
 import static io.openaev.database.specification.TeamSpecification.fromExercise;
-import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openaev.utils.fixtures.ExerciseFixture.getExercise;
 import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
 import static io.openaev.utils.fixtures.TeamFixture.getTeam;
@@ -20,13 +19,14 @@ import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.period.CronService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
-import io.openaev.service.scenario.ScenarioService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.ResultUtils;
 import io.openaev.utils.fixtures.ExerciseFixture;
+import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.InjectExpectationMapper;
 import io.openaev.utils.mapper.InjectMapper;
+import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.*;
@@ -34,9 +34,13 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ExerciseServiceIntegrationTest extends IntegrationTest {
 
@@ -49,7 +53,6 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private DocumentService documentService;
   @Autowired private InjectService injectService;
   @Autowired private UserService userService;
-  @Autowired private ScenarioService scenarioService;
 
   @Autowired private ExerciseMapper exerciseMapper;
   @Autowired private InjectMapper injectMapper;
@@ -71,6 +74,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private InjectExpectationMapper injectExpectationMapper;
   @Autowired private CronService cronService;
   @Autowired private ScenarioRecurrenceService scenarioRecurrenceService;
+  @Autowired private InjectorContractFixture injectorContractFixture;
 
   private static String USER_ID;
   private static String TEAM_ID;
@@ -162,9 +166,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
     exercise.setTeams(List.of(teamSaved));
     exercise.setFrom(user.getEmail());
     Exercise exerciseSaved = this.exerciseRepository.saveAndFlush(exercise);
-
-    InjectorContract injectorContract =
-        this.injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow();
+    InjectorContract injectorContract = injectorContractFixture.getWellKnownSingleEmailContract();
     Inject injectDefaultEmail = getInjectForEmailContract(injectorContract);
     injectDefaultEmail.setExercise(exerciseSaved);
     injectDefaultEmail.setTeams(List.of(teamSaved));

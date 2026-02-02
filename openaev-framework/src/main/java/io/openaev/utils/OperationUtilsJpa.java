@@ -9,22 +9,70 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
-public class OperationUtilsJpa {
+/**
+ * Utility class providing JPA Criteria API predicate builders for filter operations.
+ *
+ * <p>This class contains methods for building JPA Predicates for various filter operations
+ * including text matching, comparisons, and array/map operations. All string comparisons are
+ * case-insensitive.
+ *
+ * <p>Special handling is provided for:
+ *
+ * <ul>
+ *   <li>Array types - uses PostgreSQL array functions (array_to_string, array_position)
+ *   <li>Map types (hstore) - extracts values using avals() function
+ *   <li>Boolean values - parses string representations ("true"/"false")
+ *   <li>Date/time values - parses ISO-8601 instant strings
+ * </ul>
+ *
+ * <p><b>Database Compatibility:</b> This class uses PostgreSQL-specific functions and requires
+ * custom SQL function wrappers (array_position_wrapper, array_to_string_wrapper) to be defined in
+ * the database.
+ *
+ * @see FilterUtilsJpa for high-level filter specification building
+ */
+public final class OperationUtilsJpa {
 
-  private OperationUtilsJpa() {}
+  private OperationUtilsJpa() {
+    // Utility class - prevent instantiation
+  }
 
   // -- NOT CONTAINS --
 
   public static Predicate notContainsTexts(
       Expression<String> paths, CriteriaBuilder cb, List<String> texts, Class<?> type) {
+
     if (isEmpty(texts)) {
       return cb.conjunction();
     }
 
     Predicate[] predicates =
-        texts.stream().map(text -> containsText(paths, cb, text, type)).toArray(Predicate[]::new);
+        texts.stream()
+            .map(text -> notContainsText(paths, cb, text, type))
+            .toArray(Predicate[]::new);
 
-    return cb.or(predicates).not();
+    return cb.and(predicates);
+  }
+
+  public static Predicate notContainsText(
+      Expression<String> paths, CriteriaBuilder cb, String text, Class<?> type) {
+
+    if (isEmpty(text)) {
+      return cb.conjunction();
+    }
+
+    String pattern = "%" + text.toLowerCase() + "%";
+    Expression<String> value;
+
+    if (isCollection(type)) {
+      value = lower(arrayToString(avals(paths, cb), cb), cb);
+    } else if (isArray(type)) {
+      value = lower(arrayToString(paths, cb), cb);
+    } else {
+      value = cb.lower(paths);
+    }
+
+    return cb.or(cb.isNull(value), cb.notLike(value, pattern));
   }
 
   // -- CONTAINS --
@@ -47,14 +95,17 @@ public class OperationUtilsJpa {
       return cb.conjunction();
     }
 
-    if (type.isAssignableFrom(Map.class) || type.getName().contains("ImmutableCollections")) {
-      Expression<String> values = lower(arrayToString(avals(paths, cb), cb), cb);
-      return cb.like(values, "%" + text.toLowerCase() + "%");
+    String pattern = "%" + text.toLowerCase() + "%";
+    Expression<String> value;
+
+    if (isCollection(type)) {
+      value = lower(arrayToString(avals(paths, cb), cb), cb);
+    } else if (isArray(type)) {
+      value = lower(arrayToString(paths, cb), cb);
+    } else {
+      value = cb.lower(paths);
     }
-    if (type.isArray() || type.isAssignableFrom(List.class)) {
-      return cb.like(lower(arrayToString(paths, cb), cb), "%" + text.toLowerCase() + "%");
-    }
-    return cb.and(cb.like(cb.lower(paths), "%" + text.toLowerCase() + "%"), cb.isNotNull(paths));
+    return cb.and(cb.isNotNull(paths), cb.like(value, pattern));
   }
 
   // -- NOT EQUALS --
@@ -100,7 +151,7 @@ public class OperationUtilsJpa {
       return cb.conjunction();
     }
 
-    if (type.isAssignableFrom(Map.class) || type.getName().contains("ImmutableCollections")) {
+    if (isCollection(type)) {
       Expression<String[]> values = lowerArray(avals(paths, cb), cb);
       return cb.isNotNull(arrayPosition(values, cb, cb.literal(text.toLowerCase())));
     }
@@ -156,9 +207,9 @@ public class OperationUtilsJpa {
       return cb.conjunction();
     }
 
-    if (type.isAssignableFrom(Map.class) || type.getName().contains("ImmutableCollections")) {
+    if (isCollection(type)) {
       Expression<String> values = lower(arrayToString(avals(paths, cb), cb), cb);
-      return cb.like(cb.lower(values), text.toLowerCase() + "%");
+      return cb.like(values, text.toLowerCase() + "%");
     }
 
     return cb.like(cb.lower(paths), text.toLowerCase() + "%");
@@ -167,22 +218,33 @@ public class OperationUtilsJpa {
   // -- NOT EMPTY --
 
   public static Predicate notEmpty(Expression<String> paths, CriteriaBuilder cb, Class<?> type) {
-    return empty(paths, cb, type).not();
+    Expression<String> value;
+
+    if (isArray(type)) {
+      value = arrayToString(paths, cb);
+    } else if (isCollection(type)) {
+      value = arrayToString(avals(paths, cb), cb);
+    } else {
+      value = paths;
+    }
+
+    return cb.and(cb.isNotNull(value), cb.notEqual(value, ""));
   }
 
   // -- EMPTY --
 
   public static Predicate empty(Expression<String> paths, CriteriaBuilder cb, Class<?> type) {
-    Expression<String> finalPaths;
-    if (type.isArray() || type.isAssignableFrom(List.class)) {
-      finalPaths = arrayToString(paths, cb);
+    Expression<String> value;
+
+    if (isArray(type)) {
+      value = arrayToString(paths, cb);
     } else {
-      finalPaths = paths;
+      value = paths;
     }
     if (type.equals(Instant.class) || type.isEnum()) {
-      return cb.isNull(finalPaths);
+      return cb.isNull(value);
     }
-    return cb.or(cb.isNull(finalPaths), cb.equal(finalPaths, ""), cb.equal(finalPaths, " "));
+    return cb.or(cb.isNull(value), cb.equal(value, ""), cb.equal(value, " "));
   }
 
   // -- DATE --
@@ -304,10 +366,20 @@ public class OperationUtilsJpa {
   }
 
   private static boolean isEmpty(List<String> texts) {
-    return texts == null || texts.isEmpty() || texts.stream().anyMatch(s -> !hasText(s));
+    return texts == null || texts.isEmpty() || texts.stream().allMatch(s -> !hasText(s));
   }
 
   private static boolean isEmpty(String text) {
     return !hasText(text);
+  }
+
+  // -- BASE CONDITION --
+
+  private static boolean isCollection(Class<?> type) {
+    return type.isAssignableFrom(Map.class) || type.getName().contains("ImmutableCollections");
+  }
+
+  private static boolean isArray(Class<?> type) {
+    return type.isArray() || type.isAssignableFrom(List.class);
   }
 }

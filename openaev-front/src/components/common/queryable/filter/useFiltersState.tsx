@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { type Filter, type FilterGroup } from '../../../../utils/api-types';
 import { type FilterHelpers } from './FilterHelpers';
@@ -23,57 +23,66 @@ const useFiltersState = (
   onChange?: (value: FilterGroup) => void,
 ): [FilterGroup, FilterHelpers] => {
   const [filtersState, setFiltersState] = useState<Props>({ filters: initFilters });
+
+  // Use ref to store onChange to avoid triggering useEffect when callback reference changes
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  // Use ref for defaultFilters to keep handleClearAllFilters stable
+  const defaultFiltersRef = useRef(defaultFilters);
+  defaultFiltersRef.current = defaultFilters;
+
   const helpers: FilterHelpers = {
     // Switch filter group operator
-    handleSwitchMode: () => {
+    handleSwitchMode: useCallback(() => {
       setFiltersState(prevState => ({
         ...prevState,
         filters: handleSwitchMode(prevState.filters),
       }));
-    },
+    }, []),
     // Add Filter
-    handleAddFilterWithEmptyValue: (filter: Filter) => {
+    handleAddFilterWithEmptyValue: useCallback((filter: Filter) => {
       setFiltersState(prevState => ({
         ...prevState,
         filters: handleAddFilterWithEmptyValueUtil(prevState.filters, filter),
       }));
-    },
+    }, []),
     // Add value to a filter
-    handleAddSingleValueFilter: (key: string, value: string) => {
+    handleAddSingleValueFilter: useCallback((key: string, value: string) => {
       setFiltersState(prevState => ({
         ...prevState,
         filters: handleAddSingleValueFilterUtil(prevState.filters, key, value),
       }));
-    },
+    }, []),
     // Add multiple value to a filter
-    handleAddMultipleValueFilter: (key: string, values: string[]) => {
+    handleAddMultipleValueFilter: useCallback((key: string, values: string[]) => {
       setFiltersState(prevState => ({
         ...prevState,
         filters: handleAddMultipleValueFilterUtil(prevState.filters, key, values),
       }));
-    },
+    }, []),
     // Change operator in filter
-    handleChangeOperatorFilters: (key: string, operator: Filter['operator']) => {
+    handleChangeOperatorFilters: useCallback((key: string, operator: Filter['operator']) => {
       setFiltersState(prevState => ({
         ...prevState,
         filters: handleChangeOperatorFiltersUtil(prevState.filters, key, operator),
       }));
-    },
+    }, []),
     // Clear all filters
-    handleClearAllFilters: () => {
-      setFiltersState({ filters: defaultFilters });
-    },
+    handleClearAllFilters: useCallback(() => {
+      setFiltersState({ filters: defaultFiltersRef.current });
+    }, []),
     // Remove a Filter
-    handleRemoveFilterByKey: (key: string) => {
+    handleRemoveFilterByKey: useCallback((key: string) => {
       setFiltersState(prevState => ({
         ...prevState,
         filters: handleRemoveFilterUtil(prevState.filters, key),
       }));
-    },
+    }, []),
   };
 
   useEffect(() => {
-    onChange?.(filtersState.filters);
+    onChangeRef.current?.(filtersState.filters);
   }, [filtersState]);
 
   return [filtersState.filters, helpers];

@@ -3,7 +3,7 @@ import { useParams } from 'react-router';
 
 import { updateExercise } from '../../../../../actions/Exercise';
 import {
-  attackPathsBySimulation,
+  attackPathsBySimulation, averageBySimulation,
   countBySimulation,
   entitiesBySimulation, fetchCustomDashboardFromSimulation, seriesBySimulation, widgetToEntitiesBySimulation,
 } from '../../../../../actions/exercises/exercise-action';
@@ -75,6 +75,7 @@ const SimulationAnalysis = () => {
     handleSelectNewDashboard,
     fetchCustomDashboard: () => fetchCustomDashboardFromSimulation(exerciseId),
     fetchCount: (widgetId: string, params: Record<string, string | undefined>) => countBySimulation(exerciseId, widgetId, params),
+    fetchAverage: (widgetId: string, params: Record<string, string | undefined>) => averageBySimulation(exerciseId, widgetId, params),
     fetchSeries: (widgetId: string, params: Record<string, string | undefined>) => seriesBySimulation(exerciseId, widgetId, params),
     fetchEntitiesRuntime: (widgetId: string, input: WidgetToEntitiesInput) => widgetToEntitiesBySimulation(exerciseId, widgetId, input),
     fetchEntities: (widgetId: string, params: Record<string, string | undefined>) => entitiesBySimulation(exerciseId, widgetId, params),

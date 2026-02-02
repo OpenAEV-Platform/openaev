@@ -24,8 +24,8 @@ const DialogTest: FunctionComponent<DialogTestProps> = ({
     <Dialog
       open={open}
       onClose={handleClose}
-      PaperProps={{ elevation: 1 }}
-      TransitionComponent={Transition}
+      slotProps={{ paper: { elevation: 1 } }}
+      slots={{ transition: Transition }}
     >
       <DialogContent>
         <DialogContentText component="span" style={{ textAlign: 'center' }}>

@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import errorWrapper from '../../../components/errorWrapper';
+import { errorWrapper } from '../../../components/Error';
 import Loader from '../../../components/Loader';
 import NotFound from '../../../components/NotFound';
 import ProtectedRoute from '../../../utils/permissions/ProtectedRoute';

@@ -3,7 +3,6 @@ package io.openaev.executors.crowdstrike.service;
 import static io.openaev.utils.time.TimeUtils.toInstant;
 
 import io.openaev.database.model.*;
-import io.openaev.executors.ExecutorService;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeDevice;
@@ -11,6 +10,7 @@ import io.openaev.executors.crowdstrike.model.CrowdStrikeHostGroup;
 import io.openaev.executors.crowdstrike.model.CrowdstrikeError;
 import io.openaev.executors.crowdstrike.model.ResourcesGroups;
 import io.openaev.executors.model.AgentRegisterInput;
+import io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -20,22 +20,9 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Service;
 
-@ConditionalOnProperty(prefix = "executor.crowdstrike", name = "enable")
 @Slf4j
-@Service
 public class CrowdStrikeExecutorService implements Runnable {
-
-  public static final String CROWDSTRIKE_EXECUTOR_TYPE = "openaev_crowdstrike";
-  public static final String CROWDSTRIKE_EXECUTOR_NAME = "CrowdStrike";
-  private static final String CROWDSTRIKE_EXECUTOR_DOCUMENTATION_LINK =
-      "https://docs.openaev.io/latest/deployment/ecosystem/executors/#crowdstrike-falcon-agent";
-
-  private static final String CROWDSTRIKE_EXECUTOR_BACKGROUND_COLOR = "#E12E37";
-
   private final CrowdStrikeExecutorClient client;
   private final CrowdStrikeExecutorConfig config;
   private final EndpointService endpointService;
@@ -61,9 +48,8 @@ public class CrowdStrikeExecutorService implements Runnable {
     };
   }
 
-  @Autowired
   public CrowdStrikeExecutorService(
-      ExecutorService executorService,
+      Executor executor,
       CrowdStrikeExecutorClient client,
       CrowdStrikeExecutorConfig config,
       EndpointService endpointService,
@@ -74,30 +60,7 @@ public class CrowdStrikeExecutorService implements Runnable {
     this.endpointService = endpointService;
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;
-    try {
-      if (config.isEnable()) {
-        this.executor =
-            executorService.register(
-                config.getId(),
-                CROWDSTRIKE_EXECUTOR_TYPE,
-                CROWDSTRIKE_EXECUTOR_NAME,
-                CROWDSTRIKE_EXECUTOR_DOCUMENTATION_LINK,
-                CROWDSTRIKE_EXECUTOR_BACKGROUND_COLOR,
-                getClass().getResourceAsStream("/img/icon-crowdstrike.png"),
-                getClass().getResourceAsStream("/img/banner-crowdstrike.png"),
-                new String[] {
-                  Endpoint.PLATFORM_TYPE.Windows.name(),
-                  Endpoint.PLATFORM_TYPE.Linux.name(),
-                  Endpoint.PLATFORM_TYPE.MacOS.name()
-                });
-      } else {
-        if (executor != null) {
-          executorService.remove(config.getId());
-        }
-      }
-    } catch (Exception e) {
-      log.error(String.format("Error creating CrowdStrike executor: %s", e.getMessage()), e);
-    }
+    this.executor = executor;
   }
 
   @Override
@@ -132,11 +95,12 @@ public class CrowdStrikeExecutorService implements Runnable {
                 + devices.size()
                 + " assets for the host group "
                 + assetGroup.getName());
-        List<Asset> assets =
+        List<Agent> agents =
             endpointService.syncAgentsEndpoints(
                 toAgentEndpoint(devices),
-                agentService.getAgentsByExecutorType(CROWDSTRIKE_EXECUTOR_TYPE));
-        assetGroup.setAssets(assets);
+                agentService.getAgentsByExecutorType(
+                    CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE));
+        assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
         assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
       }
     }

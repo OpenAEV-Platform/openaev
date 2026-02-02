@@ -104,7 +104,7 @@ public class SecurityCoverage implements Base {
   @Type(JsonType.class)
   @Column(name = "security_coverage_attack_pattern_refs", columnDefinition = "jsonb")
   @JsonProperty("security_coverage_attack_pattern_refs")
-  private Set<StixRefToExternalRef> attackPatternRefs;
+  private Set<StixRefToExternalRef> attackPatternRefs = new HashSet<>();
 
   @Type(JsonType.class)
   @Column(name = "security_coverage_content", columnDefinition = "jsonb", nullable = false)
@@ -123,7 +123,12 @@ public class SecurityCoverage implements Base {
   @Type(JsonType.class)
   @Column(name = "security_coverage_vulnerabilities_refs", columnDefinition = "jsonb")
   @JsonProperty("security_coverage_vulnerabilities_refs")
-  private Set<StixRefToExternalRef> vulnerabilitiesRefs;
+  private Set<StixRefToExternalRef> vulnerabilitiesRefs = new HashSet<>();
+
+  @Type(JsonType.class)
+  @Column(name = "security_coverage_indicators_refs", columnDefinition = "jsonb")
+  @JsonProperty("security_coverage_indicators_refs")
+  private Set<StixRefToExternalRef> indicatorsRefs = new HashSet<>();
 
   @OneToOne
   @JoinColumn(name = "security_coverage_scenario")

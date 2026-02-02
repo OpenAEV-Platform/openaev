@@ -87,7 +87,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
     scenario: helper.getScenario(scenarioId),
     settings: helper.getPlatformSettings(),
     injects: helper.getScenarioInjects(scenarioId),
-    collectors: helper.getCollectors(),
+    collectors: helper.getExistingCollectors(),
     agents: helper.getAgents(),
   }));
   const areAnyExercisesInScenario = scenario.scenario_exercises?.length > 0;

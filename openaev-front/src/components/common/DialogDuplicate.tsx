@@ -23,8 +23,8 @@ const DialogDuplicate: FunctionComponent<DialogDuplicateProps> = ({
     <DialogMUI
       open={open}
       onClose={handleClose}
-      PaperProps={{ elevation: 1 }}
-      TransitionComponent={Transition}
+      slotProps={{ paper: { elevation: 1 } }}
+      slots={{ transition: Transition }}
     >
       <DialogContent>
         <DialogContentText>

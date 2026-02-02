@@ -52,7 +52,7 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
   });
   return (
     <Form
-      keepDirtyOnReinitialize={true}
+      keepDirtyOnReinitialize
       initialValues={initialValues}
       onSubmit={onSubmit}
       validate={schemaValidator(playerFormSchemaValidation)}
@@ -67,21 +67,21 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
           <OldTextField
             variant="standard"
             name="user_email"
-            fullWidth={true}
+            fullWidth
             label={t('Email address')}
             disabled={editing}
           />
           <OldTextField
             variant="standard"
             name="user_firstname"
-            fullWidth={true}
+            fullWidth
             label={t('Firstname')}
             style={{ marginTop: 20 }}
           />
           <OldTextField
             variant="standard"
             name="user_lastname"
-            fullWidth={true}
+            fullWidth
             label={t('Lastname')}
             style={{ marginTop: 20 }}
           />
@@ -108,7 +108,7 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
             }}
             variant="standard"
             name="user_phone"
-            fullWidth={true}
+            fullWidth
             label={t('Phone number (mobile)')}
             style={{ marginTop: 20 }}
           />
@@ -124,15 +124,15 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
             }}
             variant="standard"
             name="user_phone2"
-            fullWidth={true}
+            fullWidth
             label={t('Phone number (landline)')}
             style={{ marginTop: 20 }}
           />
           <OldTextField
             variant="standard"
             name="user_pgp_key"
-            fullWidth={true}
-            multiline={true}
+            fullWidth
+            multiline
             rows={5}
             label={t('PGP public key')}
             style={{ marginTop: 20 }}

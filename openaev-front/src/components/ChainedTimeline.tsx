@@ -153,7 +153,7 @@ const ChainedTimelineFlow: FunctionComponent<Props> = ({
     }
   } else if (exercise !== undefined) {
     // Otherwise, we're in a simulation and we use the start_date
-    startDate = exercise.exercise_start_date != null ? exercise.exercise_start_date : undefined;
+    startDate = exercise.exercise_start_date !== null ? exercise.exercise_start_date : undefined;
   }
 
   /**
@@ -218,16 +218,16 @@ const ChainedTimelineFlow: FunctionComponent<Props> = ({
     let reorganizedInjects = nodeInjects;
 
     nodeInjects.forEach((node, i) => {
-      let childrens = reorganizedInjects.slice(i).filter(nextNode => nextNode.id !== node.id
+      let childNodes = reorganizedInjects.slice(i).filter(nextNode => nextNode.id !== node.id
         && nextNode.data.inject?.inject_depends_on !== undefined
         && nextNode.data.inject?.inject_depends_on !== null
         && nextNode.data.inject!.inject_depends_on
           .find(dependsOn => dependsOn.dependency_relationship?.inject_parent_id === node.id) !== undefined);
 
-      childrens = childrens.sort((a, b) => a.data.inject!.inject_depends_duration - b.data.inject!.inject_depends_duration);
+      childNodes = childNodes.sort((a, b) => a.data.inject!.inject_depends_duration - b.data.inject!.inject_depends_duration);
 
-      childrens.forEach((children, j) => {
-        reorganizedInjects = moveItem(reorganizedInjects, i + j + 1, reorganizedInjects.indexOf(children, i));
+      childNodes.forEach((childNode, j) => {
+        reorganizedInjects = moveItem(reorganizedInjects, i + j + 1, reorganizedInjects.indexOf(childNode, i));
       });
     });
 
@@ -409,7 +409,7 @@ const ChainedTimelineFlow: FunctionComponent<Props> = ({
   };
 
   /**
-   * Small function to do some stuff when draggind is starting
+   * Small function to do some stuff when dragging is starting
    */
   const nodeDragStart = () => {
     const nodesList = nodes.filter(currentNode => currentNode.type !== 'phantom');
@@ -417,7 +417,7 @@ const ChainedTimelineFlow: FunctionComponent<Props> = ({
   };
 
   /**
-   * Small function to do some stuff when draggind is starting
+   * Small function to do some stuff when connect is starting
    */
   const connectStart = () => {
     setConnectOnGoing(true);
@@ -425,7 +425,7 @@ const ChainedTimelineFlow: FunctionComponent<Props> = ({
   };
 
   /**
-   * Small function to do some stuff when draggind is starting
+   * Small function to do some stuff when connect ends
    */
   const connectEnd = () => {
     setTimeout(() => {

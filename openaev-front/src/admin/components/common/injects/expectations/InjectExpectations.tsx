@@ -42,7 +42,7 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
   const { permissions, inherited_context } = useContext(PermissionsContext);
   const ability = useContext(AbilityContext);
   const userCanAddExpectations = permissions.canManage || ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT)
-    || (inherited_context == INHERITED_CONTEXT.NONE && ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId));
+    || (inherited_context === INHERITED_CONTEXT.NONE && ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId));
 
   const [sortedExpectations, setSortedExpectations] = useState<ExpectationInput[]>([]);
   const [availableExpectations, setAvailableExpectations] = useState<ExpectationInput[]>([]);
@@ -144,7 +144,7 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
           </ListItem>
         ))}
       </List>
-      { userCanAddExpectations && predefinedExpectations?.length != 0
+      { userCanAddExpectations && predefinedExpectations?.length !== 0
         && (
           <InjectAddExpectation
             handleAddExpectation={handleAddExpectation}

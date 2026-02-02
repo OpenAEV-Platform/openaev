@@ -106,11 +106,11 @@ const SelectList = <T extends object, V extends object = T>({
         </Grid>
         <Grid size={{ xs: 4 }}>
           <Box
-            sx={{
+            sx={theme => ({
               minHeight: '100%',
               padding: 2,
-              border: '1px dashed rgba(255, 255, 255, 0.3)',
-            }}
+              border: `1px dashed ${theme.palette.divider}`,
+            })}
           >
             {selectedValues.map((selectedValue) => {
               const id = getId(selectedValue);

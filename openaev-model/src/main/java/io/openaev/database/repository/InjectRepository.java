@@ -1,5 +1,7 @@
 package io.openaev.database.repository;
 
+import static io.openaev.database.model.DnsResolution.DNS_RESOLUTION_TYPE;
+
 import io.openaev.database.model.Inject;
 import io.openaev.database.raw.RawInject;
 import io.openaev.database.raw.RawInjectIndexing;
@@ -12,14 +14,31 @@ import java.util.Optional;
 import java.util.Set;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Repository interface for {@link Inject} entities.
+ *
+ * <p>This repository provides comprehensive data access operations for injects, which represent
+ * individual attack simulation steps within exercises and scenarios. It supports:
+ *
+ * <ul>
+ *   <li>Standard CRUD operations via {@link JpaRepository}
+ *   <li>Dynamic filtering via {@link JpaSpecificationExecutor}
+ *   <li>Statistical queries via {@link StatisticRepository}
+ *   <li>Complex queries for inject retrieval with relationships
+ *   <li>Search engine indexing support
+ *   <li>Import/export operations
+ *   <li>Team and asset management operations
+ * </ul>
+ *
+ * @see Inject
+ * @see io.openaev.database.model.Exercise
+ * @see io.openaev.database.model.Scenario
+ */
 @Repository
 public interface InjectRepository
     extends JpaRepository<Inject, String>, JpaSpecificationExecutor<Inject>, StatisticRepository {
@@ -226,28 +245,82 @@ public interface InjectRepository
 
   @Query(
       value =
-          " SELECT injects.inject_id, ins.status_name, injects.inject_scenario, "
-              + "coalesce(array_agg(it.team_id) FILTER ( WHERE it.team_id IS NOT NULL ), '{}') as inject_teams, "
-              + "coalesce(array_agg(assets.asset_id) FILTER ( WHERE assets.asset_id IS NOT NULL ), '{}') as inject_assets, "
-              + "coalesce(array_agg(iag.asset_group_id) FILTER ( WHERE iag.asset_group_id IS NOT NULL ), '{}') as inject_asset_groups, "
-              + "coalesce(array_agg(ie.inject_expectation_id) FILTER ( WHERE ie.inject_expectation_id IS NOT NULL ), '{}') as inject_expectations, "
-              + "coalesce(array_agg(com.communication_id) FILTER ( WHERE com.communication_id IS NOT NULL ), '{}') as inject_communications, "
-              + "coalesce(array_agg(apkcp.phase_id) FILTER ( WHERE apkcp.phase_id IS NOT NULL ), '{}') as inject_kill_chain_phases, "
-              + "coalesce(array_union_agg(injcon.injector_contract_platforms) FILTER ( WHERE injcon.injector_contract_platforms IS NOT NULL ), '{}') as inject_platforms "
-              + "FROM injects "
-              + "LEFT JOIN injects_teams it ON injects.inject_id = it.inject_id "
-              + "LEFT JOIN injects_assets ia ON injects.inject_id = ia.inject_id "
-              + "LEFT JOIN injects_asset_groups iag ON injects.inject_id = iag.inject_id "
-              + "LEFT JOIN asset_groups_assets aga ON aga.asset_group_id = iag.asset_group_id "
-              + "LEFT JOIN assets ON assets.asset_id = ia.asset_id OR aga.asset_id = assets.asset_id "
-              + "LEFT JOIN communications com ON com.communication_inject = injects.inject_id "
-              + "LEFT JOIN injects_expectations ie ON injects.inject_id = ie.inject_id "
-              + "LEFT JOIN injectors_contracts_attack_patterns icap ON icap.injector_contract_id = injects.inject_injector_contract "
-              + "LEFT JOIN injectors_contracts injcon ON injcon.injector_contract_id = injects.inject_injector_contract "
-              + "LEFT JOIN attack_patterns_kill_chain_phases apkcp ON apkcp.attack_pattern_id = icap.attack_pattern_id "
-              + "LEFT JOIN injects_statuses ins ON ins.status_inject = injects.inject_id "
-              + "WHERE injects.inject_id IN :ids "
-              + "GROUP BY injects.inject_id, ins.status_name;",
+          "WITH inject_teams AS ( "
+              + "    SELECT inject_id, array_agg(team_id) as team_ids "
+              + "    FROM injects_teams "
+              + "    WHERE inject_id IN (:ids) "
+              + "    GROUP BY inject_id "
+              + "), "
+              + "inject_assets AS ( "
+              + "    SELECT  "
+              + "        i.inject_id,  "
+              + "        array_agg(DISTINCT a.asset_id) as asset_ids "
+              + "    FROM injects i "
+              + "    LEFT JOIN injects_assets ia ON i.inject_id = ia.inject_id "
+              + "    LEFT JOIN injects_asset_groups iag ON i.inject_id = iag.inject_id "
+              + "    LEFT JOIN asset_groups_assets aga ON aga.asset_group_id = iag.asset_group_id "
+              + "    LEFT JOIN assets a ON a.asset_id = ia.asset_id OR aga.asset_id = a.asset_id "
+              + "    WHERE i.inject_id IN (:ids) "
+              + "    GROUP BY i.inject_id "
+              + "), "
+              + "inject_asset_groups AS ( "
+              + "    SELECT inject_id, array_agg(asset_group_id) as asset_group_ids "
+              + "    FROM injects_asset_groups "
+              + "    WHERE inject_id IN (:ids) "
+              + "    GROUP BY inject_id "
+              + "), "
+              + "inject_expectations AS ( "
+              + "    SELECT inject_id, array_agg(inject_expectation_id) as expectation_ids "
+              + "    FROM injects_expectations "
+              + "    WHERE inject_id IN (:ids) "
+              + "    GROUP BY inject_id "
+              + "), "
+              + "inject_communications AS ( "
+              + "    SELECT communication_inject as inject_id, array_agg(communication_id) as communication_ids "
+              + "    FROM communications "
+              + "    WHERE communication_inject IN (:ids) "
+              + "    GROUP BY communication_inject "
+              + "), "
+              + "inject_kill_chains AS ( "
+              + "    SELECT  "
+              + "        i.inject_id, "
+              + "        array_agg(DISTINCT apkcp.phase_id) as phase_ids "
+              + "    FROM injects i "
+              + "    JOIN injectors_contracts_attack_patterns icap ON icap.injector_contract_id = i.inject_injector_contract "
+              + "    JOIN attack_patterns_kill_chain_phases apkcp ON apkcp.attack_pattern_id = icap.attack_pattern_id "
+              + "    WHERE i.inject_id IN (:ids) "
+              + "    GROUP BY i.inject_id "
+              + "), "
+              + "inject_platforms AS ( "
+              + "    SELECT  "
+              + "        i.inject_id, "
+              + "        array_union_agg(injcon.injector_contract_platforms) as platform_ids "
+              + "    FROM injects i "
+              + "    JOIN injectors_contracts injcon ON injcon.injector_contract_id = i.inject_injector_contract "
+              + "    WHERE i.inject_id IN (:ids) "
+              + "    GROUP BY i.inject_id "
+              + ") "
+              + "SELECT  "
+              + "    i.inject_id, "
+              + "    ins.status_name, "
+              + "    i.inject_scenario, "
+              + "    COALESCE(it.team_ids, '{}') as inject_teams, "
+              + "    COALESCE(ia.asset_ids, '{}') as inject_assets, "
+              + "    COALESCE(iag.asset_group_ids, '{}') as inject_asset_groups, "
+              + "    COALESCE(ie.expectation_ids, '{}') as inject_expectations, "
+              + "    COALESCE(ic.communication_ids, '{}') as inject_communications, "
+              + "    COALESCE(ikc.phase_ids, '{}') as inject_kill_chain_phases, "
+              + "    COALESCE(ip.platform_ids, '{}') as inject_platforms "
+              + "FROM injects i "
+              + "LEFT JOIN injects_statuses ins ON ins.status_inject = i.inject_id "
+              + "LEFT JOIN inject_teams it ON it.inject_id = i.inject_id "
+              + "LEFT JOIN inject_assets ia ON ia.inject_id = i.inject_id "
+              + "LEFT JOIN inject_asset_groups iag ON iag.inject_id = i.inject_id "
+              + "LEFT JOIN inject_expectations ie ON ie.inject_id = i.inject_id "
+              + "LEFT JOIN inject_communications ic ON ic.inject_id = i.inject_id "
+              + "LEFT JOIN inject_kill_chains ikc ON ikc.inject_id = i.inject_id "
+              + "LEFT JOIN inject_platforms ip ON ip.inject_id = i.inject_id "
+              + "WHERE i.inject_id IN (:ids);",
       nativeQuery = true)
   List<RawInject> findRawByIds(@Param("ids") List<String> ids);
 
@@ -358,6 +431,21 @@ public interface InjectRepository
   @Query(
       value =
           "DELETE FROM injects i "
+              + "USING injectors_contracts ic, payloads p "
+              + "WHERE i.inject_injector_contract = ic.injector_contract_id "
+              + "AND ic.injector_contract_payload = p.payload_id "
+              + "AND p.payload_type = '"
+              + DNS_RESOLUTION_TYPE
+              + "' "
+              + "AND i.inject_scenario = :scenarioId",
+      nativeQuery = true)
+  void deleteAllInjectsWithDnsResolutionContractsByScenarioId(
+      @Param("scenarioId") String scenarioId);
+
+  @Modifying
+  @Query(
+      value =
+          "DELETE FROM injects i "
               + "USING injectors_contracts ic, injectors_contracts_vulnerabilities icv "
               + "WHERE i.inject_injector_contract = ic.injector_contract_id "
               + "AND ic.injector_contract_id = icv.injector_contract_id "
@@ -383,6 +471,10 @@ public interface InjectRepository
           "DELETE FROM injects i WHERE i.inject_injector_contract = :injectorContract AND i.inject_scenario = :scenarioId",
       nativeQuery = true)
   void deleteAllByScenarioIdAndInjectorContract(String injectorContract, String scenarioId);
+
+  @EntityGraph(attributePaths = {"expectations", "injectorContract"})
+  @Query("SELECT i FROM Inject i WHERE i.id IN :ids")
+  List<Inject> findAllByIdWithExpectations(@Param("ids") List<String> ids);
 
   @Modifying
   @Query(value = "DELETE FROM injects WHERE inject_id = :id", nativeQuery = true)

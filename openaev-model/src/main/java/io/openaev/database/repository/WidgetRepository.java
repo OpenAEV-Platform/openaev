@@ -16,7 +16,4 @@ public interface WidgetRepository
 
   Optional<Widget> findByCustomDashboardIdAndId(
       @NotBlank final String customDashboardId, @NotBlank final String id);
-
-  boolean existsWidgetByCustomDashboardIdAndId(
-      @NotBlank final String customDashboardId, @NotBlank final String id);
 }

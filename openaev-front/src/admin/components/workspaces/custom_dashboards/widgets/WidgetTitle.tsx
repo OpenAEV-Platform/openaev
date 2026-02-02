@@ -7,7 +7,7 @@ import {
 } from '@mui/icons-material';
 import { Box, darken, IconButton, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { memo, useContext } from 'react';
+import { useContext } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
 import { type Widget } from '../../../../../utils/api-types';
@@ -32,12 +32,13 @@ const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, hand
 
   const { customDashboardParameters, customDashboard } = useContext(CustomDashboardContext);
 
-  const createNumberTooltipContent = () => {
+  // Build tooltip content for number widget
+  const buildNumberTooltipContent = () => {
     if (vizData.type !== WidgetVizDataType.NUMBER || !vizData.data) {
-      return (<></>);
+      return null;
     }
     const { difference_count, previous_interval_count } = vizData.data;
-    // extract serie's name (only 1 serie for number widget)
+    // extract series name (only 1 series item for number widget)
     let resourceName = '';
     if ('series' in widget.widget_config) {
       const seriesItem = widget.widget_config.series[0];
@@ -53,7 +54,7 @@ const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, hand
     }
     // Compute the widget time range to get the correct sentence
     let widgetTimeRange;
-    if (widget.widget_config.time_range == 'DEFAULT') {
+    if (widget.widget_config.time_range === 'DEFAULT') {
       widgetTimeRange = getTimeRangeFromDashboard(customDashboard, customDashboardParameters);
     } else {
       widgetTimeRange = widget.widget_config.time_range;
@@ -103,82 +104,79 @@ const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, hand
     );
   };
 
+  const widgetTitle = getWidgetTitle(widget.widget_config.title, widget.widget_type, t);
+  const isNumberWidget = widget.widget_type === 'number';
+  const isSecurityCoverage = widget.widget_type === 'security-coverage';
+  const numberTooltipContent = isNumberWidget ? buildNumberTooltipContent() : null;
+
+  const tooltipSx = {
+    bgcolor: darkerInfoStyle,
+    color: theme.palette.getContrastText(darkerInfoStyle),
+    boxShadow: theme.shadows[1],
+  };
+
   return (
-    <Box
-      display="flex"
-      flexDirection="row"
-      alignItems="center"
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        marginBottom: 10,
+        height: 22,
+      }}
     >
-      <Box
-        display="flex"
-        flexDirection="row"
-        alignItems="center"
-        paddingTop={theme.spacing(2.5)}
-        flex={1}
-        minWidth={0}
+      <Typography
+        variant="h4"
+        gutterBottom={false}
+        style={{
+          margin: 0,
+          fontSize: 12,
+          fontWeight: 500,
+          textTransform: 'uppercase',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          flex: 1,
+        }}
       >
-        <Typography
-          variant="h4"
-          sx={{
-            margin: 0,
-            paddingLeft: theme.spacing(2),
-            paddingRight: theme.spacing(1),
-            textTransform: 'uppercase',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
+        {widgetTitle}
+      </Typography>
+      {isNumberWidget && numberTooltipContent && (
+        <Tooltip
+          title={numberTooltipContent}
+          placement="right"
+          slotProps={{ tooltip: { sx: tooltipSx } }}
         >
-          {getWidgetTitle(widget.widget_config.title, widget.widget_type, t)}
-        </Typography>
-        {'number' === widget.widget_type && (
-          <Tooltip
-            title={createNumberTooltipContent()}
-            placement="right"
-            slotProps={{
-              tooltip: {
-                sx: {
-                  bgcolor: darkerInfoStyle,
-                  color: theme.palette.getContrastText(darkerInfoStyle),
-                  boxShadow: theme.shadows[1],
-                },
-              },
+          <InfoOutlined
+            sx={{
+              fontSize: 16,
+              marginLeft: 0.5,
             }}
-          >
-            <InfoOutlined
-              fontSize="small"
-              color="primary"
-            />
-          </Tooltip>
-        )}
-      </Box>
-      <Box
-        display="flex"
-        flexDirection="row"
-        marginLeft="auto"
-      >
-        {widget.widget_type === 'security-coverage' && (
-          <IconButton
             color="primary"
-            className="noDrag"
-            onClick={() => setFullscreen(true)}
-            size="small"
-          >
-            <OpenInFullOutlined fontSize="small" />
-          </IconButton>
-        )}
-        {!readOnly && (
-          <WidgetPopover
-            className="noDrag"
-            customDashboardId={customDashboard!.custom_dashboard_id}
-            widget={widget}
-            onUpdate={widget => handleWidgetUpdate(widget)}
-            onDelete={widgetId => handleWidgetDelete(widgetId)}
           />
-        )}
-      </Box>
-    </Box>
+        </Tooltip>
+      )}
+      {isSecurityCoverage && (
+        <IconButton
+          color="primary"
+          className="noDrag"
+          onClick={() => setFullscreen(true)}
+          size="small"
+          sx={{ padding: 0.5 }}
+        >
+          <OpenInFullOutlined sx={{ fontSize: 16 }} />
+        </IconButton>
+      )}
+      {!readOnly && customDashboard && (
+        <WidgetPopover
+          className="noDrag"
+          customDashboardId={customDashboard.custom_dashboard_id}
+          widget={widget}
+          onUpdate={handleWidgetUpdate}
+          onDelete={handleWidgetDelete}
+        />
+      )}
+    </div>
   );
 };
 
-export default memo(WidgetTitle);
+export default WidgetTitle;

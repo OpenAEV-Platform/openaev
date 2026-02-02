@@ -212,7 +212,7 @@ class GroupPopoverComponent extends Component {
         >
           <GroupForm
             initialValues={initialValues}
-            editing={true}
+            editing
             onSubmit={this.onSubmitEdit.bind(this)}
             handleClose={this.handleCloseEdit.bind(this)}
           />

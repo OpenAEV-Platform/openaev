@@ -14,7 +14,7 @@
 ## Introduction
 
 OpenAEV is an open source platform allowing organizations to plan, schedule and conduct cyber adversary simulation
-campaign and tests.
+campaigns and tests.
 
 ![Screenshot](./.github/img/screenshot.png "Screenshot")
 
@@ -56,7 +56,7 @@ developers.
 ## Releases download
 
 The releases are available on the [Github releases page](https://github.com/OpenAEV-Platform/openaev/releases). You can
-also access the [rolling release package](https://releases.openaev.io) generated from the mater branch of the
+also access the [rolling release package](https://releases.openaev.io) generated from the master branch of the
 repository.
 
 ## Installation

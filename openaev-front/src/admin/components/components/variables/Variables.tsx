@@ -4,7 +4,7 @@ import { type CSSProperties, type FunctionComponent, useContext } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { type Variable } from '../../../../utils/api-types';
-import useSearchAnFilter from '../../../../utils/SortingFiltering';
+import useSearchAndFilter from '../../../../utils/SortingFiltering';
 import { VariableContext } from '../../common/Context';
 import VariablePopover from './VariablePopover';
 
@@ -92,7 +92,7 @@ const Variables: FunctionComponent<Props> = ({ variables }) => {
   const { onEditVariable, onDeleteVariable } = useContext(VariableContext);
 
   // Filter and sort hook
-  const filtering = useSearchAnFilter('variable', 'key', [
+  const filtering = useSearchAndFilter('variable', 'key', [
     'key',
     'description',
   ]);

@@ -127,7 +127,7 @@ class TagPopoverComponent extends Component {
         >
           <TagForm
             initialValues={initialValues}
-            editing={true}
+            editing
             onSubmit={this.onSubmitEdit.bind(this)}
             handleClose={this.handleCloseEdit.bind(this)}
           />

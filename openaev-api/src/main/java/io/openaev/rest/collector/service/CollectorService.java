@@ -6,28 +6,82 @@ import static io.openaev.service.FileService.COLLECTORS_IMAGES_BASE_PATH;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.database.model.Collector;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
+import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
+import io.openaev.rest.catalog_connector.dto.ConnectorIds;
+import io.openaev.rest.collector.form.CollectorOutput;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.FileService;
+import io.openaev.service.catalog_connectors.CatalogConnectorService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.connectors.AbstractConnectorService;
+import io.openaev.utils.mapper.CatalogConnectorMapper;
+import io.openaev.utils.mapper.CollectorMapper;
 import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
 import java.io.InputStream;
-import java.util.List;
-import java.util.Optional;
-import lombok.RequiredArgsConstructor;
+import java.util.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
-public class CollectorService {
+public class CollectorService extends AbstractConnectorService<Collector, CollectorOutput> {
 
   @Resource protected ObjectMapper mapper;
 
   private final CollectorRepository collectorRepository;
+
   private final FileService fileService;
+
+  private final CollectorMapper collectorMapper;
+
+  @Autowired
+  public CollectorService(
+      CollectorRepository collectorRepository,
+      ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository,
+      FileService fileService,
+      ConnectorInstanceService connectorInstanceService,
+      CatalogConnectorService catalogConnectorService,
+      CollectorMapper collectorMapper,
+      CatalogConnectorMapper catalogConnectorMapper) {
+    super(
+        ConnectorType.COLLECTOR,
+        connectorInstanceConfigurationRepository,
+        catalogConnectorService,
+        connectorInstanceService,
+        catalogConnectorMapper);
+    this.collectorRepository = collectorRepository;
+    this.fileService = fileService;
+    this.collectorMapper = collectorMapper;
+  }
+
+  @Override
+  protected List<Collector> getAllConnectors() {
+    return fromIterable(this.collectors());
+  }
+
+  @Override
+  protected Collector getConnectorById(String collectorId) {
+    return collector(collectorId);
+  }
+
+  @Override
+  protected CollectorOutput mapToOutput(
+      Collector collector,
+      CatalogConnector catalogConnector,
+      ConnectorInstance connectorInstance,
+      boolean existingCollector) {
+    return collectorMapper.toCollectorOutput(
+        collector, catalogConnector, connectorInstance, existingCollector);
+  }
+
+  @Override
+  protected Collector createNewConnector() {
+    return new Collector();
+  }
 
   // -- CRUD --
 
@@ -37,10 +91,55 @@ public class CollectorService {
         .orElseThrow(() -> new ElementNotFoundException("Collector not found with id: " + id));
   }
 
-  public Collector collectorByType(String type) {
-    return collectorRepository
-        .findByType(type)
+  /**
+   * Retrieve all collectors
+   *
+   * @return List of collectors
+   */
+  public Iterable<Collector> collectors() {
+    return collectorRepository.findAll();
+  }
+
+  /**
+   * Retrieve all collectors.
+   *
+   * @param isIncludeNext Include pending collectors.
+   * @return List of collector output
+   */
+  public Iterable<CollectorOutput> collectorsOutput(boolean isIncludeNext) {
+    return getConnectorsOutput(isIncludeNext);
+  }
+
+  /**
+   * Retrieves IDs of resources associated with a collector.
+   *
+   * @param collectorId collector identifier.
+   * @return connector instance ID and catalog connector ID if available, null values if not found
+   */
+  public ConnectorIds getCollectorRelationsId(String collectorId) {
+    return getConnectorRelationsId(collectorId);
+  }
+
+  /**
+   * Finds a collector by its type.
+   *
+   * @param type the collector type to search for
+   * @return the collector matching the given type
+   * @throws ElementNotFoundException if no collector is found with the given type
+   */
+  public Collector collectorByType(String type) throws ElementNotFoundException {
+    return findCollectorByType(type)
         .orElseThrow(() -> new ElementNotFoundException("Collector not found with type: " + type));
+  }
+
+  /**
+   * Finds a collector by its type.
+   *
+   * @param type the collector type to search for
+   * @return an Optional containing the collector if found, empty otherwise
+   */
+  public Optional<Collector> findCollectorByType(String type) {
+    return collectorRepository.findByType(type);
   }
 
   public List<Collector> securityPlatformCollectors() {

@@ -5,11 +5,11 @@ import { styled } from '@mui/material/styles';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import React from 'react';
 
-export const Accordion = styled(props => (<MuiAccordion disableGutters elevation={0} square {...props} />))(() => ({
-  'border': '1px solid rgba(255, 255, 255, 0.7)',
+export const Accordion = styled(props => (<MuiAccordion disableGutters elevation={0} square {...props} />))(({ theme }) => ({
+  'border': `1px solid ${theme.palette.divider}`,
   '&:before': { display: 'none' },
   'borderRadius': '4px',
-  'backgroundColor': 'rgba(255, 255, 255, 0)',
+  'backgroundColor': 'transparent',
 }));
 
 export const AccordionSummary = styled(props => (

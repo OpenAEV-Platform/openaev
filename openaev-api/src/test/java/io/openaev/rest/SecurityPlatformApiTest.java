@@ -1,7 +1,7 @@
 package io.openaev.rest;
 
 import static io.openaev.rest.asset.security_platforms.SecurityPlatformApi.SECURITY_PLATFORM_URI;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.SecurityPlatform;
+import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.rest.asset.security_platforms.form.SecurityPlatformInput;
 import io.openaev.utils.fixtures.SecurityPlatformFixture;
 import io.openaev.utils.fixtures.composers.SecurityPlatformComposer;
@@ -41,6 +42,7 @@ class SecurityPlatformApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private SecurityPlatformComposer securityPlatformComposer;
+  @Autowired private SecurityPlatformRepository securityPlatformRepository;
   @Autowired private EntityManager entityManager;
 
   @BeforeEach
@@ -73,24 +75,23 @@ class SecurityPlatformApiTest extends IntegrationTest {
     input.setName("PlatformB");
     input.setSecurityPlatformType(SecurityPlatform.SECURITY_PLATFORM_TYPE.SIEM);
 
-    // First creation should succeed
-    mvc.perform(
-            post(SECURITY_PLATFORM_URI)
-                .content(asJsonString(input))
-                .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
-        .andExpect(status().isOk());
-
-    entityManager.clear();
+    securityPlatformComposer
+        .forSecurityPlatform(
+            SecurityPlatformFixture.createDefault(
+                "PlatformB", SecurityPlatform.SECURITY_PLATFORM_TYPE.SIEM.toString()))
+        .persist();
     entityManager.flush();
+    entityManager.clear();
 
     // Second creation with same name and type should fail
     mvc.perform(
-            post(SECURITY_PLATFORM_URI)
-                .content(asJsonString(input))
-                .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
-        .andExpect(status().is4xxClientError());
+        post(SECURITY_PLATFORM_URI)
+            .content(asJsonString(input))
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON));
+
+    assertThatThrownBy(() -> entityManager.flush())
+        .hasMessageContaining("unique_security_platform_name_type_ci_idx");
   }
 
   @DisplayName("Test update SecurityPlatform to duplicate name/type fails")

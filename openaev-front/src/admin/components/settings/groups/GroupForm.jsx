@@ -23,7 +23,7 @@ class GroupFormComponent extends Component {
     const { t, onSubmit, initialValues, handleClose, editing } = this.props;
     return (
       <Form
-        keepDirtyOnReinitialize={true}
+        keepDirtyOnReinitialize
         initialValues={initialValues}
         onSubmit={onSubmit}
         validate={this.validate.bind(this)}

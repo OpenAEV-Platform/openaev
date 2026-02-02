@@ -3,7 +3,7 @@ package io.openaev.database.model;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MonoIdDeserializer;
+import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -29,7 +29,7 @@ public class AssetAgentJob implements Base {
   @Getter
   @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "asset_agent_inject")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("asset_agent_inject")
   @Schema(type = "string")
   private Inject inject;
@@ -37,7 +37,7 @@ public class AssetAgentJob implements Base {
   @Getter
   @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "asset_agent_agent")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("asset_agent_agent")
   @Schema(type = "string")
   private Agent agent;

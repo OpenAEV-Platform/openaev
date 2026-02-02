@@ -4,11 +4,11 @@ import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.CHALL
 import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.MANUAL;
 import static io.openaev.expectation.ExpectationPropertiesConfig.DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME;
 import static io.openaev.expectation.ExpectationType.*;
-import static io.openaev.injectors.openaev.OpenAEVInjector.OPENAEV_INJECTOR_ID;
-import static io.openaev.injectors.openaev.OpenAEVInjector.OPENAEV_INJECTOR_NAME;
+import static io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegration.OPENAEV_INJECTOR_ID;
+import static io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegration.OPENAEV_INJECTOR_NAME;
 import static io.openaev.rest.expectation.ExpectationApi.EXPECTATIONS_URI;
 import static io.openaev.rest.expectation.ExpectationApi.INJECTS_EXPECTATIONS_URI;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.ExpectationFixture.*;
 import static io.openaev.utils.fixtures.ExpectationFixture.getExpectationUpdateInput;
 import static io.openaev.utils.fixtures.InjectExpectationFixture.getInjectExpectationUpdateInput;
@@ -29,6 +29,10 @@ import io.openaev.helper.StreamHelper;
 import io.openaev.injectors.challenge.ChallengeContract;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.injectors.openaev.OpenAEVImplantContract;
+import io.openaev.integration.Manager;
+import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrationFactory;
+import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
+import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.model.Expectation;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.rest.inject.form.InjectExpectationBulkUpdateInput;
@@ -63,6 +67,9 @@ class ExpectationApiTest extends IntegrationTest {
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
   @Autowired private InjectExpectationService injectExpectationService;
+  @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
+  @Autowired private ChallengeInjectorIntegrationFactory challengeInjectorIntegrationFactory;
+  @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
 
   // Saved entities for test setup
   private static Injector savedInjector;
@@ -79,6 +86,7 @@ class ExpectationApiTest extends IntegrationTest {
   void beforeAll() throws JsonProcessingException {
     InjectorContract injectorContract =
         InjectorContractFixture.createInjectorContract(Map.of("en", INJECTION_NAME));
+    injectorContract.setCustom(true);
     savedInjector =
         injectorRepository.save(
             InjectorFixture.createInjector(
@@ -121,6 +129,8 @@ class ExpectationApiTest extends IntegrationTest {
   void afterAll() {
     agentRepository.deleteAll();
     injectRepository.deleteAll();
+    injectorContractRepository.deleteAll();
+    injectorRepository.deleteAll();
     endpointRepository.deleteAll();
     collectorRepository.deleteById(savedCollector.getId());
     collectorRepository.deleteById(savedCollector2.getId());
@@ -815,6 +825,12 @@ class ExpectationApiTest extends IntegrationTest {
     @Test
     @DisplayName("Get available InjectExpectations for injects")
     void getAvailableInjectExpectationsForInjects() throws Exception {
+      new Manager(
+              List.of(
+                  emailInjectorIntegrationFactory,
+                  challengeInjectorIntegrationFactory,
+                  openaevInjectorIntegrationFactory))
+          .monitorIntegrations();
       List<InjectorContract> injectorContracts =
           StreamHelper.fromIterable(injectorContractRepository.findAll());
       InjectorContract mailInjectorContract =

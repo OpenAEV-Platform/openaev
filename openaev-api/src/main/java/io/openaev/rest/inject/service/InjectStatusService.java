@@ -2,21 +2,25 @@ package io.openaev.rest.inject.service;
 
 import static io.openaev.utils.ExecutionTraceUtils.convertExecutionAction;
 import static io.openaev.utils.ExecutionTraceUtils.convertExecutionStatus;
+import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
+import io.openaev.database.helper.ExecutionTraceRepositoryHelper;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
+import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.rest.inject.form.InjectUpdateStatusInput;
 import io.openaev.utils.InjectUtils;
 import jakarta.annotation.Nullable;
+import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -36,9 +40,23 @@ public class InjectStatusService {
   private final InjectService injectService;
   private final InjectUtils injectUtils;
   private final InjectStatusRepository injectStatusRepository;
+  private final ExecutionTraceRepositoryHelper executionTraceRepositoryHelper;
+
+  private final EntityManager entityManager;
+  private final ManagerFactory managerFactory;
 
   public List<InjectStatus> findPendingInjectStatusByType(String injectType) {
     return this.injectStatusRepository.pendingForInjectType(injectType);
+  }
+
+  public InjectStatus findInjectStatusByInjectId(final String injectId) {
+    if (!hasText(injectId)) {
+      throw new IllegalArgumentException("InjectId should not be null");
+    }
+    return this.injectStatusRepository
+        .findByInjectId(injectId)
+        .orElseThrow(
+            () -> new ElementNotFoundException("Inject status not found for :" + injectId));
   }
 
   @Transactional(rollbackOn = Exception.class)
@@ -179,19 +197,30 @@ public class InjectStatusService {
       Agent agent, Inject inject, InjectExecutionInput input, ObjectNode structuredOutput) {
     InjectStatus injectStatus = inject.getStatus().orElseThrow(ElementNotFoundException::new);
 
+    // Creating the Execution Trace
     ExecutionTrace executionTrace =
         createExecutionTrace(injectStatus, input, agent, structuredOutput);
+    // Update the status of the execution trace if needed
     computeExecutionTraceStatusIfNeeded(injectStatus, executionTrace, agent);
     injectStatus.addTrace(executionTrace);
+    // Save the trace using a low level call to the database
+    String executionTraceId = executionTraceRepositoryHelper.saveExecutionTrace(executionTrace);
+    executionTrace.setId(executionTraceId);
+    entityManager.merge(injectStatus);
 
+    // If the trace is complete
     if (executionTrace.getAction().equals(ExecutionTraceAction.COMPLETE)
         && (agent == null || isAllInjectAgentsExecuted(inject))) {
+      // We update the status of the inject
       updateFinalInjectStatus(injectStatus);
-      log.debug("Successfully updated inject final status: " + inject.getId());
+      executionTraceRepositoryHelper.updateInjectUpdateDate(
+          injectStatus.getInject().getId(), injectStatus.getInject().getUpdatedAt());
+      executionTraceRepositoryHelper.updateInjectStatus(
+          injectStatus.getId(), injectStatus.getName().name(), injectStatus.getTrackingEndDate());
+      log.debug("Successfully updated inject final status: {}", inject.getId());
     }
 
-    injectRepository.save(inject);
-    log.debug("Successfully updated inject: " + inject.getId());
+    log.debug("Successfully updated inject: {}", inject.getId());
   }
 
   public ExecutionStatus computeStatus(List<ExecutionTrace> traces) {
@@ -261,6 +290,10 @@ public class InjectStatusService {
             });
   }
 
+  private StatusPayload getPayloadOutput(Inject inject) {
+    return injectUtils.getStatusPayloadFromInject(inject);
+  }
+
   public InjectStatus failInjectStatus(@NotNull String injectId, @Nullable String message) {
     Inject inject = this.injectRepository.findById(injectId).orElseThrow();
     InjectStatus injectStatus = getOrInitializeInjectStatus(inject);
@@ -269,7 +302,7 @@ public class InjectStatusService {
     }
     injectStatus.setName(ExecutionStatus.ERROR);
     injectStatus.setTrackingEndDate(Instant.now());
-    injectStatus.setPayloadOutput(injectUtils.getStatusPayloadFromInject(inject));
+    injectStatus.setPayloadOutput(getPayloadOutput(inject));
     return injectStatusRepository.save(injectStatus);
   }
 
@@ -280,7 +313,7 @@ public class InjectStatusService {
     InjectStatus injectStatus = getOrInitializeInjectStatus(inject);
     injectStatus.setName(status);
     injectStatus.setTrackingSentDate(Instant.now());
-    injectStatus.setPayloadOutput(injectUtils.getStatusPayloadFromInject(inject));
+    injectStatus.setPayloadOutput(getPayloadOutput(inject));
     return injectStatusRepository.save(injectStatus);
   }
 

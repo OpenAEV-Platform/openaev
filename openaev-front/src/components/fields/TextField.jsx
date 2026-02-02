@@ -4,10 +4,14 @@ import { useWatch } from 'react-hook-form';
 import TextFieldAskAI from '../../admin/components/common/form/TextFieldAskAI';
 
 const TextFieldBase = ({ askAi, control, setValue, ...props }) => {
-  const currentValue = control && useWatch({
+  const watchedValue = useWatch({
     control,
-    name: props.inputProps.name,
+    name: props.inputProps?.name,
+    disabled: !control,
   });
+
+  const currentValue = props.inputProps?.name ? watchedValue : undefined;
+
   return (
     <MuiTextField
       {...props}

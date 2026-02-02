@@ -15,7 +15,7 @@ public class ExpectationsExpirationManagerCollector {
 
   private final ExpectationsExpirationManagerConfig config;
   private final ThreadPoolTaskScheduler taskScheduler;
-  private final ExpectationsExpirationManagerService fakeDetectorService;
+  private final ExpectationsExpirationManagerService expectationsExpirationManagerService;
   private final CollectorService collectorService;
 
   @PostConstruct
@@ -23,7 +23,7 @@ public class ExpectationsExpirationManagerCollector {
     if (this.config.isEnable()) {
       ExpectationsExpirationManagerJob job =
           new ExpectationsExpirationManagerJob(
-              this.collectorService, this.config, this.fakeDetectorService);
+              this.collectorService, this.config, this.expectationsExpirationManagerService);
       this.taskScheduler.scheduleAtFixedRate(job, Duration.ofSeconds(this.config.getInterval()));
     }
   }

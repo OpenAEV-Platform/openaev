@@ -58,4 +58,10 @@ public class InjectResultOutput {
 
   @JsonProperty("inject_targets")
   private List<TargetSimple> targets = new ArrayList<>();
+
+  @JsonProperty("inject_contract_domains")
+  @Schema(description = "Domain of the inject")
+  public String[] getDomains() {
+    return injectorContract != null ? injectorContract.getDomains() : new String[] {};
+  }
 }

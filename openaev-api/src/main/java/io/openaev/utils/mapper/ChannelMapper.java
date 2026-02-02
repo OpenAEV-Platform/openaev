@@ -5,7 +5,9 @@ import io.openaev.rest.document.form.RelatedEntityOutput;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class ChannelMapper {
+public final class ChannelMapper {
+
+  private ChannelMapper() {}
 
   public static Set<RelatedEntityOutput> toRelatedEntityOutputs(Set<Channel> channels) {
     return channels.stream()

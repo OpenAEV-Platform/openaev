@@ -3,11 +3,8 @@ package io.openaev.rest.payload.form;
 import static io.openaev.config.AppConfig.MANDATORY_MESSAGE;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.database.model.*;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
-import io.openaev.database.model.InjectExpectation;
-import io.openaev.database.model.Payload;
-import io.openaev.database.model.PayloadArgument;
-import io.openaev.database.model.PayloadPrerequisite;
 import io.openaev.rest.payload.output_parser.OutputParserInput;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -87,4 +84,9 @@ public class PayloadUpdateInput {
   @JsonProperty("payload_output_parsers")
   @Schema(description = "Set of output parsers")
   private Set<OutputParserInput> outputParsers = new HashSet<>();
+
+  @NotNull(message = MANDATORY_MESSAGE)
+  @JsonProperty("payload_domains")
+  @Schema(description = "Update list of domains")
+  private List<String> domainIds = new ArrayList<>();
 }

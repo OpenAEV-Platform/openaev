@@ -13,9 +13,9 @@ import io.openaev.executors.ExecutorService;
 import io.openaev.executors.caldera.client.CalderaExecutorClient;
 import io.openaev.executors.caldera.config.CalderaExecutorConfig;
 import io.openaev.executors.caldera.model.Agent;
-import io.openaev.integrations.InjectorService;
 import io.openaev.service.AgentService;
 import io.openaev.service.EndpointService;
+import io.openaev.service.InjectorService;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.utils.mapper.EndpointMapper;
 import java.time.Instant;
@@ -38,7 +38,7 @@ public class CalderaExecutorServiceTest {
   private static final String CALDERA_AGENT_IP = "10.10.10.10";
   private static final String CALDERA_AGENT_USERNAME = "openaev_user";
 
-  private static final String CALDERA_EXECUTOR_TYPE = "openaev_caldera";
+  private static final String CALDERA_EXECUTOR_TYPE = "openaev_caldera_executor";
   private static final String CALDERA_EXECUTOR_NAME = "Caldera";
 
   private String DATE;

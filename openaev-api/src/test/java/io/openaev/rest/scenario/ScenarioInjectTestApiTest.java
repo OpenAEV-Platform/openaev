@@ -1,9 +1,8 @@
 package io.openaev.rest.scenario;
 
-import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -17,7 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.rest.inject.form.InjectBulkProcessingInput;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
@@ -41,6 +40,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @Transactional
 public class ScenarioInjectTestApiTest extends IntegrationTest {
 
+  @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
   @Autowired private MockMvc mvc;
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private ExerciseComposer simulationComposer;
@@ -50,7 +50,6 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private InjectorContractFixture injectorContractFixture;
   @Autowired private VariableComposer variableComposer;
-  @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private EntityManager entityManager;
   @Autowired private ObjectMapper mapper;
   @Autowired private JavaMailSender mailSender;
@@ -70,7 +69,7 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
     private InjectorContractComposer.Composer createEmailContract() {
       return injectorContractComposer
           .forInjectorContract(injectorContractFixture.getWellKnownSingleEmailContract())
-          .withInjector(injectorFixture.getWellKnownEmailInjector());
+          .withInjector(injectorFixture.getWellKnownEmailInjector(true));
     }
 
     @Test
@@ -264,7 +263,7 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
     private InjectorContractComposer.Composer createEmailContract() {
       return injectorContractComposer
           .forInjectorContract(injectorContractFixture.getWellKnownGlobalEmailContract())
-          .withInjector(injectorFixture.getWellKnownEmailInjector());
+          .withInjector(injectorFixture.getWellKnownEmailInjector(true));
     }
 
     @Test
@@ -452,9 +451,8 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
   @DisplayName("other tests")
   public class OtherTests {
     @BeforeEach
-    void setupData() {
-      InjectorContract injectorContract =
-          injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow();
+    void setupData() throws Exception {
+      InjectorContract injectorContract = injectorContractFixture.getWellKnownSingleEmailContract();
 
       InjectTestStatusComposer.Composer injectTestStatusComposer1 =
           injectTestStatusComposer.forInjectTestStatus(
@@ -483,7 +481,8 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
       scenarioWrapper =
           scenarioComposer
               .forScenario(ScenarioFixture.getScenario())
-              .withInjects(List.of(injectComposer1, injectComposer2));
+              .withInjects(List.of(injectComposer1, injectComposer2))
+              .persist();
     }
 
     @Nested

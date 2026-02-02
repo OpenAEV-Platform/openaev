@@ -9,7 +9,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.*;
+import io.openaev.helper.MonoIdSerializer;
+import io.openaev.helper.MultiIdListSerializer;
+import io.openaev.helper.MultiIdSetSerializer;
+import io.openaev.helper.MultiModelSerializer;
+import io.openaev.helper.UserHelper;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -156,7 +160,7 @@ public class User implements Base {
   @Setter
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "user_organization")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("user_organization")
   @Queryable(dynamicValues = true, filterable = true, sortable = true, path = "organization.id")
   @Schema(description = "Organization ID of the user", type = "string")
@@ -190,7 +194,7 @@ public class User implements Base {
       name = "users_groups",
       joinColumns = @JoinColumn(name = "user_id"),
       inverseJoinColumns = @JoinColumn(name = "group_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("user_groups")
   private List<Group> groups = new ArrayList<>();
 
@@ -201,7 +205,7 @@ public class User implements Base {
       name = "users_teams",
       joinColumns = @JoinColumn(name = "user_id"),
       inverseJoinColumns = @JoinColumn(name = "team_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("user_teams")
   @Queryable(dynamicValues = true, filterable = true, sortable = true, path = "teams.id")
   private List<Team> teams = new ArrayList<>();
@@ -213,7 +217,7 @@ public class User implements Base {
       name = "users_tags",
       joinColumns = @JoinColumn(name = "user_id"),
       inverseJoinColumns = @JoinColumn(name = "tag_id"))
-  @JsonSerialize(using = MultiIdSetDeserializer.class)
+  @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonProperty("user_tags")
   @Queryable(dynamicValues = true, filterable = true, sortable = true, path = "tags.id")
   private Set<Tag> tags = new HashSet<>();
@@ -225,7 +229,7 @@ public class User implements Base {
       name = "communications_users",
       joinColumns = @JoinColumn(name = "user_id"),
       inverseJoinColumns = @JoinColumn(name = "communication_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("user_communications")
   private List<Communication> communications = new ArrayList<>();
 
@@ -240,7 +244,7 @@ public class User implements Base {
       cascade = CascadeType.ALL,
       orphanRemoval = true)
   @JsonProperty("team_exercises_users")
-  @JsonSerialize(using = MultiModelDeserializer.class)
+  @JsonSerialize(using = MultiModelSerializer.class)
   private List<ExerciseTeamUser> exerciseTeamUsers = new ArrayList<>();
 
   @Setter

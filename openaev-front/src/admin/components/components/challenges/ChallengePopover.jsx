@@ -9,25 +9,20 @@ import {
   IconButton,
   Menu,
   MenuItem,
-  Slide,
 } from '@mui/material';
 import * as R from 'ramda';
-import { forwardRef, useContext, useState } from 'react';
+import { useContext, useState } from 'react';
 import { useDispatch } from 'react-redux';
 
 import { deleteChallenge, updateChallenge } from '../../../../actions/challenge-action';
 import Drawer from '../../../../components/common/Drawer';
+import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import { tagOptions } from '../../../../utils/Option';
 import { AbilityContext, Can } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import ChallengeForm from './ChallengeForm';
-
-const Transition = forwardRef((props, ref) => (
-  <Slide direction="up" ref={ref} {...props} />
-));
-Transition.displayName = 'TransitionSlide';
 
 const ChallengePopover = ({ challenge, onRemoveChallenge, inline, disabled = false }) => {
   // utils

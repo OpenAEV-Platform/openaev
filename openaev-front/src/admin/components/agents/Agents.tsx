@@ -2,7 +2,7 @@ import { Alert, Dialog, DialogContent, DialogTitle, Grid, Step, StepButton, Step
 import { useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 
-import { fetchExecutors } from '../../../actions/Executor';
+import { fetchExecutors } from '../../../actions/executors/executor-action';
 import { type ExecutorHelper } from '../../../actions/executors/executor-helper';
 import { type LoggedHelper, type MeTokensHelper } from '../../../actions/helper';
 import { meTokens } from '../../../actions/users/User';
@@ -10,7 +10,7 @@ import Breadcrumbs from '../../../components/Breadcrumbs';
 import Transition from '../../../components/common/Transition';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
-import { type Executor } from '../../../utils/api-types';
+import { type ExecutorOutput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import ExecutorDocumentationLink from './ExecutorDocumentationLink';
@@ -18,24 +18,25 @@ import ExecutorSelector from './ExecutorSelector';
 import InstructionSelector from './InstructionSelector';
 import PlatformSelector from './PlatformSelector';
 
-const OPENAEV_CALDERA = 'openaev_caldera';
+const OPENAEV_CALDERA = 'openaev_caldera_executor';
 const OPENAEV_AGENT = 'openaev_agent';
-const OPENAEV_CROWDSTRIKE = 'openaev_crowdstrike';
+const OPENAEV_CROWDSTRIKE = 'openaev_crowdstrike_executor';
 const OPENAEV_TANIUM = 'openaev_tanium';
+const OPENAEV_SENTINELONE = 'openaev_sentinelone_executor';
 
 const Executors = () => {
   // Standard hooks
   const theme = useTheme();
   const { t } = useFormatter();
   const [platform, setPlatform] = useState<null | string>(null);
-  const [selectedExecutor, setSelectedExecutor] = useState<null | Executor>(null);
+  const [selectedExecutor, setSelectedExecutor] = useState<null | ExecutorOutput>(null);
   const [activeStep, setActiveStep] = useState(0);
   const dispatch = useAppDispatch();
 
   // Fetching data
   const { settings, executors, tokens } = useHelper((helper: ExecutorHelper & MeTokensHelper & LoggedHelper) => ({
     settings: helper.getPlatformSettings(),
-    executors: helper.getExecutors(),
+    executors: helper.getExistingExecutors(),
     tokens: helper.getMeTokens(),
   }));
   useDataLoader(() => {
@@ -49,12 +50,13 @@ const Executors = () => {
     openaev_caldera: 1,
     openaev_tanium: 2,
     openaev_crowdstrike: 3,
+    openaev_sentinelone: 4,
   };
 
-  const sortedExecutors = executors.sort((a: Executor, b: Executor) => order[a.executor_type as keyof typeof order] - order[b.executor_type as keyof typeof order]);
+  const sortedExecutors = executors.sort((a: ExecutorOutput, b: ExecutorOutput) => order[a.executor_type as keyof typeof order] - order[b.executor_type as keyof typeof order]);
   const needInformationStepper = (selectedExecutor?.executor_type === OPENAEV_AGENT || selectedExecutor?.executor_type === OPENAEV_CALDERA);
-  const showEEChip = (executor: Executor) => !settings.platform_license?.license_is_validated
-    && (executor.executor_type === OPENAEV_TANIUM || executor.executor_type === OPENAEV_CROWDSTRIKE);
+  const showEEChip = (executor: ExecutorOutput) => !settings.platform_license?.license_is_validated
+    && (executor.executor_type === OPENAEV_TANIUM || executor.executor_type === OPENAEV_CROWDSTRIKE || executor.executor_type === OPENAEV_SENTINELONE);
 
   // -- Manage Dialogs
   const steps = [t('Choose your platform'), t('Installation Instructions')];
@@ -76,11 +78,17 @@ const Executors = () => {
       />
       <Alert variant="outlined" severity="info" style={{ marginBottom: theme.spacing(2) }}>
         {`${t('Here, you can download and install simulation agents available in your executors. Depending on the integrations you have enabled, some of them may be unavailable. Each agent can be installed on Windows, Linux and MacOS using x86_64 or arm64 architectures.')} ${t('Learn more information about how to setup simulation agents')} `}
-        <a href="https://docs.openaev.io/latest/deployment/ecosystem/executors/?h=agent#deploy-agents" target="_blank" rel="noreferrer">{t('in the documentation')}</a>
+        <a
+          href="https://docs.openaev.io/latest/deployment/ecosystem/executors/?h=agent#deploy-agents"
+          target="_blank"
+          rel="noreferrer"
+        >
+          {t('in the documentation')}
+        </a>
         .
       </Alert>
       <Grid container spacing={3}>
-        {sortedExecutors.map((executor: Executor) => (
+        {sortedExecutors.map((executor: ExecutorOutput) => (
           <Grid key={executor.executor_id} style={{ width: '20%' }}>
             <ExecutorSelector
               executor={executor}
@@ -107,20 +115,36 @@ const Executors = () => {
                 <Stepper activeStep={activeStep} style={{ padding: theme.spacing(0, 1, 3, 0) }}>
                   {steps.map((label, index) => (
                     <Step key={label}>
-                      <StepButton color="inherit" onClick={() => setActiveStep(index)}>{label}</StepButton>
+                      <StepButton
+                        color="inherit"
+                        onClick={() => setActiveStep(index)}
+                      >
+                        {label}
+                      </StepButton>
                     </Step>
                   ))}
                 </Stepper>
                 {activeStep === 0 && (
-                  <PlatformSelector selectedExecutor={selectedExecutor} setActiveStep={setActiveStep} setPlatform={setPlatform} />
+                  <PlatformSelector
+                    selectedExecutor={selectedExecutor}
+                    setActiveStep={setActiveStep}
+                    setPlatform={setPlatform}
+                  />
                 )}
                 {activeStep === 1 && platform && (
-                  <InstructionSelector userToken={userToken} platform={platform} selectedExecutor={selectedExecutor} />
+                  <InstructionSelector
+                    userToken={userToken}
+                    platform={platform}
+                    selectedExecutor={selectedExecutor}
+                  />
                 )}
               </>
             )}
           {!needInformationStepper && selectedExecutor && (
-            <ExecutorDocumentationLink showEEChip={showEEChip(selectedExecutor)} executor={selectedExecutor} />
+            <ExecutorDocumentationLink
+              showEEChip={showEEChip(selectedExecutor)}
+              executor={selectedExecutor}
+            />
           )}
         </DialogContent>
       </Dialog>

@@ -75,8 +75,9 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
         expectation_type: predefinedExpectation.expectation_type ?? '',
         expectation_name: predefinedExpectation.expectation_name ?? '',
         expectation_description: predefinedExpectation.expectation_description ?? '',
-        // eslint-disable-next-line max-len
-        expectation_score: predefinedExpectation.expectation_score > 0 ? predefinedExpectation.expectation_score : getExpectationDefaultScoreByType(predefinedExpectation.expectation_type),
+        expectation_score: predefinedExpectation.expectation_score > 0
+          ? predefinedExpectation.expectation_score
+          : getExpectationDefaultScoreByType(predefinedExpectation.expectation_type),
         expectation_expectation_group: predefinedExpectation.expectation_expectation_group ?? false,
         expiration_time_days: parseInt(expirationTime.days, 10),
         expiration_time_hours: parseInt(expirationTime.hours, 10),
@@ -118,7 +119,7 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
 
   useEffect(() => {
     reset(computeValuesFromType(watchType));
-  }, [watchType]);
+  }, [watchType, reset]);
 
   return (
     <form id="expectationForm" onSubmit={handleSubmitWithoutPropagation}>

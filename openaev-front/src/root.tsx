@@ -9,7 +9,7 @@ import EnterpriseEditionAgreementDialog from './admin/components/common/entrepri
 import ConnectedIntlProvider from './components/AppIntlProvider';
 import ConnectedThemeProvider from './components/AppThemeProvider';
 import EnterpriseEditionProvider from './components/EnterpriseEditionProvider';
-import errorWrapper from './components/errorWrapper';
+import { errorWrapper } from './components/Error';
 import Loader from './components/Loader';
 import Message from './components/Message';
 import NotFound from './components/NotFound';

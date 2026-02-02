@@ -1,7 +1,7 @@
 import { lazy } from 'react';
 import { Route, Routes } from 'react-router';
 
-import errorWrapper from '../../../../components/errorWrapper';
+import { errorWrapper } from '../../../../components/Error';
 import NotFound from '../../../../components/NotFound';
 import type { InjectResultOverviewOutput } from '../../../../utils/api-types';
 import { externalContractTypesWithFindings } from '../../../../utils/injector_contract/InjectorContractUtils';

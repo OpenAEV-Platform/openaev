@@ -8,7 +8,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MonoIdDeserializer;
+import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -30,14 +30,33 @@ import org.hibernate.annotations.UuidGenerator;
 @EntityListeners(ModelBaseListener.class)
 public class InjectExpectation implements Base, Cloneable {
 
+  /**
+   * Creates a shallow clone of this InjectExpectation with deep-copied collections.
+   *
+   * <p>The following collections are deep-copied to prevent shared mutable state:
+   *
+   * <ul>
+   *   <li>{@code signatures} - copied to new ArrayList
+   *   <li>{@code results} - copied to new ArrayList
+   * </ul>
+   *
+   * <p><strong>Important:</strong> The {@code traces} collection is intentionally NOT copied and
+   * will be empty in the clone. Traces represent execution history that belongs to the original
+   * expectation instance and should not be duplicated when cloning for a new execution context.
+   *
+   * @return a new InjectExpectation with copied signatures and results, but empty traces
+   */
   @Override
   public InjectExpectation clone() {
     try {
       InjectExpectation clone = (InjectExpectation) super.clone();
-      // TODO: copy mutable state here, so the clone can't change the internals of the original
+      clone.signatures =
+          this.signatures != null ? new ArrayList<>(this.signatures) : new ArrayList<>();
+      clone.results = this.results != null ? new ArrayList<>(this.results) : new ArrayList<>();
+      clone.traces = new ArrayList<>();
       return clone;
     } catch (CloneNotSupportedException e) {
-      throw new AssertionError();
+      throw new AssertionError("Clone should be supported for Cloneable objects", e);
     }
   }
 
@@ -148,7 +167,7 @@ public class InjectExpectation implements Base, Cloneable {
   @Setter
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "exercise_id")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("inject_expectation_exercise")
   @Schema(type = "string")
   private Exercise exercise;
@@ -156,7 +175,7 @@ public class InjectExpectation implements Base, Cloneable {
   @Setter
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "inject_id")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("inject_expectation_inject")
   @Schema(type = "string")
   private Inject inject;
@@ -164,7 +183,7 @@ public class InjectExpectation implements Base, Cloneable {
   @Setter
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "user_id")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("inject_expectation_user")
   @Schema(type = "string")
   private User user;
@@ -172,7 +191,7 @@ public class InjectExpectation implements Base, Cloneable {
   @Setter
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "team_id")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("inject_expectation_team")
   @Schema(type = "string")
   private Team team;
@@ -180,7 +199,7 @@ public class InjectExpectation implements Base, Cloneable {
   @Setter
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "agent_id")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("inject_expectation_agent")
   @Schema(type = "string")
   private Agent agent;
@@ -188,7 +207,7 @@ public class InjectExpectation implements Base, Cloneable {
   @Setter
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "asset_id")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("inject_expectation_asset")
   @Schema(type = "string")
   private Asset asset;
@@ -196,7 +215,7 @@ public class InjectExpectation implements Base, Cloneable {
   @Setter
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "asset_group_id")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("inject_expectation_asset_group")
   @Schema(type = "string")
   private AssetGroup assetGroup;
@@ -205,14 +224,14 @@ public class InjectExpectation implements Base, Cloneable {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "article_id")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("inject_expectation_article")
   @Schema(type = "string")
   private Article article;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "challenge_id")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("inject_expectation_challenge")
   @Schema(type = "string")
   private Challenge challenge;
@@ -235,40 +254,28 @@ public class InjectExpectation implements Base, Cloneable {
     this.challenge = challenge;
   }
 
-  public void setManual(
-      @NotNull final Agent agent,
-      @NotNull final Asset asset,
-      @NotNull final AssetGroup assetGroup) {
+  public void setManual(final Agent agent, final Asset asset, final AssetGroup assetGroup) {
     this.type = EXPECTATION_TYPE.MANUAL;
     this.agent = agent;
     this.asset = asset;
     this.assetGroup = assetGroup;
   }
 
-  public void setPrevention(
-      @NotNull final Agent agent,
-      @NotNull final Asset asset,
-      @NotNull final AssetGroup assetGroup) {
+  public void setPrevention(final Agent agent, final Asset asset, final AssetGroup assetGroup) {
     this.type = EXPECTATION_TYPE.PREVENTION;
     this.agent = agent;
     this.asset = asset;
     this.assetGroup = assetGroup;
   }
 
-  public void setDetection(
-      @NotNull final Agent agent,
-      @NotNull final Asset asset,
-      @NotNull final AssetGroup assetGroup) {
+  public void setDetection(final Agent agent, final Asset asset, final AssetGroup assetGroup) {
     this.type = EXPECTATION_TYPE.DETECTION;
     this.agent = agent;
     this.asset = asset;
     this.assetGroup = assetGroup;
   }
 
-  public void setVulnerability(
-      @NotNull final Agent agent,
-      @NotNull final Asset asset,
-      @NotNull final AssetGroup assetGroup) {
+  public void setVulnerability(final Agent agent, final Asset asset, final AssetGroup assetGroup) {
     this.type = EXPECTATION_TYPE.VULNERABILITY;
     this.agent = agent;
     this.asset = asset;
@@ -276,7 +283,10 @@ public class InjectExpectation implements Base, Cloneable {
   }
 
   public boolean isUserHasAccess(User user) {
-    return getExercise().isUserHasAccess(user);
+    if (getExercise() != null) {
+      return getExercise().isUserHasAccess(user);
+    }
+    return user.isAdmin();
   }
 
   @JsonProperty("target_id")
@@ -292,7 +302,8 @@ public class InjectExpectation implements Base, Cloneable {
     } else if (assetGroup != null) {
       return assetGroup.getId();
     } else {
-      throw new RuntimeException();
+      throw new IllegalStateException(
+          "InjectExpectation must have at least one target (user, team, agent, asset, or assetGroup)");
     }
   }
 

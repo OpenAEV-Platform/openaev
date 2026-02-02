@@ -131,6 +131,7 @@ public class PayloadUtils {
         "outputParsers",
         "tags",
         "attackPatterns",
+        "domains",
         "arguments",
         "prerequisites",
         "detectionRemediations",
@@ -146,6 +147,7 @@ public class PayloadUtils {
             .map(ArrayList::new)
             .orElseGet(ArrayList::new));
     duplicate.setTags(new HashSet<>(origin.getTags()));
+    duplicate.setDomains(new HashSet<>(origin.getDomains()));
     duplicate.setCollector(null);
     duplicate.setSource(Payload.PAYLOAD_SOURCE.MANUAL);
     duplicate.setStatus(Payload.PAYLOAD_STATUS.UNVERIFIED);
@@ -175,7 +177,13 @@ public class PayloadUtils {
       throw new IllegalArgumentException("Input payload cannot be null");
     }
     BeanUtils.copyProperties(
-        payloadInput, target, "outputParsers", "tags", "attackPatterns", "detectionRemediations");
+        payloadInput,
+        target,
+        "outputParsers",
+        "tags",
+        "attackPatterns",
+        "detectionRemediations",
+        "domains");
 
     outputParserService.copyOutputParsersFromInput(payloadInput.getOutputParsers(), target);
     detectionRemediationUtils.copy(payloadInput.getDetectionRemediations(), target, false);
@@ -188,7 +196,13 @@ public class PayloadUtils {
     }
 
     BeanUtils.copyProperties(
-        payloadInput, target, "outputParsers", "tags", "attackPatterns", "detectionRemediations");
+        payloadInput,
+        target,
+        "outputParsers",
+        "tags",
+        "attackPatterns",
+        "detectionRemediations",
+        "domains");
 
     outputParserService.copyOutputParsersFromInput((payloadInput).getOutputParsers(), target);
     detectionRemediationUtils.copy((payloadInput).getDetectionRemediations(), target, true);
@@ -204,7 +218,13 @@ public class PayloadUtils {
     }
 
     BeanUtils.copyProperties(
-        payloadInput, target, "outputParsers", "tags", "attackPatterns", "detectionRemediations");
+        payloadInput,
+        target,
+        "outputParsers",
+        "tags",
+        "attackPatterns",
+        "detectionRemediations",
+        "domains");
 
     outputParserService.copyOutputParsersFromInput(payloadInput.getOutputParsers(), target);
     detectionRemediationUtils.copy(payloadInput.getDetectionRemediations(), target, copyId);

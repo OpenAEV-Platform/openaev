@@ -274,6 +274,10 @@ export const countByScenario = (scenarioId: string, widgetId: string, parameters
   return simplePostCall(`/api/scenarios/${scenarioId}/dashboard/count/${widgetId}`, parameters);
 };
 
+export const averageByScenario = (scenarioId: string, widgetId: string, parameters: Record<string, string | undefined>) => {
+  return simplePostCall(`/api/scenarios/${scenarioId}/dashboard/average/${widgetId}`, parameters);
+};
+
 export const seriesByScenario = (scenarioId: string, widgetId: string, parameters: Record<string, string | undefined>) => {
   return simplePostCall(`/api/scenarios/${scenarioId}/dashboard/series/${widgetId}`, parameters);
 };

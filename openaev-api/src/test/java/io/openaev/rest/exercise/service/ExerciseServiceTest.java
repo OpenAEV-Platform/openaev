@@ -40,10 +40,7 @@ import io.openaev.utils.mapper.InjectMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -176,8 +173,8 @@ class ExerciseServiceTest extends IntegrationTest {
     inject1.setId("2");
     Exercise exercise = ExerciseFixture.getExercise(null);
     exercise.setInjects(List.of(inject1, inject2));
-    exercise.setTags(Set.of(tag1, tag2));
-    Set<Tag> currentTags = Set.of(tag2, tag3);
+    exercise.setTags(new HashSet<>(Set.of(tag1, tag2)));
+    Set<Tag> currentTags = new HashSet<>(Set.of(tag2, tag3));
     List<AssetGroup> assetGroupsToAdd = List.of(assetGroup1, assetGroup2);
 
     when(tagRuleService.getAssetGroupsFromTagIds(List.of(tag1.getId())))
@@ -209,8 +206,8 @@ class ExerciseServiceTest extends IntegrationTest {
     inject1.setId("2");
     Exercise exercise = ExerciseFixture.getExercise(null);
     exercise.setInjects(List.of(inject1, inject2));
-    exercise.setTags(Set.of(tag1, tag2));
-    Set<Tag> currentTags = Set.of(tag2, tag3);
+    exercise.setTags(new HashSet<>(Set.of(tag1, tag2)));
+    Set<Tag> currentTags = new HashSet<>(Set.of(tag2, tag3));
     List<AssetGroup> assetGroupsToAdd = List.of(assetGroup1, assetGroup2);
 
     when(tagRuleService.getAssetGroupsFromTagIds(List.of(tag1.getId())))
@@ -235,8 +232,8 @@ class ExerciseServiceTest extends IntegrationTest {
     inject1.setId("2");
     Exercise exercise = ExerciseFixture.getExercise(null);
     exercise.setInjects(List.of(inject1, inject2));
-    exercise.setTags(Set.of(tag1, tag2));
-    Set<Tag> currentTags = Set.of(tag2, tag3);
+    exercise.setTags(new HashSet<>(Set.of(tag1, tag2)));
+    Set<Tag> currentTags = new HashSet<>(Set.of(tag2, tag3));
 
     when(exerciseRepository.save(exercise)).thenReturn(exercise);
 

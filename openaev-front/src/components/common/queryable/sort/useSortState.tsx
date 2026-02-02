@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { type SortField } from '../../../../utils/api-types';
 import { type SortHelpers } from './SortHelpers';
@@ -14,17 +14,21 @@ const useSortState = (initSorts: SortField[] = [], onChange?: (sorts: SortField[
   const [sortBy, setSortBy] = useState(initSorts?.[0]?.property ?? '');
   const [sortAsc, setSortAsc] = useState(computeDirection(initSorts?.[0]?.direction));
 
+  // Use ref to store onChange to avoid triggering useEffect when callback reference changes
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
   const helpers: SortHelpers = {
-    handleSort: (field: string) => {
+    handleSort: useCallback((field: string) => {
       setSortBy(field);
-      setSortAsc(!sortAsc);
-    },
-    getSortBy: () => sortBy,
-    getSortAsc: () => sortAsc,
+      setSortAsc(prev => !prev);
+    }, []),
+    getSortBy: useCallback(() => sortBy, [sortBy]),
+    getSortAsc: useCallback(() => sortAsc, [sortAsc]),
   };
 
   useEffect(() => {
-    onChange?.([{
+    onChangeRef.current?.([{
       property: sortBy,
       direction: sortAsc ? 'ASC' : 'DESC',
     }]);

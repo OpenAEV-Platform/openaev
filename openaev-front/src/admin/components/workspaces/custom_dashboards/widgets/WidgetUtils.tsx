@@ -1,8 +1,8 @@
-import { AccountTree, List, TableChart } from '@mui/icons-material';
+import { AccountTree, List, TableChart, VerifiedUser } from '@mui/icons-material';
 import { AlignHorizontalLeft, ChartBar, ChartDonut, ChartLine, Counter } from 'mdi-material-ui';
 
 import {
-  type CustomDashboardParameters, type DateHistogramWidget, type EsAttackPath, type EsBase, type EsCountInterval, type EsSeries,
+  type CustomDashboardParameters, type DateHistogramWidget, type EsAttackPath, type EsAvgs, type EsBase, type EsCountInterval, type EsSeries,
   type Exercise,
   type Filter,
   type FilterGroup,
@@ -27,6 +27,10 @@ export const widgetVisualizationTypes: {
   steps?: StepType[];
   limit?: boolean;
 }[] = [
+  {
+    category: 'average',
+    seriesLimit: 1,
+  },
   {
     category: 'security-coverage',
     seriesLimit: 2,
@@ -88,6 +92,8 @@ export const renderWidgetIcon = (type: Widget['widget_type'], fontSize: 'large' 
       return <List fontSize={fontSize} color="primary" />;
     case 'number':
       return <Counter fontSize={fontSize} color="primary" />;
+    case 'average':
+      return <VerifiedUser fontSize={fontSize} color="primary" />;
     default:
       return <div />;
   }
@@ -114,10 +120,12 @@ export const getAvailableFields = (type: Widget['widget_type']) => {
 };
 
 export const getWidgetTitle = (widgetTitle: Widget['widget_config']['title'], type: Widget['widget_type'], t: (key: string) => string) => {
-  if (type === 'security-coverage') {
-    return !widgetTitle ? t('Security Coverage') : widgetTitle;
+  if (type === 'average') {
+    return !widgetTitle ? t('Performance by security domain') : widgetTitle;
   } else if (type === 'attack-path') {
     return !widgetTitle ? t('Attack Path') : widgetTitle;
+  } else if (type === 'security-coverage') {
+    return !widgetTitle ? t('Mitre Coverage') : widgetTitle;
   }
   return widgetTitle ?? '';
 };
@@ -249,11 +257,20 @@ export const updateSimulationFilterOnSeries = (series: Series[], simulationId?: 
   return series;
 };
 
+// -- SECURITY DOMAINS WIDGET --
+export const domainsEntityFilter: Filter = {
+  key: BASE_ENTITY_FILTER_KEY,
+  mode: 'or',
+  operator: 'eq',
+  values: ['expectation-inject'],
+};
+
 export enum WidgetVizDataType {
   SERIES = 'series',
   ENTITIES = 'entities',
   ATTACK_PATHS = 'attackPaths',
   NUMBER = 'number',
+  AVERAGE = 'average',
   NONE = 'none',
 }
 
@@ -274,5 +291,9 @@ export type WidgetVizData
   | {
     type: WidgetVizDataType.NUMBER;
     data: EsCountInterval;
+  }
+  | {
+    type: WidgetVizDataType.AVERAGE;
+    data: EsAvgs;
   }
   | { type: WidgetVizDataType.NONE };

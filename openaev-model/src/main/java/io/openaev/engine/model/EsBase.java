@@ -10,6 +10,7 @@ import io.openaev.engine.model.finding.EsFinding;
 import io.openaev.engine.model.inject.EsInject;
 import io.openaev.engine.model.injectexpectation.EsInjectExpectation;
 import io.openaev.engine.model.scenario.EsScenario;
+import io.openaev.engine.model.securitydomain.EsSecurityDomain;
 import io.openaev.engine.model.securityplatform.EsSecurityPlatform;
 import io.openaev.engine.model.simulation.EsSimulation;
 import io.openaev.engine.model.tag.EsTag;
@@ -40,6 +41,7 @@ import lombok.Setter;
       EsTeam.class,
       EsAssetGroup.class,
       EsSecurityPlatform.class,
+      EsSecurityDomain.class,
     },
     discriminatorMapping = {
       @DiscriminatorMapping(value = "attack-pattern", schema = EsAttackPattern.class),
@@ -53,6 +55,7 @@ import lombok.Setter;
       @DiscriminatorMapping(value = "vulnerable-endpoint", schema = EsVulnerableEndpoint.class),
       @DiscriminatorMapping(value = "team", schema = EsTeam.class),
       @DiscriminatorMapping(value = "security-platform", schema = EsSecurityPlatform.class),
+      @DiscriminatorMapping(value = "security-domain", schema = EsSecurityDomain.class),
       @DiscriminatorMapping(value = "asset-group", schema = EsAssetGroup.class),
     })
 public class EsBase {

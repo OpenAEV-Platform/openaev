@@ -9,12 +9,17 @@ import io.openaev.database.model.Grant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GrantRepository;
 import io.openaev.utils.fixtures.UserFixture;
+import io.openaev.utilstest.RabbitMQTestListener;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestExecutionListeners;
 
 @SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 public class GrantServiceTest extends IntegrationTest {
 
   private static final String USER_ID = "userid";

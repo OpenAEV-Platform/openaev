@@ -1,7 +1,7 @@
 package io.openaev.rest;
 
 import static io.openaev.rest.asset.endpoint.EndpointApi.ENDPOINT_URI;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.AgentFixture.createAgent;
 import static io.openaev.utils.fixtures.AssetGroupFixture.createAssetGroupWithAssets;
 import static io.openaev.utils.fixtures.AssetGroupFixture.createDefaultAssetGroup;
@@ -18,6 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
+import io.openaev.database.model.Tag;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -27,8 +28,10 @@ import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.service.EndpointService;
 import io.openaev.utils.fixtures.EndpointFixture;
+import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
+import io.openaev.utils.fixtures.composers.ExecutorComposer;
 import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -36,10 +39,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 import org.json.JSONArray;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -59,9 +59,16 @@ class EndpointApiTest extends IntegrationTest {
   @Autowired private EndpointRepository endpointRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private ExerciseService exerciseService;
+  @Autowired private ExecutorComposer executorComposer;
+  @Autowired private ExecutorFixture executorFixture;
 
   @SpyBean private EndpointService endpointService;
   @Autowired private AssetGroupRepository assetGroupRepository;
+
+  @BeforeEach
+  public void setup() {
+    executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
+  }
 
   @DisplayName("Given valid input, should create an endpoint agentless successfully")
   @Test

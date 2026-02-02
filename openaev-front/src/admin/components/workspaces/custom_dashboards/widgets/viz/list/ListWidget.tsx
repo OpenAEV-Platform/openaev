@@ -7,6 +7,7 @@ import {
   ListItemIcon,
   ListItemText,
 } from '@mui/material';
+import { memo, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -18,7 +19,7 @@ import useBodyItemsStyles from '../../../../../../../components/common/queryable
 import { useQueryableWithLocalStorage } from '../../../../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../../../../components/i18n';
 import { useHelper } from '../../../../../../../store';
-import { type EsBase, type ListConfiguration } from '../../../../../../../utils/api-types';
+import { type AttackPattern, type EsBase, type ListConfiguration } from '../../../../../../../utils/api-types';
 import buildStyles from './elements/ColumnStyles';
 import DefaultElementStyles from './elements/DefaultElementStyles';
 import EndpointElementStyles from './elements/EndpointElementStyles';
@@ -29,6 +30,78 @@ const useStyles = makeStyles()(() => ({
   itemHead: { textTransform: 'uppercase' },
   item: { height: 50 },
 }));
+
+// Memoize the initial search pagination to avoid recreation
+const INITIAL_SEARCH_PAGINATION = buildSearchPagination({ sorts: initSorting('') });
+
+// Empty secondary action component to avoid recreation
+const EmptySecondaryAction = memo(() => <>&nbsp;</>);
+EmptySecondaryAction.displayName = 'EmptySecondaryAction';
+
+// Memoized list item component
+const ListWidgetItem = memo<{
+  element: EsBase;
+  columns: string[];
+  columnStyles: Record<string, React.CSSProperties>;
+  bodyItemsStyles: {
+    bodyItems: React.CSSProperties;
+    bodyItem: React.CSSProperties;
+  };
+  attackPatterns: AttackPattern[];
+  onItemClick: (element: EsBase) => void;
+  itemClass: string;
+}>(({ element, columns, columnStyles, bodyItemsStyles, attackPatterns, onItemClick, itemClass }) => {
+  const hasHandler = navigationHandlers[element.base_entity];
+
+  const handleClick = useCallback(() => {
+    onItemClick(element);
+  }, [element, onItemClick]);
+
+  const renderedColumns = useMemo(() => columns.map((col) => {
+    const renderer = listConfigRenderer[col] ?? defaultRenderer;
+    const value = element[col as keyof typeof element] as string | boolean | string[] | boolean[];
+    return (
+      <div
+        key={col}
+        style={{
+          ...bodyItemsStyles.bodyItem,
+          ...columnStyles[col],
+        }}
+      >
+        {renderer(value, {
+          element,
+          attackPatterns,
+        })}
+      </div>
+    );
+  }), [columns, columnStyles, bodyItemsStyles, element, attackPatterns]);
+
+  return (
+    <MuiListItem
+      divider
+      disablePadding
+      secondaryAction={hasHandler !== undefined ? <KeyboardArrowRight color="action" /> : <EmptySecondaryAction />}
+    >
+      <ListItemButton
+        onClick={handleClick}
+        classes={{ root: itemClass }}
+        className="noDrag"
+      >
+        <ListItemIcon>
+          <DevicesOtherOutlined color="primary" />
+        </ListItemIcon>
+        <ListItemText
+          primary={(
+            <div style={bodyItemsStyles.bodyItems}>
+              {renderedColumns}
+            </div>
+          )}
+        />
+      </ListItemButton>
+    </MuiListItem>
+  );
+});
+ListWidgetItem.displayName = 'ListWidgetItem';
 
 type Props = {
   widgetConfig: ListConfiguration;
@@ -43,111 +116,80 @@ const ListWidget = ({ widgetConfig, elements }: Props) => {
 
   const { attackPatterns } = useHelper((helper: AttackPatternHelper) => ({ attackPatterns: helper.getAttackPatterns() }));
 
-  const headersFromColumns = (widgetConfig.columns ?? []).map(col => ({
-    field: col,
-    label: col,
-    isSortable: false,
-  }));
+  // Memoize columns array
+  const columns = useMemo(() => widgetConfig.columns ?? [], [widgetConfig.columns]);
 
-  const stylesFromEntityType = (elements: EsBase[]) => {
-    const defaultStyles = buildStyles(widgetConfig.columns, DefaultElementStyles);
+  // Memoize headers
+  const headersFromColumns = useMemo(
+    () => columns.map(col => ({
+      field: col,
+      label: col,
+      isSortable: false,
+    })),
+    [columns],
+  );
+
+  // Memoize column styles based on entity type
+  const columnStyles = useMemo(() => {
+    const defaultStyles = buildStyles(columns, DefaultElementStyles);
     if (elements === undefined || elements.length === 0) {
       return defaultStyles;
     }
     const entityType = elements[0].base_entity;
     switch (entityType) {
       case 'endpoint':
-        return buildStyles(widgetConfig.columns, EndpointElementStyles);
+        return buildStyles(columns, EndpointElementStyles);
       default:
         return defaultStyles;
     }
-  };
+  }, [columns, elements]);
 
-  const { queryableHelpers } = useQueryableWithLocalStorage('list-widget', buildSearchPagination({ sorts: initSorting('') }));
+  const { queryableHelpers } = useQueryableWithLocalStorage('list-widget', INITIAL_SEARCH_PAGINATION);
 
-  const getSecondaryActionByBaseEntity = (element: EsBase) => {
-    return navigationHandlers[element.base_entity] ? <KeyboardArrowRight color="action" /> : <>&nbsp;</>;
-  };
-
-  const elementsFromColumn = (
-    column: string,
-    element: EsBase,
-  ) => {
-    const renderer = listConfigRenderer[column] ?? defaultRenderer;
-    const value = element[column as keyof typeof element] as string | boolean | string[] | boolean[];
-    return renderer(value, {
-      element,
-      attackPatterns,
-    });
-  };
-
-  const onListItemClick = (element: EsBase): void => {
+  const onListItemClick = useCallback((element: EsBase): void => {
     const handler = navigationHandlers[element.base_entity];
     handler?.(element, navigate);
-  };
+  }, [navigate]);
 
-  if (!widgetConfig || !widgetConfig.columns || widgetConfig.columns.length === 0) {
+  if (!widgetConfig || columns.length === 0) {
     return <div>{t('No columns configured for this list.')}</div>;
   }
 
   return (
-    <Box
-      style={{ overflow: 'auto' }}
-    >
+    <Box style={{ overflow: 'auto' }}>
       <MuiList>
         <MuiListItem
           classes={{ root: classes.itemHead }}
           style={{ paddingTop: 0 }}
-          secondaryAction={(<>&nbsp;</>)}
+          secondaryAction={<EmptySecondaryAction />}
         >
           <ListItemIcon />
           <ListItemText
             primary={(
               <SortHeadersComponentV2
                 headers={headersFromColumns}
-                inlineStylesHeaders={stylesFromEntityType(elements)}
+                inlineStylesHeaders={columnStyles}
                 sortHelpers={queryableHelpers.sortHelpers}
               />
             )}
           />
         </MuiListItem>
         {elements.length === 0 && <div style={{ textAlign: 'center' }}>{t('No data to display')}</div>}
-        {elements.map(e => (
-          <MuiListItem key={e.base_id} divider disablePadding secondaryAction={getSecondaryActionByBaseEntity(e)}>
-            <ListItemButton
-              key={e.base_id}
-              onClick={() => onListItemClick(e)}
-              classes={{ root: classes.item }}
-              className="noDrag"
-            >
-              <ListItemIcon>
-                <DevicesOtherOutlined color="primary" />
-              </ListItemIcon>
-              <ListItemText
-                primary={(
-                  <div style={bodyItemsStyles.bodyItems}>
-                    {(widgetConfig.columns ?? []).map(col => (
-                      <div
-                        key={col}
-                        style={{
-                          ...bodyItemsStyles.bodyItem,
-                          ...stylesFromEntityType(elements)[col],
-                        }}
-                      >
-                        {elementsFromColumn(col, e)}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              />
-            </ListItemButton>
-          </MuiListItem>
-        ),
-        )}
+        {elements.map(element => (
+          <ListWidgetItem
+            key={element.base_id}
+            element={element}
+            columns={columns}
+            columnStyles={columnStyles}
+            bodyItemsStyles={bodyItemsStyles}
+            attackPatterns={attackPatterns}
+            onItemClick={onListItemClick}
+            itemClass={classes.item}
+          />
+        ))}
       </MuiList>
     </Box>
-
   );
 };
 
-export default ListWidget;
+export default memo(ListWidget);

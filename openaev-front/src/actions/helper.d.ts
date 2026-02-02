@@ -1,4 +1,17 @@
-import { type Challenge, type Document, type Exercise, type Organization, type PlatformSettings, type Scenario, type ScenarioChallengesReader, type SimulationChallengesReader, type Tag, type Token, type User } from '../utils/api-types';
+import {
+  type Challenge,
+  type Document,
+  type Domain,
+  type Exercise,
+  type Organization,
+  type PlatformSettings,
+  type Scenario,
+  type ScenarioChallengesReader,
+  type SimulationChallengesReader,
+  type Tag,
+  type Token,
+  type User,
+} from '../utils/api-types';
 
 export interface UserHelper {
   getMe: () => User;
@@ -16,6 +29,8 @@ export interface TagHelper {
   getTags: () => Tag[];
   getTagsMap: () => Record<string, Tag>;
 }
+
+export interface DomainHelper { getDomains: () => Domain[] }
 
 export interface LoggedHelper {
   // TODO type logged object

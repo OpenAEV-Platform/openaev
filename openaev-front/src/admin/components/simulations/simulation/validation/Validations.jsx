@@ -1,6 +1,6 @@
-import { List, ListItem, ListItemIcon, ListItemText, Slide } from '@mui/material';
+import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import * as R from 'ramda';
-import { forwardRef, useState } from 'react';
+import { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -18,11 +18,6 @@ import TagsFilter from '../../../common/filters/TagsFilter';
 import InjectIcon from '../../../common/injects/InjectIcon';
 import AnimationMenu from '../AnimationMenu';
 import TeamOrAssetLine from './common/TeamOrAssetLine';
-
-const Transition = forwardRef((props, ref) => (
-  <Slide direction="up" ref={ref} {...props} />
-));
-Transition.displayName = 'TransitionSlide';
 
 const useStyles = makeStyles()(() => ({
   item: { height: 40 },

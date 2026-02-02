@@ -7,7 +7,7 @@ const injectExpectationMap = {
   SUCCESS: {
     PREVENTION: 'Prevented',
     DETECTION: 'Detected',
-    VULNERABILITY: 'Not vulnerable',
+    VULNERABILITY: 'Not Vulnerable',
   },
   FAILED: {
     PREVENTION: 'Not Prevented',
@@ -17,7 +17,7 @@ const injectExpectationMap = {
   PARTIAL: {
     PREVENTION: 'Partially Prevented',
     DETECTION: 'Partially Detected',
-    VULNERABILITY: 'Partially vulnerable',
+    VULNERABILITY: 'Partially Vulnerable',
   },
   PENDING: {
     PREVENTION: 'Pending',
@@ -77,7 +77,7 @@ export const computeStatusStyle = (status: string | undefined | null) => {
     'PREVENTED': colorStyles.green,
     'DETECTED': colorStyles.green,
 
-    'CANCELED': colorStyles.white,
+    'CANCELED': colorStyles.canceled,
 
     'FINISHED': colorStyles.grey,
     'NOT_PLANNED': colorStyles.grey,
@@ -126,7 +126,7 @@ export const getStatusColor = (theme: Theme, status: string | undefined): string
     'vulnerable': theme.palette.error.main,
     '0': theme.palette.error.main,
     'replace': theme.palette.error.main,
-    'canceled': colorStyles.white.color,
+    'canceled': colorStyles.canceled.color,
     'error': theme.palette.error.main,
 
   };

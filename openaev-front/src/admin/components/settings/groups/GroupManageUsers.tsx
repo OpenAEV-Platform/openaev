@@ -49,7 +49,7 @@ const GroupManageUsers: FunctionComponent<Props> = ({
       },
       {
         field: 'user_organization_name',
-        value: (user: UserOutput) => user.user_organization_name,
+        value: (user: UserOutput) => user.user_organization_name ?? '',
         width: 20,
       },
       {

@@ -11,9 +11,9 @@ import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.ee.Ee;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadCreateInput;
-import io.openaev.service.GrantService;
 import jakarta.transaction.Transactional;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +28,6 @@ public class PayloadCreationService {
   private final PayloadUtils payloadUtils;
 
   private final PayloadService payloadService;
-  private final GrantService grantService;
   private final Ee eeService;
   private final LicenseCacheManager licenseCacheManager;
 
@@ -36,6 +35,7 @@ public class PayloadCreationService {
   private final AttackPatternRepository attackPatternRepository;
   private final PayloadRepository payloadRepository;
   private final DocumentService documentService;
+  private final DomainService domainService;
 
   @Transactional(rollbackOn = Exception.class)
   public Payload createPayload(PayloadCreateInput input) {
@@ -56,6 +56,7 @@ public class PayloadCreationService {
 
     payload.setAttackPatterns(attackPatterns);
     payload.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+    payload.setDomains(iterableToSet(domainService.findAllById(input.getDomainIds())));
 
     if (payload instanceof Executable executable) {
       executable.setExecutableFile(documentService.document(input.getExecutableFile()));

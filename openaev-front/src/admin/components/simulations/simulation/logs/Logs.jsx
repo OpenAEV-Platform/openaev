@@ -19,12 +19,12 @@ import AnimationMenu from '../AnimationMenu';
 import LogForm from './LogForm';
 import LogPopover from './LogPopover';
 
-const useStyles = makeStyles()(() => ({
+const useStyles = makeStyles()(theme => ({
   card: {
     width: '100%',
     height: '100%',
     marginBottom: 30,
-    borderRadius: 6,
+    borderRadius: theme.borderRadius,
     padding: 0,
     position: 'relative',
   },
@@ -114,7 +114,7 @@ const Logs = () => {
                   <div
                     style={{
                       float: 'left',
-                      fontDecoration: 'none',
+                      textDecoration: 'none',
                       textTransform: 'none',
                       paddingTop: 7,
                       fontSize: 15,
@@ -133,7 +133,7 @@ const Logs = () => {
                     style={{
                       float: 'left',
                       margin: '4px 0 0 20px',
-                      fontDecoration: 'none',
+                      textDecoration: 'none',
                       textTransform: 'none',
                     }}
                   >

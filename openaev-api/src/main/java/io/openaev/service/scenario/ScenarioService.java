@@ -362,7 +362,8 @@ public class ScenarioService {
     return this.scenarioRepository
         .findByExercises_Id(simulationId)
         .orElseThrow(
-            () -> new ElementNotFoundException("Scenario not found for simulation" + simulationId));
+            () ->
+                new ElementNotFoundException("Scenario not found for simulation: " + simulationId));
   }
 
   @Transactional(readOnly = true)
@@ -823,18 +824,18 @@ public class ScenarioService {
   }
 
   private void getListOfDuplicatedInjects(
-      @NotNull Scenario scenario, @NotNull Scenario scenarioOrign) {
+      @NotNull Scenario scenario, @NotNull Scenario scenarioOrigin) {
     Set<Inject> injectListForScenario =
-        scenarioOrign.getInjects().stream()
+        scenarioOrigin.getInjects().stream()
             .map(inject -> injectDuplicateService.duplicateInjectForScenario(scenario, inject))
             .collect(Collectors.toSet());
     scenario.setInjects(new HashSet<>(injectListForScenario));
   }
 
-  private void getListOfArticles(@NotNull Scenario scenario, @NotNull Scenario scenarioOrign) {
+  private void getListOfArticles(@NotNull Scenario scenario, @NotNull Scenario scenarioOrigin) {
     Map<String, String> mapIdArticleOriginNew = new HashMap<>();
     List<Article> articleList = new ArrayList<>();
-    scenarioOrign
+    scenarioOrigin
         .getArticles()
         .forEach(
             article -> {

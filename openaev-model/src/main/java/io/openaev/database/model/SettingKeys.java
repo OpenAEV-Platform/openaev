@@ -24,6 +24,13 @@ public enum SettingKeys {
   XTM_HUB_REGISTRATION_USER_NAME("xtm_hub_registration_user_name", ""),
   XTM_HUB_LAST_CONNECTIVITY_CHECK("xtm_hub_last_connectivity_check", ""),
   XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL("xtm_hub_should_send_connectivity_email", "true"),
+
+  XTM_COMPOSER_ID("xtm_composer_id", ""),
+  XTM_COMPOSER_NAME("xtm_composer_name", ""),
+  XTM_COMPOSER_VERSION("xtm_composer_version", ""),
+  XTM_COMPOSER_PUBLIC_KEY("xtm_composer_public_key", ""),
+  XTM_COMPOSER_LAST_CONNECTIVITY_CHECK("xtm_composer_last_connectivity_check", ""),
+
   SMTP_SERVICE_AVAILABLE("smtp_service_available", "false"),
   IMAP_SERVICE_AVAILABLE("imap_service_available", "false");
 

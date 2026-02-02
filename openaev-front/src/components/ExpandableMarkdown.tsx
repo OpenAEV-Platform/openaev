@@ -37,7 +37,7 @@ const ExpandableMarkdown: FunctionComponent<ExpandableMarkdownProps> = ({
       )}
       <div id={markdownDOMId} style={{ overflowX: 'auto' }}>
         <MarkdownDisplay
-          content={expand ? emptyFilled(source) : truncate(source, limit)}
+          content={expand ? emptyFilled(source) : (truncate(source, limit) ?? null)}
           remarkGfmPlugin={true}
           commonmark={true}
         />

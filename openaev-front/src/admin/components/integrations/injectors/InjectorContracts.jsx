@@ -1,21 +1,20 @@
 import { SmartButtonOutlined } from '@mui/icons-material';
 import { Chip, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
-import * as R from 'ramda';
 import { useState } from 'react';
 import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { searchInjectorContracts } from '../../../../actions/InjectorContracts';
+import { searchInjectorContracts } from '../../../../actions/InjectorContracts.ts';
 import PaginationComponent from '../../../../components/common/pagination/PaginationComponent';
 import SortHeadersComponent from '../../../../components/common/pagination/SortHeadersComponent';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import { useFormatter } from '../../../../components/i18n';
+import ItemDomains from '../../../../components/ItemDomains.tsx';
 import { useHelper } from '../../../../store';
 import CreateInjectorContract from './injector_contracts/CreateInjectorContract';
 import InjectorContractPopover from './injector_contracts/InjectorContractPopover';
 
 const useStyles = makeStyles()(() => ({
-  container: { marginTop: 20 },
   list: { marginTop: 10 },
   itemHead: {
     paddingLeft: 10,
@@ -41,22 +40,15 @@ const useStyles = makeStyles()(() => ({
 }));
 
 const headerStyles = {
-  injector_contract_labels: { width: '35%' },
-  kill_chains: { width: '20%' },
-  attack_patterns: { width: '30%' },
+  injector_contract_labels: { width: '20%' },
+  injector_contract_domains: { width: '20%' },
+  kill_chains: { width: '13%' },
+  attack_patterns: { width: '35%' },
   injector_contract_updated_at: { width: '12%' },
 };
 
 const inlineStyles = {
   injector_contract_labels: {
-    float: 'left',
-    width: '35%',
-    height: 20,
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
-  kill_chains: {
     float: 'left',
     width: '20%',
     height: 20,
@@ -64,9 +56,25 @@ const inlineStyles = {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
   },
+  injector_contract_domains: {
+    float: 'left',
+    width: '20%',
+    height: 20,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  kill_chains: {
+    float: 'left',
+    width: '13%',
+    height: 20,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
   attack_patterns: {
     float: 'left',
-    width: '30%',
+    width: '35%',
     height: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
@@ -92,7 +100,6 @@ const InjectorContracts = () => {
     attackPatternsMap: helper.getAttackPatternsMap(),
     killChainPhasesMap: helper.getKillChainPhasesMap(),
   }));
-
   // Headers
   const headers = [
     {
@@ -104,6 +111,11 @@ const InjectorContracts = () => {
       field: 'kill_chains',
       label: 'Kill chains',
       isSortable: false,
+    },
+    {
+      field: 'injector_contract_domains',
+      label: t('Payload domains'),
+      isSortable: true,
     },
     {
       field: 'attack_patterns',
@@ -203,32 +215,67 @@ const InjectorContracts = () => {
                     className={classes.bodyItem}
                     style={inlineStyles.kill_chains}
                   >
-                    {
-                      R.uniq(injectorContract.injector_contract_attack_patterns.map(
-                        n => attackPatternsMap[n]?.attack_pattern_kill_chain_phases ?? [],
-                      ).flat().map(o => killChainPhasesMap[o]?.phase_kill_chain_name ?? '')).map((killChain) => {
-                        return (
-                          <Chip
-                            key={killChain}
-                            variant="outlined"
-                            classes={{ root: classes.chipInList }}
-                            style={{ width: 120 }}
-                            color="primary"
-                            label={killChain}
-                          />
-                        );
-                      })
-                    }
+                    {injectorContract.injector_contract_attack_patterns?.length ? (() => {
+                      const killChains = Array.from(
+                        new Set(
+                          injectorContract.injector_contract_attack_patterns
+                            .flatMap(n =>
+                              attackPatternsMap[n]?.attack_pattern_kill_chain_phases ?? [],
+                            )
+                            .map(o => killChainPhasesMap[o]?.phase_kill_chain_name)
+                            .filter(Boolean),
+                        ),
+                      );
+                      return killChains.length > 0
+                        ? (
+                            killChains.map(killChain => (
+                              <Chip
+                                key={killChain}
+                                variant="outlined"
+                                classes={{ root: classes.chipInList }}
+                                style={{ width: 120 }}
+                                color="primary"
+                                label={killChain}
+                              />
+                            ))
+                          )
+                        : (
+                            <span>-</span>
+                          );
+                    })() : (
+                      <span>-</span>
+                    )}
                   </div>
+
+                  <div
+                    className={classes.bodyItem}
+                    style={inlineStyles.injector_contract_domains}
+                  >
+                    <ItemDomains
+                      domains={injectorContract.injector_contract_domains}
+                      variant="reduced-view"
+                    />
+                  </div>
+
                   <div
                     className={classes.bodyItem}
                     style={inlineStyles.attack_patterns}
                   >
-                    {injectorContract.injector_contract_attack_patterns.map(n => `[${attackPatternsMap[n]?.attack_pattern_external_id ?? ''}] ${attackPatternsMap[n]?.attack_pattern_name ?? ''}`).join(', ')}
+                    {injectorContract.injector_contract_attack_patterns?.length
+                      ? injectorContract.injector_contract_attack_patterns
+                          .map((n) => {
+                            const pattern = attackPatternsMap[n];
+                            return pattern
+                              ? `[${pattern.attack_pattern_external_id}] ${pattern.attack_pattern_name}`
+                              : '-';
+                          })
+                          .join(', ')
+                      : '-'}
+
                   </div>
                   <div
                     className={classes.bodyItem}
-                    style={inlineStyles.attack_pattern_updated_at}
+                    style={inlineStyles.injector_contract_updated_at}
                   >
                     {nsdt(injectorContract.injector_contract_updated_at)}
                   </div>
@@ -241,17 +288,21 @@ const InjectorContracts = () => {
                 killChainPhasesMap={killChainPhasesMap}
                 attackPatternsMap={attackPatternsMap}
                 onUpdate={result => setInjectorContracts(injectorContracts.map(ic => (ic.injector_contract_id !== result.injector_contract_id ? ic : result)))}
+                isPayloadInjector={injector.injector_payloads}
               />
             </ListItemSecondaryAction>
           </ListItem>
         ))}
       </List>
-      {injector.injector_custom_contracts && (
+      {injector?.injector_custom_contracts && (
         <CreateInjectorContract
           injector={injector}
           injectorContracts={injectorContracts}
           killChainPhasesMap={killChainPhasesMap}
           attackPatternsMap={attackPatternsMap}
+          onCreated={() => {
+            setSearchPaginationInput({ ...searchPaginationInput });
+          }}
         />
       )}
     </div>
