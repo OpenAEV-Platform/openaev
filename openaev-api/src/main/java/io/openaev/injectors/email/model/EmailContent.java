@@ -55,8 +55,6 @@ public class EmailContent {
           .append("OpenAEV internal information, do not remove!<br/>")
           .append("[inject_id=")
           .append(injection.getInjection().getId())
-          .append("[scenario_id=")
-          .append(injection.getInjection().getExercise().getId())
           .append("[base_url=")
           .append(baseUrl)
           .append("]<br/>")
