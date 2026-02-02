@@ -1246,6 +1246,10 @@ export interface CreateExerciseInput {
   exercise_main_focus?: string;
   exercise_message_footer?: string;
   exercise_message_header?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
   exercise_name: string;
   exercise_severity?: string;
   /** @format date-time */
@@ -2974,6 +2978,8 @@ export interface ImportTestSummary {
   injects?: InjectOutput[];
   /** @format int32 */
   total_injects?: number;
+  /** @format int32 */
+  total_rows_analysed?: number;
 }
 
 export interface Inject {
@@ -6526,6 +6532,10 @@ export interface UpdateExerciseInput {
   exercise_main_focus?: string;
   exercise_message_footer?: string;
   exercise_message_header?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
   exercise_name: string;
   exercise_severity?: string;
   exercise_subtitle?: string;

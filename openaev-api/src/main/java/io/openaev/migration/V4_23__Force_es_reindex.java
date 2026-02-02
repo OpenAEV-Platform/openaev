@@ -20,7 +20,7 @@ public class V4_23__Force_es_reindex extends BaseJavaMigration {
             CREATE OR REPLACE FUNCTION update_asset_updated_at_after_delete_inject()
                 RETURNS TRIGGER AS $$
             BEGIN
-                UPDATE public.assets
+                UPDATE assets
                 SET asset_updated_at = now()
                 WHERE asset_id = OLD.asset_id;
                 RETURN OLD;
@@ -29,7 +29,7 @@ public class V4_23__Force_es_reindex extends BaseJavaMigration {
 
             -- Trigger for AFTER DELETE
             CREATE TRIGGER after_delete_update_asset_updated_at
-                AFTER DELETE ON public.injects_assets
+                AFTER DELETE ON injects_assets
                 FOR EACH ROW EXECUTE FUNCTION update_asset_updated_at_after_delete_inject();
         """);
       // re-index in ES

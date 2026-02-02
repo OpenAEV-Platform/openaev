@@ -70,8 +70,9 @@ public final class RabbitMQHelper {
         }
 
         // Init the rabbit MQ management api overview url
+        String protocol = rabbitmqConfig.isSsl() ? "https://" : "http://";
         String uri =
-            "http://"
+            protocol
                 + rabbitmqConfig.getHostname()
                 + ":"
                 + rabbitmqConfig.getManagementPort()

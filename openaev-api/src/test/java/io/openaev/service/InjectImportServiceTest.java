@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.RuleAttribute;
-import io.openaev.service.utils.InjectImportUtils;
+import io.openaev.utils.InjectImportUtils;
 import io.openaev.utils.mockMapper.MockMapperUtils;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;

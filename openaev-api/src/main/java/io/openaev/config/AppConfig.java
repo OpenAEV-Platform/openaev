@@ -30,6 +30,7 @@ public class AppConfig {
   public static final String EMAIL_FORMAT = "This field must be a valid email.";
   public static final String PHONE_FORMAT =
       "This field must start with '+' character and country identifier.";
+  public static final String MAX_255_MESSAGE = "This field must be 255 characters or less.";
 
   @Resource private OpenAEVConfig openAEVConfig;
 

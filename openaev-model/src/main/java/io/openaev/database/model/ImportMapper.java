@@ -30,7 +30,7 @@ public class ImportMapper implements Base {
   @NotNull
   private UUID id;
 
-  @Queryable(sortable = true)
+  @Queryable(sortable = true, searchable = true)
   @Column(name = "mapper_name")
   @JsonProperty("import_mapper_name")
   @NotBlank

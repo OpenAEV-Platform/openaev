@@ -10,6 +10,7 @@ import static io.openaev.integration.impl.executors.openaev.OpenAEVExecutorInteg
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
 import static io.openaev.utils.ArchitectureFilterUtils.handleEndpointFilter;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
+import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 import static io.openaev.utils.pagination.PaginationUtils.buildPageable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static java.time.Instant.now;
@@ -38,7 +39,6 @@ import jakarta.validation.constraints.NotNull;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -74,8 +74,6 @@ public class EndpointService {
   public static final String SERVICE = "service";
   public static final String SERVICE_USER = "service-user";
   public static final String SESSION_USER = "session-user";
-
-  public static String JFROG_BASE = "https://filigran.jfrog.io/artifactory";
 
   public static final String OPENAEV_INSTALL_DIR_WINDOWS_SERVICE =
       "C:\\Program Files (x86)\\Filigran\\OAEV Agent";
@@ -636,7 +634,7 @@ public class EndpointService {
     } else if (executorOpenaevBinariesOrigin.equals(
         "repository")) { // if we want a specific version from artifactory
       filename = file + "-" + executorOpenaevBinariesVersion + "." + extension;
-      in = new BufferedInputStream(new URL(JFROG_BASE + resourcePath + filename).openStream());
+      in = new BufferedInputStream(validateJFrogUri(resourcePath, filename).toURL().openStream());
     }
     if (in == null) {
       throw new UnsupportedOperationException(

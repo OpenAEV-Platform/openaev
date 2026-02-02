@@ -1,9 +1,9 @@
 package io.openaev.rest.executor;
 
-import static io.openaev.service.EndpointService.JFROG_BASE;
 import static io.openaev.service.EndpointService.SERVICE;
 import static io.openaev.utils.AgentUtils.AVAILABLE_ARCHITECTURES;
 import static io.openaev.utils.AgentUtils.AVAILABLE_PLATFORMS;
+import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.RBAC;
@@ -32,7 +32,6 @@ import jakarta.validation.Valid;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
 import java.time.Instant;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -230,7 +229,7 @@ public class ExecutorApi extends RestBehavior {
           "openaev-agent-"
               + executorOpenaevBinariesVersion
               + (platform.equals("windows") ? ".exe" : "");
-      in = new BufferedInputStream(new URL(JFROG_BASE + resourcePath + filename).openStream());
+      in = new BufferedInputStream(validateJFrogUri(resourcePath, filename).toURL().openStream());
     }
     if (in != null) {
       HttpHeaders headers = new HttpHeaders();
@@ -308,7 +307,7 @@ public class ExecutorApi extends RestBehavior {
       } else if (executorOpenaevBinariesOrigin.equals(
           "repository")) { // if we want a specific version from artifactory
         filename = filename.concat(executorOpenaevBinariesVersion).concat(".exe");
-        in = new BufferedInputStream(new URL(JFROG_BASE + resourcePath + filename).openStream());
+        in = new BufferedInputStream(validateJFrogUri(resourcePath, filename).toURL().openStream());
       }
       if (in == null) {
         throw new UnsupportedOperationException(

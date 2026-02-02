@@ -11,7 +11,6 @@ import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.UnprocessableContentException;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.form.InjectsImportInput;
 import io.openaev.rest.scenario.response.ImportTestSummary;
 import io.openaev.service.InjectImportService;
@@ -33,7 +32,6 @@ import org.springframework.web.multipart.MultipartFile;
 @Slf4j
 public class ScenarioImportApi extends RestBehavior {
 
-  private final InjectService injectService;
   private final InjectImportService injectImportService;
   private final ImportMapperRepository importMapperRepository;
   private final ScenarioService scenarioService;
@@ -42,7 +40,7 @@ public class ScenarioImportApi extends RestBehavior {
   @RBAC(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.SIMULATION)
+      resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackOn = Exception.class)
   @Operation(summary = "Test the import of injects from an xls file")
   public ImportTestSummary dryRunImportXLSFile(
@@ -69,7 +67,7 @@ public class ScenarioImportApi extends RestBehavior {
   @RBAC(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.SIMULATION)
+      resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackOn = Exception.class)
   @Operation(summary = "Validate and import injects from an xls file")
   public ImportTestSummary validateImportXLSFile(
