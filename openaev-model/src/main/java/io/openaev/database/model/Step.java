@@ -1,0 +1,87 @@
+package io.openaev.database.model;
+
+import io.hypersistence.utils.hibernate.type.json.JsonType;
+import jakarta.persistence.*;
+import jakarta.persistence.Table;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import lombok.*;
+import org.hibernate.annotations.*;
+import org.hibernate.type.SqlTypes;
+
+@Entity
+@Table(name = "steps")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@Builder
+public class Step implements Base {
+
+  @Id
+  @Column(name = "step_id")
+  @GeneratedValue(generator = "UUID")
+  @UuidGenerator
+  private String id;
+
+  @Column(name = "step_action_class")
+  @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+  private STEP_ACTION_CLASS stepAction;
+
+  @Type(JsonType.class)
+  @Column(name = "step_output", columnDefinition = "jsonb")
+  private String output;
+
+  @Type(JsonType.class)
+  @Column(name = "step_output_parser", columnDefinition = "jsonb")
+  private String output_parser;
+
+  @Type(JsonType.class)
+  @Column(name = "step_input", columnDefinition = "jsonb")
+  private String input;
+
+  @Type(JsonType.class)
+  @Column(name = "step_data", columnDefinition = "jsonb")
+  private String data;
+
+  @Column(name = "step_limit_execution") // ? same value or include diff value?
+  private int limitExecution;
+
+  @Column(name = "step_condition_executed")
+  private String conditionExecuted;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "step_status")
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+  private STEP_STATUS status;
+
+  @Column(name = "step_created_at")
+  @CreationTimestamp
+  private Instant createdAt;
+
+  @Column(name = "step_updated_at")
+  @UpdateTimestamp
+  private Instant updatedAt;
+
+  // JOIN
+  @JoinColumn(name = "step_workflow_id")
+  @ManyToOne(fetch = FetchType.LAZY)
+  private Workflow workflow;
+
+  @JoinColumn(name = "step_template_id")
+  @ManyToOne(fetch = FetchType.LAZY)
+  private Step stepTemplate;
+
+  @OneToMany(fetch = FetchType.LAZY, mappedBy = "id")
+  private List<Step> stepsExecuted;
+
+  public List<Step> getStepsExecuted() {
+    if (stepsExecuted == null) {
+      stepsExecuted = new ArrayList<>();
+    }
+    return stepsExecuted;
+  }
+}

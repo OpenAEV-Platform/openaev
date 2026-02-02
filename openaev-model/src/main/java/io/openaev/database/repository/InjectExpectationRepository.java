@@ -284,4 +284,13 @@ public interface InjectExpectationRepository
     """,
       nativeQuery = true)
   List<RawInjectExpectation> findForIndexing(@Param("from") Instant from);
+
+  @Query(
+      """
+      select distinct ie.inject.id
+      from InjectExpectation ie
+      where ie.id in :expectationIds
+      """)
+  Set<String> findDistinctInjectIdsByInjectExpectationIds(
+      @Param("expectationIds") Set<String> expectationIds);
 }
