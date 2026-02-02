@@ -36,7 +36,7 @@ const useStyles = makeStyles()(theme => ({
     width: '100%',
     minHeight: '100%',
     padding: 20,
-    border: '1px dashed rgba(255, 255, 255, 0.3)',
+    border: `1px dashed ${theme.palette.divider}`,
   },
   chip: { margin: '0 10px 10px 0' },
   text: {
@@ -168,15 +168,17 @@ const InjectAddChallenges: FunctionComponent<Props> = ({
       </ListItemButton>
       <Dialog
         open={open}
-        TransitionComponent={Transition}
+        slots={{ transition: Transition }}
         onClose={handleClose}
         fullWidth
         maxWidth="lg"
-        PaperProps={{
-          elevation: 1,
-          sx: {
-            minHeight: 580,
-            maxHeight: 580,
+        slotProps={{
+          paper: {
+            elevation: 1,
+            sx: {
+              minHeight: 580,
+              maxHeight: 580,
+            },
           },
         }}
       >

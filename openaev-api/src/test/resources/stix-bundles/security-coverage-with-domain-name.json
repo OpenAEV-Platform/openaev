@@ -1,0 +1,342 @@
+{
+  "internal": {
+    "work_id": "work_68949a7b-c1c2-4649-b3de-7db804ba02bb_2025-10-27T23:29:34.933Z"
+  },
+  "event": {
+    "stix_objects": {
+      "id" : "6a8530c0-1fdf-4529-8664-1fedac53d72e",
+      "spec_version" : "2.1",
+      "type" : "bundle",
+      "objects" : [ {
+        "id" : "security-coverage--647dcf87-f029-5bb2-806c-0f27c6f258ba",
+        "spec_version" : "2.1",
+        "type" : "security-coverage",
+        "extensions" : {
+          "extension-definition--ea279b3e-5c71-4632-ac08-831c66a786ba" : {
+            "extension_type" : "new-sdo",
+            "id" : "2077b83b-f4c6-4bdc-a4c2-903aa4f49636",
+            "type" : "Security-Coverage",
+            "created_at" : "2025-12-12T13:51:00.721Z",
+            "updated_at" : "2025-12-12T15:51:35.546Z",
+            "is_inferred" : false,
+            "creator_ids" : [ "88ec0c6a-13ce-5e39-b486-354fe4a7084f" ]
+          }
+        },
+        "created" : "2025-12-12T13:51:00.721Z",
+        "modified" : "2026-12-31T18:00:00.000Z",
+        "revoked" : false,
+        "confidence" : 100,
+        "lang" : "en",
+        "name" : "test domain name",
+        "covered" : false,
+        "periodicity" : "P1D",
+        "covered_ref" : "report--173f976d-2420-541d-9c26-b750612f0a55"
+      }, {
+        "id" : "report--173f976d-2420-541d-9c26-b750612f0a55",
+        "spec_version" : "2.1",
+        "type" : "report",
+        "extensions" : {
+          "extension-definition--ea279b3e-5c71-4632-ac08-831c66a786ba" : {
+            "extension_type" : "property-extension",
+            "id" : "45f65375-d803-4d95-adb3-41c48da71353",
+            "type" : "Report",
+            "created_at" : "2025-12-12T13:46:25.911Z",
+            "updated_at" : "2025-12-12T15:51:35.490Z",
+            "is_inferred" : false,
+            "creator_ids" : [ "88ec0c6a-13ce-5e39-b486-354fe4a7084f" ],
+            "workflow_id" : "923c3254-7113-4aa6-8ff2-24cf4f73e5ea"
+          }
+        },
+        "created" : "2025-12-12T13:46:09.000Z",
+        "modified" : "2025-12-12T15:51:35.490Z",
+        "revoked" : false,
+        "confidence" : 100,
+        "lang" : "en",
+        "name" : "test domain name",
+        "published" : "2025-12-12T13:46:09.000Z",
+        "object_refs" : [ "vulnerability--9f0f2192-4f07-56bb-b706-6ae48786bd8f", "indicator--2ee671b4-b671-5c38-9e29-72e52d135ece", "indicator--6ed368e7-88c7-5b2e-a495-1702f14cbc2e", "indicator--6d50812d-2a04-5051-b4f7-996d3dc83769", "indicator--b25e035d-8e92-5724-91c9-28cf91cacfbf", "indicator--31e01321-c27f-514f-9d37-3baaf7af37a4", "indicator--5ffd80cc-f6b3-58e5-99ca-13fad4ad35fc", "attack-pattern--2f80cb47-7eed-5ca9-9ce4-583e4611c56c" ]
+      }, {
+        "id" : "attack-pattern--2f80cb47-7eed-5ca9-9ce4-583e4611c56c",
+        "spec_version" : "2.1",
+        "type" : "attack-pattern",
+        "extensions" : {
+          "extension-definition--ea279b3e-5c71-4632-ac08-831c66a786ba" : {
+            "extension_type" : "property-extension",
+            "id" : "75443baa-ddba-475b-8920-b7434a17c288",
+            "type" : "Attack-Pattern",
+            "created_at" : "2025-12-12T13:50:23.982Z",
+            "updated_at" : "2025-12-12T13:50:23.982Z",
+            "is_inferred" : false,
+            "creator_ids" : [ "88ec0c6a-13ce-5e39-b486-354fe4a7084f" ]
+          },
+          "extension-definition--322b8f77-262a-4cb8-a915-1e441e00329b" : {
+            "extension_type" : "property-extension",
+            "id" : "T1504"
+          }
+        },
+        "created" : "2025-12-12T13:50:23.982Z",
+        "modified" : "2025-12-12T13:50:23.982Z",
+        "revoked" : false,
+        "confidence" : 100,
+        "lang" : "en",
+        "name" : "test attack pattern"
+      }, {
+        "id" : "indicator--b25e035d-8e92-5724-91c9-28cf91cacfbf",
+        "spec_version" : "2.1",
+        "type" : "indicator",
+        "extensions" : {
+          "extension-definition--ea279b3e-5c71-4632-ac08-831c66a786ba" : {
+            "extension_type" : "property-extension",
+            "id" : "34f6b449-0a1e-4b85-8cd2-f53189543656",
+            "type" : "Indicator",
+            "created_at" : "2025-12-12T14:09:21.832Z",
+            "updated_at" : "2025-12-12T14:09:21.832Z",
+            "is_inferred" : false,
+            "creator_ids" : [ "88ec0c6a-13ce-5e39-b486-354fe4a7084f" ],
+            "detection" : false,
+            "score" : 50,
+            "main_observable_type" : "Domain-Name",
+            "observable_values" : [ {
+              "type" : "Domain-Name",
+              "value" : "google.com"
+            } ]
+          },
+          "extension-definition--322b8f77-262a-4cb8-a915-1e441e00329b" : {
+            "extension_type" : "property-extension"
+          }
+        },
+        "created" : "2025-12-12T14:09:21.832Z",
+        "modified" : "2025-12-12T14:09:21.832Z",
+        "revoked" : false,
+        "confidence" : 100,
+        "lang" : "en",
+        "name" : "test indicator dns malicious",
+        "pattern" : "[domain-name:value = 'google.com']",
+        "pattern_type" : "stix",
+        "valid_from" : "2025-12-12T14:09:21.801Z",
+        "valid_until" : "2026-03-25T05:04:30.061Z"
+      }, {
+        "id" : "indicator--5ffd80cc-f6b3-58e5-99ca-13fad4ad35fc",
+        "spec_version" : "2.1",
+        "type" : "indicator",
+        "extensions" : {
+          "extension-definition--ea279b3e-5c71-4632-ac08-831c66a786ba" : {
+            "extension_type" : "property-extension",
+            "id" : "8d5ea9fb-42ab-4db3-b845-d7761c3606ea",
+            "type" : "Indicator",
+            "created_at" : "2025-12-12T13:57:03.260Z",
+            "updated_at" : "2025-12-12T13:57:03.260Z",
+            "stix_ids" : [ "indicator--2efe7c62-1b96-4568-81ee-c85b840bde39" ],
+            "is_inferred" : false,
+            "creator_ids" : [ "88ec0c6a-13ce-5e39-b486-354fe4a7084f" ],
+            "detection" : false,
+            "score" : 50,
+            "main_observable_type" : "Unknown",
+            "observable_values" : [ {
+              "type" : "Domain-Name",
+              "value" : "sh.chromeenter.com"
+            }, {
+              "type" : "IPv4-Addr",
+              "value" : "60.2.148.167"
+            } ]
+          },
+          "extension-definition--322b8f77-262a-4cb8-a915-1e441e00329b" : {
+            "extension_type" : "property-extension"
+          }
+        },
+        "created" : "2015-05-15T09:12:16.432Z",
+        "modified" : "2015-05-15T09:12:16.432Z",
+        "revoked" : true,
+        "confidence" : 100,
+        "lang" : "en",
+        "name" : "sh.chromeenter.com",
+        "description" : "The sample e6ca06e9b000933567a8604300094a85 connected to the domain sh.chromeenter.com with the password happyyongzi. The domain sh.chromeenter.com previously resolved to the IP 60.2.148.167.",
+        "indicator_types" : [ "attribution", "malicious-activity" ],
+        "pattern" : "[domain-name:value = 'sh.chromeenter.com' OR ipv4-addr:value = '60.2.148.167']",
+        "pattern_type" : "stix",
+        "valid_from" : "2015-05-15T09:12:16.432Z",
+        "valid_until" : "2016-08-27T09:12:16.432Z"
+      }, {
+        "id" : "indicator--6ed368e7-88c7-5b2e-a495-1702f14cbc2e",
+        "spec_version" : "2.1",
+        "type" : "indicator",
+        "extensions" : {
+          "extension-definition--ea279b3e-5c71-4632-ac08-831c66a786ba" : {
+            "extension_type" : "property-extension",
+            "id" : "586774e5-7ba1-4b70-81fd-d53af12c311e",
+            "type" : "Indicator",
+            "created_at" : "2025-12-12T13:57:03.315Z",
+            "updated_at" : "2025-12-12T13:57:03.315Z",
+            "stix_ids" : [ "indicator--b8322c9b-8031-4fb3-9cbc-8a1ea0fe3cfa" ],
+            "is_inferred" : false,
+            "creator_ids" : [ "88ec0c6a-13ce-5e39-b486-354fe4a7084f" ],
+            "detection" : false,
+            "score" : 50,
+            "main_observable_type" : "Unknown",
+            "observable_values" : [ {
+              "type" : "Domain-Name",
+              "value" : "mf.ddns.info"
+            }, {
+              "type" : "IPv4-Addr",
+              "value" : "60.2.148.167"
+            } ]
+          },
+          "extension-definition--322b8f77-262a-4cb8-a915-1e441e00329b" : {
+            "extension_type" : "property-extension"
+          }
+        },
+        "created" : "2015-05-15T09:12:16.432Z",
+        "modified" : "2015-05-15T09:12:16.432Z",
+        "revoked" : true,
+        "confidence" : 100,
+        "lang" : "en",
+        "name" : "mf.ddns.info",
+        "description" : "The sample 56cff0d0e0ce486aa0b9e4bc0bf2a141 was compiled on 2011-08-31 and connected to mf.ddns.info with the password menuPass. The domain mf.ddns.info resolved to 54.241.8.84 on November 22, 2012. This same IP also hosted the domain av.ddns.us on the same date.",
+        "indicator_types" : [ "attribution", "malicious-activity" ],
+        "pattern" : "[domain-name:value = 'mf.ddns.info' OR ipv4-addr:value = '60.2.148.167']",
+        "pattern_type" : "stix",
+        "valid_from" : "2015-05-15T09:12:16.432Z",
+        "valid_until" : "2016-08-27T09:12:16.432Z"
+      }, {
+        "id" : "indicator--6d50812d-2a04-5051-b4f7-996d3dc83769",
+        "spec_version" : "2.1",
+        "type" : "indicator",
+        "extensions" : {
+          "extension-definition--ea279b3e-5c71-4632-ac08-831c66a786ba" : {
+            "extension_type" : "property-extension",
+            "id" : "f2357fbc-148a-4a23-bd84-b3a21a34a75a",
+            "type" : "Indicator",
+            "created_at" : "2025-12-12T13:57:03.159Z",
+            "updated_at" : "2025-12-12T13:57:03.159Z",
+            "stix_ids" : [ "indicator--4d58096e-b5c9-47d8-af9a-1af5f4762d6b" ],
+            "is_inferred" : false,
+            "creator_ids" : [ "88ec0c6a-13ce-5e39-b486-354fe4a7084f" ],
+            "detection" : false,
+            "score" : 50,
+            "main_observable_type" : "Unknown",
+            "observable_values" : [ {
+              "type" : "Domain-Name",
+              "value" : "weile3322b.3322.org"
+            } ]
+          },
+          "extension-definition--322b8f77-262a-4cb8-a915-1e441e00329b" : {
+            "extension_type" : "property-extension"
+          }
+        },
+        "created" : "2015-05-15T09:12:16.432Z",
+        "modified" : "2015-05-15T09:12:16.432Z",
+        "revoked" : true,
+        "confidence" : 100,
+        "lang" : "en",
+        "name" : "weile3322b.3322.org",
+        "description" : "The sample 39a59411e7b12236c0b4351168fb47ce had a compile time of April 2, 2010 and connected to weile3322b.3322.org with the password keaidestone.",
+        "indicator_types" : [ "attribution", "malicious-activity" ],
+        "pattern" : "[domain-name:value = 'weile3322b.3322.org']",
+        "pattern_type" : "stix",
+        "valid_from" : "2015-05-15T09:12:16.432Z",
+        "valid_until" : "2016-08-27T09:12:16.432Z"
+      }, {
+        "id" : "indicator--2ee671b4-b671-5c38-9e29-72e52d135ece",
+        "spec_version" : "2.1",
+        "type" : "indicator",
+        "extensions" : {
+          "extension-definition--ea279b3e-5c71-4632-ac08-831c66a786ba" : {
+            "extension_type" : "property-extension",
+            "id" : "5db714ba-5584-4be0-a3e1-fcdf9631506c",
+            "type" : "Indicator",
+            "created_at" : "2025-12-12T13:57:03.103Z",
+            "updated_at" : "2025-12-12T13:57:03.103Z",
+            "stix_ids" : [ "indicator--405ff732-2c35-4f46-9f78-2a632ce36e03" ],
+            "is_inferred" : false,
+            "creator_ids" : [ "88ec0c6a-13ce-5e39-b486-354fe4a7084f" ],
+            "detection" : false,
+            "score" : 50,
+            "main_observable_type" : "Unknown",
+            "observable_values" : [ {
+              "type" : "Domain-Name",
+              "value" : "fbi.zyns.com"
+            }, {
+              "type" : "IPv4-Addr",
+              "value" : "60.10.1.118"
+            } ]
+          },
+          "extension-definition--322b8f77-262a-4cb8-a915-1e441e00329b" : {
+            "extension_type" : "property-extension"
+          }
+        },
+        "created" : "2015-05-15T09:12:16.432Z",
+        "modified" : "2015-05-15T09:12:16.432Z",
+        "revoked" : true,
+        "confidence" : 100,
+        "lang" : "en",
+        "name" : "fbi.zyns.com",
+        "description" : "The domain fbi.zyns.com resolved to 60.10.1.118 on August 21, 2012. 68fec995a13762184a2616bda86757f8 had a compile time of March 25, 2012 and connected to fbi.zyns.com with the password menuPass.",
+        "indicator_types" : [ "attribution", "malicious-activity" ],
+        "pattern" : "[domain-name:value = 'fbi.zyns.com' OR ipv4-addr:value = '60.10.1.118']",
+        "pattern_type" : "stix",
+        "valid_from" : "2015-05-15T09:12:16.432Z",
+        "valid_until" : "2016-08-27T09:12:16.432Z"
+      }, {
+        "id" : "indicator--31e01321-c27f-514f-9d37-3baaf7af37a4",
+        "spec_version" : "2.1",
+        "type" : "indicator",
+        "extensions" : {
+          "extension-definition--ea279b3e-5c71-4632-ac08-831c66a786ba" : {
+            "extension_type" : "property-extension",
+            "id" : "e4383026-9f0a-47f1-ba68-ff5eeed0e3d2",
+            "type" : "Indicator",
+            "created_at" : "2025-12-12T13:57:02.243Z",
+            "updated_at" : "2025-12-12T13:57:02.243Z",
+            "stix_ids" : [ "indicator--e8094b09-7df4-4b13-b207-1e27af3c4bde" ],
+            "is_inferred" : false,
+            "creator_ids" : [ "88ec0c6a-13ce-5e39-b486-354fe4a7084f" ],
+            "detection" : false,
+            "score" : 50,
+            "main_observable_type" : "Unknown",
+            "observable_values" : [ {
+              "type" : "IPv4-Addr",
+              "value" : "219.76.208.163"
+            } ]
+          },
+          "extension-definition--322b8f77-262a-4cb8-a915-1e441e00329b" : {
+            "extension_type" : "property-extension"
+          }
+        },
+        "created" : "2015-05-15T09:12:16.432Z",
+        "modified" : "2015-05-15T09:12:16.432Z",
+        "revoked" : true,
+        "confidence" : 100,
+        "lang" : "en",
+        "name" : "IP address: 219.76.208.163",
+        "description" : "IP address for key@123 sample 808e21d6efa2884811fbd0adf67fda78",
+        "indicator_types" : [ "attribution", "malicious-activity" ],
+        "pattern" : "[ipv4-addr:value = '219.76.208.163']",
+        "pattern_type" : "stix",
+        "valid_from" : "2015-05-15T09:12:16.432Z",
+        "valid_until" : "2016-08-27T09:12:16.432Z"
+      }, {
+        "id" : "vulnerability--9f0f2192-4f07-56bb-b706-6ae48786bd8f",
+        "spec_version" : "2.1",
+        "type" : "vulnerability",
+        "extensions" : {
+          "extension-definition--ea279b3e-5c71-4632-ac08-831c66a786ba" : {
+            "extension_type" : "property-extension",
+            "id" : "b8391340-d6ef-4621-b5c4-e32b51d9230e",
+            "type" : "Vulnerability",
+            "created_at" : "2025-12-12T14:17:27.775Z",
+            "updated_at" : "2025-12-12T14:17:27.775Z",
+            "is_inferred" : false,
+            "creator_ids" : [ "88ec0c6a-13ce-5e39-b486-354fe4a7084f" ],
+            "cisa_kev" : false
+          }
+        },
+        "created" : "2025-12-12T14:17:27.775Z",
+        "modified" : "2025-12-12T14:17:27.775Z",
+        "revoked" : false,
+        "confidence" : 100,
+        "lang" : "en",
+        "name" : "CVE1234"
+      } ]
+    }
+  }
+}

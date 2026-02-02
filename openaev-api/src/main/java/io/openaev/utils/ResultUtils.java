@@ -18,6 +18,16 @@ import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+/**
+ * Component for computing and aggregating expectation results across exercises and scenarios.
+ *
+ * <p>Provides methods to calculate global expectation results, filter by security platform, and
+ * group results by attack patterns. This component is essential for generating reports and
+ * dashboards that show the overall effectiveness of security controls.
+ *
+ * @see ExpectationResultsByType
+ * @see InjectExpectationMapper
+ */
 @RequiredArgsConstructor
 @Component
 public class ResultUtils {
@@ -25,6 +35,15 @@ public class ResultUtils {
   private final InjectExpectationRepository injectExpectationRepository;
   private final InjectExpectationMapper injectExpectationMapper;
 
+  /**
+   * Computes global expectation results across all specified injects.
+   *
+   * <p>Aggregates expectation results by type (Prevention, Detection, Vulnerability, Human
+   * Response) for the given set of inject IDs using optimized raw database queries.
+   *
+   * @param injectIds the set of inject IDs to compute results for
+   * @return a list of aggregated results by expectation type, or empty list if no injects provided
+   */
   public List<ExpectationResultsByType> computeGlobalExpectationResults(Set<String> injectIds) {
 
     if (injectIds == null || injectIds.isEmpty()) {
@@ -37,6 +56,17 @@ public class ResultUtils {
     return injectExpectationMapper.extractExpectationResultByTypesFromRaw(injectIds, expectations);
   }
 
+  /**
+   * Computes global expectation results filtered by a specific security platform.
+   *
+   * <p>Similar to {@link #computeGlobalExpectationResults(Set)} but filters expectation results to
+   * only include those from the specified security platform. Results are cloned to avoid modifying
+   * the original expectations, and scores are recalculated based on platform-specific results.
+   *
+   * @param injectIds the set of inject IDs to compute results for
+   * @param securityPlatform the security platform to filter results by
+   * @return a list of aggregated results filtered to the specified platform
+   */
   public List<ExpectationResultsByType> computeGlobalExpectationResultsForPlatform(
       Set<String> injectIds, SecurityPlatform securityPlatform) {
 
@@ -65,6 +95,16 @@ public class ResultUtils {
     return injectExpectationMapper.extractExpectationResultByTypes(injectIds, expectations);
   }
 
+  /**
+   * Computes inject expectation results grouped by attack pattern.
+   *
+   * <p>Organizes the expectations from the provided injects by their associated attack patterns.
+   * Each inject may be linked to multiple attack patterns through its injector contract, resulting
+   * in grouped results suitable for MITRE ATT&CK matrix visualization.
+   *
+   * @param injects the list of injects to process (must not be null)
+   * @return a list of expectation results grouped by attack pattern
+   */
   public List<InjectExpectationResultsByAttackPattern> computeInjectExpectationResults(
       @NotNull final List<Inject> injects) {
 
@@ -87,7 +127,7 @@ public class ResultUtils {
     return groupedByAttackPattern.entrySet().stream()
         .map(
             entry ->
-                injectExpectationMapper.toInjectExpectationResultsByattackPattern(
+                injectExpectationMapper.toInjectExpectationResultsByAttackPattern(
                     entry.getKey(), entry.getValue()))
         .toList();
   }

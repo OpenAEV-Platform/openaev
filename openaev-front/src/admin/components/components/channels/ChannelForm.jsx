@@ -24,7 +24,7 @@ class ChannelFormComponent extends Component {
     const { t, onSubmit, handleClose, initialValues, editing } = this.props;
     return (
       <Form
-        keepDirtyOnReinitialize={true}
+        keepDirtyOnReinitialize
         initialValues={initialValues}
         onSubmit={onSubmit}
         validate={this.validate.bind(this)}
@@ -40,7 +40,7 @@ class ChannelFormComponent extends Component {
               variant="standard"
               label={t('Type')}
               name="channel_type"
-              fullWidth={true}
+              fullWidth
             >
               <MenuItem key="newspaper" value="newspaper">
                 {t('newspaper')}
@@ -55,14 +55,14 @@ class ChannelFormComponent extends Component {
             <OldTextField
               variant="standard"
               name="channel_name"
-              fullWidth={true}
+              fullWidth
               label={t('Name')}
               style={{ marginTop: 20 }}
             />
             <OldTextField
               variant="standard"
               name="channel_description"
-              fullWidth={true}
+              fullWidth
               label={t('Subtitle')}
               style={{ marginTop: 20 }}
             />

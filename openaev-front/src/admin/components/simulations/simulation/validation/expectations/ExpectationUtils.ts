@@ -36,7 +36,7 @@ export const isPlayerExpectation = (injectExpectation: InjectExpectation) => {
 export const useIsManuallyUpdatable = (injectExpectation: InjectExpectation) => {
   // Technical
   if (['DETECTION', 'PREVENTION'].includes(injectExpectation.inject_expectation_type)) {
-    if (isAssetGroupExpectation(injectExpectation)) return false;
+    if (isAssetGroupExpectation(injectExpectation) || isAgentExpectation(injectExpectation)) return false;
 
     return true;
   }

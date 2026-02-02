@@ -2,9 +2,7 @@ import { Position } from '@xyflow/react';
 
 import { type Direction } from './algorithms';
 
-// eslint-disable-next-line consistent-return
-export function getSourceHandlePosition(direction: Direction) {
-  // eslint-disable-next-line default-case
+export function getSourceHandlePosition(direction: Direction): Position {
   switch (direction) {
     case 'TB':
       return Position.Bottom;
@@ -14,12 +12,12 @@ export function getSourceHandlePosition(direction: Direction) {
       return Position.Right;
     case 'RL':
       return Position.Left;
+    default:
+      return Position.Bottom;
   }
 }
 
-// eslint-disable-next-line consistent-return
-export function getTargetHandlePosition(direction: Direction) {
-  // eslint-disable-next-line default-case
+export function getTargetHandlePosition(direction: Direction): Position {
   switch (direction) {
     case 'TB':
       return Position.Top;
@@ -29,6 +27,8 @@ export function getTargetHandlePosition(direction: Direction) {
       return Position.Left;
     case 'RL':
       return Position.Right;
+    default:
+      return Position.Top;
   }
 }
 

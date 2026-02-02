@@ -3,7 +3,7 @@ package io.openaev.rest.inject.service;
 import static io.openaev.expectation.ExpectationType.VULNERABILITY;
 import static io.openaev.utils.ExecutionTraceUtils.convertExecutionAction;
 import static io.openaev.utils.ExpectationUtils.*;
-import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.buildForVulnerabilityManager;
+import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildForVulnerabilityManager;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
@@ -44,6 +45,7 @@ public class InjectExecutionService {
 
   @Resource protected ObjectMapper mapper;
 
+  @Transactional
   public void handleInjectExecutionCallback(
       String injectId, String agentId, InjectExecutionInput input) {
     Inject inject = null;
@@ -83,7 +85,6 @@ public class InjectExecutionService {
   }
 
   /** Processes the execution of an inject by updating its status and extracting findings. */
-  @VisibleForTesting
   public void processInjectExecution(
       Inject inject,
       @Nullable Agent agent,
@@ -237,7 +238,7 @@ public class InjectExecutionService {
         .orElseThrow(() -> new ElementNotFoundException("Inject not found: " + injectId));
   }
 
-  private void handleInjectExecutionError(Inject inject, Exception e) {
+  public void handleInjectExecutionError(Inject inject, Exception e) {
     log.error(e.getMessage(), e);
     if (inject != null) {
       inject

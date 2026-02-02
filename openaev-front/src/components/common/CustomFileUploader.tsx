@@ -72,7 +72,7 @@ const CustomFileUploader: FunctionComponent<CustomFileUploadProps> = ({
     const newFileName = eventTargetValue.substring(
       eventTargetValue.lastIndexOf('\\') + 1,
     );
-    setFileNameForDisplay(truncate(newFileName, 60));
+    setFileNameForDisplay(truncate(newFileName, 60) ?? '');
     setErrorText('');
 
     // check the file type; user might still provide something bypassing 'accept'

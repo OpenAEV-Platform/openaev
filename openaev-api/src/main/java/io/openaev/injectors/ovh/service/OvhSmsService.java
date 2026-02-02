@@ -5,7 +5,7 @@ import static java.util.Collections.singletonList;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.execution.ExecutionContext;
-import io.openaev.injectors.ovh.config.OvhSmsConfig;
+import io.openaev.injectors.ovh.config.OvhSmsInjectorConfig;
 import jakarta.annotation.Resource;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
@@ -15,16 +15,17 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Date;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class OvhSmsService {
 
   private static final String METHOD = "POST";
   @Resource private ObjectMapper mapper;
 
-  private OvhSmsConfig config;
+  private final OvhSmsInjectorConfig config;
 
   @SuppressWarnings({
     "StringBufferMayBeStringBuilder",
@@ -46,11 +47,6 @@ public class OvhSmsService {
       } while (two_halfs++ < 1);
     }
     return buf.toString();
-  }
-
-  @Autowired
-  public void setConfig(OvhSmsConfig config) {
-    this.config = config;
   }
 
   public String sendSms(ExecutionContext context, String phone, String message) throws Exception {

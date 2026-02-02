@@ -13,7 +13,25 @@ import java.util.*;
 import java.util.stream.Collectors;
 import org.apache.coyote.BadRequestException;
 
+/**
+ * Utility class for processing security coverage data from STIX bundles.
+ *
+ * <p>Provides methods for extracting and validating security coverage objects from STIX 2.1
+ * bundles, as well as mapping STIX identifiers to external references (e.g., MITRE ATT&CK IDs).
+ *
+ * <p>Security coverage objects represent the mapping between security controls and attack
+ * techniques, used for evaluating defensive capabilities.
+ *
+ * <p>This is a utility class and cannot be instantiated.
+ *
+ * @see io.openaev.stix.objects.Bundle
+ * @see io.openaev.database.model.StixRefToExternalRef
+ */
 public class SecurityCoverageUtils {
+
+  private static final String DOMAIN_NAME = "Domain-Name";
+
+  private SecurityCoverageUtils() {}
 
   /**
    * Extracts and validates the {@code x-security-coverage} object from a STIX bundle.
@@ -59,7 +77,21 @@ public class SecurityCoverageUtils {
         }
       }
 
-      if (obj.hasProperty(STIX_NAME) && StringUtils.isBlank(refId)) {
+      boolean isIndicator = false;
+      if (ObjectTypes.INDICATOR.toString().equals(stixType)) {
+        if (obj.hasExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION)) {
+          Dictionary extensionObj =
+              (Dictionary) obj.getExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION);
+          List<Dictionary> observables =
+              obj.getExtensionObservables(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION);
+          if (extensionObj.has(CommonProperties.ID.toString()) && hasDomainNameType(observables)) {
+            refId = getDomainNameValue(observables);
+          }
+          isIndicator = true;
+        }
+      }
+
+      if (obj.hasProperty(STIX_NAME) && StringUtils.isBlank(refId) && !isIndicator) {
         refId = (String) obj.getProperty(STIX_NAME).getValue();
       }
 
@@ -75,12 +107,45 @@ public class SecurityCoverageUtils {
   }
 
   /**
-   * @param objectRefs the list of STIX objects to scan
-   * @return a set of {@link StixRefToExternalRef} mappings between STIX and MITRE IDs
+   * Extracts external reference IDs from a set of STIX-to-external mappings.
+   *
+   * <p>Returns only the external reference portion (e.g., MITRE ATT&CK IDs) from the mapping
+   * objects, useful for lookups against external databases.
+   *
+   * @param objectRefs the set of STIX-to-external reference mappings
+   * @return a set of external reference IDs
    */
   public static Set<String> getExternalIds(Set<StixRefToExternalRef> objectRefs) {
     return objectRefs.stream()
         .map(StixRefToExternalRef::getExternalRef)
         .collect(Collectors.toSet());
+  }
+
+  private static boolean hasDomainNameType(List<Dictionary> observables) {
+    if (observables == null || observables.isEmpty()) {
+      return false;
+    }
+
+    return observables.stream()
+        .anyMatch(
+            observable ->
+                DOMAIN_NAME.equals(observable.get(CommonProperties.TYPE.toString()).getValue()));
+  }
+
+  private static String getDomainNameValue(List<Dictionary> observables) {
+    if (!hasDomainNameType(observables)) {
+      return null;
+    }
+
+    Dictionary domainName =
+        observables.stream()
+            .filter(
+                observable ->
+                    DOMAIN_NAME.equals(observable.get(CommonProperties.TYPE.toString()).getValue()))
+            .findFirst()
+            .orElse(null);
+    return domainName != null
+        ? (String) domainName.get(CommonProperties.VALUE.toString()).getValue()
+        : null;
   }
 }

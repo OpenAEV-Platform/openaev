@@ -25,7 +25,7 @@ import ItemTags from '../../../../../components/ItemTags';
 import SearchFilter from '../../../../../components/SearchFilter';
 import { useHelper } from '../../../../../store';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
-import useSearchAnFilter from '../../../../../utils/SortingFiltering';
+import useSearchAndFilter from '../../../../../utils/SortingFiltering';
 import { PermissionsContext, TeamContext } from '../../../common/Context';
 import TagsFilter from '../../../common/filters/TagsFilter';
 import InjectIcon from '../../../common/injects/InjectIcon';
@@ -200,7 +200,7 @@ const Mails = () => {
 
   // Filter and sort hook
   const searchColumns = ['title', 'description', 'content'];
-  const filtering = useSearchAnFilter('inject', 'sent_at', searchColumns);
+  const filtering = useSearchAndFilter('inject', 'sent_at', searchColumns);
   // Fetching data
   const { exerciseId } = useParams();
   const { exercise, injects } = useHelper((helper) => {

@@ -15,21 +15,54 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Component;
 
+/**
+ * Mapper component for converting Scenario entities to output DTOs.
+ *
+ * <p>Provides methods for transforming scenario domain objects and raw database results into API
+ * response objects, including simple representations and full output formats.
+ *
+ * @see io.openaev.database.model.Scenario
+ * @see io.openaev.rest.scenario.form.ScenarioSimple
+ * @see io.openaev.rest.scenario.response.ScenarioOutput
+ */
 @RequiredArgsConstructor
 @Component
 @Slf4j
 public class ScenarioMapper {
 
+  /**
+   * Converts a scenario entity to a simplified DTO.
+   *
+   * @param scenario the scenario to convert (must not be null)
+   * @return the simplified scenario DTO
+   */
   public ScenarioSimple toScenarioSimple(@NotNull final Scenario scenario) {
     ScenarioSimple simple = new ScenarioSimple();
     BeanUtils.copyProperties(scenario, simple);
     return simple;
   }
 
+  /**
+   * Converts a set of articles to related entity outputs with scenario context.
+   *
+   * @param articles the articles to convert
+   * @return set of related entity output DTOs including scenario context
+   */
   public static Set<RelatedEntityOutput> toScenarioArticles(Set<Article> articles) {
     return articles.stream().map(article -> toScenarioArticle(article)).collect(Collectors.toSet());
   }
 
+  /**
+   * Converts raw scenario data to a full output DTO.
+   *
+   * <p>Assembles a comprehensive scenario output from raw database results and pre-resolved related
+   * entities.
+   *
+   * @param rawScenario the raw scenario data
+   * @param killChainPhases the resolved kill chain phases
+   * @param scenarioTeamUsers the resolved team users
+   * @return the full scenario output DTO
+   */
   public ScenarioOutput toScenarioOutput(
       RawScenario rawScenario,
       Set<KillChainPhaseOutput> killChainPhases,
@@ -80,6 +113,12 @@ public class ScenarioMapper {
         .build();
   }
 
+  /**
+   * Converts a set of injects to related entity outputs with scenario context.
+   *
+   * @param injects the injects to convert
+   * @return set of related entity output DTOs including scenario context
+   */
   public static Set<RelatedEntityOutput> toScenarioInjects(Set<Inject> injects) {
     return injects.stream().map(inject -> toScenarioInject(inject)).collect(Collectors.toSet());
   }

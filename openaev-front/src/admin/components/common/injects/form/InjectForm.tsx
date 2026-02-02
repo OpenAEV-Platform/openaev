@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { useContext, useEffect, useState } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -103,6 +104,7 @@ const InjectForm = ({
 }: Props) => {
   const { classes } = useStyles();
   const { t } = useFormatter();
+  const theme = useTheme();
   const { permissions } = useContext(PermissionsContext);
   const [fieldsMapByKey, setFieldsMapByKey] = useState<Record<ContractElement['key'], ContractElement>>({});
   const [enhancedFields, setEnhancedFields] = useState<EnhancedContractElement[]>([]);
@@ -281,7 +283,7 @@ const InjectForm = ({
   useEffect(() => {
     const fieldsToSubscribe: (keyof InjectInputForm)[] = [];
     injectorContractContent?.fields.forEach((field) => {
-      if (field.key == 'teams') {
+      if (field.key === 'teams') {
         fieldsToSubscribe.push('inject_all_teams');
       }
       if (field.mandatoryConditionFields?.length) {
@@ -502,7 +504,13 @@ const InjectForm = ({
           />
         )}
 
-        <div className={classes.injectFormButtonsContainer}>
+        <div
+          className={classes.injectFormButtonsContainer}
+          style={{
+            marginBottom: theme.spacing(2),
+            marginRight: theme.spacing(2),
+          }}
+        >
           <Button
             variant="contained"
             onClick={handleClose}

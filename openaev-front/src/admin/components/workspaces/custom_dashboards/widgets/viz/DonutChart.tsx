@@ -1,5 +1,5 @@
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useContext } from 'react';
+import { type FunctionComponent, memo, useCallback, useContext, useMemo } from 'react';
 import Chart from 'react-apexcharts';
 import { makeStyles } from 'tss-react/mui';
 
@@ -28,36 +28,54 @@ const DonutChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, datas }:
 
   const { openWidgetDataDrawer } = useContext(CustomDashboardContext);
 
-  const onClick = (_: Event, config: {
+  // Memoize click handler
+  const onClick = useCallback((_: Event, config: {
     seriesIndex: number;
     dataPointIndex: number;
   }) => {
     const dataPoint = datas[config.dataPointIndex];
-
     openWidgetDataDrawer({
       widgetId,
       filter_values: [dataPoint?.meta ?? ''],
       series_index: config.seriesIndex,
     });
-  };
+  }, [datas, openWidgetDataDrawer, widgetId]);
 
-  const labels = datas.map(s => s?.x ?? t('-'));
-  // Apply custom color mapping only when the widget field represents a status breakdown
-  const isStatusBreakdown
-    = 'field' in widgetConfig && (widgetConfig.field.toLowerCase().includes('status') || widgetConfig.field.toLowerCase().includes('vulnerable_endpoint_action'));
-  const chartColors = isStatusBreakdown
-    ? labels.map(label => getStatusColor(theme, label))
-    : [];
+  // Memoize labels
+  const labels = useMemo(
+    () => datas.map(s => s?.x ?? t('-')),
+    [datas, t],
+  );
+
+  // Memoize chart colors
+  const chartColors = useMemo(() => {
+    const isStatusBreakdown = 'field' in widgetConfig
+      && (widgetConfig.field.toLowerCase().includes('status')
+        || widgetConfig.field.toLowerCase().includes('vulnerable_endpoint_action'));
+    return isStatusBreakdown ? labels.map(label => getStatusColor(theme, label)) : [];
+  }, [widgetConfig, labels, theme]);
+
+  // Memoize chart options
+  const options = useMemo(
+    () => donutChartOptions({
+      theme,
+      labels,
+      chartColors,
+      onClick,
+    }),
+    [theme, labels, chartColors, onClick],
+  );
+
+  // Memoize series data
+  const series = useMemo(
+    () => datas.map(s => s?.y ?? 0),
+    [datas],
+  );
 
   return (
     <Chart
-      options={donutChartOptions({
-        theme,
-        labels,
-        chartColors,
-        onClick,
-      })}
-      series={datas.map(s => s?.y ?? 0)}
+      options={options}
+      series={series}
       type="donut"
       width="100%"
       height="100%"
@@ -66,4 +84,4 @@ const DonutChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, datas }:
   );
 };
 
-export default DonutChart;
+export default memo(DonutChart);

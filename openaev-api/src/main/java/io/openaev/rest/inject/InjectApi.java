@@ -3,10 +3,14 @@ package io.openaev.rest.inject;
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.RBAC;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
+import io.openaev.config.OpenAEVConfig;
+import io.openaev.config.RabbitmqConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.ExerciseRepository;
@@ -21,12 +25,16 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.exports.ExportOptions;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.helper.queue.BatchQueueService;
+import io.openaev.rest.helper.queue.executor.BatchExecutionTraceExecutor;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.service.ExecutableInjectService;
 import io.openaev.rest.inject.service.InjectExecutionService;
 import io.openaev.rest.inject.service.InjectExportService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.payload.form.DetectionRemediationOutput;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.UserService;
 import io.openaev.service.targets.TargetService;
 import io.openaev.utils.FilterUtilsJpa;
@@ -36,15 +44,19 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
@@ -58,6 +70,7 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
+@Setter
 public class InjectApi extends RestBehavior {
 
   public static final String INJECT_URI = "/api/injects";
@@ -75,6 +88,30 @@ public class InjectApi extends RestBehavior {
   private final PayloadMapper payloadMapper;
   private final UserService userService;
   private final DocumentService documentService;
+  private final BatchExecutionTraceExecutor batchExecutionTraceExecutor;
+
+  private final RabbitmqConfig rabbitmqConfig;
+  private final OpenAEVConfig openAEVConfig;
+  private final ObjectMapper objectMapper;
+
+  private final PreviewFeatureService previewFeatureService;
+
+  // For testing purpose, we add a setter
+  @Setter private BatchQueueService<InjectExecutionCallback> injectTraceQueueService;
+
+  @PostConstruct
+  public void init() throws IOException, TimeoutException {
+    if (openAEVConfig.getQueueConfig().get("inject-trace") != null) {
+      // Initializing the queue for batching the inject execution trace
+      injectTraceQueueService =
+          new BatchQueueService<>(
+              InjectExecutionCallback.class,
+              batchExecutionTraceExecutor::handleInjectExecutionCallbackList,
+              rabbitmqConfig,
+              objectMapper,
+              openAEVConfig.getQueueConfig().get("inject-trace"));
+    }
+  }
 
   // -- INJECTS --
 
@@ -300,7 +337,8 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public void injectExecutionCallback(
-      @PathVariable String injectId, @Valid @RequestBody InjectExecutionInput input) {
+      @PathVariable String injectId, @Valid @RequestBody InjectExecutionInput input)
+      throws IOException {
     injectExecutionCallback(null, injectId, input);
   }
 
@@ -329,8 +367,23 @@ public class InjectApi extends RestBehavior {
       @PathVariable
           String agentId, // must allow null because http injector used also this method to work.
       @PathVariable String injectId,
-      @Valid @RequestBody InjectExecutionInput input) {
-    injectExecutionService.handleInjectExecutionCallback(injectId, agentId, input);
+      @Valid @RequestBody InjectExecutionInput input)
+      throws IOException {
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.LEGACY_INGESTION_EXECUTION_TRACE)
+        && injectTraceQueueService != null) {
+      InjectExecutionCallback injectExecutionCallback =
+          InjectExecutionCallback.builder()
+              .injectExecutionInput(input)
+              .agentId(agentId)
+              .injectId(injectId)
+              .emissionDate(Instant.now().toEpochMilli())
+              .build();
+
+      // Publishing the parameters into a queue for later ingestion
+      injectTraceQueueService.publish(injectExecutionCallback);
+    } else {
+      injectExecutionService.handleInjectExecutionCallback(injectId, agentId, input);
+    }
   }
 
   @GetMapping(INJECT_URI + "/{injectId}/{agentId}/executable-payload")
@@ -492,7 +545,8 @@ public class InjectApi extends RestBehavior {
       @RequestParam String injectId,
       @RequestParam String targetId,
       @RequestParam TargetType targetType) {
-    return this.injectService.getInjectTracesFromInjectAndTarget(injectId, targetId, targetType);
+    return this.injectService.getInjectTracesOutputFromInjectAndTarget(
+        injectId, targetId, targetType);
   }
 
   @Operation(description = "Get InjectStatus with global execution traces")
@@ -525,5 +579,10 @@ public class InjectApi extends RestBehavior {
     }
 
     return documentService.documentsForPayload(payloadId);
+  }
+
+  @VisibleForTesting
+  public BatchQueueService<InjectExecutionCallback> getInjectTraceQueueService() {
+    return injectTraceQueueService;
   }
 }

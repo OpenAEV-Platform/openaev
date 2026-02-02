@@ -12,8 +12,10 @@ import io.openaev.database.repository.InjectorRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutableInjectDTOMapper;
 import io.openaev.execution.ExecutionExecutorService;
+import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.InjectorService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.annotation.Resource;
 import java.io.IOException;
@@ -39,10 +41,12 @@ public class Executor {
 
   private final QueueService queueService;
   private final ActionMetricCollector actionMetricCollector;
+  private final ManagerFactory managerFactory;
 
   private final ExecutionExecutorService executionExecutorService;
   private final InjectStatusService injectStatusService;
   private final ExecutableInjectDTOMapper executableInjectDTOMapper;
+  private final ConnectorInstanceService connectorInstanceService;
 
   @Qualifier("coreInjectorService")
   private final InjectorService injectorService;
@@ -66,7 +70,8 @@ public class Executor {
   private InjectStatus executeInternal(ExecutableInject executableInject, Injector injector) {
     Inject inject = executableInject.getInjection().getInject();
     io.openaev.executors.Injector executor =
-        this.context.getBean(injector.getType(), io.openaev.executors.Injector.class);
+        managerFactory.getManager().requestInjectorExecutorByType(injector.getType());
+
     Execution execution = executor.executeInjection(executableInject);
     // After execution, expectations are already created
     // Injection status is filled after complete execution
@@ -77,8 +82,7 @@ public class Executor {
     return injectStatusRepository.save(completeStatus);
   }
 
-  public InjectStatus execute(ExecutableInject executableInject)
-      throws IOException, TimeoutException {
+  public InjectStatus execute(ExecutableInject executableInject) throws Exception {
     Inject inject = executableInject.getInjection().getInject();
     InjectorContract injectorContract =
         inject
@@ -99,6 +103,13 @@ public class Executor {
                         "Injector not found for type: "
                             + injectorContract.getInjector().getType()));
 
+    boolean hasStartedConnectorInstanceForInjector =
+        this.connectorInstanceService.hasStartedConnectorInstanceForInjector(injector.getId());
+    if (!hasStartedConnectorInstanceForInjector) {
+      throw new IllegalStateException(
+          "No started connector instance found for injector type: " + injector.getType());
+    }
+
     // Status
     InjectStatus updatedStatus =
         this.injectStatusService.initializeInjectStatus(inject.getId(), EXECUTING);
@@ -113,8 +124,7 @@ public class Executor {
     }
   }
 
-  public InjectStatus directExecute(ExecutableInject executableInject)
-      throws IOException, TimeoutException {
+  public InjectStatus directExecute(ExecutableInject executableInject) throws Exception {
     boolean isScheduledInject = !executableInject.isDirect();
     // If empty content, inject must be rejected
     Inject inject = executableInject.getInjection().getInject();

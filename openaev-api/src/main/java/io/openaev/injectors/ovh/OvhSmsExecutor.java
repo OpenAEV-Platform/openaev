@@ -11,6 +11,7 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ProtectUser;
 import io.openaev.executors.Injector;
+import io.openaev.executors.InjectorContext;
 import io.openaev.injectors.ovh.model.OvhSmsContent;
 import io.openaev.injectors.ovh.service.OvhSmsService;
 import io.openaev.model.ExecutionProcess;
@@ -23,16 +24,21 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-@Component(OvhSmsContract.TYPE)
-@RequiredArgsConstructor
 public class OvhSmsExecutor extends Injector {
 
   private final OvhSmsService smsService;
   private final InjectExpectationService injectExpectationService;
+
+  public OvhSmsExecutor(
+      InjectorContext context,
+      OvhSmsService smsService,
+      InjectExpectationService injectExpectationService) {
+    super(context);
+    this.smsService = smsService;
+    this.injectExpectationService = injectExpectationService;
+  }
 
   @Override
   public ExecutionProcess process(

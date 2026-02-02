@@ -1,9 +1,8 @@
 package io.openaev.utils.constants;
 
-import lombok.NoArgsConstructor;
+public final class StixConstants {
 
-@NoArgsConstructor
-public class StixConstants {
+  private StixConstants() {}
 
   public static final String STIX_NAME = "name";
   public static final String STIX_DESCRIPTION = "description";

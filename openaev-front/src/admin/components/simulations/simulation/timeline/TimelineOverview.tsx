@@ -26,7 +26,7 @@ import { EndpointContext } from '../../../../../utils/context/endpoint/EndpointC
 import endpointContextForExercise from '../../../../../utils/context/endpoint/EndpointContextForExercise';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
-import useSearchAnFilter from '../../../../../utils/SortingFiltering';
+import useSearchAndFilter from '../../../../../utils/SortingFiltering';
 import { isNotEmptyField } from '../../../../../utils/utils';
 import { ArticleContext, ChallengeContext, TeamContext } from '../../../common/Context';
 import TagsFilter from '../../../common/filters/TagsFilter';
@@ -89,13 +89,13 @@ const TimelineOverview = () => {
 
   // Sort
   const searchColumns = ['title', 'description', 'content'];
-  const filtering = useSearchAnFilter(
+  const filtering = useSearchAndFilter(
     'inject',
     'depends_duration',
     searchColumns,
   );
 
-  const isEnable = (inject: InjectStore): boolean => inject.inject_injector_contract?.convertedContent?.config.expose && !!inject.inject_enabled;
+  const isEnable = (inject: InjectStore): boolean => !!inject.inject_enabled;
   const filteredInjects: InjectStore[] = filtering.filterAndSort(injects.filter((inject: InjectStore) => isEnable(inject)));
   const pendingInjects: InjectStore[] = filtering.filterAndSort(filteredInjects.filter((inject: InjectStore) => inject.inject_status === null));
   const processedInjects: InjectStore[] = filtering.filterAndSort(filteredInjects.filter((i: InjectStore) => i.inject_status !== null));

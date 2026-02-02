@@ -5,7 +5,7 @@ import NotFound from './components/NotFound';
 import RedirectManager from './components/RedirectManager';
 import Root from './root';
 import { store } from './store';
-import { APP_BASE_PATH } from './utils/Action';
+import { APP_BASE_PATH } from './utils/Environment';
 
 const App = () => (
   <Provider store={store}>

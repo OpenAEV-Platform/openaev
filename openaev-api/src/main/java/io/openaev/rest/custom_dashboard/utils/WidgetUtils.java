@@ -7,7 +7,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
-public class WidgetUtils {
+public final class WidgetUtils {
+
+  private WidgetUtils() {}
 
   public static List<String> getColumnsFromBaseEntityName(String entityName) {
     return switch (entityName) {
@@ -64,28 +66,15 @@ public class WidgetUtils {
 
   public static String calcEndDate(String startDate, HistogramInterval interval) {
     OffsetDateTime date = OffsetDateTime.parse(startDate);
-    OffsetDateTime endDate;
-
-    switch (interval) {
-      case HistogramInterval.day:
-        endDate = date.plusDays(1);
-        break;
-      case HistogramInterval.week:
-        endDate = date.plusDays(7);
-        break;
-      case HistogramInterval.month:
-        endDate = date.plusMonths(1);
-        break;
-      case HistogramInterval.quarter:
-        endDate = date.plusMonths(3);
-        break;
-      case HistogramInterval.year:
-        endDate = date.plusYears(1);
-        break;
-      default:
-        return null;
-    }
-
+    OffsetDateTime endDate =
+        switch (interval) {
+          case hour -> date.plusHours(1);
+          case day -> date.plusDays(1);
+          case week -> date.plusDays(7);
+          case month -> date.plusMonths(1);
+          case quarter -> date.plusMonths(3);
+          case year -> date.plusYears(1);
+        };
     return endDate.format(DateTimeFormatter.ISO_INSTANT);
   }
 }

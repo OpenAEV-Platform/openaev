@@ -5,7 +5,7 @@ import static java.time.Instant.now;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MonoIdDeserializer;
+import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import java.time.Instant;
@@ -56,7 +56,7 @@ public class ChallengeFlag implements Base {
 
   @Getter
   @ManyToOne(fetch = FetchType.LAZY)
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JoinColumn(name = "flag_challenge")
   @JsonProperty("flag_challenge")
   @Schema(type = "string")
@@ -69,6 +69,9 @@ public class ChallengeFlag implements Base {
 
   @Override
   public boolean isUserHasAccess(User user) {
+    if (challenge == null) {
+      return user.isAdmin();
+    }
     return challenge.isUserHasAccess(user);
   }
 

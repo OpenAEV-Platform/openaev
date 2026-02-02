@@ -1,7 +1,7 @@
 package io.openaev.rest.inject_expectation;
 
-import static io.openaev.injectors.openaev.OpenAEVInjector.OPENAEV_INJECTOR_ID;
-import static io.openaev.injectors.openaev.OpenAEVInjector.OPENAEV_INJECTOR_NAME;
+import static io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegration.OPENAEV_INJECTOR_ID;
+import static io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegration.OPENAEV_INJECTOR_NAME;
 import static io.openaev.utils.fixtures.ExpectationFixture.*;
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;

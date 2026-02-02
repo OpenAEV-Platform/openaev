@@ -122,7 +122,7 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
         </>
       );
     } else {
-      return (<></>);
+      return null;
     }
   }
 

@@ -1,5 +1,6 @@
 package io.openaev.executors.caldera.service;
 
+import static io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegration.CALDERA_EXECUTOR_TYPE;
 import static io.openaev.service.EndpointService.DELETE_TTL;
 import static io.openaev.utils.time.TimeUtils.toInstant;
 import static java.time.Instant.now;
@@ -8,13 +9,12 @@ import com.cronutils.utils.VisibleForTesting;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Agent.DEPLOYMENT_MODE;
 import io.openaev.database.model.Agent.PRIVILEGE;
-import io.openaev.executors.ExecutorService;
 import io.openaev.executors.caldera.client.CalderaExecutorClient;
 import io.openaev.executors.caldera.config.CalderaExecutorConfig;
 import io.openaev.executors.model.AgentRegisterInput;
-import io.openaev.integrations.InjectorService;
 import io.openaev.service.AgentService;
 import io.openaev.service.EndpointService;
+import io.openaev.service.InjectorService;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.utils.mapper.EndpointMapper;
 import jakarta.validation.constraints.NotBlank;
@@ -22,18 +22,11 @@ import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 
 @Slf4j
-@Service
 public class CalderaExecutorService implements Runnable {
 
   private static final int CLEAR_TTL = 1800000; // 30 minutes
-  private static final String CALDERA_EXECUTOR_TYPE = "openaev_caldera";
-  public static final String CALDERA_EXECUTOR_NAME = "Caldera";
-  public static final String CALDERA_BACKGROUND_COLOR = "#8B1316";
-
   private final CalderaExecutorClient client;
 
   private final EndpointService endpointService;
@@ -63,9 +56,8 @@ public class CalderaExecutorService implements Runnable {
     };
   }
 
-  @Autowired
   public CalderaExecutorService(
-      ExecutorService executorService,
+      Executor executor,
       CalderaExecutorClient client,
       CalderaExecutorConfig config,
       CalderaExecutorContextService calderaExecutorContextService,
@@ -79,31 +71,7 @@ public class CalderaExecutorService implements Runnable {
     this.injectorService = injectorService;
     this.platformSettingsService = platformSettingsService;
     this.agentService = agentService;
-    try {
-      if (config.isEnable()) {
-        log.warn("Caldera executor will be deprecated in OpenAEV 2.0");
-        this.executor =
-            executorService.register(
-                config.getId(),
-                CALDERA_EXECUTOR_TYPE,
-                CALDERA_EXECUTOR_NAME,
-                null,
-                CALDERA_BACKGROUND_COLOR,
-                getClass().getResourceAsStream("/img/icon-caldera.png"),
-                getClass().getResourceAsStream("/img/banner-caldera.png"),
-                new String[] {
-                  Endpoint.PLATFORM_TYPE.Windows.name(),
-                  Endpoint.PLATFORM_TYPE.Linux.name(),
-                  Endpoint.PLATFORM_TYPE.MacOS.name()
-                });
-        this.calderaExecutorContextService.registerAbilities();
-      } else {
-        this.platformSettingsService.cleanMessage(BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE);
-        executorService.removeFromType(CALDERA_EXECUTOR_TYPE);
-      }
-    } catch (Exception e) {
-      log.error(String.format("Error creating caldera executor: %s", e.getMessage()), e);
-    }
+    this.executor = executor;
   }
 
   @Override
@@ -272,7 +240,7 @@ public class CalderaExecutorService implements Runnable {
     if ((now().toEpochMilli() - existingAgent.getClearedAt().toEpochMilli()) > CLEAR_TTL) {
       try {
         log.info("Clearing agent caldera " + existingAgent.getExecutedByUser());
-        Iterable<Injector> injectors = injectorService.injectors();
+        Iterable<Injector> injectors = injectorService.getAllConnectors();
         injectors.forEach(
             injector -> {
               if (injector.getExecutorClearCommands() != null) {

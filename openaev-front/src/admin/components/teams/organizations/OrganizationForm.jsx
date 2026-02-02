@@ -24,7 +24,7 @@ class OrganizationFormComponent extends Component {
     const { t, onSubmit, handleClose, initialValues, editing } = this.props;
     return (
       <Form
-        keepDirtyOnReinitialize={true}
+        keepDirtyOnReinitialize
         initialValues={initialValues}
         onSubmit={onSubmit}
         validate={this.validate.bind(this)}
@@ -39,14 +39,14 @@ class OrganizationFormComponent extends Component {
             <OldTextField
               variant="standard"
               name="organization_name"
-              fullWidth={true}
+              fullWidth
               label={t('Name')}
             />
             <OldTextField
               variant="standard"
               name="organization_description"
-              fullWidth={true}
-              multiline={true}
+              fullWidth
+              multiline
               rows={2}
               label={t('Description')}
               style={{ marginTop: 20 }}

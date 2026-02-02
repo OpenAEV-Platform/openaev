@@ -10,6 +10,7 @@ import io.openaev.database.model.NotificationRuleTrigger;
 import io.openaev.database.model.NotificationRuleType;
 import io.openaev.database.repository.NotificationRuleRepository;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,8 +18,12 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestExecutionListeners;
 
 @SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 public class NotificationRuleServiceTest extends IntegrationTest {
 
   @Mock private NotificationRuleRepository notificationRuleRepository;

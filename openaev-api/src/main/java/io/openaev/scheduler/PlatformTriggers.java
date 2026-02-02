@@ -62,6 +62,17 @@ public class PlatformTriggers {
 
   @Bean
   @Profile("!test")
+  public Trigger managerIntegrationsSyncTrigger() {
+    SimpleScheduleBuilder _15_seconds = simpleSchedule().withIntervalInSeconds(15).repeatForever();
+    return newTrigger()
+        .forJob(this.platformJobs.managerIntegrationsSync())
+        .withIdentity("managerIntegrationsSync")
+        .withSchedule(_15_seconds.withMisfireHandlingInstructionNextWithRemainingCount())
+        .build();
+  }
+
+  @Bean
+  @Profile("!test")
   public Trigger securityCoverageTrigger() {
     SimpleScheduleBuilder _15_seconds = simpleSchedule().withIntervalInSeconds(15).repeatForever();
     return newTrigger()

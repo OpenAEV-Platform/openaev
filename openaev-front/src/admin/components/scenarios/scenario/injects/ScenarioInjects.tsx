@@ -6,10 +6,10 @@ import { type ArticlesHelper } from '../../../../../actions/channels/article-hel
 import { fetchScenarioDocuments } from '../../../../../actions/documents/documents-actions';
 import { type ChallengeHelper } from '../../../../../actions/helper';
 import { testInject } from '../../../../../actions/inject_test/scenario-inject-test-actions';
-import { fetchScenarioInjectsSimple } from '../../../../../actions/injects/inject-action';
 import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
 import { fetchScenarioTeams } from '../../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../../actions/scenarios/scenario-helper';
+import { fetchScenarioInjectsSimple } from '../../../../../actions/scenarios/scenario-inject-actions';
 import type { TeamsHelper } from '../../../../../actions/teams/team-helper';
 import { fetchVariablesForScenario } from '../../../../../actions/variables/variable-actions';
 import { type VariablesHelper } from '../../../../../actions/variables/variable-helper';

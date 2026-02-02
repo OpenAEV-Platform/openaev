@@ -9,6 +9,7 @@ public enum ObjectTypes {
   ATTACK_PATTERN("attack-pattern"),
   VULNERABILITY("vulnerability"),
   SECURITY_COVERAGE("security-coverage"),
+  INDICATOR("indicator"),
   DEFAULT("__default__");
 
   private final String value;

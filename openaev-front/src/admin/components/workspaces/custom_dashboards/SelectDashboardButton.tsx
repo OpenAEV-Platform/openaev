@@ -29,7 +29,7 @@ const SelectDashboardButton = ({ defaultDashboardId = '', variant = 'popover', h
 
   return (
     <>
-      { variant == 'popover'
+      {variant === 'popover'
         ? (
             <ButtonPopover
               entries={[{

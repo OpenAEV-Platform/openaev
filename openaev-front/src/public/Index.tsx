@@ -3,7 +3,7 @@ import { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import errorWrapper from '../components/errorWrapper';
+import { errorWrapper } from '../components/Error';
 import Loader from '../components/Loader';
 import Reset from './components/login/Reset';
 

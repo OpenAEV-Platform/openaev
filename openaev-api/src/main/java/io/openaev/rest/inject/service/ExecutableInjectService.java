@@ -276,21 +276,52 @@ public class ExecutableInjectService {
               obfuscator));
     }
 
-    // Command
-    if (contract.getPayload().getTypeEnum().equals(PayloadType.COMMAND)) {
-      Command payloadCommand = (Command) payloadToExecute;
-      payloadCommand.setExecutor(((Command) contract.getPayload()).getExecutor());
-      payloadCommand.setContent(
-          processAndEncodeCommand(
-              payloadCommand.getContent(),
-              payloadCommand.getExecutor(),
-              contract.getPayload().getArguments(),
-              inject.getContent(),
-              injectorContractFields,
-              obfuscator));
-      return payloadCommand;
-    }
+    return processPayloadToExecute(
+        payloadToExecute, contract, inject, injectorContractFields, obfuscator);
+  }
 
-    return payloadToExecute;
+  private Payload processPayloadToExecute(
+      Payload payloadToExecute,
+      InjectorContract contract,
+      Inject inject,
+      List<ObjectNode> injectorContractFields,
+      String obfuscator) {
+    switch (contract.getPayload().getTypeEnum()) {
+      case PayloadType.COMMAND:
+        return processCommandPayload(
+            payloadToExecute, contract, inject, injectorContractFields, obfuscator);
+      case PayloadType.DNS_RESOLUTION:
+        return processDnsResolutionPayload(payloadToExecute, inject);
+      default:
+        // All other payload types are intentionally passed through unchanged.
+        return payloadToExecute;
+    }
+  }
+
+  private Payload processCommandPayload(
+      Payload payloadToExecute,
+      InjectorContract contract,
+      Inject inject,
+      List<ObjectNode> injectorContractFields,
+      String obfuscator) {
+    Command payloadCommand = (Command) payloadToExecute;
+    payloadCommand.setExecutor(((Command) contract.getPayload()).getExecutor());
+    payloadCommand.setContent(
+        processAndEncodeCommand(
+            payloadCommand.getContent(),
+            payloadCommand.getExecutor(),
+            contract.getPayload().getArguments(),
+            inject.getContent(),
+            injectorContractFields,
+            obfuscator));
+    return payloadCommand;
+  }
+
+  private Payload processDnsResolutionPayload(Payload payloadToExecute, Inject inject) {
+    DnsResolution dnsResolution = (DnsResolution) payloadToExecute;
+    dnsResolution.setHostname(
+        replaceArgumentsByValue(
+            dnsResolution.getHostname(), dnsResolution.getArguments(), null, inject.getContent()));
+    return dnsResolution;
   }
 }

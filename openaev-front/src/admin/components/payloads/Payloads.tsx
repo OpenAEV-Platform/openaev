@@ -17,11 +17,12 @@ import useBodyItemsStyles from '../../../components/common/queryable/style/style
 import { useQueryableWithLocalStorage } from '../../../components/common/queryable/useQueryableWithLocalStorage';
 import { type Header } from '../../../components/common/SortHeadersList';
 import { useFormatter } from '../../../components/i18n';
+import ItemDomains from '../../../components/ItemDomains';
 import ItemTags from '../../../components/ItemTags';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import PayloadIcon from '../../../components/PayloadIcon';
 import PlatformIcon from '../../../components/PlatformIcon';
-import { type Document, type Payload, type SearchPaginationInput } from '../../../utils/api-types';
+import { type Document, type Domain, type Payload, type SearchPaginationInput } from '../../../utils/api-types';
 import { Can } from '../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { arrayToRecord } from '../../../utils/utils';
@@ -62,10 +63,7 @@ const inlineStyles: Record<string, CSSProperties> = {
   payload_type: { width: '10%' },
   payload_name: { width: '20%' },
   payload_platforms: { width: '10%' },
-  payload_description: {
-    width: '20%',
-    maxWidth: '300px',
-  }, // Workaround: we should change flex to grid
+  payload_domains: { width: '15%' },
   payload_tags: { width: '10%' },
   payload_source: { width: '10%' },
   payload_status: { width: '10%' },
@@ -92,6 +90,8 @@ const fromPayloadStatusToChipColor = (payloadStatus: string) => {
       return 'default';
   }
 };
+
+type CsvFormattedPayload = Payload & { payload_formatted_domains: string };
 
 const Payloads = () => {
   // Standard hooks
@@ -124,6 +124,18 @@ const Payloads = () => {
       value: (payload: Payload) => <>{payload.payload_name}</>,
     },
     {
+      field: 'payload_domains',
+      label: 'payload_domains',
+      isSortable: true,
+      value: (payload: Payload) => {
+        return payload.payload_domains && payload.payload_domains?.length > 0
+          ? (
+              <ItemDomains domains={payload.payload_domains} variant="reduced-view" />
+            )
+          : <></>;
+      },
+    },
+    {
       field: 'payload_platforms',
       label: 'Platforms',
       isSortable: false,
@@ -134,12 +146,6 @@ const Payloads = () => {
           )}
         </>
       ),
-    },
-    {
-      field: 'payload_description',
-      label: 'Description',
-      isSortable: true,
-      value: (payload: Payload) => <>{payload.payload_description}</>,
     },
     {
       field: 'payload_tags',
@@ -196,9 +202,18 @@ const Payloads = () => {
     'payload_tags',
     'payload_updated_at',
     'payload_execution_arch',
+    'payload_domains',
   ];
   const [payloads, setPayloads] = useState<Payload[]>([]);
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('payloads', buildSearchPagination({ sorts: initSorting('payload_name') }));
+  const setAndFormatPayloads = (payloads: CsvFormattedPayload[]) => {
+    payloads.forEach(payload =>
+      payload.payload_formatted_domains = payload.payload_domains
+        .map((domain: Domain) => domain.domain_name)
+        .join(', '),
+    );
+    setPayloads(payloads);
+  };
 
   // Export
   const exportProps = {
@@ -207,6 +222,7 @@ const Payloads = () => {
       'payload_type',
       'payload_name',
       'payload_description',
+      'payload_formatted_domains',
       'payload_source',
       'payload_status',
       'payload_created_at',
@@ -241,7 +257,7 @@ const Payloads = () => {
       <PaginationComponentV2
         fetch={searchPayloadsToLoad}
         searchPaginationInput={searchPaginationInput}
-        setContent={setPayloads}
+        setContent={setAndFormatPayloads}
         entityPrefix="payload"
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
@@ -286,9 +302,9 @@ const Payloads = () => {
                     secondaryAction={(
                       <PayloadPopover
                         payload={payload}
-                        onUpdate={(result: Payload) => setPayloads(payloads.map(a => (a.payload_id !== result.payload_id ? a : result)))}
-                        onDuplicate={(result: Payload) => setPayloads([result, ...payloads])}
-                        onDelete={(result: string) => setPayloads(payloads.filter(a => (a.payload_id !== result)))}
+                        onUpdate={(result: Payload) => setAndFormatPayloads(payloads.map(a => (a.payload_id !== result.payload_id ? a : result)) as CsvFormattedPayload[])}
+                        onDuplicate={(result: Payload) => setAndFormatPayloads([result, ...payloads] as CsvFormattedPayload[])}
+                        onDelete={(result: string) => setAndFormatPayloads(payloads.filter(a => (a.payload_id !== result)) as CsvFormattedPayload[])}
                         disableUpdate={payload.payload_collector !== null}
                         disableDelete={payload.payload_collector !== null && payload.payload_status !== 'DEPRECATED'}
                       />
@@ -341,7 +357,7 @@ const Payloads = () => {
       </List>
       <Can I={ACTIONS.MANAGE} a={SUBJECTS.PAYLOADS}>
         <CreatePayload
-          onCreate={(result: Payload) => setPayloads([result, ...payloads])}
+          onCreate={(result: Payload) => setAndFormatPayloads([result, ...payloads] as CsvFormattedPayload[])}
         />
       </Can>
       <Drawer

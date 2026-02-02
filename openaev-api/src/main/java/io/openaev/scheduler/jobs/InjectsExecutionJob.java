@@ -1,7 +1,7 @@
 package io.openaev.scheduler.jobs;
 
 import static io.openaev.database.model.CollectExecutionStatus.COMPLETED;
-import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.hasValidResults;
+import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.hasValidResults;
 import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.groupingBy;
@@ -26,13 +26,11 @@ import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
-import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Spliterators;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
@@ -59,7 +57,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class InjectsExecutionJob implements Job {
 
-  public static final String DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTS = "10";
+  public static final String DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTES = "10";
   private static final long delayForSimulationCompletedEvent = 3600L;
 
   private final Environment env;
@@ -92,7 +90,7 @@ public class InjectsExecutionJob implements Job {
   private void init() {
     String threshold = env.getProperty("inject.execution.threshold.minutes");
     if (threshold == null || threshold.isBlank()) {
-      threshold = DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTS;
+      threshold = DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTES;
     }
     this.injectExecutionThreshold = Integer.parseInt(threshold);
   }
@@ -176,8 +174,7 @@ public class InjectsExecutionJob implements Job {
     injectStatusService.saveAll(updatedStatuses);
   }
 
-  private void executeInject(ExecutableInject executableInject)
-      throws IOException, TimeoutException, ErrorMessagesPreExecutionException {
+  private void executeInject(ExecutableInject executableInject) throws Exception {
     // Depending on injector type (internal or external) execution must be done differently
     Inject inject = executableInject.getInjection().getInject();
     // We are now checking if we depend on another inject and if it did not failed
@@ -278,8 +275,8 @@ public class InjectsExecutionJob implements Job {
                 "There was an error during the evaluation of the condition of the inject");
           }
         } else {
-          log.warn("A key in the conditions didn't matched any expectations");
-          errorMessages.add("A key in the conditions didn't matched any expectations");
+          log.warn("A key in the conditions didn't match any expectations");
+          errorMessages.add("A key in the conditions didn't match any expectations");
         }
       }
       if (!errorMessages.isEmpty()) {

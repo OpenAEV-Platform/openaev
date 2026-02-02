@@ -1,7 +1,6 @@
 package io.openaev.service;
 
 import static io.openaev.database.specification.TeamSpecification.fromScenario;
-import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
 import static io.openaev.utils.fixtures.TeamFixture.getTeam;
 import static io.openaev.utils.fixtures.UserFixture.getUser;
@@ -18,7 +17,6 @@ import io.openaev.ee.Ee;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
-import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.scenario.ScenarioService;
@@ -27,15 +25,20 @@ import io.openaev.utils.TargetType;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.ScenarioMapper;
+import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.*;
 import org.junit.jupiter.api.*;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ScenarioServiceTest extends IntegrationTest {
 
@@ -47,12 +50,10 @@ class ScenarioServiceTest extends IntegrationTest {
   @Autowired private ArticleRepository articleRepository;
   @Mock ScenarioRepository mockScenarioRepository;
   @Autowired InjectRepository injectRepository;
-  @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private LessonsCategoryRepository lessonsCategoryRepository;
   @Autowired private HealthCheckUtils healthCheckUtils;
 
   @Mock Ee eeService;
-  @Mock GrantService grantService;
   @Mock VariableService variableService;
   @Mock ChallengeService challengeService;
   @Autowired private TeamService teamService;
@@ -61,7 +62,6 @@ class ScenarioServiceTest extends IntegrationTest {
   @Mock private InjectService injectService;
   @Mock private TagRuleService tagRuleService;
   @Mock private UserService userService;
-  @Mock private CollectorService collectorService;
   @InjectMocks private ScenarioService scenarioService;
   @Autowired private ScenarioMapper scenarioMapper;
 
@@ -72,6 +72,7 @@ class ScenarioServiceTest extends IntegrationTest {
   private static String USER_ID;
   private static String TEAM_ID;
   private static String INJECT_ID;
+  @Autowired private InjectorContractFixture injectorContractFixture;
 
   @BeforeEach
   void setUp() {
@@ -208,8 +209,7 @@ class ScenarioServiceTest extends IntegrationTest {
     scenario.setTeams(List.of(teamSaved));
     Scenario scenarioSaved = this.scenarioRepository.saveAndFlush(scenario);
 
-    InjectorContract injectorContract =
-        this.injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow();
+    InjectorContract injectorContract = injectorContractFixture.getWellKnownSingleEmailContract();
     Inject injectDefaultEmail = getInjectForEmailContract(injectorContract);
     injectDefaultEmail.setScenario(scenarioSaved);
     injectDefaultEmail.setTeams(List.of(teamSaved));

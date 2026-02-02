@@ -1,8 +1,7 @@
 package io.openaev.rest.exercise;
 
-import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -11,11 +10,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.rest.inject.form.InjectBulkProcessingInput;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectTestStatusFixture;
+import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.InjectTestStatusComposer;
@@ -36,7 +35,7 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
   @Autowired private ExerciseComposer simulationComposer;
   @Autowired private InjectComposer injectComposer;
   @Autowired private InjectTestStatusComposer injectTestStatusComposer;
-  @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private InjectorContractFixture injectorContractFixture;
 
   private Exercise simulation;
   private Inject inject1, inject2;
@@ -44,8 +43,7 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
 
   @BeforeAll
   void setupData() {
-    InjectorContract injectorContract =
-        this.injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow();
+    InjectorContract injectorContract = injectorContractFixture.getWellKnownSingleEmailContract();
 
     InjectTestStatusComposer.Composer injectTestStatusComposer1 =
         injectTestStatusComposer.forInjectTestStatus(

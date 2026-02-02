@@ -1,43 +1,67 @@
+# Caldera Server Configuration for OpenAEV Development
+# =====================================================
+# WARNING: This configuration uses default credentials suitable ONLY for local development.
+# For production deployments, generate secure random values for all "ChangeMe" fields.
+
+# User credentials (username: password)
 users:
   red:
-    red: ChangeMe                                                                     # Change this
+    red: ChangeMe                                                                     # Red team user password
   blue:
-    blue: ChangeMe                                                                    # Change this
-api_key_red: ChangeMe                                                                 # Change this
-api_key_blue: ChangeMe                                                                # Change this
-api_key: ChangeMe                                                                     # Change this
-crypt_salt: ChangeMe                                                                  # Change this
-encryption_key: ChangeMe                                                              # Change this
-app.contact.http: http://localhost:8888                                               # Change this
+    blue: ChangeMe                                                                    # Blue team user password
+
+# API keys for programmatic access
+api_key_red: ChangeMe                                                                 # Red team API key
+api_key_blue: ChangeMe                                                                # Blue team API key
+api_key: ChangeMe                                                                     # Main API key
+
+# Security keys (generate secure random values for production)
+crypt_salt: ChangeMe                                                                  # Salt for password hashing
+encryption_key: ChangeMe                                                              # Key for data encryption
+
+# Contact configuration
+app.contact.http: http://localhost:8888                                               # Caldera server URL
 app.contact.tcp: 0.0.0.0:7010
 app.contact.udp: 0.0.0.0:7011
 app.contact.websocket: 0.0.0.0:7012
 app.contact.dns.domain: localhost
 app.contact.dns.socket: 0.0.0.0:53
-app.contact.gist: API_KEY                                                             # Optional
-app.contact.html: /weather                                                            # Optional
-app.contact.slack.api_key: SLACK_TOKEN                                                # Optional
-app.contact.slack.bot_id: SLACK_BOT_ID                                                # Optional
-app.contact.slack.channel_id: SLACK_CHANNEL_ID                                        # Optional
-app.contact.tunnel.ssh.host_key_file: REPLACE_WITH_KEY_FILE_PATH                      # Optional
-app.contact.tunnel.ssh.host_key_passphrase: REPLACE_WITH_KEY_FILE_PASSPHRASE          # Optional
+
+# Optional integrations (leave as-is if not used)
+app.contact.gist: API_KEY                                                             # GitHub Gist API key
+app.contact.html: /weather                                                            # HTML contact endpoint
+app.contact.slack.api_key: SLACK_TOKEN                                                # Slack integration
+app.contact.slack.bot_id: SLACK_BOT_ID
+app.contact.slack.channel_id: SLACK_CHANNEL_ID
+
+# SSH tunnel configuration (optional)
+app.contact.tunnel.ssh.host_key_file: REPLACE_WITH_KEY_FILE_PATH
+app.contact.tunnel.ssh.host_key_passphrase: REPLACE_WITH_KEY_FILE_PASSPHRASE
 app.contact.tunnel.ssh.socket: 0.0.0.0:8022
 app.contact.tunnel.ssh.user_name: sandcat
-app.contact.tunnel.ssh.user_password: ChangeMe                                        # Change this
+app.contact.tunnel.ssh.user_password: ChangeMe                                        # SSH tunnel password
+
+# Planner configuration
 objects.planners.default: atomic
+
+# Minimum version requirements for agent compilation
 requirements:
   go:
     command: go version
     type: installed_program
-    version: 1.11
+    version: 1.19
   python:
     attr: version
     module: sys
     type: python_module
-    version: 3.8.0
+    version: 3.10.0
+
+# Server configuration
 host: 0.0.0.0
 port: 8888
 ability_refresh: 60
+
+# Enabled plugins
 plugins:
   - access
   - atomic

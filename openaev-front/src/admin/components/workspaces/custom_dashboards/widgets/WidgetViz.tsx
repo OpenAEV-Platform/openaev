@@ -3,6 +3,7 @@ import { memo } from 'react';
 import { useFormatter } from '../../../../../components/i18n';
 import { type EsSeries, type ListConfiguration, type StructuralHistogramWidget, type Widget } from '../../../../../utils/api-types';
 import AttackPathContextLayer from './viz/attack_paths/AttackPathContextLayer';
+import SecurityDomainsWidget from './viz/domains/SecurityDomainsWidget';
 import DonutChart from './viz/DonutChart';
 import HorizontalBarChart from './viz/HorizontalBarChart';
 import LineChart from './viz/LineChart';
@@ -26,27 +27,33 @@ export type SerieData = {
   meta?: string;
 };
 
+const computeSeriesData = (esSeries: EsSeries[]) => {
+  return esSeries.map(({ label, data }) => {
+    if (data && data.length > 0) {
+      return ({
+        name: label,
+        data: data.map(n => ({
+          x: n.label,
+          y: n.value,
+          meta: n.key,
+        })),
+      });
+    }
+    return {
+      name: label,
+      data: [],
+    };
+  });
+};
+
 const WidgetViz = ({ widget, fullscreen, setFullscreen, vizData, errorMessage }: WidgetTemporalVizProps) => {
   const { t } = useFormatter();
 
-  const computeSeriesData = (esSeries: EsSeries[]) => {
-    return esSeries.map(({ label, data }) => {
-      if (data && data.length > 0) {
-        return ({
-          name: label,
-          data: data.map(n => ({
-            x: n.label,
-            y: n.value,
-            meta: n.key,
-          })),
-        });
-      }
-      return {
-        name: label,
-        data: [],
-      };
-    });
-  };
+  const seriesData = vizData.type === WidgetVizDataType.SERIES
+    ? computeSeriesData(vizData.data)
+    : null;
+
+  const widgetTitle = getWidgetTitle(widget.widget_config.title, widget.widget_type, t);
 
   switch (widget.widget_type) {
     case 'attack-path':
@@ -67,46 +74,46 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen, vizData, errorMessage }:
       return (
         <SecurityCoverage
           widgetId={widget.widget_id}
-          widgetTitle={getWidgetTitle(widget.widget_config.title, widget.widget_type, t)}
+          widgetTitle={widgetTitle}
           fullscreen={fullscreen}
           setFullscreen={setFullscreen}
           data={vizData.data}
         />
       );
     case 'vertical-barchart':
-      if (vizData.type !== WidgetVizDataType.SERIES) {
+      if (vizData.type !== WidgetVizDataType.SERIES || !seriesData) {
         return 'Not implemented yet';
       }
       return (
         <VerticalBarChart
           widgetId={widget.widget_id}
           widgetConfig={widget.widget_config}
-          series={computeSeriesData(vizData.data)}
+          series={seriesData}
           errorMessage={errorMessage}
         />
       );
     case 'horizontal-barchart':
-      if (vizData.type !== WidgetVizDataType.SERIES) {
+      if (vizData.type !== WidgetVizDataType.SERIES || !seriesData) {
         return 'Not implemented yet';
       }
       return (
         <HorizontalBarChart
           widgetId={widget.widget_id}
           widgetConfig={widget.widget_config}
-          series={computeSeriesData(vizData.data)}
+          series={seriesData}
         />
       );
     case 'line':
-      if (vizData.type !== WidgetVizDataType.SERIES) {
+      if (vizData.type !== WidgetVizDataType.SERIES || !seriesData) {
         return 'Not implemented yet';
       }
-      return <LineChart widgetId={widget.widget_id} series={computeSeriesData(vizData.data)} />;
+      return <LineChart widgetId={widget.widget_id} series={seriesData} />;
     case 'donut': {
-      if (vizData.type !== WidgetVizDataType.SERIES) {
+      if (vizData.type !== WidgetVizDataType.SERIES || !seriesData) {
         return 'Not implemented yet';
       }
       // The seriesLimit is set to 1 for the donut.
-      const data = computeSeriesData(vizData.data)[0].data;
+      const data = seriesData[0].data;
       return (
         <DonutChart
           widgetId={widget.widget_id}
@@ -130,6 +137,11 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen, vizData, errorMessage }:
           data={vizData.data}
         />
       );
+    case 'average':
+      if (vizData.type !== WidgetVizDataType.AVERAGE) {
+        return 'Not implemented yet';
+      }
+      return (<SecurityDomainsWidget data={vizData.data} />);
     default:
       return 'Not implemented yet';
   }

@@ -13,6 +13,9 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.export.Mixins;
+import io.openaev.integration.Manager;
+import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrationFactory;
+import io.openaev.integration.impl.injectors.channel.ChannelInjectorIntegrationFactory;
 import io.openaev.rest.exercise.exports.ExerciseFileExport;
 import io.openaev.rest.exercise.exports.VariableMixin;
 import io.openaev.rest.exercise.exports.VariableWithValueMixin;
@@ -28,6 +31,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -55,11 +59,14 @@ class ExerciseApiExportTest extends IntegrationTest {
   @Autowired private ObjectiveComposer objectiveComposer;
   @Autowired private DocumentComposer documentComposer;
   @Autowired private TagComposer tagComposer;
+  @Autowired private DomainComposer domainComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private ChallengeService challengeService;
   @Autowired private ArticleService articleService;
   @Resource protected ObjectMapper mapper;
   @Autowired private FileService fileService;
+  @Autowired private ChannelInjectorIntegrationFactory channelInjectorIntegrationFactory;
+  @Autowired private ChallengeInjectorIntegrationFactory challengeInjectorIntegrationFactory;
 
   @BeforeEach
   void before() throws Exception {
@@ -78,6 +85,8 @@ class ExerciseApiExportTest extends IntegrationTest {
     tagComposer.reset();
     exerciseComposer.reset();
     payloadComposer.reset();
+    new Manager(List.of(channelInjectorIntegrationFactory, challengeInjectorIntegrationFactory))
+        .monitorIntegrations();
 
     // delete the test files from the minio service
     for (String fileName : WELL_KNOWN_FILES.keySet()) {
@@ -86,6 +95,9 @@ class ExerciseApiExportTest extends IntegrationTest {
   }
 
   private Exercise getExercise() {
+    Set<Domain> domains =
+        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
+
     return exerciseComposer
         .forExercise(ExerciseFixture.createDefaultCrisisExercise())
         .withArticle(
@@ -140,7 +152,7 @@ class ExerciseApiExportTest extends IntegrationTest {
                         .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
                         .withPayload(
                             payloadComposer
-                                .forPayload(PayloadFixture.createDefaultFileDrop())
+                                .forPayload(PayloadFixture.createDefaultFileDrop(domains))
                                 .withFileDrop(
                                     documentComposer
                                         .forDocument(
@@ -189,7 +201,11 @@ class ExerciseApiExportTest extends IntegrationTest {
             "exercise_injects[*].inject_injector_contract.injector_contract_payload.payload_created_at",
             "exercise_injects[*].inject_injector_contract.injector_contract_payload.payload_updated_at",
             "exercise_injects[*].inject_injector_contract.injector_contract_created_at",
-            "exercise_injects[*].inject_injector_contract.injector_contract_updated_at")
+            "exercise_injects[*].inject_injector_contract.injector_contract_updated_at",
+            "exercise_injects[*].inject_injector_contract.injector_contract_payload.payload_domains[*].domain_created_at",
+            "exercise_injects[*].inject_injector_contract.injector_contract_payload.payload_domains[*].domain_updated_at",
+            "exercise_injects[*].inject_injector_contract.injector_contract_domains[*].domain_created_at",
+            "exercise_injects[*].inject_injector_contract.injector_contract_domains[*].domain_updated_at")
         .isObject()
         .isEqualTo(actualJson);
   }
@@ -226,7 +242,11 @@ class ExerciseApiExportTest extends IntegrationTest {
             "exercise_injects[*].inject_injector_contract.injector_contract_payload.payload_created_at",
             "exercise_injects[*].inject_injector_contract.injector_contract_payload.payload_updated_at",
             "exercise_injects[*].inject_injector_contract.injector_contract_created_at",
-            "exercise_injects[*].inject_injector_contract.injector_contract_updated_at")
+            "exercise_injects[*].inject_injector_contract.injector_contract_updated_at",
+            "exercise_injects[*].inject_injector_contract.injector_contract_payload.payload_domains[*].domain_created_at",
+            "exercise_injects[*].inject_injector_contract.injector_contract_payload.payload_domains[*].domain_updated_at",
+            "exercise_injects[*].inject_injector_contract.injector_contract_domains[*].domain_created_at",
+            "exercise_injects[*].inject_injector_contract.injector_contract_domains[*].domain_updated_at")
         .isObject()
         .isEqualTo(actualJson);
   }

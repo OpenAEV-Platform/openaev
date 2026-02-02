@@ -7,7 +7,7 @@ import { connect } from 'react-redux';
 import { withStyles } from 'tss-react/mui';
 import { v4 as uuid } from 'uuid';
 
-import { addInjectorContract } from '../../../../../actions/InjectorContracts';
+import { addInjectorContract } from '../../../../../actions/InjectorContracts.ts';
 import Drawer from '../../../../../components/common/Drawer';
 import inject18n from '../../../../../components/i18n';
 import InjectorContractCustomForm from './InjectorContractCustomForm';
@@ -56,33 +56,56 @@ class CreateInjectorContractComponent extends Component {
   onSubmit(data, fields) {
     const { injector, injectorContracts } = this.props;
     const { selectedInjectorContract } = this.state;
-    const injectorContract = injectorContracts.filter(n => n.injector_contract_id === selectedInjectorContract).at(0);
-    const injectorContractContent = JSON.parse(injectorContract.injector_contract_content);
+
+    const injectorContract = injectorContracts.find(
+      n => n.injector_contract_id === selectedInjectorContract,
+    );
+
+    const injectorContractContent = JSON.parse(
+      injectorContract.injector_contract_content,
+    );
+
     const newInjectorContractContent = {
       ...injectorContractContent,
       label: { en: data.injector_contract_name },
       fields: injectorContractContent.fields.map((field) => {
-        const newField = field;
-        if (!R.isNil(fields[field.key]?.readOnly)) {
-          newField.readOnly = fields[field.key]?.readOnly;
+        const newField = { ...field };
+
+        if (fields[field.key]?.readOnly != null) {
+          newField.readOnly = fields[field.key].readOnly;
         }
-        if (!R.isNil(fields[field.key]?.defaultValue)) {
-          newField.defaultValue = field.cardinality === '1' ? fields[field.key]?.defaultValue : [fields[field.key]?.defaultValue];
+
+        if (fields[field.key]?.defaultValue != null) {
+          newField.defaultValue
+            = field.cardinality === '1'
+              ? fields[field.key].defaultValue
+              : [fields[field.key].defaultValue];
         }
+
         return newField;
       }),
     };
-    const inputValues = R.pipe(
-      R.assoc('injector_id', injector.injector_id),
-      R.assoc('contract_id', `${injector.injector_name.toLowerCase()}--${uuid()}`),
-      R.assoc('contract_labels', { en: data.injector_contract_name }),
-      R.assoc('contract_attack_patterns_external_ids', R.pluck('id', data.injector_contract_attack_patterns)),
-      R.assoc('contract_content', JSON.stringify(newInjectorContractContent)),
-      R.dissoc('injector_contract_attack_patterns'),
-    )(data);
-    return this.props
-      .addInjectorContract(inputValues)
-      .then(result => (result.result ? this.handleClose() : result));
+
+    const inputValues = {
+      ...data,
+      injector_id: injector.injector_id,
+      contract_id: `${injector.injector_name.toLowerCase()}--${uuid()}`,
+      contract_labels: { en: data.injector_contract_name },
+      contract_attack_patterns_external_ids:
+        data.injector_contract_attack_patterns?.map(p => p.id),
+      contract_content: JSON.stringify(newInjectorContractContent),
+      contract_domains: data.injector_contract_domains,
+    };
+
+    return this.props.addInjectorContract(inputValues).then((result) => {
+      if (result.result) {
+        if (this.props.onCreated) {
+          this.props.onCreated();
+        }
+        this.handleClose();
+      }
+      return result;
+    });
   }
 
   renderInjectorContracts() {
@@ -158,6 +181,7 @@ CreateInjectorContractComponent.propTypes = {
   killChainPhasesMap: PropTypes.object,
   attackPatternsMap: PropTypes.object,
   addInjectorContract: PropTypes.func,
+  onCreated: PropTypes.func,
 };
 
 const CreateInjectorContract = R.compose(

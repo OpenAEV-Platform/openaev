@@ -17,7 +17,7 @@ const useEntityIcon = (entity: string) => {
     case 'Exercise':
       return (<Kayaking color="primary" />);
     default:
-      return (<></>);
+      return null;
   }
 };
 

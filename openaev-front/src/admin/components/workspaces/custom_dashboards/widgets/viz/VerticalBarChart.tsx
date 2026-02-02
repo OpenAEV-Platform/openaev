@@ -1,5 +1,5 @@
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useContext } from 'react';
+import { type FunctionComponent, memo, useCallback, useContext, useMemo } from 'react';
 import Chart from 'react-apexcharts';
 import { makeStyles } from 'tss-react/mui';
 
@@ -23,16 +23,18 @@ const VerticalBarChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, se
   const { classes } = useStyles();
   const { t, fld } = useFormatter();
 
-  const widgetMode = (): string => {
+  // Memoize widget mode
+  const widgetMode = useMemo((): string => {
     if (widgetConfig.widget_configuration_type === 'temporal-histogram' || widgetConfig.widget_configuration_type === 'structural-histogram') {
       return (widgetConfig as DateHistogramWidget | StructuralHistogramWidget).mode;
     }
     return 'structural';
-  };
+  }, [widgetConfig]);
 
   const { openWidgetDataDrawer } = useContext(CustomDashboardContext);
 
-  const onBarClick = (_: Event, config: {
+  // Memoize click handler
+  const onBarClick = useCallback((_: Event, config: {
     seriesIndex: number;
     dataPointIndex: number;
   }) => {
@@ -42,20 +44,32 @@ const VerticalBarChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, se
       filter_values: [dataPoint?.meta ?? ''],
       series_index: config.seriesIndex,
     });
-  };
+  }, [series, openWidgetDataDrawer, widgetId]);
+
+  // Memoize empty chart text
+  const emptyChartText = useMemo(
+    () => errorMessage.length > 0 ? errorMessage : t('No data to display'),
+    [errorMessage, t],
+  );
+
+  // Memoize chart options
+  const options = useMemo(
+    () => verticalBarsChartOptions({
+      theme,
+      xFormatter: widgetMode === 'temporal' ? fld : null,
+      isTimeSeries: widgetMode === 'temporal',
+      legend: true,
+      tickAmount: 'dataPoints',
+      isResult: true,
+      emptyChartText,
+      onBarClick,
+    }),
+    [theme, widgetMode, fld, emptyChartText, onBarClick],
+  );
 
   return (
     <Chart
-      options={verticalBarsChartOptions({
-        theme,
-        xFormatter: widgetMode() === 'temporal' ? fld : null,
-        isTimeSeries: widgetMode() === 'temporal',
-        legend: true,
-        tickAmount: 'dataPoints',
-        isResult: true,
-        emptyChartText: errorMessage.length > 0 ? errorMessage : t('No data to display'),
-        onBarClick,
-      })}
+      options={options}
       series={series}
       type="bar"
       width="100%"
@@ -65,4 +79,4 @@ const VerticalBarChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, se
   );
 };
 
-export default VerticalBarChart;
+export default memo(VerticalBarChart);

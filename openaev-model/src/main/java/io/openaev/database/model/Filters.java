@@ -49,6 +49,13 @@ public class Filters {
       return filterGroup;
     }
 
+    public static FilterGroup filterGroupWithFilters(List<Filter> filters) {
+      FilterGroup filterGroup = new FilterGroup();
+      filterGroup.setMode(FilterMode.and);
+      filterGroup.setFilters(filters);
+      return filterGroup;
+    }
+
     // -- UTILS --
 
     public Optional<Filter> findByKey(@NotBlank final String filterKey) {

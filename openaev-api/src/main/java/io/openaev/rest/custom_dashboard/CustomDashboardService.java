@@ -13,6 +13,7 @@ import io.openaev.database.raw.RawCustomDashboard;
 import io.openaev.database.repository.CustomDashboardRepository;
 import io.openaev.engine.model.EsBase;
 import io.openaev.engine.query.EsAttackPath;
+import io.openaev.engine.query.EsAvgs;
 import io.openaev.engine.query.EsCountInterval;
 import io.openaev.engine.query.EsSeries;
 import io.openaev.rest.custom_dashboard.form.CustomDashboardOutput;
@@ -267,6 +268,17 @@ public class CustomDashboardService {
     return this.dashboardService.count(widgetId, parameters);
   }
 
+  public EsAvgs dashboardAverageOnResourceId(
+      @NotBlank final String resourceId,
+      @NotBlank final String widgetId,
+      final Map<String, String> parameters) {
+    // verify that the widget is in the resource dashboard
+    if (!isWidgetInResourceDashboard(resourceId, widgetId)) {
+      throw new AccessDeniedException("Access denied");
+    }
+    return this.dashboardService.average(widgetId, parameters);
+  }
+
   public List<EsSeries> dashboardSeriesOnResourceId(
       @NotBlank final String resourceId,
       @NotBlank final String widgetId,
@@ -320,6 +332,16 @@ public class CustomDashboardService {
       throw new AccessDeniedException("Access denied");
     }
     return dashboardService.count(widgetId, parameters);
+  }
+
+  public EsAvgs homeDashboardAverage(
+      @NotBlank final String widgetId, final Map<String, String> parameters) {
+
+    // verify that the widget is in the home  dashboard
+    if (!isWidgetInHomeDashboard(widgetId)) {
+      throw new AccessDeniedException("Access denied");
+    }
+    return dashboardService.average(widgetId, parameters);
   }
 
   public List<EsSeries> homeDashboardSeries(

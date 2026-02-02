@@ -5,9 +5,7 @@ import static java.time.ZoneOffset.UTC;
 import io.openaev.cron.ScheduleFrequency;
 import io.openaev.utils.StringUtils;
 import jakarta.validation.constraints.NotNull;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
@@ -15,6 +13,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class TimeUtils {
+
+  private TimeUtils() {}
+
   private static final String ISO_8601_PERIOD_EXPRESSION_MASK =
       "PT?(?<digits>\\d+)(?<magnitude>[HDWM])";
 
@@ -24,6 +25,19 @@ public class TimeUtils {
     LocalDateTime localDateTime = LocalDateTime.parse(dateString, dateTimeFormatter);
     ZonedDateTime zonedDateTime = localDateTime.atZone(UTC);
     return zonedDateTime.toInstant();
+  }
+
+  public static Instant toInstantFlexible(String dateString) {
+    if (dateString == null || dateString.isBlank()) {
+      return null;
+    }
+
+    if (dateString.length() == 10) {
+      LocalDate d = LocalDate.parse(dateString);
+      return d.atStartOfDay(ZoneOffset.UTC).toInstant();
+    }
+
+    return Instant.parse(dateString);
   }
 
   public static TemporalIncrement ISO8601PeriodToTemporalIncrement(

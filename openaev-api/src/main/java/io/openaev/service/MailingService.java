@@ -12,51 +12,28 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
-import io.openaev.executors.Injector;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.injectors.email.model.EmailContent;
+import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.ElementNotFoundException;
 import jakarta.annotation.Resource;
-import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class MailingService {
 
   @Resource protected ObjectMapper mapper;
 
-  private ApplicationContext context;
-
-  private UserRepository userRepository;
-
-  private InjectorContractRepository injectorContractRepository;
-
-  private ExecutionContextService executionContextService;
-
-  @Autowired
-  public void setUserRepository(UserRepository userRepository) {
-    this.userRepository = userRepository;
-  }
-
-  @Autowired
-  public void setInjectorContractRepository(InjectorContractRepository injectorContractRepository) {
-    this.injectorContractRepository = injectorContractRepository;
-  }
-
-  @Autowired
-  public void setContext(ApplicationContext context) {
-    this.context = context;
-  }
-
-  @Autowired
-  public void setExecutionContextService(
-      @NotNull final ExecutionContextService executionContextService) {
-    this.executionContextService = executionContextService;
-  }
+  private final ApplicationContext context;
+  private final UserRepository userRepository;
+  private final InjectorContractRepository injectorContractRepository;
+  private final ExecutionContextService executionContextService;
+  private final ManagerFactory managerFactory;
 
   public void sendEmail(
       String subject, String body, List<User> users, Optional<Exercise> exercise) {
@@ -97,8 +74,10 @@ public class MailingService {
                       .toList();
               ExecutableInject injection =
                   new ExecutableInject(false, true, inject, userInjectContexts);
-              Injector executor =
-                  this.context.getBean(injectorContract.getInjector().getType(), Injector.class);
+              io.openaev.executors.Injector executor =
+                  managerFactory
+                      .getManager()
+                      .requestInjectorExecutorByType(injectorContract.getInjector().getType());
               executor.executeInjection(injection);
             });
   }

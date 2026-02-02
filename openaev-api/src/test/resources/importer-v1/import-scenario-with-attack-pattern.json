@@ -252,6 +252,12 @@
         "payload_execution_arch" : "ALL_ARCHITECTURES",
         "payload_collector" : null,
         "payload_tags" : [ ],
+        "payload_domains" : [{
+          "domain_id": "5024dfcd-b840-4108-96d7-05547ab7f693",
+          "domain_name": "UNCLASSIFIED",
+          "domain_color": "#000000",
+          "domain_created_at": "2025-03-25T15:23:54.670789Z"
+        }],
         "payload_created_at" : "2025-03-25T15:23:54.670789Z",
         "payload_updated_at" : "2025-03-25T15:23:54.670789Z",
         "command_executor" : "psh",

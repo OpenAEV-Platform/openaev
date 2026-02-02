@@ -10,6 +10,9 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
+import io.openaev.integration.Manager;
+import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrationFactory;
+import io.openaev.integration.impl.injectors.channel.ChannelInjectorIntegrationFactory;
 import io.openaev.rest.exercise.exports.ExportOptions;
 import io.openaev.rest.exercise.service.ExportService;
 import io.openaev.service.ChallengeService;
@@ -66,11 +69,16 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
   @Autowired private ExportService exportService;
   @Autowired private EntityManager entityManager;
   @Autowired private ChallengeService challengeService;
+  @Autowired private ChannelInjectorIntegrationFactory channelInjectorIntegrationFactory;
+  @Autowired private ChallengeInjectorIntegrationFactory challengeInjectorIntegrationFactory;
 
   private static final int FULL_EXPORT_OPTIONS = ExportOptions.mask(true, true, true);
 
   @BeforeEach
-  void before() {
+  void before() throws Exception {
+    new Manager(List.of(channelInjectorIntegrationFactory, challengeInjectorIntegrationFactory))
+        .monitorIntegrations();
+
     lessonsQuestionsComposer.reset();
     lessonsCategoryComposer.reset();
     teamComposer.reset();

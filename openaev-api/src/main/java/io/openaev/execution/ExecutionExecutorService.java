@@ -1,12 +1,19 @@
 package io.openaev.execution;
 
-import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE;
+import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
+import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.utils.ExecutorUtils;
+import io.openaev.integration.ComponentRequest;
+import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.AgentException;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
@@ -16,7 +23,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
-import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
@@ -24,7 +30,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class ExecutionExecutorService {
 
-  private final ApplicationContext context;
+  private final ManagerFactory managerFactory;
   private final ExecutionTraceRepository executionTraceRepository;
   private final InjectService injectService;
   private final ExecutorUtils executorUtils;
@@ -41,12 +47,18 @@ public class ExecutionExecutorService {
     saveAgentlessAssetsTraces(assetsAgentless, injectStatus);
     // Filter each list to do something for each specific case and then remove the specific agents
     // from the main "agents" list to execute payloads at the end for the remaining "normal" agents
-    Set<Agent> inactiveAgents = executorUtils.foundInactiveAgents(agents);
+    Set<Agent> inactiveAgents = executorUtils.findInactiveAgents(agents);
     agents.removeAll(inactiveAgents);
-    Set<Agent> agentsWithoutExecutor = executorUtils.foundAgentsWithoutExecutor(agents);
+    Set<Agent> agentsWithoutExecutor = executorUtils.findAgentsWithoutExecutor(agents);
     agents.removeAll(agentsWithoutExecutor);
-    Set<Agent> crowdstrikeAgents = executorUtils.foundCrowdstrikeAgents(agents);
+    Set<Agent> crowdstrikeAgents =
+        executorUtils.findAgentsByExecutorType(agents, CROWDSTRIKE_EXECUTOR_TYPE);
     agents.removeAll(crowdstrikeAgents);
+    Set<Agent> sentineloneAgents =
+        executorUtils.findAgentsByExecutorType(agents, SENTINELONE_EXECUTOR_TYPE);
+    agents.removeAll(sentineloneAgents);
+    Set<Agent> taniumAgents = executorUtils.findAgentsByExecutorType(agents, TANIUM_EXECUTOR_TYPE);
+    agents.removeAll(taniumAgents);
 
     AtomicBoolean atLeastOneExecution = new AtomicBoolean(false);
     // Manage inactive agents
@@ -54,18 +66,14 @@ public class ExecutionExecutorService {
     // Manage without executor agents
     saveWithoutExecutorAgentsTraces(agentsWithoutExecutor, injectStatus);
     // Manage Crowdstrike agents for batch execution
-    if (!crowdstrikeAgents.isEmpty()) {
-      try {
-        ExecutorContextService executorContextService =
-            context.getBean(CROWDSTRIKE_EXECUTOR_NAME, ExecutorContextService.class);
-        executorContextService.launchBatchExecutorSubprocess(
-            inject, crowdstrikeAgents, injectStatus);
-        atLeastOneExecution.set(true);
-      } catch (Exception e) {
-        log.error("Crowdstrike launchBatchExecutorSubprocess error: {}", e.getMessage());
-        saveCrowdstrikeAgentsErrorTraces(e, crowdstrikeAgents, injectStatus);
-      }
-    }
+    launchBatchExecutorContextForAgent(
+        crowdstrikeAgents, CROWDSTRIKE_EXECUTOR_NAME, inject, injectStatus, atLeastOneExecution);
+    // Manage Sentinelone agents for batch execution
+    launchBatchExecutorContextForAgent(
+        sentineloneAgents, SENTINELONE_EXECUTOR_NAME, inject, injectStatus, atLeastOneExecution);
+    // Manage Tanium agents for batch execution
+    launchBatchExecutorContextForAgent(
+        taniumAgents, TANIUM_EXECUTOR_NAME, inject, injectStatus, atLeastOneExecution);
     // Manage remaining agents
     agents.forEach(
         agent -> {
@@ -79,6 +87,27 @@ public class ExecutionExecutorService {
         });
     if (!atLeastOneExecution.get()) {
       throw new ExecutionExecutorException("No asset executed");
+    }
+  }
+
+  private void launchBatchExecutorContextForAgent(
+      Set<Agent> agents,
+      String executorName,
+      Inject inject,
+      InjectStatus injectStatus,
+      AtomicBoolean atLeastOneExecution) {
+    if (!agents.isEmpty()) {
+      try {
+        ExecutorContextService executorContextService =
+            managerFactory
+                .getManager()
+                .request(new ComponentRequest(executorName), ExecutorContextService.class);
+        executorContextService.launchBatchExecutorSubprocess(inject, agents, injectStatus);
+        atLeastOneExecution.set(true);
+      } catch (Exception e) {
+        log.error("{} launchBatchExecutorSubprocess error: {}", executorName, e.getMessage());
+        saveAgentsErrorTraces(e, agents, injectStatus);
+      }
     }
   }
 
@@ -96,10 +125,9 @@ public class ExecutionExecutorService {
   }
 
   @VisibleForTesting
-  public void saveCrowdstrikeAgentsErrorTraces(
-      Exception e, Set<Agent> crowdstrikeAgents, InjectStatus injectStatus) {
+  public void saveAgentsErrorTraces(Exception e, Set<Agent> agents, InjectStatus injectStatus) {
     executionTraceRepository.saveAll(
-        crowdstrikeAgents.stream()
+        agents.stream()
             .map(
                 agent ->
                     new ExecutionTrace(
@@ -181,7 +209,11 @@ public class ExecutionExecutorService {
     try {
       Endpoint assetEndpoint = (Endpoint) Hibernate.unproxy(agent.getAsset());
       ExecutorContextService executorContextService =
-          context.getBean(agent.getExecutor().getName(), ExecutorContextService.class);
+          managerFactory
+              .getManager()
+              .request(
+                  new ComponentRequest(agent.getExecutor().getName()),
+                  ExecutorContextService.class);
       executorContextService.launchExecutorSubprocess(inject, assetEndpoint, agent);
     } catch (Exception e) {
       log.error(e.getMessage(), e);

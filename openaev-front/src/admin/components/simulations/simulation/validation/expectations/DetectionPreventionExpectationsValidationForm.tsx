@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { type SecurityPlatformHelper } from '../../../../../../actions/assets/asset-helper';
 import { fetchSecurityPlatforms } from '../../../../../../actions/assets/securityPlatform-actions';
 import { updateInjectExpectation } from '../../../../../../actions/Exercise';
-import ExpandableText from '../../../../../../components/common/ExpendableText';
+import ExpandableText from '../../../../../../components/common/ExpandableText';
 import SecurityPlatformField from '../../../../../../components/fields/SecurityPlatformField';
 import { useFormatter } from '../../../../../../components/i18n';
 import ItemStatus from '../../../../../../components/ItemStatus';

@@ -2,6 +2,7 @@ package io.openaev.database.model;
 
 import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
+import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -12,9 +13,9 @@ import io.hypersistence.utils.hibernate.type.basic.PostgreSQLHStoreType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.converter.ContentConverter;
-import io.openaev.helper.MonoIdDeserializer;
-import io.openaev.helper.MultiIdListDeserializer;
-import io.openaev.helper.MultiIdSetDeserializer;
+import io.openaev.helper.MonoIdSerializer;
+import io.openaev.helper.MultiIdListSerializer;
+import io.openaev.helper.MultiIdSetSerializer;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -109,7 +110,7 @@ public class InjectorContract implements Base {
 
   @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "injector_id")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("injector_contract_injector")
   @Queryable(filterable = true, dynamicValues = true)
   @NotNull
@@ -122,7 +123,7 @@ public class InjectorContract implements Base {
       name = "injectors_contracts_attack_patterns",
       joinColumns = @JoinColumn(name = "injector_contract_id"),
       inverseJoinColumns = @JoinColumn(name = "attack_pattern_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("injector_contract_attack_patterns")
   @Queryable(searchable = true, filterable = true, path = "attackPatterns.externalId")
   private List<AttackPattern> attackPatterns = new ArrayList<>();
@@ -133,13 +134,31 @@ public class InjectorContract implements Base {
     this.attackPatterns = attackPatterns;
   }
 
+  @ManyToMany(fetch = FetchType.EAGER)
+  @JoinTable(
+      name = "injectors_contracts_domains",
+      joinColumns = @JoinColumn(name = "injector_contract_id"),
+      inverseJoinColumns = @JoinColumn(name = "domain_id"))
+  @Getter(NONE)
+  private Set<Domain> domains = new HashSet<>();
+
+  @JsonProperty("injector_contract_domains")
+  @Queryable(
+      filterable = true,
+      dynamicValues = true,
+      paths = {"payload.domains.id", "domains.id"},
+      clazz = String[].class)
+  public Set<Domain> getDomains() {
+    return this.payload != null ? this.payload.getDomains() : this.domains;
+  }
+
   @ArraySchema(schema = @Schema(type = "string"))
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
       name = "injectors_contracts_vulnerabilities",
       joinColumns = @JoinColumn(name = "injector_contract_id"),
       inverseJoinColumns = @JoinColumn(name = "vulnerability_id"))
-  @JsonSerialize(using = MultiIdSetDeserializer.class)
+  @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonProperty("injector_contract_vulnerabilities")
   @Queryable(searchable = true, filterable = true, path = "vulnerabilities.externalId")
   private Set<Vulnerability> vulnerabilities = new HashSet<>();

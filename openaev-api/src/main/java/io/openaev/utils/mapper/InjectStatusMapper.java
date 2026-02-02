@@ -1,5 +1,7 @@
 package io.openaev.utils.mapper;
 
+import static io.openaev.utils.mapper.AgentMapper.toAgentOutput;
+
 import io.openaev.database.model.*;
 import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.inject.output.InjectTestStatusOutput;
@@ -66,7 +68,7 @@ public class InjectStatusMapper {
         .orElseGet(() -> InjectStatusSimple.builder().build());
   }
 
-  public List<ExecutionTraceOutput> toExecutionTracesOutput(List<ExecutionTrace> traces) {
+  public static List<ExecutionTraceOutput> toExecutionTracesOutput(List<ExecutionTrace> traces) {
     return traces.stream()
         .map(
             trace ->
@@ -75,10 +77,7 @@ public class InjectStatusMapper {
                     .time(trace.getTime())
                     .message(trace.getMessage())
                     .action(trace.getAction())
-                    .agent(
-                        trace.getAgent() != null
-                            ? agentMapper.toAgentOutput(trace.getAgent())
-                            : null)
+                    .agent(trace.getAgent() != null ? toAgentOutput(trace.getAgent()) : null)
                     .build())
         .toList();
   }

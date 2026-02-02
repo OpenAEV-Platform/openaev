@@ -18,4 +18,7 @@ public class PayloadSimple {
 
   @JsonProperty("payload_collector_type")
   private String collectorType;
+
+  @JsonProperty("payload_domains")
+  private String[] domains;
 }

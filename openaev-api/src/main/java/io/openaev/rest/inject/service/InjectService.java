@@ -10,6 +10,7 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.AgentUtils.isPrimaryAgent;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.StringUtils.duplicateString;
+import static io.openaev.utils.mapper.InjectStatusMapper.toExecutionTracesOutput;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static java.time.Instant.now;
 
@@ -120,7 +121,24 @@ public class InjectService {
 
   // -- CRUD --
 
-  public Inject createInject(
+  public Inject createAndSaveInject(
+      @Nullable final Exercise exercise,
+      @Nullable final Scenario scenario,
+      @NotNull final InjectInput input) {
+    return injectRepository.save(buildInject(exercise, scenario, input));
+  }
+
+  public List<Inject> createAndSaveInjectList(
+      @Nullable final Exercise exercise,
+      @Nullable final Scenario scenario,
+      List<InjectInput> injectInputs) {
+
+    List<Inject> injects = new ArrayList<>();
+    injectInputs.forEach(injectInput -> injects.add(buildInject(exercise, scenario, injectInput)));
+    return injectRepository.saveAll(injects);
+  }
+
+  private Inject buildInject(
       @Nullable final Exercise exercise,
       @Nullable final Scenario scenario,
       @NotNull final InjectInput input) {
@@ -202,7 +220,7 @@ public class InjectService {
           injectorContractContentUtils.getDynamicInjectorContractFieldsForInject(injectorContract));
     }
 
-    return injectRepository.save(inject);
+    return inject;
   }
 
   public Inject inject(@NotBlank final String injectId) {
@@ -928,24 +946,21 @@ public class InjectService {
         .toList();
   }
 
-  public List<ExecutionTraceOutput> getInjectTracesFromInjectAndTarget(
+  public List<ExecutionTraceOutput> getInjectTracesOutputFromInjectAndTarget(
       final String injectId, final String targetId, final TargetType targetType) {
-    switch (targetType) {
-      case AGENT:
-        return injectStatusMapper.toExecutionTracesOutput(
-            this.executionTraceRepository.findByInjectIdAndAgentId(injectId, targetId));
-      case ASSETS:
-        return injectStatusMapper.toExecutionTracesOutput(
-            this.executionTraceRepository.findByInjectIdAndAssetId(injectId, targetId));
-      case TEAMS:
-        return injectStatusMapper.toExecutionTracesOutput(
-            this.executionTraceRepository.findByInjectIdAndTeamId(injectId, targetId));
-      case PLAYERS:
-        return injectStatusMapper.toExecutionTracesOutput(
-            this.executionTraceRepository.findByInjectIdAndPlayerId(injectId, targetId));
-      default:
-        throw new BadRequestException("Target type " + targetType + " is not supported");
-    }
+    return toExecutionTracesOutput(
+        getInjectTracesFromInjectAndTarget(injectId, targetId, targetType));
+  }
+
+  public List<ExecutionTrace> getInjectTracesFromInjectAndTarget(
+      final String injectId, final String targetId, final TargetType targetType) {
+    return switch (targetType) {
+      case AGENT -> this.executionTraceRepository.findByInjectIdAndAgentId(injectId, targetId);
+      case ASSETS -> this.executionTraceRepository.findByInjectIdAndAssetId(injectId, targetId);
+      case TEAMS -> this.executionTraceRepository.findByInjectIdAndTeamId(injectId, targetId);
+      case PLAYERS -> this.executionTraceRepository.findByInjectIdAndPlayerId(injectId, targetId);
+      default -> throw new BadRequestException("Target type " + targetType + " is not supported");
+    };
   }
 
   public InjectStatusOutput getInjectStatusWithGlobalExecutionTraces(String injectId) {
@@ -1165,6 +1180,10 @@ public class InjectService {
       extractCombinationAttackPatternPlatformArchitecture(Scenario scenario) {
 
     return scenario.getInjects().stream()
+        .filter(
+            inject ->
+                inject.getPayload().isEmpty()
+                    || !(inject.getPayload().get() instanceof DnsResolution))
         .map(inject -> inject.getInjectorContract().map(ic -> Map.entry(inject, ic)))
         .flatMap(Optional::stream)
         // Only keep attack patterns that specify both platform and architecture.

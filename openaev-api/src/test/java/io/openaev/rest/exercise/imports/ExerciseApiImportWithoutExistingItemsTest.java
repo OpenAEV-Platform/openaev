@@ -10,6 +10,8 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
+import io.openaev.integration.Manager;
+import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrationFactory;
 import io.openaev.rest.exercise.exports.ExportOptions;
 import io.openaev.rest.exercise.service.ExportService;
 import io.openaev.service.ChallengeService;
@@ -59,18 +61,18 @@ public class ExerciseApiImportWithoutExistingItemsTest extends IntegrationTest {
   @Autowired private ChannelComposer channelComposer;
   @Autowired private ChannelRepository channelRepository;
   @Autowired private LessonsQuestionsComposer lessonsQuestionsComposer;
-  @Autowired private LessonsQuestionRepository lessonsQuestionRepository;
   @Autowired private LessonsCategoryComposer lessonsCategoryComposer;
   @Autowired private LessonsCategoryRepository lessonsCategoryRepository;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private ExportService exportService;
   @Autowired private EntityManager entityManager;
   @Autowired private ChallengeService challengeService;
+  @Autowired private ChallengeInjectorIntegrationFactory challengeInjectorIntegrationFactory;
 
   private static final int FULL_EXPORT_OPTIONS = ExportOptions.mask(true, true, true);
 
   @BeforeEach
-  void before() {
+  void before() throws Exception {
     lessonsQuestionsComposer.reset();
     lessonsCategoryComposer.reset();
     teamComposer.reset();
@@ -85,6 +87,7 @@ public class ExerciseApiImportWithoutExistingItemsTest extends IntegrationTest {
     documentComposer.reset();
     tagComposer.reset();
     exerciseComposer.reset();
+    new Manager(List.of(challengeInjectorIntegrationFactory)).monitorIntegrations();
   }
 
   // this is part of the "Arrange" part of the AAA pattern for the following tests

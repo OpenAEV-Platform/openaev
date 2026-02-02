@@ -1,6 +1,6 @@
 import { Box, Checkbox, FormControlLabel } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent } from 'react';
+import { type FunctionComponent, memo, useCallback, useMemo } from 'react';
 import { makeStyles } from 'tss-react/mui';
 import { useLocalStorage } from 'usehooks-ts';
 
@@ -12,7 +12,7 @@ import { type AttackPattern, type EsSeries, type KillChainPhase } from '../../..
 import { sortKillChainPhase } from '../../../../../../utils/kill_chain_phases/kill_chain_phases';
 import ColoredPercentageRate from './components/ColoredPercentageRate';
 import KillChainPhaseColumn from './KillChainPhaseColumn';
-import { filterByKillChainPhase, resolvedData } from './securityCoverageUtils';
+import { buildKillChainPhaseIndex, resolvedData } from './securityCoverageUtils';
 
 const useStyles = makeStyles()(theme => ({
   container: {
@@ -34,8 +34,8 @@ const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, data }) =
   const { classes } = useStyles();
   const theme = useTheme();
   const { t } = useFormatter();
-  // Fetching data
-  // eslint-disable-next-line max-len
+
+  // Fetching data - use stable selector
   const { attackPatternMap, killChainPhaseMap }: {
     attackPatternMap: Record<string, AttackPattern>;
     killChainPhaseMap: Record<string, KillChainPhase>;
@@ -44,10 +44,47 @@ const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, data }) =
     killChainPhaseMap: helper.getKillChainPhasesMap(),
   }));
 
-  const resolvedDataSuccess = resolvedData(attackPatternMap, killChainPhaseMap, data.at(0)?.data ?? []);
-  const resolvedDataFailure = resolvedData(attackPatternMap, killChainPhaseMap, data.at(1)?.data ?? []);
+  // Memoize resolved data computations
+  const resolvedDataSuccess = useMemo(
+    () => resolvedData(attackPatternMap, killChainPhaseMap, data.at(0)?.data ?? []),
+    [attackPatternMap, killChainPhaseMap, data],
+  );
+
+  const resolvedDataFailure = useMemo(
+    () => resolvedData(attackPatternMap, killChainPhaseMap, data.at(1)?.data ?? []),
+    [attackPatternMap, killChainPhaseMap, data],
+  );
+
+  // Build indexes for fast phase-based filtering - O(n) once instead of O(n) per phase
+  const successByPhase = useMemo(
+    () => buildKillChainPhaseIndex(resolvedDataSuccess),
+    [resolvedDataSuccess],
+  );
+
+  const failureByPhase = useMemo(
+    () => buildKillChainPhaseIndex(resolvedDataFailure),
+    [resolvedDataFailure],
+  );
+
+  // Memoize sorted kill chain phases
+  const sortedPhases = useMemo(
+    () => Object.values(killChainPhaseMap).toSorted(sortKillChainPhase),
+    [killChainPhaseMap],
+  );
 
   const [showCoveredOnly, setShowCoveredOnly] = useLocalStorage<boolean>('widget-' + widgetId, false);
+
+  const handleShowCoveredOnlyChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => setShowCoveredOnly(e.target.checked),
+    [setShowCoveredOnly],
+  );
+
+  // Memoize container padding style
+  const headerStyle = useMemo(() => ({
+    display: 'flex',
+    justifyContent: 'space-between',
+    padding: theme.spacing(1),
+  }), [theme]);
 
   return (
     <Box
@@ -56,18 +93,13 @@ const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, data }) =
       flexDirection="column"
       minHeight={0}
     >
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        padding: theme.spacing(1),
-      }}
-      >
+      <div style={headerStyle}>
         <Box className="noDrag">
           <FormControlLabel
             control={(
               <Checkbox
                 checked={showCoveredOnly}
-                onChange={e => setShowCoveredOnly(e.target.checked)}
+                onChange={handleShowCoveredOnlyChange}
                 color="primary"
               />
             )}
@@ -79,24 +111,24 @@ const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, data }) =
         </div>
       </div>
       <Box className={classes.container}>
-        {Object.values(killChainPhaseMap).toSorted(sortKillChainPhase)
-          .map((phase) => {
-            const resolvedDataSuccessByKillChainPhase = filterByKillChainPhase(resolvedDataSuccess, phase.phase_external_id);
-            const resolvedDataFailureByKillChainPhase = filterByKillChainPhase(resolvedDataFailure, phase.phase_external_id);
-            return (
-              <KillChainPhaseColumn
-                key={phase.phase_id}
-                killChainPhase={phase}
-                showCoveredOnly={showCoveredOnly}
-                resolvedDataSuccess={resolvedDataSuccessByKillChainPhase}
-                resolvedDataFailure={resolvedDataFailureByKillChainPhase}
-                widgetId={widgetId}
-              />
-            );
-          })}
+        {sortedPhases.map((phase) => {
+          // Use indexed lookups - O(1) instead of O(n) filter
+          const resolvedDataSuccessByKillChainPhase = successByPhase.get(phase.phase_external_id) ?? [];
+          const resolvedDataFailureByKillChainPhase = failureByPhase.get(phase.phase_external_id) ?? [];
+          return (
+            <KillChainPhaseColumn
+              key={phase.phase_id}
+              killChainPhase={phase}
+              showCoveredOnly={showCoveredOnly}
+              resolvedDataSuccess={resolvedDataSuccessByKillChainPhase}
+              resolvedDataFailure={resolvedDataFailureByKillChainPhase}
+              widgetId={widgetId}
+            />
+          );
+        })}
       </Box>
     </Box>
   );
 };
 
-export default SecurityCoverageContent;
+export default memo(SecurityCoverageContent);

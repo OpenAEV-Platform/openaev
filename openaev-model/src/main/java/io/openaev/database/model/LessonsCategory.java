@@ -5,8 +5,8 @@ import static java.time.Instant.now;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MonoIdDeserializer;
-import io.openaev.helper.MultiIdListDeserializer;
+import io.openaev.helper.MonoIdSerializer;
+import io.openaev.helper.MultiIdListSerializer;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -37,14 +37,14 @@ public class LessonsCategory implements Base {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "lessons_category_exercise")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("lessons_category_exercise")
   @Schema(type = "string")
   private Exercise exercise;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "lessons_category_scenario")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("lessons_category_scenario")
   @Schema(type = "string")
   private Scenario scenario;
@@ -77,14 +77,14 @@ public class LessonsCategory implements Base {
       name = "lessons_categories_teams",
       joinColumns = @JoinColumn(name = "lessons_category_id"),
       inverseJoinColumns = @JoinColumn(name = "team_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("lessons_category_teams")
   @ArraySchema(schema = @Schema(type = "string"))
   private List<Team> teams = new ArrayList<>();
 
   @OneToMany(mappedBy = "category", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
   @JsonProperty("lessons_category_questions")
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @ArraySchema(schema = @Schema(type = "string"))
   private List<LessonsQuestion> questions = new ArrayList<>();
 
@@ -98,7 +98,13 @@ public class LessonsCategory implements Base {
 
   @Override
   public boolean isUserHasAccess(User user) {
-    return getExercise().isUserHasAccess(user);
+    if (getExercise() != null) {
+      return getExercise().isUserHasAccess(user);
+    }
+    if (getScenario() != null) {
+      return getScenario().isUserHasAccess(user);
+    }
+    return user.isAdmin();
   }
 
   @Override

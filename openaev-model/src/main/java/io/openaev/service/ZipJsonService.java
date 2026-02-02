@@ -29,10 +29,29 @@ import java.util.zip.ZipOutputStream;
 import lombok.*;
 import org.springframework.stereotype.Service;
 
+/**
+ * Service for exporting and importing entities as ZIP archives containing JSON API documents.
+ *
+ * <p>This service handles the serialization of entities with their related documents (files) into
+ * ZIP archives for export, and the reverse process for import. The archive format includes:
+ *
+ * <ul>
+ *   <li>A JSON API document ({@code <type>.json}) containing the entity and relationships
+ *   <li>A metadata file ({@code meta.json}) with schema versioning information
+ *   <li>Any associated document files referenced by the entity
+ * </ul>
+ *
+ * <p>This is used for scenario/exercise import/export functionality.
+ *
+ * @param <T> the entity type being exported/imported
+ * @see GenericJsonApiExporter
+ * @see GenericJsonApiImporter
+ */
 @Service
 @RequiredArgsConstructor
 public class ZipJsonService<T extends Base> {
 
+  /** Filename for the metadata entry in ZIP archives. */
   private static final String META_ENTRY = "meta.json";
 
   @Resource private ObjectMapper mapper = new ObjectMapper();
@@ -41,6 +60,18 @@ public class ZipJsonService<T extends Base> {
   private final DocumentRepository documentRepository;
   private final FileService fileService;
 
+  /**
+   * Exports an entity to a ZIP archive with all related documents.
+   *
+   * <p>This method scans the entity for Document relationships, retrieves their file content, and
+   * packages everything into a ZIP archive along with the JSON API representation.
+   *
+   * @param entity the entity to export
+   * @param extras additional files to include in the archive (may be null)
+   * @param resource the JSON API document representation of the entity
+   * @return the ZIP archive as a byte array
+   * @throws IOException if writing the archive fails
+   */
   public byte[] handleExportResource(
       T entity, Map<String, byte[]> extras, JsonApiDocument<ResourceObject> resource)
       throws IOException {
@@ -73,6 +104,20 @@ public class ZipJsonService<T extends Base> {
     return this.writeZip(resource, extras);
   }
 
+  /**
+   * Imports an entity from a ZIP archive.
+   *
+   * <p>This method parses the ZIP archive, extracts the JSON API document and associated files,
+   * persists the entity, and returns the resulting document representation.
+   *
+   * @param fileBytes the ZIP archive content
+   * @param nameAttributeKey the attribute key for the entity name (for suffix appending)
+   * @param includeOptions options controlling which relationships to include
+   * @param sanityCheck function to validate/modify the entity before persistence
+   * @param suffix suffix to append to the entity name (e.g., " (copy)")
+   * @return the JSON API document for the imported entity
+   * @throws IOException if reading the archive fails
+   */
   public JsonApiDocument<ResourceObject> handleImport(
       byte[] fileBytes,
       String nameAttributeKey,
@@ -111,6 +156,14 @@ public class ZipJsonService<T extends Base> {
     }
   }
 
+  /**
+   * Writes a JSON API document and extras to a ZIP archive.
+   *
+   * @param document the JSON API document to include
+   * @param extras additional files to include, keyed by path
+   * @return the ZIP archive as a byte array
+   * @throws IOException if writing fails
+   */
   public byte[] writeZip(JsonApiDocument<ResourceObject> document, Map<String, byte[]> extras)
       throws IOException {
     ByteArrayOutputStream bytes = new ByteArrayOutputStream();
@@ -183,12 +236,15 @@ public class ZipJsonService<T extends Base> {
     return bytes.toByteArray();
   }
 
+  /** Container for parsed ZIP archive contents. */
   @Getter
   @AllArgsConstructor
   @NoArgsConstructor(access = AccessLevel.PRIVATE)
   public static class ParsedZip {
-
+    /** The JSON API document from the archive. */
     JsonApiDocument<ResourceObject> document;
+
+    /** Additional files from the archive, keyed by path. */
     Map<String, byte[]> extras;
   }
 }

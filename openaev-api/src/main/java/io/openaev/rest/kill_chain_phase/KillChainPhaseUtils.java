@@ -3,7 +3,9 @@ package io.openaev.rest.kill_chain_phase;
 import java.util.HashMap;
 import java.util.Map;
 
-public class KillChainPhaseUtils {
+public final class KillChainPhaseUtils {
+
+  private KillChainPhaseUtils() {}
 
   public static Map<String, Long> orderFromMitreAttack() {
     Map<String, Long> map = new HashMap<>();

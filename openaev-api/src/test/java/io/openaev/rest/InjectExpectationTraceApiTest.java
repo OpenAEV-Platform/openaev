@@ -1,7 +1,7 @@
 package io.openaev.rest;
 
 import static io.openaev.rest.inject_expectation_trace.InjectExpectationTraceApi.INJECT_EXPECTATION_TRACES_URI;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static net.javacrumbs.jsonunit.core.Option.IGNORING_ARRAY_ORDER;
 import static org.junit.jupiter.api.Assertions.*;
@@ -88,7 +88,7 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
     InjectExpectationTrace iet1 = new InjectExpectationTrace();
     iet1.setInjectExpectation(savedInjectExpectation);
     iet1.setSecurityPlatform(savedSecurityPlatform);
-    iet1.setAlertDate(Instant.now().minus(1, ChronoUnit.SECONDS));
+    iet1.setAlertDate(Instant.now().minus(1, ChronoUnit.SECONDS).truncatedTo(ChronoUnit.SECONDS));
     iet1.setAlertLink("http://test-link.com/1");
     iet1.setAlertName("Test Alert 1");
     savedInjectExpectationTrace1 = injectExpectationTraceRepository.save(iet1);
@@ -96,7 +96,7 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
     InjectExpectationTrace iet2 = new InjectExpectationTrace();
     iet2.setInjectExpectation(savedInjectExpectation);
     iet2.setSecurityPlatform(savedSecurityPlatform);
-    iet2.setAlertDate(Instant.now().minus(1, ChronoUnit.SECONDS));
+    iet2.setAlertDate(Instant.now().minus(1, ChronoUnit.SECONDS).truncatedTo(ChronoUnit.SECONDS));
     iet2.setAlertLink("http://test-link.com/2");
     iet2.setAlertName("Test Alert 2");
     savedInjectExpectationTrace2 = injectExpectationTraceRepository.save(iet2);
@@ -104,7 +104,7 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
     // Insert input3 duplicate
     savedInjectExpectationTrace3Dupe = new InjectExpectationTrace();
     savedInjectExpectationTrace3Dupe.setInjectExpectation(savedInjectExpectation);
-    savedInjectExpectationTrace3Dupe.setAlertDate(Instant.now());
+    savedInjectExpectationTrace3Dupe.setAlertDate(Instant.now().truncatedTo(ChronoUnit.SECONDS));
     savedInjectExpectationTrace3Dupe.setAlertLink("http://fake-link.com/bulk3");
     savedInjectExpectationTrace3Dupe.setSecurityPlatform(savedSecurityPlatform);
     savedInjectExpectationTrace3Dupe.setAlertName("Test Alert Bulk 3 for duplicate test");
@@ -171,6 +171,8 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
         mapper.writeValueAsString(savedInjectExpectationTrace3Dupe);
     assertThatJson(response)
         .when(IGNORING_ARRAY_ORDER)
+        .whenIgnoringPaths(
+            "inject_expectation_trace_created_at", "inject_expectation_trace_updated_at")
         .isArray()
         .containsAll(
             List.of(

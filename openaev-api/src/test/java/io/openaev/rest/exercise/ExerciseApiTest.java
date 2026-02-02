@@ -2,7 +2,7 @@ package io.openaev.rest.exercise;
 
 import static io.openaev.database.model.SettingKeys.DEFAULT_SIMULATION_DASHBOARD;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -21,6 +21,7 @@ import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.annotation.Nullable;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
@@ -33,9 +34,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @AutoConfigureMockMvc
 @TestInstance(PER_CLASS)
 public class ExerciseApiTest extends IntegrationTest {
@@ -337,6 +342,21 @@ public class ExerciseApiTest extends IntegrationTest {
     @DisplayName("Throw license restricted error when schedule exercise with Tanium")
     void given_tanium_should_not_scheduleExercise() throws Exception {
       Exercise exercise = getExercise(executorFixture.getTaniumExecutor());
+      ExerciseUpdateStartDateInput input = new ExerciseUpdateStartDateInput();
+
+      mvc.perform(
+              put(EXERCISE_URI + "/" + exercise.getId() + "/start-date")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
+    }
+
+    @Test
+    @DisplayName("Throw license restricted error when schedule exercise with Sentinel One")
+    void given_sentinelone_should_not_scheduleExercise() throws Exception {
+      Exercise exercise = getExercise(executorFixture.getSentineloneExecutor());
       ExerciseUpdateStartDateInput input = new ExerciseUpdateStartDateInput();
 
       mvc.perform(

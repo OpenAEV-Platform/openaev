@@ -8,7 +8,7 @@ import { fetchScenario } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
 import { findNotificationRuleByResource } from '../../../../actions/scenarios/scenario-notification-rules';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import errorWrapper from '../../../../components/errorWrapper';
+import { errorWrapper } from '../../../../components/Error';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import NotFound from '../../../../components/NotFound';
@@ -33,8 +33,7 @@ const Lessons = lazy(() => import('./lessons/ScenarioLessons'));
 const ScenarioFindings = lazy(() => import('./findings/ScenarioFindings'));
 const ScenarioAnalysis = lazy(() => import('./analysis/ScenarioAnalysis'));
 
-// eslint-disable-next-line no-underscore-dangle
-const _MS_PER_DAY = 1000 * 60 * 60 * 24;
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
 const IndexScenarioComponent: FunctionComponent<{ scenario: Scenario }> = ({ scenario }) => {
   const { t, locale, fld } = useFormatter();
@@ -67,7 +66,7 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: Scenario }> = ({ sce
   const [selectRecurring, setSelectRecurring] = useState('noRepeat');
   const [cronObject, setCronObject] = useState<PeriodExpressionHandler | null>(handle(scenario.scenario_recurrence));
   const noRepeat = !!scenario.scenario_recurrence_end && !!scenario.scenario_recurrence_start
-    && new Date(scenario.scenario_recurrence_end).getTime() - new Date(scenario.scenario_recurrence_start).getTime() <= _MS_PER_DAY
+    && new Date(scenario.scenario_recurrence_end).getTime() - new Date(scenario.scenario_recurrence_start).getTime() <= MS_PER_DAY
     && ['noRepeat', 'daily'].includes(selectRecurring);
   const getHumanReadableScheduling = () => {
     if (!cronObject?.isValid()) {

@@ -17,6 +17,7 @@ import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.TagRuleFixture;
+import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -24,8 +25,12 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestExecutionListeners;
 
 @SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 public class TagRuleServiceTest extends IntegrationTest {
   private static final String TAG_RULE_ID = "tagruleid";
   private static final String TAG_RULE_ID_2 = "tagruleid2";

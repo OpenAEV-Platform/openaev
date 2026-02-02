@@ -7,19 +7,14 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Slide,
 } from '@mui/material';
-import { forwardRef, useContext, useState } from 'react';
+import { useContext, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
+import Transition from '../../../../../components/common/Transition';
 import { useFormatter } from '../../../../../components/i18n';
 import { LessonContext } from '../../../common/Context';
 import LessonsQuestionForm from './LessonsQuestionForm';
-
-const Transition = forwardRef((props, ref) => (
-  <Slide direction="up" ref={ref} {...props} />
-));
-Transition.displayName = 'TransitionSlide';
 
 const useStyles = makeStyles()(theme => ({
   createButton: {

@@ -13,9 +13,37 @@ import org.jetbrains.annotations.Nullable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.CollectionUtils;
 
-public class JpaUtils {
+/**
+ * Utility class for JPA operations including path resolution, join management, and specification
+ * building.
+ *
+ * <p>This class provides helper methods for:
+ *
+ * <ul>
+ *   <li>Computing JPA paths from property schemas
+ *   <li>Managing joins for nested properties
+ *   <li>Building "in" and "not in" specifications
+ *   <li>Array aggregation for relationship queries (PostgreSQL-specific)
+ * </ul>
+ *
+ * <p>Path resolution supports:
+ *
+ * <ul>
+ *   <li>Simple paths (e.g., "name")
+ *   <li>Nested paths with automatic join creation (e.g., "user.organization.name")
+ *   <li>Join table relationships
+ * </ul>
+ *
+ * <p><b>Note:</b> Some methods use PostgreSQL-specific functions (e.g., array_agg) and may not work
+ * with other databases.
+ *
+ * @see FilterUtilsJpa for building filter specifications
+ */
+public final class JpaUtils {
 
-  private JpaUtils() {}
+  private JpaUtils() {
+    // Utility class - prevent instantiation
+  }
 
   private static <U> Path<U> computePath(
       @NotNull final From<?, ?> from, @NotNull final String key) {
@@ -109,6 +137,14 @@ public class JpaUtils {
   public static <X, Y> Expression<String[]> createJoinArrayAggOnId(
       CriteriaBuilder cb, Root<X> root, String attributeName) {
     Join<X, Y> join = createLeftJoin(root, attributeName);
+    return arrayAggOnId((HibernateCriteriaBuilder) cb, join);
+  }
+
+  public static <X, Y> Expression<String[]> createJoinArrayAggOnIdForJoin(
+      CriteriaBuilder cb, From<?, ?> from, String attributeName) {
+
+    Join<X, Y> join = from.join(attributeName, JoinType.LEFT);
+
     return arrayAggOnId((HibernateCriteriaBuilder) cb, join);
   }
 

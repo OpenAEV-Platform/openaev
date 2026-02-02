@@ -1,6 +1,5 @@
 package io.openaev.scheduler.jobs;
 
-import io.openaev.aop.LogExecutionTime;
 import io.openaev.engine.EngineContext;
 import io.openaev.engine.EngineService;
 import io.openaev.engine.EsModel;
@@ -26,7 +25,6 @@ public class EngineSyncExecutionJob implements Job {
 
   @Override
   @Transactional(rollbackFor = Exception.class)
-  @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     List<EsModel<EsBase>> models = engineContext.getModels();
     log.info("Executing bulk parallel processing for {} models", models.size());

@@ -7,10 +7,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MonoIdDeserializer;
-import io.openaev.helper.MultiIdListDeserializer;
-import io.openaev.helper.MultiIdSetDeserializer;
-import io.openaev.helper.MultiModelDeserializer;
+import io.openaev.helper.MonoIdSerializer;
+import io.openaev.helper.MultiIdListSerializer;
+import io.openaev.helper.MultiIdSetSerializer;
+import io.openaev.helper.MultiModelSerializer;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -80,13 +80,13 @@ public class Team implements Base {
       name = "teams_tags",
       joinColumns = @JoinColumn(name = "team_id"),
       inverseJoinColumns = @JoinColumn(name = "tag_id"))
-  @JsonSerialize(using = MultiIdSetDeserializer.class)
+  @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonProperty("team_tags")
   private Set<Tag> tags = new HashSet<>();
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "team_organization")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("team_organization")
   @Schema(description = "Organization of the team", type = "string")
   private Organization organization;
@@ -97,7 +97,7 @@ public class Team implements Base {
       name = "users_teams",
       joinColumns = @JoinColumn(name = "team_id"),
       inverseJoinColumns = @JoinColumn(name = "user_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("team_users")
   private List<User> users = new ArrayList<>();
 
@@ -108,7 +108,7 @@ public class Team implements Base {
       name = "exercises_teams",
       joinColumns = @JoinColumn(name = "team_id"),
       inverseJoinColumns = @JoinColumn(name = "exercise_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("team_exercises")
   private List<Exercise> exercises = new ArrayList<>();
 
@@ -119,7 +119,7 @@ public class Team implements Base {
       name = "scenarios_teams",
       joinColumns = @JoinColumn(name = "team_id"),
       inverseJoinColumns = @JoinColumn(name = "scenario_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("team_scenarios")
   private List<Scenario> scenarios = new ArrayList<>();
 
@@ -154,7 +154,7 @@ public class Team implements Base {
       cascade = CascadeType.ALL,
       orphanRemoval = true)
   @JsonProperty("team_exercises_users")
-  @JsonSerialize(using = MultiModelDeserializer.class)
+  @JsonSerialize(using = MultiModelSerializer.class)
   private List<ExerciseTeamUser> exerciseTeamUsers = new ArrayList<>();
 
   @JsonProperty("team_users_number")
@@ -170,7 +170,7 @@ public class Team implements Base {
               description = "List of inject IDs from all simulations of the team",
               type = "string"))
   @JsonProperty("team_exercise_injects")
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   public List<Inject> getExercisesInjects() {
     Predicate<Inject> selectedInject =
         inject -> inject.isAllTeams() || inject.getTeams().contains(this);
@@ -192,7 +192,7 @@ public class Team implements Base {
               description = "List of inject IDs from all scenarios of the team",
               type = "string"))
   @JsonProperty("team_scenario_injects")
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   public List<Inject> getScenariosInjects() {
     Predicate<Inject> selectedInject =
         inject -> inject.isAllTeams() || inject.getTeams().contains(this);
@@ -212,20 +212,20 @@ public class Team implements Base {
       schema =
           @Schema(description = "List of expectations id linked to this team", type = "string"))
   @OneToMany(mappedBy = "team", fetch = FetchType.LAZY)
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("team_inject_expectations")
   private List<InjectExpectation> injectExpectations = new ArrayList<>();
 
   @JsonProperty("team_injects_expectations_number")
   @Schema(description = "Number of expectations linked to this team")
-  public long getInjectExceptationsNumber() {
+  public long getInjectExpectationsNumber() {
     return getInjectExpectations().size();
   }
 
   @JsonProperty("team_injects_expectations_total_score")
   @NotNull
   @Schema(description = "Total score of expectations linked to this team")
-  public double getInjectExceptationsTotalScore() {
+  public double getInjectExpectationsTotalScore() {
     return getInjectExpectations().stream()
         .filter((inject) -> inject.getScore() != null)
         .mapToDouble(InjectExpectation::getScore)
@@ -235,7 +235,7 @@ public class Team implements Base {
   @JsonProperty("team_injects_expectations_total_score_by_exercise")
   @NotNull
   @Schema(description = "Total score of expectations by simulation linked to this team")
-  public Map<String, Double> getInjectExceptationsTotalScoreByExercise() {
+  public Map<String, Double> getInjectExpectationsTotalScoreByExercise() {
     return getInjectExpectations().stream()
         .filter(
             expectation ->
@@ -250,8 +250,11 @@ public class Team implements Base {
   @JsonProperty("team_injects_expectations_total_expected_score")
   @NotNull
   @Schema(description = "Total expected score of expectations linked to this team")
-  public double getInjectExceptationsTotalExpectedScore() {
-    return getInjectExpectations().stream().mapToDouble(InjectExpectation::getExpectedScore).sum();
+  public double getInjectExpectationsTotalExpectedScore() {
+    return getInjectExpectations().stream()
+        .filter(expectation -> Objects.nonNull(expectation.getExpectedScore()))
+        .mapToDouble(InjectExpectation::getExpectedScore)
+        .sum();
   }
 
   @JsonProperty("team_injects_expectations_total_expected_score_by_exercise")

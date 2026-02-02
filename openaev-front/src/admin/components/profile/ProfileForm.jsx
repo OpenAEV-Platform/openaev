@@ -11,7 +11,7 @@ class ProfileFormComponent extends Component {
     const { t, onSubmit, initialValues } = this.props;
     return (
       <Form
-        keepDirtyOnReinitialize={true}
+        keepDirtyOnReinitialize
         onSubmit={onSubmit}
         initialValues={initialValues}
       >
@@ -20,21 +20,21 @@ class ProfileFormComponent extends Component {
             <OldTextField
               variant="standard"
               name="user_phone"
-              fullWidth={true}
+              fullWidth
               label={t('Phone number (mobile)')}
             />
             <OldTextField
               variant="standard"
               name="user_phone2"
-              fullWidth={true}
+              fullWidth
               label={t('Phone number (landline)')}
               style={{ marginTop: 20 }}
             />
             <OldTextField
               variant="standard"
               name="user_pgp_key"
-              fullWidth={true}
-              multiline={true}
+              fullWidth
+              multiline
               rows={5}
               label={t('PGP public key')}
               style={{ marginTop: 20 }}

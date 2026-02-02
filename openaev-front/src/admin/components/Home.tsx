@@ -2,8 +2,8 @@ import { fetchPlatformParameters, updatePlatformParameters } from '../../actions
 import type { LoggedHelper } from '../../actions/helper';
 import {
   fetchHomeDashboard, homeDashboardAttackPaths,
-  homeDashboardCount,
-  homeDashboardEntities,
+  homeDashboardAverage,
+  homeDashboardCount, homeDashboardEntities,
   homeDashboardSeries,
   homeWidgetToEntitiesRuntime,
 } from '../../actions/settings/settings-action';
@@ -37,6 +37,7 @@ const Home = () => {
     paramLocalStorageKey: 'custom-dashboard-home',
     fetchCustomDashboard: fetchHomeDashboard,
     fetchCount: homeDashboardCount,
+    fetchAverage: homeDashboardAverage,
     fetchSeries: homeDashboardSeries,
     fetchEntities: homeDashboardEntities,
     fetchEntitiesRuntime: homeWidgetToEntitiesRuntime,

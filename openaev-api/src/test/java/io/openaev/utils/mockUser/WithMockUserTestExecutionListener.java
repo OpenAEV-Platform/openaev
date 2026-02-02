@@ -10,6 +10,7 @@ import io.openaev.utils.fixtures.composers.GrantComposer;
 import io.openaev.utils.fixtures.composers.GroupComposer;
 import io.openaev.utils.fixtures.composers.RoleComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
+import jakarta.persistence.EntityManager;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.core.annotation.AnnotatedElementUtils;
@@ -17,6 +18,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.TestContext;
 import org.springframework.test.context.support.AbstractTestExecutionListener;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 public class WithMockUserTestExecutionListener extends AbstractTestExecutionListener {
 
@@ -28,6 +30,7 @@ public class WithMockUserTestExecutionListener extends AbstractTestExecutionList
     }
 
     var ctx = testContext.getApplicationContext();
+    EntityManager entityManager = ctx.getBean(EntityManager.class);
     UserComposer userComposer = ctx.getBean(UserComposer.class);
     GroupComposer groupComposer = ctx.getBean(GroupComposer.class);
     RoleComposer roleComposer = ctx.getBean(RoleComposer.class);
@@ -59,6 +62,11 @@ public class WithMockUserTestExecutionListener extends AbstractTestExecutionList
             .persist()
             .get();
     userComposer.reset(); // reset to avoid side effects in following tests
+
+    if (TransactionSynchronizationManager.isActualTransactionActive()) {
+      entityManager.flush();
+      entityManager.clear();
+    }
 
     testUserHolder.set(testUser);
 

@@ -2,7 +2,7 @@ package io.openaev.rest.injector_contract;
 
 import static io.openaev.rest.injector_contract.InjectorContractApi.INJECTOR_CONTRACT_URL;
 import static io.openaev.service.UserService.buildAuthenticationToken;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hamcrest.Matchers.equalTo;
@@ -19,7 +19,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.DomainRepository;
 import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.injector_contract.form.InjectorContractAddInput;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateInput;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateMappingInput;
@@ -41,6 +43,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.sql.BatchUpdateException;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -72,7 +75,9 @@ public class InjectorContractApiTest extends IntegrationTest {
   @Autowired private AttackPatternComposer attackPatternComposer;
   @Autowired private VulnerabilityComposer vulnerabilityComposer;
   @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private DomainComposer domainComposer;
   @Autowired private PayloadComposer payloadComposer;
+  @Autowired private DomainRepository domainRepository;
 
   @Autowired private UserComposer userComposer;
   @Autowired private GroupComposer groupComposer;
@@ -89,6 +94,7 @@ public class InjectorContractApiTest extends IntegrationTest {
     groupComposer.reset();
     roleComposer.reset();
     grantComposer.reset();
+    domainComposer.reset();
   }
 
   @Nested
@@ -292,11 +298,14 @@ public class InjectorContractApiTest extends IntegrationTest {
                 .forAttackPattern(AttackPatternFixture.createDefaultAttackPattern())
                 .persist();
         em.flush();
+        Set<Domain> domains =
+            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
 
         InjectorContractUpdateInput input = new InjectorContractUpdateInput();
         input.setContent("{\"fields\":[], \"arbitrary_field\": \"test\"}");
         input.setVulnerabilityIds(List.of(vulnWrapper.get().getId()));
         input.setAttackPatternsIds(List.of(attackPatternWrapper.get().getId()));
+        input.setDomains(domains);
 
         String response =
             mvc.perform(
@@ -339,11 +348,15 @@ public class InjectorContractApiTest extends IntegrationTest {
                 .persist();
         em.flush();
 
+        Set<Domain> domains =
+            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
+
         InjectorContractUpdateInput input = new InjectorContractUpdateInput();
         input.setContent("{\"fields\":[], \"arbitrary_field\": \"test\"}");
         input.setVulnerabilityIds(List.of(vulnWrapper.get().getId()));
         input.setVulnerabilityExternalIds(List.of(otherVulnWrapper.get().getExternalId()));
         input.setAttackPatternsIds(List.of(attackPatternWrapper.get().getId()));
+        input.setDomains(domains);
 
         String response =
             mvc.perform(
@@ -376,9 +389,12 @@ public class InjectorContractApiTest extends IntegrationTest {
       @Test
       @DisplayName("Without attack patterns, creating contract succeeds")
       void createContractSucceeds() throws Exception {
+        Set<Domain> domains =
+            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(injectorContractInternalId);
         input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
+        input.setDomains(domains);
         input.setContent("{\"fields\":[]}");
 
         String response =
@@ -408,7 +424,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_injector_type_name":"OpenAEV Implant"
+                          "injector_contract_injector_type_name":"OpenAEV Implant",
+                          "injector_contract_domains":[]
                         }
                         """,
                     injectorContractInternalId));
@@ -417,10 +434,13 @@ public class InjectorContractApiTest extends IntegrationTest {
       @Test
       @DisplayName("With missing attack patterns, creating contract fails with NOT FOUND")
       void withMissingAttackPatternsCreateContractFailsWithNOTFOUND() throws Exception {
+        Set<Domain> domains =
+            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(injectorContractInternalId);
         input.setAttackPatternsIds(List.of(UUID.randomUUID().toString()));
         input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
+        input.setDomains(domains);
         input.setContent("{\"fields\":[]}");
 
         mvc.perform(
@@ -433,10 +453,13 @@ public class InjectorContractApiTest extends IntegrationTest {
       @Test
       @DisplayName("With missing vulnerabilities, creating contract fails with NOT FOUND")
       void withMissingVulnerabilitiesCreateContractFailsWithNOTFOUND() throws Exception {
+        Set<Domain> domains =
+            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(injectorContractInternalId);
         input.setVulnerabilityIds(List.of(UUID.randomUUID().toString()));
         input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
+        input.setDomains(domains);
         input.setContent("{\"fields\":[]}");
 
         mvc.perform(
@@ -456,12 +479,15 @@ public class InjectorContractApiTest extends IntegrationTest {
         }
         em.flush();
         em.clear();
+        Set<Domain> domains =
+            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
 
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(injectorContractInternalId);
         input.setAttackPatternsIds(
             attackPatternComposer.generatedItems.stream().map(AttackPattern::getId).toList());
         input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
+        input.setDomains(domains);
         input.setContent("{\"fields\":[]}");
 
         String response =
@@ -491,7 +517,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_injector_type_name":"OpenAEV Implant"
+                          "injector_contract_injector_type_name":"OpenAEV Implant",
+                          "injector_contract_domains":[]
                         }
                         """,
                     injectorContractInternalId,
@@ -513,6 +540,8 @@ public class InjectorContractApiTest extends IntegrationTest {
         em.flush();
         em.clear();
 
+        Set<Domain> domains =
+            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(injectorContractInternalId);
         input.setAttackPatternsExternalIds(
@@ -521,6 +550,7 @@ public class InjectorContractApiTest extends IntegrationTest {
                 .toList());
         input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
         input.setContent("{\"fields\":[]}");
+        input.setDomains(domains);
 
         String response =
             mvc.perform(
@@ -549,7 +579,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_injector_type_name":"OpenAEV Implant"
+                          "injector_contract_injector_type_name":"OpenAEV Implant",
+                          "injector_contract_domains":[]
                         }
                         """,
                     injectorContractInternalId,
@@ -572,12 +603,15 @@ public class InjectorContractApiTest extends IntegrationTest {
         }
         em.flush();
         em.clear();
+        Set<Domain> domains =
+            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
 
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(injectorContractInternalId);
         input.setVulnerabilityIds(
             vulnerabilityComposer.generatedItems.stream().map(Vulnerability::getId).toList());
         input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
+        input.setDomains(domains);
         input.setContent("{\"fields\":[]}");
 
         String response =
@@ -608,7 +642,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_injector_type_name":"OpenAEV Implant"
+                          "injector_contract_injector_type_name":"OpenAEV Implant",
+                          "injector_contract_domains":[]
                         }
                         """,
                     injectorContractInternalId,
@@ -631,6 +666,8 @@ public class InjectorContractApiTest extends IntegrationTest {
         }
         em.flush();
         em.clear();
+        Set<Domain> domains =
+            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
 
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(injectorContractInternalId);
@@ -640,6 +677,7 @@ public class InjectorContractApiTest extends IntegrationTest {
                 .map(vuln -> vuln.getExternalId().toLowerCase())
                 .toList());
         input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
+        input.setDomains(domains);
         input.setContent("{\"fields\":[]}");
 
         String response =
@@ -670,7 +708,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_injector_type_name":"OpenAEV Implant"
+                          "injector_contract_injector_type_name":"OpenAEV Implant",
+                          "injector_contract_domains":[]
                         }
                         """,
                     injectorContractInternalId,
@@ -725,6 +764,9 @@ public class InjectorContractApiTest extends IntegrationTest {
       @DisplayName("Updating contract fails with NOT FOUND")
       void updateContractFailsWithNotFound() throws Exception {
         InjectorContractUpdateInput input = new InjectorContractUpdateInput();
+        Set<Domain> domains =
+            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
+        input.setDomains(domains);
         input.setContent("{\"fields\":[], \"arbitrary_field\": \"test\"}");
 
         mvc.perform(
@@ -931,11 +973,14 @@ public class InjectorContractApiTest extends IntegrationTest {
                 .forAttackPattern(AttackPatternFixture.createDefaultAttackPattern())
                 .persist();
         em.flush();
+        Set<Domain> domains =
+            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
 
         InjectorContractUpdateInput input = new InjectorContractUpdateInput();
         input.setContent("{\"fields\":[], \"arbitrary_field\": \"test\"}");
         input.setVulnerabilityIds(List.of(vulnWrapper.get().getId()));
         input.setAttackPatternsIds(List.of(attackPatternWrapper.get().getId()));
+        input.setDomains(domains);
 
         String response =
             mvc.perform(
@@ -961,12 +1006,15 @@ public class InjectorContractApiTest extends IntegrationTest {
     class WhenInjectorContractDoesNotAlreadyExists {
 
       @Test
-      @DisplayName("Creating contract succeeds")
-      void createContractSucceeds() throws Exception {
+      @DisplayName("Creating contract succeeds from injector payload type")
+      void createContractSucceedsFromInjectorPayloadType() throws Exception {
+        Set<Domain> domains =
+            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
         String newId = UUID.randomUUID().toString();
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(newId);
         input.setExternalId(externalId);
+        input.setDomains(domains);
         input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
         input.setContent("{\"fields\":[]}");
 
@@ -985,21 +1033,74 @@ public class InjectorContractApiTest extends IntegrationTest {
             .isEqualTo(
                 String.format(
                     """
-                        {
-                          "convertedContent":null,"listened":true,"injector_contract_id":"%s",
-                          "injector_contract_external_id":"contract external id",
-                          "injector_contract_labels":null,"injector_contract_manual":false,
-                          "injector_contract_content":"{\\"fields\\":[]}",
-                          "injector_contract_custom":true,"injector_contract_needs_executor":false,
-                          "injector_contract_platforms":[],"injector_contract_payload":null,
-                          "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
-                          "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[],
-                          "injector_contract_atomic_testing":true,
-                          "injector_contract_import_available":false,"injector_contract_arch":null,
-                          "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_injector_type_name":"OpenAEV Implant"
-                        }""",
+                                  {
+                                    "convertedContent":null,"listened":true,"injector_contract_id":"%s",
+                                    "injector_contract_external_id":"contract external id",
+                                    "injector_contract_labels":null,"injector_contract_manual":false,
+                                    "injector_contract_content":"{\\"fields\\":[]}",
+                                    "injector_contract_custom":true,"injector_contract_needs_executor":false,
+                                    "injector_contract_platforms":[],"injector_contract_payload":null,
+                                    "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
+                                    "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[],
+                                    "injector_contract_atomic_testing":true,
+                                    "injector_contract_import_available":false,"injector_contract_arch":null,
+                                    "injector_contract_injector_type":"openaev_implant",
+                                    "injector_contract_injector_type_name":"OpenAEV Implant",
+                                    "injector_contract_domains":[]
+                                  }""",
                     newId));
+      }
+
+      @Test
+      @DisplayName("Creating contract succeeds")
+      void createContractSucceeds() throws Exception {
+        Domain domain = DomainFixture.getRandomDomain();
+        Set<Domain> domains = domainComposer.forDomain(domain).persist().getSet();
+        String newId = UUID.randomUUID().toString();
+        InjectorContractAddInput input = new InjectorContractAddInput();
+        input.setId(newId);
+        input.setExternalId(externalId);
+        input.setDomains(domains);
+        input.setInjectorId(injectorFixture.getWellKnownEmailInjector(false).getId());
+        input.setContent("{\"fields\":[]}");
+
+        String response =
+            mvc.perform(
+                    post(INJECTOR_CONTRACT_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(input)))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertThatJson(response)
+            .whenIgnoringPaths(
+                "injector_contract_created_at",
+                "injector_contract_updated_at",
+                "injector_contract_domains[*].domain_created_at",
+                "injector_contract_domains[*].domain_updated_at",
+                "injector_contract_domains[*].domain_id",
+                "injector_contract_domains[*].listened")
+            .isEqualTo(
+                String.format(
+                    """
+                                    {
+                                      "convertedContent":null,"listened":true,"injector_contract_id":"%s",
+                                      "injector_contract_external_id":"contract external id",
+                                      "injector_contract_labels":null,"injector_contract_manual":false,
+                                      "injector_contract_content":"{\\"fields\\":[]}",
+                                      "injector_contract_custom":true,"injector_contract_needs_executor":false,
+                                      "injector_contract_platforms":[],"injector_contract_payload":null,
+                                      "injector_contract_injector":"41b4dd55-5bd1-4614-98cd-9e3770753306",
+                                      "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[],
+                                      "injector_contract_atomic_testing":true,
+                                      "injector_contract_import_available":false,"injector_contract_arch":null,
+                                      "injector_contract_injector_type":"openaev_email",
+                                      "injector_contract_injector_type_name":"Email",
+                                      "injector_contract_domains":[{domain_name: "%s", domain_color: "%s"}]
+                                    }""",
+                    newId, domain.getName(), domain.getColor()));
       }
 
       @Test
@@ -1045,7 +1146,10 @@ public class InjectorContractApiTest extends IntegrationTest {
       @Test
       @DisplayName("Updating contract fails with NOT FOUND")
       void updateContractFailsWithNotFound() throws Exception {
+        Set<Domain> domains =
+            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
         InjectorContractUpdateInput input = new InjectorContractUpdateInput();
+        input.setDomains(domains);
         input.setContent("{\"fields\":[], \"arbitrary_field\": \"test\"}");
 
         mvc.perform(
@@ -1166,7 +1270,9 @@ public class InjectorContractApiTest extends IntegrationTest {
           GroupComposer.Composer bypassGroup =
               groupComposer
                   .forGroup(GroupFixture.createGroup())
-                  .withRole(roleComposer.forRole(RoleFixture.getRole(Set.of(Capability.BYPASS))));
+                  .withRole(
+                      roleComposer.forRole(
+                          RoleFixture.getRole(new HashSet<>(Set.of(Capability.BYPASS)))));
 
           yield userComposer
               .forUser(
@@ -1179,7 +1285,7 @@ public class InjectorContractApiTest extends IntegrationTest {
                   .forGroup(GroupFixture.createGroup())
                   .withRole(
                       roleComposer.forRole(
-                          RoleFixture.getRole(Set.of(Capability.ACCESS_PAYLOADS))));
+                          RoleFixture.getRole(new HashSet<>(Set.of(Capability.ACCESS_PAYLOADS)))));
 
           yield userComposer
               .forUser(
@@ -1195,7 +1301,7 @@ public class InjectorContractApiTest extends IntegrationTest {
           GroupComposer.Composer observerGroup =
               groupComposer
                   .forGroup(GroupFixture.createGroup())
-                  .withRole(roleComposer.forRole(RoleFixture.getRole(Set.of())))
+                  .withRole(roleComposer.forRole(RoleFixture.getRole(new HashSet<>())))
                   .withGrant(grantComposer.forGrant(grant));
 
           yield userComposer
@@ -1211,12 +1317,16 @@ public class InjectorContractApiTest extends IntegrationTest {
     private int preExistingContractsCount;
 
     private void createStaticInjectorContract(boolean addPayload) {
+      Set<Domain> domains =
+          domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
+
       InjectorContractComposer.Composer icComposer =
           injectorContractComposer
               .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
               .withInjector(injectorFixture.getWellKnownOaevImplantInjector());
       if (addPayload) {
-        icComposer.withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand()));
+        icComposer.withPayload(
+            payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains)));
       }
       InjectorContract ic = icComposer.persist().get();
       if (addPayload) {
@@ -1391,6 +1501,74 @@ public class InjectorContractApiTest extends IntegrationTest {
         // Should only see contracts without payload
         result.andExpect(jsonPath("$.totalElements", equalTo(preExistingContractsCount + 2)));
       }
+    }
+  }
+
+  @Nested
+  @DisplayName("When contracts are linked to security domains")
+  class WhenContractsAreLinkedToDomains {
+    @Test
+    @DisplayName("It should aggregate counts correctly by domain category")
+    void getDomainCountsReturnAggregation() throws Exception {
+      domainRepository.deleteAll();
+      em.flush();
+
+      Set<Domain> endpointDomain =
+          domainComposer.forDomain(PresetDomain.ENDPOINT).persist().getSet();
+      Set<Domain> cloudDomain = domainComposer.forDomain(PresetDomain.CLOUD).persist().getSet();
+
+      Injector validInjector = injectorFixture.getWellKnownOaevImplantInjector();
+
+      InjectorContract contract1 = InjectorContractFixture.createDefaultInjectorContract();
+      contract1.setId(UUID.randomUUID().toString());
+
+      contract1.setDomains(new HashSet<>(endpointDomain));
+
+      injectorContractComposer.forInjectorContract(contract1).withInjector(validInjector).persist();
+
+      InjectorContract contract2 = InjectorContractFixture.createDefaultInjectorContract();
+      contract2.setId(UUID.randomUUID().toString());
+
+      contract2.setDomains(new HashSet<>(endpointDomain));
+
+      injectorContractComposer.forInjectorContract(contract2).withInjector(validInjector).persist();
+
+      InjectorContract contract3 = InjectorContractFixture.createDefaultInjectorContract();
+      contract3.setId(UUID.randomUUID().toString());
+
+      contract3.setDomains(new HashSet<>(cloudDomain));
+
+      injectorContractComposer.forInjectorContract(contract3).withInjector(validInjector).persist();
+
+      InjectorContractSearchPaginationInput input = new InjectorContractSearchPaginationInput();
+
+      String response =
+          mvc.perform(
+                  post(INJECTOR_CONTRACT_URL + "/domain-counts")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThatJson(response)
+          .when(Option.IGNORING_EXTRA_ARRAY_ITEMS, Option.IGNORING_ARRAY_ORDER)
+          .isEqualTo(
+              String.format(
+                  """
+            [
+              {
+                "domain": "%s",
+                "count": 2
+              },
+              {
+                "domain": "%s",
+                "count": 1
+              }
+            ]
+            """,
+                  endpointDomain.iterator().next().getId(), cloudDomain.iterator().next().getId()));
     }
   }
 }

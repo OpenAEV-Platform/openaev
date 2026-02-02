@@ -28,6 +28,8 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.database.repository.TagRepository;
+import io.openaev.integration.Manager;
+import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
 import io.openaev.service.AssetGroupService;
 import io.openaev.stix.objects.constants.CommonProperties;
 import io.openaev.utils.constants.StixConstants;
@@ -43,10 +45,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -80,8 +79,10 @@ class StixApiTest extends IntegrationTest {
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private TagComposer tagComposer;
+  @Autowired private DomainComposer domainComposer;
 
   @Autowired private InjectorFixture injectorFixture;
+  @Autowired private ManualInjectorIntegrationFactory manualInjectorIntegrationFactory;
 
   private JsonNode stixSecurityCoverage;
   private JsonNode stixSecurityCoverageNoDuration;
@@ -90,11 +91,12 @@ class StixApiTest extends IntegrationTest {
   private JsonNode stixSecurityCoverageWithoutVulns;
   private JsonNode stixSecurityCoverageWithoutObjects;
   private JsonNode stixSecurityCoverageOnlyVulns;
-  private AssetGroupComposer.Composer completeAssetGroup;
-  private AssetGroupComposer.Composer emptyAssetGroup;
+  private JsonNode stixSecurityCoverageWithDomainName;
 
   @BeforeEach
   void setUp() throws Exception {
+    new Manager(List.of(manualInjectorIntegrationFactory)).monitorIntegrations();
+
     attackPatternComposer.reset();
     vulnerabilityComposer.reset();
     tagRuleComposer.reset();
@@ -131,6 +133,10 @@ class StixApiTest extends IntegrationTest {
         loadJsonWithStixObjects(
             "src/test/resources/stix-bundles/security-coverage-only-vulns.json");
 
+    stixSecurityCoverageWithDomainName =
+        loadJsonWithStixObjects(
+            "src/test/resources/stix-bundles/security-coverage-with-domain-name.json");
+
     attackPatternComposer
         .forAttackPattern(AttackPatternFixture.createAttackPatternsWithExternalId(T_1003))
         .persist();
@@ -151,18 +157,15 @@ class StixApiTest extends IntegrationTest {
             .persist()
             .get();
 
-    emptyAssetGroup =
-        assetGroupComposer
-            .forAssetGroup(
-                AssetGroupFixture.createAssetGroupWithAssets("no assets", new ArrayList<>()))
-            .persist();
+    assetGroupComposer
+        .forAssetGroup(AssetGroupFixture.createAssetGroupWithAssets("no assets", new ArrayList<>()))
+        .persist();
 
-    completeAssetGroup =
-        assetGroupComposer
-            .forAssetGroup(
-                AssetGroupFixture.createAssetGroupWithAssets(
-                    "Complete", new ArrayList<>(Arrays.asList(hostname, seenIp, localIp))))
-            .persist();
+    assetGroupComposer
+        .forAssetGroup(
+            AssetGroupFixture.createAssetGroupWithAssets(
+                "Complete", new ArrayList<>(Arrays.asList(hostname, seenIp, localIp))))
+        .persist();
 
     injectorContractComposer
         .forInjectorContract(
@@ -218,6 +221,8 @@ class StixApiTest extends IntegrationTest {
     @Test
     @DisplayName("Eligible asset groups are assigned by tag rule")
     void eligibleAssetGroupsAreAssignedByTagRule() throws Exception {
+      Set<Domain> domains =
+          domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
       String label = "custom-label";
       tagRuleComposer
           .forTagRule(TagRuleFixture.createDefaultTagRule())
@@ -240,7 +245,7 @@ class StixApiTest extends IntegrationTest {
           .withAttackPattern(attackPatternWrapper)
           .withPayload(
               payloadComposer
-                  .forPayload(PayloadFixture.createDefaultCommand())
+                  .forPayload(PayloadFixture.createDefaultCommand(domains))
                   .withAttackPattern(attackPatternWrapper))
           .persist();
 
@@ -404,10 +409,19 @@ class StixApiTest extends IntegrationTest {
     @Test
     @DisplayName("Should throw bad request when security coverage is Obsolete")
     void shouldThrowBadRequestWhenSecurityCoverageIsObsolete() throws Exception {
+      Instant reference = Instant.parse("2025-12-31T10:43:56Z");
+      JsonNode referenceInput =
+          updateStixObjectField(
+              stixSecurityCoverage,
+              CommonProperties.MODIFIED.toString(),
+              reference.toString(),
+              emptyList(),
+              0);
+
       mvc.perform(
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(mapper.writeValueAsString(stixSecurityCoverage)))
+                  .content(mapper.writeValueAsString(referenceInput)))
           .andExpect(status().isOk());
 
       entityManager.flush();
@@ -417,7 +431,7 @@ class StixApiTest extends IntegrationTest {
           updateStixObjectField(
               stixSecurityCoverage,
               CommonProperties.MODIFIED.toString(),
-              Instant.now().minus(30, ChronoUnit.DAYS).toString(),
+              reference.minus(30, ChronoUnit.DAYS).toString(),
               emptyList(),
               0);
 
@@ -927,6 +941,32 @@ class StixApiTest extends IntegrationTest {
       scenarioId = JsonPath.read(duplicated, "$.scenario_id");
       Scenario duplicatedScenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(duplicatedScenario.getSecurityCoverage()).isNull();
+    }
+
+    @Test
+    @DisplayName("Should create scenario with domain resolution injects")
+    void shouldCreateScenarioWithDomainNameResolutionInjects() throws Exception {
+      String createdResponse =
+          mvc.perform(
+                  post(STIX_URI + "/process-bundle")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(mapper.writeValueAsString(stixSecurityCoverageWithDomainName)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      assertThat(createdScenario.getName()).isEqualTo("test domain name");
+
+      Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
+      assertThat(injects).hasSize(7);
+      assertThat(injects)
+          .anyMatch(
+              inject ->
+                  inject.getPayload().isPresent()
+                      && inject.getPayload().get() instanceof DnsResolution);
     }
   }
 

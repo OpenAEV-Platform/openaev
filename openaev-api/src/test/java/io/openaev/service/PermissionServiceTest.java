@@ -12,14 +12,19 @@ import io.openaev.database.repository.EvaluationRepository;
 import io.openaev.database.repository.ObjectiveRepository;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.fixtures.UserFixture;
+import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.*;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.web.bind.annotation.RequestMethod;
 
 @SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 public class PermissionServiceTest extends IntegrationTest {
   private static final String RESOURCE_ID = "resourceid";
   private static final String USER_ID = "userid";

@@ -21,6 +21,13 @@ public record Relationship(@NotNull Object data) {
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
+  /**
+   * Converts the relationship data to a list of resource identifiers.
+   *
+   * <p>Use this method for to-many relationships (e.g., one exercise has many teams).
+   *
+   * @return the list of resource identifiers, or an empty list if data is not a list
+   */
   public List<ResourceIdentifier> asMany() {
     if (data instanceof List<?> list) {
       return list.stream()
@@ -30,6 +37,13 @@ public record Relationship(@NotNull Object data) {
     return List.of();
   }
 
+  /**
+   * Converts the relationship data to a single resource identifier.
+   *
+   * <p>Use this method for to-one relationships (e.g., an inject belongs to one exercise).
+   *
+   * @return the resource identifier, or {@code null} if data cannot be converted
+   */
   public ResourceIdentifier asOne() {
     if (data instanceof ResourceIdentifier resourceIdentifier) {
       return resourceIdentifier;

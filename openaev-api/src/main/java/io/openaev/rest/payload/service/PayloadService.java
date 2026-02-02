@@ -2,6 +2,7 @@ package io.openaev.rest.payload.service;
 
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_ASSET_SEPARATOR;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
+import static io.openaev.database.model.Tag.OPENCTI_TAG_NAME;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.SupportedLanguage.en;
 import static io.openaev.helper.SupportedLanguage.fr;
@@ -13,11 +14,15 @@ import static io.openaev.injector_contract.fields.ContractAssetGroup.assetGroupF
 import static io.openaev.injector_contract.fields.ContractExpectations.expectationsField;
 import static io.openaev.injector_contract.fields.ContractSelect.selectFieldWithDefault;
 import static io.openaev.injector_contract.fields.ContractText.textField;
+import static io.openaev.service.stix.SecurityCoverageInjectService.ALL_PLATFORMS;
 import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.aop.lock.Lock;
+import io.openaev.aop.lock.LockResourceType;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -33,7 +38,10 @@ import io.openaev.injector_contract.ContractTargetedProperty;
 import io.openaev.injector_contract.fields.*;
 import io.openaev.injectors.openaev.util.OpenAEVObfuscationMap;
 import io.openaev.model.inject.form.Expectation;
+import io.openaev.rest.domain.DomainService;
+import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.payload.PayloadUtils;
+import io.openaev.rest.tag.TagService;
 import io.openaev.service.UserService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
@@ -52,6 +60,11 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class PayloadService {
 
+  public static final String DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY = "dynamic_hostname_key";
+  public static final String DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE =
+      "#{" + DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY + "}";
+  private static final String DYNAMIC_DNS_RESOLUTION_UUID = "ff16dc60-ea6f-4925-8509-20557e09c676";
+
   @Resource protected ObjectMapper mapper;
 
   private final PayloadRepository payloadRepository;
@@ -60,6 +73,8 @@ public class PayloadService {
   private final AttackPatternRepository attackPatternRepository;
   private final ExpectationBuilderService expectationBuilderService;
   private final UserService userService;
+  private final DomainService domainService;
+  private final TagService tagService;
   private final PayloadUtils payloadUtils;
 
   public void updateInjectorContractsForPayload(Payload payload) {
@@ -76,6 +91,8 @@ public class PayloadService {
     injectorContract.setInjector(injector);
     injectorContract.setPayload(payload);
     injectorContract.setPlatforms(payload.getPlatforms());
+    injectorContract.setDomains(
+        domainService.upserts(new HashSet<>(Set.of(PresetDomain.TOCLASSIFY))));
     injectorContract.setAttackPatterns(
         fromIterable(
             attackPatternRepository.findAllById(
@@ -84,7 +101,9 @@ public class PayloadService {
 
     try {
       Contract contract = buildContract(injectorContract.getId(), injector, payload);
-      injectorContract.setContent(mapper.writeValueAsString(contract));
+      String content = mapper.writeValueAsString(contract);
+      injectorContract.setContent(content);
+      injectorContract.setConvertedContent(mapper.readValue(content, ObjectNode.class));
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }
@@ -150,8 +169,7 @@ public class PayloadService {
             labels,
             "#000000",
             "#000000",
-            "/img/icon-" + injector.getType() + ".png",
-            true);
+            "/img/icon-" + injector.getType() + ".png");
     ContractAsset assetField = assetField(Multiple);
     ContractAssetGroup assetGroupField = assetGroupField(Multiple);
     ContractExpectations expectationsField = expectations(payload.getExpectations());
@@ -189,7 +207,8 @@ public class PayloadService {
         Map.of(en, payload.getName(), fr, payload.getName()),
         builder.build(),
         Arrays.asList(payload.getPlatforms()),
-        true);
+        true,
+        payload.getDomains());
   }
 
   private ContractExpectations expectations(InjectExpectation.EXPECTATION_TYPE[] expectationTypes) {
@@ -299,5 +318,61 @@ public class PayloadService {
             currentUser.getCapabilities().contains(Capability.ACCESS_PAYLOADS)),
         handleArchitectureFilter(searchPaginationInput),
         Payload.class);
+  }
+
+  /**
+   * Upsert for the Dynamic DNS Resolution payload, who run DNS Resolution by domain name given by
+   * argument
+   *
+   * @return the Dynamic DNS Resolution payload
+   */
+  public DnsResolution getDynamicDnsResolutionPayload() {
+    return payloadRepository
+        .findById(DYNAMIC_DNS_RESOLUTION_UUID)
+        .map(payload -> (DnsResolution) payload)
+        .orElseGet(this::createDynamicDnsResolutionPayload);
+  }
+
+  /**
+   * Create for the Dynamic DNS Resolution payload, who run DNS Resolution by domain name given by
+   * argument
+   *
+   * @return the created Dynamic DNS Resolution payload
+   */
+  @Lock(type = LockResourceType.PAYLOAD, key = DYNAMIC_DNS_RESOLUTION_UUID)
+  private DnsResolution createDynamicDnsResolutionPayload() {
+    DnsResolution dynamicDnsResolutionPayload = new DnsResolution();
+    dynamicDnsResolutionPayload.setId(DYNAMIC_DNS_RESOLUTION_UUID);
+    dynamicDnsResolutionPayload.setHostname(DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE);
+    dynamicDnsResolutionPayload.setName("Dynamic DNS Resolution");
+    dynamicDnsResolutionPayload.setDescription("Dynamic DNS Resolution by argument");
+    dynamicDnsResolutionPayload.setStatus(Payload.PAYLOAD_STATUS.VERIFIED);
+    dynamicDnsResolutionPayload.setSource(Payload.PAYLOAD_SOURCE.FILIGRAN);
+    dynamicDnsResolutionPayload.setType(DnsResolution.DNS_RESOLUTION_TYPE);
+    dynamicDnsResolutionPayload.setPlatforms(ALL_PLATFORMS);
+    dynamicDnsResolutionPayload.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
+
+    PayloadArgument argument = new PayloadArgument();
+    argument.setType("text");
+    argument.setKey(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY);
+    argument.setDefaultValue("filigran.io");
+    dynamicDnsResolutionPayload.setArguments(new ArrayList<>(List.of(argument)));
+
+    dynamicDnsResolutionPayload.setExpectations(
+        new InjectExpectation.EXPECTATION_TYPE[] {
+          InjectExpectation.EXPECTATION_TYPE.PREVENTION,
+          InjectExpectation.EXPECTATION_TYPE.DETECTION
+        });
+
+    dynamicDnsResolutionPayload.setDomains(
+        domainService.upserts(
+            Set.of(PresetDomain.ENDPOINT, PresetDomain.NETWORK, PresetDomain.URL_FILTERING)));
+
+    dynamicDnsResolutionPayload.setTags(
+        tagService.findOrCreateTagsFromNames(new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
+
+    DnsResolution saved = payloadRepository.save(dynamicDnsResolutionPayload);
+    updateInjectorContractsForPayload(saved);
+    return saved;
   }
 }

@@ -42,7 +42,12 @@ jobs:
       - run:
           working_directory: ~/openaev
           command: |
+            apt-get update && apt-get install -y jq
             LATEST_VERSION=$(git describe --tags --abbrev=0)
+            
+            CATALOG_FILE=openaev-api/src/main/resources/catalog/catalog-integrators.json
+            cat $CATALOG_FILE | jq --arg ver "${CIRCLE_TAG:-$LATEST_VERSION}" '.contracts[].container_version = $ver' | jq --arg ver "${CIRCLE_TAG:-$LATEST_VERSION}" '.version = $ver'  > CATALOG_FILE
+
             curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/arm64/openaev-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-agent/linux/arm64/openaev-agent-${CIRCLE_TAG:-latest}
             curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/x86_64/openaev-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-agent/linux/x86_64/openaev-agent-${CIRCLE_TAG:-latest}
             curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-installer-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-installer-${CIRCLE_TAG:-latest}.sh
@@ -101,8 +106,12 @@ jobs:
       - run:
           working_directory: ~/openaev_musl
           command: |
-            apk add git
+            apk add git jq
             LATEST_VERSION=$(git describe --tags --abbrev=0)
+            
+            CATALOG_FILE=openaev-api/src/main/resources/catalog/catalog-integrators.json
+            cat $CATALOG_FILE | jq --arg ver "${CIRCLE_TAG:-$LATEST_VERSION}" '.contracts[].container_version = $ver' | jq --arg ver "${CIRCLE_TAG:-$LATEST_VERSION}" '.version = $ver'  > CATALOG_FILE
+
             curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/arm64/openaev-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-agent/linux/arm64/openaev-agent-${CIRCLE_TAG:-latest}
             curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/x86_64/openaev-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-agent/linux/x86_64/openaev-agent-${CIRCLE_TAG:-latest}
             curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-installer-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-installer-${CIRCLE_TAG:-latest}.sh
@@ -218,7 +227,11 @@ jobs:
       - run:
           command: |
             sudo apt-get update
-            sudo apt-get -y install git
+            sudo apt-get -y install git jq    
+
+            CATALOG_FILE=openaev-api/src/main/resources/catalog/catalog-integrators.json
+            cat $CATALOG_FILE | jq --arg ver "${CIRCLE_TAG}" '.contracts[].container_version = $ver' | jq --arg ver "${CIRCLE_TAG}" '.version = $ver'  > CATALOG_FILE
+
             curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/arm64/openaev-agent-${CIRCLE_TAG} https://filigran.jfrog.io/artifactory/openaev-agent/linux/arm64/openaev-agent-${CIRCLE_TAG}
             curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/x86_64/openaev-agent-${CIRCLE_TAG} https://filigran.jfrog.io/artifactory/openaev-agent/linux/x86_64/openaev-agent-${CIRCLE_TAG}
             curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-installer-${CIRCLE_TAG}.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-installer-${CIRCLE_TAG}.sh
@@ -298,8 +311,12 @@ jobs:
       - run:
           command: |
             sudo apt-get update
-            sudo apt-get -y install git
+            sudo apt-get -y install git jq
             LATEST_VERSION=$(git describe --tags --abbrev=0)
+
+            CATALOG_FILE=openaev-api/src/main/resources/catalog/catalog-integrators.json
+            cat $CATALOG_FILE | jq --arg ver "rolling" '.contracts[].container_version = $ver' | jq --arg ver "rolling" '.version = $ver'  > CATALOG_FILE
+            
             curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/arm64/openaev-agent-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openaev-agent/linux/arm64/openaev-agent-latest
             curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/x86_64/openaev-agent-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openaev-agent/linux/x86_64/openaev-agent-latest
             curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-installer-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-installer-latest.sh
@@ -377,8 +394,12 @@ jobs:
       - run:
           command: |
             sudo apt-get update
-            sudo apt-get -y install git
+            sudo apt-get -y install git jq
             LATEST_VERSION=$(git describe --tags --abbrev=0)
+            
+            CATALOG_FILE=openaev-api/src/main/resources/catalog/catalog-integrators.json
+            cat $CATALOG_FILE | jq --arg ver "prerelease" '.contracts[].container_version = $ver' | jq --arg ver "prerelease" '.version = $ver'  > CATALOG_FILE
+
             curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/arm64/openaev-agent-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openaev-agent/linux/arm64/openaev-agent-prerelease
             curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/x86_64/openaev-agent-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openaev-agent/linux/x86_64/openaev-agent-prerelease
             curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-installer-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-installer-prerelease.sh

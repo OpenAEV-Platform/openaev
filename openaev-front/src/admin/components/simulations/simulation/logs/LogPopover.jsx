@@ -117,7 +117,7 @@ class LogPopoverComponent extends Component {
           TransitionComponent={Transition}
           open={this.state.openEdit}
           onClose={this.handleCloseEdit.bind(this)}
-          fullWidth={true}
+          fullWidth
           maxWidth="md"
           PaperProps={{ elevation: 1 }}
         >
@@ -125,7 +125,7 @@ class LogPopoverComponent extends Component {
           <DialogContent>
             <LogForm
               initialValues={initialValues}
-              editing={true}
+              editing
               onSubmit={this.onSubmitEdit.bind(this)}
               handleClose={this.handleCloseEdit.bind(this)}
             />
