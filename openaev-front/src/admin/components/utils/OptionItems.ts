@@ -44,7 +44,7 @@ export const langItems = (t: (text: string) => string) => [
   },
   {
     value: 'ko',
-    label: t('Koren'),
+    label: t('Korean'),
   },
   {
     value: 'ru',
