@@ -33,7 +33,6 @@ public interface StepRepository extends JpaRepository<Step, String> {
 
   List<Step> findAllByStatus(STEP_STATUS status);
 
-
   // STEP EXECUTED
 
   @Query(
