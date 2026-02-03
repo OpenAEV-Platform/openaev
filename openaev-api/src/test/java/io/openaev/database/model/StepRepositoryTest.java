@@ -32,4 +32,43 @@ class StepRepositoryTest extends IntegrationTest {
     Assertions.assertFalse(steps.isEmpty());
     Assertions.assertEquals(STEP_STATUS.TEMPLATE, steps.get(0).getStatus());
   }
+
+  @Test
+  void testFindAllByStepTemplateIdIsNullAndWorkflowId() {
+    // GIVEN
+    Workflow workflow = WorkflowFixture.getDefaultWorkflowTemplate();
+    Step step = StepFixture.getDefaultStepTemplate();
+
+    stepComposer.forStep(step).withWorkflow(workflow).persist();
+
+    // WHEN
+    List<Step> steps = stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(workflow.getId());
+
+    // THEN
+    Assertions.assertFalse(steps.isEmpty(), "Step list should not be empty");
+    Assertions.assertNull(steps.get(0).getStepTemplate(), "Step template should be null");
+    Assertions.assertEquals(workflow.getId(), steps.get(0).getWorkflow().getId());
+  }
+
+  @Test
+  void testFindStepIdByInjectId() {
+    // GIVEN: a step with JSON data containing an inject_id
+    String injectId = "inject-123";
+    Workflow workflow = WorkflowFixture.getDefaultWorkflowTemplate();
+    Step step =
+        Step.builder()
+            .stepAction(STEP_ACTION_CLASS.INJECT_EXECUTION)
+            .status(STEP_STATUS.TEMPLATE)
+            .data("{\"inject_id\": \"" + injectId + "\"}")
+            .build();
+
+    stepComposer.forStep(step).withWorkflow(workflow).persist();
+
+    // WHEN
+    var optionalStepId = stepRepository.findStepIdByInjectId(injectId);
+
+    // THEN
+    Assertions.assertTrue(optionalStepId.isPresent(), "Step ID should be found");
+    Assertions.assertEquals(step.getId(), optionalStepId.get());
+  }
 }

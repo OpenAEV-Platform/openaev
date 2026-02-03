@@ -1,43 +1,66 @@
 package io.openaev.utils.fixtures.composers;
 
+import io.openaev.database.model.Condition;
 import io.openaev.database.model.Step;
-import io.openaev.database.repository.StepRepository;
+import io.openaev.database.repository.ConditionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
-public class ConditionComposer extends ComposerBase<Step> {
+public class ConditionComposer extends ComposerBase<Condition> {
 
-  @Autowired private StepRepository stepRepository;
+  @Autowired private ConditionRepository conditionRepository;
 
-  public class Composer extends InnerComposerBase<Step> {
+  public class Composer extends InnerComposerBase<Condition> {
 
-    private final Step step;
+    private final Condition condition;
 
-    public Composer(Step step) {
-      this.step = step;
+    public Composer(Condition condition) {
+      this.condition = condition;
     }
 
+    /** Sets the step to which this condition belongs. */
+    public Composer withStep(Step step) {
+      condition.setStep(step);
+      return this;
+    }
+
+    /** Sets the source step for this condition. */
+    public Composer withStepFrom(Step stepFrom) {
+      condition.setStepFrom(stepFrom);
+      return this;
+    }
+
+    /** Sets the parent condition and updates its children list. */
+    public Composer withParentCondition(Condition parent) {
+      condition.setConditionParent(parent);
+      parent.getConditionChildren().add(condition);
+      return this;
+    }
+
+    /** Saves the condition in the database. */
     @Override
     public ConditionComposer.Composer persist() {
-      stepRepository.save(step);
+      conditionRepository.save(condition);
       return this;
     }
 
+    /** Deletes the condition from the database. */
     @Override
     public ConditionComposer.Composer delete() {
-      stepRepository.delete(step);
+      conditionRepository.delete(condition);
       return this;
     }
 
     @Override
-    public Step get() {
-      return this.step;
+    public Condition get() {
+      return condition;
     }
   }
 
-  public ConditionComposer.Composer forStep(Step step) {
-    generatedItems.add(step);
-    return new ConditionComposer.Composer(step);
+  /** Entry point for composing a condition. */
+  public ConditionComposer.Composer forCondition(Condition condition) {
+    generatedItems.add(condition);
+    return new Composer(condition);
   }
 }
