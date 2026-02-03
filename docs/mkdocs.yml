@@ -153,7 +153,10 @@ nav:
         - Search and Filter: usage/inject-result-list.md
         - Inject result: usage/inject-result.md
       - Targets: usage/targets.md
-      - Expectations: usage/expectations.md
+      - Expectations:
+        - Overview: usage/expectations/overview.md
+        - Validation: usage/expectations/validation.md
+        - Management: usage/expectations/management.md
       - Findings: usage/findings.md
       - Dashboards:
         - Custom Dashboards: usage/dashboards/custom-dashboards/custom-dashboards.md
