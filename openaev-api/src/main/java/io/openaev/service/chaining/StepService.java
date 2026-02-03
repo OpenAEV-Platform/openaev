@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.math.NumberUtils;
+import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -23,9 +24,10 @@ import org.springframework.stereotype.Service;
 @Service
 public class StepService implements StepEventHandler, ExternalUpdateEventHandler {
 
+  private final ApplicationContext applicationContext;
+
   private final WorkflowService workflowService;
   private final StepRepository stepRepository;
-  private final InjectExecutionStep injectExecutionStep;
 
   public final ConditionService conditionService;
   private final QueueChainingService queueChainingService;
@@ -34,6 +36,9 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     Workflow workflow = workflowService.getWorkflowById(workflowId);
 
     for (StepsCreateInput.StepCreateInput stepInput : steps) {
+      if (stepInput.getStepAction() == null) {
+        stepInput.setStepAction(STEP_ACTION_CLASS.UNSUPPORTED);
+      }
       ActionStep actionStep = this.factoryAction(stepInput.getStepAction());
       if (actionStep == null) throw new BadRequestException("action step is null");
 
@@ -138,7 +143,8 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
 
   public ActionStep factoryAction(STEP_ACTION_CLASS actionClass) {
     return switch (actionClass) {
-      case STEP_ACTION_CLASS.INJECT_EXECUTION -> injectExecutionStep;
+      case STEP_ACTION_CLASS.INJECT_EXECUTION ->
+          applicationContext.getBean(InjectExecutionStep.class);
       default -> null;
     };
   }
@@ -148,11 +154,11 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
   }
 
   private void stepCondition(StepsCreateInput.StepCreateInput stepInput, Step step) {
-    if (stepInput.conditions == null || stepInput.conditions.isEmpty()) {
+    if (stepInput.getConditions() == null || stepInput.getConditions().isEmpty()) {
       return;
     }
     ConditionCreateInput firstCondition =
-        stepInput.conditions.stream()
+        stepInput.getConditions().stream()
             .filter(
                 conditionCreateInput ->
                     conditionCreateInput.getTemporaryIdConditionParent() == null)

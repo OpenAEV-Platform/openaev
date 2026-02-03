@@ -1,19 +1,15 @@
 package io.openaev.service.chaining;
 
 import jakarta.annotation.PostConstruct;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@AllArgsConstructor
 public class QueueChainingServiceCallbackRegistrar {
 
   private final QueueChainingService queueChainingService;
   private final StepService stepService;
-
-  public QueueChainingServiceCallbackRegistrar(
-      QueueChainingService queueChainingService, StepService stepService) {
-    this.queueChainingService = queueChainingService;
-    this.stepService = stepService;
-  }
 
   @PostConstruct
   public void registerCallbacks() {

@@ -34,27 +34,27 @@ public class StepsCreateInput {
      * action. Each action implements ActionStep and its methods.
      */
     @JsonProperty("step_action")
-    public STEP_ACTION_CLASS stepAction;
+    private STEP_ACTION_CLASS stepAction;
 
     /**
      * Execution limit. Applies to a step template and limits the number of executions for the same
      * step template, regardless of incoming inputs.
      */
     @JsonProperty("limit_execution")
-    public int limitExecution;
+    private int limitExecution;
 
     /**
      * Conditions. List of conditions evaluated to determine whether a step execution should be
      * processed.
      */
     @JsonProperty("conditions")
-    public List<ConditionCreateInput> conditions;
+    private List<ConditionCreateInput> conditions;
 
     /**
      * Data Step. Contains the expected object depending on the step action. INJECT_EXECUTION →
      * InjectInput
      */
     @JsonProperty("data_step")
-    public DataStep dataStep;
+    private DataStep dataStep;
   }
 }
