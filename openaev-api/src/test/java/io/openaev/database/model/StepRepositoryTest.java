@@ -53,9 +53,6 @@ class StepRepositoryTest extends IntegrationTest {
             .persist()
             .get();
 
-    entityManager.flush();
-    entityManager.refresh(workflow);
-
     // WHEN
     List<Step> steps = stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(workflow.getId());
 
