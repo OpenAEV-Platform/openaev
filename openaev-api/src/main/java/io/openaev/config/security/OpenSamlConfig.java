@@ -8,6 +8,7 @@ import static org.springframework.security.saml2.provider.service.authentication
 import io.openaev.config.OpenAEVSaml2User;
 import io.openaev.database.model.User;
 import io.openaev.security.SsoRefererAuthenticationSuccessHandler;
+import io.openaev.service.user_events.UserEventService;
 import jakarta.validation.constraints.NotBlank;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,6 +47,8 @@ public class OpenSamlConfig {
   @Autowired(required = false)
   private RelyingPartyRegistrationRepository relyingPartyRegistrationRepository;
 
+  private final UserEventService userEventService;
+
   public void addOpenSamlConfig(@NotNull final HttpSecurity http) throws Exception {
     if (this.relyingPartyRegistrationRepository == null) {
       log.warn("No RelyingPartyRegistrationRepository found, skipping SAML2 configuration.");
@@ -63,7 +66,8 @@ public class OpenSamlConfig {
             saml2Login ->
                 saml2Login
                     .authenticationManager(new ProviderManager(authenticationProvider))
-                    .successHandler(new SsoRefererAuthenticationSuccessHandler()));
+                    .successHandler(
+                        new SsoRefererAuthenticationSuccessHandler(this.userEventService)));
   }
 
   // -- PRIVATE --

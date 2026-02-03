@@ -7,11 +7,13 @@ import io.openaev.database.model.User;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.*;
+import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
+@Getter
 public class OpenAEVOAuth2User implements OpenAEVPrincipal, OAuth2User, Serializable {
 
   @Serial private static final long serialVersionUID = 1L;

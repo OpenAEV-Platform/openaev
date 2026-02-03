@@ -22,6 +22,7 @@ import io.openaev.rest.user.form.user.UserOutput;
 import io.openaev.rest.user.service.UserCriteriaBuilderService;
 import io.openaev.service.MailingService;
 import io.openaev.service.UserService;
+import io.openaev.service.user_events.UserEventService;
 import io.openaev.utils.RandomUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
@@ -68,6 +69,7 @@ public class UserApi extends RestBehavior {
   private final MailingService mailingService;
   private final UserCriteriaBuilderService userCriteriaBuilderService;
   private final RandomUtils randomUtils;
+  private final UserEventService userEventService;
 
   private final Map<String, String> resetTokenMap = new PassiveExpiringMap<>(tenMinutes);
 
@@ -88,6 +90,7 @@ public class UserApi extends RestBehavior {
       User user = optionalUser.get();
       if (userService.isUserPasswordValid(user, input.getPassword())) {
         userService.createUserSession(user);
+        userEventService.createLoginEvent(user);
         return user;
       }
     }
