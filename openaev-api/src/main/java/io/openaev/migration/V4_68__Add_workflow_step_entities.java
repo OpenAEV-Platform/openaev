@@ -110,24 +110,6 @@ public class V4_68__Add_workflow_step_entities extends BaseJavaMigration {
 
       select.execute(
           """
-                  CREATE TABLE  IF NOT EXISTS steps_states (
-                      state_id VARCHAR(255) NOT NULL CONSTRAINT steps_states_pkey PRIMARY KEY,
-                      step_entries JSONB,
-                      workflow_execution_id VARCHAR(255) NOT NULL
-                          CONSTRAINT fk_step_state_workflow
-                          REFERENCES workflows(workflow_id)
-                          ON DELETE CASCADE,
-                      step_template_id VARCHAR(255) NOT NULL
-                          CONSTRAINT fk_step_state_step
-                          REFERENCES steps(step_id),
-                      step_state_created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-                      step_state_updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-                      CONSTRAINT uq_step_state_workflow_step UNIQUE (workflow_execution_id, step_template_id)
-                  );
-          """);
-
-      select.execute(
-          """
                  -- Workflows table
                   CREATE INDEX IF NOT EXISTS idx_workflows_simulation_id
                       ON workflows(workflow_simulation_id);
