@@ -1,17 +1,13 @@
 package io.openaev.utils.fixtures;
 
 import io.openaev.database.model.Condition;
-import java.time.Instant;
-import java.util.UUID;
 
 public class ConditionFixture {
 
-  public static Condition getDefaultCondition() {
+  public static Condition getDefaultCondition(String key, String value) {
     Condition condition = new Condition();
-    condition.setKey("condition-key-" + UUID.randomUUID());
-    condition.setValue("condition-value");
-    condition.setCreationDate(Instant.now());
-    condition.setUpdateDate(Instant.now());
+    condition.setKey(key);
+    condition.setValue(value);
     return condition;
   }
 }

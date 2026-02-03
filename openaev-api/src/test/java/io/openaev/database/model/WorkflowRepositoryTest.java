@@ -23,14 +23,12 @@ class WorkflowRepositoryTest extends IntegrationTest {
   @Autowired private WorkflowRepository workflowRepository;
 
   @Test
-  void testFindAllBySimulation_Id() {
+  void whenFindAllBySimulationId_thenReturnsWorkflowsLinkedToSimulation() {
     Workflow workflow = WorkflowFixture.getDefaultWorkflowTemplate();
+    ExerciseComposer.Composer simulationComposer =
+        exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()).persist();
     Workflow savedWorkflow =
-        workflowComposer
-            .forWorkflow(workflow)
-            .withSimulation(exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
-            .persist()
-            .get();
+        workflowComposer.forWorkflow(workflow).withSimulation(simulationComposer).persist().get();
 
     String simulationId = savedWorkflow.getSimulation().getId();
     List<Workflow> workflows = workflowRepository.findAllBySimulation_Id(simulationId);
@@ -39,14 +37,16 @@ class WorkflowRepositoryTest extends IntegrationTest {
   }
 
   @Test
-  void testFindBySimulation_IdAndStatus() {
+  void whenFindBySimulationIdAndStatus_thenReturnsMatchingWorkflow() {
     Workflow workflow = WorkflowFixture.getDefaultWorkflowExecution(WORKFLOW_STATUS.RUN);
+    ExerciseComposer.Composer simulationComposer =
+        exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()).persist();
     Workflow savedWorkflow =
         workflowComposer
             .forWorkflow(workflow)
             .withWorkflowTemplate(
                 workflowComposer.forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate()))
-            .withSimulation(exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+            .withSimulation(simulationComposer)
             .persist()
             .get();
     String simulationId = savedWorkflow.getSimulation().getId();

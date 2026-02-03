@@ -7,6 +7,8 @@ import io.openaev.utils.fixtures.StepFixture;
 import io.openaev.utils.fixtures.composers.ConditionComposer;
 import io.openaev.utils.fixtures.composers.StepComposer;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,30 +20,37 @@ import org.springframework.transaction.annotation.Transactional;
 class ConditionRepositoryTest extends IntegrationTest {
 
   @Autowired private ConditionRepository conditionRepository;
-
   @Autowired private ConditionComposer conditionComposer;
   @Autowired private StepComposer stepComposer;
 
   @Test
-  void testFindAllByStepId() {
-    Step step = StepFixture.getDefaultStepTemplate();
+  void whenFindAllByStepId_thenReturnsAllConditionsForThatStep() {
+    // GIVEN: one persisted step
+    StepComposer.Composer stepOriginComposer =
+        stepComposer.forStep(StepFixture.getDefaultStepTemplate());
 
-    Condition condition1 = ConditionFixture.getDefaultCondition();
-    Condition condition2 = Condition.builder().key("key2").value("val2").build();
+    // AND: two conditions linked to the SAME step
+    Condition condition1 =
+        conditionComposer
+            .forCondition(ConditionFixture.getDefaultCondition("key1", "val1"))
+            .withStep(stepOriginComposer)
+            .persist()
+            .get();
+    Condition condition2 =
+        conditionComposer
+            .forCondition(ConditionFixture.getDefaultCondition("key2", "val2"))
+            .withStep(stepOriginComposer)
+            .persist()
+            .get();
 
-    conditionComposer
-        .forCondition(condition1)
-        .withStep(stepComposer.forStep(StepFixture.getDefaultStepTemplate()))
-        .persist();
-    conditionComposer
-        .forCondition(condition2)
-        .withStep(stepComposer.forStep(StepFixture.getDefaultStepTemplate()))
-        .persist();
+    // WHEN
+    List<Condition> conditions = conditionRepository.findAllByStep_Id(condition1.getStep().getId());
 
-    List<Condition> conditions = conditionRepository.findAllByStep_Id(step.getId());
-
+    // THEN
     Assertions.assertEquals(2, conditions.size());
-    Assertions.assertTrue(conditions.stream().anyMatch(c -> c.getKey().equals("key1")));
-    Assertions.assertTrue(conditions.stream().anyMatch(c -> c.getKey().equals("key2")));
+
+    Set<String> keys = conditions.stream().map(Condition::getKey).collect(Collectors.toSet());
+
+    Assertions.assertEquals(Set.of(condition1.getKey(), condition2.getKey()), keys);
   }
 }
