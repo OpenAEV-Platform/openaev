@@ -2,6 +2,7 @@ package io.openaev.database.model;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.repository.ConditionRepository;
+import io.openaev.utils.fixtures.ConditionFixture;
 import io.openaev.utils.fixtures.StepFixture;
 import io.openaev.utils.fixtures.composers.ConditionComposer;
 import io.openaev.utils.fixtures.composers.StepComposer;
@@ -25,7 +26,7 @@ class ConditionRepositoryTest extends IntegrationTest {
   void testFindAllByStepId() {
     Step step = StepFixture.getDefaultStepTemplate();
 
-    Condition condition1 = Condition.builder().key("key1").value("val1").build();
+    Condition condition1 = ConditionFixture.getDefaultCondition();
     Condition condition2 = Condition.builder().key("key2").value("val2").build();
 
     conditionComposer

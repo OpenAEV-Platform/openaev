@@ -29,6 +29,7 @@ public class WorkflowComposer extends ComposerBase<Workflow> {
     public Composer withStep(StepComposer.Composer stepComposer) {
       this.stepComposers.add(stepComposer);
       Step step = stepComposer.get();
+      step.setWorkflow(workflow);
       workflow.getSteps().add(step);
       return this;
     }
@@ -53,17 +54,14 @@ public class WorkflowComposer extends ComposerBase<Workflow> {
     public Composer persist() {
       // Persist the workflow; cascading will handle Steps if CascadeType.ALL is set
       simulationComposer.ifPresent(ExerciseComposer.Composer::persist);
-      stepComposers.forEach(StepComposer.Composer::persist);
-      workflowComposers.forEach(WorkflowComposer.Composer::persist);
       workflowRepository.save(workflow);
+      workflowComposers.forEach(WorkflowComposer.Composer::persist);
       return this;
     }
 
     @Override
     public Composer delete() {
       workflowRepository.delete(workflow);
-      workflowComposers.forEach(WorkflowComposer.Composer::delete);
-      stepComposers.forEach(StepComposer.Composer::delete);
       simulationComposer.ifPresent(ExerciseComposer.Composer::delete);
       return this;
     }

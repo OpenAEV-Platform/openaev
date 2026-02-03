@@ -40,7 +40,6 @@ public class StepComposer extends ComposerBase<Step> {
 
     @Override
     public StepComposer.Composer persist() {
-      workflowComposer.ifPresent(WorkflowComposer.Composer::persist);
       stepRepository.save(step);
       return this;
     }
@@ -48,7 +47,6 @@ public class StepComposer extends ComposerBase<Step> {
     @Override
     public StepComposer.Composer delete() {
       stepRepository.delete(step);
-      workflowComposer.ifPresent(WorkflowComposer.Composer::delete);
       return this;
     }
 

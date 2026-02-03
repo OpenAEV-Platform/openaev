@@ -3,40 +3,32 @@ package io.openaev.utils.fixtures;
 import io.openaev.database.model.STEP_ACTION_CLASS;
 import io.openaev.database.model.STEP_STATUS;
 import io.openaev.database.model.Step;
-import java.time.Instant;
-import java.util.UUID;
 
 public class StepFixture {
 
   public static Step getDefaultStepTemplate() {
-    return Step.builder()
-        .id(UUID.randomUUID().toString())
-        .stepAction(STEP_ACTION_CLASS.INJECT_EXECUTION)
-        .output("{}")
-        .output_parser("{}")
-        .input("{}")
-        .data("{}")
-        .limitExecution(1)
-        .conditionExecuted("true")
-        .status(STEP_STATUS.TEMPLATE)
-        .createdAt(Instant.now())
-        .updatedAt(Instant.now())
-        .build();
+    Step step = new Step();
+    step.setStepAction(STEP_ACTION_CLASS.INJECT_EXECUTION);
+    step.setOutput("{}");
+    step.setOutput_parser("{}");
+    step.setInput("{}");
+    step.setData("{}");
+    step.setLimitExecution(1);
+    step.setConditionExecuted("true");
+    step.setStatus(STEP_STATUS.TEMPLATE);
+    return step;
   }
 
   public static Step getDefaultStepExecution(STEP_STATUS status) {
-    return Step.builder()
-        .id(UUID.randomUUID().toString())
-        .stepAction(STEP_ACTION_CLASS.INJECT_EXECUTION)
-        .output("{}")
-        .output_parser("{}")
-        .input("{}")
-        .data("{}")
-        .limitExecution(1)
-        .conditionExecuted("true")
-        .status(status)
-        .createdAt(Instant.now())
-        .updatedAt(Instant.now())
-        .build();
+    Step step = new Step();
+    step.setStepAction(STEP_ACTION_CLASS.INJECT_EXECUTION);
+    step.setOutput("{}");
+    step.setOutput_parser("{}");
+    step.setInput("{}");
+    step.setData("{}");
+    step.setLimitExecution(1);
+    step.setConditionExecuted("true");
+    step.setStatus(status);
+    return step;
   }
 }

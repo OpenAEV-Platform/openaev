@@ -4,33 +4,30 @@ import io.openaev.database.model.WORKFLOW_STATUS;
 import io.openaev.database.model.Workflow;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.UUID;
 
 public class WorkflowFixture {
 
   public static Workflow getDefaultWorkflowTemplate() {
-    return Workflow.builder()
-        .id(UUID.randomUUID().toString())
-        .status(WORKFLOW_STATUS.TEMPLATE)
-        .version(1)
-        .isEdited(false)
-        .workflowCreatedAt(Instant.now())
-        .workflowUpdatedAt(Instant.now())
-        .workflowTemplate(null)
-        .workflowsExecuted(new ArrayList<>())
-        .steps(new ArrayList<>())
-        .build();
+    Workflow workflow = new Workflow();
+    workflow.setStatus(WORKFLOW_STATUS.TEMPLATE);
+    workflow.setVersion(1);
+    workflow.setEdited(false);
+    workflow.setWorkflowCreatedAt(Instant.now());
+    workflow.setWorkflowUpdatedAt(Instant.now());
+    workflow.setWorkflowTemplate(null);
+    workflow.setWorkflowsExecuted(new ArrayList<>());
+    workflow.setSteps(new ArrayList<>());
+    return workflow;
   }
 
   public static Workflow getDefaultWorkflowExecution(WORKFLOW_STATUS status) {
-    return Workflow.builder()
-        .id(UUID.randomUUID().toString())
-        .status(status)
-        .version(1)
-        .isEdited(false)
-        .workflowCreatedAt(Instant.now())
-        .workflowUpdatedAt(Instant.now())
-        .steps(new ArrayList<>())
-        .build();
+    Workflow workflow = new Workflow();
+    workflow.setStatus(status);
+    workflow.setVersion(1);
+    workflow.setEdited(false);
+    workflow.setWorkflowCreatedAt(Instant.now());
+    workflow.setWorkflowUpdatedAt(Instant.now());
+    workflow.setSteps(new ArrayList<>());
+    return workflow;
   }
 }
