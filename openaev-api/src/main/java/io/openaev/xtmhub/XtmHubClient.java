@@ -1,8 +1,11 @@
 package io.openaev.xtmhub;
 
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.rest.settings.response.PlatformSettings;
+import io.openaev.service.PlatformSettingsService;
 import io.openaev.xtmhub.config.XtmHubConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +18,7 @@ import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
+import org.springframework.web.server.ResponseStatusException;
 
 @Component
 @RequiredArgsConstructor
@@ -23,6 +27,7 @@ public class XtmHubClient {
   private final XtmHubConfig config;
   private final HttpClientFactory httpClientFactory;
   private static final String platformIdentifier = "openaev";
+  private final PlatformSettingsService platformSettingsService;
 
   public XtmHubConnectivityStatus refreshRegistrationStatus(
       String platformId, String platformVersion, String token) {
@@ -31,7 +36,7 @@ public class XtmHubClient {
       httpPost.addHeader("Content-Type", "application/json; charset=utf-8");
       httpPost.addHeader("Accept", "application/json");
 
-      StringEntity httpBody = buildMutationBody(platformId, platformVersion, token);
+      StringEntity httpBody = buildRefreshStatusBody(platformId, platformVersion, token);
       httpPost.setEntity(httpBody);
       return httpClient.execute(httpPost, this::parseResponseAsConnectivityStatus);
     } catch (Exception e) {
@@ -41,8 +46,38 @@ public class XtmHubClient {
     }
   }
 
+  public boolean autoRegister(
+      String token,
+      String platformContract,
+      String platformId,
+      String platformTitle,
+      String platformUrl,
+      String platformVersion) {
+    PlatformSettings settings = platformSettingsService.findSettings();
+
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
+      HttpPost httpPost = new HttpPost(config.getApiUrl() + "/graphql-api");
+      httpPost.addHeader("Content-Type", "application/json; charset=utf-8");
+      httpPost.addHeader("Accept", "application/json");
+      httpPost.addHeader("XTM-Hub-Platform-Token", token);
+      httpPost.addHeader("XTM-Hub-Platform-Id", settings.getPlatformId());
+
+      StringEntity httpBody =
+          buildAutoRegisterBody(
+              platformContract, platformId, platformTitle, platformUrl, platformVersion);
+      httpPost.setEntity(httpBody);
+      return httpClient.execute(httpPost, this::parseResponseAsSuccess);
+    } catch (Exception e) {
+      log.error("Failed to auto-register on {}: {}", config.getApiUrl(), e.getMessage(), e);
+      throw new ResponseStatusException(
+          org.springframework.http.HttpStatus.BAD_GATEWAY,
+          "Failed to auto-register XtmHub" + e.getMessage());
+    }
+  }
+
   @NotNull
-  private StringEntity buildMutationBody(String platformId, String platformVersion, String token) {
+  private StringEntity buildRefreshStatusBody(
+      String platformId, String platformVersion, String token) {
     String mutationBody =
         String.format(
             """
@@ -68,6 +103,32 @@ public class XtmHubClient {
 
     JsonElement element = JsonParser.parseString(mutationBody);
     return new StringEntity(element.toString());
+  }
+
+  @NotNull
+  private StringEntity buildAutoRegisterBody(
+      String platformContract,
+      String platformId,
+      String platformTitle,
+      String platformUrl,
+      String platformVersion) {
+    JsonObject platform = new JsonObject();
+    platform.addProperty("contract", platformContract);
+    platform.addProperty("id", platformId);
+    platform.addProperty("title", platformTitle);
+    platform.addProperty("url", platformUrl);
+    platform.addProperty("version", platformVersion);
+
+    JsonObject variables = new JsonObject();
+    variables.add("platform", platform);
+
+    JsonObject body = new JsonObject();
+    body.addProperty(
+        "query",
+        "mutation AutoRegisterPlatform($platform: PlatformInput!) { autoRegisterPlatform(platform: $platform) { success } }");
+    body.add("variables", variables);
+
+    return new StringEntity(body.toString());
   }
 
   private XtmHubConnectivityStatus parseResponseAsConnectivityStatus(ClassicHttpResponse response) {
@@ -101,6 +162,29 @@ public class XtmHubClient {
       log.warn("Error occurred while parsing XTM Hub connectivity response: {}", e.getMessage(), e);
 
       return XtmHubConnectivityStatus.INACTIVE;
+    }
+  }
+
+  private boolean parseResponseAsSuccess(ClassicHttpResponse response) {
+    if (response.getCode() != HttpStatus.SC_OK) {
+      return false;
+    }
+    try {
+      HttpEntity entity = response.getEntity();
+      String responseString = EntityUtils.toString(entity);
+      JsonElement jsonResponse = JsonParser.parseString(responseString);
+
+      return jsonResponse
+          .getAsJsonObject()
+          .get("data")
+          .getAsJsonObject()
+          .get("autoRegisterPlatform")
+          .getAsJsonObject()
+          .get("success")
+          .getAsBoolean();
+    } catch (Exception e) {
+      log.warn("Error occurred while parsing XTM Hub success response: {}", e.getMessage(), e);
+      return false;
     }
   }
 }
