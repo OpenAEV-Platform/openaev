@@ -6,7 +6,6 @@ import io.openaev.config.RabbitmqConfig;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
 import io.openaev.rest.helper.queue.BatchQueueService;
-import io.openaev.rest.helper.queue.DelayQueueService;
 import io.openaev.rest.helper.queue.QueueExecution;
 import jakarta.annotation.PostConstruct;
 import java.io.IOException;
@@ -26,7 +25,7 @@ public class QueueChainingService {
   private final OpenAEVConfig openAEVConfig;
   private final ObjectMapper objectMapper;
 
-  @Setter private DelayQueueService<StepEvent> delayQueueService;
+  @Setter private BatchQueueService<StepEvent> delayQueueService; // TODO switch to DB queue
   @Setter private BatchQueueService<StepEvent> waitQueueService;
   @Setter private BatchQueueService<ExternalUpdateEvent> updateQueueService;
 
@@ -51,7 +50,7 @@ public class QueueChainingService {
 
     // Initializing the queue to manage tasks blocked by a time condition
     delayQueueService =
-        new DelayQueueService<>(
+        new BatchQueueService<>(
             StepEvent.class,
             null,
             rabbitmqConfig,
@@ -78,7 +77,7 @@ public class QueueChainingService {
     event.setStepId(stepTemplate.getId());
     event.setWorkflowId(workflowRun.getId());
     event.setEmissionDate(Instant.now().toEpochMilli());
-    delayQueueService.publish(event, delayMs);
+    delayQueueService.publish(event);
   }
 
   public void waitStep(Step stepExecution, Workflow workflowRun) throws IOException {

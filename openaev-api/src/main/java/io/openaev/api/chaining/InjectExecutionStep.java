@@ -52,7 +52,7 @@ public class InjectExecutionStep implements ActionStep {
   @Override
   public Step create(StepsCreateInput.StepCreateInput step, Workflow workflow) {
     String data = this.stepData(step, workflow.getSimulation());
-    String input = this.stepInput(step.conditions);
+    String input = this.stepInput(step.getConditions());
     String outputParser = this.stepOutputParser("");
     Step stepTemplate =
         Step.builder()
@@ -61,7 +61,7 @@ public class InjectExecutionStep implements ActionStep {
             .output_parser(outputParser)
             .status(STEP_STATUS.TEMPLATE)
             .stepAction(STEP_ACTION_CLASS.INJECT_EXECUTION)
-            .limitExecution(step.limitExecution)
+            .limitExecution(step.getLimitExecution())
             .workflow(workflow)
             .build();
     return stepTemplate;
@@ -196,7 +196,7 @@ public class InjectExecutionStep implements ActionStep {
 
   private String stepData(StepsCreateInput.StepCreateInput step, Exercise exercise) {
 
-    InjectInput data = (InjectInput) step.dataStep;
+    InjectInput data = (InjectInput) step.getDataStep();
     // TODO throw exception
     if (data.getInjectorContract() == null) return null;
     InjectorContract injectorContract =

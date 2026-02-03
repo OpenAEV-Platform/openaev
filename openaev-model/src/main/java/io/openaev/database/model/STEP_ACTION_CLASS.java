@@ -1,7 +1,8 @@
 package io.openaev.database.model;
 
 public enum STEP_ACTION_CLASS {
-  INJECT_EXECUTION("InjectExecutionStep.class");
+  INJECT_EXECUTION("InjectExecutionStep.class"),
+  UNSUPPORTED("");
 
   public final String className;
 

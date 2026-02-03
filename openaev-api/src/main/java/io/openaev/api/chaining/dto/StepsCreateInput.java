@@ -25,15 +25,15 @@ public class StepsCreateInput {
   public static class StepCreateInput {
 
     @JsonProperty("step_action")
-    public STEP_ACTION_CLASS stepAction;
+    private STEP_ACTION_CLASS stepAction;
 
     @JsonProperty("limit_execution")
-    public int limitExecution;
+    private int limitExecution;
 
     @JsonProperty("conditions")
-    public List<ConditionCreateInput> conditions;
+    private List<ConditionCreateInput> conditions;
 
     @JsonProperty("data_step")
-    public DataStep dataStep;
+    private DataStep dataStep;
   }
 }
