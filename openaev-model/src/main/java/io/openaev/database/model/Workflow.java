@@ -72,7 +72,11 @@ public class Workflow implements Base {
   @Schema(description = "Workflows that were executed based on this template workflow")
   private List<Workflow> workflowsExecuted = new ArrayList<>();
 
-  @OneToMany(fetch = FetchType.LAZY, mappedBy = "workflow")
+  @OneToMany(
+      fetch = FetchType.LAZY,
+      mappedBy = "workflow",
+      cascade = CascadeType.ALL,
+      orphanRemoval = true)
   @Builder.Default
   @Schema(description = "Steps that belong to this workflow")
   private List<Step> steps = new ArrayList<>();

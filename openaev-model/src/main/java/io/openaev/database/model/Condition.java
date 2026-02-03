@@ -64,7 +64,11 @@ public class Condition implements Base {
   @Schema(description = "Parent condition if this is a child condition")
   private Condition conditionParent;
 
-  @OneToMany(fetch = FetchType.LAZY, mappedBy = "conditionParent")
+  @OneToMany(
+      fetch = FetchType.LAZY,
+      mappedBy = "conditionParent",
+      cascade = CascadeType.ALL,
+      orphanRemoval = true)
   @JsonIgnore
   @Builder.Default
   @Schema(description = "Child conditions of this condition")
