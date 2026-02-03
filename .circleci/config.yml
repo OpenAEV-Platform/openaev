@@ -46,7 +46,7 @@ jobs:
             LATEST_VERSION=$(git describe --tags --abbrev=0)
             
             CATALOG_FILE=openaev-api/src/main/resources/catalog/catalog-integrators.json
-            cat $CATALOG_FILE | jq --arg ver "${CIRCLE_TAG:-$LATEST_VERSION}" '.contracts[].container_version = $ver' | jq --arg ver "${CIRCLE_TAG:-$LATEST_VERSION}" '.version = $ver'  > CATALOG_FILE
+            cat $CATALOG_FILE | jq --arg ver "${CIRCLE_TAG:-$LATEST_VERSION}" '.contracts[].container_version = $ver' | jq --arg ver "${CIRCLE_TAG:-$LATEST_VERSION}" '.version = $ver'  > $CATALOG_FILE
 
             curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/arm64/openaev-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-agent/linux/arm64/openaev-agent-${CIRCLE_TAG:-latest}
             curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/x86_64/openaev-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-agent/linux/x86_64/openaev-agent-${CIRCLE_TAG:-latest}
@@ -110,7 +110,7 @@ jobs:
             LATEST_VERSION=$(git describe --tags --abbrev=0)
             
             CATALOG_FILE=openaev-api/src/main/resources/catalog/catalog-integrators.json
-            cat $CATALOG_FILE | jq --arg ver "${CIRCLE_TAG:-$LATEST_VERSION}" '.contracts[].container_version = $ver' | jq --arg ver "${CIRCLE_TAG:-$LATEST_VERSION}" '.version = $ver'  > CATALOG_FILE
+            cat $CATALOG_FILE | jq --arg ver "${CIRCLE_TAG:-$LATEST_VERSION}" '.contracts[].container_version = $ver' | jq --arg ver "${CIRCLE_TAG:-$LATEST_VERSION}" '.version = $ver'  > $CATALOG_FILE
 
             curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/arm64/openaev-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-agent/linux/arm64/openaev-agent-${CIRCLE_TAG:-latest}
             curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/x86_64/openaev-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-agent/linux/x86_64/openaev-agent-${CIRCLE_TAG:-latest}
@@ -230,7 +230,7 @@ jobs:
             sudo apt-get -y install git jq    
 
             CATALOG_FILE=openaev-api/src/main/resources/catalog/catalog-integrators.json
-            cat $CATALOG_FILE | jq --arg ver "${CIRCLE_TAG}" '.contracts[].container_version = $ver' | jq --arg ver "${CIRCLE_TAG}" '.version = $ver'  > CATALOG_FILE
+            cat $CATALOG_FILE | jq --arg ver "${CIRCLE_TAG}" '.contracts[].container_version = $ver' | jq --arg ver "${CIRCLE_TAG}" '.version = $ver'  > $CATALOG_FILE
 
             curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/arm64/openaev-agent-${CIRCLE_TAG} https://filigran.jfrog.io/artifactory/openaev-agent/linux/arm64/openaev-agent-${CIRCLE_TAG}
             curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/x86_64/openaev-agent-${CIRCLE_TAG} https://filigran.jfrog.io/artifactory/openaev-agent/linux/x86_64/openaev-agent-${CIRCLE_TAG}
@@ -315,7 +315,7 @@ jobs:
             LATEST_VERSION=$(git describe --tags --abbrev=0)
 
             CATALOG_FILE=openaev-api/src/main/resources/catalog/catalog-integrators.json
-            cat $CATALOG_FILE | jq --arg ver "rolling" '.contracts[].container_version = $ver' | jq --arg ver "rolling" '.version = $ver'  > CATALOG_FILE
+            cat $CATALOG_FILE | jq --arg ver "rolling" '.contracts[].container_version = $ver' | jq --arg ver "rolling" '.version = $ver'  > $CATALOG_FILE
             
             curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/arm64/openaev-agent-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openaev-agent/linux/arm64/openaev-agent-latest
             curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/x86_64/openaev-agent-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openaev-agent/linux/x86_64/openaev-agent-latest
@@ -398,7 +398,7 @@ jobs:
             LATEST_VERSION=$(git describe --tags --abbrev=0)
             
             CATALOG_FILE=openaev-api/src/main/resources/catalog/catalog-integrators.json
-            cat $CATALOG_FILE | jq --arg ver "prerelease" '.contracts[].container_version = $ver' | jq --arg ver "prerelease" '.version = $ver'  > CATALOG_FILE
+            cat $CATALOG_FILE | jq --arg ver "prerelease" '.contracts[].container_version = $ver' | jq --arg ver "prerelease" '.version = $ver'  > $CATALOG_FILE
 
             curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/arm64/openaev-agent-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openaev-agent/linux/arm64/openaev-agent-prerelease
             curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/x86_64/openaev-agent-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openaev-agent/linux/x86_64/openaev-agent-prerelease
