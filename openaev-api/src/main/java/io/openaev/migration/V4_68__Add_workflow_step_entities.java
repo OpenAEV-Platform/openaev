@@ -30,7 +30,7 @@ public class V4_68__Add_workflow_step_entities extends BaseJavaMigration {
                       workflow_version INTEGER NOT NULL CHECK (workflow_version >= 0),
                       workflow_is_edited BOOLEAN NOT NULL DEFAULT false,
                       workflow_simulation_id VARCHAR(255) NOT NULL REFERENCES exercises(exercise_id) ON DELETE CASCADE,
-                      workflow_template_id VARCHAR(255) REFERENCES workflows(workflow_id) ON DELETE CASCADE ,
+                      workflow_template_id VARCHAR(255) REFERENCES workflows(workflow_id) ON DELETE SET NULL,
                       workflow_created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
                       workflow_updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
                     );
@@ -76,7 +76,7 @@ public class V4_68__Add_workflow_step_entities extends BaseJavaMigration {
                       step_output_parser JSONB,
                       step_status step_status NOT NULL,
                       step_workflow_id VARCHAR(255) NOT NULL REFERENCES workflows(workflow_id) ON DELETE CASCADE,
-                      step_template_id VARCHAR(255) NULL REFERENCES steps(step_id) ON DELETE CASCADE,
+                      step_template_id VARCHAR(255) NULL REFERENCES steps(step_id) ON DELETE SET NULL,
                       step_created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
                       step_updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
                     );
