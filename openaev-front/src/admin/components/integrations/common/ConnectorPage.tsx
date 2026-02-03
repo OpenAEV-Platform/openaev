@@ -61,8 +61,8 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
         detailsTitle
         instanceCurrentStatus={instance?.connector_instance_current_status}
         instanceRequestedStatus={instance?.connector_instance_requested_status}
-        showUpdateButtons={isEnterpriseEdition && ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
-        disabledUpdateButtons={!isXtmComposerUp && catalogConnector?.catalog_connector_manager_supported}
+        showUpdateButtons={ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
+        disabledUpdateButtons={!isEnterpriseEdition || (!isXtmComposerUp && catalogConnector?.catalog_connector_manager_supported)}
       />
       <Tabs
         entries={tabEntries}

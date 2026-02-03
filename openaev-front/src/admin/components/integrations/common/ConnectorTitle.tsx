@@ -175,22 +175,24 @@ const ConnectorTitle = ({
                 <ConnectorPopover
                   connectorInstanceId={connector.instanceId}
                   connectorName={connector.connectorName}
+                  disabled={disabledUpdateButtons}
                 />
               )}
-
-              {showDeployButton ? (
+              {showDeployButton && (
                 <DeployButton
                   onDeployBtnClick={onDeployBtnClick}
                   deploymentCount={connector.connectorInstancesCount ?? 0}
                 />
-              )
-                : (
-                    <ActionButton
-                      onUpdate={onUpdateRequestedStatusClick}
-                      disabled={showUpdateButtons || disabledUpdateButtons}
-                      status={instanceRequestedStatus}
-                    />
-                  )}
+              )}
+              {
+                showUpdateButtons && (
+                  <ActionButton
+                    onUpdate={onUpdateRequestedStatusClick}
+                    disabled={disabledUpdateButtons}
+                    status={instanceRequestedStatus}
+                  />
+                )
+              }
             </div>
           </>
         )}

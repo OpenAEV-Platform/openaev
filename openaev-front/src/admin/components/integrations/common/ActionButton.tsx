@@ -1,5 +1,4 @@
 import { Button } from '@mui/material';
-import type { CSSProperties } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
@@ -9,10 +8,9 @@ interface Props {
   onUpdate: () => void;
   disabled: boolean;
   status?: 'starting' | 'stopping';
-  style?: CSSProperties;
 }
 
-const ActionButton = ({ onUpdate, disabled, status, style }: Props) => {
+const ActionButton = ({ onUpdate, disabled, status }: Props) => {
   const { t } = useFormatter();
   const {
     isValidated: isEnterpriseEdition,
@@ -28,41 +26,33 @@ const ActionButton = ({ onUpdate, disabled, status, style }: Props) => {
       onUpdate();
     }
   };
+
+  if (status === 'starting') {
+    return (
+      <Button
+        variant="outlined"
+        color="error"
+        onClick={onUpdate}
+        disabled={disabled}
+      >
+        {t('Stop')}
+      </Button>
+    );
+  }
+
   return (
-    <div style={{
-      ...style,
-      position: 'relative',
-    }}
+    <Button
+      variant={isEnterpriseEdition ? 'contained' : 'outlined'}
+      sx={{
+        color: isEnterpriseEdition ? 'primary' : 'action.disabled',
+        borderColor: isEnterpriseEdition ? 'primary' : 'action.disabledBackground',
+      }}
+      onClick={onClickAction}
+      endIcon={isEnterpriseEdition ? null : <span><EEChip /></span>}
+      disabled={disabled}
     >
-      {
-        status === 'starting' ? (
-          <Button
-            variant="outlined"
-            color="error"
-            size="small"
-            onClick={onUpdate}
-            disabled={disabled}
-          >
-            {t('Stop')}
-          </Button>
-        )
-          : (
-              <Button
-                variant={isEnterpriseEdition ? 'contained' : 'outlined'}
-                sx={{
-                  color: isEnterpriseEdition ? 'primary' : 'action.disabled',
-                  borderColor: isEnterpriseEdition ? 'primary' : 'action.disabledBackground',
-                }}
-                size="small"
-                onClick={onClickAction}
-                endIcon={isEnterpriseEdition ? null : <span><EEChip /></span>}
-                disabled={disabled}
-              >
-                { t('Start')}
-              </Button>
-            )
-      }
-    </div>
+      { t('Start')}
+    </Button>
   );
 };
 
