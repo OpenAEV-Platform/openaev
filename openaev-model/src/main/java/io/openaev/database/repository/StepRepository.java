@@ -33,6 +33,9 @@ public interface StepRepository extends JpaRepository<Step, String> {
 
   List<Step> findAllByStatus(STEP_STATUS status);
 
+
+  // STEP EXECUTED
+
   @Query(
       value =
           "SELECT * FROM steps WHERE step_workflow_id=:idWorkflowRun AND step_template_id=:stepTemplateId",
@@ -40,7 +43,6 @@ public interface StepRepository extends JpaRepository<Step, String> {
   List<Step> findAllStepExecutedByStepTemplateIdAndWorkflowRunId(
       @Param("stepTemplateId") String stepTemplateId, @Param("idWorkflowRun") String idWorkflowRun);
 
-  // STEP EXECUTED
   List<Step> findAllByStepTemplateIdAndWorkflowId(String stepTemplateId, String idWorkflowRun);
 
   /**
