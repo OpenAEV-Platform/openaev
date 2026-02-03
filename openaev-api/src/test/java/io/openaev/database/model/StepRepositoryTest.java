@@ -29,7 +29,7 @@ class StepRepositoryTest extends IntegrationTest {
   @Autowired private ExerciseComposer simulationComposer;
 
   @Test
-  void testFindAllByStatus() {
+  void whenFindAllByStatus_thenReturnsStepsWithGivenStatus() {
     workflowComposer
         .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
         .withSimulation(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
@@ -43,7 +43,7 @@ class StepRepositoryTest extends IntegrationTest {
   }
 
   @Test
-  void testFindAllByStepTemplateIdIsNullAndWorkflowId() {
+  void whenFindAllByStepTemplateIdIsNullAndWorkflowId_thenReturnsStepsTemplateForWorkflow() {
     // GIVEN
     Workflow workflow =
         workflowComposer
@@ -63,7 +63,7 @@ class StepRepositoryTest extends IntegrationTest {
   }
 
   @Test
-  void testFindStepIdByInjectId() {
+  void whenFindStepIdByInjectId_thenReturnsCorrectStepId() {
     // GIVEN: a step with JSON data containing an inject_id
     String injectId = "inject-123";
     Step step =
