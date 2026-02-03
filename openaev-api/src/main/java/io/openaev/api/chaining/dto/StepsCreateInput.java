@@ -6,17 +6,22 @@ import io.openaev.database.model.STEP_ACTION_CLASS;
 import java.util.List;
 import lombok.*;
 
+/** The DTO for creation of steps */
 @Getter
 @Setter
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
 public class StepsCreateInput {
+  /** The Steps. */
+  @JsonProperty("steps")
   public List<StepCreateInput> steps;
 
+  /** Workflow template ID */
   @JsonProperty("workflow_id")
   private String workflowId;
 
+  /** The DTO for creation of step */
   @Getter
   @Setter
   @Builder
@@ -24,15 +29,31 @@ public class StepsCreateInput {
   @NoArgsConstructor
   public static class StepCreateInput {
 
+    /**
+     * Step action: INJECT_EXECUTION. A step can process different actions depending on its step
+     * action. Each action implements ActionStep and its methods.
+     */
     @JsonProperty("step_action")
     public STEP_ACTION_CLASS stepAction;
 
+    /**
+     * Execution limit. Applies to a step template and limits the number of executions for the same
+     * step template, regardless of incoming inputs.
+     */
     @JsonProperty("limit_execution")
     public int limitExecution;
 
+    /**
+     * Conditions. List of conditions evaluated to determine whether a step execution should be
+     * processed.
+     */
     @JsonProperty("conditions")
     public List<ConditionCreateInput> conditions;
 
+    /**
+     * Data Step. Contains the expected object depending on the step action. INJECT_EXECUTION →
+     * InjectInput
+     */
     @JsonProperty("data_step")
     public DataStep dataStep;
   }
