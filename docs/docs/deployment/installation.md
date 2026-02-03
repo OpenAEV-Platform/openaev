@@ -88,7 +88,7 @@ docker compose up -d
 
 This section provides instructions to install and run a pre-built OpenAEV server with its dependencies. Note that this
 does not cover building from source,
-which you will find in the [Development section](../development/build_from_source.md) instead.
+which you will find in the [Development section](../development/build-from-source.md) instead.
 
 ### Prepare the installation
 

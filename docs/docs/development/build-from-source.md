@@ -3,8 +3,8 @@
     Ensure you have followed the steps for installing prerequisites according to your development
     platform of choice:
 
-    * [Linux (Ubuntu used as example)](environment_ubuntu.md)
-    * [Windows](environment_windows.md)
+    * [Linux (Ubuntu used as example)](environment-ubuntu.md)
+    * [Windows](environment-windows.md)
     * MacOS (TBD)
 
 # Building and running from source

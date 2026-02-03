@@ -113,7 +113,7 @@ After injects are generated:
 - Review and customize the **Scenario** to match your organization’s needs.
 - Assign appropriate **Asset groups** to each inject.
 - Optionally, configure default **Asset Groups** for scenarios created from OpenCTI using
-  the [Default Asset Groups](../default_asset_rules.md) page.
+  the [Default Asset Groups](../default-asset-rules.md) page.
 
 ![Inject Asset Groups](assets/inject-asset-group.png)
 

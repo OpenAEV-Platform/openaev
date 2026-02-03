@@ -67,7 +67,7 @@ You can:
 Once defined, a scenario can be turned into a [simulation](simulation.md): a live execution in your environment, either
 one-shot or scheduled regularly.
 
-During simulations, [expectations](injects_and_expectations.md) are validated:
+During simulations, [expectations](injects-and-expectations.md) are validated:
 
 - **Automatically**, via integrations with your stack
 - **Manually**, by observers validating human reactions

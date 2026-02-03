@@ -141,8 +141,8 @@ nav:
   - User Guide:
     - Getting started: usage/getting-started.md
     - Foundations:
-      - Scenario and Simulations: usage/scenarios_and_simulations.md
-      - Injects and Expectations: usage/injects_and_expectations.md
+      - Scenario and Simulations: usage/scenarios-and-simulations.md
+      - Injects and Expectations: usage/injects-and-expectations.md
     - Evaluate your Security posture:
       - Overview: usage/evaluate/overview.md
       - Simulation: usage/simulation.md
@@ -164,25 +164,25 @@ nav:
     - Build your own Threat Scenario:
       - Scenario: usage/scenario.md
       - Scenario Generation from OpenCTI Security Coverage: usage/scenario/security-coverage.md
-      - Default Asset Rules: usage/default_asset_rules.md
-      - Importing injects into a Scenario: usage/scenario_import.md
+      - Default Asset Rules: usage/default-asset-rules.md
+      - Importing injects into a Scenario: usage/scenario-import.md
       - Assets: usage/assets.md
       - People: usage/people.md
       - Components:
         - Documents: usage/components/documents.md
         - Custom variables: usage/components/variables.md
         - Channels: usage/components/channels.md
-        - Media pressure: usage/components/media_pressure.md
+        - Media pressure: usage/components/media-pressure.md
         - Challenges: usage/components/challenges.md
         - Lessons: usage/components/lessons.md
       - Payloads: usage/payloads/payloads.md
     - Share and export:
-      - Simulations: usage/simulation_reports.md
+      - Simulations: usage/simulation-reports.md
       - Notifications: usage/notifications.md
     - Interact with your environment:
       - Injectors:
         - Overview: usage/injectors.md
-        - Built-In Injector: usage/injects_builtin.md
+        - Built-In Injector: usage/injects-builtin.md
         - Caldera Injector: usage/inject-caldera.md
       - Collectors:
         - Overview: usage/collectors.md
@@ -195,7 +195,7 @@ nav:
       - Parameters: administration/parameters.md
       - Security:
         - Policies: administration/policies.md
-        - Users and RBAC: administration/users_and_rbac.md
+        - Users and RBAC: administration/users-and-rbac.md
       - Taxonomies: administration/taxonomies.md
       - XTM Hub: administration/hub.md # Warning: page is linked in XTM Hub documentation
   - Reference:
@@ -205,9 +205,9 @@ nav:
           - Telemetry: reference/deployment/telemetry.md
   - Development:
     - Prerequisites:
-      - Ubuntu: development/environment_ubuntu.md
-      - Windows: development/environment_windows.md
-    - Building and running from source: development/build_from_source.md
+      - Ubuntu: development/environment-ubuntu.md
+      - Windows: development/environment-windows.md
+    - Building and running from source: development/build-from-source.md
     - Platform: development/platform.md
     - Collectors: development/collectors.md
     - Injectors: development/injectors.md

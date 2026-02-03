@@ -54,7 +54,7 @@ In the "Definition" tab, you can add various elements to construct events:
 
 - [Teams and Players](people.md) involved in the scenario,
 - [Custom variables](components/variables.md) for simplifying injects' customization,
-- Articles that you might use to simulate [media pressure](components/media_pressure.md),
+- Articles that you might use to simulate [media pressure](components/media-pressure.md),
 - [Challenges](components/challenges.md) designed for including Capture The Flag elements in your scenario.
 
 <!-- screenshot of the Definition screen with elements inside -->

@@ -1,6 +1,6 @@
 # Channels
 
-In OpenAEV, Channels represent communication medias with a particular look. They are used to present [web articles or other media contents](media_pressure.md) to Players in a specific way.
+In OpenAEV, Channels represent communication medias with a particular look. They are used to present [web articles or other media contents](media-pressure.md) to Players in a specific way.
 
 It helps give shape to your Scenario context and events.
 
@@ -20,6 +20,6 @@ On the right, a mock up of the overview is displayed to give you the look and fi
 
 A Channel will then be used in Scenario and in Simulation definition. When you create an Article, you have to choose the Channel that will give it an adequate shape.
 
-See [Media pressure](media_pressure.md) page to know how to create and add Articles to your Scenarios.
+See [Media pressure](media-pressure.md) page to know how to create and add Articles to your Scenarios.
 
 ![Channel selection during Article creation](../assets/channel_selection_during_creation.png)

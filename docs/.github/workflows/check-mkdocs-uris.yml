@@ -1,0 +1,45 @@
+name: Check MkDocs URIs
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  check-mkdocs-uris:
+    name: Validate MkDocs URIs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Disable git-committers plugin in CI
+        # The git-committers plugin is not CI-safe:
+        # it performs GitHub API calls even without an explicit token,
+        # which causes 403 rate-limit errors in GitHub Actions.
+        # We remove the plugin block entirely for CI builds.
+        run: |
+          sed -i '/- git-committers:/,/^[[:space:]]*-[[:space:]]/d' mkdocs.yml
+
+      - name: Check for underscores in MkDocs URIs
+        run: |
+          echo "Checking mkdocs.yml for URIs (use '-' instead of '_')"
+
+          INVALID_PATHS=$(grep '.md' mkdocs.yml | grep '_' | grep -Ev 'pymdownx\.superfences|md_in_html' || true)          
+          
+          if [ -n "$INVALID_PATHS" ]; then
+            echo "❌ Invalid MkDocs URIs detected (use '-' instead of '_'):"
+            echo "$INVALID_PATHS" | sed 's/^/ - /'
+            echo "Required format:"
+            echo "usage/scenarios_and_simulations.md -> usage/scenarios-and-simulations.md"
+            exit 1
+          else
+            echo "✅ All MkDocs URIs are clean (no underscores)."
+          fi
