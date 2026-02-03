@@ -22,14 +22,12 @@ public class WorkflowFixture {
         .build();
   }
 
-  public static Workflow getDefaultWorkflowExecution(
-      Workflow workflowTemplate, WORKFLOW_STATUS status) {
+  public static Workflow getDefaultWorkflowExecution(WORKFLOW_STATUS status) {
     return Workflow.builder()
         .id(UUID.randomUUID().toString())
         .status(status)
         .version(1)
         .isEdited(false)
-        .workflowTemplate(workflowTemplate)
         .workflowCreatedAt(Instant.now())
         .workflowUpdatedAt(Instant.now())
         .steps(new ArrayList<>())

@@ -36,11 +36,15 @@ class WorkflowRepositoryTest extends IntegrationTest {
   @Test
   void testFindBySimulation_IdAndStatus() {
     Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
-    Workflow workflow =
-        WorkflowFixture.getDefaultWorkflowExecution(workflowTemplate, WORKFLOW_STATUS.RUN);
+    Workflow workflow = WorkflowFixture.getDefaultWorkflowExecution(WORKFLOW_STATUS.RUN);
     Exercise simulation = ExerciseFixture.createDefaultExercise();
     Workflow savedWorkflow =
-        workflowComposer.forWorkflow(workflow).withSimulation(simulation).persist().get();
+        workflowComposer
+            .forWorkflow(workflow)
+            .withWorkflowTemplate(workflowTemplate)
+            .withSimulation(simulation)
+            .persist()
+            .get();
     String simulationId = savedWorkflow.getSimulation().getId();
 
     Workflow found =
