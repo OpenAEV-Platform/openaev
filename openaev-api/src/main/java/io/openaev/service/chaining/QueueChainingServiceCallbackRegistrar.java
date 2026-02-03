@@ -14,8 +14,8 @@ public class QueueChainingServiceCallbackRegistrar {
   @PostConstruct
   public void registerCallbacks() {
     // This stepService is the proxied bean, so @Transactional works
-    queueChainingService.setCallbackForWaitQueue(stepService::handleWaitEvent);
+    queueChainingService.setCallbackForWaitQueue(stepService::handleReadyEvent);
     queueChainingService.setCallbackForDelayQueue(stepService::handleDelayEvent);
-    queueChainingService.setCallbackForExternalUpdateQueue(stepService::handleUpdateEvent);
+    queueChainingService.setCallbackForExternalUpdateQueue(stepService::handleExternalUpdateEvent);
   }
 }

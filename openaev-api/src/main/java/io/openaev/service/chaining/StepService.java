@@ -32,7 +32,13 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
   public final ConditionService conditionService;
   private final QueueChainingService queueChainingService;
 
-  public void createStepsTemplate(String workflowId, List<StepsCreateInput.StepCreateInput> steps) {
+  /**
+   * Create step templates
+   *
+   * @param workflowId id of the workflow linked to the step templates
+   * @param steps list of input to create step templates
+   */
+  public void createStepTemplates(String workflowId, List<StepsCreateInput.StepCreateInput> steps) {
     Workflow workflow = workflowService.getWorkflowById(workflowId);
 
     for (StepsCreateInput.StepCreateInput stepInput : steps) {
@@ -48,20 +54,25 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     }
   }
 
-  public void startWorkflow(String exerciseId) {
-    Workflow workflowTemplate = workflowService.findWorkflowTemplateByIdExercise(exerciseId);
+  /**
+   * Start workflow for given simulation
+   *
+   * @param simulationId id of the simulation to start
+   */
+  public void startWorkflow(String simulationId) {
+    Workflow workflowTemplate = workflowService.findWorkflowTemplateByIdExercise(simulationId);
     // Get all step template
     List<Step> stepsTemplate = this.findAllStepTemplateByWorkflow(workflowTemplate.getId());
     // todo Check edition content
     // If edited increase version workflow template
     // Create new workflow RUN save
-    Workflow workflowRun = workflowService.launchWorkflow(exerciseId);
+    Workflow workflowRun = workflowService.launchWorkflow(simulationId);
 
     // Find step template with condition valid
     List<Step> stepWithValidCondition = new ArrayList<>();
 
     for (Step step : stepsTemplate) {
-      Step stepWait = wait(step, workflowRun, null);
+      Step stepWait = ready(step, workflowRun, null);
       if (stepWait != null) {
         stepWithValidCondition.add(stepWait);
       }
@@ -74,10 +85,18 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     }*/
   }
 
-  public Step wait(Step nextStepTemplateToExecute, Workflow workflowRun, String input) {
+  /**
+   * Create an execution step in the ready state for given template
+   *
+   * @param nextStepTemplateToExecute step template to ready
+   * @param workflowRun the running workflow
+   * @param input json input for the execution step
+   * @return ready step
+   */
+  public Step ready(Step nextStepTemplateToExecute, Workflow workflowRun, String input) {
     ActionStep actionStep = this.factoryAction(nextStepTemplateToExecute.getStepAction());
     if (actionStep == null) throw new BadRequestException("action step is null");
-    Step nextStepTemplateToExecutePersisted = findById(nextStepTemplateToExecute.getId());
+    Step nextStepTemplateToExecutePersisted = this.findById(nextStepTemplateToExecute.getId());
     // CHECK CONDITIONS
     List<Condition> conditionExecution =
         conditionService.checkCondition(
@@ -92,11 +111,9 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
       stepWait.setWorkflow(workflowRun);
       stepWait = this.saveStep(stepWait);
 
-      // stepTemplateP.getStepsExecuted().add(stepWait); // TODO Check
-      // this.saveStep(stepTemplateP);
       Step finalStepWait = stepWait;
 
-      // For each step template IF condition valid create condition execution;
+      // For each step template, IF condition is valid, create condition execution
       conditionExecution.forEach(
           condition -> {
             condition.setStep(finalStepWait);
@@ -114,19 +131,24 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     return null;
   }
 
-  public void run(Step stepWait) {
-    ActionStep actionStep = this.factoryAction(stepWait.getStepAction());
+  /**
+   * Run step that is ready
+   *
+   * @param stepReady step ready to run
+   */
+  public void run(Step stepReady) {
+    ActionStep actionStep = this.factoryAction(stepReady.getStepAction());
     if (actionStep == null) throw new BadRequestException("action step is null");
 
-    Step stepRun = actionStep.run(stepWait);
+    Step stepRun = actionStep.run(stepReady);
     if (stepRun == null) {
-      stepWait.setStatus(STEP_STATUS.END);
-      this.saveStep(stepWait);
-      // CHECK ALL STEP EXECUTED IF ALL ENDED -> WORKFLOW RUN ENDED
-      int runningStep = stepRepository.countRunningStep(stepWait.getWorkflow().getId());
+      stepReady.setStatus(STEP_STATUS.END);
+      this.saveStep(stepReady);
+      // Check all executed steps, if all ended, end workflow run
+      int runningStep = stepRepository.countRunningStep(stepReady.getWorkflow().getId());
       if (runningStep == 0) {
         // TODO manage steptemplate with time delay
-        Workflow run = stepWait.getWorkflow();
+        Workflow run = stepReady.getWorkflow();
         run.setStatus(WORKFLOW_STATUS.END);
         workflowService.saveWorkflowRun(run);
       }
@@ -136,11 +158,24 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     }
   }
 
+  /**
+   * Count executed step
+   *
+   * @param workflowRunId id of the executed workflow
+   * @param stepTemplateId step id for which to count the number of execution
+   * @return integer
+   */
   public int countExecutedStep(String workflowRunId, String stepTemplateId) {
     return stepRepository.countStepExecutedByStepTemplateIdAndWorkflowRunId(
         workflowRunId, stepTemplateId);
   }
 
+  /**
+   * Get an action class
+   *
+   * @param actionClass name of the action class
+   * @return the corresponding action step class
+   */
   public ActionStep factoryAction(STEP_ACTION_CLASS actionClass) {
     return switch (actionClass) {
       case STEP_ACTION_CLASS.INJECT_EXECUTION ->
@@ -149,10 +184,21 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     };
   }
 
-  public void saveStep(List<Step> steps) {
+  /**
+   * Save all the steps
+   *
+   * @param steps steps to save
+   */
+  public void saveSteps(List<Step> steps) {
     this.stepRepository.saveAll(steps);
   }
 
+  /**
+   * Check that the condition for a step are fulfilled
+   *
+   * @param stepInput input that are going to be used for the step
+   * @param step step to check
+   */
   private void stepCondition(StepsCreateInput.StepCreateInput stepInput, Step step) {
     if (stepInput.getConditions() == null || stepInput.getConditions().isEmpty()) {
       return;
@@ -188,8 +234,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     Map<String, Condition> temporaryIdAndSaveId = new HashMap<>();
     temporaryIdAndSaveId.put(firstCondition.getTemporaryId(), first);
 
-    Map<String, List<ConditionCreateInput>> temporaryConditions = new HashMap<>();
-    temporaryConditions =
+    Map<String, List<ConditionCreateInput>> temporaryConditions =
         stepInput.getConditions().stream()
             .filter(
                 conditionCreateInput ->
@@ -231,30 +276,59 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     }
   }
 
+  /**
+   * Save step
+   *
+   * @param step step to save
+   * @return saved step
+   */
   public Step saveStep(Step step) {
     return this.stepRepository.save(step);
   }
 
+  /**
+   * Find step template by id
+   *
+   * @param idStep step id to find step template
+   * @return found step
+   */
   public Step findStepTemplateById(String idStep) {
     return this.stepRepository.findByStepTemplateIdIsNullAndIdAndStatus(
         idStep, STEP_STATUS.TEMPLATE);
   }
 
+  /**
+   * Find all step template by workflow
+   *
+   * @param idWorkflow workflow id to find all step templates
+   * @return list of step
+   */
   public List<Step> findAllStepTemplateByWorkflow(String idWorkflow) {
     return this.stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(idWorkflow);
   }
 
-  public Step findStepWaitById(String idStep) {
+  /**
+   * Find step ready by id
+   *
+   * @param idStep step id to find step ready
+   * @return found step
+   */
+  public Step findStepReadyById(String idStep) {
     return this.stepRepository.findByStepTemplateIdIsNotNullAndIdAndStatus(
         idStep, STEP_STATUS.WAIT);
   }
 
+  /**
+   * Find all running steps
+   *
+   * @return list of step
+   */
   public List<Step> findAllStepRun() {
     return this.stepRepository.findAllByStatus(STEP_STATUS.RUN);
   }
 
   /**
-   * Returns all EXECTUTED steps for a given Workflow Run and Step template.
+   * Returns all EXECUTED steps for a given Workflow Run and Step template.
    *
    * @param idStepTemplate the Step template identifier
    * @param idWorkflowRun the Workflow Run id
@@ -266,10 +340,34 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
         idStepTemplate, idWorkflowRun);
   }
 
+  /**
+   * Find step by id
+   *
+   * @param stepId id of the step
+   * @return step
+   */
   public Step findById(String stepId) {
-    return stepRepository.findById(stepId).orElseThrow(); // todo exc
+    // TODO : exception management
+    return stepRepository.findById(stepId).orElseThrow();
   }
 
+  /**
+   * Find step id by inject id
+   *
+   * @param injectId inject id to find step id
+   * @return optional step id
+   */
+  public Optional<String> findStepIdByInjectId(final String injectId) {
+    return stepRepository.findStepIdByInjectId(injectId);
+  }
+
+  /**
+   * Find a json field from a path
+   *
+   * @param jsonString json to read
+   * @param path path to check
+   * @return path value
+   */
   public static String getField(String jsonString, String path) {
     Map<String, Object> fieldsAndValue = new HashMap<>();
     fieldsAndValue.put(path, null);
@@ -284,6 +382,13 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     }
   }
 
+  /**
+   * Find a json field from a path
+   *
+   * @param jsonString json to read
+   * @param path path to check
+   * @return json object
+   */
   public static Map<String, Object> getFields(String jsonString, String path) {
     Map<String, Object> fieldsAndValue = new HashMap<>();
     fieldsAndValue.put(path, null);
@@ -291,6 +396,14 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     return fieldsAndValue;
   }
 
+  /**
+   * Update a json field from a path
+   *
+   * @param jsonString json to update
+   * @param path path to update
+   * @param newValue new value to update
+   * @return updated json
+   */
   public static String setField(String jsonString, String path, Object newValue) {
     Map<String, Object> fieldsAndValue = new HashMap<>();
     fieldsAndValue.put(path, newValue);
@@ -299,9 +412,13 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
   }
 
   /**
+   * Perform an action on a json path
+   *
    * @param jsonString the root JSON object to use
    * @param fieldsAndValue a map where keys are dot-separated JSON paths and values are the new
    *     values to apply(ACTION_JSON.REPLACE) or will be value to get(ACTION_JSON.GET)
+   * @param actionJson the action to perform
+   * @return updated json
    */
   public static JsonObject useJson(
       String jsonString, Map<String, Object> fieldsAndValue, ACTION_JSON actionJson) {
@@ -355,10 +472,18 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     return jsonObject;
   }
 
-  public Optional<String> findStepIdByInjectId(final String injectId) {
-    return stepRepository.findStepIdByInjectId(injectId);
-  }
-
+  /**
+   * Perform an action in a json array
+   *
+   * @param jsonArray json array to use
+   * @param index starting index
+   * @param treeToUpdate list of json path to update
+   * @param fieldsAndValue a map where keys are dot-separated JSON paths and values are the new
+   *     values to apply(ACTION_JSON.REPLACE) or will be value to get(ACTION_JSON.GET)
+   * @param field field from fieldsAndValue to manipulate
+   * @param actionJson action to perform
+   * @param path json path
+   */
   private static void iterateJsonArray(
       JsonArray jsonArray,
       int index,
@@ -414,6 +539,18 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     }
   }
 
+  /**
+   * Perform an action in a json object
+   *
+   * @param jsonObject json object to use
+   * @param index starting index
+   * @param treeToUpdate list of json path to update
+   * @param fieldsAndValue a map where keys are dot-separated JSON paths and values are the new
+   *     values to apply(ACTION_JSON.REPLACE) or will be value to get(ACTION_JSON.GET)
+   * @param field field from fieldsAndValue to manipulate
+   * @param actionJson action to perform
+   * @param path json path
+   */
   private static void iterateJsonObject(
       JsonObject jsonObject,
       int index,
@@ -458,6 +595,21 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     }
   }
 
+  /**
+   * Perform an action in a json array or object
+   *
+   * @param fieldsAndValue a map where keys are dot-separated JSON paths and values are the new
+   *     values to apply(ACTION_JSON.REPLACE) or will be value to get(ACTION_JSON.GET)
+   * @param field field from fieldsAndValue to manipulate
+   * @param tree list of json path to update
+   * @param jsonElement json object to use
+   * @param jsonArray json array to use
+   * @param tabIndexJsonArray index to update in json array
+   * @param index starting index
+   * @param actionJson action to perform
+   * @param typeJson type of the json object
+   * @param path json path
+   */
   private static void actionJson(
       Map<String, Object> fieldsAndValue,
       String field,
@@ -474,7 +626,6 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
         JsonPrimitive newValue = toJsonPrimitive(fieldsAndValue.get(field));
         switch (typeJson) {
           case OBJECT -> {
-            // OBJET
             JsonObject object = jsonElement.getAsJsonObject();
             if (object.get(tree.get(index)).isJsonArray()) {
               object.remove(tree.get(index));
@@ -487,7 +638,6 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
             }
           }
           case ARRAY -> {
-            // JSONARRAY
             if (jsonElement.isJsonPrimitive()) {
               jsonArray.set(tabIndexJsonArray, newValue);
             } else {
@@ -496,7 +646,6 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
           }
           case DEFAULT -> {
             JsonObject jsonObject = jsonElement.getAsJsonObject();
-            // DEFAULT
             jsonObject.remove(tree.get(index));
             jsonObject.add(tree.get(index), newValue);
           }
@@ -521,42 +670,76 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     }
   }
 
-  private static JsonPrimitive toJsonPrimitive(Object o) {
-    if (o instanceof String) {
-      return new JsonPrimitive((String) o);
+  /**
+   * Convert java primitive to json primitive
+   *
+   * @param primitiveObject primitive object to convert
+   * @return converted json primitive
+   */
+  private static JsonPrimitive toJsonPrimitive(Object primitiveObject) {
+    if (primitiveObject instanceof String) {
+      return new JsonPrimitive((String) primitiveObject);
     }
-    if (o instanceof Boolean) {
-      return new JsonPrimitive((Boolean) o);
+    if (primitiveObject instanceof Boolean) {
+      return new JsonPrimitive((Boolean) primitiveObject);
     }
-    if (o instanceof Number) {
-      return new JsonPrimitive((Number) o);
+    if (primitiveObject instanceof Number) {
+      return new JsonPrimitive((Number) primitiveObject);
     }
-    return new JsonPrimitive(o.toString());
+    return new JsonPrimitive(primitiveObject.toString());
   }
 
+  /**
+   * Consume ready event from queue
+   *
+   * @param events list of events
+   * @return consumed list of events
+   */
   @Transactional
-  public List<StepEvent> handleWaitEvent(List<StepEvent> events) {
-    events.forEach(this::handleWaitStepEvent);
+  public List<StepEvent> handleReadyEvent(List<StepEvent> events) {
+    events.forEach(this::handleReadyStepEvent);
     return events;
   }
 
+  /**
+   * Consume delay event from queue
+   *
+   * @param events list of events
+   * @return consumed list of events
+   */
   @Transactional
   public List<StepEvent> handleDelayEvent(List<StepEvent> events) {
     events.forEach(this::handleDelayStepEvent);
     return events;
   }
 
+  /**
+   * Consume update event from queue
+   *
+   * @param events list of events
+   * @return consumed list of events
+   */
   @Transactional
-  public List<ExternalUpdateEvent> handleUpdateEvent(List<ExternalUpdateEvent> events) {
+  public List<ExternalUpdateEvent> handleExternalUpdateEvent(List<ExternalUpdateEvent> events) {
     events.forEach(this::handleExternalUpdateEvent);
     return events;
   }
 
+  /**
+   * Handle ready event and run the corresponding step
+   *
+   * @param stepEvent event to handle
+   */
   @Override
-  public void handleWaitStepEvent(StepEvent stepEvent) {
+  public void handleReadyStepEvent(StepEvent stepEvent) {
     stepRepository.findById(stepEvent.getStepId()).ifPresent(this::run);
   }
 
+  /**
+   * Handle delay event and pause the corresponding step
+   *
+   * @param stepEvent event to handle
+   */
   @Override
   public void handleDelayStepEvent(StepEvent stepEvent) {
     stepRepository
@@ -565,10 +748,15 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
             step -> {
               Workflow workflowRun = workflowService.getWorkflowById(stepEvent.getWorkflowId());
               // TODO: replace null value by actual output from previous step run ?
-              wait(step, workflowRun, null);
+              ready(step, workflowRun, null);
             });
   }
 
+  /**
+   * Handle external update event and create next ready step
+   *
+   * @param stepEvent event to handle
+   */
   @Override
   public void handleExternalUpdateEvent(ExternalUpdateEvent stepEvent) {
     Step stepRun = this.findById(stepEvent.getStepId());
@@ -600,7 +788,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
       }
 
       for (Step stepTemplate : nextStepToExecute) {
-        this.wait(stepTemplate, stepRun.getWorkflow(), null);
+        this.ready(stepTemplate, stepRun.getWorkflow(), null);
       }
     }
   }
