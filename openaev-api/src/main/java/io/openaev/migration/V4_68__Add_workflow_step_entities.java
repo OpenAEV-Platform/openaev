@@ -136,13 +136,6 @@ public class V4_68__Add_workflow_step_entities extends BaseJavaMigration {
 
                   CREATE INDEX IF NOT EXISTS idx_conditions_parent_id
                       ON conditions(condition_parent_id);
-
-                  -- StepsStates table
-                  CREATE INDEX IF NOT EXISTS idx_steps_states_workflow_execution_id
-                      ON steps_states(workflow_execution_id);
-
-                  CREATE INDEX IF NOT EXISTS idx_steps_states_step_template_id
-                      ON steps_states(step_template_id);
           """);
     }
   }
