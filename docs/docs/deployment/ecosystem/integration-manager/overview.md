@@ -8,6 +8,8 @@ The OpenAEV Integration Manager is a deployment tool that simplifies the managem
 
     - **Built-in** collectors, injectors and executors are natively integrated and do not require the Integration Manager.
 
+![Catalog page](../../assets/integration-manager/catalog.png)
+
 ## Architecture
 To learn more about Xtm Composer architecture, refer to the [dedicated documentation](https://docs.opencti.io/latest/deployment/integration-manager/architecture/).
 
@@ -26,12 +28,25 @@ To learn more about Xtm Composer architecture, refer to the [dedicated documenta
 
 ![composer required](../../assets/integration-manager/composer-required.png)
 
+
+!!! info "Built-in and external connectors"
+
+    You will find two types of connectors in the platform:
+
+    - **Built-in connectors**: Connectors which are internally implemented.  
+      This category includes:
+        - **Auto-start connectors**, which are natively integrated into the core platform no additional deployment required. These connectors are automatically started and cannot be managed on the UI, even though they are still visible in the dedicated pages.
+        - **Standard built-in connectors**, which are also automatically started but can be started and stopped by the user through the UI.
+    - **External connectors**: These are deployed and configured by the user.
+    In the catalog, only external connectors can be retrieved. The following sections focus on how to deploy, configure, and manage these **external** connectors.
+
 ## Browsing the catalog
 - Navigate to **Integrations > Catalog**
 - Use the search bar to find collectors, injectors and executors by name or description. You can also apply filters (e.g., by collector, executor or injector type).
-- If a collector, injector or executor has already been deployed, a **badge** will appear on its **Deploy** button.
+- If a collector, injector or executor has already been deployed, it will no longer appear in the Catalog. Instead, you’ll find it in its associated page (Collectors, Injectors, or Executors).
 
 ## Deploying a collector, injector or executor
+
 1. Click the **Deploy** button on an external collector, injector or executor card or from the detail view. A form will appear with required configuration fields.
 2. Fill in the required options (you can also expand **Advanced options** to configure additional settings)
    ![instance form](../../assets/integration-manager/instance-form-sample.png)
@@ -53,6 +68,7 @@ To learn more about Xtm Composer architecture, refer to the [dedicated documenta
 5. When ready, click **Start** to run it.
 6. From the instance view, you can also check the **Logs** tab. The displayed logs depend on the logging level configured.
 
+![Connector started](../../assets/integration-manager/connector-started.png)
 
 ## Managing the instances
 
