@@ -52,7 +52,6 @@ public class WorkflowComposer extends ComposerBase<Workflow> {
 
     @Override
     public Composer persist() {
-      // Persist the workflow; cascading will handle Steps if CascadeType.ALL is set
       simulationComposer.ifPresent(ExerciseComposer.Composer::persist);
       workflowRepository.save(workflow);
       workflowComposers.forEach(WorkflowComposer.Composer::persist);
