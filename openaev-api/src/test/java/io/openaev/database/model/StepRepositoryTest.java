@@ -5,6 +5,7 @@ import io.openaev.database.repository.StepRepository;
 import io.openaev.utils.fixtures.StepFixture;
 import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.fixtures.composers.StepComposer;
+import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import java.util.List;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -18,13 +19,13 @@ class StepRepositoryTest extends IntegrationTest {
 
   @Autowired private StepRepository stepRepository;
   @Autowired private StepComposer stepComposer;
+  @Autowired private WorkflowComposer workflowComposer;
 
   @Test
   void testFindAllByStatus() {
-    Workflow workflow = WorkflowFixture.getDefaultWorkflowTemplate();
     stepComposer
         .forStep(StepFixture.getDefaultStepTemplate())
-        .withWorkflow(workflow)
+        .withWorkflow(workflowComposer.forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate()))
         .persist()
         .get();
 
@@ -36,25 +37,28 @@ class StepRepositoryTest extends IntegrationTest {
   @Test
   void testFindAllByStepTemplateIdIsNullAndWorkflowId() {
     // GIVEN
-    Workflow workflow = WorkflowFixture.getDefaultWorkflowTemplate();
-    Step step = StepFixture.getDefaultStepTemplate();
-
-    stepComposer.forStep(step).withWorkflow(workflow).persist();
+    Step step =
+        stepComposer
+            .forStep(StepFixture.getDefaultStepTemplate())
+            .withWorkflow(
+                workflowComposer.forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate()))
+            .persist()
+            .get();
 
     // WHEN
-    List<Step> steps = stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(workflow.getId());
+    List<Step> steps =
+        stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(step.getWorkflow().getId());
 
     // THEN
     Assertions.assertFalse(steps.isEmpty(), "Step list should not be empty");
     Assertions.assertNull(steps.get(0).getStepTemplate(), "Step template should be null");
-    Assertions.assertEquals(workflow.getId(), steps.get(0).getWorkflow().getId());
+    Assertions.assertEquals(step.getWorkflow().getId(), steps.get(0).getWorkflow().getId());
   }
 
   @Test
   void testFindStepIdByInjectId() {
     // GIVEN: a step with JSON data containing an inject_id
     String injectId = "inject-123";
-    Workflow workflow = WorkflowFixture.getDefaultWorkflowTemplate();
     Step step =
         Step.builder()
             .stepAction(STEP_ACTION_CLASS.INJECT_EXECUTION)
@@ -62,7 +66,10 @@ class StepRepositoryTest extends IntegrationTest {
             .data("{\"inject_id\": \"" + injectId + "\"}")
             .build();
 
-    stepComposer.forStep(step).withWorkflow(workflow).persist();
+    stepComposer
+        .forStep(step)
+        .withWorkflow(workflowComposer.forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate()))
+        .persist();
 
     // WHEN
     var optionalStepId = stepRepository.findStepIdByInjectId(injectId);

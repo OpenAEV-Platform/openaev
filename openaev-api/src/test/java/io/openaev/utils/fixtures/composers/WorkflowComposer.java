@@ -1,9 +1,11 @@
 package io.openaev.utils.fixtures.composers;
 
-import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.WorkflowRepository;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -15,26 +17,33 @@ public class WorkflowComposer extends ComposerBase<Workflow> {
   public class Composer extends InnerComposerBase<Workflow> {
 
     private final Workflow workflow;
+    private Optional<ExerciseComposer.Composer> simulationComposer = Optional.empty();
+    private final List<StepComposer.Composer> stepComposers = new ArrayList<>();
+    private final List<WorkflowComposer.Composer> workflowComposers = new ArrayList<>();
 
     public Composer(Workflow workflow) {
       this.workflow = workflow;
     }
 
     /** Adds a Step to the workflow and sets both sides of the relationship. */
-    public Composer withStep(Step step) {
-      step.setWorkflow(workflow);
+    public Composer withStep(StepComposer.Composer stepComposer) {
+      this.stepComposers.add(stepComposer);
+      Step step = stepComposer.get();
       workflow.getSteps().add(step);
       return this;
     }
 
     /** Sets the simulation for the workflow. */
-    public Composer withSimulation(Exercise simulation) {
-      workflow.setSimulation(simulation);
+    public Composer withSimulation(ExerciseComposer.Composer simulationComposer) {
+      this.simulationComposer = Optional.of(simulationComposer);
+      this.workflow.setSimulation(simulationComposer.get());
       return this;
     }
 
     /** Sets the workflow template and updates the template's executed workflows list. */
-    public Composer withWorkflowTemplate(Workflow template) {
+    public Composer withWorkflowTemplate(WorkflowComposer.Composer templateComposer) {
+      this.workflowComposers.add(templateComposer);
+      Workflow template = templateComposer.get();
       workflow.setWorkflowTemplate(template);
       template.getWorkflowsExecuted().add(workflow);
       return this;
@@ -43,6 +52,9 @@ public class WorkflowComposer extends ComposerBase<Workflow> {
     @Override
     public Composer persist() {
       // Persist the workflow; cascading will handle Steps if CascadeType.ALL is set
+      simulationComposer.ifPresent(ExerciseComposer.Composer::persist);
+      stepComposers.forEach(StepComposer.Composer::persist);
+      workflowComposers.forEach(WorkflowComposer.Composer::persist);
       workflowRepository.save(workflow);
       return this;
     }
@@ -50,6 +62,9 @@ public class WorkflowComposer extends ComposerBase<Workflow> {
     @Override
     public Composer delete() {
       workflowRepository.delete(workflow);
+      workflowComposers.forEach(WorkflowComposer.Composer::delete);
+      stepComposers.forEach(StepComposer.Composer::delete);
+      simulationComposer.ifPresent(ExerciseComposer.Composer::delete);
       return this;
     }
 
