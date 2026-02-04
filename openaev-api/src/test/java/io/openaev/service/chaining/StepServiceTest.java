@@ -1256,7 +1256,7 @@ public class StepServiceTest extends IntegrationTest {
         // findById(...) -> repo.findById(...).orElseThrow()
         when(stepRepository.findById(stepRunId)).thenReturn(Optional.of(stepRun));
 
-        // actionStep.update(...) returns non-null => happy path
+        // actionStep.update(...) returns non-null
         ActionStep actionStep = mock(ActionStep.class);
         when(stepService.factoryAction(STEP_ACTION_CLASS.INJECT_EXECUTION)).thenReturn(actionStep);
 
