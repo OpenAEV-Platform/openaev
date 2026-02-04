@@ -10,4 +10,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check signed commits in PR
-        uses: FiligranHQ/filigran-ci-tools/actions/check-signed-commit@v1
+        uses: FiligranHQ/filigran-ci-tools/actions/check-signed-commit@main

@@ -11,4 +11,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: "Auto Label"
-        uses: FiligranHQ/filigran-ci-tools/actions/auto-label@v1
+        uses: FiligranHQ/filigran-ci-tools/actions/auto-label@main
