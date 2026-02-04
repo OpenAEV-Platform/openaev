@@ -74,8 +74,8 @@ public class Workflow implements Base {
   private Workflow workflowTemplate;
 
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "workflowTemplate")
-  @JsonIgnore
   @Builder.Default
+  @JsonIgnore
   @Schema(description = "Workflows that were executed based on this template workflow")
   private List<Workflow> workflowsExecuted = new ArrayList<>();
 
@@ -85,6 +85,7 @@ public class Workflow implements Base {
       cascade = CascadeType.ALL,
       orphanRemoval = true)
   @Builder.Default
+  @JsonProperty("workflow_steps")
   @Schema(description = "Steps that belong to this workflow")
   private List<Step> steps = new ArrayList<>();
 

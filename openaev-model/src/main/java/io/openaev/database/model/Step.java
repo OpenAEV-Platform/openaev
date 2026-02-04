@@ -111,8 +111,8 @@ public class Step implements Base {
   private Step stepTemplate;
 
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "stepTemplate")
-  @JsonIgnore
   @Builder.Default
+  @JsonIgnore
   @Schema(description = "Steps that were executed based on this template step")
   private List<Step> stepsExecuted = new ArrayList<>();
 }
