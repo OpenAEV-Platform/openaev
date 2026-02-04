@@ -4,6 +4,7 @@ import io.openaev.database.model.Step;
 import io.openaev.database.model.StepStatus;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -120,4 +121,23 @@ public interface StepRepository extends JpaRepository<Step, String> {
       """,
       nativeQuery = true)
   Optional<String> findStepIdByInjectId(@Param("injectId") String injectId);
+
+  @Query(
+      value =
+          """
+        SELECT DISTINCT s.step_id
+        FROM steps s
+        WHERE EXISTS (
+          SELECT 1
+          FROM injects_expectations ie
+          WHERE ie.inject_expectation_id IN (:expectationIds)
+          AND jsonb_path_exists(
+            s.step_data,
+            '$.** ? (@.inject_id == $id)',
+            jsonb_build_object('id', to_jsonb(ie.inject_id))
+          )
+        )
+        """,
+      nativeQuery = true)
+  Set<String> findStepIdsByExpectationIds(@Param("expectationIds") Set<String> expectationIds);
 }

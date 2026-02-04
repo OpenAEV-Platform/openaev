@@ -114,10 +114,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
       Step finalStepWait = stepWait;
 
       // For each step template, IF condition is valid, create condition execution
-      conditionExecution.forEach(
-          condition -> {
-            condition.setStep(finalStepWait);
-          });
+      conditionExecution.forEach(condition -> condition.setStep(finalStepWait));
       conditionService.saveAllConditions(conditionExecution);
       try {
         queueChainingService.waitStep(finalStepWait, workflowRun);
@@ -362,6 +359,16 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
   }
 
   /**
+   * Find step ids by expectation ids
+   *
+   * @param expectationIds expectation ids to find associated step ids
+   * @return Corresponding step IDs
+   */
+  public Set<String> findStepIdsByExpectationIds(final Set<String> expectationIds) {
+    return stepRepository.findStepIdsByExpectationIds(expectationIds);
+  }
+
+  /**
    * Find a json field from a path
    *
    * @param jsonString json to read
@@ -369,9 +376,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
    * @return path value
    */
   public static String getField(String jsonString, String path) {
-    Map<String, Object> fieldsAndValue = new HashMap<>();
-    fieldsAndValue.put(path, null);
-    useJson(jsonString, fieldsAndValue, ACTION_JSON.GET);
+    Map<String, Object> fieldsAndValue = getFields(jsonString, path);
     Object value = fieldsAndValue.get(path);
     if (value instanceof JsonNull) {
       return null;

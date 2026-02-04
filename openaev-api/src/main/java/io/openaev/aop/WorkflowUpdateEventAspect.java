@@ -1,6 +1,7 @@
 package io.openaev.aop;
 
-import io.openaev.service.InjectExpectationService;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.chaining.QueueChainingService;
 import io.openaev.service.chaining.StepService;
 import java.io.IOException;
@@ -9,7 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.aspectj.lang.JoinPoint;
-import org.aspectj.lang.annotation.After;
+import org.aspectj.lang.annotation.AfterReturning;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.expression.EvaluationContext;
@@ -19,20 +20,44 @@ import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.stereotype.Component;
 
+/**
+ * Aspect that intercepts methods annotated with {@link WorkflowUpdateEvent} to trigger workflow
+ * updates in the chaining engine.
+ *
+ * <p>This aspect uses SpEL expressions defined in the annotation to extract inject or expectation
+ * IDs from method parameters, then sends update events to the workflow external update queue.
+ */
 @Aspect
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class WorkflowUpdateEventAspect {
 
+  private final PreviewFeatureService previewFeatureService;
+
   private final QueueChainingService queueChainingService;
-  private final InjectExpectationService injectExpectationService;
   private final StepService stepService;
 
   private final ExpressionParser parser = new SpelExpressionParser();
 
-  @After("@annotation(annotation)")
+  /**
+   * Advice executed after methods annotated with {@link WorkflowUpdateEvent} returns. If an
+   * exception is throw by the annotated method, this advice will not be called.
+   *
+   * <p>Extracts the inject ID or expectation IDs from method parameters using SpEL expressions
+   * defined in the annotation, then dispatches workflow update events accordingly.
+   *
+   * @param joinPoint the join point providing access to the method signature and arguments
+   * @param annotation the {@link WorkflowUpdateEvent} annotation containing SpEL expressions
+   * @throws IllegalStateException if the annotation does not specify exactly one of injectId or
+   *     expectationIds
+   */
+  @AfterReturning("@annotation(annotation)")
   public void afterEventProcessed(JoinPoint joinPoint, WorkflowUpdateEvent annotation) {
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)) {
+      // No chaining enabled, does nothing
+      return;
+    }
 
     String injectIdSPEL = annotation.injectId();
     String expectationIdsSPEL = annotation.expectationIds();
@@ -69,13 +94,12 @@ public class WorkflowUpdateEventAspect {
   /**
    * Send a workflow update event related to the given inject to the queue
    *
-   * @param context the SPEL evaluation context
-   * @param injectIdSPEL the SPEL expression to fetch the injectId from the request
+   * @param context the SpEL evaluation context
+   * @param injectIdSPEL the SpEL expression to fetch the injectId from the request
    */
   private void handleInjectIdParam(EvaluationContext context, String injectIdSPEL) {
-    String injectId = "";
     Expression exp = parser.parseExpression(injectIdSPEL);
-    injectId =
+    String injectId =
         exp.getValue(context) != null
             ? Objects.requireNonNull(exp.getValue(context)).toString()
             : "";
@@ -97,8 +121,8 @@ public class WorkflowUpdateEventAspect {
    * Send a workflow update event related to all the injects related to the given expectation IDs to
    * the queue
    *
-   * @param context the SPEL evaluation context
-   * @param expectationIDsdSPEL the SPEL expression to fetch the injectId from the request
+   * @param context the SpEL evaluation context
+   * @param expectationIDsdSPEL the SpEL expression to fetch the injectId from the request
    */
   private void handleExpectationTracesParam(EvaluationContext context, String expectationIDsdSPEL) {
     Expression exp = parser.parseExpression(expectationIDsdSPEL);
@@ -112,19 +136,14 @@ public class WorkflowUpdateEventAspect {
       expectationIds.add(expectationId);
     } else {
       throw new IllegalStateException(
-          "@WorkflowUpdateEvent.expectationIDsdSPEL must return a Collection");
+          "@WorkflowUpdateEvent.expectationIDsdSpEL must return a Collection or a String");
     }
 
-    // TODO: optimize to fetch the whole list of steps instead of a single one
-    Set<String> injectIds =
-        injectExpectationService.findDistinctInjectIdsByInjectExpectationIds(expectationIds);
-    injectIds.forEach(
-        injectId -> {
+    Set<String> stepIds = stepService.findStepIdsByExpectationIds(expectationIds);
+    stepIds.forEach(
+        stepId -> {
           try {
-            Optional<String> stepId = stepService.findStepIdByInjectId(injectId);
-            if (stepId.isPresent()) {
-              queueChainingService.updateStep(stepId.get());
-            }
+            queueChainingService.updateStep(stepId);
           } catch (IOException e) {
             // TODO: exception management
             throw new RuntimeException(e);
