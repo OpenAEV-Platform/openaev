@@ -104,7 +104,6 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             tagRuleService,
             documentService,
             injectService,
-            cronService,
             userService,
             exerciseMapper,
             injectMapper,

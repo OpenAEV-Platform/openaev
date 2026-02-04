@@ -230,6 +230,12 @@ public class InjectService {
         .orElseThrow(() -> new ElementNotFoundException("Inject not found with id: " + injectId));
   }
 
+  /**
+   * Find an inject or return null value
+   *
+   * @param injectId inject ID to search
+   * @return the inject found or null if none matched the ID
+   */
   public Inject findInjectOrNull(@NotBlank final String injectId) {
     if (injectId == null) {
       return null;
@@ -1321,14 +1327,32 @@ public class InjectService {
     return healthChecks;
   }
 
+  /**
+   * Create an inject
+   *
+   * @param inject the inject to save
+   * @return the saved inject
+   */
   public Inject createInject(Inject inject) {
     return injectRepository.save(inject);
   }
 
-  public void removeTeamsForExercise(String exerciseId, final List<String> teamIds) {
-    injectRepository.removeTeamsForExercise(exerciseId, teamIds);
+  /**
+   * Delete a list of teams from a simulation
+   *
+   * @param simulationId the ID of the simulation
+   * @param teamIds list of team IDs to delete from the simulation
+   */
+  public void removeTeamsForExercise(String simulationId, final List<String> teamIds) {
+    injectRepository.removeTeamsForExercise(simulationId, teamIds);
   }
 
+  /**
+   * Find a list of Inject in the Raw format
+   *
+   * @param ids IDs of the inject to fetch
+   * @return the list of matching injects in Raw format
+   */
   public List<RawInject> findRawByIds(List<String> ids) {
     return injectRepository.findRawByIds(ids);
   }
