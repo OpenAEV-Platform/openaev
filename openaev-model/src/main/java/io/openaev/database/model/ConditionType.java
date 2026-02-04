@@ -1,6 +1,6 @@
 package io.openaev.database.model;
 
-public enum CONDITION_TYPE {
+public enum ConditionType {
   AND,
   OR,
   EQ,

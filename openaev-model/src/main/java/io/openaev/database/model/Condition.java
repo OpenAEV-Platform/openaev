@@ -50,7 +50,7 @@ public class Condition implements Base {
   @Enumerated(EnumType.STRING)
   @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   @Schema(description = "Type")
-  private CONDITION_TYPE type;
+  private ConditionType type;
 
   @OneToOne
   @JoinColumn(name = "step_id", unique = true, nullable = false)
