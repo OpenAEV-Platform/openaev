@@ -115,7 +115,7 @@ public class ExerciseService {
 
   private final WorkflowService workflowService;
   private final StepService stepService;
-  private final PauseExerciseService pauseExerciseService;
+  private final PauseSimulationService pauseSimulationService;
 
   private final InjectStatusService injectStatusService;
 
@@ -558,7 +558,8 @@ public class ExerciseService {
       simulation.setEnd(null);
       // Reset pauses
       simulation.setCurrentPause(null);
-      pauseExerciseService.deleteAll(pauseExerciseService.findAllForExercise(simulation.getId()));
+      pauseSimulationService.deleteAll(
+          pauseSimulationService.findAllForSimulation(simulation.getId()));
       // Reset injects outcome, communications and expectations
       injectStatusService.deleteAllInjectStatusByInjects(simulation.getInjects());
       simulation.getInjects().forEach(Inject::clean);
@@ -581,7 +582,7 @@ public class ExerciseService {
         && ExerciseStatus.RUNNING.equals(status)) {
       Instant lastPause = simulation.getCurrentPause().orElseThrow(ElementNotFoundException::new);
       simulation.setCurrentPause(null);
-      pauseExerciseService.endPauseByExercise(lastPause, simulation);
+      pauseSimulationService.endPauseBySimulation(lastPause, simulation);
     }
     // If pause is asked, just set the pause date.
     if (ExerciseStatus.RUNNING.equals(simulation.getStatus())

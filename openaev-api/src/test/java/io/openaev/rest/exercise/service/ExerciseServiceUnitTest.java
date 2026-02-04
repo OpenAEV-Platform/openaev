@@ -77,7 +77,7 @@ class ExerciseServiceUnitTest {
   @Mock private InjectExpectationMapper injectExpectationMapper;
 
   @Mock private WorkflowService workflowService;
-  @Mock private PauseExerciseService pauseExerciseService;
+  @Mock private PauseSimulationService pauseSimulationService;
   @Mock private FileService fileService;
   @Mock private LessonsService lessonsService;
   @Mock private InjectStatusService injectStatusService;
@@ -489,7 +489,7 @@ class ExerciseServiceUnitTest {
       verify(exercise).setEnd(null);
       verify(exercise).setCurrentPause(null);
 
-      verify(pauseExerciseService).deleteAll(any());
+      verify(pauseSimulationService).deleteAll(any());
 
       verify(injectStatusService).deleteAllInjectStatusByInjects(any());
 
@@ -510,7 +510,7 @@ class ExerciseServiceUnitTest {
 
       mockedExerciseService.changeSimulationStatus(ExerciseStatus.RUNNING, exercise);
 
-      verify(pauseExerciseService).endPauseByExercise(pauseInstant, exercise);
+      verify(pauseSimulationService).endPauseBySimulation(pauseInstant, exercise);
       verify(exercise).setCurrentPause(null);
     }
 

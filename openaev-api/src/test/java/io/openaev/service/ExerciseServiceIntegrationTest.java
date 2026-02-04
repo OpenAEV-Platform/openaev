@@ -15,7 +15,7 @@ import io.openaev.database.repository.*;
 import io.openaev.ee.Ee;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exercise.service.ExerciseService;
-import io.openaev.rest.exercise.service.PauseExerciseService;
+import io.openaev.rest.exercise.service.PauseSimulationService;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
@@ -84,7 +84,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private FileService fileService;
   @Autowired private WorkflowService workflowService;
   @Autowired private StepService stepService;
-  @Autowired private PauseExerciseService pauseExerciseService;
+  @Autowired private PauseSimulationService pauseSimulationService;
   @Autowired private InjectStatusService injectStatusService;
 
   private static String USER_ID;
@@ -124,7 +124,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             scenarioRecurrenceService,
             workflowService,
             stepService,
-            pauseExerciseService,
+            pauseSimulationService,
             injectStatusService);
   }
 
