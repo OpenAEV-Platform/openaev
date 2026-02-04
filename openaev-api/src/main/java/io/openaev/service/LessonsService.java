@@ -18,10 +18,15 @@ public class LessonsService {
   private final LessonsAnswerRepository lessonsAnswerRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
 
-  public void resetLessonsAnswer(String exerciseId) {
+  /**
+   * Reset the answers for all lessons of a given simulation
+   *
+   * @param simulationId the simulation ID
+   */
+  public void resetLessonsAnswer(String simulationId) {
     List<LessonsAnswer> lessonsAnswers =
         lessonsCategoryRepository
-            .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
+            .findAll(LessonsCategorySpecification.fromExercise(simulationId))
             .stream()
             .flatMap(
                 lessonsCategory ->
@@ -39,7 +44,13 @@ public class LessonsService {
     if (!lessonsAnswers.isEmpty()) lessonsAnswerRepository.deleteAll(lessonsAnswers);
   }
 
-  public void removeTeamsForExercise(String exerciseId, List<String> teamIds) {
-    this.lessonsCategoryRepository.removeTeamsForExercise(exerciseId, teamIds);
+  /**
+   * Removes a list of teams from a simulation
+   *
+   * @param simulationId simulation ID
+   * @param teamIds teams to remove
+   */
+  public void removeTeamsForExercise(String simulationId, List<String> teamIds) {
+    this.lessonsCategoryRepository.removeTeamsForExercise(simulationId, teamIds);
   }
 }
