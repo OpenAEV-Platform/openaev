@@ -1,8 +1,8 @@
 package io.openaev.utils.fixtures;
 
+import io.openaev.database.model.Step;
 import io.openaev.database.model.StepActionClass;
 import io.openaev.database.model.StepStatus;
-import io.openaev.database.model.Step;
 
 public class StepFixture {
 

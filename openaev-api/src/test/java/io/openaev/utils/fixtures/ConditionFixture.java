@@ -1,7 +1,7 @@
 package io.openaev.utils.fixtures;
 
-import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.Condition;
+import io.openaev.database.model.ConditionType;
 
 public class ConditionFixture {
 

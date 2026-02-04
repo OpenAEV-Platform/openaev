@@ -1,7 +1,7 @@
 package io.openaev.database.repository;
 
-import io.openaev.database.model.WorkflowStatus;
 import io.openaev.database.model.Workflow;
+import io.openaev.database.model.WorkflowStatus;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;

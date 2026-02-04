@@ -1,7 +1,7 @@
 package io.openaev.utils.fixtures;
 
-import io.openaev.database.model.WorkflowStatus;
 import io.openaev.database.model.Workflow;
+import io.openaev.database.model.WorkflowStatus;
 import java.time.Instant;
 import java.util.ArrayList;
 
