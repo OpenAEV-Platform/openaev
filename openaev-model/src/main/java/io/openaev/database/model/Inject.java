@@ -6,6 +6,7 @@ import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -165,6 +166,8 @@ public class Inject implements GrantableBase, Injection {
   @JoinColumn(name = "inject_injector_contract")
   @JsonProperty("inject_injector_contract")
   @Queryable(filterable = true, dynamicValues = true, path = "injectorContract.injector.id")
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  @JsonDeserialize(using = MonoIdSerializerHelper.class)
   private InjectorContract injectorContract;
 
   @Getter

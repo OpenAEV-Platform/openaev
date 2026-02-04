@@ -34,6 +34,7 @@ import io.openaev.rest.exercise.response.ExercisesGlobalScoresOutput;
 import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.scenario.service.ScenarioStatisticService;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
@@ -115,7 +116,7 @@ public class ExerciseService {
   private final StepService stepService;
   private final PauseExerciseService pauseExerciseService;
 
-  //  private final InjectStatusService injectStatusService; FIXME: see fixme
+  private final InjectStatusService injectStatusService;
 
   // region properties
   @Value("${openaev.mail.imap.enabled}")
@@ -520,8 +521,7 @@ public class ExerciseService {
       exercise.setCurrentPause(null);
       pauseExerciseService.deleteAll(pauseExerciseService.findAllForExercise(exercise.getId()));
       // Reset injects outcome, communications and expectations
-      // injectStatusService.deleteAllInjectStatusByInjects(exercise.getInjects()); FIXME: commented
-      // for now, will have to uncomment when API uses it
+      injectStatusService.deleteAllInjectStatusByInjects(exercise.getInjects());
       exercise.getInjects().forEach(Inject::clean);
       // Reset lessons learned answers
       lessonsService.resetLessonsAnswer(exercise.getId());

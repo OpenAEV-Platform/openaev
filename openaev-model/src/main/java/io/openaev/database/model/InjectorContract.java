@@ -58,9 +58,8 @@ public class InjectorContract implements Base {
   private Map<String, String> labels = new HashMap<>();
 
   @Column(name = "injector_contract_manual")
-  private Boolean manual;
-
   @JsonProperty("injector_contract_manual")
+  private Boolean manual;
   public boolean getManualEffective() {
     return Boolean.TRUE.equals(manual);
   }
@@ -75,6 +74,7 @@ public class InjectorContract implements Base {
   private ObjectNode convertedContent;
 
   @Column(name = "injector_contract_custom")
+  @JsonProperty("injector_contract_custom")
   private Boolean custom = false;
 
   @JsonProperty("injector_contract_custom")
@@ -83,6 +83,7 @@ public class InjectorContract implements Base {
   }
 
   @Column(name = "injector_contract_needs_executor")
+  @JsonProperty("injector_contract_needs_executor")
   private Boolean needsExecutor = false;
 
   @JsonProperty("injector_contract_needs_executor")

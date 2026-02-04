@@ -210,7 +210,8 @@ public class SimulationInjectApi extends RestBehavior {
           InjectExecutionStep.getInjectAsStepsCreateInput(input);
 
       Workflow workflowTemplate = workflowService.findWorkflowTemplateByIdExercise(exerciseId);
-      stepService.createStepTemplates(workflowTemplate.getId(), Collections.singletonList(inputStep));
+      stepService.createStepTemplates(
+          workflowTemplate.getId(), Collections.singletonList(inputStep));
       return null;
     } else {
       return this.injectService.createAndSaveInject(exercise, null, input);
