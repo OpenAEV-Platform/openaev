@@ -39,7 +39,6 @@ import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
-import io.openaev.service.period.CronService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.FilterUtilsJpa;
@@ -91,7 +90,6 @@ public class ExerciseService {
   private final TagRuleService tagRuleService;
   private final DocumentService documentService;
   private final InjectService injectService;
-  private final CronService cronService;
   private final UserService userService;
 
   private final ExerciseMapper exerciseMapper;
@@ -151,9 +149,16 @@ public class ExerciseService {
     return exerciseRepository.save(exercise);
   }
 
+  /**
+   * Create a simulation with bthe chaining enabled OR a normal one
+   *
+   * @param simulation the simulation to create
+   * @param isChaining uses the chaining engine or not
+   * @return the created simulation
+   */
   @Transactional(rollbackFor = Exception.class)
-  public Exercise createExercise(@NotNull final Exercise exercise, boolean isChaining) {
-    Exercise savedExercise = createExercise(exercise);
+  public Exercise createSimulation(@NotNull final Exercise simulation, boolean isChaining) {
+    Exercise savedExercise = createExercise(simulation);
     if (isChaining) {
       workflowService.creationWorkflow(savedExercise);
     }
@@ -458,31 +463,62 @@ public class ExerciseService {
     return getExerciseSimples(specificationCount, pageable, result);
   }
 
-  public Exercise findById(String exerciseId) {
-    return exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+  /**
+   * Find a simulation by it's ID
+   *
+   * @param simulationId ID of the simulation to fetch
+   * @return the simulation found
+   * @throws ElementNotFoundException if no simulation matches the given ID
+   */
+  public Exercise findById(String simulationId) {
+    return exerciseRepository.findById(simulationId).orElseThrow(ElementNotFoundException::new);
   }
 
-  public List<Exercise> findAllById(List<String> exerciseIds) {
-    return exerciseRepository.findAllById(exerciseIds);
+  /**
+   * Find all simulations matching a list of IDs
+   *
+   * @param simulationIds list of simulation IDs to search
+   * @return the list of simulations found
+   */
+  public List<Exercise> findAllById(List<String> simulationIds) {
+    return exerciseRepository.findAllById(simulationIds);
   }
 
-  public Exercise saveExercise(Exercise exercise) {
-    return exerciseRepository.save(exercise);
+  /**
+   * Save a simulation
+   *
+   * @param simulation simulation to save
+   * @return the saved simulation
+   */
+  public Exercise saveSimulation(Exercise simulation) {
+    return exerciseRepository.save(simulation);
   }
 
-  public void deleteById(String exerciseId) {
-    exerciseRepository.deleteById(exerciseId);
+  /**
+   * Delete a simulation
+   *
+   * @param simulationId ID of the simulation to delete
+   */
+  public void deleteById(String simulationId) {
+    exerciseRepository.deleteById(simulationId);
   }
 
-  public Exercise changeExerciseStatus(ExerciseStatus status, Exercise exercise) {
+  /**
+   * Change a simulation status
+   *
+   * @param status new simulation status
+   * @param simulation simulation to update
+   * @return the updated simulation
+   */
+  public Exercise changeSimulationStatus(ExerciseStatus status, Exercise simulation) {
     boolean isCloseState =
-        ExerciseStatus.CANCELED.equals(exercise.getStatus())
-            || ExerciseStatus.FINISHED.equals(exercise.getStatus());
-    boolean isExerciseChaining = workflowService.isExerciseChaining(exercise.getId());
+        ExerciseStatus.CANCELED.equals(simulation.getStatus())
+            || ExerciseStatus.FINISHED.equals(simulation.getStatus());
+    boolean isExerciseChaining = workflowService.isExerciseChaining(simulation.getId());
     if (isExerciseChaining) {
-      if (ExerciseStatus.SCHEDULED.equals(exercise.getStatus())
+      if (ExerciseStatus.SCHEDULED.equals(simulation.getStatus())
           && ExerciseStatus.RUNNING.equals(status)) {
-        stepService.startWorkflow(exercise.getId());
+        stepService.startWorkflow(simulation.getId());
       }
       // TODO
       // CAS 1 : CANCEL || FINISHED -> SCHEDULED (Relaunch)
@@ -518,48 +554,48 @@ public class ExerciseService {
     }
     // In case of rescheduled of an exercise.
     if (isCloseState && ExerciseStatus.SCHEDULED.equals(status)) {
-      exercise.setStart(null);
-      exercise.setEnd(null);
+      simulation.setStart(null);
+      simulation.setEnd(null);
       // Reset pauses
-      exercise.setCurrentPause(null);
-      pauseExerciseService.deleteAll(pauseExerciseService.findAllForExercise(exercise.getId()));
+      simulation.setCurrentPause(null);
+      pauseExerciseService.deleteAll(pauseExerciseService.findAllForExercise(simulation.getId()));
       // Reset injects outcome, communications and expectations
-      injectStatusService.deleteAllInjectStatusByInjects(exercise.getInjects());
-      exercise.getInjects().forEach(Inject::clean);
+      injectStatusService.deleteAllInjectStatusByInjects(simulation.getInjects());
+      simulation.getInjects().forEach(Inject::clean);
       // Reset lessons learned answers
-      lessonsService.resetLessonsAnswer(exercise.getId());
+      lessonsService.resetLessonsAnswer(simulation.getId());
       // Delete exercise transient files (communications, ...)
-      fileService.deleteDirectory(exercise.getId());
+      fileService.deleteDirectory(simulation.getId());
     }
     // In case of manual start
-    if (ExerciseStatus.SCHEDULED.equals(exercise.getStatus())
+    if (ExerciseStatus.SCHEDULED.equals(simulation.getStatus())
         && ExerciseStatus.RUNNING.equals(status)) {
-      this.throwIfExerciseNotLaunchable(exercise);
+      this.throwIfExerciseNotLaunchable(simulation);
       Instant nextMinute = now().truncatedTo(ChronoUnit.MINUTES).plus(1, ChronoUnit.MINUTES);
-      exercise.setStart(nextMinute);
+      simulation.setStart(nextMinute);
       actionMetricCollector.addSimulationPlayedCount();
     }
     // If exercise move from pause to running state,
     // we log the pause date to be able to recompute inject dates.
-    if (ExerciseStatus.PAUSED.equals(exercise.getStatus())
+    if (ExerciseStatus.PAUSED.equals(simulation.getStatus())
         && ExerciseStatus.RUNNING.equals(status)) {
-      Instant lastPause = exercise.getCurrentPause().orElseThrow(ElementNotFoundException::new);
-      exercise.setCurrentPause(null);
-      pauseExerciseService.endPauseByExercise(lastPause, exercise);
+      Instant lastPause = simulation.getCurrentPause().orElseThrow(ElementNotFoundException::new);
+      simulation.setCurrentPause(null);
+      pauseExerciseService.endPauseByExercise(lastPause, simulation);
     }
     // If pause is asked, just set the pause date.
-    if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
+    if (ExerciseStatus.RUNNING.equals(simulation.getStatus())
         && ExerciseStatus.PAUSED.equals(status)) {
-      exercise.setCurrentPause(Instant.now());
+      simulation.setCurrentPause(Instant.now());
     }
     // Cancelation
-    if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
+    if (ExerciseStatus.RUNNING.equals(simulation.getStatus())
         && ExerciseStatus.CANCELED.equals(status)) {
-      exercise.setEnd(now());
+      simulation.setEnd(now());
     }
-    exercise.setUpdatedAt(now());
-    exercise.setStatus(status);
-    return exerciseRepository.save(exercise);
+    simulation.setUpdatedAt(now());
+    simulation.setStatus(status);
+    return exerciseRepository.save(simulation);
   }
 
   public void throwIfExerciseNotLaunchable(Exercise exercise) {
@@ -909,32 +945,32 @@ public class ExerciseService {
   /**
    * Update the simulation and each of the injects to add default asset groups
    *
-   * @param exercise
+   * @param simulation simulation to update
    * @param currentTags list of the tags before the update
-   * @return
+   * @return updated simulation
    */
   @Transactional
   public Exercise updateExercice(
-      @NotNull final Exercise exercise, @NotNull final Set<Tag> currentTags, boolean applyRule) {
+      @NotNull final Exercise simulation, @NotNull final Set<Tag> currentTags, boolean applyRule) {
     if (applyRule) {
       // Get asset groups from the TagRule of the added tags
       List<AssetGroup> defaultAssetGroupsToAdd =
           tagRuleService.getAssetGroupsFromTagIds(
-              exercise.getTags().stream()
+              simulation.getTags().stream()
                   .filter(tag -> !currentTags.contains(tag))
                   .map(Tag::getId)
                   .toList());
 
       // Add the default asset groups to the injects
-      exercise.getInjects().stream()
+      simulation.getInjects().stream()
           .filter(inject -> this.injectService.canApplyTargetType(inject, TargetType.ASSETS_GROUPS))
           .forEach(
               inject ->
                   injectService.applyDefaultAssetGroupsToInject(
                       inject.getId(), defaultAssetGroupsToAdd));
     }
-    exercise.setUpdatedAt(now());
-    return exerciseRepository.save(exercise);
+    simulation.setUpdatedAt(now());
+    return exerciseRepository.save(simulation);
   }
 
   public Exercise previousFinishedSimulation(
