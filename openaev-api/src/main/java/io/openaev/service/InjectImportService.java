@@ -370,6 +370,7 @@ public class InjectImportService {
 
       ZoneOffset zoneOffset = ZoneOffset.ofTotalSeconds(timezoneOffset * 60);
 
+      AtomicInteger count = new AtomicInteger(0);
       // For each rows of the selected sheet
       selectedSheet
           .rowIterator()
