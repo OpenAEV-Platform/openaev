@@ -26,6 +26,7 @@ public class Condition implements Base {
 
   @Id
   @Column(name = "condition_id")
+  @JsonProperty("condition_id")
   @GeneratedValue(generator = "UUID")
   @UuidGenerator
   @EqualsAndHashCode.Include
@@ -39,14 +40,17 @@ public class Condition implements Base {
   private Step stepFrom;
 
   @Column(name = "condition_key")
+  @JsonProperty("condition_key")
   @Schema(description = "Key")
   private String key;
 
   @Column(name = "condition_value")
+  @JsonProperty("condition_value")
   @Schema(description = "Value")
   private String value;
 
   @Column(name = "condition_type")
+  @JsonProperty("condition_type")
   @Enumerated(EnumType.STRING)
   @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   @Schema(description = "Type")

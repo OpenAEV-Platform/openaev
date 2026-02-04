@@ -1,6 +1,7 @@
 package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
@@ -27,6 +28,7 @@ public class Workflow implements Base {
 
   @Id
   @Column(name = "workflow_id")
+  @JsonProperty("workflow_id")
   @GeneratedValue(generator = "UUID")
   @UuidGenerator
   @EqualsAndHashCode.Include
@@ -35,6 +37,7 @@ public class Workflow implements Base {
 
   @NotNull
   @Column(name = "workflow_status")
+  @JsonProperty("workflow_status")
   @Enumerated(EnumType.STRING)
   @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   @Schema(description = "Status of the workflow (TEMPLATE, RUN, STOP, END)")
@@ -42,20 +45,24 @@ public class Workflow implements Base {
 
   @Min(0)
   @Column(name = "workflow_version")
+  @JsonProperty("workflow_version")
   @Schema(description = "Version of the workflow, incremented at each launch if edited")
   private int version;
 
   @Column(name = "workflow_is_edited")
+  @JsonProperty("workflow_is_edited")
   @Schema(description = "Workflow template is edited")
   private boolean isEdited;
 
   @CreationTimestamp
   @Column(name = "workflow_created_at")
+  @JsonProperty("workflow_id")
   @Schema(description = "Creation date")
   private Instant workflowCreatedAt;
 
   @UpdateTimestamp
   @Column(name = "workflow_updated_at")
+  @JsonProperty("workflow_updated_at")
   @Schema(description = "Update date")
   private Instant workflowUpdatedAt;
 
