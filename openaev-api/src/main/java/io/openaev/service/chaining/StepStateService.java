@@ -22,6 +22,13 @@ public class StepStateService {
   private final StepStateRepository stepStateRepository;
   private final Gson gson = new Gson();
 
+  /**
+   * Creates a new step state for a workflow execution.
+   *
+   * @param executionKeys the set of execution keys for the state
+   * @param stepTemplate the step template this state is associated with
+   * @param workflowExecution the workflow execution this state belongs to
+   */
   public void createState(
       Set<String> executionKeys, Step stepTemplate, Workflow workflowExecution) {
     StepStateEntries stateEntries =
@@ -36,11 +43,18 @@ public class StepStateService {
     stepStateRepository.save(stepState);
   }
 
+  /**
+   * Retrieves the state entries for a step template within a workflow execution.
+   *
+   * @param stepTemplateId the ID of the step template
+   * @param workflowExecutionId the ID of the workflow execution
+   * @return the step state entries
+   */
   public StepStateEntries getState(String stepTemplateId, String workflowExecutionId) {
     StepState stepState =
         stepStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
             stepTemplateId, workflowExecutionId);
-    return gson.fromJson(gson.toJson(stepState.getEntries()), StepStateEntries.class);
+    return gson.fromJson(stepState.getEntries(), StepStateEntries.class);
   }
 
   /**
@@ -99,6 +113,13 @@ public class StepStateService {
     }
   }
 
+  /**
+   * Extracts values from an output string based on the given path.
+   *
+   * @param output the output string to extract values from
+   * @param path the path specifying which fields to extract
+   * @return a set of extracted string values
+   */
   private Set<String> getValues(String output, String path) {
     Map<String, Object> fields = StepService.getFields(output, path);
 
