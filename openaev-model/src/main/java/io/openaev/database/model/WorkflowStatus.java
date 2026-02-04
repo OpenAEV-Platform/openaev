@@ -1,6 +1,6 @@
 package io.openaev.database.model;
 
-public enum WORKFLOW_STATUS {
+public enum WorkflowStatus {
   TEMPLATE,
   RUN,
   STOP,

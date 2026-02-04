@@ -1,6 +1,6 @@
 package io.openaev.database.repository;
 
-import io.openaev.database.model.STEP_STATUS;
+import io.openaev.database.model.StepStatus;
 import io.openaev.database.model.Step;
 import java.util.List;
 import java.util.Optional;
@@ -14,9 +14,9 @@ public interface StepRepository extends JpaRepository<Step, String> {
   // STEP TEMPLATE
   List<Step> findAllByStepTemplateIdIsNullAndWorkflowId(String workflowId);
 
-  Step findByStepTemplateIdIsNullAndIdAndStatus(String stepId, STEP_STATUS status);
+  Step findByStepTemplateIdIsNullAndIdAndStatus(String stepId, StepStatus status);
 
-  Step findByStepTemplateIdIsNotNullAndIdAndStatus(String stepId, STEP_STATUS status);
+  Step findByStepTemplateIdIsNotNullAndIdAndStatus(String stepId, StepStatus status);
 
   @Query(
       value =
@@ -31,7 +31,7 @@ public interface StepRepository extends JpaRepository<Step, String> {
   int countStepExecutedByStepTemplateIdAndWorkflowRunId(
       @Param("idWorkflowRun") String idWorkflowRun, @Param("stepTemplateId") String stepTemplateId);
 
-  List<Step> findAllByStatus(STEP_STATUS status);
+  List<Step> findAllByStatus(StepStatus status);
 
   // STEP EXECUTED
 

@@ -1,6 +1,6 @@
 package io.openaev.utils.fixtures;
 
-import io.openaev.database.model.WORKFLOW_STATUS;
+import io.openaev.database.model.WorkflowStatus;
 import io.openaev.database.model.Workflow;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -9,7 +9,7 @@ public class WorkflowFixture {
 
   public static Workflow getDefaultWorkflowTemplate() {
     Workflow workflow = new Workflow();
-    workflow.setStatus(WORKFLOW_STATUS.TEMPLATE);
+    workflow.setStatus(WorkflowStatus.TEMPLATE);
     workflow.setVersion(1);
     workflow.setEdited(false);
     workflow.setWorkflowCreatedAt(Instant.now());
@@ -20,7 +20,7 @@ public class WorkflowFixture {
     return workflow;
   }
 
-  public static Workflow getDefaultWorkflowExecution(WORKFLOW_STATUS status) {
+  public static Workflow getDefaultWorkflowExecution(WorkflowStatus status) {
     Workflow workflow = new Workflow();
     workflow.setStatus(status);
     workflow.setVersion(1);

@@ -1,27 +1,27 @@
 package io.openaev.utils.fixtures;
 
-import io.openaev.database.model.STEP_ACTION_CLASS;
-import io.openaev.database.model.STEP_STATUS;
+import io.openaev.database.model.StepActionClass;
+import io.openaev.database.model.StepStatus;
 import io.openaev.database.model.Step;
 
 public class StepFixture {
 
   public static Step getDefaultStepTemplate() {
     Step step = new Step();
-    step.setStepAction(STEP_ACTION_CLASS.INJECT_EXECUTION);
+    step.setStepAction(StepActionClass.INJECT_EXECUTION);
     step.setOutput("{}");
     step.setOutput_parser("{}");
     step.setInput("{}");
     step.setData("{}");
     step.setLimitExecution(1);
     step.setConditionExecuted("true");
-    step.setStatus(STEP_STATUS.TEMPLATE);
+    step.setStatus(StepStatus.TEMPLATE);
     return step;
   }
 
-  public static Step getDefaultStepExecution(STEP_STATUS status) {
+  public static Step getDefaultStepExecution(StepStatus status) {
     Step step = new Step();
-    step.setStepAction(STEP_ACTION_CLASS.INJECT_EXECUTION);
+    step.setStepAction(StepActionClass.INJECT_EXECUTION);
     step.setOutput("{}");
     step.setOutput_parser("{}");
     step.setInput("{}");

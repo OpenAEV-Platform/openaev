@@ -37,9 +37,9 @@ class StepRepositoryTest extends IntegrationTest {
         .persist()
         .get();
 
-    List<Step> steps = stepRepository.findAllByStatus(STEP_STATUS.TEMPLATE);
+    List<Step> steps = stepRepository.findAllByStatus(StepStatus.TEMPLATE);
     Assertions.assertFalse(steps.isEmpty());
-    Assertions.assertEquals(STEP_STATUS.TEMPLATE, steps.get(0).getStatus());
+    Assertions.assertEquals(StepStatus.TEMPLATE, steps.get(0).getStatus());
   }
 
   @Test
@@ -49,7 +49,7 @@ class StepRepositoryTest extends IntegrationTest {
         workflowComposer
             .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
             .withSimulation(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
-            .withStep(stepComposer.forStep(StepFixture.getDefaultStepExecution(STEP_STATUS.RUN)))
+            .withStep(stepComposer.forStep(StepFixture.getDefaultStepExecution(StepStatus.RUN)))
             .persist()
             .get();
 
@@ -68,8 +68,8 @@ class StepRepositoryTest extends IntegrationTest {
     String injectId = "inject-123";
     Step step =
         Step.builder()
-            .stepAction(STEP_ACTION_CLASS.INJECT_EXECUTION)
-            .status(STEP_STATUS.TEMPLATE)
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .status(StepStatus.TEMPLATE)
             .data("{\"inject_id\": \"" + injectId + "\"}")
             .build();
 

@@ -38,7 +38,7 @@ public class Workflow implements Base {
   @Enumerated(EnumType.STRING)
   @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   @Schema(description = "Status of the workflow (TEMPLATE, RUN, STOP, END)")
-  private WORKFLOW_STATUS status;
+  private WorkflowStatus status;
 
   @Min(0)
   @Column(name = "workflow_version")

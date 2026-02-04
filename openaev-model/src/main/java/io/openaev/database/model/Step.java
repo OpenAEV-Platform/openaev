@@ -37,7 +37,7 @@ public class Step implements Base {
   @Enumerated(EnumType.STRING)
   @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   @Schema(description = "Action executed by the step")
-  private STEP_ACTION_CLASS stepAction;
+  private StepActionClass stepAction;
 
   @Type(JsonType.class)
   @Column(name = "step_output", columnDefinition = "jsonb")
@@ -73,7 +73,7 @@ public class Step implements Base {
   @Column(name = "step_status")
   @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   @Schema(description = "Current status of the step")
-  private STEP_STATUS status;
+  private StepStatus status;
 
   @Column(name = "step_created_at")
   @CreationTimestamp

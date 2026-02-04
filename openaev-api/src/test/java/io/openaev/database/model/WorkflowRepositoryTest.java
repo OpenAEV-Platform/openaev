@@ -40,7 +40,7 @@ class WorkflowRepositoryTest extends IntegrationTest {
 
   @Test
   void whenFindBySimulationIdAndStatus_thenReturnsMatchingWorkflow() {
-    Workflow workflow = WorkflowFixture.getDefaultWorkflowExecution(WORKFLOW_STATUS.RUN);
+    Workflow workflow = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
     Workflow savedWorkflow =
         workflowComposer
             .forWorkflow(workflow)
@@ -55,9 +55,9 @@ class WorkflowRepositoryTest extends IntegrationTest {
     String simulationId = savedWorkflow.getSimulation().getId();
 
     Workflow found =
-        workflowRepository.findBySimulation_IdAndStatus(simulationId, WORKFLOW_STATUS.RUN);
+        workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.RUN);
     assertNotNull(found);
-    assertEquals(WORKFLOW_STATUS.RUN, found.getStatus());
+    assertEquals(WorkflowStatus.RUN, found.getStatus());
     assertEquals(simulationId, found.getSimulation().getId());
   }
 }
