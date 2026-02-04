@@ -18,15 +18,11 @@ import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
-import org.springframework.beans.factory.annotation.Value;
 
 public class EmailExecutor extends Injector {
 
   private final EmailService emailService;
   private final InjectExpectationService injectExpectationService;
-
-  @Value("${openaev.mail.imap.enabled}")
-  private boolean imapEnabled;
 
   public EmailExecutor(
       InjectorContext injectorContext,
@@ -97,7 +93,7 @@ public class EmailExecutor extends Injector {
     List<DataAttachment> attachments = resolveAttachments(execution, injection, documents);
     String inReplyTo = content.getInReplyTo();
     String subject = content.getSubject();
-    String message = content.buildMessage(injection, this.imapEnabled);
+    String message = content.buildMessage(injection, this.context.getOpenAEVConfig().getBaseUrl());
     boolean mustBeEncrypted = content.isEncrypted();
     // Resolve the attachments only once
     List<ExecutionContext> users = injection.getUsers();

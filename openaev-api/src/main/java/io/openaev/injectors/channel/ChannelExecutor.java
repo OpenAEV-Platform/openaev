@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.springframework.beans.factory.annotation.Value;
 
 public class ChannelExecutor extends Injector {
 
@@ -46,9 +45,6 @@ public class ChannelExecutor extends Injector {
     this.emailService = emailService;
     this.injectExpectationService = injectExpectationService;
   }
-
-  @Value("${openaev.mail.imap.enabled}")
-  private boolean imapEnabled;
 
   private String buildArticleUri(ExecutionContext executionContext, Article article) {
     String userId = executionContext.getUser().getId();
@@ -101,7 +97,8 @@ public class ChannelExecutor extends Injector {
                   .map(InjectDocument::getDocument)
                   .toList();
           List<DataAttachment> attachments = resolveAttachments(execution, injection, documents);
-          String message = content.buildMessage(injection, imapEnabled);
+          String message =
+              content.buildMessage(injection, this.context.getOpenAEVConfig().getBaseUrl());
           boolean encrypted = content.isEncrypted();
           users.forEach(
               userInjectContext -> {
