@@ -60,6 +60,7 @@ public class ExerciseInput {
   @JsonProperty("exercise_message_footer")
   private String footer;
 
+  /** Indicate if this simulation will use the chaining engine or the legacy one */
   @JsonProperty("exercise_is_chaining")
   private boolean isChaining = false;
 }
