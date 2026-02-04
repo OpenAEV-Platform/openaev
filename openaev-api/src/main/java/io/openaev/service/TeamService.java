@@ -11,12 +11,10 @@ import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
 import io.openaev.database.raw.RawTeam;
 import io.openaev.database.repository.TeamRepository;
-import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.utils.CopyObjectListUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
@@ -35,12 +33,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class TeamService {
 
-  @PersistenceContext private EntityManager entityManager;
-
-  private final UserRepository userRepository;
+  private final EntityManager entityManager;
   private final TeamRepository teamRepository;
-
-  private final UserService userService;
 
   public List<TeamOutput> getTeams(@NotNull List<String> teamIds) {
     List<RawTeam> rawTeams =
