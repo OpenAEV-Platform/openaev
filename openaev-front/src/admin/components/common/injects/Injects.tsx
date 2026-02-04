@@ -196,19 +196,24 @@ const Injects: FunctionComponent<Props> = ({
       label: 'Status',
       isSortable: false,
       value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => {
-        let injectStatus = inject.inject_enabled
+        let injectLabel = inject.inject_enabled
           ? t('Enabled')
           : t('Disabled');
+        let injectTooltip = '';
         if (!inject.inject_ready) {
-          injectStatus = t('Missing content');
+          injectLabel = t('Missing content');
+          injectTooltip = inject.inject_healthchecks
+            ? `${t('Missing content')} : ${inject.inject_healthchecks.filter(healthcheck => 'MANDATORY_CONTENT' === healthcheck.detail)
+              .map(healthcheck => t(`healthcheck.description.${healthcheck.type}.${healthcheck.detail}`))
+              .join(', ')}`
+            : '';
         }
         return (
           <ItemBoolean
-            status={inject.inject_ready
-              ? inject.inject_enabled : false}
-            label={injectStatus}
+            status={inject.inject_ready ? inject.inject_enabled : false}
+            label={injectLabel}
             variant="inList"
-            tooltip={injectStatus}
+            tooltip={injectTooltip}
           />
         );
       },

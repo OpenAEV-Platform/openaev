@@ -968,22 +968,52 @@ public class ScenarioService {
 
     // get the healthcheck for each injects, remove duplicate from injects HealthCheck results and
     // add them to the result
-    List<HealthCheck> injectsHealthChecksNoDuplicate =
-        scenario.getInjects().stream()
-            .flatMap(inject -> injectService.runChecks(inject).stream())
-            .collect(
-                Collectors.toMap(
-                    hc -> hc.getType() + "_" + hc.getDetail(),
-                    hc -> hc,
-                    (a, b) ->
-                        HealthCheck.Status.ERROR.equals(a.getStatus())
-                            ? a
-                            : HealthCheck.Status.ERROR.equals(b.getStatus()) ? b : a))
-            .values()
-            .stream()
-            .toList();
-    healthChecks.addAll(injectsHealthChecksNoDuplicate);
+    List<HealthCheck> injectsHealthChecks =
+        healthCheckUtils.removeDuplicates(
+            scenario.getInjects().stream()
+                .flatMap(inject -> injectService.runChecks(inject).stream())
+                .toList());
 
+    // Since Injects healthchecks now have the "Missing Content" (and maybe others) checks details,
+    // we dont want them into the Scenario checks.
+    // That's why we have to verify if there is existing checks necessary to the scenario into the
+    // injects checks.
+    healthChecks.addAll(
+        healthCheckUtils.runInjectsChecksFor(
+            HealthCheck.Type.SMTP,
+            HealthCheck.Detail.SERVICE_UNAVAILABLE,
+            HealthCheck.Status.ERROR,
+            injectsHealthChecks));
+    healthChecks.addAll(
+        healthCheckUtils.runInjectsChecksFor(
+            HealthCheck.Type.IMAP,
+            HealthCheck.Detail.SERVICE_UNAVAILABLE,
+            HealthCheck.Status.WARNING,
+            injectsHealthChecks));
+    healthChecks.addAll(
+        healthCheckUtils.runInjectsChecksFor(
+            HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR,
+            HealthCheck.Detail.EMPTY,
+            HealthCheck.Status.ERROR,
+            injectsHealthChecks));
+    healthChecks.addAll(
+        healthCheckUtils.runInjectsChecksFor(
+            HealthCheck.Type.NMAP,
+            HealthCheck.Detail.SERVICE_UNAVAILABLE,
+            HealthCheck.Status.ERROR,
+            injectsHealthChecks));
+    healthChecks.addAll(
+        healthCheckUtils.runInjectsChecksFor(
+            HealthCheck.Type.NUCLEI,
+            HealthCheck.Detail.SERVICE_UNAVAILABLE,
+            HealthCheck.Status.ERROR,
+            injectsHealthChecks));
+    healthChecks.addAll(
+        healthCheckUtils.runInjectsChecksFor(
+            HealthCheck.Type.AGENT_OR_EXECUTOR,
+            HealthCheck.Detail.EMPTY,
+            HealthCheck.Status.ERROR,
+            injectsHealthChecks));
     healthChecks.addAll(healthCheckUtils.runMissingContentChecks(scenario));
     healthChecks.addAll(healthCheckUtils.runTeamsChecks(scenario));
 

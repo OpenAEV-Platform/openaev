@@ -14,6 +14,7 @@ import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectDependenciesRepository;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.InjectHelper;
 import io.openaev.notification.model.NotificationEvent;
 import io.openaev.notification.model.NotificationEventType;
@@ -41,6 +42,7 @@ import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.EvaluationException;
@@ -85,6 +87,7 @@ public class InjectsExecutionJob implements Job {
       List.of(InjectExpectation.EXPECTATION_STATUS.SUCCESS);
 
   @Resource protected ObjectMapper mapper;
+  @Autowired private HealthCheckUtils healthCheckUtils;
 
   @PostConstruct
   private void init() {
@@ -181,7 +184,7 @@ public class InjectsExecutionJob implements Job {
     if (ofNullable(executableInject.getExerciseId()).isPresent()) {
       checkErrorMessagesPreExecution(executableInject.getExerciseId(), inject);
     }
-    if (!inject.isReady()) {
+    if (!healthCheckUtils.runContentChecks(inject).isEmpty()) {
       throw new UnsupportedOperationException(
           "The inject is not ready to be executed (missing mandatory fields)");
     }

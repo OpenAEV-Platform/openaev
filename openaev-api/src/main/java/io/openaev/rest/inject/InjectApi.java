@@ -3,8 +3,8 @@ package io.openaev.rest.inject;
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
+import co.elastic.clients.util.VisibleForTesting;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.annotations.VisibleForTesting;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.RBAC;
 import io.openaev.aop.lock.Lock;
