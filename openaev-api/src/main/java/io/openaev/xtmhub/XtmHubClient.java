@@ -1,5 +1,9 @@
 package io.openaev.xtmhub;
 
+import static org.apache.hc.core5.http.HttpHeaders.ACCEPT;
+import static org.apache.hc.core5.http.HttpHeaders.CONTENT_TYPE;
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
+
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -7,6 +11,7 @@ import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.xtmhub.config.XtmHubConfig;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
@@ -28,13 +33,23 @@ public class XtmHubClient {
   private final HttpClientFactory httpClientFactory;
   private static final String platformIdentifier = "openaev";
   private final PlatformSettingsService platformSettingsService;
+  private static final String GRAPHQL_PATH = "/graphql-api";
+  private String graphqlEndpoint;
+  private static final String XTMHUB_PLATFORM_TOKEN_HEADER = "XTM-Hub-Platform-Token";
+  private static final String XTMHUB_PLATFORM_ID_HEADER = "XTM-Hub-Platform-Id";
+
+  @PostConstruct
+  void init() {
+    this.graphqlEndpoint = config.getApiUrl() + GRAPHQL_PATH;
+  }
 
   public XtmHubConnectivityStatus refreshRegistrationStatus(
       String platformId, String platformVersion, String token) {
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
-      HttpPost httpPost = new HttpPost(config.getApiUrl() + "/graphql-api");
-      httpPost.addHeader("Content-Type", "application/json; charset=utf-8");
+      HttpPost httpPost = new HttpPost(this.graphqlEndpoint);
       httpPost.addHeader("Accept", "application/json");
+      httpPost.addHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE);
+      httpPost.addHeader(ACCEPT, APPLICATION_JSON_VALUE);
 
       StringEntity httpBody = buildRefreshStatusBody(platformId, platformVersion, token);
       httpPost.setEntity(httpBody);
@@ -56,11 +71,11 @@ public class XtmHubClient {
     PlatformSettings settings = platformSettingsService.findSettings();
 
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
-      HttpPost httpPost = new HttpPost(config.getApiUrl() + "/graphql-api");
-      httpPost.addHeader("Content-Type", "application/json; charset=utf-8");
-      httpPost.addHeader("Accept", "application/json");
-      httpPost.addHeader("XTM-Hub-Platform-Token", token);
-      httpPost.addHeader("XTM-Hub-Platform-Id", settings.getPlatformId());
+      HttpPost httpPost = new HttpPost(this.graphqlEndpoint);
+      httpPost.addHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE);
+      httpPost.addHeader(ACCEPT, APPLICATION_JSON_VALUE);
+      httpPost.addHeader(XTMHUB_PLATFORM_TOKEN_HEADER, token);
+      httpPost.addHeader(XTMHUB_PLATFORM_ID_HEADER, settings.getPlatformId());
 
       StringEntity httpBody =
           buildAutoRegisterBody(

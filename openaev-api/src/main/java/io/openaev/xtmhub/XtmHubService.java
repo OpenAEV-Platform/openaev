@@ -1,11 +1,10 @@
 package io.openaev.xtmhub;
 
 import io.openaev.database.model.User;
-import io.openaev.ee.License;
-import io.openaev.ee.LicenseTypeEnum;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.UserService;
+import io.openaev.utils.LicenseUtils;
 import io.openaev.xtmhub.config.XtmHubConfig;
 import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
@@ -43,7 +42,7 @@ public class XtmHubService {
     PlatformSettings settings = platformSettingsService.findSettings();
     if (!xtmHubClient.autoRegister(
         token,
-        computeContractLevel(settings.getPlatformLicense()),
+        LicenseUtils.computeXtmHubContractLevel(settings.getPlatformLicense()),
         settings.getPlatformId(),
         settings.getPlatformName(),
         settings.getPlatformBaseUrl(),
@@ -153,14 +152,4 @@ public class XtmHubService {
   /** Encapsulates the result of a connectivity check */
   private record ConnectivityCheckResult(
       XtmHubConnectivityStatus status, LocalDateTime lastCheck) {}
-
-  private String computeContractLevel(License license) {
-    if (license.isLicenseEnterprise()) {
-      if (license.getType() == LicenseTypeEnum.trial) {
-        return "trial";
-      }
-      return "EE";
-    }
-    return "CE";
-  }
 }
