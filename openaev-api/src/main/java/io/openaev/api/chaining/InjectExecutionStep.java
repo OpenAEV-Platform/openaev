@@ -34,7 +34,7 @@ import org.springframework.stereotype.Component;
  * Implementation of {@link ActionStep} for executing Inject steps.
  *
  * <p>Handles creation, waiting, running, updating, and ending of steps that use the {@link
- * STEP_ACTION_CLASS#INJECT_EXECUTION} action.
+ * StepActionClass#INJECT_EXECUTION} action.
  *
  * <p>Responsible for:
  *
@@ -85,8 +85,8 @@ public class InjectExecutionStep implements ActionStep {
         .data(data)
         .input(input)
         .output_parser(outputParser)
-        .status(STEP_STATUS.TEMPLATE)
-        .stepAction(STEP_ACTION_CLASS.INJECT_EXECUTION)
+        .status(StepStatus.TEMPLATE)
+        .stepAction(StepActionClass.INJECT_EXECUTION)
         .limitExecution(newStep.getLimitExecution())
         .workflow(workflow)
         .build();
@@ -111,8 +111,8 @@ public class InjectExecutionStep implements ActionStep {
     waitStep.setStepTemplate(stepTemplate);
     // TODO manage input from output paser from payload or nuclei or nmap
     waitStep.setInput(input);
-    waitStep.setStatus(STEP_STATUS.WAIT);
-    waitStep.setStepAction(STEP_ACTION_CLASS.INJECT_EXECUTION);
+    waitStep.setStatus(StepStatus.READY);
+    waitStep.setStepAction(StepActionClass.INJECT_EXECUTION);
     waitStep.setLimitExecution(stepTemplate.getLimitExecution());
 
     return waitStep;
@@ -356,8 +356,8 @@ public class InjectExecutionStep implements ActionStep {
   /**
    * Builds the step input from MAPPER conditions.
    *
-   * <p>Extracts all conditions of type {@link CONDITION_TYPE#MAPPER} and converts them into an
-   * input mapping structure used by the step execution.
+   * <p>Extracts all conditions of type {@link ConditionType#MAPPER} and converts them into an input
+   * mapping structure used by the step execution.
    *
    * <p>Each mapping contains:
    *
@@ -375,7 +375,7 @@ public class InjectExecutionStep implements ActionStep {
     List<Map<String, Object>> inputs = new ArrayList<>();
 
     for (ConditionCreateInput condition : conditions) {
-      if (CONDITION_TYPE.MAPPER.equals(condition.getType())) {
+      if (ConditionType.MAPPER.equals(condition.getType())) {
 
         Map<String, Object> input = new HashMap<>();
         input.put("key", condition.getKey());
@@ -408,14 +408,14 @@ public class InjectExecutionStep implements ActionStep {
   public static StepsCreateInput.StepCreateInput getInjectAsStepsCreateInput(InjectInput input) {
     StepsCreateInput.StepCreateInput stepCreateInput = new StepsCreateInput.StepCreateInput();
     stepCreateInput.setDataStep(input);
-    stepCreateInput.setStepAction(STEP_ACTION_CLASS.INJECT_EXECUTION);
+    stepCreateInput.setStepAction(StepActionClass.INJECT_EXECUTION);
     stepCreateInput.setLimitExecution(1);
 
     if (input.getDependsDuration() != 0) {
       ConditionCreateInput conditionCreateInput =
           ConditionCreateInput.builder()
               .temporaryId("0")
-              .type(CONDITION_TYPE.AFTER)
+              .type(ConditionType.AFTER)
               .key(null)
               .value(String.valueOf(input.getDependsDuration()))
               .build();

@@ -2,14 +2,9 @@ package io.openaev.rest.exercise.service;
 
 import static io.openaev.utils.InjectExpectationResultUtils.getResultDetail;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import io.openaev.IntegrationTest;
 import io.openaev.config.cache.LicenseCacheManager;
@@ -21,10 +16,10 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exercise.form.ExercisesGlobalScoresInput;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.service.TagRuleService;
-import io.openaev.service.TeamService;
-import io.openaev.service.UserService;
-import io.openaev.service.VariableService;
+import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.service.*;
+import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.period.CronService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
@@ -88,6 +83,13 @@ class ExerciseServiceTest extends IntegrationTest {
   @Autowired private ExerciseService actualExerciseService;
   @Autowired private ScenarioRecurrenceService scenarioRecurrenceService;
 
+  @Autowired private LessonsService lessonsService;
+  @Autowired private FileService fileService;
+  @Autowired private WorkflowService workflowService;
+  @Autowired private StepService stepService;
+  @Autowired private PauseExerciseService pauseExerciseService;
+  @Autowired private InjectStatusService injectStatusService;
+
   @Mock private InjectExpectationMapper injectExpectationMapper;
 
   @InjectMocks private ExerciseService mockedExerciseService;
@@ -118,10 +120,14 @@ class ExerciseServiceTest extends IntegrationTest {
             teamRepository,
             userRepository,
             exerciseTeamUserRepository,
-            injectRepository,
-            lessonsCategoryRepository,
+            lessonsService,
+            fileService,
             injectExpectationMapper,
-            scenarioRecurrenceService);
+            scenarioRecurrenceService,
+            workflowService,
+            stepService,
+            pauseExerciseService,
+            injectStatusService);
 
     scenarioComposer.reset();
     exerciseComposer.reset();

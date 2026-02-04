@@ -4,8 +4,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import io.openaev.database.model.Exercise;
-import io.openaev.database.model.WORKFLOW_STATUS;
 import io.openaev.database.model.Workflow;
+import io.openaev.database.model.WorkflowStatus;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import java.util.*;
@@ -96,7 +96,7 @@ class WorkflowServiceTest {
       verify(workflowRepository).save(workflowCaptor.capture());
       Workflow savedWorkflow = workflowCaptor.getValue();
       assertEquals(0, savedWorkflow.getVersion());
-      assertEquals(WORKFLOW_STATUS.TEMPLATE, savedWorkflow.getStatus());
+      assertEquals(WorkflowStatus.TEMPLATE, savedWorkflow.getStatus());
       assertEquals(exercise, savedWorkflow.getSimulation());
     }
   }
@@ -181,7 +181,7 @@ class WorkflowServiceTest {
     void shouldReturnNullWhenNoTemplate() {
       // Prepare
       String simulationId = UUID.randomUUID().toString();
-      when(workflowRepository.findBySimulation_IdAndStatus(simulationId, WORKFLOW_STATUS.TEMPLATE))
+      when(workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE))
           .thenReturn(null);
 
       // Act
@@ -190,7 +190,7 @@ class WorkflowServiceTest {
       // Assert
       assertNull(result);
       verify(workflowRepository)
-          .findBySimulation_IdAndStatus(simulationId, WORKFLOW_STATUS.TEMPLATE);
+          .findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE);
       verify(workflowRepository, never()).save(any());
     }
 
@@ -206,7 +206,7 @@ class WorkflowServiceTest {
       when(workflowTemplate.getVersion()).thenReturn(1);
       when(workflowTemplate.getSimulation()).thenReturn(simulation);
 
-      when(workflowRepository.findBySimulation_IdAndStatus(simulationId, WORKFLOW_STATUS.TEMPLATE))
+      when(workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE))
           .thenReturn(workflowTemplate);
       when(workflowRepository.save(any(Workflow.class))).thenReturn(workflowTemplate);
 
@@ -231,7 +231,7 @@ class WorkflowServiceTest {
       when(workflowTemplate.getVersion()).thenReturn(1);
       when(workflowTemplate.getSimulation()).thenReturn(simulation);
 
-      when(workflowRepository.findBySimulation_IdAndStatus(simulationId, WORKFLOW_STATUS.TEMPLATE))
+      when(workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE))
           .thenReturn(workflowTemplate);
       when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
 
@@ -257,7 +257,7 @@ class WorkflowServiceTest {
       when(workflowTemplate.getVersion()).thenReturn(version);
       when(workflowTemplate.getSimulation()).thenReturn(simulation);
 
-      when(workflowRepository.findBySimulation_IdAndStatus(simulationId, WORKFLOW_STATUS.TEMPLATE))
+      when(workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE))
           .thenReturn(workflowTemplate);
       when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
 
@@ -269,7 +269,7 @@ class WorkflowServiceTest {
       Workflow savedRun = workflowCaptor.getValue();
 
       assertNotNull(result);
-      assertEquals(WORKFLOW_STATUS.RUN, savedRun.getStatus());
+      assertEquals(WorkflowStatus.RUN, savedRun.getStatus());
       assertEquals(simulation, savedRun.getSimulation());
       assertEquals(version, savedRun.getVersion());
       assertEquals(workflowTemplate, savedRun.getWorkflowTemplate());
@@ -320,7 +320,7 @@ class WorkflowServiceTest {
 
     @Captor private ArgumentCaptor<String> exerciseIdCaptor;
 
-    @Captor private ArgumentCaptor<WORKFLOW_STATUS> statusCaptor;
+    @Captor private ArgumentCaptor<WorkflowStatus> statusCaptor;
 
     @Test
     @DisplayName("should return workflow template when found")
@@ -328,7 +328,7 @@ class WorkflowServiceTest {
       // Prepare
       String exerciseId = UUID.randomUUID().toString();
       Workflow workflowTemplate = mock(Workflow.class);
-      when(workflowRepository.findBySimulation_IdAndStatus(exerciseId, WORKFLOW_STATUS.TEMPLATE))
+      when(workflowRepository.findBySimulation_IdAndStatus(exerciseId, WorkflowStatus.TEMPLATE))
           .thenReturn(workflowTemplate);
 
       // Act
@@ -338,7 +338,7 @@ class WorkflowServiceTest {
       verify(workflowRepository)
           .findBySimulation_IdAndStatus(exerciseIdCaptor.capture(), statusCaptor.capture());
       assertEquals(exerciseId, exerciseIdCaptor.getValue());
-      assertEquals(WORKFLOW_STATUS.TEMPLATE, statusCaptor.getValue());
+      assertEquals(WorkflowStatus.TEMPLATE, statusCaptor.getValue());
       assertEquals(workflowTemplate, result);
     }
 
@@ -347,7 +347,7 @@ class WorkflowServiceTest {
     void shouldReturnNullWhenNotFound() {
       // Prepare
       String exerciseId = UUID.randomUUID().toString();
-      when(workflowRepository.findBySimulation_IdAndStatus(exerciseId, WORKFLOW_STATUS.TEMPLATE))
+      when(workflowRepository.findBySimulation_IdAndStatus(exerciseId, WorkflowStatus.TEMPLATE))
           .thenReturn(null);
 
       // Act
@@ -355,7 +355,7 @@ class WorkflowServiceTest {
 
       // Assert
       assertNull(result);
-      verify(workflowRepository).findBySimulation_IdAndStatus(exerciseId, WORKFLOW_STATUS.TEMPLATE);
+      verify(workflowRepository).findBySimulation_IdAndStatus(exerciseId, WorkflowStatus.TEMPLATE);
     }
   }
 

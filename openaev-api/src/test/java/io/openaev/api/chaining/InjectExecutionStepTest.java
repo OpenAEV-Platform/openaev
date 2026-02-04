@@ -113,7 +113,7 @@ public class InjectExecutionStepTest {
     steps.add(
         StepsCreateInput.StepCreateInput.builder()
             .dataStep(dataStep)
-            .stepAction(STEP_ACTION_CLASS.INJECT_EXECUTION)
+            .stepAction(StepActionClass.INJECT_EXECUTION)
             .limitExecution(0)
             .build());
     StepsCreateInput newStep =
@@ -123,7 +123,7 @@ public class InjectExecutionStepTest {
             .build();
     Workflow workflowTemplate =
         Workflow.builder()
-            .status(WORKFLOW_STATUS.TEMPLATE)
+            .status(WorkflowStatus.TEMPLATE)
             .version(0)
             .isEdited(false)
             .simulation(simulation)
@@ -131,8 +131,8 @@ public class InjectExecutionStepTest {
             .workflowUpdatedAt(Instant.now())
             .build();
     Step stepTemplate = injectExecutionStep.create(newStep.steps.get(0), workflowTemplate);
-    assertEquals(STEP_ACTION_CLASS.INJECT_EXECUTION, stepTemplate.getStepAction());
-    assertEquals(STEP_STATUS.TEMPLATE, stepTemplate.getStatus());
+    assertEquals(StepActionClass.INJECT_EXECUTION, stepTemplate.getStepAction());
+    assertEquals(StepStatus.TEMPLATE, stepTemplate.getStatus());
     assertFalse(stepTemplate.getData().isEmpty());
     assertFalse(stepTemplate.getData().isBlank());
     assertEquals(
@@ -207,7 +207,7 @@ public class InjectExecutionStepTest {
 
     Workflow workflowTemplate =
         Workflow.builder()
-            .status(WORKFLOW_STATUS.TEMPLATE)
+            .status(WorkflowStatus.TEMPLATE)
             .version(0)
             .isEdited(false)
             .simulation(simulation)
@@ -218,7 +218,7 @@ public class InjectExecutionStepTest {
     Step stepTemplate =
         Step.builder()
             .data(stepData)
-            .stepAction(STEP_ACTION_CLASS.INJECT_EXECUTION)
+            .stepAction(StepActionClass.INJECT_EXECUTION)
             .limitExecution(1)
             .workflow(workflowTemplate)
             .createdAt(Instant.now())
@@ -227,7 +227,7 @@ public class InjectExecutionStepTest {
 
     Workflow workflowRun =
         Workflow.builder()
-            .status(WORKFLOW_STATUS.RUN)
+            .status(WorkflowStatus.RUN)
             .version(0)
             .isEdited(false)
             .simulation(simulation)
@@ -304,7 +304,7 @@ public class InjectExecutionStepTest {
 
     Workflow workflowTemplate =
         Workflow.builder()
-            .status(WORKFLOW_STATUS.TEMPLATE)
+            .status(WorkflowStatus.TEMPLATE)
             .version(0)
             .isEdited(false)
             .simulation(simulation)
@@ -315,7 +315,7 @@ public class InjectExecutionStepTest {
     Step stepTemplate =
         Step.builder()
             .data(stepData)
-            .stepAction(STEP_ACTION_CLASS.INJECT_EXECUTION)
+            .stepAction(StepActionClass.INJECT_EXECUTION)
             .limitExecution(1)
             .workflow(workflowTemplate)
             .createdAt(Instant.now())
@@ -324,7 +324,7 @@ public class InjectExecutionStepTest {
 
     Workflow workflowRun =
         Workflow.builder()
-            .status(WORKFLOW_STATUS.RUN)
+            .status(WorkflowStatus.RUN)
             .version(0)
             .isEdited(false)
             .simulation(simulation)
@@ -389,7 +389,7 @@ public class InjectExecutionStepTest {
             .key("stdout")
             .value("outputs.message.stdout")
             .stepFrom("1")
-            .type(CONDITION_TYPE.MAPPER)
+            .type(ConditionType.MAPPER)
             .build();
   }
 

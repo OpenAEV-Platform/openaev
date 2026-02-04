@@ -1,7 +1,7 @@
 package io.openaev.service.chaining;
 
-import io.openaev.database.model.CONDITION_TYPE;
 import io.openaev.database.model.Condition;
+import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.ConditionRepository;
@@ -21,14 +21,14 @@ public class ConditionService {
 
   public boolean isTimeCondition(Condition condition) {
     return switch (condition.getType()) {
-      case CONDITION_TYPE.AFTER, CONDITION_TYPE.BEFORE -> true;
+      case ConditionType.AFTER, ConditionType.BEFORE -> true;
       default -> false;
     };
   }
 
   public boolean isMapperCondition(Condition condition) {
     return switch (condition.getType()) {
-      case CONDITION_TYPE.MAPPER -> true;
+      case ConditionType.MAPPER -> true;
       default -> false;
     };
   }
@@ -41,7 +41,7 @@ public class ConditionService {
 
   public boolean isFilterCondition(Condition condition) {
     return switch (condition.getType()) {
-      case CONDITION_TYPE.AFTER, CONDITION_TYPE.BEFORE, CONDITION_TYPE.MAPPER -> false;
+      case ConditionType.AFTER, ConditionType.BEFORE, ConditionType.MAPPER -> false;
       default -> true;
     };
   }
@@ -56,7 +56,7 @@ public class ConditionService {
   // step)
   public Condition isTimeConditionValid(
       Condition conditionTemplate, Workflow workflowRun, Instant now, Instant goal) {
-    if (conditionTemplate.getType().equals(CONDITION_TYPE.AFTER)) {
+    if (conditionTemplate.getType().equals(ConditionType.AFTER)) {
       if (now.isAfter(goal)) {
         return Condition.builder()
             .key(now.toString())
@@ -64,7 +64,7 @@ public class ConditionService {
             .value(goal.toString())
             .build();
       }
-    } else if (conditionTemplate.getType().equals(CONDITION_TYPE.BEFORE)) {
+    } else if (conditionTemplate.getType().equals(ConditionType.BEFORE)) {
       // todo check witch case with before?
       return Condition.builder()
           .key(now.toString())
@@ -188,7 +188,7 @@ public class ConditionService {
   public Condition isDependOn(String idStepFromTemplate) {
     return Condition.builder()
         .key("step_template_id")
-        .type(CONDITION_TYPE.DEPEND_ON)
+        .type(ConditionType.DEPEND_ON)
         .value(idStepFromTemplate)
         .build();
   }

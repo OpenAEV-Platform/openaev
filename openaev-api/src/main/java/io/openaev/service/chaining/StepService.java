@@ -43,7 +43,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
 
     for (StepsCreateInput.StepCreateInput stepInput : steps) {
       if (stepInput.getStepAction() == null) {
-        stepInput.setStepAction(STEP_ACTION_CLASS.UNSUPPORTED);
+        stepInput.setStepAction(StepActionClass.UNSUPPORTED);
       }
       ActionStep actionStep = this.factoryAction(stepInput.getStepAction());
       if (actionStep == null) throw new BadRequestException("action step is null");
@@ -81,7 +81,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     // IF NONE STEP TEMPLATE WITH CONDITION VALID update WORKFLOW with status END
     // todo manage steptemplate with time condition in queue
     /*if (stepWithValidCondition.isEmpty()) {
-        workflowRun.setStatus(WORKFLOW_STATUS.END);
+        workflowRun.setStatus(WorkflowStatus.END);
     }*/
   }
 
@@ -142,18 +142,18 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
 
     Step stepRun = actionStep.run(stepReady);
     if (stepRun == null) {
-      stepReady.setStatus(STEP_STATUS.END);
+      stepReady.setStatus(StepStatus.END);
       this.saveStep(stepReady);
       // Check all executed steps, if all ended, end workflow run
       int runningStep = stepRepository.countRunningStep(stepReady.getWorkflow().getId());
       if (runningStep == 0) {
         // TODO manage steptemplate with time delay
         Workflow run = stepReady.getWorkflow();
-        run.setStatus(WORKFLOW_STATUS.END);
+        run.setStatus(WorkflowStatus.END);
         workflowService.saveWorkflowRun(run);
       }
     } else {
-      stepRun.setStatus(STEP_STATUS.RUN);
+      stepRun.setStatus(StepStatus.RUN);
       this.saveStep(stepRun);
     }
   }
@@ -176,9 +176,9 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
    * @param actionClass name of the action class
    * @return the corresponding action step class
    */
-  public ActionStep factoryAction(STEP_ACTION_CLASS actionClass) {
+  public ActionStep factoryAction(StepActionClass actionClass) {
     return switch (actionClass) {
-      case STEP_ACTION_CLASS.INJECT_EXECUTION ->
+      case StepActionClass.INJECT_EXECUTION ->
           applicationContext.getBean(InjectExecutionStep.class);
       default -> null;
     };
@@ -294,7 +294,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
    */
   public Step findStepTemplateById(String idStep) {
     return this.stepRepository.findByStepTemplateIdIsNullAndIdAndStatus(
-        idStep, STEP_STATUS.TEMPLATE);
+        idStep, StepStatus.TEMPLATE);
   }
 
   /**
@@ -315,7 +315,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
    */
   public Step findStepReadyById(String idStep) {
     return this.stepRepository.findByStepTemplateIdIsNotNullAndIdAndStatus(
-        idStep, STEP_STATUS.WAIT);
+        idStep, StepStatus.READY);
   }
 
   /**
@@ -324,7 +324,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
    * @return list of step
    */
   public List<Step> findAllStepRun() {
-    return this.stepRepository.findAllByStatus(STEP_STATUS.RUN);
+    return this.stepRepository.findAllByStatus(StepStatus.RUN);
   }
 
   /**

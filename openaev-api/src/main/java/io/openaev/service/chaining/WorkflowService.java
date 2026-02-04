@@ -1,8 +1,8 @@
 package io.openaev.service.chaining;
 
 import io.openaev.database.model.Exercise;
-import io.openaev.database.model.WORKFLOW_STATUS;
 import io.openaev.database.model.Workflow;
+import io.openaev.database.model.WorkflowStatus;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import jakarta.validation.constraints.NotBlank;
@@ -37,7 +37,7 @@ public class WorkflowService {
    */
   public void creationWorkflow(Exercise exercise) {
     Workflow workflow =
-        Workflow.builder().version(0).status(WORKFLOW_STATUS.TEMPLATE).simulation(exercise).build();
+        Workflow.builder().version(0).status(WorkflowStatus.TEMPLATE).simulation(exercise).build();
     workflowRepository.save(workflow);
   }
 
@@ -74,7 +74,7 @@ public class WorkflowService {
   public Workflow launchWorkflow(String simulationId) {
     // 1 WORKFLOW TEMPLATE / SIMULATION
     Workflow workflowTemplate =
-        workflowRepository.findBySimulation_IdAndStatus(simulationId, WORKFLOW_STATUS.TEMPLATE);
+        workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE);
     if (workflowTemplate == null) return null;
 
     if (workflowTemplate.isEdited()) {
@@ -88,7 +88,7 @@ public class WorkflowService {
     Workflow run =
         Workflow.builder()
             .isEdited(false)
-            .status(WORKFLOW_STATUS.RUN)
+            .status(WorkflowStatus.RUN)
             .simulation(workflowTemplate.getSimulation())
             .version(workflowTemplate.getVersion())
             .workflowTemplate(workflowTemplate)
@@ -116,7 +116,7 @@ public class WorkflowService {
    */
   public Workflow findWorkflowTemplateByIdExercise(String exerciseId) {
     return this.workflowRepository.findBySimulation_IdAndStatus(
-        exerciseId, WORKFLOW_STATUS.TEMPLATE);
+        exerciseId, WorkflowStatus.TEMPLATE);
   }
 
   /**

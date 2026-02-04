@@ -62,11 +62,10 @@ public class StepServiceTest extends IntegrationTest {
 
     @Test
     void shouldThrowWhenActionStepIsNull() {
-      StepsCreateInput.StepCreateInput stepInput =
-          mockStep(STEP_ACTION_CLASS.UNSUPPORTED, List.of());
+      StepsCreateInput.StepCreateInput stepInput = mockStep(StepActionClass.UNSUPPORTED, List.of());
 
       when(workflowService.getWorkflowById(workflowId)).thenReturn(mock(Workflow.class));
-      when(stepService.factoryAction(STEP_ACTION_CLASS.UNSUPPORTED)).thenReturn(null);
+      when(stepService.factoryAction(StepActionClass.UNSUPPORTED)).thenReturn(null);
 
       assertThrows(
           BadRequestException.class,
@@ -85,7 +84,7 @@ public class StepServiceTest extends IntegrationTest {
     @Test
     void shouldSkipConditionCreationWhenEmpty() {
       StepsCreateInput.StepCreateInput stepInput =
-          mockStep(STEP_ACTION_CLASS.INJECT_EXECUTION, Collections.emptyList());
+          mockStep(StepActionClass.INJECT_EXECUTION, Collections.emptyList());
 
       setupCreateStepTemplates(stepInput);
 
@@ -111,7 +110,7 @@ public class StepServiceTest extends IntegrationTest {
         boolean withStepFrom) {
 
       StepsCreateInput.StepCreateInput stepInput =
-          mockStep(STEP_ACTION_CLASS.INJECT_EXECUTION, inputs);
+          mockStep(StepActionClass.INJECT_EXECUTION, inputs);
 
       setupCreateStepTemplates(stepInput);
 
@@ -193,7 +192,7 @@ public class StepServiceTest extends IntegrationTest {
 
       StepsCreateInput.StepCreateInput stepInput =
           mockStep(
-              STEP_ACTION_CLASS.INJECT_EXECUTION,
+              StepActionClass.INJECT_EXECUTION,
               List.of(mockCondition("ROOT 1", null, null), mockCondition("ROOT 2", null, null)));
 
       setupCreateStepTemplates(stepInput);
@@ -207,7 +206,7 @@ public class StepServiceTest extends IntegrationTest {
     void shouldThrowWhenNoRootConditionExists() {
 
       StepsCreateInput.StepCreateInput stepInput =
-          mockStep(STEP_ACTION_CLASS.INJECT_EXECUTION, List.of(mockCondition("A", "X", null)));
+          mockStep(StepActionClass.INJECT_EXECUTION, List.of(mockCondition("A", "X", null)));
 
       setupCreateStepTemplates(stepInput);
 
@@ -362,9 +361,9 @@ public class StepServiceTest extends IntegrationTest {
         Step nextStepTemplateToExecute = mock(Step.class);
         Workflow workflowRun = mock(Workflow.class);
 
-        when(nextStepTemplateToExecute.getStepAction()).thenReturn(STEP_ACTION_CLASS.UNSUPPORTED);
+        when(nextStepTemplateToExecute.getStepAction()).thenReturn(StepActionClass.UNSUPPORTED);
 
-        when(stepService.factoryAction(STEP_ACTION_CLASS.UNSUPPORTED)).thenReturn(null);
+        when(stepService.factoryAction(StepActionClass.UNSUPPORTED)).thenReturn(null);
 
         // -------- Act + Assert --------
         assertThrows(
@@ -398,8 +397,8 @@ public class StepServiceTest extends IntegrationTest {
         String input = "{\"hello\":\"world\"}";
         String stepId = UUID.randomUUID().toString();
 
-        when(nextStepTemplateToExecute.getStepAction()).thenReturn(STEP_ACTION_CLASS.UNSUPPORTED);
-        when(stepService.factoryAction(STEP_ACTION_CLASS.UNSUPPORTED)).thenReturn(actionStep);
+        when(nextStepTemplateToExecute.getStepAction()).thenReturn(StepActionClass.UNSUPPORTED);
+        when(stepService.factoryAction(StepActionClass.UNSUPPORTED)).thenReturn(actionStep);
 
         when(nextStepTemplateToExecute.getId()).thenReturn(stepId);
         when(stepRepository.findById(stepId)).thenReturn(Optional.of(persistedTemplate));
@@ -470,8 +469,8 @@ public class StepServiceTest extends IntegrationTest {
         String input = "{\"x\":1}";
         String stepId = UUID.randomUUID().toString();
 
-        when(nextStepTemplateToExecute.getStepAction()).thenReturn(STEP_ACTION_CLASS.UNSUPPORTED);
-        when(stepService.factoryAction(STEP_ACTION_CLASS.UNSUPPORTED)).thenReturn(actionStep);
+        when(nextStepTemplateToExecute.getStepAction()).thenReturn(StepActionClass.UNSUPPORTED);
+        when(stepService.factoryAction(StepActionClass.UNSUPPORTED)).thenReturn(actionStep);
 
         when(nextStepTemplateToExecute.getId()).thenReturn(stepId);
         when(stepRepository.findById(stepId)).thenReturn(Optional.of(persistedTemplate));
@@ -555,8 +554,8 @@ public class StepServiceTest extends IntegrationTest {
         String input = "{\"q\":true}";
         String stepId = UUID.randomUUID().toString();
 
-        when(nextStepTemplateToExecute.getStepAction()).thenReturn(STEP_ACTION_CLASS.UNSUPPORTED);
-        when(stepService.factoryAction(STEP_ACTION_CLASS.UNSUPPORTED)).thenReturn(actionStep);
+        when(nextStepTemplateToExecute.getStepAction()).thenReturn(StepActionClass.UNSUPPORTED);
+        when(stepService.factoryAction(StepActionClass.UNSUPPORTED)).thenReturn(actionStep);
 
         when(nextStepTemplateToExecute.getId()).thenReturn(stepId);
         when(stepRepository.findById(stepId)).thenReturn(Optional.of(persistedTemplate));
@@ -616,8 +615,8 @@ public class StepServiceTest extends IntegrationTest {
       // -------- Prepare --------
       Step stepReady = mock(Step.class);
 
-      when(stepReady.getStepAction()).thenReturn(STEP_ACTION_CLASS.UNSUPPORTED);
-      when(stepService.factoryAction(STEP_ACTION_CLASS.UNSUPPORTED)).thenReturn(null);
+      when(stepReady.getStepAction()).thenReturn(StepActionClass.UNSUPPORTED);
+      when(stepService.factoryAction(StepActionClass.UNSUPPORTED)).thenReturn(null);
 
       // -------- Act + Assert --------
       assertThrows(BadRequestException.class, () -> stepService.run(stepReady));
@@ -641,8 +640,8 @@ public class StepServiceTest extends IntegrationTest {
 
         String workflowRunId = UUID.randomUUID().toString();
 
-        when(stepReady.getStepAction()).thenReturn(STEP_ACTION_CLASS.UNSUPPORTED);
-        when(stepService.factoryAction(STEP_ACTION_CLASS.UNSUPPORTED)).thenReturn(actionStep);
+        when(stepReady.getStepAction()).thenReturn(StepActionClass.UNSUPPORTED);
+        when(stepService.factoryAction(StepActionClass.UNSUPPORTED)).thenReturn(actionStep);
 
         when(actionStep.run(stepReady)).thenReturn(null);
 
@@ -655,7 +654,7 @@ public class StepServiceTest extends IntegrationTest {
         stepService.run(stepReady);
 
         // -------- Assert --------
-        verify(stepReady).setStatus(STEP_STATUS.END);
+        verify(stepReady).setStatus(StepStatus.END);
         verify(stepRepository).save(stepReady);
 
         verify(stepRepository).countRunningStep(workflowRunId);
@@ -673,8 +672,8 @@ public class StepServiceTest extends IntegrationTest {
 
         String workflowRunId = UUID.randomUUID().toString();
 
-        when(stepReady.getStepAction()).thenReturn(STEP_ACTION_CLASS.UNSUPPORTED);
-        when(stepService.factoryAction(STEP_ACTION_CLASS.UNSUPPORTED)).thenReturn(actionStep);
+        when(stepReady.getStepAction()).thenReturn(StepActionClass.UNSUPPORTED);
+        when(stepService.factoryAction(StepActionClass.UNSUPPORTED)).thenReturn(actionStep);
 
         when(actionStep.run(stepReady)).thenReturn(null);
 
@@ -687,12 +686,12 @@ public class StepServiceTest extends IntegrationTest {
         stepService.run(stepReady);
 
         // -------- Assert --------
-        verify(stepReady).setStatus(STEP_STATUS.END);
+        verify(stepReady).setStatus(StepStatus.END);
         verify(stepRepository).save(stepReady);
 
         verify(stepRepository).countRunningStep(workflowRunId);
 
-        verify(workflowRun).setStatus(WORKFLOW_STATUS.END);
+        verify(workflowRun).setStatus(WorkflowStatus.END);
         verify(workflowService).saveWorkflowRun(workflowRun);
       }
     }
@@ -707,8 +706,8 @@ public class StepServiceTest extends IntegrationTest {
       Step stepRun = mock(Step.class);
       ActionStep actionStep = mock(ActionStep.class);
 
-      when(stepReady.getStepAction()).thenReturn(STEP_ACTION_CLASS.UNSUPPORTED);
-      when(stepService.factoryAction(STEP_ACTION_CLASS.UNSUPPORTED)).thenReturn(actionStep);
+      when(stepReady.getStepAction()).thenReturn(StepActionClass.UNSUPPORTED);
+      when(stepService.factoryAction(StepActionClass.UNSUPPORTED)).thenReturn(actionStep);
 
       when(actionStep.run(stepReady)).thenReturn(stepRun);
 
@@ -716,7 +715,7 @@ public class StepServiceTest extends IntegrationTest {
       stepService.run(stepReady);
 
       // -------- Assert --------
-      verify(stepRun).setStatus(STEP_STATUS.RUN);
+      verify(stepRun).setStatus(StepStatus.RUN);
       verify(stepRepository).save(stepRun);
 
       verify(stepReady, never()).setStatus(any());
@@ -768,7 +767,7 @@ public class StepServiceTest extends IntegrationTest {
       when(applicationContext.getBean(InjectExecutionStep.class)).thenReturn(injectExecutionStep);
 
       // -------- Act --------
-      ActionStep result = stepService.factoryAction(STEP_ACTION_CLASS.INJECT_EXECUTION);
+      ActionStep result = stepService.factoryAction(StepActionClass.INJECT_EXECUTION);
 
       // -------- Assert --------
       assertSame(injectExecutionStep, result);
@@ -780,7 +779,7 @@ public class StepServiceTest extends IntegrationTest {
     @Test
     void shouldReturnNull_whenActionClassIsNotSupported() {
       // -------- Prepare --------
-      STEP_ACTION_CLASS unsupportedAction = STEP_ACTION_CLASS.UNSUPPORTED;
+      StepActionClass unsupportedAction = StepActionClass.UNSUPPORTED;
 
       // -------- Act --------
       ActionStep result = stepService.factoryAction(unsupportedAction);
@@ -851,7 +850,7 @@ public class StepServiceTest extends IntegrationTest {
       String stepId = UUID.randomUUID().toString();
       Step step = mock(Step.class);
 
-      when(stepRepository.findByStepTemplateIdIsNullAndIdAndStatus(stepId, STEP_STATUS.TEMPLATE))
+      when(stepRepository.findByStepTemplateIdIsNullAndIdAndStatus(stepId, StepStatus.TEMPLATE))
           .thenReturn(step);
 
       // -------- Act --------
@@ -860,7 +859,7 @@ public class StepServiceTest extends IntegrationTest {
       // -------- Assert --------
       assertSame(step, result);
 
-      verify(stepRepository).findByStepTemplateIdIsNullAndIdAndStatus(stepId, STEP_STATUS.TEMPLATE);
+      verify(stepRepository).findByStepTemplateIdIsNullAndIdAndStatus(stepId, StepStatus.TEMPLATE);
       verifyNoMoreInteractions(stepRepository);
     }
 
@@ -888,7 +887,7 @@ public class StepServiceTest extends IntegrationTest {
       String stepId = UUID.randomUUID().toString();
       Step step = mock(Step.class);
 
-      when(stepRepository.findByStepTemplateIdIsNotNullAndIdAndStatus(stepId, STEP_STATUS.WAIT))
+      when(stepRepository.findByStepTemplateIdIsNotNullAndIdAndStatus(stepId, StepStatus.READY))
           .thenReturn(step);
 
       // -------- Act --------
@@ -897,7 +896,7 @@ public class StepServiceTest extends IntegrationTest {
       // -------- Assert --------
       assertSame(step, result);
 
-      verify(stepRepository).findByStepTemplateIdIsNotNullAndIdAndStatus(stepId, STEP_STATUS.WAIT);
+      verify(stepRepository).findByStepTemplateIdIsNotNullAndIdAndStatus(stepId, StepStatus.READY);
       verifyNoMoreInteractions(stepRepository);
     }
 
@@ -906,7 +905,7 @@ public class StepServiceTest extends IntegrationTest {
       // -------- Prepare --------
       List<Step> steps = List.of(mock(Step.class), mock(Step.class));
 
-      when(stepRepository.findAllByStatus(STEP_STATUS.RUN)).thenReturn(steps);
+      when(stepRepository.findAllByStatus(StepStatus.RUN)).thenReturn(steps);
 
       // -------- Act --------
       List<Step> result = stepService.findAllStepRun();
@@ -914,7 +913,7 @@ public class StepServiceTest extends IntegrationTest {
       // -------- Assert --------
       assertSame(steps, result);
 
-      verify(stepRepository).findAllByStatus(STEP_STATUS.RUN);
+      verify(stepRepository).findAllByStatus(StepStatus.RUN);
       verifyNoMoreInteractions(stepRepository);
     }
 
@@ -1189,12 +1188,12 @@ public class StepServiceTest extends IntegrationTest {
         when(event.getStepId()).thenReturn(stepRunId);
 
         Step stepRun = mock(Step.class);
-        when(stepRun.getStepAction()).thenReturn(STEP_ACTION_CLASS.UNSUPPORTED);
+        when(stepRun.getStepAction()).thenReturn(StepActionClass.UNSUPPORTED);
 
         // this.findById(...) -> repository.findById(...).orElseThrow()
         when(stepRepository.findById(stepRunId)).thenReturn(Optional.of(stepRun));
 
-        when(stepService.factoryAction(STEP_ACTION_CLASS.UNSUPPORTED)).thenReturn(null);
+        when(stepService.factoryAction(StepActionClass.UNSUPPORTED)).thenReturn(null);
 
         // -------- Act + Assert --------
         assertThrows(BadRequestException.class, () -> stepService.handleExternalUpdateEvent(event));
@@ -1212,12 +1211,12 @@ public class StepServiceTest extends IntegrationTest {
         when(event.getStepId()).thenReturn(stepRunId);
 
         Step stepRun = mock(Step.class);
-        when(stepRun.getStepAction()).thenReturn(STEP_ACTION_CLASS.INJECT_EXECUTION);
+        when(stepRun.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
 
         when(stepRepository.findById(stepRunId)).thenReturn(Optional.of(stepRun));
 
         ActionStep actionStep = mock(ActionStep.class);
-        when(stepService.factoryAction(STEP_ACTION_CLASS.INJECT_EXECUTION)).thenReturn(actionStep);
+        when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION)).thenReturn(actionStep);
 
         when(actionStep.update(stepRun)).thenReturn(null);
 
@@ -1242,7 +1241,7 @@ public class StepServiceTest extends IntegrationTest {
 
         // Current running step
         Step stepRun = mock(Step.class);
-        when(stepRun.getStepAction()).thenReturn(STEP_ACTION_CLASS.INJECT_EXECUTION);
+        when(stepRun.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
 
         Workflow workflowRun = mock(Workflow.class);
         when(stepRun.getWorkflow()).thenReturn(workflowRun);
@@ -1258,7 +1257,7 @@ public class StepServiceTest extends IntegrationTest {
 
         // actionStep.update(...) returns non-null
         ActionStep actionStep = mock(ActionStep.class);
-        when(stepService.factoryAction(STEP_ACTION_CLASS.INJECT_EXECUTION)).thenReturn(actionStep);
+        when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION)).thenReturn(actionStep);
 
         Step updated = mock(Step.class);
         when(actionStep.update(stepRun)).thenReturn(updated);
@@ -1269,7 +1268,7 @@ public class StepServiceTest extends IntegrationTest {
         // GET STEP TEMPLATE CURRENT (repository delegation)
         Step stepTemplateCurrent = mock(Step.class);
         when(stepRepository.findByStepTemplateIdIsNullAndIdAndStatus(
-                currentTemplateId, STEP_STATUS.TEMPLATE))
+                currentTemplateId, StepStatus.TEMPLATE))
             .thenReturn(stepTemplateCurrent);
 
         // template workflow + templates list
@@ -1316,7 +1315,7 @@ public class StepServiceTest extends IntegrationTest {
 
         // template lookup chain
         verify(stepRepository)
-            .findByStepTemplateIdIsNullAndIdAndStatus(currentTemplateId, STEP_STATUS.TEMPLATE);
+            .findByStepTemplateIdIsNullAndIdAndStatus(currentTemplateId, StepStatus.TEMPLATE);
         verify(stepRepository).findAllByStepTemplateIdIsNullAndWorkflowId(workflowTemplateId);
 
         // conditions checked
@@ -1352,7 +1351,7 @@ public class StepServiceTest extends IntegrationTest {
   }
 
   private StepsCreateInput.StepCreateInput mockStep(
-      STEP_ACTION_CLASS actionClass, List<ConditionCreateInput> conditions) {
+      StepActionClass actionClass, List<ConditionCreateInput> conditions) {
 
     StepsCreateInput.StepCreateInput step = mock(StepsCreateInput.StepCreateInput.class);
 

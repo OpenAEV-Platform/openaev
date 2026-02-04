@@ -15,8 +15,12 @@ import io.openaev.database.repository.*;
 import io.openaev.ee.Ee;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.rest.exercise.service.PauseExerciseService;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.period.CronService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
@@ -69,12 +73,19 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private InjectRepository injectRepository;
   @Autowired private ExerciseTeamUserRepository exerciseTeamUserRepository;
   @Autowired private InjectorContractRepository injectorContractRepository;
-  @Autowired private LessonsCategoryRepository lessonsCategoryRepository;
   @Autowired private LicenseCacheManager licenseCacheManager;
   @Autowired private InjectExpectationMapper injectExpectationMapper;
   @Autowired private CronService cronService;
+
   @Autowired private ScenarioRecurrenceService scenarioRecurrenceService;
   @Autowired private InjectorContractFixture injectorContractFixture;
+
+  @Autowired private LessonsService lessonsService;
+  @Autowired private FileService fileService;
+  @Autowired private WorkflowService workflowService;
+  @Autowired private StepService stepService;
+  @Autowired private PauseExerciseService pauseExerciseService;
+  @Autowired private InjectStatusService injectStatusService;
 
   private static String USER_ID;
   private static String TEAM_ID;
@@ -108,10 +119,14 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             teamRepository,
             userRepository,
             exerciseTeamUserRepository,
-            injectRepository,
-            lessonsCategoryRepository,
+            lessonsService,
+            fileService,
             injectExpectationMapper,
-            scenarioRecurrenceService);
+            scenarioRecurrenceService,
+            workflowService,
+            stepService,
+            pauseExerciseService,
+            injectStatusService);
   }
 
   @AfterAll
