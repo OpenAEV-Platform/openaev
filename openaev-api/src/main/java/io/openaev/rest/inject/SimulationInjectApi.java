@@ -40,10 +40,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.persistence.criteria.Join;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+
+import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -208,11 +206,11 @@ public class SimulationInjectApi extends RestBehavior {
 
     if (workflowService.isExerciseChaining(exercise.getId())) {
 
-      List<StepsCreateInput.StepCreateInput> inputStep =
+      StepsCreateInput.StepCreateInput inputStep =
           InjectExecutionStep.getInjectAsStepsCreateInput(input);
 
       Workflow workflowTemplate = workflowService.findWorkflowTemplateByIdExercise(exerciseId);
-      stepService.createStepsTemplate(workflowTemplate.getId(), inputStep);
+      stepService.createStepTemplates(workflowTemplate.getId(), Collections.singletonList(inputStep));
       return null;
     } else {
       return this.injectService.createAndSaveInject(exercise, null, input);

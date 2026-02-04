@@ -40,7 +40,7 @@ public class ChainingApi extends RestBehavior {
   public ResponseEntity<WorkflowOutput> createStep(@RequestBody StepsCreateInput input) {
     try {
 
-      stepService.createStepsTemplate(input.getWorkflowId(), input.steps);
+      stepService.createStepTemplates(input.getWorkflowId(), input.steps);
       return null;
     } catch (Exception e) {
       log.error(
