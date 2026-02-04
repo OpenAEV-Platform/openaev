@@ -1242,6 +1242,7 @@ export interface CreateExerciseInput {
   exercise_category?: string;
   exercise_custom_dashboard?: string;
   exercise_description?: string;
+  exercise_is_chaining?: boolean;
   exercise_mail_from?: string;
   exercise_mails_reply_to?: string[];
   exercise_main_focus?: string;
@@ -5263,6 +5264,7 @@ export interface PlatformSettings {
     | "_RESERVED"
     | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
     | "LEGACY_INGESTION_EXECUTION_TRACE"
+    | "INJECT_CHAINING"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -6570,6 +6572,7 @@ export interface UpdateExerciseInput {
   exercise_category?: string;
   exercise_custom_dashboard?: string;
   exercise_description?: string;
+  exercise_is_chaining?: boolean;
   exercise_mail_from?: string;
   exercise_mails_reply_to?: string[];
   exercise_main_focus?: string;
