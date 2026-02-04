@@ -16,6 +16,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+/** Service managing the queue system used for the chaining */
 @Slf4j
 @RequiredArgsConstructor
 @Service
@@ -29,16 +30,29 @@ public class QueueChainingService {
   @Setter private BatchQueueService<StepEvent> waitQueueService;
   @Setter private BatchQueueService<ExternalUpdateEvent> updateQueueService;
 
-  // Queues startup
+  /**
+   * Configure the queue at startup
+   *
+   * @throws IOException in case there is an error while creating the queues
+   * @throws TimeoutException in case the configuration for the queue isn't there
+   */
   @PostConstruct
   public void init() throws IOException, TimeoutException {
-    if (openAEVConfig.getQueueConfig().get("workflows-wait") == null
-        || openAEVConfig.getQueueConfig().get("workflows-update") == null
-        || openAEVConfig.getQueueConfig().get("workflows-delay") == null) {
-      // TODO: better message
+    if (openAEVConfig.getQueueConfig().get("workflows-wait") == null) {
       throw new RuntimeException(
-          "workflows-wait, workflows-update and workflows-delay configuration not set. Please refer to the documentation");
+          "workflows-wait configuration is missing. Please refer to the documentation");
     }
+
+    if (openAEVConfig.getQueueConfig().get("workflows-update") == null) {
+      throw new RuntimeException(
+          "workflows-update configuration is missing. Please refer to the documentation");
+    }
+
+    if (openAEVConfig.getQueueConfig().get("workflows-delay") == null) {
+      throw new RuntimeException(
+          "workflows-delay configuration is missing. Please refer to the documentation");
+    }
+
     // Initializing the queue to manage tasks to schedule
     waitQueueService =
         new BatchQueueService<>(
@@ -67,6 +81,14 @@ public class QueueChainingService {
             openAEVConfig.getQueueConfig().get("workflows-update"));
   }
 
+  /**
+   * Send a delay event in the delay queue for a given step template
+   *
+   * @param stepTemplate the step template to delay
+   * @param workflowRun the workflow associated with the run of the step
+   * @param delayMs the time, in milliseconds, to delay the step
+   * @throws IOException in case there is an error while sending the event
+   */
   public void delayStep(Step stepTemplate, Workflow workflowRun, long delayMs) throws IOException {
     log.info(
         "PUBLISH STEP DELAY : {} CONDITION TIME: {} + {} milliseconds",
@@ -80,8 +102,15 @@ public class QueueChainingService {
     delayQueueService.publish(event);
   }
 
+  /**
+   * Send a ready event in the ready queue for a given step execution
+   *
+   * @param stepExecution the step execution to set to ready
+   * @param workflowRun the workflow associated with the run of the step
+   * @throws IOException in case there is an error while sending the event
+   */
   public void waitStep(Step stepExecution, Workflow workflowRun) throws IOException {
-    log.info("PUBLISH STEP WAIT : {}", stepExecution.getId());
+    log.info("PUBLISH STEP READY : {}", stepExecution.getId());
     StepEvent event = new StepEvent();
     event.setStepId(stepExecution.getId());
     event.setWorkflowId(workflowRun.getId());
@@ -89,6 +118,12 @@ public class QueueChainingService {
     waitQueueService.publish(event);
   }
 
+  /**
+   * Send an external update event in the update queue for a given step
+   *
+   * @param stepRunId the step execution to update
+   * @throws IOException in case there is an error while sending the event
+   */
   public void updateStep(String stepRunId) throws IOException {
     log.info("PUBLISH STEP UPDATE : {}", stepRunId);
     ExternalUpdateEvent event = new ExternalUpdateEvent();
@@ -97,14 +132,29 @@ public class QueueChainingService {
     updateQueueService.publish(event);
   }
 
+  /**
+   * Dynamically set a callback function for the delay queue
+   *
+   * @param callback function to call when receiving an event
+   */
   public void setCallbackForDelayQueue(QueueExecution<StepEvent> callback) {
     delayQueueService.setQueueExecution(callback);
   }
 
+  /**
+   * Dynamically set a callback function for the ready queue
+   *
+   * @param callback function to call when receiving an event
+   */
   public void setCallbackForWaitQueue(QueueExecution<StepEvent> callback) {
     waitQueueService.setQueueExecution(callback);
   }
 
+  /**
+   * Dynamically set a callback function for the external update queue
+   *
+   * @param callback function to call when receiving an event
+   */
   public void setCallbackForExternalUpdateQueue(QueueExecution<ExternalUpdateEvent> callback) {
     updateQueueService.setQueueExecution(callback);
   }
