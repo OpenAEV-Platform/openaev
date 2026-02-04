@@ -1,15 +1,15 @@
 {% extends "base.html" %}
 
 {% block outdated %}
-  You're not viewing the latest version.
-  <a href="{{ '../' ~ base_url }}"> 
-    <strong>Click here to go to latest.</strong>
-  </a>
+You're not viewing the latest version.
+<a href="{{ '../' ~ base_url }}">
+  <strong>Click here to go to latest.</strong>
+</a>
 {% endblock %}
 
 {% block announce %}
-  OpenBAS has been renamed to OpenAEV.
-  <a href="{{ '/2.0.X/deployment/breaking-changes/2.0.0-openaev-renaming/' }}"> 
-    <strong>Click here to go to the migration guide.</strong>
-  </a>
+Breaking Changes in OpenAEV 2.1
+<a href="{{ '/2.1.X/deployment/breaking-changes/2.1.0-encrypting-password/' }}">
+  <strong>Click here to go to the migration guide.</strong>
+</a>
 {% endblock %}
