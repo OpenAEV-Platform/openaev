@@ -1,9 +1,9 @@
-package io.openaev.helper;
+package io.openaev.healthcheck;
 
-import static io.openaev.helper.InjectModelHelper.isReady;
 import static io.openaev.helper.ObjectMapperHelper.openAEVJsonMapper;
 import static io.openaev.injector_contract.fields.ContractText.textField;
 import static io.openaev.utils.fixtures.InjectorContractFixture.*;
+import static io.openaev.utils.fixtures.InjectorContractFixture.addField;
 import static io.openaev.utils.fixtures.InjectorFixture.createDefaultPayloadInjector;
 import static io.openaev.utils.fixtures.PayloadFixture.createCommand;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -11,11 +11,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.IntegrationTest;
 import io.openaev.database.model.Command;
 import io.openaev.database.model.Domain;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.utils.fixtures.DomainFixture;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import java.util.ArrayList;
@@ -24,11 +24,14 @@ import java.util.Set;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 
-class InjectModelHelperTest extends IntegrationTest {
+@SpringBootTest
+public class HealthCheckUtilsTest {
 
   private final ObjectMapper mapper = openAEVJsonMapper();
 
+  @Autowired private HealthCheckUtils healthCheckUtils;
   @Autowired private DomainComposer domainComposer;
 
   private InjectorContract prepareInjectorContract() throws JsonProcessingException {
@@ -56,13 +59,15 @@ class InjectModelHelperTest extends IntegrationTest {
 
       // -- EXECUTE --
       boolean isReady =
-          isReady(
-              injectorContract,
-              injectorContract.getConvertedContent(),
-              allTeams,
-              teams,
-              assets,
-              assetGroups);
+          healthCheckUtils
+              .runContentChecks(
+                  injectorContract,
+                  injectorContract.getConvertedContent(),
+                  allTeams,
+                  teams,
+                  assets,
+                  assetGroups)
+              .isEmpty();
 
       // -- ASSERT --
       assertTrue(isReady);
@@ -81,13 +86,15 @@ class InjectModelHelperTest extends IntegrationTest {
 
       // -- EXECUTE --
       boolean isReady =
-          isReady(
-              injectorContract,
-              injectorContract.getConvertedContent(),
-              allTeams,
-              teams,
-              assets,
-              assetGroups);
+          healthCheckUtils
+              .runContentChecks(
+                  injectorContract,
+                  injectorContract.getConvertedContent(),
+                  allTeams,
+                  teams,
+                  assets,
+                  assetGroups)
+              .isEmpty();
 
       // -- ASSERT --
       assertFalse(isReady);
@@ -106,13 +113,15 @@ class InjectModelHelperTest extends IntegrationTest {
 
       // -- EXECUTE --
       boolean isReady =
-          isReady(
-              injectorContract,
-              injectorContract.getConvertedContent(),
-              allTeams,
-              teams,
-              assets,
-              assetGroups);
+          healthCheckUtils
+              .runContentChecks(
+                  injectorContract,
+                  injectorContract.getConvertedContent(),
+                  allTeams,
+                  teams,
+                  assets,
+                  assetGroups)
+              .isEmpty();
 
       // -- ASSERT --
       assertTrue(isReady);
@@ -131,13 +140,15 @@ class InjectModelHelperTest extends IntegrationTest {
 
       // -- EXECUTE --
       boolean isReady =
-          isReady(
-              injectorContract,
-              injectorContract.getConvertedContent(),
-              allTeams,
-              teams,
-              assets,
-              assetGroups);
+          healthCheckUtils
+              .runContentChecks(
+                  injectorContract,
+                  injectorContract.getConvertedContent(),
+                  allTeams,
+                  teams,
+                  assets,
+                  assetGroups)
+              .isEmpty();
 
       // -- ASSERT --
       assertTrue(isReady);
@@ -160,13 +171,15 @@ class InjectModelHelperTest extends IntegrationTest {
 
       // -- EXECUTE --
       boolean isReady =
-          isReady(
-              injectorContract,
-              injectorContract.getConvertedContent(),
-              allTeams,
-              teams,
-              assets,
-              assetGroups);
+          healthCheckUtils
+              .runContentChecks(
+                  injectorContract,
+                  injectorContract.getConvertedContent(),
+                  allTeams,
+                  teams,
+                  assets,
+                  assetGroups)
+              .isEmpty();
 
       // -- ASSERT --
       assertTrue(isReady);
@@ -185,13 +198,15 @@ class InjectModelHelperTest extends IntegrationTest {
 
       // -- EXECUTE --
       boolean isReady =
-          isReady(
-              injectorContract,
-              injectorContract.getConvertedContent(),
-              allTeams,
-              teams,
-              assets,
-              assetGroups);
+          healthCheckUtils
+              .runContentChecks(
+                  injectorContract,
+                  injectorContract.getConvertedContent(),
+                  allTeams,
+                  teams,
+                  assets,
+                  assetGroups)
+              .isEmpty();
 
       // -- ASSERT --
       assertTrue(isReady);
@@ -210,13 +225,15 @@ class InjectModelHelperTest extends IntegrationTest {
 
       // -- EXECUTE --
       boolean isReady =
-          isReady(
-              injectorContract,
-              injectorContract.getConvertedContent(),
-              allTeams,
-              teams,
-              assets,
-              assetGroups);
+          healthCheckUtils
+              .runContentChecks(
+                  injectorContract,
+                  injectorContract.getConvertedContent(),
+                  allTeams,
+                  teams,
+                  assets,
+                  assetGroups)
+              .isEmpty();
 
       // -- ASSERT --
       assertFalse(isReady);
@@ -239,13 +256,15 @@ class InjectModelHelperTest extends IntegrationTest {
 
         // -- EXECUTE --
         boolean isReady =
-            isReady(
-                injectorContract,
-                injectorContract.getConvertedContent(),
-                allTeams,
-                teams,
-                assets,
-                assetGroups);
+            healthCheckUtils
+                .runContentChecks(
+                    injectorContract,
+                    injectorContract.getConvertedContent(),
+                    allTeams,
+                    teams,
+                    assets,
+                    assetGroups)
+                .isEmpty();
 
         // -- ASSERT --
         assertFalse(isReady);
@@ -264,13 +283,15 @@ class InjectModelHelperTest extends IntegrationTest {
 
         // -- EXECUTE --
         boolean isReady =
-            isReady(
-                injectorContract,
-                injectorContract.getConvertedContent(),
-                allTeams,
-                teams,
-                assets,
-                assetGroups);
+            healthCheckUtils
+                .runContentChecks(
+                    injectorContract,
+                    injectorContract.getConvertedContent(),
+                    allTeams,
+                    teams,
+                    assets,
+                    assetGroups)
+                .isEmpty();
 
         // -- ASSERT --
         assertTrue(isReady);
@@ -290,13 +311,15 @@ class InjectModelHelperTest extends IntegrationTest {
 
         // -- EXECUTE --
         boolean isReady =
-            isReady(
-                injectorContract,
-                injectorContract.getConvertedContent(),
-                allTeams,
-                teams,
-                assets,
-                assetGroups);
+            healthCheckUtils
+                .runContentChecks(
+                    injectorContract,
+                    injectorContract.getConvertedContent(),
+                    allTeams,
+                    teams,
+                    assets,
+                    assetGroups)
+                .isEmpty();
 
         // -- ASSERT --
         assertFalse(isReady);
@@ -315,13 +338,15 @@ class InjectModelHelperTest extends IntegrationTest {
 
         // -- EXECUTE --
         boolean isReady =
-            isReady(
-                injectorContract,
-                injectorContract.getConvertedContent(),
-                allTeams,
-                teams,
-                assets,
-                assetGroups);
+            healthCheckUtils
+                .runContentChecks(
+                    injectorContract,
+                    injectorContract.getConvertedContent(),
+                    allTeams,
+                    teams,
+                    assets,
+                    assetGroups)
+                .isEmpty();
 
         // -- ASSERT --
         assertTrue(isReady);
@@ -345,13 +370,15 @@ class InjectModelHelperTest extends IntegrationTest {
 
       // -- EXECUTE --
       boolean isReady =
-          isReady(
-              injectorContract,
-              injectorContract.getConvertedContent(),
-              allTeams,
-              teams,
-              assets,
-              assetGroups);
+          healthCheckUtils
+              .runContentChecks(
+                  injectorContract,
+                  injectorContract.getConvertedContent(),
+                  allTeams,
+                  teams,
+                  assets,
+                  assetGroups)
+              .isEmpty();
 
       // -- ASSERT --
       assertTrue(isReady);
@@ -373,13 +400,15 @@ class InjectModelHelperTest extends IntegrationTest {
 
       // -- EXECUTE --
       boolean isReady =
-          isReady(
-              injectorContract,
-              injectorContract.getConvertedContent(),
-              allTeams,
-              teams,
-              assets,
-              assetGroups);
+          healthCheckUtils
+              .runContentChecks(
+                  injectorContract,
+                  injectorContract.getConvertedContent(),
+                  allTeams,
+                  teams,
+                  assets,
+                  assetGroups)
+              .isEmpty();
 
       // -- ASSERT --
       assertTrue(isReady);
@@ -399,13 +428,15 @@ class InjectModelHelperTest extends IntegrationTest {
 
       // -- EXECUTE --
       boolean isReady =
-          isReady(
-              injectorContract,
-              injectorContract.getConvertedContent(),
-              allTeams,
-              teams,
-              assets,
-              assetGroups);
+          healthCheckUtils
+              .runContentChecks(
+                  injectorContract,
+                  injectorContract.getConvertedContent(),
+                  allTeams,
+                  teams,
+                  assets,
+                  assetGroups)
+              .isEmpty();
 
       // -- ASSERT --
       assertFalse(isReady);
@@ -425,13 +456,15 @@ class InjectModelHelperTest extends IntegrationTest {
 
       // -- EXECUTE --
       boolean isReady =
-          isReady(
-              injectorContract,
-              injectorContract.getConvertedContent(),
-              allTeams,
-              teams,
-              assets,
-              assetGroups);
+          healthCheckUtils
+              .runContentChecks(
+                  injectorContract,
+                  injectorContract.getConvertedContent(),
+                  allTeams,
+                  teams,
+                  assets,
+                  assetGroups)
+              .isEmpty();
 
       // -- ASSERT --
       assertTrue(isReady);
@@ -454,13 +487,15 @@ class InjectModelHelperTest extends IntegrationTest {
 
       // -- EXECUTE --
       boolean isReady =
-          isReady(
-              injectorContract,
-              injectorContract.getConvertedContent(),
-              allTeams,
-              teams,
-              assets,
-              assetGroups);
+          healthCheckUtils
+              .runContentChecks(
+                  injectorContract,
+                  injectorContract.getConvertedContent(),
+                  allTeams,
+                  teams,
+                  assets,
+                  assetGroups)
+              .isEmpty();
 
       // -- ASSERT --
       assertTrue(isReady);
@@ -484,13 +519,15 @@ class InjectModelHelperTest extends IntegrationTest {
 
       // -- EXECUTE --
       boolean isReady =
-          isReady(
-              injectorContract,
-              injectorContract.getConvertedContent(),
-              allTeams,
-              teams,
-              assets,
-              assetGroups);
+          healthCheckUtils
+              .runContentChecks(
+                  injectorContract,
+                  injectorContract.getConvertedContent(),
+                  allTeams,
+                  teams,
+                  assets,
+                  assetGroups)
+              .isEmpty();
 
       // -- ASSERT --
       assertTrue(isReady);
@@ -510,13 +547,15 @@ class InjectModelHelperTest extends IntegrationTest {
 
       // -- EXECUTE --
       boolean isReady =
-          isReady(
-              injectorContract,
-              injectorContract.getConvertedContent(),
-              allTeams,
-              teams,
-              assets,
-              assetGroups);
+          healthCheckUtils
+              .runContentChecks(
+                  injectorContract,
+                  injectorContract.getConvertedContent(),
+                  allTeams,
+                  teams,
+                  assets,
+                  assetGroups)
+              .isEmpty();
 
       // -- ASSERT --
       assertFalse(isReady);

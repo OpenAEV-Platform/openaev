@@ -5,11 +5,8 @@ import static io.openaev.database.model.InjectorContract.*;
 import static java.time.Duration.between;
 import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
-import static java.util.stream.StreamSupport.stream;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
@@ -38,174 +35,6 @@ public class InjectModelHelper {
 
   private InjectModelHelper() {
     // Utility class - prevent instantiation
-  }
-
-  /**
-   * Determines if an inject is ready for execution based on its contract requirements.
-   *
-   * <p>An inject is considered ready when all mandatory fields defined in its contract are
-   * populated. This includes validating mandatory groups, conditional mandatory fields, and
-   * target-specific requirements (teams, assets, asset groups).
-   *
-   * @param injectorContract the injector contract defining field requirements
-   * @param content the inject's content as JSON
-   * @param allTeams whether all teams are targeted
-   * @param teams list of targeted team IDs
-   * @param assets list of targeted asset IDs
-   * @param assetGroups list of targeted asset group IDs
-   * @return {@code true} if all mandatory requirements are met, {@code false} otherwise
-   */
-  public static boolean isReady(
-      InjectorContract injectorContract,
-      ObjectNode content,
-      boolean allTeams,
-      @NotNull final List<String> teams,
-      @NotNull final List<String> assets,
-      @NotNull final List<String> assetGroups) {
-    if (injectorContract == null) {
-      return false;
-    }
-
-    ObjectMapper mapper = new ObjectMapper();
-    ArrayNode injectContractFields;
-
-    try {
-      injectContractFields =
-          (ArrayNode)
-              mapper
-                  .readValue(injectorContract.getContent(), ObjectNode.class)
-                  .get(CONTRACT_CONTENT_FIELDS);
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException("Error parsing injector contract content", e);
-    }
-
-    ObjectNode contractContent = injectorContract.getConvertedContent();
-    if (contractContent == null) {
-      return false;
-    }
-    List<JsonNode> contractFields =
-        stream(contractContent.get(CONTRACT_CONTENT_FIELDS).spliterator(), false).toList();
-
-    boolean isReady = true;
-    for (JsonNode jsonField : contractFields) {
-
-      // If field is mandatory
-      if (jsonField.get(CONTRACT_ELEMENT_CONTENT_MANDATORY).asBoolean()) {
-        isReady =
-            isFieldSet(
-                allTeams, teams, assets, assetGroups, jsonField, content, injectContractFields);
-      }
-
-      // If field is mandatory group
-      if (jsonField.hasNonNull(CONTRACT_ELEMENT_CONTENT_MANDATORY_GROUPS)) {
-        ArrayNode mandatoryGroups =
-            (ArrayNode) jsonField.get(CONTRACT_ELEMENT_CONTENT_MANDATORY_GROUPS);
-        if (!mandatoryGroups.isEmpty()) {
-          boolean atLeastOneSet = false;
-          for (JsonNode mandatoryFieldKey : mandatoryGroups) {
-            Optional<JsonNode> groupField =
-                contractFields.stream()
-                    .filter(
-                        jsonNode ->
-                            mandatoryFieldKey
-                                .asText()
-                                .equals(jsonNode.get(CONTRACT_ELEMENT_CONTENT_KEY).asText()))
-                    .findFirst();
-            if (groupField.isPresent()
-                && isFieldSet(
-                    allTeams,
-                    teams,
-                    assets,
-                    assetGroups,
-                    groupField.get(),
-                    content,
-                    injectContractFields)) {
-              atLeastOneSet = true;
-              break;
-            }
-          }
-          if (!atLeastOneSet) {
-            isReady = false;
-          }
-        }
-      }
-
-      // If field is mandatory conditional, if the conditional field is set, check if the current
-      // field is set
-      if (jsonField.hasNonNull(CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_FIELDS)) {
-        JsonNode fields = jsonField.get(CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_FIELDS);
-
-        if (fields.isArray()) {
-          for (JsonNode node : fields) {
-            if (!node.isNull()) {
-              String fieldKey = node.asText();
-
-              Optional<JsonNode> conditionalFieldOpt =
-                  contractFields.stream()
-                      .filter(
-                          jsonNode ->
-                              fieldKey.equals(jsonNode.get(CONTRACT_ELEMENT_CONTENT_KEY).asText()))
-                      .findFirst();
-
-              // If field not exists -> skip
-              if (conditionalFieldOpt.isEmpty()) {
-                continue;
-              }
-              if (jsonField.hasNonNull(CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_VALUES)) {
-                JsonNode conditionalValuesNode =
-                    jsonField.get(CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_VALUES);
-
-                if (conditionalValuesNode.has(fieldKey)) {
-                  List<String> specificValuesNode =
-                      conditionalValuesNode.get(fieldKey).isArray()
-                          ? stream(conditionalValuesNode.get(fieldKey).spliterator(), false)
-                              .map(JsonNode::asText)
-                              .toList()
-                          : List.of(conditionalValuesNode.get(fieldKey).asText());
-
-                  List<String> actualValues =
-                      getFieldValue(teams, assets, assetGroups, conditionalFieldOpt.get(), content);
-                  boolean conditionMet =
-                      actualValues.stream().anyMatch(specificValuesNode::contains);
-
-                  if (!conditionMet) {
-                    continue; // condition not met → skip
-                  }
-                }
-              }
-              Optional<JsonNode> fieldOpt =
-                  contractFields.stream()
-                      .filter(
-                          jsonNode ->
-                              jsonField
-                                  .get(CONTRACT_ELEMENT_CONTENT_KEY)
-                                  .asText()
-                                  .equals(jsonNode.get(CONTRACT_ELEMENT_CONTENT_KEY).asText()))
-                      .findFirst();
-              // If field not exists -> skip
-              if (fieldOpt.isEmpty()) {
-                continue;
-              }
-              if (!isFieldSet(
-                  allTeams,
-                  teams,
-                  assets,
-                  assetGroups,
-                  fieldOpt.get(),
-                  content,
-                  injectContractFields)) {
-                isReady = false;
-              }
-            }
-          }
-        }
-      }
-      if (!isReady) {
-        break;
-      }
-    }
-
-    return isReady;
   }
 
   private static boolean isTextOrTextarea(JsonNode jsonField) {
@@ -342,7 +171,7 @@ public class InjectModelHelper {
     return status.map(InjectStatus::getTrackingSentDate).orElse(null);
   }
 
-  private static boolean isFieldSet(
+  public static boolean isFieldSet(
       final boolean allTeams,
       @NotNull final List<String> teams,
       @NotNull final List<String> assets,
@@ -364,7 +193,6 @@ public class InjectModelHelper {
           isSet = false;
         }
       }
-
       case CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP -> {
         if (assetGroups.isEmpty()) {
           isSet = false;

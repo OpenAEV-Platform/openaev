@@ -25,6 +25,7 @@ public class InjectComposer extends ComposerBase<Inject> {
         Optional.empty();
     private final List<DocumentComposer.Composer> documentComposers = new ArrayList<>();
     private final List<TeamComposer.Composer> teamComposers = new ArrayList<>();
+    private final List<ExerciseComposer.Composer> exerciseComposers = new ArrayList<>();
     private final List<AssetGroupComposer.Composer> assetGroupComposers = new ArrayList<>();
     private final List<InjectExpectationComposer.Composer> expectationComposers = new ArrayList<>();
     private final List<FindingComposer.Composer> findingComposers = new ArrayList<>();
@@ -64,6 +65,12 @@ public class InjectComposer extends ComposerBase<Inject> {
       List<Team> tempTeams = this.inject.getTeams();
       tempTeams.add(teamComposer.get());
       this.inject.setTeams(tempTeams);
+      return this;
+    }
+
+    public Composer withExercise(ExerciseComposer.Composer exerciseComposer) {
+      this.exerciseComposers.add(exerciseComposer);
+      this.inject.setExercise(exerciseComposer.get());
       return this;
     }
 
@@ -142,6 +149,7 @@ public class InjectComposer extends ComposerBase<Inject> {
       endpointComposers.forEach(EndpointComposer.Composer::persist);
       tagComposers.forEach(TagComposer.Composer::persist);
       teamComposers.forEach(TeamComposer.Composer::persist);
+      exerciseComposers.forEach(ExerciseComposer.Composer::persist);
       documentComposers.forEach(DocumentComposer.Composer::persist);
       injectRepository.save(inject);
       injectStatusComposers.ifPresent(InjectStatusComposer.Composer::persist);
@@ -160,6 +168,7 @@ public class InjectComposer extends ComposerBase<Inject> {
       assetGroupComposers.forEach(AssetGroupComposer.Composer::delete);
       injectStatusComposers.ifPresent(InjectStatusComposer.Composer::delete);
       teamComposers.forEach(TeamComposer.Composer::delete);
+      exerciseComposers.forEach(ExerciseComposer.Composer::delete);
       injectorContractComposer.ifPresent(InjectorContractComposer.Composer::delete);
       findingComposers.forEach(FindingComposer.Composer::delete);
       expectationComposers.forEach(InjectExpectationComposer.Composer::delete);

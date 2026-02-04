@@ -24,6 +24,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.inject.service.SimulationInjectService;
 import io.openaev.service.InjectSearchService;
+import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -63,6 +64,7 @@ public class SimulationInjectApi extends RestBehavior {
   private final InjectDuplicateService injectDuplicateService;
   private final InjectStatusService injectStatusService;
   private final SimulationInjectService simulationInjectService;
+  private final InjectMapper injectMapper;
 
   // -- READ --
 
@@ -150,9 +152,14 @@ public class SimulationInjectApi extends RestBehavior {
   }
 
   @GetMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}")
-  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
-  public Inject exerciseInject(@PathVariable String exerciseId, @PathVariable String injectId) {
-    return simulationInjectService.findInjectForSimulation(exerciseId, injectId);
+  @RBAC(
+      resourceId = "#exerciseId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.SIMULATION)
+  public InjectOutput exerciseInject(
+      @PathVariable String exerciseId, @PathVariable String injectId) {
+    Inject inject = injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
+    return injectMapper.toInjectOutput(inject, injectService.runChecks(inject));
   }
 
   @GetMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}/teams")

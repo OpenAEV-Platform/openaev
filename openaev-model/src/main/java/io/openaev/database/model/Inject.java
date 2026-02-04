@@ -373,17 +373,6 @@ public class Inject implements GrantableBase, Injection {
         .orElse(0L);
   }
 
-  @JsonProperty("inject_ready")
-  public boolean isReady() {
-    return InjectModelHelper.isReady(
-        getInjectorContract().orElse(null),
-        getContent(),
-        isAllTeams(),
-        getTeams().stream().map(Team::getId).collect(Collectors.toList()),
-        getAssets().stream().map(Asset::getId).collect(Collectors.toList()),
-        getAssetGroups().stream().map(AssetGroup::getId).collect(Collectors.toList()));
-  }
-
   @JsonIgnore
   public Instant computeInjectDate(Instant source, int speed) {
     return InjectModelHelper.computeInjectDate(source, speed, getDependsDuration(), getExercise());
@@ -488,7 +477,7 @@ public class Inject implements GrantableBase, Injection {
 
   @JsonProperty("inject_type")
   @Queryable(filterable = true, path = "injectorContract.labels", clazz = Map.class)
-  private String getType() {
+  public String getType() {
     return getInjectorContract()
         .map(InjectorContract::getInjector)
         .map(Injector::getType)
