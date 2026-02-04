@@ -345,6 +345,11 @@ public class InjectStatusService {
     throw new IllegalArgumentException(message);
   }
 
+  /**
+   * Delete all injects statuses for a list of injects
+   *
+   * @param injects the list of injects
+   */
   public void deleteAllInjectStatusByInjects(List<Inject> injects) {
     injectStatusRepository.deleteAllById(
         injects.stream()
