@@ -56,7 +56,7 @@ public class Workflow implements Base {
 
   @CreationTimestamp
   @Column(name = "workflow_created_at")
-  @JsonProperty("workflow_id")
+  @JsonProperty("workflow_created_at")
   @Schema(description = "Creation date")
   private Instant workflowCreatedAt;
 
