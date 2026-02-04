@@ -1,6 +1,7 @@
 package io.openaev.database.repository;
 
 import static io.openaev.database.model.DnsResolution.DNS_RESOLUTION_TYPE;
+import static io.openaev.database.model.FileDrop.FILE_DROP_TYPE;
 
 import io.openaev.database.model.Inject;
 import io.openaev.database.raw.RawInject;
@@ -441,6 +442,20 @@ public interface InjectRepository
       nativeQuery = true)
   void deleteAllInjectsWithDnsResolutionContractsByScenarioId(
       @Param("scenarioId") String scenarioId);
+
+  @Modifying
+  @Query(
+      value =
+          "DELETE FROM injects i "
+              + "USING injectors_contracts ic, payloads p "
+              + "WHERE i.inject_injector_contract = ic.injector_contract_id "
+              + "AND ic.injector_contract_payload = p.payload_id "
+              + "AND p.payload_type = '"
+              + FILE_DROP_TYPE
+              + "' "
+              + "AND i.inject_scenario = :scenarioId",
+      nativeQuery = true)
+  void deleteAllInjectsWithFileDropContractsByScenarioId(@Param("scenarioId") String scenarioId);
 
   @Modifying
   @Query(

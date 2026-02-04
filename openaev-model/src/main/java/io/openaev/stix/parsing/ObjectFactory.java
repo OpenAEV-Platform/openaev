@@ -22,6 +22,7 @@ public class ObjectFactory {
     constructors.put(ObjectTypes.SECURITY_COVERAGE, DomainObject::new);
     constructors.put(ObjectTypes.IDENTITY, DomainObject::new);
     constructors.put(ObjectTypes.INDICATOR, DomainObject::new);
+    constructors.put(ObjectTypes.ARTIFACT, DomainObject::new);
     constructors.put(ObjectTypes.DEFAULT, DomainObject::new);
   }
 
