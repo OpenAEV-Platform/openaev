@@ -40,6 +40,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
     exercise_mails_reply_to: [],
     exercise_message_header: '',
     exercise_message_footer: '',
+    exercise_is_chaining: false,
   },
 }) => {
   // Standard hooks
