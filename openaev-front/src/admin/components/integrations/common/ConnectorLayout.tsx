@@ -61,6 +61,11 @@ const ConnectorLayout = () => {
 
   useEffect(() => {
     isXtmComposerIsReachable().then(({ data }) => setIsXtmComposerUp(data));
+
+    setLoading(true);
+    setRelatedIds(undefined);
+    setIsRelatedIdsLoaded(false);
+
     if (!connectorId) {
       setLoading(false);
       return;
