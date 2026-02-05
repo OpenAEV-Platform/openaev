@@ -25,4 +25,4 @@ import io.openaev.rest.inject.form.InjectInput;
     property = "type",
     defaultImpl = InjectInput.class)
 @JsonSubTypes({@JsonSubTypes.Type(value = InjectInput.class, name = "inject")})
-public interface DataStep {}
+public interface DataInputStep {}

@@ -1,7 +1,6 @@
 package io.openaev.api.chaining;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 
@@ -11,6 +10,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.database.repository.InjectorRepository;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
@@ -20,10 +21,14 @@ import io.openaev.service.AssetService;
 import io.openaev.service.TeamService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.StepService;
+import io.openaev.utils.fixtures.AgentFixture;
+import io.openaev.utils.fixtures.InjectorFixture;
 import java.time.Instant;
 import java.util.*;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
@@ -35,12 +40,15 @@ public class InjectExecutionStepTest {
   @Mock private TagService tagService;
   @Mock private DocumentService documentService;
   @Mock private InjectService injectService;
-
+  @Mock private io.openaev.executors.Executor executor;
+  @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private InjectorRepository injectorRepository;
+  InjectExecutionStep injectExecutionStep;
   ObjectMapper mapper = new ObjectMapper();
 
-  @Test
-  public void createTest() throws JsonProcessingException {
-    InjectExecutionStep injectExecutionStep =
+  @BeforeEach
+  void beforeEach() throws Exception {
+    this.injectExecutionStep =
         new InjectExecutionStep(
             injectorContractService,
             userService,
@@ -52,18 +60,69 @@ public class InjectExecutionStepTest {
             null,
             null,
             null,
-            null,
+            executor,
             null);
 
-    doReturn(getInjectorContract()).when(injectorContractService).injectorContract(any());
+    Injector injector = InjectorFixture.createDefaultPayloadInjector();
+    injectorRepository.save(injector);
+
+    InjectorContract injectorContract = getInjectorContract();
+    injectorContract.setInjector(injector);
+    InjectorContract injectorContractSaved = injectorContractRepository.save(injectorContract);
+
+    doReturn(injectorContractSaved).when(injectorContractService).injectorContract(any());
     doReturn(new User()).when(userService).currentUser();
     doReturn(new ArrayList<>()).when(teamService).getTeamsByIds(any());
     doReturn(new ArrayList<>()).when(assetService).assets(any());
     doReturn(new HashSet<>()).when(tagService).tagSet(any());
     doReturn(null).when(documentService).document(any());
     doReturn(false).when(injectService).canApplyTargetType(any(), any());
+    doReturn(new InjectStatus()).when(executor).directExecute(any());
 
-    String jsonStepData =
+    Inject inject = new Inject();
+    inject.setId("INJECT-ID");
+    doReturn(inject).when(injectService).createInject(any());
+
+    Inject injectExecuted = new Inject();
+    injectExecuted.setId("INJECT-ID");
+
+    ExecutionTrace executionTrace = new ExecutionTrace();
+    executionTrace.setStatus(ExecutionTraceStatus.SUCCESS);
+
+    Agent agent = AgentFixture.createDefaultAgentService();
+
+    executionTrace.setAgent(agent);
+    executionTrace.setMessage("{\"test\": \"testValue\"}");
+
+    InjectStatus injectStatus = new InjectStatus();
+    injectStatus.addTrace(executionTrace);
+
+    injectExecuted.setStatus(injectStatus);
+    doReturn(injectExecuted).when(injectService).findInjectOrNull(any());
+  }
+
+  /**
+   * Tests the creation of a step (InjectExecutionAction) from an InjectInput.
+   *
+   * <p>This test verifies that:
+   *
+   * <ul>
+   *   <li>An {@link InjectInput} JSON payload is correctly deserialized
+   *   <li>An Inject step is generated using {@link
+   *       InjectExecutionStep#getInjectAsStepsCreateInput(InjectInput)}
+   *   <li>A MAPPER condition is correctly transformed into step input mapping
+   *   <li>The step template is created with the expected action and status
+   *   <li>The step data contains a valid serialized inject with its injector contract
+   *   <li>The step input correctly references the source step, path, and key
+   * </ul>
+   *
+   * <p>This ensures that an Inject can be converted into a workflow step template with proper input
+   * mapping and metadata.
+   */
+  @Test
+  public void createTest() throws JsonProcessingException {
+
+    String injectInputJson =
         """
                 {
                                                     "type": "inject",
@@ -107,15 +166,23 @@ public class InjectExecutionStepTest {
                                                     "inject_enabled": true
                 }
                 """;
-    InjectInput dataStep = mapper.readValue(jsonStepData, InjectInput.class);
+    InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
     Exercise simulation = new Exercise();
     List<StepsCreateInput.StepCreateInput> steps = new ArrayList<>();
-    steps.add(
-        StepsCreateInput.StepCreateInput.builder()
-            .dataStep(dataStep)
-            .stepAction(StepActionClass.INJECT_EXECUTION)
-            .limitExecution(0)
-            .build());
+    StepsCreateInput.StepCreateInput step =
+        InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+
+    ConditionCreateInput conditionMapper =
+        ConditionCreateInput.builder()
+            .key("ip")
+            .value("output.message.ip")
+            .stepFrom("firstStep")
+            .type(ConditionType.MAPPER)
+            .build();
+    step.setConditions(Collections.singletonList(conditionMapper));
+
+    steps.add(step);
+
     StepsCreateInput newStep =
         StepsCreateInput.builder()
             .steps(steps)
@@ -139,26 +206,29 @@ public class InjectExecutionStepTest {
         "73bfd988-b0bd-4740-bb7e-a6209a538835",
         StepService.getField(
             stepTemplate.getData(), "inject_injector_contract.injector_contract_id"));
+    assertEquals("output.message.ip", StepService.getField(stepTemplate.getInput(), "input.path"));
+    assertEquals("firstStep", StepService.getField(stepTemplate.getInput(), "input.id_step_from"));
+    assertEquals("ip", StepService.getField(stepTemplate.getInput(), "input.key"));
   }
 
+  /**
+   * Tests the transition of a step (InjectExecutionAction) from TEMPLATE to READY (ready state).
+   *
+   * <p>This test verifies that:
+   *
+   * <ul>
+   *   <li>A step template (InjectExecutionAction) can be converted into a READY step
+   *   <li>The input provided at runtime is correctly set on the READY step
+   *   <li>The step is properly associated with a workflow in RUN state
+   * </ul>
+   *
+   * <p>This ensures that a step (InjectExecutionAction) is correctly prepared for execution with
+   * runtime-specific input.
+   */
   @Test
-  public void waitTest() throws JsonProcessingException {
-    InjectExecutionStep injectExecutionStep =
-        new InjectExecutionStep(
-            injectorContractService,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null);
+  public void readyTest() throws JsonProcessingException {
 
-    String stepData =
+    String injectInput =
         """
                 {
                         "type": "inject",
@@ -202,7 +272,7 @@ public class InjectExecutionStepTest {
                         "inject_enabled": true
                       }
                 """;
-    mapper.readValue(stepData, InjectInput.class);
+    mapper.readValue(injectInput, InjectInput.class);
     Exercise simulation = new Exercise();
 
     Workflow workflowTemplate =
@@ -217,7 +287,7 @@ public class InjectExecutionStepTest {
 
     Step stepTemplate =
         Step.builder()
-            .data(stepData)
+            .data(injectInput)
             .stepAction(StepActionClass.INJECT_EXECUTION)
             .limitExecution(1)
             .workflow(workflowTemplate)
@@ -234,32 +304,34 @@ public class InjectExecutionStepTest {
             .workflowCreatedAt(Instant.now())
             .workflowUpdatedAt(Instant.now())
             .build();
-    /// Really usefully ???
 
-    Step stepWait =
+    Step stepReady =
         injectExecutionStep.wait(stepTemplate, "{\"input\" : \"do defined\"}", workflowRun);
+    assertEquals("do defined", StepService.getField(stepReady.getInput(), "input"));
   }
 
-  public void runTest() throws JsonProcessingException {
-    InjectExecutionStep injectExecutionStep =
-        new InjectExecutionStep(
-            injectorContractService,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null);
+  /**
+   * Tests the execution of a step (InjectExecutionAction).
+   *
+   * <p>This test verifies that:
+   *
+   * <ul>
+   *   <li>A READY step can be executed
+   *   <li>The inject is created and executed during the RUN phase
+   *   <li>The inject identifier is correctly injected back into the step data
+   * </ul>
+   *
+   * <p>This ensures that the execution phase of an Inject Execution step properly updates the step
+   * state with runtime execution information.
+   */
+  @Test
+  public void runTest() {
 
     String stepData =
         """
                 {
                         "type": "inject",
+                                "inject_id" : "",
                         "inject_title": "whoami",
                         "inject_description": "",
                         "inject_injector_contract": "73bfd988-b0bd-4740-bb7e-a6209a538835",
@@ -316,6 +388,7 @@ public class InjectExecutionStepTest {
         Step.builder()
             .data(stepData)
             .stepAction(StepActionClass.INJECT_EXECUTION)
+            .status(StepStatus.TEMPLATE)
             .limitExecution(1)
             .workflow(workflowTemplate)
             .createdAt(Instant.now())
@@ -330,15 +403,36 @@ public class InjectExecutionStepTest {
             .simulation(simulation)
             .workflowCreatedAt(Instant.now())
             .workflowUpdatedAt(Instant.now())
+            .workflowTemplate(workflowTemplate)
             .build();
-    /// Really usefully ???
 
     Step stepWait =
         injectExecutionStep.wait(stepTemplate, "{\"input\" : \"do defined\"}", workflowRun);
-    mapper.readValue(
+    stepWait = injectExecutionStep.run(stepWait);
+    assertEquals("INJECT-ID", StepService.getField(stepWait.getData(), "inject_id"));
+  }
+
+  /**
+   * Tests the update phase of an Inject Execution step.
+   *
+   * <p>This test verifies that:
+   *
+   * <ul>
+   *   <li>A RUN step (InjectExecutionAction) can be updated using its inject execution status
+   *   <li>Execution traces are correctly transformed into step output
+   *   <li>The step output contains agent information and execution messages
+   * </ul>
+   *
+   * <p>This ensures that execution results are properly exposed through the step output after an
+   * inject run.
+   */
+  @Test
+  public void updateTest() {
+    String stepData =
         """
                 {
                         "type": "inject",
+                                "inject_id" : "INJECT-ID",
                         "inject_title": "whoami",
                         "inject_description": "",
                         "inject_injector_contract": "73bfd988-b0bd-4740-bb7e-a6209a538835",
@@ -378,19 +472,30 @@ public class InjectExecutionStepTest {
                         "inject_tags": [],
                         "inject_enabled": true
                       }
-                """,
-        InjectInput.class);
-  }
-
-  public void stepInputFromConditionMapperTest() {
-    List<ConditionCreateInput> conditionCreateInputList = new ArrayList<>();
-    ConditionCreateInput conditionCreateInput =
-        ConditionCreateInput.builder()
-            .key("stdout")
-            .value("outputs.message.stdout")
-            .stepFrom("1")
-            .type(ConditionType.MAPPER)
+                        """;
+    Exercise simulation = new Exercise();
+    Workflow workflowRun =
+        Workflow.builder()
+            .status(WorkflowStatus.RUN)
+            .version(0)
+            .isEdited(false)
+            .simulation(simulation)
+            .workflowCreatedAt(Instant.now())
+            .workflowUpdatedAt(Instant.now())
             .build();
+    Step stepRun =
+        Step.builder()
+            .data(stepData)
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .status(StepStatus.RUN)
+            .limitExecution(1)
+            .workflow(workflowRun)
+            .createdAt(Instant.now())
+            .updatedAt(Instant.now())
+            .build();
+    Step runUpdated = injectExecutionStep.update(stepRun);
+    assertNotNull(StepService.getField(runUpdated.getOutput(), "outputs.agent_id"));
+    assertEquals("testValue", StepService.getField(runUpdated.getOutput(), "outputs.message.test"));
   }
 
   private InjectorContract getInjectorContract() throws JsonProcessingException {
