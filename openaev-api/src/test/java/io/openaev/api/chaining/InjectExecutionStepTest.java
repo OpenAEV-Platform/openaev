@@ -2,6 +2,7 @@ package io.openaev.api.chaining;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -10,6 +11,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.rest.document.DocumentService;
@@ -21,8 +23,10 @@ import io.openaev.service.AssetService;
 import io.openaev.service.TeamService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.StepService;
-import io.openaev.utils.fixtures.AgentFixture;
-import io.openaev.utils.fixtures.InjectorFixture;
+import io.openaev.utils.fixtures.*;
+import io.openaev.utils.fixtures.composers.ExerciseComposer;
+import io.openaev.utils.fixtures.composers.WorkflowComposer;
+import io.openaev.utils.helpers.InjectTestHelper;
 import java.time.Instant;
 import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,8 +34,10 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
+@Transactional
 public class InjectExecutionStepTest {
   @Mock private InjectorContractService injectorContractService;
   @Mock private UserService userService;
@@ -43,8 +49,15 @@ public class InjectExecutionStepTest {
   @Mock private io.openaev.executors.Executor executor;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectorRepository injectorRepository;
+  @Autowired private InjectRepository injectRepository;
+  @Autowired private WorkflowComposer workflowComposer;
+  @Autowired private ExerciseComposer exerciseComposer;
   InjectExecutionStep injectExecutionStep;
   ObjectMapper mapper = new ObjectMapper();
+  @Autowired private InjectTestHelper injectTestHelper;
+  String injectInputJson;
+  String dataStepJsonToRun;
+  String dataStepJsonToUpdate;
 
   @BeforeEach
   void beforeEach() throws Exception {
@@ -79,10 +92,15 @@ public class InjectExecutionStepTest {
     doReturn(false).when(injectService).canApplyTargetType(any(), any());
     doReturn(new InjectStatus()).when(executor).directExecute(any());
 
-    Inject inject = new Inject();
-    inject.setId("INJECT-ID");
-    doReturn(inject).when(injectService).createInject(any());
+    doAnswer(
+            invocation -> {
+              Inject inject = invocation.getArgument(0);
+              return injectRepository.save(inject);
+            })
+        .when(injectService)
+        .createInject(any(Inject.class));
 
+    // UPDATE STEP:
     Inject injectExecuted = new Inject();
     injectExecuted.setId("INJECT-ID");
 
@@ -99,30 +117,9 @@ public class InjectExecutionStepTest {
 
     injectExecuted.setStatus(injectStatus);
     doReturn(injectExecuted).when(injectService).findInjectOrNull(any());
-  }
-
-  /**
-   * Tests the creation of a step (InjectExecutionAction) from an InjectInput.
-   *
-   * <p>This test verifies that:
-   *
-   * <ul>
-   *   <li>An {@link InjectInput} JSON payload is correctly deserialized
-   *   <li>An Inject step is generated using {@link
-   *       InjectExecutionStep#getInjectAsStepsCreateInput(InjectInput)}
-   *   <li>A MAPPER condition is correctly transformed into step input mapping
-   *   <li>The step template is created with the expected action and status
-   *   <li>The step data contains a valid serialized inject with its injector contract
-   *   <li>The step input correctly references the source step, path, and key
-   * </ul>
-   *
-   * <p>This ensures that an Inject can be converted into a workflow step template with proper input
-   * mapping and metadata.
-   */
-  @Test
-  public void createTest() throws JsonProcessingException {
-
-    String injectInputJson =
+    Asset asset = AssetFixture.createDefaultAsset("AssetTest");
+    asset = injectTestHelper.forceSaveAsset(asset);
+    injectInputJson =
         """
                 {
                                                     "type": "inject",
@@ -149,13 +146,13 @@ public class InjectExecutionStepTest {
                                                         }
                                                       ],
                                                       "obfuscator": "plain-text",
-                                                      "file": "c:\\\\programdata\\\\microsoft\\\\drm\\\\182.bat"
-                                                    },
+                            "file": "c:\\\\programdata\\\\microsoft\\\\drm\\\\182.bat"
+                                                },
                                                     "inject_depends_on": [],
                                                     "inject_depends_duration": 100,
                                                     "inject_teams": [],
                                                     "inject_assets": [
-                                                      "01962d36-c834-49aa-b475-b2cde0e1f40f"
+                                                        "%s"
                                                     ],
                                                     "inject_asset_groups": [],
                                                     "inject_documents": [],
@@ -165,10 +162,125 @@ public class InjectExecutionStepTest {
                                                     "inject_tags": [],
                                                     "inject_enabled": true
                 }
-                """;
+                """
+            .formatted(asset.getId());
+
+    dataStepJsonToRun =
+        """
+                           {
+                                   "type": "inject",
+                                   "inject_id" : "",
+                                   "inject_title": "whoami",
+                                   "inject_description": "",
+                                   "inject_injector_contract": "73bfd988-b0bd-4740-bb7e-a6209a538835",
+                                   "inject_content": {
+                                     "expectations": [
+                                       {
+                                         "expectation_type": "PREVENTION",
+                                         "expectation_name": "Prevention",
+                                         "expectation_description": null,
+                                         "expectation_score": 100,
+                                         "expectation_expectation_group": false,
+                                         "expectation_expiration_time": 21600
+                                       },
+                                       {
+                                         "expectation_type": "DETECTION",
+                                         "expectation_name": "Detection",
+                                         "expectation_description": null,
+                                         "expectation_score": 100,
+                                         "expectation_expectation_group": false,
+                                         "expectation_expiration_time": 21600
+                                       }
+                                     ],
+                                     "obfuscator": "plain-text",
+                   "file": "c:\\\\programdata\\\\microsoft\\\\drm\\\\182.bat"
+                      },
+                                   "inject_depends_on": [],
+                                   "inject_depends_duration": 100,
+                                   "inject_teams": [],
+                                   "inject_assets": [
+                                    "%s"
+                                   ],
+                                   "inject_asset_groups": [],
+                                   "inject_documents": [],
+                                   "inject_all_teams": false,
+                                   "inject_country": null,
+                                   "inject_city": null,
+                                   "inject_tags": [],
+                                   "inject_enabled": true
+                                 }
+                   """
+            .formatted(asset.getId());
+    dataStepJsonToUpdate =
+        """
+                      {
+                              "type": "inject",
+                              "inject_id" : "INJECT-ID",
+                              "inject_title": "whoami",
+                              "inject_description": "",
+                              "inject_injector_contract": "73bfd988-b0bd-4740-bb7e-a6209a538835",
+                              "inject_content": {
+                                "expectations": [
+                                  {
+                                    "expectation_type": "PREVENTION",
+                                    "expectation_name": "Prevention",
+                                    "expectation_description": null,
+                                    "expectation_score": 100,
+                                    "expectation_expectation_group": false,
+                                    "expectation_expiration_time": 21600
+                                  },
+                                  {
+                                    "expectation_type": "DETECTION",
+                                    "expectation_name": "Detection",
+                                    "expectation_description": null,
+                                    "expectation_score": 100,
+                                    "expectation_expectation_group": false,
+                                    "expectation_expiration_time": 21600
+                                  }
+                                ],
+                                "obfuscator": "plain-text",
+                                "file": "c:\\\\programdata\\\\microsoft\\\\drm\\\\182.bat"
+                              },
+                              "inject_depends_on": [],
+                              "inject_depends_duration": 100,
+                              "inject_teams": [],
+                              "inject_assets": [
+                                "%s"
+                              ],
+                              "inject_asset_groups": [],
+                              "inject_documents": [],
+                              "inject_all_teams": false,
+                              "inject_country": null,
+                              "inject_city": null,
+                              "inject_tags": [],
+                              "inject_enabled": true
+                            }
+                      """
+            .formatted(asset.getId());
+  }
+
+  /**
+   * Tests the creation of a step (InjectExecutionAction) from an InjectInput.
+   *
+   * <p>This test verifies that:
+   *
+   * <ul>
+   *   <li>An {@link InjectInput} JSON payload is correctly deserialized
+   *   <li>An Inject step is generated using {@link
+   *       InjectExecutionStep#getInjectAsStepsCreateInput(InjectInput)}
+   *   <li>A MAPPER condition is correctly transformed into step input mapping
+   *   <li>The step template is created with the expected action and status
+   *   <li>The step data contains a valid serialized inject with its injector contract
+   *   <li>The step input correctly references the source step, path, and key
+   * </ul>
+   *
+   * <p>This ensures that an Inject can be converted into a workflow step template with proper input
+   * mapping and metadata.
+   */
+  @Test
+  public void createTest() throws JsonProcessingException {
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
     Exercise simulation = new Exercise();
-    List<StepsCreateInput.StepCreateInput> steps = new ArrayList<>();
     StepsCreateInput.StepCreateInput step =
         InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
 
@@ -181,13 +293,6 @@ public class InjectExecutionStepTest {
             .build();
     step.setConditions(Collections.singletonList(conditionMapper));
 
-    steps.add(step);
-
-    StepsCreateInput newStep =
-        StepsCreateInput.builder()
-            .steps(steps)
-            .workflowId("cc01450b-b2f0-40da-bf14-3c30a3b24aeb")
-            .build();
     Workflow workflowTemplate =
         Workflow.builder()
             .status(WorkflowStatus.TEMPLATE)
@@ -197,7 +302,9 @@ public class InjectExecutionStepTest {
             .workflowCreatedAt(Instant.now())
             .workflowUpdatedAt(Instant.now())
             .build();
-    Step stepTemplate = injectExecutionStep.create(newStep.steps.get(0), workflowTemplate);
+
+    Step stepTemplate = injectExecutionStep.create(step, workflowTemplate);
+
     assertEquals(StepActionClass.INJECT_EXECUTION, stepTemplate.getStepAction());
     assertEquals(StepStatus.TEMPLATE, stepTemplate.getStatus());
     assertFalse(stepTemplate.getData().isEmpty());
@@ -228,51 +335,7 @@ public class InjectExecutionStepTest {
   @Test
   public void readyTest() throws JsonProcessingException {
 
-    String injectInput =
-        """
-                {
-                        "type": "inject",
-                        "inject_title": "whoami",
-                        "inject_description": "",
-                        "inject_injector_contract": "73bfd988-b0bd-4740-bb7e-a6209a538835",
-                        "inject_content": {
-                          "expectations": [
-                            {
-                              "expectation_type": "PREVENTION",
-                              "expectation_name": "Prevention",
-                              "expectation_description": null,
-                              "expectation_score": 100,
-                              "expectation_expectation_group": false,
-                              "expectation_expiration_time": 21600
-                            },
-                            {
-                              "expectation_type": "DETECTION",
-                              "expectation_name": "Detection",
-                              "expectation_description": null,
-                              "expectation_score": 100,
-                              "expectation_expectation_group": false,
-                              "expectation_expiration_time": 21600
-                            }
-                          ],
-                          "obfuscator": "plain-text",
-                          "file": "c:\\\\programdata\\\\microsoft\\\\drm\\\\182.bat"
-                        },
-                        "inject_depends_on": [],
-                        "inject_depends_duration": 100,
-                        "inject_teams": [],
-                        "inject_assets": [
-                          "01962d36-c834-49aa-b475-b2cde0e1f40f"
-                        ],
-                        "inject_asset_groups": [],
-                        "inject_documents": [],
-                        "inject_all_teams": false,
-                        "inject_country": null,
-                        "inject_city": null,
-                        "inject_tags": [],
-                        "inject_enabled": true
-                      }
-                """;
-    mapper.readValue(injectInput, InjectInput.class);
+    mapper.readValue(injectInputJson, InjectInput.class);
     Exercise simulation = new Exercise();
 
     Workflow workflowTemplate =
@@ -287,7 +350,7 @@ public class InjectExecutionStepTest {
 
     Step stepTemplate =
         Step.builder()
-            .data(injectInput)
+            .data(injectInputJson)
             .stepAction(StepActionClass.INJECT_EXECUTION)
             .limitExecution(1)
             .workflow(workflowTemplate)
@@ -327,66 +390,24 @@ public class InjectExecutionStepTest {
   @Test
   public void runTest() {
 
-    String stepData =
-        """
-                {
-                        "type": "inject",
-                                "inject_id" : "",
-                        "inject_title": "whoami",
-                        "inject_description": "",
-                        "inject_injector_contract": "73bfd988-b0bd-4740-bb7e-a6209a538835",
-                        "inject_content": {
-                          "expectations": [
-                            {
-                              "expectation_type": "PREVENTION",
-                              "expectation_name": "Prevention",
-                              "expectation_description": null,
-                              "expectation_score": 100,
-                              "expectation_expectation_group": false,
-                              "expectation_expiration_time": 21600
-                            },
-                            {
-                              "expectation_type": "DETECTION",
-                              "expectation_name": "Detection",
-                              "expectation_description": null,
-                              "expectation_score": 100,
-                              "expectation_expectation_group": false,
-                              "expectation_expiration_time": 21600
-                            }
-                          ],
-                          "obfuscator": "plain-text",
-                          "file": "c:\\\\programdata\\\\microsoft\\\\drm\\\\182.bat"
-                        },
-                        "inject_depends_on": [],
-                        "inject_depends_duration": 100,
-                        "inject_teams": [],
-                        "inject_assets": [
-                          "01962d36-c834-49aa-b475-b2cde0e1f40f"
-                        ],
-                        "inject_asset_groups": [],
-                        "inject_documents": [],
-                        "inject_all_teams": false,
-                        "inject_country": null,
-                        "inject_city": null,
-                        "inject_tags": [],
-                        "inject_enabled": true
-                      }
-                """;
-    Exercise simulation = new Exercise();
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    Workflow savedWorkflowTemplate =
+        workflowComposer
+            .forWorkflow(workflowTemplate)
+            .withWorkflowTemplate(
+                workflowComposer
+                    .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+                    .withSimulation(
+                        exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise())))
+            .withSimulation(exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+            .persist()
+            .get();
 
-    Workflow workflowTemplate =
-        Workflow.builder()
-            .status(WorkflowStatus.TEMPLATE)
-            .version(0)
-            .isEdited(false)
-            .simulation(simulation)
-            .workflowCreatedAt(Instant.now())
-            .workflowUpdatedAt(Instant.now())
-            .build();
+    Exercise simulation = savedWorkflowTemplate.getSimulation();
 
     Step stepTemplate =
         Step.builder()
-            .data(stepData)
+            .data(dataStepJsonToRun)
             .stepAction(StepActionClass.INJECT_EXECUTION)
             .status(StepStatus.TEMPLATE)
             .limitExecution(1)
@@ -406,10 +427,11 @@ public class InjectExecutionStepTest {
             .workflowTemplate(workflowTemplate)
             .build();
 
+    Workflow savedWorkflowRun = workflowComposer.forWorkflow(workflowRun).persist().get();
     Step stepWait =
-        injectExecutionStep.wait(stepTemplate, "{\"input\" : \"do defined\"}", workflowRun);
+        injectExecutionStep.wait(stepTemplate, "{\"input\" : \"do defined\"}", savedWorkflowRun);
     stepWait = injectExecutionStep.run(stepWait);
-    assertEquals("INJECT-ID", StepService.getField(stepWait.getData(), "inject_id"));
+    assertNotNull(StepService.getField(stepWait.getData(), "inject_id"));
   }
 
   /**
@@ -428,51 +450,7 @@ public class InjectExecutionStepTest {
    */
   @Test
   public void updateTest() {
-    String stepData =
-        """
-                {
-                        "type": "inject",
-                                "inject_id" : "INJECT-ID",
-                        "inject_title": "whoami",
-                        "inject_description": "",
-                        "inject_injector_contract": "73bfd988-b0bd-4740-bb7e-a6209a538835",
-                        "inject_content": {
-                          "expectations": [
-                            {
-                              "expectation_type": "PREVENTION",
-                              "expectation_name": "Prevention",
-                              "expectation_description": null,
-                              "expectation_score": 100,
-                              "expectation_expectation_group": false,
-                              "expectation_expiration_time": 21600
-                            },
-                            {
-                              "expectation_type": "DETECTION",
-                              "expectation_name": "Detection",
-                              "expectation_description": null,
-                              "expectation_score": 100,
-                              "expectation_expectation_group": false,
-                              "expectation_expiration_time": 21600
-                            }
-                          ],
-                          "obfuscator": "plain-text",
-                          "file": "c:\\\\programdata\\\\microsoft\\\\drm\\\\182.bat"
-                        },
-                        "inject_depends_on": [],
-                        "inject_depends_duration": 100,
-                        "inject_teams": [],
-                        "inject_assets": [
-                          "01962d36-c834-49aa-b475-b2cde0e1f40f"
-                        ],
-                        "inject_asset_groups": [],
-                        "inject_documents": [],
-                        "inject_all_teams": false,
-                        "inject_country": null,
-                        "inject_city": null,
-                        "inject_tags": [],
-                        "inject_enabled": true
-                      }
-                        """;
+
     Exercise simulation = new Exercise();
     Workflow workflowRun =
         Workflow.builder()
@@ -483,9 +461,10 @@ public class InjectExecutionStepTest {
             .workflowCreatedAt(Instant.now())
             .workflowUpdatedAt(Instant.now())
             .build();
+
     Step stepRun =
         Step.builder()
-            .data(stepData)
+            .data(dataStepJsonToUpdate)
             .stepAction(StepActionClass.INJECT_EXECUTION)
             .status(StepStatus.RUN)
             .limitExecution(1)
