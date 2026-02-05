@@ -70,6 +70,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
         exercise_message_header: z.string().optional(),
         exercise_message_footer: z.string().optional(),
         exercise_custom_dashboard: z.string().optional(),
+        exercise_is_chaining: z.boolean().optional(),
       }),
     ),
     defaultValues: initialValues,
