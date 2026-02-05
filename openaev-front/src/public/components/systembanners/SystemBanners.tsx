@@ -4,7 +4,7 @@ import { makeStyles } from 'tss-react/mui';
 import { useFormatter } from '../../../components/i18n';
 import { type PlatformSettings } from '../../../utils/api-types';
 import { isEmptyField, recordEntries, recordKeys } from '../../../utils/utils';
-import { computeBanners } from './utils';
+import { type BannerMessage } from './utils';
 
 /* eslint-disable */
 /* Avoid auto-lint removal using --fix with false positive finding of: */
@@ -50,7 +50,7 @@ const SystemBanners = (settings: { settings: PlatformSettings }) => {
   // Standard hooks
   const { t } = useFormatter();
   const { classes } = useStyles();
-  const bannerLevel = computeBanners(settings.settings);
+  const bannerLevel = settings.settings.platform_banner_by_level as BannerMessage;
   let numberOfElements = 0;
   if (bannerLevel !== undefined) {
     for (const currentBannerLevel of recordEntries(bannerLevel)) {

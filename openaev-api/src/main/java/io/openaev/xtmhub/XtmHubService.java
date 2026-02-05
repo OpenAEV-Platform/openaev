@@ -89,6 +89,13 @@ public class XtmHubService {
     return new ConnectivityCheckResult(status, lastCheck);
   }
 
+  public Boolean contactUs(String message) {
+    PlatformSettings settings = platformSettingsService.findSettings();
+    String token = settings.getXtmHubToken();
+    String platformId = settings.getPlatformId();
+    return xtmHubClient.contactUs(message, token, platformId);
+  }
+
   private LocalDateTime parseLastConnectivityCheck(PlatformSettings settings) {
     String lastCheckStr = settings.getXtmHubLastConnectivityCheck();
     return lastCheckStr != null ? LocalDateTime.parse(lastCheckStr) : LocalDateTime.now();
