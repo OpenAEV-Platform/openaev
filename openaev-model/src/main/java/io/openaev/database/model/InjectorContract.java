@@ -6,6 +6,7 @@ import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
@@ -13,6 +14,7 @@ import io.hypersistence.utils.hibernate.type.basic.PostgreSQLHStoreType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.converter.ContentConverter;
+import io.openaev.helper.MonoIdDeserializerHelper;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
@@ -58,6 +60,10 @@ public class InjectorContract implements Base {
   @JsonProperty("injector_contract_manual")
   private Boolean manual;
 
+    @JsonProperty("injector_contract_manual")
+    public boolean getManualEffective() {
+        return Boolean.TRUE.equals(manual);
+    }
   @Column(name = "injector_contract_content")
   @JsonProperty("injector_contract_content")
   @NotBlank
@@ -71,16 +77,29 @@ public class InjectorContract implements Base {
   @JsonProperty("injector_contract_custom")
   private Boolean custom = false;
 
+    @JsonProperty("injector_contract_custom")
+    public boolean getCustomEffective() {
+        return Boolean.TRUE.equals(custom);
+    }
   @Column(name = "injector_contract_needs_executor")
   @JsonProperty("injector_contract_needs_executor")
   private Boolean needsExecutor = false;
 
+    @JsonProperty("injector_contract_needs_executor")
+    public boolean getNeedsExecutorEffective() {
+        return Boolean.TRUE.equals(needsExecutor);
+    }
   @Type(StringArrayType.class)
   @Enumerated(EnumType.STRING)
   @Column(name = "injector_contract_platforms", columnDefinition = "text[]")
   @JsonProperty("injector_contract_platforms")
   @Queryable(filterable = true)
   private Endpoint.PLATFORM_TYPE[] platforms = new Endpoint.PLATFORM_TYPE[0];
+
+    @JsonProperty("injector_contract_platforms")
+    public Endpoint.PLATFORM_TYPE[] getInjectorContractPlatformEffective() {
+        return platforms;
+    }
 
   @Queryable(filterable = true, dynamicValues = true, path = "payload.executionArch")
   @JsonProperty("injector_contract_arch")
@@ -111,6 +130,7 @@ public class InjectorContract implements Base {
   @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "injector_id")
   @JsonSerialize(using = MonoIdSerializer.class)
+    @JsonDeserialize(using = MonoIdDeserializerHelper.class)
   @JsonProperty("injector_contract_injector")
   @Queryable(filterable = true, dynamicValues = true)
   @NotNull
@@ -124,6 +144,7 @@ public class InjectorContract implements Base {
       joinColumns = @JoinColumn(name = "injector_contract_id"),
       inverseJoinColumns = @JoinColumn(name = "attack_pattern_id"))
   @JsonSerialize(using = MultiIdListSerializer.class)
+    @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   @JsonProperty("injector_contract_attack_patterns")
   @Queryable(searchable = true, filterable = true, path = "attackPatterns.externalId")
   private List<AttackPattern> attackPatterns = new ArrayList<>();
@@ -159,6 +180,7 @@ public class InjectorContract implements Base {
       joinColumns = @JoinColumn(name = "injector_contract_id"),
       inverseJoinColumns = @JoinColumn(name = "vulnerability_id"))
   @JsonSerialize(using = MultiIdSetSerializer.class)
+    @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   @JsonProperty("injector_contract_vulnerabilities")
   @Queryable(searchable = true, filterable = true, path = "vulnerabilities.externalId")
   private Set<Vulnerability> vulnerabilities = new HashSet<>();
@@ -174,11 +196,17 @@ public class InjectorContract implements Base {
   @Queryable(filterable = true)
   private boolean isAtomicTesting;
 
+    @JsonProperty("injector_contract_atomic_testing")
+    public boolean getAtomicTestingEffective() {
+        return isAtomicTesting;
+    }
   @Column(name = "injector_contract_import_available")
   @JsonProperty("injector_contract_import_available")
   @Queryable(filterable = true)
   private boolean isImportAvailable;
 
+    @JsonProperty("injector_contract_import_available")
+    public boolean getImportAvailableEffective() {return isImportAvailable;}
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
   private final ResourceType resourceType = ResourceType.INJECTOR_CONTRACT;

@@ -13,14 +13,14 @@ import java.util.Collection;
 import org.springframework.stereotype.Component;
 
 @Component
-public class MonoIdSerializerHelper<T extends Base> extends JsonDeserializer<T>
+public class MonoIdDeserializerHelper<T extends Base> extends JsonDeserializer<T>
     implements ContextualDeserializer {
 
   private Class<? extends Base> entityClass;
 
-  public MonoIdSerializerHelper() {}
+  public MonoIdDeserializerHelper() {}
 
-  private MonoIdSerializerHelper(Class<? extends Base> entityClass) {
+  private MonoIdDeserializerHelper(Class<? extends Base> entityClass) {
     this.entityClass = entityClass;
   }
 
@@ -44,7 +44,7 @@ public class MonoIdSerializerHelper<T extends Base> extends JsonDeserializer<T>
       throw new IllegalArgumentException("MonoIdSerializerHelper cannot handle type: " + type);
     }
 
-    return new MonoIdSerializerHelper<>(clazz);
+    return new MonoIdDeserializerHelper<>(clazz);
   }
 
   @Override
