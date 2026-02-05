@@ -258,12 +258,12 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.5.25</version>
+            <version>1.5.27</version>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-core</artifactId>
-            <version>1.5.25</version>
+            <version>1.5.27</version>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback.contrib</groupId>
