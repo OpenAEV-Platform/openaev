@@ -2,16 +2,31 @@ package io.openaev.utils;
 
 import static io.openaev.utils.constants.StixConstants.*;
 
+import io.openaev.database.model.Document;
 import io.openaev.database.model.StixRefToExternalRef;
+import io.openaev.database.model.Tag;
+import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.document.form.DocumentCreateInput;
+import io.openaev.rest.tag.TagService;
+import io.openaev.rest.tag.form.TagCreateInput;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.objects.ObjectBase;
 import io.openaev.stix.objects.constants.CommonProperties;
 import io.openaev.stix.objects.constants.ExtendedProperties;
 import io.openaev.stix.objects.constants.ObjectTypes;
 import io.openaev.stix.types.Dictionary;
+
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import jakarta.validation.constraints.NotBlank;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.coyote.BadRequestException;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 /**
  * Utility class for processing security coverage data from STIX bundles.
@@ -22,16 +37,23 @@ import org.apache.coyote.BadRequestException;
  * <p>Security coverage objects represent the mapping between security controls and attack
  * techniques, used for evaluating defensive capabilities.
  *
- * <p>This is a utility class and cannot be instantiated.
- *
  * @see io.openaev.stix.objects.Bundle
  * @see io.openaev.database.model.StixRefToExternalRef
  */
+@Slf4j
+@Component
+@RequiredArgsConstructor
 public class SecurityCoverageUtils {
 
   private static final String DOMAIN_NAME = "Domain-Name";
+  private static final String ARTIFACT = "Artifact";
+    private final TagService tagService;
 
-  private SecurityCoverageUtils() {}
+    @NotBlank
+    @Value("${openaev.xtm.opencti.url:#{null}}")
+    private String octiUrl;
+
+  private final DocumentService documentService;
 
   /**
    * Extracts and validates the {@code x-security-coverage} object from a STIX bundle.
@@ -43,7 +65,7 @@ public class SecurityCoverageUtils {
    * @return the extracted {@code x-security-coverage} object
    * @throws BadRequestException if the bundle does not contain exactly one such object
    */
-  public static ObjectBase extractAndValidateCoverage(Bundle bundle) throws BadRequestException {
+  public ObjectBase extractAndValidateCoverage(Bundle bundle) throws BadRequestException {
     List<ObjectBase> coverages = bundle.findByType(ObjectTypes.SECURITY_COVERAGE);
     if (coverages.size() != 1) {
       throw new BadRequestException("STIX bundle must contain exactly one security-coverage");
@@ -60,47 +82,88 @@ public class SecurityCoverageUtils {
    * @param objects the list of STIX objects to scan
    * @return a set of {@link StixRefToExternalRef} mappings between STIX and MITRE IDs
    */
-  public static Set<StixRefToExternalRef> extractObjectReferences(List<ObjectBase> objects) {
+  public Set<StixRefToExternalRef> extractObjectReferences(List<ObjectBase> objects) {
     Set<StixRefToExternalRef> stixToRef = new HashSet<>();
 
     for (ObjectBase obj : objects) {
       String stixType = (String) obj.getProperty(STIX_TYPE).getValue();
-      String refId = null;
 
       if (ObjectTypes.ATTACK_PATTERN.toString().equals(stixType)) {
         if (obj.hasExtension(ExtendedProperties.MITRE_EXTENSION_DEFINITION)) {
           Dictionary extensionObj =
               (Dictionary) obj.getExtension(ExtendedProperties.MITRE_EXTENSION_DEFINITION);
           if (extensionObj.has(CommonProperties.ID.toString())) {
-            refId = (String) extensionObj.get(CommonProperties.ID.toString()).getValue();
+            manageAndAddStixRefToExternalRefs(
+                stixToRef,
+                obj,
+                (String) extensionObj.get(CommonProperties.ID.toString()).getValue());
+            continue;
           }
         }
       }
 
-      boolean isIndicator = false;
-      if (ObjectTypes.INDICATOR.toString().equals(stixType)) {
-        if (obj.hasExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION)) {
-          Dictionary extensionObj =
-              (Dictionary) obj.getExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION);
-          List<Dictionary> observables =
-              obj.getExtensionObservables(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION);
-          if (extensionObj.has(CommonProperties.ID.toString()) && hasDomainNameType(observables)) {
-            refId = getDomainNameValue(observables);
-          }
-          isIndicator = true;
+      if (ObjectTypes.INDICATOR.toString().equals(stixType)
+          && obj.hasExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION)) {
+        Dictionary extensionObj =
+            (Dictionary) obj.getExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION);
+        List<Dictionary> observables =
+            obj.getExtensionObservables(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION);
+        if (extensionObj.has(CommonProperties.ID.toString()) && hasDomainNameType(observables)) {
+          manageAndAddStixRefToExternalRefs(stixToRef, obj, getDomainNameValue(observables));
+          continue;
         }
       }
 
-      if (obj.hasProperty(STIX_NAME) && StringUtils.isBlank(refId) && !isIndicator) {
-        refId = (String) obj.getProperty(STIX_NAME).getValue();
-      }
+      if (ObjectTypes.ARTIFACT.toString().equals(stixType)
+          && obj.hasExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION)) {
+        Dictionary extensionObj =
+            (Dictionary) obj.getExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION);
+        if (ARTIFACT.equals(extensionObj.get(CommonProperties.TYPE.toString()))
+            && extensionObj.has(CommonProperties.FILES.toString())) {
 
-      if (!StringUtils.isBlank(refId)) {
-        String stixId = (String) obj.getProperty(CommonProperties.ID).getValue();
-        if (stixId != null) {
-          stixToRef.add(new StixRefToExternalRef(stixId, refId));
+            TagCreateInput tagCreateInput = new TagCreateInput();
+            tagCreateInput.setName(Tag.OPENCTI_TAG_NAME);
+            Tag openCtiTag = tagService.upsertTag(tagCreateInput);
+            String openCitTagId = openCtiTag.getId();
+
+          ((Collection<Dictionary>) extensionObj.get(CommonProperties.FILES.toString()))
+              .stream()
+                  .filter(
+                      file ->
+                          file.has(CommonProperties.NAME.toString())
+                              && file.has(CommonProperties.URI.toString())
+                              && file.has(CommonProperties.MIME_TYPE.toString()))
+                  .forEach(file -> {
+                      String fileName = (String) file.get(CommonProperties.NAME.toString()).getValue();
+                      String fileUri = (String) file.get(CommonProperties.URI.toString()).getValue();
+                      String fileMymeType = (String) file.get(CommonProperties.MIME_TYPE.toString()).getValue();
+
+                      try {
+                          URL url = new URL(octiUrl + fileUri);
+                          HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                          connection.setRequestMethod("GET");
+                          connection.setConnectTimeout(5000);
+                          connection.setReadTimeout(5000);
+
+                          int responseCode = connection.getResponseCode();
+                          if (responseCode == HttpURLConnection.HTTP_OK) {
+                              DocumentCreateInput documentCreateInput = new DocumentCreateInput();
+                              documentCreateInput.setDescription(fileName);
+                              documentCreateInput.setTagIds(new ArrayList<>(Set.of(openCitTagId)));
+
+                               Document document = documentService.upsert(fileName, connection.getInputStream(), connection.getContentLengthLong(), fileMymeType, documentCreateInput);
+                              manageAndAddStixRefToExternalRefs(stixToRef, obj, document.getTarget());
+                          } else {
+                              throw new Exception("Erreur HTTP: " + responseCode);
+                          }
+                      } catch (Exception e) {
+                        log.error("Erreur HTTP: " + e.getMessage());
+                      }
+                  });
         }
       }
+
+      manageAndAddStixRefToExternalRefs(stixToRef, obj, null);
     }
 
     return stixToRef;
@@ -115,13 +178,27 @@ public class SecurityCoverageUtils {
    * @param objectRefs the set of STIX-to-external reference mappings
    * @return a set of external reference IDs
    */
-  public static Set<String> getExternalIds(Set<StixRefToExternalRef> objectRefs) {
+  public Set<String> getExternalIds(Set<StixRefToExternalRef> objectRefs) {
     return objectRefs.stream()
         .map(StixRefToExternalRef::getExternalRef)
         .collect(Collectors.toSet());
   }
 
-  private static boolean hasDomainNameType(List<Dictionary> observables) {
+  private void manageAndAddStixRefToExternalRefs(
+      Set<StixRefToExternalRef> stixToRef, ObjectBase obj, String refId) {
+    if (obj.hasProperty(STIX_NAME) && StringUtils.isBlank(refId)) {
+      refId = (String) obj.getProperty(STIX_NAME).getValue();
+    }
+
+    if (!StringUtils.isBlank(refId)) {
+      String stixId = (String) obj.getProperty(CommonProperties.ID).getValue();
+      if (stixId != null) {
+        stixToRef.add(new StixRefToExternalRef(stixId, refId));
+      }
+    }
+  }
+
+  private boolean hasDomainNameType(List<Dictionary> observables) {
     if (observables == null || observables.isEmpty()) {
       return false;
     }
@@ -132,7 +209,7 @@ public class SecurityCoverageUtils {
                 DOMAIN_NAME.equals(observable.get(CommonProperties.TYPE.toString()).getValue()));
   }
 
-  private static String getDomainNameValue(List<Dictionary> observables) {
+  private String getDomainNameValue(List<Dictionary> observables) {
     if (!hasDomainNameType(observables)) {
       return null;
     }

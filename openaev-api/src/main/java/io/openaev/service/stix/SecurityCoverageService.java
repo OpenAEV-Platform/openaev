@@ -3,8 +3,6 @@ package io.openaev.service.stix;
 import static io.openaev.helper.CryptoHelper.md5Hex;
 import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY;
 import static io.openaev.stix.objects.constants.CommonProperties.MODIFIED;
-import static io.openaev.utils.SecurityCoverageUtils.extractAndValidateCoverage;
-import static io.openaev.utils.SecurityCoverageUtils.extractObjectReferences;
 import static io.openaev.utils.constants.StixConstants.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -43,6 +41,7 @@ import io.openaev.stix.types.Boolean;
 import io.openaev.stix.types.Dictionary;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.ResultUtils;
+import io.openaev.utils.SecurityCoverageUtils;
 import io.openaev.utils.StringUtils;
 import io.openaev.utils.time.TimeUtils;
 import jakarta.annotation.Resource;
@@ -89,6 +88,8 @@ public class SecurityCoverageService {
 
   private final PayloadRepository payloadRepository;
 
+  private final SecurityCoverageUtils securityCoverageUtils;
+
   /**
    * Parses a STIX JSON string, validates it, and delegates to create and persist a
    * SecurityCoverage.
@@ -105,7 +106,7 @@ public class SecurityCoverageService {
     JsonNode root = objectMapper.readTree(stixJson);
     String stixJsonHash = md5Hex(stixJson);
     Bundle bundle = stixParser.parseBundle(root.toString());
-    ObjectBase stixCoverageObj = extractAndValidateCoverage(bundle);
+    ObjectBase stixCoverageObj = securityCoverageUtils.extractAndValidateCoverage(bundle);
     String externalId = stixCoverageObj.getRequiredProperty(CommonProperties.ID.toString());
 
     return buildSecurityCoverageFromStix(stixCoverageObj, bundle, externalId, stixJsonHash);
@@ -178,15 +179,21 @@ public class SecurityCoverageService {
 
     // Extract Attack Patterns
     securityCoverage.setAttackPatternRefs(
-        extractObjectReferences(bundle.findByType(ObjectTypes.ATTACK_PATTERN)));
+        securityCoverageUtils.extractObjectReferences(
+            bundle.findByType(ObjectTypes.ATTACK_PATTERN)));
 
     // Extract vulnerabilities
     securityCoverage.setVulnerabilitiesRefs(
-        extractObjectReferences(bundle.findByType(ObjectTypes.VULNERABILITY)));
+        securityCoverageUtils.extractObjectReferences(
+            bundle.findByType(ObjectTypes.VULNERABILITY)));
 
     // Extract indicators
     securityCoverage.setIndicatorsRefs(
-        extractObjectReferences(bundle.findByType(ObjectTypes.INDICATOR)));
+        securityCoverageUtils.extractObjectReferences(bundle.findByType(ObjectTypes.INDICATOR)));
+
+    // Extract artifacts
+    securityCoverage.setArtifactsRefs(
+        securityCoverageUtils.extractObjectReferences(bundle.findByType(ObjectTypes.ARTIFACT)));
 
     // Default Fields
     String scheduling = stixCoverageObj.getOptionalProperty(STIX_PERIODICITY, "");

@@ -4,7 +4,6 @@ import static io.openaev.database.model.Tag.OPENCTI_TAG_NAME;
 import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY;
 import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE;
 import static io.openaev.utils.AssetUtils.extractPlatformArchPairs;
-import static io.openaev.utils.SecurityCoverageUtils.getExternalIds;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
@@ -18,6 +17,7 @@ import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.AssetGroupService;
+import io.openaev.utils.SecurityCoverageUtils;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -51,6 +51,8 @@ public class SecurityCoverageInjectService {
   private final InjectRepository injectRepository;
   private final InjectorContractRepository injectorContractRepository;
   private final TagService tagService;
+
+  private final SecurityCoverageUtils securityCoverageUtils;
 
   /**
    * Creates and manages injects for the given scenario based on the associated security coverage.
@@ -209,7 +211,8 @@ public class SecurityCoverageInjectService {
 
     // 2. Fetch internal Ids for Vulnerabilities
     Set<Vulnerability> requiredVulnerabilities =
-        vulnerabilityService.getVulnerabilitiesByExternalIds(getExternalIds(vulnerabilityRefs));
+        vulnerabilityService.getVulnerabilitiesByExternalIds(
+            securityCoverageUtils.getExternalIds(vulnerabilityRefs));
 
     // 3. Create placeholders for vulnerabilities
     List<String> foundVulnerabilities =
