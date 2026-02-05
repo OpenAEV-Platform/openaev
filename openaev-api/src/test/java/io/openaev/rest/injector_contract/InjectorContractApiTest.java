@@ -23,6 +23,7 @@ import io.openaev.database.repository.DomainRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.injector_contract.form.InjectorContractAddInput;
+import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateInput;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateMappingInput;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
@@ -47,6 +48,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import net.javacrumbs.jsonunit.core.Option;
 import org.apache.http.HttpStatus;
@@ -305,7 +307,10 @@ public class InjectorContractApiTest extends IntegrationTest {
         input.setContent("{\"fields\":[], \"arbitrary_field\": \"test\"}");
         input.setVulnerabilityIds(List.of(vulnWrapper.get().getId()));
         input.setAttackPatternsIds(List.of(attackPatternWrapper.get().getId()));
-        input.setDomains(domains);
+        input.setDomains(
+            domains.stream()
+                .map(InjectorContractDomainDTO::fromDomain)
+                .collect(Collectors.toSet()));
 
         String response =
             mvc.perform(
@@ -356,7 +361,10 @@ public class InjectorContractApiTest extends IntegrationTest {
         input.setVulnerabilityIds(List.of(vulnWrapper.get().getId()));
         input.setVulnerabilityExternalIds(List.of(otherVulnWrapper.get().getExternalId()));
         input.setAttackPatternsIds(List.of(attackPatternWrapper.get().getId()));
-        input.setDomains(domains);
+        input.setDomains(
+            domains.stream()
+                .map(InjectorContractDomainDTO::fromDomain)
+                .collect(Collectors.toSet()));
 
         String response =
             mvc.perform(
@@ -394,7 +402,10 @@ public class InjectorContractApiTest extends IntegrationTest {
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(injectorContractInternalId);
         input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
-        input.setDomains(domains);
+        input.setDomains(
+            domains.stream()
+                .map(InjectorContractDomainDTO::fromDomain)
+                .collect(Collectors.toSet()));
         input.setContent("{\"fields\":[]}");
 
         String response =
@@ -440,7 +451,10 @@ public class InjectorContractApiTest extends IntegrationTest {
         input.setId(injectorContractInternalId);
         input.setAttackPatternsIds(List.of(UUID.randomUUID().toString()));
         input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
-        input.setDomains(domains);
+        input.setDomains(
+            domains.stream()
+                .map(InjectorContractDomainDTO::fromDomain)
+                .collect(Collectors.toSet()));
         input.setContent("{\"fields\":[]}");
 
         mvc.perform(
@@ -459,7 +473,10 @@ public class InjectorContractApiTest extends IntegrationTest {
         input.setId(injectorContractInternalId);
         input.setVulnerabilityIds(List.of(UUID.randomUUID().toString()));
         input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
-        input.setDomains(domains);
+        input.setDomains(
+            domains.stream()
+                .map(InjectorContractDomainDTO::fromDomain)
+                .collect(Collectors.toSet()));
         input.setContent("{\"fields\":[]}");
 
         mvc.perform(
@@ -487,7 +504,10 @@ public class InjectorContractApiTest extends IntegrationTest {
         input.setAttackPatternsIds(
             attackPatternComposer.generatedItems.stream().map(AttackPattern::getId).toList());
         input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
-        input.setDomains(domains);
+        input.setDomains(
+            domains.stream()
+                .map(InjectorContractDomainDTO::fromDomain)
+                .collect(Collectors.toSet()));
         input.setContent("{\"fields\":[]}");
 
         String response =
@@ -550,7 +570,10 @@ public class InjectorContractApiTest extends IntegrationTest {
                 .toList());
         input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
         input.setContent("{\"fields\":[]}");
-        input.setDomains(domains);
+        input.setDomains(
+            domains.stream()
+                .map(InjectorContractDomainDTO::fromDomain)
+                .collect(Collectors.toSet()));
 
         String response =
             mvc.perform(
@@ -611,7 +634,10 @@ public class InjectorContractApiTest extends IntegrationTest {
         input.setVulnerabilityIds(
             vulnerabilityComposer.generatedItems.stream().map(Vulnerability::getId).toList());
         input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
-        input.setDomains(domains);
+        input.setDomains(
+            domains.stream()
+                .map(InjectorContractDomainDTO::fromDomain)
+                .collect(Collectors.toSet()));
         input.setContent("{\"fields\":[]}");
 
         String response =
@@ -677,7 +703,10 @@ public class InjectorContractApiTest extends IntegrationTest {
                 .map(vuln -> vuln.getExternalId().toLowerCase())
                 .toList());
         input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
-        input.setDomains(domains);
+        input.setDomains(
+            domains.stream()
+                .map(InjectorContractDomainDTO::fromDomain)
+                .collect(Collectors.toSet()));
         input.setContent("{\"fields\":[]}");
 
         String response =
@@ -766,7 +795,10 @@ public class InjectorContractApiTest extends IntegrationTest {
         InjectorContractUpdateInput input = new InjectorContractUpdateInput();
         Set<Domain> domains =
             domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-        input.setDomains(domains);
+        input.setDomains(
+            domains.stream()
+                .map(InjectorContractDomainDTO::fromDomain)
+                .collect(Collectors.toSet()));
         input.setContent("{\"fields\":[], \"arbitrary_field\": \"test\"}");
 
         mvc.perform(
@@ -980,7 +1012,10 @@ public class InjectorContractApiTest extends IntegrationTest {
         input.setContent("{\"fields\":[], \"arbitrary_field\": \"test\"}");
         input.setVulnerabilityIds(List.of(vulnWrapper.get().getId()));
         input.setAttackPatternsIds(List.of(attackPatternWrapper.get().getId()));
-        input.setDomains(domains);
+        input.setDomains(
+            domains.stream()
+                .map(InjectorContractDomainDTO::fromDomain)
+                .collect(Collectors.toSet()));
 
         String response =
             mvc.perform(
@@ -1014,7 +1049,10 @@ public class InjectorContractApiTest extends IntegrationTest {
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(newId);
         input.setExternalId(externalId);
-        input.setDomains(domains);
+        input.setDomains(
+            domains.stream()
+                .map(InjectorContractDomainDTO::fromDomain)
+                .collect(Collectors.toSet()));
         input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
         input.setContent("{\"fields\":[]}");
 
@@ -1060,7 +1098,10 @@ public class InjectorContractApiTest extends IntegrationTest {
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(newId);
         input.setExternalId(externalId);
-        input.setDomains(domains);
+        input.setDomains(
+            domains.stream()
+                .map(InjectorContractDomainDTO::fromDomain)
+                .collect(Collectors.toSet()));
         input.setInjectorId(injectorFixture.getWellKnownEmailInjector(false).getId());
         input.setContent("{\"fields\":[]}");
 
@@ -1149,7 +1190,10 @@ public class InjectorContractApiTest extends IntegrationTest {
         Set<Domain> domains =
             domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
         InjectorContractUpdateInput input = new InjectorContractUpdateInput();
-        input.setDomains(domains);
+        input.setDomains(
+            domains.stream()
+                .map(InjectorContractDomainDTO::fromDomain)
+                .collect(Collectors.toSet()));
         input.setContent("{\"fields\":[], \"arbitrary_field\": \"test\"}");
 
         mvc.perform(

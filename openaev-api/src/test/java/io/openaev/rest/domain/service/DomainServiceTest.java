@@ -7,8 +7,12 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.Domain;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
+import io.openaev.utils.fixtures.ColourFixture;
+import io.openaev.utils.fixtures.DomainFixture;
+import io.openaev.utils.fixtures.composers.DomainComposer;
 import jakarta.transaction.Transactional;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,12 +23,66 @@ import org.springframework.boot.test.context.SpringBootTest;
 public class DomainServiceTest extends IntegrationTest {
 
   @Autowired private DomainService domainService;
+  @Autowired private DomainComposer domainComposer;
 
   @Test
-  @DisplayName("Upsert with null parameter should not fail")
+  @DisplayName("Upsert DTOs with null parameter should not fail")
   void upsertWithNullShouldNotFail() {
     Set<Domain> domains = this.domainService.upserts(null);
     assertTrue(domains.isEmpty());
+  }
+
+  @Test
+  @DisplayName("Upsert entities with null parameter should not fail")
+  void upsertEntitiesWithNullShouldNotFail() {
+    Set<Domain> domains = this.domainService.upsertDomainEntities(null);
+    assertTrue(domains.isEmpty());
+  }
+
+  @Test
+  @DisplayName("Upsert entities with set partially existing")
+  void upsertEntitiesWithSetPartiallyExisting() {
+    Set<Domain> domains = new HashSet<>();
+    for (int i = 0; i < 3; i++) {
+      domains.add(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get());
+    }
+    for (int i = 0; i < 3; i++) {
+      // don't persist those
+      domains.add(DomainFixture.getRandomDomain());
+    }
+
+    Set<Domain> upserted = this.domainService.upsertDomainEntities(domains);
+
+    assertThat(upserted).hasSameElementsAs(domains);
+  }
+
+  @Test
+  @DisplayName("Upsert existing entities prevents changing colour")
+  void upsertExistingEntitiesPreventsCHangingColour() {
+    Map<String, Domain> domains = new HashMap<>();
+    for (int i = 0; i < 3; i++) {
+      Domain d = DomainFixture.getRandomDomain();
+      domains.put(d.getName(), domainComposer.forDomain(d).persist().get());
+    }
+
+    Set<Domain> modified =
+        domains.values().stream()
+            .map(
+                domain ->
+                    DomainFixture.getDomainWithNameAndColour(
+                        domain.getName(), ColourFixture.getRandomRgbString()))
+            .collect(Collectors.toSet());
+
+    Set<Domain> upserted = this.domainService.upsertDomainEntities(modified);
+
+    assertThat(upserted)
+        .hasSameElementsAs(domains.values())
+        .satisfies(
+            set ->
+                set.forEach(
+                    domain ->
+                        assertThat(domain.getColor())
+                            .isEqualTo(domains.get(domain.getName()).getColor())));
   }
 
   @Test
