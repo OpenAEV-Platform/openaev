@@ -19,6 +19,12 @@ public class ConditionService {
   private final ConditionRepository conditionRepository;
   private final QueueChainingService queueChainingService;
 
+  /**
+   * Checks whether the condition is a time-based condition.
+   *
+   * @param condition condition to evaluate
+   * @return {@code true} if the condition type is AFTER or BEFORE, {@code false} otherwise
+   */
   public boolean isTimeCondition(Condition condition) {
     return switch (condition.getType()) {
       case ConditionType.AFTER, ConditionType.BEFORE -> true;
@@ -26,6 +32,12 @@ public class ConditionService {
     };
   }
 
+  /**
+   * Checks whether the condition is a mapper condition.
+   *
+   * @param condition condition to evaluate
+   * @return {@code true} if the condition type is MAPPER, {@code false} otherwise
+   */
   public boolean isMapperCondition(Condition condition) {
     return switch (condition.getType()) {
       case ConditionType.MAPPER -> true;
@@ -39,6 +51,12 @@ public class ConditionService {
     return null;
   }
 
+  /**
+   * Checks whether the condition is a filter condition.
+   *
+   * @param condition condition to evaluate
+   * @return {@code true} if the condition is a filter condition, {@code false} otherwise
+   */
   public boolean isFilterCondition(Condition condition) {
     return switch (condition.getType()) {
       case ConditionType.AFTER, ConditionType.BEFORE, ConditionType.MAPPER -> false;
@@ -52,6 +70,15 @@ public class ConditionService {
     return null;
   }
 
+  /**
+   * Evaluates a time condition against the current time.
+   *
+   * @param conditionTemplate condition template to evaluate
+   * @param workflowRun running workflow
+   * @param now current time
+   * @param goal target time
+   * @return a validated condition if applicable, or {@code null} otherwise
+   */
   // TODO: this is for legacy behavior only (compare from start of workflow instead of previous
   // step)
   public Condition isTimeConditionValid(
@@ -75,14 +102,32 @@ public class ConditionService {
     return null;
   }
 
+  /**
+   * Saves a condition.
+   *
+   * @param condition condition to persist
+   * @return the saved condition
+   */
   public Condition saveCondition(Condition condition) {
     return conditionRepository.save(condition);
   }
 
+  /**
+   * Saves multiple conditions.
+   *
+   * @param conditions conditions to persist
+   * @return the saved conditions
+   */
   public List<Condition> saveAllConditions(List<Condition> conditions) {
     return conditionRepository.saveAll(conditions);
   }
 
+  /**
+   * Retrieves all conditions associated with a step.
+   *
+   * @param stepId step identifier
+   * @return list of conditions linked to the step
+   */
   public List<Condition> findAllByStepId(String stepId) {
     return conditionRepository.findAllByStep_Id(stepId);
   }
@@ -97,8 +142,6 @@ public class ConditionService {
     List<Condition> conditionExecution = new ArrayList<>();
     // No condition means direct execution:
     if (conditionTemplate == null || conditionTemplate.isEmpty()) return new ArrayList<>();
-    // todo check Condition
-    // todo First test time condition
     List<Condition> timeConditions =
         conditionTemplate.stream().filter(this::isTimeCondition).toList();
 
@@ -106,7 +149,7 @@ public class ConditionService {
       // Compute expected start time for the condition to be considered as valid
       Instant now = Instant.now();
       Instant start = workflowRun.getWorkflowCreatedAt();
-      // TODO: can this happen ? Shouldn't it throw anexception instead?
+      // TODO: can this happen ? Shouldn't it throw an exception instead?
       if (start == null) {
         start = now;
       }
@@ -128,6 +171,7 @@ public class ConditionService {
       }
     }
 
+    // Filter conditions
     List<Condition> filterConditions =
         conditionTemplate.stream().filter(this::isFilterCondition).toList();
 
@@ -139,6 +183,8 @@ public class ConditionService {
         conditionExecution.add(filterConditionValid);
       }
     }
+
+    // Mapper conditions
     List<Condition> mapperConditions =
         conditionTemplate.stream().filter(this::isMapperCondition).toList();
 
@@ -166,17 +212,21 @@ public class ConditionService {
       // Count of current step template already run (status != END) into this workflow run
       int stepExecutedCount =
           stepService.countExecutedStep(workflowRun.getId(), nextStepTemplateToExecute.getId());
+
+      boolean hasDependencyOutput = !dependOnStepsRunByTemplateIdAndWorkflowRunId.isEmpty();
+      boolean underExecutionLimit =
+          stepExecutedCount < nextStepTemplateToExecute.getLimitExecution();
+
       // todo : change : !dependOnStepsRunByTemplateIdAndWorkflowRunId.isEmpty()
       // ( means at least 1 stepFrom is/has been running),
       // to implement: check if input/output as already be used into the next stepToExecute
       // This condition means:
       // - the previews one has been executed and contain output
       // - and the next one not reach his limit of execution
-      if (!dependOnStepsRunByTemplateIdAndWorkflowRunId.isEmpty()
-          && stepExecutedCount < nextStepTemplateToExecute.getLimitExecution()) {
+      if (hasDependencyOutput && underExecutionLimit) {
         conditionExecution.add(isDependOn(condition.getStepFrom().getId()));
       } else {
-        // todo condition not valid break analyse
+        // Todo : condition not valid break analyse
         return null;
       }
     }
@@ -185,6 +235,12 @@ public class ConditionService {
     return conditionExecution;
   }
 
+  /**
+   * Creates a DEPEND_ON condition for a step template dependency.
+   *
+   * @param idStepFromTemplate identifier of the dependent step template
+   * @return the created DEPEND_ON condition
+   */
   public Condition isDependOn(String idStepFromTemplate) {
     return Condition.builder()
         .key("step_template_id")
