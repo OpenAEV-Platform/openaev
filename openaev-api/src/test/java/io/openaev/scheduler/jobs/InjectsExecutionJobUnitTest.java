@@ -148,7 +148,7 @@ class InjectsExecutionJobUnitTest {
       when(exerciseRepository.saveAll(anyList())).thenReturn(simulations);
 
       // Act
-      injectsExecutionJob.handleAutoClosingExercises();
+      injectsExecutionJob.handleAutoClosingSimulations();
 
       // Assert
       verify(simulation).setStatus(ExerciseStatus.FINISHED);
@@ -170,12 +170,12 @@ class InjectsExecutionJobUnitTest {
 
       when(exerciseRepository.thatMustBeFinished()).thenReturn(simulations);
       when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)).thenReturn(true);
-      when(workflowService.isExerciseChaining(chainingSimulationId)).thenReturn(true);
-      when(workflowService.isExerciseChaining(normalSimulationId)).thenReturn(false);
+      when(workflowService.isSimulationChaining(chainingSimulationId)).thenReturn(true);
+      when(workflowService.isSimulationChaining(normalSimulationId)).thenReturn(false);
       when(exerciseRepository.saveAll(anyList())).thenAnswer(i -> i.getArgument(0));
 
       // Act
-      injectsExecutionJob.handleAutoClosingExercises();
+      injectsExecutionJob.handleAutoClosingSimulations();
 
       // Assert
       verify(exerciseRepository).saveAll(simulationCaptor.capture());
@@ -201,10 +201,10 @@ class InjectsExecutionJobUnitTest {
       when(exerciseRepository.saveAll(anyList())).thenAnswer(i -> i.getArgument(0));
 
       // Act
-      injectsExecutionJob.handleAutoClosingExercises();
+      injectsExecutionJob.handleAutoClosingSimulations();
 
       // Assert
-      verify(workflowService, never()).isExerciseChaining(anyString());
+      verify(workflowService, never()).isSimulationChaining(anyString());
       verify(exerciseRepository).saveAll(simulationCaptor.capture());
       assertEquals(2, simulationCaptor.getValue().size());
     }
@@ -222,7 +222,7 @@ class InjectsExecutionJobUnitTest {
       when(exerciseRepository.saveAll(anyList())).thenReturn(simulations);
 
       // Act
-      injectsExecutionJob.handleAutoClosingExercises();
+      injectsExecutionJob.handleAutoClosingSimulations();
 
       // Assert
       verify(securityCoverageSendJobService)
@@ -246,7 +246,7 @@ class InjectsExecutionJobUnitTest {
       when(exerciseRepository.saveAll(anyList())).thenReturn(simulations);
 
       // Act
-      injectsExecutionJob.handleAutoClosingExercises();
+      injectsExecutionJob.handleAutoClosingSimulations();
 
       // Assert
       verify(notificationEventService)
@@ -272,7 +272,7 @@ class InjectsExecutionJobUnitTest {
       when(exerciseRepository.saveAll(anyList())).thenReturn(simulations);
 
       // Act
-      injectsExecutionJob.handleAutoClosingExercises();
+      injectsExecutionJob.handleAutoClosingSimulations();
 
       // Assert
       verify(notificationEventService, never()).sendNotificationEventWithDelay(any(), anyLong());
@@ -298,7 +298,7 @@ class InjectsExecutionJobUnitTest {
       when(exerciseRepository.saveAll(anyList())).thenReturn(simulations);
 
       // Act
-      injectsExecutionJob.handleAutoClosingExercises();
+      injectsExecutionJob.handleAutoClosingSimulations();
 
       // Assert
       verify(notificationEventService, times(1)).sendNotificationEventWithDelay(any(), anyLong());
@@ -314,7 +314,7 @@ class InjectsExecutionJobUnitTest {
       when(exerciseRepository.saveAll(anyList())).thenReturn(Collections.emptyList());
 
       // Act
-      injectsExecutionJob.handleAutoClosingExercises();
+      injectsExecutionJob.handleAutoClosingSimulations();
 
       // Assert
       verify(exerciseRepository).saveAll(simulationCaptor.capture());
@@ -337,12 +337,12 @@ class InjectsExecutionJobUnitTest {
 
       when(exerciseRepository.thatMustBeFinished()).thenReturn(simulations);
       when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)).thenReturn(true);
-      when(workflowService.isExerciseChaining(simulationId1)).thenReturn(true);
-      when(workflowService.isExerciseChaining(simulationId2)).thenReturn(true);
+      when(workflowService.isSimulationChaining(simulationId1)).thenReturn(true);
+      when(workflowService.isSimulationChaining(simulationId2)).thenReturn(true);
       when(exerciseRepository.saveAll(anyList())).thenAnswer(i -> i.getArgument(0));
 
       // Act
-      injectsExecutionJob.handleAutoClosingExercises();
+      injectsExecutionJob.handleAutoClosingSimulations();
 
       // Assert
       verify(exerciseRepository).saveAll(simulationCaptor.capture());
@@ -369,7 +369,7 @@ class InjectsExecutionJobUnitTest {
       when(exerciseRepository.saveAll(anyList())).thenReturn(simulations);
 
       // Act
-      injectsExecutionJob.handleAutoClosingExercises();
+      injectsExecutionJob.handleAutoClosingSimulations();
 
       // Assert
       verify(notificationEventService, times(2)).sendNotificationEventWithDelay(any(), anyLong());

@@ -120,14 +120,14 @@ public class InjectsExecutionJob implements Job {
             .toList());
   }
 
-  public void handleAutoClosingExercises() {
-    // Change status of finished exercises.
+  public void handleAutoClosingSimulations() {
+    // Change status of finished simulations.
     List<Exercise> mustBeFinishedSimulations = exerciseRepository.thatMustBeFinished();
     if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)) {
       // Filter out the simulations using the new chaining engine
       mustBeFinishedSimulations =
           mustBeFinishedSimulations.stream()
-              .filter(exercise -> !workflowService.isExerciseChaining(exercise.getId()))
+              .filter(simulation -> !workflowService.isSimulationChaining(simulation.getId()))
               .toList();
     }
     List<Exercise> exercisesFinished =
@@ -434,8 +434,8 @@ public class InjectsExecutionJob implements Job {
                   updateExercise(entry.getKey());
                 }
               });
-      // Change status of finished exercises.
-      handleAutoClosingExercises();
+      // Change status of finished simulations.
+      handleAutoClosingSimulations();
       handlePendingInject();
       handleInjectExpectationCollectStatus();
     } catch (Exception e) {

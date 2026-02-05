@@ -60,7 +60,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
    * @param simulationId id of the simulation to start
    */
   public void startWorkflow(String simulationId) {
-    Workflow workflowTemplate = workflowService.findWorkflowTemplateByIdExercise(simulationId);
+    Workflow workflowTemplate = workflowService.findWorkflowTemplateBySimulationId(simulationId);
     // Get all step template
     List<Step> stepsTemplate = this.findAllStepTemplateByWorkflow(workflowTemplate.getId());
     // todo Check edition content

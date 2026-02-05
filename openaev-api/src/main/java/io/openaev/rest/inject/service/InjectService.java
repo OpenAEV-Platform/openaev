@@ -1343,7 +1343,7 @@ public class InjectService {
    * @param simulationId the ID of the simulation
    * @param teamIds list of team IDs to delete from the simulation
    */
-  public void removeTeamsForExercise(String simulationId, final List<String> teamIds) {
+  public void removeTeamsForSimulation(String simulationId, final List<String> teamIds) {
     injectRepository.removeTeamsForExercise(simulationId, teamIds);
   }
 

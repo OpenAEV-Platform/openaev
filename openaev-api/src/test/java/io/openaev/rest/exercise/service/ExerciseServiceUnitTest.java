@@ -437,7 +437,7 @@ class ExerciseServiceUnitTest {
 
     @BeforeEach
     void defaults() {
-      when(workflowService.isExerciseChaining("exercise-id")).thenReturn(false);
+      when(workflowService.isSimulationChaining("exercise-id")).thenReturn(false);
     }
 
     /* -------------------------------
@@ -465,7 +465,7 @@ class ExerciseServiceUnitTest {
     @Test
     void scheduledToRunning_withChaining() {
 
-      when(workflowService.isExerciseChaining("exercise-id")).thenReturn(true);
+      when(workflowService.isSimulationChaining("exercise-id")).thenReturn(true);
       when(exercise.getStatus()).thenReturn(ExerciseStatus.SCHEDULED);
 
       mockedExerciseService.changeSimulationStatus(ExerciseStatus.RUNNING, exercise);

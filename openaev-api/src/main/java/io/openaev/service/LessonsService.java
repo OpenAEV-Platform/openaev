@@ -50,7 +50,7 @@ public class LessonsService {
    * @param simulationId simulation ID
    * @param teamIds teams to remove
    */
-  public void removeTeamsForExercise(String simulationId, List<String> teamIds) {
+  public void removeTeamsForSimulation(String simulationId, List<String> teamIds) {
     this.lessonsCategoryRepository.removeTeamsForExercise(simulationId, teamIds);
   }
 }

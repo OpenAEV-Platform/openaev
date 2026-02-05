@@ -226,38 +226,38 @@ class LessonsServiceTest {
   }
 
   // ========================================================================
-  // removeTeamsForExercise Tests
+  // removeTeamsForSimulation Tests
   // ========================================================================
   @Nested
-  @DisplayName("removeTeamsForExercise")
-  class RemoveTeamsForExerciseTests {
+  @DisplayName("removeTeamsForSimulation")
+  class RemoveTeamsForSimulationTests {
 
-    @Captor private ArgumentCaptor<String> exerciseIdCaptor;
+    @Captor private ArgumentCaptor<String> simulationIdCaptor;
 
     @Captor private ArgumentCaptor<List<String>> teamIdsCaptor;
 
     private static Stream<Arguments> testCases() {
-      String exerciseId = UUID.randomUUID().toString();
+      String simulationId = UUID.randomUUID().toString();
       String teamId1 = UUID.randomUUID().toString();
       String teamId2 = UUID.randomUUID().toString();
       String teamId3 = UUID.randomUUID().toString();
 
       return Stream.of(
-          Arguments.of("multiple team IDs", exerciseId, List.of(teamId1, teamId2, teamId3)),
-          Arguments.of("single team ID", exerciseId, List.of(teamId1)),
-          Arguments.of("empty team IDs list", exerciseId, Collections.emptyList()));
+          Arguments.of("multiple team IDs", simulationId, List.of(teamId1, teamId2, teamId3)),
+          Arguments.of("single team ID", simulationId, List.of(teamId1)),
+          Arguments.of("empty team IDs list", simulationId, Collections.emptyList()));
     }
 
     @ParameterizedTest(name = "should remove teams for {0}")
     @MethodSource("testCases")
-    void shouldRemoveTeams(String name, String exerciseId, List<String> teamIds) {
+    void shouldRemoveTeams(String name, String simulationId, List<String> teamIds) {
       // Act
-      lessonsService.removeTeamsForExercise(exerciseId, teamIds);
+      lessonsService.removeTeamsForSimulation(simulationId, teamIds);
 
       // Assert
       verify(lessonsCategoryRepository)
-          .removeTeamsForExercise(exerciseIdCaptor.capture(), teamIdsCaptor.capture());
-      assertEquals(exerciseId, exerciseIdCaptor.getValue());
+          .removeTeamsForExercise(simulationIdCaptor.capture(), teamIdsCaptor.capture());
+      assertEquals(simulationId, simulationIdCaptor.getValue());
       assertEquals(teamIds, teamIdsCaptor.getValue());
       verifyNoMoreInteractions(lessonsCategoryRepository);
     }
@@ -266,11 +266,11 @@ class LessonsServiceTest {
     @DisplayName("should not interact with other repositories")
     void shouldNotInteractWithOtherRepositories() {
       // Prepare
-      String exerciseId = UUID.randomUUID().toString();
+      String simulationId = UUID.randomUUID().toString();
       List<String> teamIds = List.of(UUID.randomUUID().toString());
 
       // Act
-      lessonsService.removeTeamsForExercise(exerciseId, teamIds);
+      lessonsService.removeTeamsForSimulation(simulationId, teamIds);
 
       // Assert
       verifyNoInteractions(lessonsQuestionRepository);

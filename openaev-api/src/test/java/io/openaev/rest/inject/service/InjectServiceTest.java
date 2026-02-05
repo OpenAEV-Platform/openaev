@@ -985,7 +985,7 @@ class InjectServiceTest {
       String simulationId = UUID.randomUUID().toString();
 
       // Act
-      injectService.removeTeamsForExercise(simulationId, teamIds);
+      injectService.removeTeamsForSimulation(simulationId, teamIds);
 
       // Assert
       verify(injectRepository)

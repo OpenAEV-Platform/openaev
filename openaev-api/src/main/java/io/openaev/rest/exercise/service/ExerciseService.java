@@ -158,11 +158,11 @@ public class ExerciseService {
    */
   @Transactional(rollbackFor = Exception.class)
   public Exercise createSimulation(@NotNull final Exercise simulation, boolean isChaining) {
-    Exercise savedExercise = createExercise(simulation);
+    Exercise savedSimulation = createExercise(simulation);
     if (isChaining) {
-      workflowService.creationWorkflow(savedExercise);
+      workflowService.creationWorkflow(savedSimulation);
     }
-    return savedExercise;
+    return savedSimulation;
   }
 
   // -- READ --
@@ -514,24 +514,24 @@ public class ExerciseService {
     boolean isCloseState =
         ExerciseStatus.CANCELED.equals(simulation.getStatus())
             || ExerciseStatus.FINISHED.equals(simulation.getStatus());
-    boolean isExerciseChaining = workflowService.isExerciseChaining(simulation.getId());
-    if (isExerciseChaining) {
+    boolean isSimulationChaining = workflowService.isSimulationChaining(simulation.getId());
+    if (isSimulationChaining) {
       if (ExerciseStatus.SCHEDULED.equals(simulation.getStatus())
           && ExerciseStatus.RUNNING.equals(status)) {
         stepService.startWorkflow(simulation.getId());
       }
       // TODO
-      // CAS 1 : CANCEL || FINISHED -> SCHEDULED (Relaunch)
-      // CAS 1.1: no update template -> new idWorkflow Run but same workflow template version
-      // CAS 1.2: template updated -> new idWorkflow Run && increase workflow template version
+      // CASE 1 : CANCEL || FINISHED -> SCHEDULED (Relaunch)
+      // CASE 1.1: no update template -> new idWorkflow Run but same workflow template version
+      // CASE 1.2: template updated -> new idWorkflow Run && increase workflow template version
 
-      // CAS 2 : SCHEDULED -> RUNNING (Force running??? not available on chaining,
-      // but need throwIfExerciseNotLaunchable(check if licence EE are present and/or needed for
+      // CASE 2 : SCHEDULED -> RUNNING (Force running??? not available on chaining,
+      // but need throwIfSimulationNotLaunchable(check if licence EE are present and/or needed for
       // some Agent))
 
-      // CAS 3 : PAUSED -> RUNNING (Resume pause)
-      // CAS 4 : RUNNING -> PAUSED (Request pause)
-      // CAS 3 & 4 : To implement: manage queue, how keep data push into queue ?
+      // CASE 3 : PAUSED -> RUNNING (Resume pause)
+      // CASE 4 : RUNNING -> PAUSED (Request pause)
+      // CASE 3 & 4 : To implement: manage queue, how keep data push into queue ?
       // HOW re-push data into queue save during pause after end of pause ?
       // option 1:
       // a. automatically re-push into queue
@@ -545,14 +545,14 @@ public class ExerciseService {
       // if same step receive 2 outputs at different time we cannot manage output by arrived time
       // between steps
       // maybe with update time of output ? Add system to reorder treatment ?
-      // CAS 5 : RUNNING -> CANCEL (cancel exercise)
+      // CASE 5 : RUNNING -> CANCEL (cancel simulation)
       // Change Workflow status to CANCEL
       // Change STEP status to CANCEL
       // If inject received new output what to do ?
       // option 1: compute data into step but dont aware next step
       // option 2: do nothing
     }
-    // In case of rescheduled of an exercise.
+    // In case of rescheduled of a simulation.
     if (isCloseState && ExerciseStatus.SCHEDULED.equals(status)) {
       simulation.setStart(null);
       simulation.setEnd(null);
@@ -565,7 +565,7 @@ public class ExerciseService {
       simulation.getInjects().forEach(Inject::clean);
       // Reset lessons learned answers
       lessonsService.resetLessonsAnswer(simulation.getId());
-      // Delete exercise transient files (communications, ...)
+      // Delete simulation transient files (communications, ...)
       fileService.deleteDirectory(simulation.getId());
     }
     // In case of manual start
@@ -576,7 +576,7 @@ public class ExerciseService {
       simulation.setStart(nextMinute);
       actionMetricCollector.addSimulationPlayedCount();
     }
-    // If exercise move from pause to running state,
+    // If simulation moves from pause to running state,
     // we log the pause date to be able to recompute inject dates.
     if (ExerciseStatus.PAUSED.equals(simulation.getStatus())
         && ExerciseStatus.RUNNING.equals(status)) {
@@ -891,9 +891,9 @@ public class ExerciseService {
     // Remove all association between users / exercises / teams
     this.exerciseTeamUserRepository.deleteTeamsFromAllReferences(teamIds);
     // Remove all association between injects and teams
-    this.injectService.removeTeamsForExercise(exerciseId, teamIds);
+    this.injectService.removeTeamsForSimulation(exerciseId, teamIds);
     // Remove all association between lessons learned and teams
-    this.lessonsService.removeTeamsForExercise(exerciseId, teamIds);
+    this.lessonsService.removeTeamsForSimulation(exerciseId, teamIds);
     return teamService.find(fromIds(teamIds));
   }
 

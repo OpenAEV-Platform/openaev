@@ -233,7 +233,7 @@ public class StepServiceTest extends IntegrationTest {
 
       Workflow workflowRun = mock(Workflow.class);
 
-      when(workflowService.findWorkflowTemplateByIdExercise(simulationId))
+      when(workflowService.findWorkflowTemplateBySimulationId(simulationId))
           .thenReturn(workflowTemplate);
       when(workflowService.launchWorkflow(simulationId)).thenReturn(workflowRun);
 
@@ -244,7 +244,7 @@ public class StepServiceTest extends IntegrationTest {
       stepService.startWorkflow(simulationId);
 
       // -------- Assert --------
-      verify(workflowService).findWorkflowTemplateByIdExercise(simulationIdCaptor.capture());
+      verify(workflowService).findWorkflowTemplateBySimulationId(simulationIdCaptor.capture());
       assertEquals(simulationId, simulationIdCaptor.getValue());
 
       verify(stepRepository)
@@ -271,7 +271,7 @@ public class StepServiceTest extends IntegrationTest {
 
       Workflow workflowRun = mock(Workflow.class);
 
-      when(workflowService.findWorkflowTemplateByIdExercise(simulationId))
+      when(workflowService.findWorkflowTemplateBySimulationId(simulationId))
           .thenReturn(workflowTemplate);
       when(workflowService.launchWorkflow(simulationId)).thenReturn(workflowRun);
 
@@ -300,7 +300,7 @@ public class StepServiceTest extends IntegrationTest {
       stepService.startWorkflow(simulationId);
 
       // -------- Assert --------
-      verify(workflowService).findWorkflowTemplateByIdExercise(simulationIdCaptor.capture());
+      verify(workflowService).findWorkflowTemplateBySimulationId(simulationIdCaptor.capture());
       assertEquals(simulationId, simulationIdCaptor.getValue());
 
       verify(stepRepository)

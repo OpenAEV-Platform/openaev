@@ -278,13 +278,13 @@ class WorkflowServiceTest {
   }
 
   // ========================================================================
-  // isExerciseChaining Tests
+  // isSimulationChaining Tests
   // ========================================================================
   @Nested
-  @DisplayName("isExerciseChaining")
-  class IsExerciseChainingTests {
+  @DisplayName("isSimulationChaining")
+  class IsSimulationChainingTests {
 
-    @Captor private ArgumentCaptor<String> exerciseIdCaptor;
+    @Captor private ArgumentCaptor<String> simulationIdCaptor;
 
     private static Stream<Arguments> testCases() {
       return Stream.of(
@@ -298,27 +298,27 @@ class WorkflowServiceTest {
     @MethodSource("testCases")
     void shouldReturnCorrectResult(String name, List<Workflow> workflows, boolean expected) {
       // Prepare
-      String exerciseId = UUID.randomUUID().toString();
-      when(workflowRepository.findAllBySimulation_Id(exerciseId)).thenReturn(workflows);
+      String simulationId = UUID.randomUUID().toString();
+      when(workflowRepository.findAllBySimulation_Id(simulationId)).thenReturn(workflows);
 
       // Act
-      boolean result = workflowService.isExerciseChaining(exerciseId);
+      boolean result = workflowService.isSimulationChaining(simulationId);
 
       // Assert
-      verify(workflowRepository).findAllBySimulation_Id(exerciseIdCaptor.capture());
-      assertEquals(exerciseId, exerciseIdCaptor.getValue());
+      verify(workflowRepository).findAllBySimulation_Id(simulationIdCaptor.capture());
+      assertEquals(simulationId, simulationIdCaptor.getValue());
       assertEquals(expected, result);
     }
   }
 
   // ========================================================================
-  // findWorkflowTemplateByIdExercise Tests
+  // findWorkflowTemplateBySimulationId Tests
   // ========================================================================
   @Nested
-  @DisplayName("findWorkflowTemplateByIdExercise")
-  class FindWorkflowTemplateByIdExerciseTests {
+  @DisplayName("findWorkflowTemplateBySimulationId")
+  class FindWorkflowTemplateBySimulationIdTests {
 
-    @Captor private ArgumentCaptor<String> exerciseIdCaptor;
+    @Captor private ArgumentCaptor<String> simulationIdCaptor;
 
     @Captor private ArgumentCaptor<WorkflowStatus> statusCaptor;
 
@@ -326,18 +326,18 @@ class WorkflowServiceTest {
     @DisplayName("should return workflow template when found")
     void shouldReturnTemplateWhenFound() {
       // Prepare
-      String exerciseId = UUID.randomUUID().toString();
+      String simulationId = UUID.randomUUID().toString();
       Workflow workflowTemplate = mock(Workflow.class);
-      when(workflowRepository.findBySimulation_IdAndStatus(exerciseId, WorkflowStatus.TEMPLATE))
+      when(workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE))
           .thenReturn(workflowTemplate);
 
       // Act
-      Workflow result = workflowService.findWorkflowTemplateByIdExercise(exerciseId);
+      Workflow result = workflowService.findWorkflowTemplateBySimulationId(simulationId);
 
       // Assert
       verify(workflowRepository)
-          .findBySimulation_IdAndStatus(exerciseIdCaptor.capture(), statusCaptor.capture());
-      assertEquals(exerciseId, exerciseIdCaptor.getValue());
+          .findBySimulation_IdAndStatus(simulationIdCaptor.capture(), statusCaptor.capture());
+      assertEquals(simulationId, simulationIdCaptor.getValue());
       assertEquals(WorkflowStatus.TEMPLATE, statusCaptor.getValue());
       assertEquals(workflowTemplate, result);
     }
@@ -346,16 +346,17 @@ class WorkflowServiceTest {
     @DisplayName("should return null when template not found")
     void shouldReturnNullWhenNotFound() {
       // Prepare
-      String exerciseId = UUID.randomUUID().toString();
-      when(workflowRepository.findBySimulation_IdAndStatus(exerciseId, WorkflowStatus.TEMPLATE))
+      String simulationId = UUID.randomUUID().toString();
+      when(workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE))
           .thenReturn(null);
 
       // Act
-      Workflow result = workflowService.findWorkflowTemplateByIdExercise(exerciseId);
+      Workflow result = workflowService.findWorkflowTemplateBySimulationId(simulationId);
 
       // Assert
       assertNull(result);
-      verify(workflowRepository).findBySimulation_IdAndStatus(exerciseId, WorkflowStatus.TEMPLATE);
+      verify(workflowRepository)
+          .findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE);
     }
   }
 

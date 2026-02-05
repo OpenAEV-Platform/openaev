@@ -31,13 +31,17 @@ public class WorkflowService {
   }
 
   /**
-   * Creates a new workflow template for an exercise.
+   * Creates a new workflow template for a simulation.
    *
-   * @param exercise the exercise to create the workflow for
+   * @param simulation the simulation to create the workflow for
    */
-  public void creationWorkflow(Exercise exercise) {
+  public void creationWorkflow(Exercise simulation) {
     Workflow workflow =
-        Workflow.builder().version(0).status(WorkflowStatus.TEMPLATE).simulation(exercise).build();
+        Workflow.builder()
+            .version(0)
+            .status(WorkflowStatus.TEMPLATE)
+            .simulation(simulation)
+            .build();
     workflowRepository.save(workflow);
   }
 
@@ -98,25 +102,25 @@ public class WorkflowService {
   }
 
   /**
-   * Checks if an exercise has workflow chaining enabled.
+   * Checks if a simulation has workflow chaining enabled.
    *
-   * @param exerciseId the ID of the exercise to check
-   * @return true if the exercise has at least one workflow, false otherwise
+   * @param simulationId the ID of the simulation to check
+   * @return true if the simulation has at least one workflow, false otherwise
    */
-  public boolean isExerciseChaining(String exerciseId) {
-    List<Workflow> workflows = this.workflowRepository.findAllBySimulation_Id(exerciseId);
+  public boolean isSimulationChaining(String simulationId) {
+    List<Workflow> workflows = this.workflowRepository.findAllBySimulation_Id(simulationId);
     return !workflows.isEmpty();
   }
 
   /**
-   * Finds the workflow template for an exercise.
+   * Finds the workflow template for a simulation.
    *
-   * @param exerciseId the ID of the exercise
+   * @param simulationId the ID of the simulation
    * @return the workflow template, or null if not found
    */
-  public Workflow findWorkflowTemplateByIdExercise(String exerciseId) {
+  public Workflow findWorkflowTemplateBySimulationId(String simulationId) {
     return this.workflowRepository.findBySimulation_IdAndStatus(
-        exerciseId, WorkflowStatus.TEMPLATE);
+        simulationId, WorkflowStatus.TEMPLATE);
   }
 
   /**

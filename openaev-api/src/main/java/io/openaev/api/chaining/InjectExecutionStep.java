@@ -265,16 +265,16 @@ public class InjectExecutionStep implements ActionStep {
    *
    * <p>Creates an {@link Inject} instance from the step input and injector contract, enriches it
    * with user context, targets (teams, assets, asset groups), tags, documents, and optional
-   * exercise data.
+   * simulation data.
    *
    * <p>If the inject content is missing, default values are loaded from the injector contract.
    *
    * @param step the step creation input containing the inject definition
-   * @param exercise the exercise context, if any
+   * @param simulation the simulation context, if any
    * @return a JSON string representing the serialized inject, or {@code null} if the injector
    *     contract is missing
    */
-  private String stepData(StepsCreateInput.StepCreateInput step, Exercise exercise) {
+  private String stepData(StepsCreateInput.StepCreateInput step, Exercise simulation) {
 
     InjectInput data = (InjectInput) step.getDataStep();
 
@@ -299,17 +299,17 @@ public class InjectExecutionStep implements ActionStep {
             .toList();
     inject.setDocuments(injectDocuments);
     Set<Tag> tags = new HashSet<>();
-    // TODO Scenario or EXERCISE copy from io/openaev/rest/inject/service/InjectService.java:178
-    if (exercise != null) {
-      tags = exercise.getTags();
-      inject.setExercise(exercise);
-      // Linked documents directly to the exercise
+    // TODO Scenario or SIMULATION copy from io/openaev/rest/inject/service/InjectService.java:178
+    if (simulation != null) {
+      tags = simulation.getTags();
+      inject.setExercise(simulation);
+      // Linked documents directly to the simulation
       inject
           .getDocuments()
           .forEach(
               document -> {
-                if (!document.getDocument().getExercises().contains(exercise)) {
-                  exercise.getDocuments().add(document.getDocument());
+                if (!document.getDocument().getExercises().contains(simulation)) {
+                  simulation.getDocuments().add(document.getDocument());
                 }
               });
     }
