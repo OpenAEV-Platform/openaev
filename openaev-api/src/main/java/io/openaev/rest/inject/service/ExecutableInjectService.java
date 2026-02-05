@@ -176,7 +176,7 @@ public class ExecutableInjectService {
       ObjectNode injectContent,
       List<ObjectNode> injectorContractContentFields,
       String obfuscator) {
-    OpenAEVObfuscationMap obfuscationMap = new OpenAEVObfuscationMap();
+    OpenAEVObfuscationMap obfuscationMap = new OpenAEVObfuscationMap(executor);
     String computedCommand =
         replaceArgumentsByValue(
             command, defaultPayloadArguments, injectorContractContentFields, injectContent);

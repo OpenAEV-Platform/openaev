@@ -21,11 +21,12 @@ public class OpenAEVObfuscationMap {
     }
   }
 
-  public OpenAEVObfuscationMap() {
+  public OpenAEVObfuscationMap(String executor) {
     this.obfuscationMap = new HashMap<>();
     this.registerObfuscation("plain-text", "", this::obfuscatePlainText);
-    this.registerObfuscation(
-        "base64", "CMD does not support base64 obfuscation", this::obfuscateBase64);
+    if (!"cmd".equals(executor)) {
+        this.registerObfuscation("base64", "", this::obfuscateBase64);
+    }
   }
 
   public void registerObfuscation(
