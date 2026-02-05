@@ -130,7 +130,9 @@ public class SecurityCoverageInjectService {
       Map<AssetGroup, List<Endpoint>> assetsFromGroupMap) {
     Set<StixRefToExternalRef> dnsResolutionRefs =
         indicatorsRefs.stream()
-            .filter(indicator -> indicator.getExternalRef() != null)
+            .filter(
+                indicator ->
+                    indicator.getExternalRefs() != null && !indicator.getExternalRefs().isEmpty())
             .collect(Collectors.toSet());
 
     // 1. Remove Inject with contract related to Dns Resolution if there is no any DNS Indicator to
@@ -155,7 +157,7 @@ public class SecurityCoverageInjectService {
         indicator -> {
           // 4. Search for existing inject on scenario by hostname
           String existingInjectId =
-              findExistingInjectIdByHostname(scenario, indicator.getExternalRef());
+              findExistingInjectIdByHostname(scenario, indicator.getExternalRefs().getFirst());
           if (existingInjectId != null) {
             managedInjectsIds.add(existingInjectId);
             return;
@@ -167,7 +169,7 @@ public class SecurityCoverageInjectService {
 
           // 6. Create an inject, linked to the scenario for each contract
           createInjectsByInjectorContracts(
-              indicator.getExternalRef(),
+              indicator.getExternalRefs().getFirst(),
               dynamicDnsResolutionPayload,
               assetsFromGroupMap,
               scenario);
@@ -219,7 +221,7 @@ public class SecurityCoverageInjectService {
         requiredVulnerabilities.stream().map(Vulnerability::getExternalId).toList();
     List<String> missingVulnerabilities =
         vulnerabilityRefs.stream()
-            .map(StixRefToExternalRef::getExternalRef)
+            .flatMap(ref -> ref.getExternalRefs().stream())
             .filter(ref -> !foundVulnerabilities.contains(ref))
             .toList();
     List<Inject> placeholdersInject =
@@ -337,7 +339,7 @@ public class SecurityCoverageInjectService {
         attackPatterns.values().stream().map(AttackPattern::getExternalId).toList();
     List<String> missingPatterns =
         attackPatternRefs.stream()
-            .map(StixRefToExternalRef::getExternalRef)
+            .flatMap(ref -> ref.getExternalRefs().stream())
             .filter(ref -> !foundAttackPatterns.contains(ref))
             .toList();
     List<Inject> placeholdersInject =

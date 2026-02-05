@@ -12,7 +12,6 @@ import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
@@ -85,8 +84,6 @@ public class SecurityCoverageService {
 
   // FIXME: don't access the connector directly when we deal with multiple origins
   private final SecurityCoverageConnector connector;
-
-  private final PayloadRepository payloadRepository;
 
   private final SecurityCoverageUtils securityCoverageUtils;
 
@@ -529,13 +526,13 @@ public class SecurityCoverageService {
   private void processCoverageRefs(
       Set<StixRefToExternalRef> refs,
       Exercise simulation,
-      BiFunction<String, Exercise, BaseType<?>> coverageFunction,
+      BiFunction<List<String>, Exercise, BaseType<?>> coverageFunction,
       Identifier coverageId,
       Optional<Timestamp> sroStartTime,
       Optional<Timestamp> sroStopTime,
       List<ObjectBase> objects) {
     for (StixRefToExternalRef stixRef : refs) {
-      BaseType<?> coverageResult = coverageFunction.apply(stixRef.getExternalRef(), simulation);
+      BaseType<?> coverageResult = coverageFunction.apply(stixRef.getExternalRefs(), simulation);
       boolean covered = !((List<?>) coverageResult.getValue()).isEmpty();
 
       RelationshipObject sro =
@@ -576,9 +573,9 @@ public class SecurityCoverageService {
     return computeCoverageFromInjects(simulation.getInjects(), securityPlatform);
   }
 
-  private BaseType<?> getVulnerabilityCoverage(String externalRef, Exercise simulation) {
+  private BaseType<?> getVulnerabilityCoverage(List<String> externalRefs, Exercise simulation) {
     return getCoverage(
-        externalRef,
+        externalRefs.getFirst(),
         simulation,
         id -> vulnerabilityService.getVulnerabilitiesByExternalIds(Set.of(id)),
         inject -> {
@@ -590,9 +587,9 @@ public class SecurityCoverageService {
         Vulnerability::getId);
   }
 
-  private BaseType<?> getAttackPatternCoverage(String externalRef, Exercise simulation) {
+  private BaseType<?> getAttackPatternCoverage(List<String> externalRefs, Exercise simulation) {
     return getCoverage(
-        externalRef,
+        externalRefs.getFirst(),
         simulation,
         id -> attackPatternService.getAttackPatternsByExternalIds(Set.of(id)),
         inject -> {
@@ -604,9 +601,9 @@ public class SecurityCoverageService {
         AttackPattern::getId);
   }
 
-  private BaseType<?> getDnsIndicatorCoverage(String externalRef, Exercise simulation) {
+  private BaseType<?> getDnsIndicatorCoverage(List<String> externalRefs, Exercise simulation) {
     return getCoverage(
-        externalRef,
+        externalRefs.getFirst(),
         simulation,
         hostname ->
             simulation.getInjects().stream()

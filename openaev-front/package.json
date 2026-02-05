@@ -132,7 +132,7 @@
     "sort-translation": "node scripts/sort-translation-files.js",
     "i18n-checker": "npm run generate-i18n-checker-constant && node scripts/i18n-checker.js",
     "generate-i18n-checker-constant": "tsc src/constants/Lang.ts --outDir scripts/constants --skipLibCheck --module ES6 --target ES6",
-    "start": "vite",
+    "start": "vite --host",
     "deprecated-start": "node builder/dev/dev.js",
     "build": "vite build",
     "deprecated-build": "node builder/prod/prod.js",

@@ -15,13 +15,12 @@ import io.openaev.stix.objects.constants.CommonProperties;
 import io.openaev.stix.objects.constants.ExtendedProperties;
 import io.openaev.stix.objects.constants.ObjectTypes;
 import io.openaev.stix.types.Dictionary;
+import jakarta.validation.constraints.NotBlank;
 
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.*;
 import java.util.stream.Collectors;
-
-import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.coyote.BadRequestException;
@@ -47,11 +46,11 @@ public class SecurityCoverageUtils {
 
   private static final String DOMAIN_NAME = "Domain-Name";
   private static final String ARTIFACT = "Artifact";
-    private final TagService tagService;
+  private final TagService tagService;
 
-    @NotBlank
-    @Value("${openaev.xtm.opencti.url:#{null}}")
-    private String octiUrl;
+  @NotBlank
+  @Value("${openaev.xtm.opencti.url:#{null}}")
+  private String octiUrl;
 
   private final DocumentService documentService;
 
@@ -96,7 +95,9 @@ public class SecurityCoverageUtils {
             manageAndAddStixRefToExternalRefs(
                 stixToRef,
                 obj,
-                (String) extensionObj.get(CommonProperties.ID.toString()).getValue());
+                new ArrayList<>(
+                    Collections.singleton(
+                        (String) extensionObj.get(CommonProperties.ID.toString()).getValue())));
             continue;
           }
         }
@@ -109,7 +110,10 @@ public class SecurityCoverageUtils {
         List<Dictionary> observables =
             obj.getExtensionObservables(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION);
         if (extensionObj.has(CommonProperties.ID.toString()) && hasDomainNameType(observables)) {
-          manageAndAddStixRefToExternalRefs(stixToRef, obj, getDomainNameValue(observables));
+          manageAndAddStixRefToExternalRefs(
+              stixToRef,
+              obj,
+              new ArrayList<>(Collections.singleton(getDomainNameValue(observables))));
           continue;
         }
       }
@@ -121,10 +125,11 @@ public class SecurityCoverageUtils {
         if (ARTIFACT.equals(extensionObj.get(CommonProperties.TYPE.toString()))
             && extensionObj.has(CommonProperties.FILES.toString())) {
 
-            TagCreateInput tagCreateInput = new TagCreateInput();
-            tagCreateInput.setName(Tag.OPENCTI_TAG_NAME);
-            Tag openCtiTag = tagService.upsertTag(tagCreateInput);
-            String openCitTagId = openCtiTag.getId();
+          TagCreateInput tagCreateInput = new TagCreateInput();
+          tagCreateInput.setName(Tag.OPENCTI_TAG_NAME);
+          Tag openCtiTag = tagService.upsertTag(tagCreateInput);
+          String openCitTagId = openCtiTag.getId();
+          List<String> documentIds = new ArrayList<>();
 
           ((Collection<Dictionary>) extensionObj.get(CommonProperties.FILES.toString()))
               .stream()
@@ -133,12 +138,16 @@ public class SecurityCoverageUtils {
                           file.has(CommonProperties.NAME.toString())
                               && file.has(CommonProperties.URI.toString())
                               && file.has(CommonProperties.MIME_TYPE.toString()))
-                  .forEach(file -> {
-                      String fileName = (String) file.get(CommonProperties.NAME.toString()).getValue();
-                      String fileUri = (String) file.get(CommonProperties.URI.toString()).getValue();
-                      String fileMymeType = (String) file.get(CommonProperties.MIME_TYPE.toString()).getValue();
+                  .forEach(
+                      file -> {
+                        String fileName =
+                            (String) file.get(CommonProperties.NAME.toString()).getValue();
+                        String fileUri =
+                            (String) file.get(CommonProperties.URI.toString()).getValue();
+                        String fileMymeType =
+                            (String) file.get(CommonProperties.MIME_TYPE.toString()).getValue();
 
-                      try {
+                        try {
                           URL url = new URL(octiUrl + fileUri);
                           HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                           connection.setRequestMethod("GET");
@@ -147,19 +156,26 @@ public class SecurityCoverageUtils {
 
                           int responseCode = connection.getResponseCode();
                           if (responseCode == HttpURLConnection.HTTP_OK) {
-                              DocumentCreateInput documentCreateInput = new DocumentCreateInput();
-                              documentCreateInput.setDescription(fileName);
-                              documentCreateInput.setTagIds(new ArrayList<>(Set.of(openCitTagId)));
+                            DocumentCreateInput documentCreateInput = new DocumentCreateInput();
+                            documentCreateInput.setDescription(fileName);
+                            documentCreateInput.setTagIds(new ArrayList<>(Set.of(openCitTagId)));
 
-                               Document document = documentService.upsert(fileName, connection.getInputStream(), connection.getContentLengthLong(), fileMymeType, documentCreateInput);
-                              manageAndAddStixRefToExternalRefs(stixToRef, obj, document.getTarget());
+                            Document document =
+                                documentService.upsert(
+                                    fileName,
+                                    connection.getInputStream(),
+                                    connection.getContentLengthLong(),
+                                    fileMymeType,
+                                    documentCreateInput);
+                            documentIds.add(document.getId());
                           } else {
-                              throw new Exception("Erreur HTTP: " + responseCode);
+                            throw new Exception("Erreur HTTP: " + responseCode);
                           }
-                      } catch (Exception e) {
-                        log.error("Erreur HTTP: " + e.getMessage());
-                      }
-                  });
+                        } catch (Exception e) {
+                          log.error("Erreur HTTP: " + e.getMessage());
+                        }
+                      });
+            manageAndAddStixRefToExternalRefs(stixToRef, obj, documentIds);
         }
       }
 
@@ -180,20 +196,21 @@ public class SecurityCoverageUtils {
    */
   public Set<String> getExternalIds(Set<StixRefToExternalRef> objectRefs) {
     return objectRefs.stream()
-        .map(StixRefToExternalRef::getExternalRef)
+        .flatMap(ref -> ref.getExternalRefs().stream())
         .collect(Collectors.toSet());
   }
 
   private void manageAndAddStixRefToExternalRefs(
-      Set<StixRefToExternalRef> stixToRef, ObjectBase obj, String refId) {
-    if (obj.hasProperty(STIX_NAME) && StringUtils.isBlank(refId)) {
-      refId = (String) obj.getProperty(STIX_NAME).getValue();
+      Set<StixRefToExternalRef> stixToRef, ObjectBase obj, List<String> refIds) {
+    if (obj.hasProperty(STIX_NAME) && (refIds == null || refIds.isEmpty())) {
+      refIds =
+          new ArrayList<>(Collections.singleton((String) obj.getProperty(STIX_NAME).getValue()));
     }
 
-    if (!StringUtils.isBlank(refId)) {
+    if (refIds != null && !refIds.isEmpty()) {
       String stixId = (String) obj.getProperty(CommonProperties.ID).getValue();
       if (stixId != null) {
-        stixToRef.add(new StixRefToExternalRef(stixId, refId));
+        stixToRef.add(new StixRefToExternalRef(stixId, refIds));
       }
     }
   }

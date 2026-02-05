@@ -530,19 +530,21 @@ class StixApiTest extends IntegrationTest {
       assertThat(createdScenario.getSecurityCoverage().getAttackPatternRefs()).hasSize(3);
 
       StixRefToExternalRef stixRef1 =
-          new StixRefToExternalRef("attack-pattern--a24d97e6-401c-51fc-be24-8f797a35d1f1", T_1531);
+          new StixRefToExternalRef(
+              "attack-pattern--a24d97e6-401c-51fc-be24-8f797a35d1f1", List.of(T_1531));
       StixRefToExternalRef stixRef2 =
-          new StixRefToExternalRef("attack-pattern--033921be-85df-5f05-8bc0-d3d9fc945db9", T_1003);
+          new StixRefToExternalRef(
+              "attack-pattern--033921be-85df-5f05-8bc0-d3d9fc945db9", List.of(T_1003));
       StixRefToExternalRef stixRef3 =
           new StixRefToExternalRef(
-              "attack-pattern--c1fad538-bb66-4e3f-97f5-9a9a15fd34b1", "Attack!");
+              "attack-pattern--c1fad538-bb66-4e3f-97f5-9a9a15fd34b1", List.of("Attack!"));
 
       // -- Vulnerabilities --
       assertThat(createdScenario.getSecurityCoverage().getVulnerabilitiesRefs()).hasSize(1);
 
       StixRefToExternalRef stixRefVuln =
           new StixRefToExternalRef(
-              "vulnerability--de1172d3-a3e8-51a8-9014-30e572f3b975", CVE_2023_48788);
+              "vulnerability--de1172d3-a3e8-51a8-9014-30e572f3b975", List.of(CVE_2023_48788));
 
       assertTrue(
           createdScenario
