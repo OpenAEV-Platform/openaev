@@ -784,7 +784,9 @@
                     },
                     "COLLECTOR_TANIUM_TOKEN": {
                         "description": "API Token.",
-                        "type": "string"
+                        "format": "password",
+                        "type": "string",
+                        "writeOnly": true
                     },
                     "COLLECTOR_TANIUM_SSL_VERIFY": {
                         "default": "true",
