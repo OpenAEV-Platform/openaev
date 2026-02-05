@@ -33,6 +33,12 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class WorkflowUpdateEventAspect {
 
+  /**
+   * This list will contain IDs of any event that couldn't be sent due to a problem with the queue
+   * (most likely a network error, or the queue system being down)
+   */
+  private Set<String> unsentEventsCache = new HashSet<>();
+
   private final PreviewFeatureService previewFeatureService;
 
   private final QueueChainingService queueChainingService;
@@ -89,10 +95,14 @@ public class WorkflowUpdateEventAspect {
     } else {
       this.handleExpectationTracesParam(context, expectationIdsSPEL);
     }
+
+    // Retry events that are stored in the unsent cache due to previous errors
+    sendEvents(unsentEventsCache);
   }
 
   /**
-   * Send a workflow update event related to the given inject to the queue
+   * Send a workflow update event related to the given inject to the queue, and update the unsent
+   * events cache if an error occurs
    *
    * @param context the SpEL evaluation context
    * @param injectIdSPEL the SpEL expression to fetch the injectId from the request
@@ -110,8 +120,9 @@ public class WorkflowUpdateEventAspect {
         try {
           queueChainingService.updateStep(stepId.get());
         } catch (IOException e) {
-          // TODO: exception management
-          throw new RuntimeException(e);
+          // In case an error occurs, we store the inject in the unsent event cache to be retried
+          // later, when other events will be sent
+          unsentEventsCache.add(stepId.get());
         }
       }
     }
@@ -140,14 +151,29 @@ public class WorkflowUpdateEventAspect {
     }
 
     Set<String> stepIds = stepService.findStepIdsByExpectationIds(expectationIds);
-    stepIds.forEach(
-        stepId -> {
-          try {
-            queueChainingService.updateStep(stepId);
-          } catch (IOException e) {
-            // TODO: exception management
-            throw new RuntimeException(e);
-          }
-        });
+    sendEvents(stepIds);
+  }
+
+  /**
+   * Send a list of events in the queue, and update the unsent events cache if an error occurs
+   *
+   * @param stepIds step IDs to notify with an event
+   */
+  private void sendEvents(Set<String> stepIds) {
+    if (stepIds.isEmpty()) {
+      return;
+    }
+    Set<String> remainingUnsetEvents = new HashSet<>(stepIds);
+    try {
+      for (String stepId : stepIds) {
+        queueChainingService.updateStep(stepId);
+        remainingUnsetEvents.remove(stepId);
+      }
+      unsentEventsCache.clear();
+    } catch (IOException e) {
+      // If a fail occurs, no need to continue the loop, just keep the remaining events in the
+      // unsent events cache to be retried later, when other events will be sent
+      unsentEventsCache = remainingUnsetEvents;
+    }
   }
 }
