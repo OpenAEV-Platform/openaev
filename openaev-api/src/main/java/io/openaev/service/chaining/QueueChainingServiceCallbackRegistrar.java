@@ -21,12 +21,12 @@ public class QueueChainingServiceCallbackRegistrar {
    * Registers all callback handlers after bean construction.
    *
    * <p>This method is called automatically by Spring after dependency injection. It registers the
-   * step service methods as callbacks for the wait queue, delay queue, and external update queue.
+   * step service methods as callbacks for the ready queue, delay queue, and external update queue.
    */
   @PostConstruct
   public void registerCallbacks() {
     // This stepService is the proxied bean, so @Transactional works
-    queueChainingService.setCallbackForWaitQueue(stepService::handleReadyEvent);
+    queueChainingService.setCallbackForReadyQueue(stepService::handleReadyEvent);
     queueChainingService.setCallbackForDelayQueue(stepService::handleDelayEvent);
     queueChainingService.setCallbackForExternalUpdateQueue(stepService::handleExternalUpdateEvent);
   }

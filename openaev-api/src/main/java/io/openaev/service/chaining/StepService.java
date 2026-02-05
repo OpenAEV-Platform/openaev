@@ -72,9 +72,9 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     List<Step> stepWithValidCondition = new ArrayList<>();
 
     for (Step step : stepsTemplate) {
-      Step stepWait = ready(step, workflowRun, null);
-      if (stepWait != null) {
-        stepWithValidCondition.add(stepWait);
+      Step stepReady = ready(step, workflowRun, null);
+      if (stepReady != null) {
+        stepWithValidCondition.add(stepReady);
       }
     }
 
@@ -107,22 +107,22 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
             this);
 
     if (conditionExecution != null) {
-      Step stepWait = actionStep.wait(nextStepTemplateToExecutePersisted, input, workflowRun);
-      stepWait.setWorkflow(workflowRun);
-      stepWait = this.saveStep(stepWait);
+      Step stepReady = actionStep.ready(nextStepTemplateToExecutePersisted, input, workflowRun);
+      stepReady.setWorkflow(workflowRun);
+      stepReady = this.saveStep(stepReady);
 
-      Step finalStepWait = stepWait;
+      Step finalstepReady = stepReady;
 
       // For each step template, IF condition is valid, create condition execution
-      conditionExecution.forEach(condition -> condition.setStep(finalStepWait));
+      conditionExecution.forEach(condition -> condition.setStep(finalstepReady));
       conditionService.saveAllConditions(conditionExecution);
       try {
-        queueChainingService.waitStep(finalStepWait, workflowRun);
+        queueChainingService.readyStep(finalstepReady, workflowRun);
       } catch (IOException e) {
         // TODO exception management
         throw new RuntimeException(e);
       }
-      return stepWait;
+      return stepReady;
     }
 
     return null;

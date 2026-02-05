@@ -33,13 +33,13 @@ import org.springframework.stereotype.Component;
 /**
  * Implementation of {@link ActionStep} for executing Inject steps.
  *
- * <p>Handles creation, waiting, running, updating, and ending of steps that use the {@link
+ * <p>Handles creation, readying, running, updating, and ending of steps that use the {@link
  * StepActionClass#INJECT_EXECUTION} action.
  *
  * <p>Responsible for:
  *
  * <ul>
- *   <li>Creating step templates and wait steps
+ *   <li>Creating step templates and ready steps
  *   <li>Serializing/deserializing step data (InjectInput → Inject)
  *   <li>Executing injects using {@link Executor}
  *   <li>Updating step output with execution traces
@@ -93,43 +93,43 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   /**
-   * Creates a Wait step from a step template.
+   * Creates a Ready step from a step template.
    *
-   * <p>The step is initialized in WAIT status and contains the same data as the template.
+   * <p>The step is initialized in READY status and contains the same data as the template.
    *
    * @param stepTemplate the template step to duplicate
    * @param input the input to apply for this execution
    * @param workflowRun the workflow run this step belongs to
-   * @return a step in WAIT status ready to be executed
+   * @return a step in READY status ready to be executed
    */
   @Override
-  public Step wait(Step stepTemplate, String input, Workflow workflowRun) {
+  public Step ready(Step stepTemplate, String input, Workflow workflowRun) {
     // CALL BY when new input or start simulation
-    Step waitStep = new Step();
-    waitStep.setWorkflow(workflowRun);
-    waitStep.setData(stepTemplate.getData());
-    waitStep.setStepTemplate(stepTemplate);
+    Step readyStep = new Step();
+    readyStep.setWorkflow(workflowRun);
+    readyStep.setData(stepTemplate.getData());
+    readyStep.setStepTemplate(stepTemplate);
     // TODO manage input from output paser from payload or nuclei or nmap
-    waitStep.setInput(input);
-    waitStep.setStatus(StepStatus.READY);
-    waitStep.setStepAction(StepActionClass.INJECT_EXECUTION);
-    waitStep.setLimitExecution(stepTemplate.getLimitExecution());
+    readyStep.setInput(input);
+    readyStep.setStatus(StepStatus.READY);
+    readyStep.setStepAction(StepActionClass.INJECT_EXECUTION);
+    readyStep.setLimitExecution(stepTemplate.getLimitExecution());
 
-    return waitStep;
+    return readyStep;
   }
 
   /**
-   * Runs a WAIT step by executing the corresponding to inject.
+   * Runs a READY step by executing the corresponding to inject.
    *
    * <p>Handles deserialization of step data, creation of the inject, execution via {@link
    * Executor}, and updates the step data with inject ID.
    *
-   * @param waitStep the step currently in WAIT status
+   * @param readyStep the step currently in READY status
    * @return the updated step with execution info, or null if execution fails
    */
   @Override
-  public Step run(Step waitStep) {
-    // CALL BY QUEUE WAIT
+  public Step run(Step readyStep) {
+    // CALL BY QUEUE READY
     ObjectMapper om =
         new ObjectMapper()
             .findAndRegisterModules()
@@ -138,8 +138,8 @@ public class InjectExecutionStep implements ActionStep {
 
     try {
       // GET INJECT FROM JSON
-      Inject inject = om.readValue(waitStep.getData(), Inject.class);
-      JsonNode root = om.readTree(waitStep.getData());
+      Inject inject = om.readValue(readyStep.getData(), Inject.class);
+      JsonNode root = om.readTree(readyStep.getData());
 
       JsonNode injectorNode =
           root.path("inject_injector_contract").path("injector_contract_injector");
@@ -154,9 +154,9 @@ public class InjectExecutionStep implements ActionStep {
           injectorContract.get().setInjector(injector);
         } else {
           log.info(
-              "Injector contract not found for injectorId {} & step (WAIT) id {}",
+              "Injector contract not found for injectorId {} & step (READY) id {}",
               injectorId,
-              waitStep.getId());
+              readyStep.getId());
         }
       }
       // CREATE & SAVE INJECT
@@ -178,9 +178,9 @@ public class InjectExecutionStep implements ActionStep {
 
       try {
         executor.directExecute(executableInject);
-        String data = setInjectId(inject.getId(), waitStep.getData());
-        waitStep.setData(data);
-        return waitStep;
+        String data = setInjectId(inject.getId(), readyStep.getData());
+        readyStep.setData(data);
+        return readyStep;
       } catch (Exception e) {
         log.warn(e.getMessage(), e);
         injectStatusService.failInjectStatus(inject.getId(), e.getMessage());

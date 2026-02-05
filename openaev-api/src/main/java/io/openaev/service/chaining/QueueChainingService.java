@@ -27,7 +27,7 @@ public class QueueChainingService {
   private final ObjectMapper objectMapper;
 
   @Setter private BatchQueueService<StepEvent> delayQueueService; // TODO switch to DB queue
-  @Setter private BatchQueueService<StepEvent> waitQueueService;
+  @Setter private BatchQueueService<StepEvent> readyQueueService;
   @Setter private BatchQueueService<ExternalUpdateEvent> updateQueueService;
 
   /**
@@ -38,9 +38,9 @@ public class QueueChainingService {
    */
   @PostConstruct
   public void init() throws IOException, TimeoutException {
-    if (openAEVConfig.getQueueConfig().get("workflows-wait") == null) {
+    if (openAEVConfig.getQueueConfig().get("workflows-ready") == null) {
       throw new RuntimeException(
-          "workflows-wait configuration is missing. Please refer to the documentation");
+          "workflows-ready configuration is missing. Please refer to the documentation");
     }
 
     if (openAEVConfig.getQueueConfig().get("workflows-update") == null) {
@@ -54,13 +54,13 @@ public class QueueChainingService {
     }
 
     // Initializing the queue to manage tasks to schedule
-    waitQueueService =
+    readyQueueService =
         new BatchQueueService<>(
             StepEvent.class,
             null,
             rabbitmqConfig,
             objectMapper,
-            openAEVConfig.getQueueConfig().get("workflows-wait"));
+            openAEVConfig.getQueueConfig().get("workflows-ready"));
 
     // Initializing the queue to manage tasks blocked by a time condition
     delayQueueService =
@@ -109,13 +109,13 @@ public class QueueChainingService {
    * @param workflowRun the workflow associated with the run of the step
    * @throws IOException in case there is an error while sending the event
    */
-  public void waitStep(Step stepExecution, Workflow workflowRun) throws IOException {
+  public void readyStep(Step stepExecution, Workflow workflowRun) throws IOException {
     log.info("PUBLISH STEP READY : {}", stepExecution.getId());
     StepEvent event = new StepEvent();
     event.setStepId(stepExecution.getId());
     event.setWorkflowId(workflowRun.getId());
     event.setEmissionDate(Instant.now().toEpochMilli());
-    waitQueueService.publish(event);
+    readyQueueService.publish(event);
   }
 
   /**
@@ -146,8 +146,8 @@ public class QueueChainingService {
    *
    * @param callback function to call when receiving an event
    */
-  public void setCallbackForWaitQueue(QueueExecution<StepEvent> callback) {
-    waitQueueService.setQueueExecution(callback);
+  public void setCallbackForReadyQueue(QueueExecution<StepEvent> callback) {
+    readyQueueService.setQueueExecution(callback);
   }
 
   /**

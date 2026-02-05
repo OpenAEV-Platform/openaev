@@ -16,23 +16,23 @@ public interface ActionStep {
   Step create(StepsCreateInput.StepCreateInput stepInput, Workflow workflow);
 
   /**
-   * Creates a Wait step. The step is created with status WAIT based on a step template. Duplicates
-   * the template step and fills its content from the input.
+   * Creates a Ready step. The step is created with status READY based on a step template.
+   * Duplicates the template step and fills its content from the input.
    *
    * @param stepTemplate the stepTemplate
    * @param input the input for the new step
    * @param workflowRun the workflow run
-   * @return the created Wait step
+   * @return the created Ready step
    */
-  Step wait(Step stepTemplate, String input, Workflow workflowRun);
+  Step ready(Step stepTemplate, String input, Workflow workflowRun);
 
   /**
-   * Executes a Wait step. Changes the status from WAIT to RUN.
+   * Executes a Ready step. Changes the status from READY to RUN.
    *
-   * @param waitStep the step currently in WAIT status
+   * @param readyStep the step currently in READY status
    * @return the step after being set to RUN
    */
-  Step run(Step waitStep);
+  Step run(Step readyStep);
 
   /**
    * Updates a step. Applies the necessary processing based on the new output.

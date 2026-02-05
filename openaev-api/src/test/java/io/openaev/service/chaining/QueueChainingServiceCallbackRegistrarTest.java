@@ -30,13 +30,13 @@ class QueueChainingServiceCallbackRegistrarTest {
   class RegisterCallbacksTests {
 
     @Test
-    @DisplayName("should register callback for wait queue")
-    void shouldRegisterCallbackForWaitQueue() {
+    @DisplayName("should register callback for ready queue")
+    void shouldRegisterCallbackForReadyQueue() {
       // Act
       registrar.registerCallbacks();
 
       // Assert
-      verify(queueChainingService).setCallbackForWaitQueue(any());
+      verify(queueChainingService).setCallbackForReadyQueue(any());
     }
 
     @Test
@@ -66,7 +66,7 @@ class QueueChainingServiceCallbackRegistrarTest {
       registrar.registerCallbacks();
 
       // Assert
-      verify(queueChainingService).setCallbackForWaitQueue(any());
+      verify(queueChainingService).setCallbackForReadyQueue(any());
       verify(queueChainingService).setCallbackForDelayQueue(any());
       verify(queueChainingService).setCallbackForExternalUpdateQueue(any());
       verifyNoMoreInteractions(queueChainingService);
@@ -80,7 +80,7 @@ class QueueChainingServiceCallbackRegistrarTest {
 
       // Assert
       InOrder inOrder = inOrder(queueChainingService);
-      inOrder.verify(queueChainingService).setCallbackForWaitQueue(any());
+      inOrder.verify(queueChainingService).setCallbackForReadyQueue(any());
       inOrder.verify(queueChainingService).setCallbackForDelayQueue(any());
       inOrder.verify(queueChainingService).setCallbackForExternalUpdateQueue(any());
     }
@@ -93,7 +93,7 @@ class QueueChainingServiceCallbackRegistrarTest {
       registrar.registerCallbacks();
 
       // Assert
-      verify(queueChainingService, times(2)).setCallbackForWaitQueue(any());
+      verify(queueChainingService, times(2)).setCallbackForReadyQueue(any());
       verify(queueChainingService, times(2)).setCallbackForDelayQueue(any());
       verify(queueChainingService, times(2)).setCallbackForExternalUpdateQueue(any());
     }
@@ -106,7 +106,7 @@ class QueueChainingServiceCallbackRegistrarTest {
   @DisplayName("callback functionality")
   class CallbackFunctionalityTests {
 
-    @Captor private ArgumentCaptor<QueueExecution<StepEvent>> waitQueueCallbackCaptor;
+    @Captor private ArgumentCaptor<QueueExecution<StepEvent>> readyQueueCallbackCaptor;
 
     @Captor private ArgumentCaptor<QueueExecution<StepEvent>> delayQueueCallbackCaptor;
 
@@ -114,7 +114,7 @@ class QueueChainingServiceCallbackRegistrarTest {
     private ArgumentCaptor<QueueExecution<ExternalUpdateEvent>> externalUpdateCallbackCaptor;
 
     @Test
-    @DisplayName("should invoke stepService.handleReadyEvent when wait queue callback is executed")
+    @DisplayName("should invoke stepService.handleReadyEvent when ready queue callback is executed")
     void shouldInvokeHandleReadyEvent() {
       // Prepare
       List<StepEvent> events = List.of(mock(StepEvent.class));
@@ -123,8 +123,8 @@ class QueueChainingServiceCallbackRegistrarTest {
       registrar.registerCallbacks();
 
       // Capture and invoke callback
-      verify(queueChainingService).setCallbackForWaitQueue(waitQueueCallbackCaptor.capture());
-      QueueExecution<StepEvent> callback = waitQueueCallbackCaptor.getValue();
+      verify(queueChainingService).setCallbackForReadyQueue(readyQueueCallbackCaptor.capture());
+      QueueExecution<StepEvent> callback = readyQueueCallbackCaptor.getValue();
       callback.perform(events);
 
       // Assert

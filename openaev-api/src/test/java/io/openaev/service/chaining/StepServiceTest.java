@@ -217,13 +217,13 @@ public class StepServiceTest extends IntegrationTest {
   }
 
   /* ============================================================
-   * startWorkflow — workflow + repository + wait filtering
+   * startWorkflow — workflow + repository + ready filtering
    * ============================================================ */
   @Nested
   class StartWorkflow {
 
     @Test
-    void shouldLaunchWorkflow_andNeverCallWait_whenNoStepTemplates() {
+    void shouldLaunchWorkflow_andNeverCallReady_whenNoStepTemplates() {
       // -------- Prepare --------
       String simulationId = UUID.randomUUID().toString();
       String templateWorkflowId = UUID.randomUUID().toString();
@@ -258,10 +258,10 @@ public class StepServiceTest extends IntegrationTest {
       verifyNoMoreInteractions(workflowService);
     }
 
-    @ParameterizedTest(name = "{index} => steps={0}, nonNullWaitIndices={1}")
+    @ParameterizedTest(name = "{index} => steps={0}, nonNullReadyIndices={1}")
     @MethodSource("startWorkflowTestInputs")
-    void shouldCallWaitForEachStep_andHandleNullAndNonNullReturns(
-        List<Step> stepTemplates, Set<Integer> nonNullWaitIndices) {
+    void shouldCallReadyForEachStep_andHandleNullAndNonNullReturns(
+        List<Step> stepTemplates, Set<Integer> nonNullReadyIndices) {
       // -------- Prepare --------
       String simulationId = UUID.randomUUID().toString();
       String templateWorkflowId = UUID.randomUUID().toString();
@@ -281,17 +281,17 @@ public class StepServiceTest extends IntegrationTest {
       // For each template step:
       // - return a non-null Step for chosen indices
       // - return null otherwise
-      Map<Step, Step> waitReturnByInputStep = new HashMap<>();
+      Map<Step, Step> readyReturnByInputStep = new HashMap<>();
       for (int i = 0; i < stepTemplates.size(); i++) {
         Step input = stepTemplates.get(i);
-        Step returned = nonNullWaitIndices.contains(i) ? mock(Step.class) : null;
-        waitReturnByInputStep.put(input, returned);
+        Step returned = nonNullReadyIndices.contains(i) ? mock(Step.class) : null;
+        readyReturnByInputStep.put(input, returned);
       }
 
       doAnswer(
               invocation -> {
                 Step inputStep = invocation.getArgument(0);
-                return waitReturnByInputStep.get(inputStep);
+                return readyReturnByInputStep.get(inputStep);
               })
           .when(stepService)
           .ready(any(Step.class), eq(workflowRun), isNull());
@@ -330,10 +330,10 @@ public class StepServiceTest extends IntegrationTest {
       Step s3 = mock(Step.class);
 
       return Stream.of(
-          // All waits return null -> covers "if (stepWait != null)" false path
+          // All readys return null -> covers "if (stepReady != null)" false path
           Arguments.of(List.of(s1, s2, s3), Set.of()),
 
-          // Some waits return non-null -> covers add(...) line
+          // Some readys return non-null -> covers add(...) line
           Arguments.of(List.of(s1, s2, s3), Set.of(0)),
           Arguments.of(List.of(s1, s2, s3), Set.of(1, 2)),
 
@@ -374,7 +374,7 @@ public class StepServiceTest extends IntegrationTest {
         verify(stepRepository, never()).save(any());
         verify(conditionService, never()).checkCondition(any(), any(), any(), any(), any());
         verify(conditionService, never()).saveAllConditions(anyList());
-        verify(queueChainingService, never()).waitStep(any(), any());
+        verify(queueChainingService, never()).readyStep(any(), any());
       }
     }
 
@@ -414,7 +414,7 @@ public class StepServiceTest extends IntegrationTest {
                 eq(stepService)))
             .thenReturn(conditionExecutionNull ? null : List.of(mock(Condition.class)));
 
-        // If conditions are non-null, actionStep.wait will be called; to keep focus here,
+        // If conditions are non-null, actionStep.ready will be called; to keep focus here,
         // we only validate the null-case behavior. We force conditionExecutionNull = true in source
         // below.
         assertTrue(
@@ -438,10 +438,10 @@ public class StepServiceTest extends IntegrationTest {
                 eq(workflowRun),
                 eq(stepService));
 
-        verify(actionStep, never()).wait(any(), any(), any());
+        verify(actionStep, never()).ready(any(), any(), any());
         verify(stepRepository, never()).save(any());
         verify(conditionService, never()).saveAllConditions(anyList());
-        verify(queueChainingService, never()).waitStep(any(), any());
+        verify(queueChainingService, never()).readyStep(any(), any());
       }
 
       static Stream<Arguments> conditionExecutionTestInputs() {
@@ -489,19 +489,19 @@ public class StepServiceTest extends IntegrationTest {
                 eq(stepService)))
             .thenReturn(conditionExecution);
 
-        Step stepWait = mock(Step.class);
+        Step stepReady = mock(Step.class);
 
-        when(actionStep.wait(persistedTemplate, input, workflowRun)).thenReturn(stepWait);
-        when(stepRepository.save(stepWait)).thenReturn(stepWait);
+        when(actionStep.ready(persistedTemplate, input, workflowRun)).thenReturn(stepReady);
+        when(stepRepository.save(stepReady)).thenReturn(stepReady);
 
-        // queueChainingService.waitStep(...) does not throw here
-        doNothing().when(queueChainingService).waitStep(stepWait, workflowRun);
+        // queueChainingService.readyStep(...) does not throw here
+        doNothing().when(queueChainingService).readyStep(stepReady, workflowRun);
 
         // -------- Act --------
         Step result = stepService.ready(nextStepTemplateToExecute, workflowRun, input);
 
         // -------- Assert --------
-        assertSame(stepWait, result);
+        assertSame(stepReady, result);
 
         // findById(...) is private -> verify repository call instead
         verify(stepRepository).findById(stepIdCaptor.capture());
@@ -515,25 +515,25 @@ public class StepServiceTest extends IntegrationTest {
                 eq(workflowRun),
                 eq(stepService));
 
-        verify(actionStep).wait(persistedTemplate, input, workflowRun);
+        verify(actionStep).ready(persistedTemplate, input, workflowRun);
 
         // workflow set before save
-        verify(stepWait).setWorkflow(workflowCaptor.capture());
+        verify(stepReady).setWorkflow(workflowCaptor.capture());
         assertSame(workflowRun, workflowCaptor.getValue());
 
         // saveStep(...) is private -> verify repository save instead
         verify(stepRepository).save(stepCaptor.capture());
-        assertSame(stepWait, stepCaptor.getValue());
+        assertSame(stepReady, stepCaptor.getValue());
 
-        // conditions should be linked to the final step (savedStepWait)
-        verify(c1).setStep(stepWait);
-        verify(c2).setStep(stepWait);
+        // conditions should be linked to the final step (savedstepReady)
+        verify(c1).setStep(stepReady);
+        verify(c2).setStep(stepReady);
 
         verify(conditionService).saveAllConditions(conditionsCaptor.capture());
         assertEquals(2, conditionsCaptor.getValue().size());
         assertTrue(conditionsCaptor.getValue().containsAll(List.of(c1, c2)));
 
-        verify(queueChainingService).waitStep(stepWait, workflowRun);
+        verify(queueChainingService).readyStep(stepReady, workflowRun);
       }
     }
 
@@ -573,12 +573,12 @@ public class StepServiceTest extends IntegrationTest {
                 eq(stepService)))
             .thenReturn(conditionExecution);
 
-        Step stepWait = mock(Step.class);
-        when(actionStep.wait(persistedTemplate, input, workflowRun)).thenReturn(stepWait);
-        when(stepRepository.save(stepWait)).thenReturn(stepWait);
+        Step stepReady = mock(Step.class);
+        when(actionStep.ready(persistedTemplate, input, workflowRun)).thenReturn(stepReady);
+        when(stepRepository.save(stepReady)).thenReturn(stepReady);
 
         IOException ioException = new IOException("boom");
-        doThrow(ioException).when(queueChainingService).waitStep(stepWait, workflowRun);
+        doThrow(ioException).when(queueChainingService).readyStep(stepReady, workflowRun);
 
         // -------- Act --------
         RuntimeException ex =
@@ -589,14 +589,14 @@ public class StepServiceTest extends IntegrationTest {
         // -------- Assert --------
         assertSame(ioException, ex.getCause());
 
-        verify(actionStep).wait(persistedTemplate, input, workflowRun);
-        verify(stepWait).setWorkflow(workflowRun);
-        verify(stepRepository).save(stepWait);
+        verify(actionStep).ready(persistedTemplate, input, workflowRun);
+        verify(stepReady).setWorkflow(workflowRun);
+        verify(stepRepository).save(stepReady);
 
-        verify(c1).setStep(stepWait);
+        verify(c1).setStep(stepReady);
         verify(conditionService).saveAllConditions(anyList());
 
-        verify(queueChainingService).waitStep(stepWait, workflowRun);
+        verify(queueChainingService).readyStep(stepReady, workflowRun);
       }
     }
   }

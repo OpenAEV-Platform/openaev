@@ -369,7 +369,7 @@ public class InjectExecutionStepTest {
             .build();
 
     Step stepReady =
-        injectExecutionStep.wait(stepTemplate, "{\"input\" : \"do defined\"}", workflowRun);
+        injectExecutionStep.ready(stepTemplate, "{\"input\" : \"do defined\"}", workflowRun);
     assertEquals("do defined", StepService.getField(stepReady.getInput(), "input"));
   }
 
@@ -428,10 +428,10 @@ public class InjectExecutionStepTest {
             .build();
 
     Workflow savedWorkflowRun = workflowComposer.forWorkflow(workflowRun).persist().get();
-    Step stepWait =
-        injectExecutionStep.wait(stepTemplate, "{\"input\" : \"do defined\"}", savedWorkflowRun);
-    stepWait = injectExecutionStep.run(stepWait);
-    assertNotNull(StepService.getField(stepWait.getData(), "inject_id"));
+    Step stepReady =
+        injectExecutionStep.ready(stepTemplate, "{\"input\" : \"do defined\"}", savedWorkflowRun);
+    stepReady = injectExecutionStep.run(stepReady);
+    assertNotNull(StepService.getField(stepReady.getData(), "inject_id"));
   }
 
   /**

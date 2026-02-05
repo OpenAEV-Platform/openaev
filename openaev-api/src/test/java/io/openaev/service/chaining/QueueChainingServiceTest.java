@@ -39,7 +39,7 @@ class QueueChainingServiceTest {
 
   @Mock private BatchQueueService<StepEvent> delayQueueService;
 
-  @Mock private BatchQueueService<StepEvent> waitQueueService;
+  @Mock private BatchQueueService<StepEvent> readyQueueService;
 
   @Mock private BatchQueueService<ExternalUpdateEvent> updateQueueService;
 
@@ -48,7 +48,7 @@ class QueueChainingServiceTest {
   @BeforeEach
   void setUp() {
     queueChainingService.setDelayQueueService(delayQueueService);
-    queueChainingService.setWaitQueueService(waitQueueService);
+    queueChainingService.setReadyQueueService(readyQueueService);
     queueChainingService.setUpdateQueueService(updateQueueService);
   }
 
@@ -60,8 +60,8 @@ class QueueChainingServiceTest {
   class InitTests {
 
     @Test
-    @DisplayName("should throw RuntimeException when workflows-wait config is missing")
-    void shouldThrowWhenWaitConfigMissing() {
+    @DisplayName("should throw RuntimeException when workflows-ready config is missing")
+    void shouldThrowWhenReadyConfigMissing() {
       // Prepare
       Map<String, QueueConfig> queueConfig = new HashMap<>();
       queueConfig.put("workflows-update", new QueueConfig());
@@ -71,7 +71,7 @@ class QueueChainingServiceTest {
       // Act & Assert
       RuntimeException exception =
           assertThrows(RuntimeException.class, () -> queueChainingService.init());
-      assertTrue(exception.getMessage().contains("workflows-wait"));
+      assertTrue(exception.getMessage().contains("workflows-ready"));
     }
 
     @Test
@@ -79,7 +79,7 @@ class QueueChainingServiceTest {
     void shouldThrowWhenUpdateConfigMissing() {
       // Prepare
       Map<String, QueueConfig> queueConfig = new HashMap<>();
-      queueConfig.put("workflows-wait", new QueueConfig());
+      queueConfig.put("workflows-ready", new QueueConfig());
       queueConfig.put("workflows-delay", new QueueConfig());
       when(openAEVConfig.getQueueConfig()).thenReturn(queueConfig);
 
@@ -94,7 +94,7 @@ class QueueChainingServiceTest {
     void shouldThrowWhenDelayConfigMissing() {
       // Prepare
       Map<String, QueueConfig> queueConfig = new HashMap<>();
-      queueConfig.put("workflows-wait", new QueueConfig());
+      queueConfig.put("workflows-ready", new QueueConfig());
       queueConfig.put("workflows-update", new QueueConfig());
       when(openAEVConfig.getQueueConfig()).thenReturn(queueConfig);
 
@@ -215,11 +215,11 @@ class QueueChainingServiceTest {
   }
 
   // ========================================================================
-  // waitStep Tests
+  // readyStep Tests
   // ========================================================================
   @Nested
-  @DisplayName("waitStep")
-  class WaitStepTests {
+  @DisplayName("readyStep")
+  class ReadyStepTests {
 
     @Captor private ArgumentCaptor<StepEvent> eventCaptor;
 
@@ -237,10 +237,10 @@ class QueueChainingServiceTest {
       when(workflowRun.getId()).thenReturn(workflowId);
 
       // Act
-      queueChainingService.waitStep(stepExecution, workflowRun);
+      queueChainingService.readyStep(stepExecution, workflowRun);
 
       // Assert
-      verify(waitQueueService).publish(eventCaptor.capture());
+      verify(readyQueueService).publish(eventCaptor.capture());
       StepEvent event = eventCaptor.getValue();
       assertEquals(stepId, event.getStepId());
     }
@@ -259,10 +259,10 @@ class QueueChainingServiceTest {
       when(workflowRun.getId()).thenReturn(workflowId);
 
       // Act
-      queueChainingService.waitStep(stepExecution, workflowRun);
+      queueChainingService.readyStep(stepExecution, workflowRun);
 
       // Assert
-      verify(waitQueueService).publish(eventCaptor.capture());
+      verify(readyQueueService).publish(eventCaptor.capture());
       StepEvent event = eventCaptor.getValue();
       assertEquals(workflowId, event.getWorkflowId());
     }
@@ -280,12 +280,12 @@ class QueueChainingServiceTest {
       long beforeTest = Instant.now().toEpochMilli();
 
       // Act
-      queueChainingService.waitStep(stepExecution, workflowRun);
+      queueChainingService.readyStep(stepExecution, workflowRun);
 
       long afterTest = Instant.now().toEpochMilli();
 
       // Assert
-      verify(waitQueueService).publish(eventCaptor.capture());
+      verify(readyQueueService).publish(eventCaptor.capture());
       StepEvent event = eventCaptor.getValue();
       assertTrue(event.getEmissionDate() >= beforeTest);
       assertTrue(event.getEmissionDate() <= afterTest);
@@ -301,11 +301,11 @@ class QueueChainingServiceTest {
       Workflow workflowRun = mock(Workflow.class);
       when(workflowRun.getId()).thenReturn(UUID.randomUUID().toString());
 
-      doThrow(new IOException("Queue error")).when(waitQueueService).publish(any());
+      doThrow(new IOException("Queue error")).when(readyQueueService).publish(any());
 
       // Act & Assert
       assertThrows(
-          IOException.class, () -> queueChainingService.waitStep(stepExecution, workflowRun));
+          IOException.class, () -> queueChainingService.readyStep(stepExecution, workflowRun));
     }
   }
 
@@ -389,25 +389,25 @@ class QueueChainingServiceTest {
   }
 
   // ========================================================================
-  // setCallbackForWaitQueue Tests
+  // setCallbackForReadyQueue Tests
   // ========================================================================
   @Nested
-  @DisplayName("setCallbackForWaitQueue")
-  class SetCallbackForWaitQueueTests {
+  @DisplayName("setCallbackForReadyQueue")
+  class SetCallbackForReadyQueueTests {
 
     @Captor private ArgumentCaptor<QueueExecution<StepEvent>> callbackCaptor;
 
     @Test
-    @DisplayName("should set callback on wait queue service")
-    void shouldSetCallbackOnWaitQueueService() {
+    @DisplayName("should set callback on ready queue service")
+    void shouldSetCallbackOnReadyQueueService() {
       // Prepare
       QueueExecution<StepEvent> callback = mock(QueueExecution.class);
 
       // Act
-      queueChainingService.setCallbackForWaitQueue(callback);
+      queueChainingService.setCallbackForReadyQueue(callback);
 
       // Assert
-      verify(waitQueueService).setQueueExecution(callbackCaptor.capture());
+      verify(readyQueueService).setQueueExecution(callbackCaptor.capture());
       assertEquals(callback, callbackCaptor.getValue());
     }
   }
