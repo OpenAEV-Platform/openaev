@@ -81,19 +81,17 @@ const CustomDashboardWrapper = ({
       const newParams = new URLSearchParams(prevParams);
       newParams.set('widget_id', conf.widgetId);
       newParams.set('series_index', (conf.series_index ?? '').toString());
-      newParams.set('filter_values', (conf.filter_values ?? []).join(','));
+      if (conf.filter_values_map) {
+        Object.entries(conf.filter_values_map).forEach(([key, value]) => {
+          newParams.set(key, (value ?? []).join(','));
+        });
+      }
       return newParams;
     }, { replace: true });
   };
 
   const handleCloseWidgetDataDrawer = () => {
-    setSearchParams((prevParams) => {
-      const newParams = new URLSearchParams(prevParams);
-      newParams.delete('widget_id');
-      newParams.delete('series_index');
-      newParams.delete('filter_values');
-      return newParams;
-    }, { replace: true });
+    setSearchParams(new URLSearchParams(), { replace: true });
   };
 
   const setDataReadyWithDelay = () => {

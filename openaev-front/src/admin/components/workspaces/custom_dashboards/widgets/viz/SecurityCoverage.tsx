@@ -4,7 +4,7 @@ import { type FunctionComponent, memo, useCallback } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import Transition from '../../../../../../components/common/Transition';
-import { type EsSeries } from '../../../../../../utils/api-types';
+import { type EsSeries, type StructuralHistogramWidget } from '../../../../../../utils/api-types';
 import SecurityCoverageContent from './SecurityCoverageContent';
 
 const useStyles = makeStyles()(theme => ({
@@ -21,11 +21,12 @@ interface Props {
   widgetId: string;
   widgetTitle: string;
   data: EsSeries[];
+  widgetConfig: StructuralHistogramWidget;
   fullscreen: boolean;
   setFullscreen: (fullscreen: boolean) => void;
 }
 
-const SecurityCoverage: FunctionComponent<Props> = ({ widgetId, widgetTitle, data, fullscreen, setFullscreen }) => {
+const SecurityCoverage: FunctionComponent<Props> = ({ widgetId, widgetConfig, widgetTitle, data, fullscreen, setFullscreen }) => {
   // Standard hooks
   const { classes } = useStyles();
 
@@ -53,14 +54,14 @@ const SecurityCoverage: FunctionComponent<Props> = ({ widgetId, widgetTitle, dat
         </DialogTitle>
         <DialogContent>
           <Box display="flex">
-            <SecurityCoverageContent widgetId={widgetId} data={data} />
+            <SecurityCoverageContent widgetId={widgetId} widgetConfig={widgetConfig} data={data} />
           </Box>
         </DialogContent>
       </Dialog>
     );
   }
 
-  return <SecurityCoverageContent widgetId={widgetId} data={data} />;
+  return <SecurityCoverageContent widgetId={widgetId} widgetConfig={widgetConfig} data={data} />;
 };
 
 export default memo(SecurityCoverage);

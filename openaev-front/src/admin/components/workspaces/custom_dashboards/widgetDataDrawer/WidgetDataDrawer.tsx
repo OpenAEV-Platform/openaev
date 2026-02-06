@@ -1,5 +1,5 @@
 import { Typography } from '@mui/material';
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 
 import Drawer from '../../../../../components/common/Drawer';
@@ -22,7 +22,14 @@ const WidgetDataDrawer = () => {
   const [searchParams] = useSearchParams();
   const widgetId = searchParams.get('widget_id');
   const seriesIndex = searchParams.get('series_index');
-  const filterValues = searchParams.get('filter_values');
+
+  const filterValues = useMemo(() => {
+    return Object.fromEntries(
+      searchParams.entries()
+        .filter(([key]) => !['widget_id', 'series_index'].includes(key))
+        .map(([key, value]) => [key, value.split(',')]),
+    );
+  }, [searchParams]);
 
   const [open, setOpen] = useState(false);
   const [listDatas, setListDatas] = useState<EsBase[]>([]);
@@ -41,7 +48,7 @@ const WidgetDataDrawer = () => {
       Object.entries(customDashboardParameters).map(([key, val]) => [key, val.value]),
     );
     fetchEntitiesRuntime(widgetId, {
-      filter_values: filterValues.split(','),
+      filter_values_map: filterValues,
       series_index: Number(seriesIndex),
       parameters: params,
     }).then(({ data }) => {

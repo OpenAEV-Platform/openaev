@@ -11,9 +11,11 @@ import lombok.Setter;
 @Setter
 public class WidgetToEntitiesInput {
 
-  @JsonProperty("filter_values")
-  @Schema(description = "The values to filter the entities by")
-  private List<String> filterValues;
+  @JsonProperty("filter_values_map")
+  @Schema(
+      description =
+          "Key-value pairs for filtering entities, where the key is the field name and the value is the filter criterion")
+  private Map<String, List<String>> filterValuesMap;
 
   @JsonProperty("series_index")
   @Schema(description = "The index of the series to filter by, if applicable, otherwise 0")

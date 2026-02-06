@@ -8,7 +8,12 @@ import type { AttackPatternHelper } from '../../../../../../actions/attack_patte
 import type { KillChainPhaseHelper } from '../../../../../../actions/kill_chain_phases/killchainphase-helper';
 import { useFormatter } from '../../../../../../components/i18n';
 import { useHelper } from '../../../../../../store';
-import { type AttackPattern, type EsSeries, type KillChainPhase } from '../../../../../../utils/api-types';
+import {
+  type AttackPattern,
+  type EsSeries,
+  type KillChainPhase,
+  type StructuralHistogramWidget,
+} from '../../../../../../utils/api-types';
 import { sortKillChainPhase } from '../../../../../../utils/kill_chain_phases/kill_chain_phases';
 import ColoredPercentageRate from './components/ColoredPercentageRate';
 import KillChainPhaseColumn from './KillChainPhaseColumn';
@@ -26,10 +31,11 @@ const useStyles = makeStyles()(theme => ({
 
 interface Props {
   widgetId: string;
+  widgetConfig: StructuralHistogramWidget;
   data: EsSeries[];
 }
 
-const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, data }) => {
+const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, widgetConfig, data }) => {
   // Standard hooks
   const { classes } = useStyles();
   const theme = useTheme();
@@ -124,6 +130,7 @@ const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, data }) =
               resolvedDataSuccess={resolvedDataSuccessByKillChainPhase}
               resolvedDataFailure={resolvedDataFailureByKillChainPhase}
               widgetId={widgetId}
+              widgetConfig={widgetConfig}
             />
           );
         })}

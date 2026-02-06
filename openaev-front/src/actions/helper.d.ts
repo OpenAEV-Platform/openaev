@@ -30,8 +30,6 @@ export interface TagHelper {
   getTagsMap: () => Record<string, Tag>;
 }
 
-export interface DomainHelper { getDomains: () => Domain[] }
-
 export interface LoggedHelper {
   // TODO type logged object
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

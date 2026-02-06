@@ -33,7 +33,7 @@ const LineChart: FunctionComponent<Props> = ({ widgetId, series }) => {
 
     openWidgetDataDrawer({
       widgetId,
-      filter_values: [dataPointIndex?.x ?? ''],
+      filter_values_map: { date: [dataPointIndex?.x ?? ''] },
       series_index: config.seriesIndex,
     });
   }, [series, openWidgetDataDrawer, widgetId]);

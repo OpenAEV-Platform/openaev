@@ -2217,8 +2217,8 @@ export interface EsCountInterval {
 }
 
 export interface EsDomainsAvgData {
-  data?: EsSeries[];
-  label?: string;
+  data: EsSeries[];
+  label: string;
 }
 
 export interface EsEndpoint {
@@ -4558,6 +4558,11 @@ export type ListConfiguration = UtilRequiredKeys<
   "widget_configuration_type" | "time_range" | "date_attribute"
 > & {
   columns?: string[];
+  /**
+   * @format int32
+   * @min 0
+   */
+  from?: number;
   /**
    * @format int32
    * @min 1
@@ -7727,8 +7732,8 @@ export interface WidgetLayout {
 }
 
 export interface WidgetToEntitiesInput {
-  /** The values to filter the entities by */
-  filter_values?: string[];
+  /** Key-value pairs for filtering entities, where the key is the field name and the value is the filter criterion */
+  filter_values_map?: Record<string, string[]>;
   /** Additional parameters for the widget */
   parameters?: Record<string, string>;
   /**
