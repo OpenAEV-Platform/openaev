@@ -94,7 +94,13 @@ class CreateInjectorContractComponent extends Component {
       contract_attack_patterns_external_ids:
         data.injector_contract_attack_patterns?.map(p => p.id),
       contract_content: JSON.stringify(newInjectorContractContent),
-      contract_domains: data.injector_contract_domains,
+      contract_domains: data.injector_contract_domains.map((d) => {
+        return {
+          domain_id: d.domain_id,
+          domain_name: d.domain_name,
+          domain_color: d.domain_color,
+        };
+      }),
     };
 
     return this.props.addInjectorContract(inputValues).then((result) => {

@@ -3,7 +3,6 @@ package io.openaev.rest.injector_contract.form;
 import static io.openaev.config.AppConfig.MANDATORY_MESSAGE;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.model.Domain;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
@@ -58,5 +57,5 @@ public class InjectorContractAddInput {
 
   @NotNull(message = MANDATORY_MESSAGE)
   @JsonProperty("contract_domains")
-  private Set<Domain> domains;
+  private Set<InjectorContractDomainDTO> domains;
 }

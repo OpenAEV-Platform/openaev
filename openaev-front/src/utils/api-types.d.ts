@@ -3620,7 +3620,7 @@ export interface InjectorContractAddInput {
   contract_attack_patterns_ids?: string[];
   contract_content: string;
   /** @uniqueItems true */
-  contract_domains: Domain[];
+  contract_domains: InjectorContractDomainDTO[];
   contract_id: string;
   contract_labels?: Record<string, string>;
   contract_manual?: boolean;
@@ -3656,6 +3656,12 @@ export interface InjectorContractDomainCountOutput {
    * @example "Endpoints"
    */
   domain: string;
+}
+
+export interface InjectorContractDomainDTO {
+  domain_color: string;
+  domain_id: string;
+  domain_name: string;
 }
 
 export interface InjectorContractFullOutput {
@@ -3701,7 +3707,7 @@ export interface InjectorContractInput {
   contract_attack_patterns_external_ids?: string[];
   contract_content: string;
   /** @uniqueItems true */
-  contract_domains?: Domain[];
+  contract_domains?: InjectorContractDomainDTO[];
   contract_id: string;
   contract_labels?: Record<string, string>;
   contract_manual?: boolean;
@@ -3764,7 +3770,7 @@ export interface InjectorContractUpdateInput {
   contract_attack_patterns_ids?: string[];
   contract_content: string;
   /** @uniqueItems true */
-  contract_domains?: Domain[];
+  contract_domains?: InjectorContractDomainDTO[];
   contract_labels?: Record<string, string>;
   contract_manual?: boolean;
   contract_platforms?: string[];
@@ -5156,7 +5162,7 @@ export interface PayloadUpsertInput {
    * Update list of domains
    * @uniqueItems true
    */
-  payload_domains: Domain[];
+  payload_domains: InjectorContractDomainDTO[];
   payload_elevation_required?: boolean;
   payload_execution_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (

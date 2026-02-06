@@ -25,10 +25,7 @@ import io.openaev.injectors.ovh.OvhSmsContract;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.injector_contract.form.InjectorContractAddInput;
-import io.openaev.rest.injector_contract.form.InjectorContractInput;
-import io.openaev.rest.injector_contract.form.InjectorContractUpdateInput;
-import io.openaev.rest.injector_contract.form.InjectorContractUpdateMappingInput;
+import io.openaev.rest.injector_contract.form.*;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
@@ -322,8 +319,8 @@ public class InjectorContractService {
     }
 
     if (!isPayloads) {
-      Set<Domain> currentDomains = this.domainService.upserts(target.getDomains());
-      Set<Domain> domainsToAdd = this.domainService.upserts(source.getDomains());
+      Set<Domain> currentDomains = this.domainService.upsertDomainEntities(target.getDomains());
+      Set<Domain> domainsToAdd = this.domainService.upsertDomainEntities(target.getDomains());
       target.setDomains(this.domainService.mergeDomains(currentDomains, domainsToAdd));
     }
     setupImportAvailable(target);
