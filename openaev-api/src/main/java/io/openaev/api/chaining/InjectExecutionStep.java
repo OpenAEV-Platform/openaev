@@ -139,26 +139,41 @@ public class InjectExecutionStep implements ActionStep {
     try {
       // GET INJECT FROM JSON
       Inject inject = om.readValue(readyStep.getData(), Inject.class);
-      JsonNode root = om.readTree(readyStep.getData());
+
+      ObjectMapper mapper = new ObjectMapper();
+      JsonNode root = mapper.readTree(readyStep.getData());
+
+      Optional<InjectorContract> injectorContractOpt = inject.getInjectorContract();
+      if (injectorContractOpt.isEmpty()) {
+        log.info("Injector contract not found for step (READY) id {}", readyStep.getId());
+        return null;
+      }
 
       JsonNode injectorNode =
           root.path("inject_injector_contract").path("injector_contract_injector");
 
-      // Get injector contract by id, cause cannot be serialized:
-      if (!injectorNode.isMissingNode()) {
+      if (injectorNode.isMissingNode() && injectorNode.isEmpty()) {
+        log.info(
+            "Injector not found for injectorContractId {} & step (READY) id {}",
+            injectorContractOpt.get().getId(),
+            readyStep.getId());
+        return null;
+      }
+      if (injectorContractOpt.get().getInjector() == null) {
         String injectorId = injectorNode.asText();
-
         Injector injector = em.find(Injector.class, injectorId);
-        Optional<InjectorContract> injectorContract = inject.getInjectorContract();
-        if (injectorContract.isPresent()) {
-          injectorContract.get().setInjector(injector);
-        } else {
+
+        if (injector == null) {
           log.info(
-              "Injector contract not found for injectorId {} & step (READY) id {}",
+              "Injector not found for injectorId {} & step (READY) id {}",
               injectorId,
               readyStep.getId());
+          return null;
         }
+
+        injectorContractOpt.get().setInjector(injector);
       }
+
       // CREATE & SAVE INJECT
       inject = injectService.createInject(inject);
 
@@ -185,7 +200,7 @@ public class InjectExecutionStep implements ActionStep {
         log.warn(e.getMessage(), e);
         injectStatusService.failInjectStatus(inject.getId(), e.getMessage());
       }
-    } catch (JsonProcessingException e) {
+    } catch (IllegalArgumentException | JsonProcessingException e) {
       log.warn(e.getMessage(), e);
       return null;
     }
@@ -278,7 +293,7 @@ public class InjectExecutionStep implements ActionStep {
 
     InjectInput data = (InjectInput) step.getDataStep();
 
-    if (data.getInjectorContract() == null) {
+    if (data == null || data.getInjectorContract() == null) {
       log.warn("injector contract not found for step create input {}", step);
       return null;
     }

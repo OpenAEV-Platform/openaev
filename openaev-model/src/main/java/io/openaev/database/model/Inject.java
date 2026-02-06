@@ -166,7 +166,6 @@ public class Inject implements GrantableBase, Injection {
   @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "inject_injector_contract")
   @JsonProperty("inject_injector_contract")
-  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
   @Queryable(filterable = true, dynamicValues = true, path = "injectorContract.injector.id")
   private InjectorContract injectorContract;
 
