@@ -38,7 +38,6 @@ const ConnectorLayout = () => {
   const dispatch = useAppDispatch();
   const [loading, setLoading] = useState<boolean>(true);
   const [relatedIds, setRelatedIds] = useState<ConnectorIds>();
-  const [isRelatedIdsLoaded, setIsRelatedIdsLoaded] = useState<boolean>(false);
   const [isXtmComposerUp, setIsXtmComposerUp] = useState<boolean>(false);
 
   const getConnectorHelper = () => {
@@ -62,22 +61,22 @@ const ConnectorLayout = () => {
   useEffect(() => {
     isXtmComposerIsReachable().then(({ data }) => setIsXtmComposerUp(data));
 
-    setIsRelatedIdsLoaded(false);
-    setLoading(true);
-    setRelatedIds(undefined);
-
     if (!connectorId) {
       setLoading(false);
+      setRelatedIds(undefined);
       return;
     }
+    setLoading(true);
     apiRequest.getRelatedIds(connectorId).then(({ data }: { data: ConnectorIds }) => {
       setRelatedIds(data);
-      setIsRelatedIdsLoaded(true);
-    });
+    })
+      .catch(() => {
+        setLoading(false);
+      });
   }, [connectorId]);
 
   useDataLoader(() => {
-    if (!isRelatedIdsLoaded || !connectorId) {
+    if (!relatedIds || !connectorId) {
       return;
     }
     const promises: Promise<typeof store.dispatch>[] = [
@@ -90,7 +89,7 @@ const ConnectorLayout = () => {
       promises.push(dispatch(fetchConnectorInstance(relatedIds.connector_instance_id)));
     }
     Promise.all(promises).finally(() => setLoading(false));
-  }, [isRelatedIdsLoaded]);
+  }, [relatedIds]);
 
   const breadcrumbElements = connectorId
     ? [
