@@ -1,7 +1,10 @@
 package io.openaev.aop;
 
 import io.openaev.config.SessionHelper;
+import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.User;
+import io.openaev.ee.EnterpriseEditionException;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import java.lang.reflect.Method;
@@ -30,10 +33,12 @@ import org.springframework.web.server.ResponseStatusException;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class RBACAspect {
+public class AccessControlAspect {
 
   private final PermissionService permissionService;
   private final UserService userService;
+  private final EnterpriseEditionService enterpriseEditionService;
+  private final LicenseCacheManager licenseCacheManager;
 
   private final ExpressionParser parser = new SpelExpressionParser();
 
@@ -43,6 +48,13 @@ public class RBACAspect {
     if (accessControl.skipRBAC()) {
       // If RBAC is disabled, skip the verification
       return;
+    }
+
+    if (accessControl.isEnterpriseEdition()) {
+      if (enterpriseEditionService.isEnterpriseLicenseInactive(
+          licenseCacheManager.getEnterpriseEditionInfo())) {
+        throw new EnterpriseEditionException("Enterprise Edition license required");
+      }
     }
 
     MethodSignature signature = (MethodSignature) joinPoint.getSignature();

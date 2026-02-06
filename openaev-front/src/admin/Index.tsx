@@ -24,6 +24,7 @@ import { GETTING_STARTED_LOCAL_STORAGE_KEY } from './components/getting_started/
 import GettingStartedRoutes, { GETTING_STARTED_URI } from './components/getting_started/GettingStartedRoutes';
 import LeftBar from './components/nav/LeftBar';
 import TopBar from './components/nav/TopBar';
+import PlatformRoutes from './components/platform/PlatformRoutes';
 import DeployScenario from './components/scenarios/DeployScenario';
 import InjectIndex from './components/simulations/simulation/injects/InjectIndex';
 
@@ -233,7 +234,7 @@ const Index = () => {
                 />
               )}
             />
-
+            {PlatformRoutes}
             {/* Not found */}
             <Route path="*" element={<NotFound />} />
           </Routes>
