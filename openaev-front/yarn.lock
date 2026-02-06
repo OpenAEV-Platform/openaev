@@ -327,13 +327,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@casl/react@npm:5.0.0":
-  version: 5.0.0
-  resolution: "@casl/react@npm:5.0.0"
+"@casl/react@npm:5.0.1":
+  version: 5.0.1
+  resolution: "@casl/react@npm:5.0.1"
   peerDependencies:
     "@casl/ability": ^4.0.0 || ^5.1.0 || ^6.0.0
     react: ^17.0.0 || ^18.0.0 || ^19.0.0
-  checksum: 10c0/0edd46fb09f9d402166fe01383597d78edf065200469875d7f4290c11c24620367e2d53b936852d28481f3109cf19b45ed53416b20759d1e8a8d5d50526ec600
+  checksum: 10c0/d66877b3c3c651f4bb1f9cc08db53d468483c52a2c0da4cea3b6b9dcfebbc815986e274cbfabd6238731f9af8950191fe382b3a1a59f02ffc9cd6504d3f599d0
   languageName: node
   linkType: hard
 
@@ -10178,7 +10178,7 @@ __metadata:
   resolution: "openaev-front@workspace:."
   dependencies:
     "@casl/ability": "npm:6.7.5"
-    "@casl/react": "npm:5.0.0"
+    "@casl/react": "npm:5.0.1"
     "@ckeditor/ckeditor5-react": "npm:9.5.0"
     "@dagrejs/dagre": "npm:1.1.8"
     "@emotion/react": "npm:11.14.0"
