@@ -116,15 +116,26 @@ const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ cronObject, set
         uiSupported: z.boolean(),
         onlyWeekday: z.boolean(),
         time: z.string().min(1, t('Required')).nullable(),
-        // @ts-expect-error zodImplement cannot handle refine
-        dayOfWeek: z.number().optional().refine((value) => {
+        dayOfWeek: z.union([
+          z.literal(1),
+          z.literal(2),
+          z.literal(3),
+          z.literal(4),
+          z.literal(5),
+          z.literal(6),
+          z.literal(7),
+        ]).optional().refine((value) => {
           if (['weekly', 'monthly'].includes(selectRecurring)) {
             return value !== null;
           }
           return true;
         }, { message: t('Required') }),
-        // @ts-expect-error zodImplement cannot handle refine
-        weekOfMonth: z.number().optional().refine((value) => {
+        weekOfMonth: z.union([
+          z.literal(1),
+          z.literal(2),
+          z.literal(3),
+          z.literal(4),
+          z.literal(5)]).optional().refine((value) => {
           if (['monthly'].includes(selectRecurring)) {
             return value !== null;
           }
@@ -151,7 +162,6 @@ const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ cronObject, set
               return new Date(data.endDate).getTime() > new Date(data.startDate).getTime();
             }
           }
-
           return true;
         },
         {

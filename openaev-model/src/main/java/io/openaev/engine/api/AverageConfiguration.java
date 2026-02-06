@@ -1,5 +1,6 @@
 package io.openaev.engine.api;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.NotBlank;
 import java.util.Map;
 import lombok.Getter;
@@ -9,7 +10,7 @@ import lombok.Setter;
 @Setter
 public class AverageConfiguration extends WidgetConfiguration {
 
-  @NotBlank private Map<String, String> field;
+  @NotBlank @JsonIgnore private Map<String, String> field;
 
   public AverageConfiguration() {
     super(WidgetConfigurationType.AVERAGE);

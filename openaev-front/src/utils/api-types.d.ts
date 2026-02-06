@@ -407,9 +407,7 @@ export interface AttackPatternUpsertInput {
 export type AverageConfiguration = UtilRequiredKeys<
   WidgetConfiguration,
   "series" | "widget_configuration_type" | "time_range" | "date_attribute"
-> & {
-  field: Record<string, string>;
-};
+>;
 
 interface BaseEsBase {
   /** @format date-time */
@@ -1242,7 +1240,6 @@ export interface CreateExerciseInput {
   exercise_category?: string;
   exercise_custom_dashboard?: string;
   exercise_description?: string;
-  exercise_is_chaining?: boolean;
   exercise_mail_from?: string;
   exercise_mails_reply_to?: string[];
   exercise_main_focus?: string;
@@ -5268,9 +5265,10 @@ export interface PlatformSettings {
   /** List of enabled dev features */
   enabled_dev_features?: (
     | "_RESERVED"
+    | "FEATURE_FLAG_ALL"
     | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
     | "LEGACY_INGESTION_EXECUTION_TRACE"
-    | "INJECT_CHAINING"
+    | "MULTI_TENANCY"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -6578,7 +6576,6 @@ export interface UpdateExerciseInput {
   exercise_category?: string;
   exercise_custom_dashboard?: string;
   exercise_description?: string;
-  exercise_is_chaining?: boolean;
   exercise_mail_from?: string;
   exercise_mails_reply_to?: string[];
   exercise_main_focus?: string;

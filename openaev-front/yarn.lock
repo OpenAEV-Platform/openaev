@@ -10285,7 +10285,7 @@ __metadata:
     uuid: "npm:13.0.0"
     vite: "npm:rolldown-vite@7.3.1"
     vitest: "npm:3.2.4"
-    zod: "npm:3.25.76"
+    zod: "npm:4.3.6"
     zustand: "npm:5.0.9"
   languageName: unknown
   linkType: soft
@@ -13731,10 +13731,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"zod@npm:3.25.76":
-  version: 3.25.76
-  resolution: "zod@npm:3.25.76"
-  checksum: 10c0/5718ec35e3c40b600316c5b4c5e4976f7fee68151bc8f8d90ec18a469be9571f072e1bbaace10f1e85cf8892ea12d90821b200e980ab46916a6166a4260a983c
+"zod@npm:4.3.6":
+  version: 4.3.6
+  resolution: "zod@npm:4.3.6"
+  checksum: 10c0/860d25a81ab41d33aa25f8d0d07b091a04acb426e605f396227a796e9e800c44723ed96d0f53a512b57be3d1520f45bf69c0cb3b378a232a00787a2609625307
   languageName: node
   linkType: hard
 

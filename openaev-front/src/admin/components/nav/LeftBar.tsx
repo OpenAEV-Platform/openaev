@@ -1,15 +1,44 @@
-import { DashboardOutlined, DescriptionOutlined, DevicesOtherOutlined, DnsOutlined, Groups3Outlined, GroupsOutlined, HubOutlined, InsertChartOutlined, MovieFilterOutlined, OnlinePredictionOutlined, PersonOutlined, RocketLaunchOutlined, RowingOutlined, SchoolOutlined, SettingsOutlined, SmartButtonOutlined, SubscriptionsOutlined, TerminalOutlined, Widgets } from '@mui/icons-material';
-import { Binoculars, NewspaperVariantMultipleOutline, PostOutline, SecurityNetwork, SelectGroup, Target } from 'mdi-material-ui';
+import {
+  DashboardOutlined,
+  DescriptionOutlined,
+  DevicesOtherOutlined,
+  DnsOutlined,
+  Groups3Outlined,
+  GroupsOutlined,
+  HubOutlined,
+  InsertChartOutlined,
+  MovieFilterOutlined,
+  OnlinePredictionOutlined,
+  PersonOutlined,
+  RocketLaunchOutlined,
+  RowingOutlined,
+  SchoolOutlined,
+  SmartButtonOutlined,
+  SubscriptionsOutlined,
+  TerminalOutlined,
+  Widgets,
+} from '@mui/icons-material';
+import {
+  Binoculars,
+  NewspaperVariantMultipleOutline,
+  PostOutline,
+  SecurityNetwork,
+  SelectGroup,
+  Target,
+} from 'mdi-material-ui';
 import { useContext } from 'react';
 
 import LeftMenu from '../../../components/common/menu/leftmenu/LeftMenu';
+import { type LeftMenuEntries } from '../../../components/common/menu/leftmenu/leftmenu-model';
 import { AbilityContext } from '../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { GETTING_STARTED_URI } from '../getting_started/GettingStartedRoutes';
+import platformEntries from './config/platform.config';
+import settingsEntries from './config/settings.config';
 
 const LeftBar = () => {
   const ability = useContext(AbilityContext);
-  const entries = [
+  const entries: LeftMenuEntries[] = [
     {
       userRight: true,
       items: [
@@ -189,51 +218,16 @@ const LeftBar = () => {
         },
       ],
     },
+  ];
+  entries.push(
     {
       userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
       items: [
-        {
-          path: `/admin/settings`,
-          icon: () => (<SettingsOutlined />),
-          label: 'Settings',
-          href: 'settings',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
-          subItems: [
-            {
-              link: '/admin/settings/parameters',
-              label: 'Parameters',
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
-            },
-            {
-              link: '/admin/settings/security',
-              label: 'Security',
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
-            },
-            {
-              link: '/admin/settings/asset_rules',
-              label: 'Customization',
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
-            },
-            {
-              link: '/admin/settings/taxonomies',
-              label: 'Taxonomies',
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
-            },
-            {
-              link: '/admin/settings/data_ingestion',
-              label: 'Data ingestion',
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
-            },
-            {
-              link: '/admin/settings/experience',
-              label: 'Filigran Experience',
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
-            },
-          ],
-        },
+        ...settingsEntries(ability),
+        ...platformEntries(ability),
       ],
     },
-  ];
+  );
   const bottomEntries = [
     {
       userRight: true,
