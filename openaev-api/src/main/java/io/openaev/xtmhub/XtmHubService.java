@@ -4,13 +4,16 @@ import io.openaev.database.model.User;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.UserService;
+import io.openaev.utils.LicenseUtils;
 import io.openaev.xtmhub.config.XtmHubConfig;
 import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @Slf4j
@@ -33,6 +36,22 @@ public class XtmHubService {
         new XtmHubRegistererRecord(currentUser.getId(), currentUser.getName()),
         LocalDateTime.now(),
         true);
+  }
+
+  public void autoRegister(@NotBlank final String token) {
+    PlatformSettings settings = platformSettingsService.findSettings();
+    if (!xtmHubClient.autoRegister(
+        token,
+        LicenseUtils.computeXtmHubContractLevel(settings.getPlatformLicense()),
+        settings.getPlatformId(),
+        settings.getPlatformName(),
+        settings.getPlatformBaseUrl(),
+        settings.getPlatformVersion())) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_GATEWAY, "Failed to register the platform on XtmHub");
+    }
+    this.platformSettingsService.updateXTMHubRegistration(
+        token, LocalDateTime.now(), XtmHubRegistrationStatus.REGISTERED, null, null, false);
   }
 
   public PlatformSettings unregister() {
