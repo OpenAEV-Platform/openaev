@@ -92,6 +92,7 @@ const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, data }) =
       display="flex"
       flexDirection="column"
       minHeight={0}
+      height="100%"
     >
       <div style={headerStyle}>
         <Box className="noDrag">
