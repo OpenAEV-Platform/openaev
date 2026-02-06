@@ -315,7 +315,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
                 }
 
                 if (!payloads) {
-                  Set<Domain> currentDomains = this.domainService.upserts(contract.getDomains());
+                  Set<Domain> currentDomains =
+                      this.domainService.upsertDomainEntities(contract.getDomains());
                   Set<Domain> domainsToAdd = this.domainService.upserts(current.get().getDomains());
                   contract.setDomains(
                       this.domainService.mergeDomains(currentDomains, domainsToAdd));

@@ -25,9 +25,10 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
-import org.springframework.stereotype.Service;
 
-@Service
+// FIXME: this disables the executor altogether, but is not a feature flag. Revert right after
+// release
+// @Service
 @Profile("!test")
 @Slf4j
 public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {

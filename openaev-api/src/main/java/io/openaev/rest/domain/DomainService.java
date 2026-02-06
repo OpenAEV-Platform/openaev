@@ -13,6 +13,7 @@ import io.openaev.database.repository.DomainRepository;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.domain.form.DomainBaseInput;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
 import io.openaev.utils.FilterUtilsJpa;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
@@ -31,7 +32,6 @@ import org.springframework.stereotype.Service;
 public class DomainService {
 
   private static final String DOMAIN_ID_NOT_FOUND_MSG = "Domain not found with id";
-  private static final String DOMAIN_NAME_NOT_FOUND_MSG = "Domain not found with name";
 
   private final DomainRepository domainRepository;
 
@@ -43,16 +43,6 @@ public class DomainService {
 
   public List<Domain> searchDomains() {
     return fromIterable(domainRepository.findAll());
-  }
-
-  private Optional<Domain> findByName(final String name) {
-    return Optional.ofNullable(
-        domainRepository
-            .findByName(name)
-            .orElseThrow(
-                () ->
-                    new ElementNotFoundException(
-                        (String.format("%s: %s", DOMAIN_NAME_NOT_FOUND_MSG, name)))));
   }
 
   public Optional<Domain> findOptionalById(final String domainId) {
@@ -82,15 +72,41 @@ public class DomainService {
     return this.upsert(domainToUpsert.getName(), domainToUpsert.getColor());
   }
 
+  /**
+   * Saves a collection of contract entities in the database. If an entity already exists (searched
+   * by name) in the database, it is retrieved instead of saved (no modification). If the entity is
+   * not found, it is created.
+   *
+   * @param domains set of domain entities to save or retrieve.
+   * @return set of saved or retrieved domains
+   */
   @Transactional
-  public Set<Domain> upserts(Set<Domain> domains) {
+  public Set<Domain> upsertDomainEntities(Set<Domain> domains) {
+    return this.upserts(
+        Optional.ofNullable(domains)
+            .map(
+                collection ->
+                    collection.stream().map(InjectorContractDomainDTO::fromDomain).collect(toSet()))
+            .orElse(null));
+  }
+
+  /**
+   * Saves a collection of contract DTOs in the database. If an entity already exists (searched by
+   * name) in the database, it is retrieved instead of saved (no modification). If the entity is not
+   * found, it is created.
+   *
+   * @param domains set of domain DTOs to save or retrieve.
+   * @return set of saved or retrieved domains
+   */
+  @Transactional
+  public Set<Domain> upserts(Set<InjectorContractDomainDTO> domains) {
     if (domains == null || domains.isEmpty()) {
       return new HashSet<>();
     }
 
     Map<String, Domain> existing =
         domainRepository
-            .findByNameIn(domains.stream().map(Domain::getName).collect(toSet()))
+            .findByNameIn(domains.stream().map(InjectorContractDomainDTO::getName).collect(toSet()))
             .stream()
             .collect(toMap(Domain::getName, Function.identity()));
 

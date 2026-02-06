@@ -15,11 +15,12 @@ import type { ConnectorContextLayoutType } from './ConnectorLayout';
 type ConnectorPopoverProps = {
   connectorInstanceId: string;
   connectorName: string;
+  disabled?: boolean;
 };
 
 const useStyles = makeStyles()(() => ({ autoMarginLeft: { marginLeft: 'auto' } }));
 
-const ConnectorPopover = ({ connectorInstanceId, connectorName }: ConnectorPopoverProps) => {
+const ConnectorPopover = ({ connectorInstanceId, connectorName, disabled = false }: ConnectorPopoverProps) => {
   // Standard hooks
   const { classes } = useStyles();
   const { t } = useFormatter();
@@ -59,6 +60,7 @@ const ConnectorPopover = ({ connectorInstanceId, connectorName }: ConnectorPopov
         className={classes.autoMarginLeft}
         entries={entries}
         variant="toggle"
+        disabled={disabled}
       />
       <DialogDelete
         open={openDialogDelete}

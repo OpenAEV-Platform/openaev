@@ -3,7 +3,6 @@ package io.openaev.rest.injector_contract.form;
 import static io.openaev.config.AppConfig.MANDATORY_MESSAGE;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.model.Domain;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import jakarta.validation.constraints.NotBlank;
 import java.util.*;
@@ -38,5 +37,5 @@ public class InjectorContractInput {
   private PLATFORM_TYPE[] platforms = new PLATFORM_TYPE[0];
 
   @JsonProperty("contract_domains")
-  private Set<Domain> domains = new HashSet<>();
+  private Set<InjectorContractDomainDTO> domains = new HashSet<>();
 }
