@@ -575,8 +575,7 @@ public class TagServiceTest {
 
       // -------- Assert --------
       // Find the tag with the expected name
-      Optional<Tag> foundTag =
-          result.stream().filter(t -> tagName.equals(t.getName())).findFirst();
+      Optional<Tag> foundTag = result.stream().filter(t -> tagName.equals(t.getName())).findFirst();
       assertTrue(foundTag.isPresent(), "Expected to find tag with name: " + tagName);
       assertEquals(expectedColor.toLowerCase(), foundTag.get().getColor());
     }
