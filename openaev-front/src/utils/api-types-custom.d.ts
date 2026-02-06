@@ -127,7 +127,8 @@ export type WidgetInput = Omit<ApiTypes.WidgetInput, 'widget_config'> & {
     | ApiTypes.StructuralHistogramWidget & {
       mode: 'structural';
       widget_configuration_type: 'structural-histogram';
-    };
+    }
+    | ApiTypes.AverageConfiguration & { widget_configuration_type: 'average' };
 };
 
 export type WidgetInputWithoutLayout = Omit<WidgetInput, 'widget_layout'>;

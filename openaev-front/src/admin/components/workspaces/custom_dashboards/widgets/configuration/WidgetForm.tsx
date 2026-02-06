@@ -73,19 +73,19 @@ const WidgetForm: FunctionComponent<Props> = ({
         end: z.string().optional(),
       }),
       // AverageConfiguration
-    z.object({
-      title: z.string().optional(),
-      widget_configuration_type: z.literal('average'),
-      series: z.array(z.object({
-        name: z.string().optional(),
-        filter: z.any().refine(val => val !== undefined, { message: 'Filter cannot be undefined' }),
-      })),
-      date_attribute: z.string().min(1, { message: t('Should not be empty') }),
-      time_range: z.enum(['DEFAULT', 'ALL_TIME', 'CUSTOM', 'LAST_DAY', 'LAST_WEEK', 'LAST_MONTH', 'LAST_QUARTER', 'LAST_SEMESTER', 'LAST_YEAR']),
-      start: z.string().optional().nullable(),
-      end: z.string().optional().nullable(),
-    }),
-    // DateHistogramConfiguration
+      z.object({
+        widget_configuration_type: z.literal('average'),
+        title: z.string().optional(),
+        series: z.array(z.object({
+          name: z.string().optional(),
+          filter: z.any().optional().refine(val => val !== undefined, { error: 'Filter cannot be undefined' }),
+        })),
+        date_attribute: z.string().min(1, { error: t('Should not be empty') }),
+        time_range: z.enum(['DEFAULT', 'ALL_TIME', 'CUSTOM', 'LAST_DAY', 'LAST_WEEK', 'LAST_MONTH', 'LAST_QUARTER', 'LAST_SEMESTER', 'LAST_YEAR']),
+        start: z.string().optional(),
+        end: z.string().optional(),
+      }),
+      // DateHistogramConfiguration
       z.object({
         widget_configuration_type: z.literal('temporal-histogram'),
         mode: z.literal('temporal'),
