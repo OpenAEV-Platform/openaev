@@ -4988,6 +4988,25 @@ export interface PageTeamOutput {
   totalPages?: number;
 }
 
+export interface PageTenantOutput {
+  content?: TenantOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
 export interface PageUserOutput {
   content?: UserOutput[];
   empty?: boolean;
@@ -6529,6 +6548,17 @@ export interface TeamUpdateInput {
   team_organization?: string;
   /** IDs of the tags of the team */
   team_tags?: string[];
+}
+
+export interface TenantInput {
+  tenant_description?: string;
+  tenant_name: string;
+}
+
+export interface TenantOutput {
+  tenant_description?: string;
+  tenant_id: string;
+  tenant_name: string;
 }
 
 /** Definition of the dark theme */
