@@ -47,6 +47,7 @@ public class BatchQueueService<T extends Queueable> {
 
   private final QueueConfig queueConfig;
   private final ScheduledExecutorService reconnectionExecutor;
+  private final ScheduledExecutorService scheduledExecutor;
   private final ShutdownListener shutdownListener;
 
   private final List<Channel> consumerChannels = new ArrayList<>();
@@ -98,8 +99,8 @@ public class BatchQueueService<T extends Queueable> {
     establishConnection();
 
     // A scheduler to handle batches that did not reached the critical mass
-    ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
-    scheduledExecutor.scheduleAtFixedRate(
+    this.scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
+    this.scheduledExecutor.scheduleAtFixedRate(
         () -> queue.keySet().forEach(this::processBufferedBatch),
         this.queueConfig.getWorkerFrequency(),
         this.queueConfig.getWorkerFrequency(),
@@ -288,6 +289,9 @@ public class BatchQueueService<T extends Queueable> {
 
   @PreDestroy
   public void stop() throws IOException, TimeoutException {
+    scheduledExecutor.shutdownNow();
+    executor.shutdownNow();
+    reconnectionExecutor.shutdownNow();
     closeResources();
   }
 

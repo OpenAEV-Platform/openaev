@@ -1,6 +1,7 @@
 package io.openaev.utilstest;
 
 import io.openaev.rest.inject.InjectApi;
+import io.openaev.service.chaining.QueueChainingService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.TestContext;
@@ -22,6 +23,7 @@ public class RabbitMQTestListener implements TestExecutionListener {
     // Closing RabbitMQ consumers
     ApplicationContext context = testContext.getApplicationContext();
     context.getBean(InjectApi.class).getInjectTraceQueueService().stop();
+    context.getBean(QueueChainingService.class).destroy();
 
     log.info("RabbitMQ consumers closed for class : {}", testClass.getSimpleName());
   }

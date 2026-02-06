@@ -8,6 +8,7 @@ import io.openaev.database.model.Workflow;
 import io.openaev.rest.helper.queue.BatchQueueService;
 import io.openaev.rest.helper.queue.QueueExecution;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.concurrent.TimeoutException;
@@ -79,6 +80,19 @@ public class QueueChainingService {
             rabbitmqConfig,
             objectMapper,
             openAEVConfig.getQueueConfig().get("workflows-update"));
+  }
+
+  @PreDestroy
+  public void destroy() throws IOException, TimeoutException {
+    if (readyQueueService != null) {
+      readyQueueService.stop();
+    }
+    if (delayQueueService != null) {
+      delayQueueService.stop();
+    }
+    if (updateQueueService != null) {
+      updateQueueService.stop();
+    }
   }
 
   /**
