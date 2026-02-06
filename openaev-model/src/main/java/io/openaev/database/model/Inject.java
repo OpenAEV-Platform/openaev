@@ -174,7 +174,7 @@ public class Inject implements GrantableBase, Injection {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "inject_user")
   @JsonSerialize(using = MonoIdSerializer.class)
-  @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
+  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
   @JsonProperty("inject_user")
   @Schema(type = "string")
   private User user;

@@ -90,7 +90,7 @@ public class AttackPattern implements Base {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "attack_pattern_parent")
   @JsonSerialize(using = MonoIdSerializer.class)
-  @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
+  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
   @JsonProperty("attack_pattern_parent")
   @Schema(type = "string")
   private AttackPattern parent;
