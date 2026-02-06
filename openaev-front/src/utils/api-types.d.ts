@@ -5267,8 +5267,10 @@ export interface PlatformSettings {
   /** List of enabled dev features */
   enabled_dev_features?: (
     | "_RESERVED"
+    | "FEATURE_FLAG_ALL"
     | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
     | "LEGACY_INGESTION_EXECUTION_TRACE"
+    | "MULTI_TENANCY"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
