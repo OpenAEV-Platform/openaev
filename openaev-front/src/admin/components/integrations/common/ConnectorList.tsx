@@ -73,7 +73,7 @@ const ConnectorList = () => {
                 connectorName: connector.name,
                 connectorType: connectorType.toUpperCase() as CatalogConnector['catalog_connector_type'],
                 connectorLogoName: connector.type,
-                connectorLogoUrl: connector?.isExisting ? logoUrl(connector.type) : `/api/images/catalog/connectors/logos/${connector.catalog?.catalog_connector_logo_url}`,
+                connectorLogoUrl: connector?.isExisting ? logoUrl(connector.type) : (connector.catalog?.catalog_connector_logo_url && `/api/images/catalog/connectors/logos/${connector.catalog?.catalog_connector_logo_url}`),
                 connectorDescription: connector.catalog?.catalog_connector_short_description,
                 lastUpdatedAt: connector.updatedAt,
                 isVerified: connector.isVerified,

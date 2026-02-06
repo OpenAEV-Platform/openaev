@@ -92,7 +92,7 @@ public class PayloadService {
     injectorContract.setPayload(payload);
     injectorContract.setPlatforms(payload.getPlatforms());
     injectorContract.setDomains(
-        domainService.upserts(new HashSet<>(Set.of(PresetDomain.TOCLASSIFY))));
+        domainService.upsertDomainEntities(new HashSet<>(Set.of(PresetDomain.TOCLASSIFY))));
     injectorContract.setAttackPatterns(
         fromIterable(
             attackPatternRepository.findAllById(
@@ -365,7 +365,7 @@ public class PayloadService {
         });
 
     dynamicDnsResolutionPayload.setDomains(
-        domainService.upserts(
+        domainService.upsertDomainEntities(
             Set.of(PresetDomain.ENDPOINT, PresetDomain.NETWORK, PresetDomain.URL_FILTERING)));
 
     dynamicDnsResolutionPayload.setTags(
