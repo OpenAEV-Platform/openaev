@@ -4,15 +4,22 @@ import type { ContractVariable } from '../actions/contract/contract';
 import type { ExpectationInput } from '../admin/components/common/injects/expectations/Expectation';
 import type * as ApiTypes from './api-types';
 
-type PayloadCreateInputOmit = 'payload_type' | 'payload_source' | 'payload_status' | 'payload_created_at' | 'payload_id' | 'payload_updated_at' | 'payload_output_parsers';
+type PayloadCreateInputOmit
+  = 'payload_type'
+    | 'payload_source'
+    | 'payload_status'
+    | 'payload_created_at'
+    | 'payload_id'
+    | 'payload_updated_at'
+    | 'payload_output_parsers';
 type PayloadCreateInputMore = {
   remediations?: Record<string, DetectionRemediationInput>;
   payload_output_parsers?: (
-    Omit<ApiTypes.OutputParser, 'output_parser_created_at' | 'output_parser_updated_at' | 'output_parser_id' | 'output_parser_contract_output_elements'>
-    & {
-      output_parser_contract_output_elements: (Omit<ApiTypes.ContractOutputElement, 'contract_output_element_created_at' | 'contract_output_element_updated_at' | 'contract_output_element_id' | 'contract_output_element_regex_groups'>
-        & { contract_output_element_regex_groups: Omit<ApiTypes.RegexGroup, 'regex_group_created_at' | 'regex_group_updated_at' | 'regex_group_id'>[] })[];
-    }
+        Omit<ApiTypes.OutputParser, 'output_parser_created_at' | 'output_parser_updated_at' | 'output_parser_id' | 'output_parser_contract_output_elements'>
+        & {
+          output_parser_contract_output_elements: (Omit<ApiTypes.ContractOutputElement, 'contract_output_element_created_at' | 'contract_output_element_updated_at' | 'contract_output_element_id' | 'contract_output_element_regex_groups'>
+            & { contract_output_element_regex_groups: Omit<ApiTypes.RegexGroup, 'regex_group_created_at' | 'regex_group_updated_at' | 'regex_group_id'>[] })[];
+        }
   )[];
 };
 export type PayloadCreateInput = Omit<ApiTypes.BasePayload, PayloadCreateInputOmit> & PayloadCreateInputMore
@@ -21,9 +28,26 @@ export type PayloadCreateInput = Omit<ApiTypes.BasePayload, PayloadCreateInputOm
     | Omit<ApiTypes.Executable, PayloadCreateInputOmit> & PayloadCreateInputMore & { payload_type: 'Executable' }
     | Omit<ApiTypes.FileDrop, PayloadCreateInputOmit> & PayloadCreateInputMore & { payload_type: 'FileDrop' }
     | Omit<ApiTypes.DnsResolution, PayloadCreateInputOmit> & PayloadCreateInputMore & { payload_type: 'DnsResolution' }
-    );
+        );
 
-export type ContractType = 'text' | 'number' | 'checkbox' | 'textarea' | 'tags' | 'select' | 'choice' | 'article' | 'challenge' | 'dependency-select' | 'attachment' | 'team' | 'expectation' | 'asset' | 'asset-group' | 'payload' | 'targeted-asset' | 'password';
+export type ContractType
+  = 'text'
+    | 'number'
+    | 'checkbox'
+    | 'textarea'
+    | 'tags'
+    | 'select'
+    | 'choice'
+    | 'article'
+    | 'challenge'
+    | 'dependency-select'
+    | 'attachment'
+    | 'team'
+    | 'expectation'
+    | 'asset'
+    | 'asset-group'
+    | 'payload'
+    | 'targeted-asset' | 'password';
 
 export interface ChoiceItem {
   label: string;
@@ -91,3 +115,20 @@ export type InjectorContractConverted = Omit<InjectorContract, 'convertedContent
     variables?: ContractVariable[];
   };
 };
+
+export type WidgetInput = Omit<ApiTypes.WidgetInput, 'widget_config'> & {
+  widget_config:
+    | ApiTypes.DateHistogramWidget & {
+      mode: 'temporal';
+      widget_configuration_type: 'temporal-histogram';
+    }
+    | ApiTypes.FlatConfiguration & { widget_configuration_type: 'flat' }
+    | ApiTypes.ListConfiguration & { widget_configuration_type: 'list' }
+    | ApiTypes.StructuralHistogramWidget & {
+      mode: 'structural';
+      widget_configuration_type: 'structural-histogram';
+    }
+    | ApiTypes.AverageConfiguration & { widget_configuration_type: 'average' };
+};
+
+export type WidgetInputWithoutLayout = Omit<WidgetInput, 'widget_layout'>;

@@ -77,7 +77,7 @@ const DetectionPreventionExpectationsValidationForm: FunctionComponent<FormProps
       expectation_score: number;
       security_platform: string;
     }>().with({
-      expectation_score: z.coerce.number(),
+      expectation_score: z.number(),
       security_platform: z.string().min(1, { message: t('Should not be empty') }),
     })),
     defaultValues: {

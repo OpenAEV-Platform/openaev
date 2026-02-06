@@ -419,9 +419,7 @@ export interface AttackPatternUpsertInput {
 export type AverageConfiguration = UtilRequiredKeys<
   WidgetConfiguration,
   "series" | "widget_configuration_type" | "time_range" | "date_attribute"
-> & {
-  field: Record<string, string>;
-};
+>;
 
 interface BaseEsBase {
   /** @format date-time */

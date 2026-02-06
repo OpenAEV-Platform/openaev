@@ -93,7 +93,7 @@ const ManualExpectationsValidationForm: FunctionComponent<FormProps> = ({ expect
     formState: { errors, isSubmitting },
   } = useForm<{ expectation_score: number }>({
     mode: 'onTouched',
-    resolver: zodResolver(zodImplement<{ expectation_score: number }>().with({ expectation_score: z.coerce.number() })),
+    resolver: zodResolver(zodImplement<{ expectation_score: number }>().with({ expectation_score: z.number() })),
     defaultValues: { expectation_score: expectation.inject_expectation_score ?? expectation.inject_expectation_expected_score ?? 0 },
   });
   useEffect(() => {

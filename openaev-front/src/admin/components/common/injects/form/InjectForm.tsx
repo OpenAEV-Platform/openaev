@@ -4,7 +4,7 @@ import { useTheme } from '@mui/material/styles';
 import { useContext, useEffect, useState } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
-import { z, type ZodIssue, type ZodObject } from 'zod/v4';
+import { z, type ZodObject } from 'zod/v4';
 
 import TagFieldController from '../../../../../components/fields/TagFieldController';
 import TextFieldController from '../../../../../components/fields/TextFieldController';
@@ -203,12 +203,13 @@ const InjectForm = ({
 
       const parsedTeamError = z.object({ inject_teams: z.array(z.string()).min(1, { message: t('Required') }).default([]) }).safeParse(value);
       const injectTeamsError = parsedTeamError?.error?.issues.find(i => i.path.includes('inject_teams'));
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
+
+      // @ts-expect-error Because the fields are dynamic, zod doesn't know the expected values
       if (injectTeamsError && !value.inject_all_teams) {
+        // @ts-expect-error Because the fields are dynamic, zod doesn't know the expected values
         issues.push({
           ...injectTeamsError,
-          message: t('At least one of these fields is required.'),
+          error: t('At least one of these fields is required.'),
         });
       }
 
@@ -216,7 +217,7 @@ const InjectForm = ({
       if (!parsed?.error?.issues) return;
       injectorContractContent?.fields.forEach((field) => {
         if (field.mandatoryGroups) {
-          const newIssues: (ZodIssue & { currentField?: boolean })[] = [];
+          const newIssues: (z.core.$ZodIssue & { currentField?: boolean })[] = [];
           field.mandatoryGroups.forEach((mandatoryField) => {
             const issue = parsed.error.issues.find(err => isInjectContentType(fieldsMapByKey[mandatoryField].type) ? err.path[1] === mandatoryField : err.path[0] === `inject_${mandatoryField}`);
             if (issue) {
@@ -228,6 +229,7 @@ const InjectForm = ({
             }
           });
           if (newIssues.length === field.mandatoryGroups.length) {
+            // @ts-expect-error Because the fields are dynamic, zod doesn't know the expected values
             newIssues.filter(i => !i.currentField).forEach(i => issues.push(i));
           }
         }

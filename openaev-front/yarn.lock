@@ -9724,11 +9724,11 @@ __metadata:
     typescript: "npm:5.9.3"
     typescript-eslint: "npm:8.57.0"
     usehooks-ts: "npm:3.1.1"
-    uuid: "npm:14.0.0"
-    vite: "npm:8.0.7"
-    vitest: "npm:4.1.0"
-    zod: "npm:3.25.76"
-    zustand: "npm:5.0.12"
+    uuid: "npm:13.0.0"
+    vite: "npm:rolldown-vite@7.3.1"
+    vitest: "npm:3.2.4"
+    zod: "npm:4.3.6"
+    zustand: "npm:5.0.9"
   languageName: unknown
   linkType: soft
 
@@ -12916,32 +12916,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"yummies@npm:7.10.0":
-  version: 7.10.0
-  resolution: "yummies@npm:7.10.0"
-  dependencies:
-    class-variance-authority: "npm:^0.7.1"
-    clsx: "npm:^2.1.1"
-    dayjs: "npm:^1.11.13"
-    dompurify: "npm:^3.2.6"
-    nanoid: "npm:^5.1.5"
-    tailwind-merge: "npm:^3.3.1"
-  peerDependencies:
-    mobx: ^6.12.4
-    react: ^18 || ^19
-  peerDependenciesMeta:
-    mobx:
-      optional: true
-    react:
-      optional: true
-  checksum: 10c0/65e91867e05d9b47cb25f13831a7e976f573bc4fa141edb66050aa72d47b459e73a01f5efd55fd9813dab995cc3a00b8d49fcba0039d449464b6354bb6d91ebc
-  languageName: node
-  linkType: hard
-
-"zod@npm:3.25.76":
-  version: 3.25.76
-  resolution: "zod@npm:3.25.76"
-  checksum: 10c0/5718ec35e3c40b600316c5b4c5e4976f7fee68151bc8f8d90ec18a469be9571f072e1bbaace10f1e85cf8892ea12d90821b200e980ab46916a6166a4260a983c
+"zod@npm:4.3.6":
+  version: 4.3.6
+  resolution: "zod@npm:4.3.6"
+  checksum: 10c0/860d25a81ab41d33aa25f8d0d07b091a04acb426e605f396227a796e9e800c44723ed96d0f53a512b57be3d1520f45bf69c0cb3b378a232a00787a2609625307
   languageName: node
   linkType: hard
 
