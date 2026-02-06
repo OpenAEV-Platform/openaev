@@ -21,10 +21,11 @@ public class BatchQueueService<T extends Queueable> {
 
   private final Class<T> clazz;
 
-  @Setter
-  // TODO: change back to original code and find a better way to resolve the cicular dependency
-  // problem from stepService
-  private QueueExecution<T> queueExecution;
+  /**
+   * The setter allows changing the queueExecution once the queue service has been created. It can
+   * be used to avoid circular dependencies problems
+   */
+  @Setter private QueueExecution<T> queueExecution;
 
   public static final String ROUTING_KEY = "_push_routing_%s";
   public static final String EXCHANGE_KEY = "_amqp.%s.exchange";
@@ -35,7 +36,7 @@ public class BatchQueueService<T extends Queueable> {
   private final RabbitmqConfig rabbitmqConfig;
 
   private Connection connection;
-  private List<Channel> publisherChannels = new ArrayList<>();
+  private final List<Channel> publisherChannels = new ArrayList<>();
   private final String routingKey;
   private final String exchangeName;
   private final String queueName;
