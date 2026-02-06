@@ -1,7 +1,6 @@
 package io.openaev.service;
 
-import static io.openaev.rest.settings.PreviewFeature.FEATURE_FLAG_ALL;
-import static io.openaev.rest.settings.PreviewFeature.MULTI_TENANCY;
+import static io.openaev.rest.settings.PreviewFeature.*;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -34,16 +33,16 @@ class PreviewFeatureServiceTest extends IntegrationTest {
     openAEVConfig.setEnabledDevFeatures(FEATURE_FLAG_ALL.getValue());
 
     // ACT & ASSERT
-    assertTrue(previewFeatureService.isFeatureEnabled(MULTI_TENANCY));
+    assertTrue(previewFeatureService.isFeatureEnabled(_RESERVED));
   }
 
   @Test
   void should_enable_feature_when_feature_is_explicitly_enabled() {
     // ARRANGE
-    openAEVConfig.setEnabledDevFeatures(MULTI_TENANCY.getValue());
+    openAEVConfig.setEnabledDevFeatures(_RESERVED.getValue());
 
     // ACT & ASSERT
-    assertTrue(previewFeatureService.isFeatureEnabled(MULTI_TENANCY));
+    assertTrue(previewFeatureService.isFeatureEnabled(_RESERVED));
   }
 
   @Test
@@ -52,6 +51,6 @@ class PreviewFeatureServiceTest extends IntegrationTest {
     openAEVConfig.setEnabledDevFeatures("");
 
     // ACT & ASSERT
-    assertFalse(previewFeatureService.isFeatureEnabled(MULTI_TENANCY));
+    assertFalse(previewFeatureService.isFeatureEnabled(_RESERVED));
   }
 }
