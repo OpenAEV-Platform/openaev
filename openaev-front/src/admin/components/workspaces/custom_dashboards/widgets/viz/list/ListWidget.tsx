@@ -156,7 +156,11 @@ const ListWidget = ({ widgetConfig, elements }: Props) => {
   }
 
   return (
-    <Box style={{ overflow: 'auto' }}>
+    <Box style={{
+      height: '100%',
+      overflow: 'auto',
+    }}
+    >
       <MuiList>
         <MuiListItem
           classes={{ root: classes.itemHead }}
