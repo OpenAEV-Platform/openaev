@@ -23,7 +23,7 @@
         <apache-poi.version>5.5.1</apache-poi.version>
         <opencsv-version>5.12.0</opencsv-version>
         <opentelemetry.version>1.57.0</opentelemetry.version>
-        <elasticsearch.version>8.19.10</elasticsearch.version>
+        <elasticsearch.version>8.19.11</elasticsearch.version>
         <opentelemetry-semconv.version>1.37.0</opentelemetry-semconv.version>
     </properties>
 
