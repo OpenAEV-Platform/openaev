@@ -98,7 +98,7 @@ public class BatchQueueService<T extends Queueable> {
 
     establishConnection();
 
-    // A scheduler to handle batches that did not reached the critical mass
+    // A scheduler to handle batches that did not reach the critical mass
     this.scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
     this.scheduledExecutor.scheduleAtFixedRate(
         () -> queue.keySet().forEach(this::processBufferedBatch),
@@ -285,6 +285,46 @@ public class BatchQueueService<T extends Queueable> {
       publisherChannels.clear();
       consumerChannels.clear();
     }
+  }
+
+  /** Purge all messages from the queue and reset internal state. */
+  public void purge() throws IOException {
+    // 1. Purge the RabbitMQ server queue (removes messages not yet delivered to consumers)
+    if (!publisherChannels.isEmpty()) {
+      Channel channel = publisherChannels.getFirst();
+      if (channel != null && channel.isOpen()) {
+        channel.queuePurge(queueName);
+      }
+    }
+
+    // 2. Clear the internal buffer (messages consumed but not yet batched)
+    queue.values().forEach(BlockingQueue::clear);
+
+    // 3. Wait for any in-flight batch to finish so it can ack/reject its own messages
+    for (AtomicBoolean inProgress : insertInProgress.values()) {
+      while (inProgress.get()) {
+        try {
+          Thread.sleep(50);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          break;
+        }
+      }
+    }
+
+    // 4. Reject any remaining unacknowledged messages (consumed from RabbitMQ but never batched)
+    //    to free the consumer's prefetch (QOS) slots
+    for (DeliveryContext context : deliveryTable.values()) {
+      try {
+        if (context.getDeliveryChannel().isOpen()) {
+          context.getDeliveryChannel().basicReject(context.getTag(), false);
+        }
+      } catch (Exception e) {
+        log.warn("Failed to reject message during purge: {}", e.getMessage());
+      }
+    }
+    deliveryTable.clear();
+    insertInProgress.values().forEach(a -> a.set(false));
   }
 
   @PreDestroy
