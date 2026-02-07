@@ -37,7 +37,7 @@
     "filigran-icon": "0.21.0",
     "final-form": "4.20.10",
     "final-form-arrays": "4.0.0",
-    "html-react-parser": "5.2.11",
+    "html-react-parser": "5.2.16",
     "html-to-image": "patch:html-to-image@npm%3A1.11.13#~/.yarn/patches/html-to-image-npm-1.11.13-86e990604f.patch",
     "http-proxy-middleware": "3.0.5",
     "immutable": "5.1.4",
