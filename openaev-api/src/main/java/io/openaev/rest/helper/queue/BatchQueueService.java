@@ -98,7 +98,7 @@ public class BatchQueueService<T extends Queueable> {
 
     establishConnection();
 
-    // A scheduler to handle batches that did not reached the critical mass
+    // A scheduler to handle batches that did not reach the critical mass
     this.scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
     this.scheduledExecutor.scheduleAtFixedRate(
         () -> queue.keySet().forEach(this::processBufferedBatch),
@@ -285,6 +285,19 @@ public class BatchQueueService<T extends Queueable> {
       publisherChannels.clear();
       consumerChannels.clear();
     }
+  }
+
+  /** Purge all messages from the queue and reset internal state. */
+  public void purge() throws IOException {
+    if (!publisherChannels.isEmpty()) {
+      Channel channel = publisherChannels.getFirst();
+      if (channel != null && channel.isOpen()) {
+        channel.queuePurge(queueName);
+      }
+    }
+    queue.values().forEach(BlockingQueue::clear);
+    deliveryTable.clear();
+    insertInProgress.values().forEach(a -> a.set(false));
   }
 
   @PreDestroy
