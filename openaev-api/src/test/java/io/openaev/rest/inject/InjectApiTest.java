@@ -60,7 +60,10 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import net.javacrumbs.jsonunit.core.Option;
 import org.awaitility.Awaitility;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
@@ -897,6 +900,7 @@ class InjectApiTest extends IntegrationTest {
             .pollInterval(1, TimeUnit.SECONDS)
             .until(
                 () -> {
+                  entityManager.clear();
                   Optional<Inject> injectSaved = injectRepository.findById(inject.getId());
                   if (injectSaved.isEmpty()) {
                     return false;
@@ -947,6 +951,7 @@ class InjectApiTest extends IntegrationTest {
             .pollInterval(1, TimeUnit.SECONDS)
             .until(
                 () -> {
+                  entityManager.clear();
                   Optional<Inject> injectSaved = injectRepository.findById(inject.getId());
                   if (injectSaved.isEmpty()) {
                     return false;
@@ -1008,6 +1013,7 @@ class InjectApiTest extends IntegrationTest {
             .pollInterval(1, TimeUnit.SECONDS)
             .until(
                 () -> {
+                  entityManager.clear();
                   Optional<Inject> injectSaved = injectRepository.findById(inject.getId());
                   if (injectSaved.isEmpty()) {
                     return false;
@@ -1051,6 +1057,7 @@ class InjectApiTest extends IntegrationTest {
             .pollInterval(1, TimeUnit.SECONDS)
             .until(
                 () -> {
+                  entityManager.clear();
                   List<InjectExpectation> injectExpectationSaved =
                       injectExpectationRepository.findAllByInjectAndAgent(
                           inject.getId(), agent.getId());
@@ -1095,6 +1102,7 @@ class InjectApiTest extends IntegrationTest {
             .pollInterval(1, TimeUnit.SECONDS)
             .until(
                 () -> {
+                  entityManager.clear();
                   Inject dbInject = injectRepository.findById(inject.getId()).orElseThrow();
                   return dbInject.getStatus().isPresent()
                       && !dbInject.getStatus().get().getTraces().isEmpty();
@@ -1145,6 +1153,7 @@ class InjectApiTest extends IntegrationTest {
             .pollInterval(1, TimeUnit.SECONDS)
             .until(
                 () -> {
+                  entityManager.clear();
                   Optional<Inject> injectSaved = injectRepository.findById(inject.getId());
                   if (injectSaved.isEmpty()) {
                     return false;
@@ -1254,6 +1263,7 @@ class InjectApiTest extends IntegrationTest {
             .pollInterval(1, TimeUnit.SECONDS)
             .until(
                 () -> {
+                  entityManager.clear();
                   List<Finding> findings = findingRepository.findAllByInjectId(inject.getId());
                   return findings.size() > 1;
                 });
