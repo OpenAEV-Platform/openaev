@@ -87,7 +87,7 @@ class UserEventRetentionJobTest extends IntegrationTest {
                                   ) VALUES (
                                     gen_random_uuid(),
                                     :userId,
-                                    'LOGIN',
+                                    'LOGIN_SUCCESS',
                                     now() - interval '100 days'
                                   )
                                 """)
@@ -105,7 +105,7 @@ class UserEventRetentionJobTest extends IntegrationTest {
                                   ) VALUES (
                                     gen_random_uuid(),
                                     :userId,
-                                    'LOGIN',
+                                    'LOGIN_SUCCESS',
                                     now() - interval '5 days'
                                   )
                                 """)
