@@ -33,11 +33,9 @@ import io.openaev.rest.exercise.response.ExercisesGlobalScoresOutput;
 import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.scenario.service.ScenarioStatisticService;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
-import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
@@ -57,7 +55,6 @@ import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -107,17 +104,12 @@ public class ExerciseService {
   private final UserRepository userRepository;
   private final ExerciseTeamUserRepository exerciseTeamUserRepository;
   private final LessonsService lessonsService;
-  private final FileService fileService;
 
   private final InjectExpectationMapper injectExpectationMapper;
 
   private final ScenarioRecurrenceService scenarioRecurrenceService;
 
   private final WorkflowService workflowService;
-  private final StepService stepService;
-  private final PauseSimulationService pauseSimulationService;
-
-  private final InjectStatusService injectStatusService;
 
   // region properties
   @Value("${openaev.mail.imap.enabled}")
@@ -501,102 +493,6 @@ public class ExerciseService {
    */
   public void deleteById(String simulationId) {
     exerciseRepository.deleteById(simulationId);
-  }
-
-  /**
-   * Change a simulation status
-   *
-   * @param status new simulation status
-   * @param simulation simulation to update
-   * @return the updated simulation
-   */
-  public Exercise changeSimulationStatus(ExerciseStatus status, Exercise simulation) {
-    boolean isCloseState =
-        ExerciseStatus.CANCELED.equals(simulation.getStatus())
-            || ExerciseStatus.FINISHED.equals(simulation.getStatus());
-    boolean isSimulationChaining = workflowService.isSimulationChaining(simulation.getId());
-    if (isSimulationChaining) {
-      if (ExerciseStatus.SCHEDULED.equals(simulation.getStatus())
-          && ExerciseStatus.RUNNING.equals(status)) {
-        stepService.startWorkflow(simulation.getId());
-      }
-      // TODO
-      // CASE 1 : CANCEL || FINISHED -> SCHEDULED (Relaunch)
-      // CASE 1.1: no update template -> new idWorkflow Run but same workflow template version
-      // CASE 1.2: template updated -> new idWorkflow Run && increase workflow template version
-
-      // CASE 2 : SCHEDULED -> RUNNING (Force running??? not available on chaining,
-      // but need throwIfSimulationNotLaunchable(check if licence EE are present and/or needed for
-      // some Agent))
-
-      // CASE 3 : PAUSED -> RUNNING (Resume pause)
-      // CASE 4 : RUNNING -> PAUSED (Request pause)
-      // CASE 3 & 4 : To implement: manage queue, how keep data push into queue ?
-      // HOW re-push data into queue save during pause after end of pause ?
-      // option 1:
-      // a. automatically re-push into queue
-      // b. during check if workflow stoped re-push into queue
-      // option 2:
-      // a. add status paused into StepStatus
-      // b. if workflow STOP but Inject received output, step exec will be push into queue and set
-      // as STOP
-      // c. workflow change status STOP -> RUN
-      // d. All step exec with status STOP are analysed (loose of order)
-      // if same step receive 2 outputs at different time we cannot manage output by arrived time
-      // between steps
-      // maybe with update time of output ? Add system to reorder treatment ?
-      // CASE 5 : RUNNING -> CANCEL (cancel simulation)
-      // Change Workflow status to CANCEL
-      // Change STEP status to CANCEL
-      // If inject received new output what to do ?
-      // option 1: compute data into step but dont aware next step
-      // option 2: do nothing
-    }
-    // In case of rescheduled of a simulation.
-    if (isCloseState && ExerciseStatus.SCHEDULED.equals(status)) {
-      simulation.setStart(null);
-      simulation.setEnd(null);
-      // Reset pauses
-      simulation.setCurrentPause(null);
-      pauseSimulationService.deleteAll(
-          pauseSimulationService.findAllForSimulation(simulation.getId()));
-      // Reset injects outcome, communications and expectations
-      injectStatusService.deleteAllInjectStatusByInjects(simulation.getInjects());
-      simulation.getInjects().forEach(Inject::clean);
-      // Reset lessons learned answers
-      lessonsService.resetLessonsAnswer(simulation.getId());
-      // Delete simulation transient files (communications, ...)
-      fileService.deleteDirectory(simulation.getId());
-    }
-    // In case of manual start
-    if (ExerciseStatus.SCHEDULED.equals(simulation.getStatus())
-        && ExerciseStatus.RUNNING.equals(status)) {
-      this.throwIfExerciseNotLaunchable(simulation);
-      Instant nextMinute = now().truncatedTo(ChronoUnit.MINUTES).plus(1, ChronoUnit.MINUTES);
-      simulation.setStart(nextMinute);
-      actionMetricCollector.addSimulationPlayedCount();
-    }
-    // If simulation moves from pause to running state,
-    // we log the pause date to be able to recompute inject dates.
-    if (ExerciseStatus.PAUSED.equals(simulation.getStatus())
-        && ExerciseStatus.RUNNING.equals(status)) {
-      Instant lastPause = simulation.getCurrentPause().orElseThrow(ElementNotFoundException::new);
-      simulation.setCurrentPause(null);
-      pauseSimulationService.endPauseBySimulation(lastPause, simulation);
-    }
-    // If pause is asked, just set the pause date.
-    if (ExerciseStatus.RUNNING.equals(simulation.getStatus())
-        && ExerciseStatus.PAUSED.equals(status)) {
-      simulation.setCurrentPause(Instant.now());
-    }
-    // Cancelation
-    if (ExerciseStatus.RUNNING.equals(simulation.getStatus())
-        && ExerciseStatus.CANCELED.equals(status)) {
-      simulation.setEnd(now());
-    }
-    simulation.setUpdatedAt(now());
-    simulation.setStatus(status);
-    return exerciseRepository.save(simulation);
   }
 
   public void throwIfExerciseNotLaunchable(Exercise exercise) {
