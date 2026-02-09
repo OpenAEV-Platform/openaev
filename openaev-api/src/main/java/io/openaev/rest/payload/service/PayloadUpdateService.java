@@ -30,7 +30,7 @@ public class PayloadUpdateService {
   private final PayloadUtils payloadUtils;
 
   private final PayloadService payloadService;
-  private final EnterpriseEditionService enterpriseEditionServiceService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
 
   private final TagRepository tagRepository;
@@ -41,7 +41,7 @@ public class PayloadUpdateService {
 
   @Transactional(rollbackOn = Exception.class)
   public Payload updatePayload(String payloadId, PayloadUpdateInput input) {
-    if (enterpriseEditionServiceService.isEnterpriseLicenseInactive(
+    if (enterpriseEditionService.isEnterpriseLicenseInactive(
         licenseCacheManager.getEnterpriseEditionInfo())) {
       input.setDetectionRemediations(null);
     }

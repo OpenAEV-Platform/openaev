@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class CveMapper {
 
-  private final EnterpriseEditionService enterpriseEditionServiceService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
 
   private Cve.VulnerabilityStatus mapVulnerabilityStatus(Vulnerability.VulnerabilityStatus status) {
@@ -80,8 +80,7 @@ public class CveMapper {
   }
 
   private String getRemediationIfLicensed(final Vulnerability vulnerability) {
-    if (enterpriseEditionServiceService.isLicenseActive(
-        licenseCacheManager.getEnterpriseEditionInfo())) {
+    if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return vulnerability.getRemediation();
     } else {
       log.debug("Enterprise Edition license inactive - omitting remediation field");

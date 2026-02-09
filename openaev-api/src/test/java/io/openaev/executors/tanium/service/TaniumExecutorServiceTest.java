@@ -39,7 +39,7 @@ public class TaniumExecutorServiceTest {
   @Mock private TaniumExecutorConfig config;
   @Mock private LicenseCacheManager licenseCacheManager;
   @Mock private AssetGroupService assetGroupService;
-  @Mock private EnterpriseEditionService enterpriseEditionServiceService;
+  @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private EndpointService endpointService;
   @Mock private AgentService agentService;
   @Mock private ExecutorService executorService;
@@ -94,7 +94,7 @@ public class TaniumExecutorServiceTest {
       throws JsonProcessingException, InterruptedException {
     // Init datas
     when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(null);
-    doNothing().when(enterpriseEditionServiceService).throwEEExecutorService(any(), any(), any());
+    doNothing().when(enterpriseEditionService).throwEEExecutorService(any(), any(), any());
     when(config.isEnable()).thenReturn(true);
     when(config.getApiBatchExecutionActionPagination()).thenReturn(1);
     when(config.getWindowsPackageId()).thenReturn(112200);

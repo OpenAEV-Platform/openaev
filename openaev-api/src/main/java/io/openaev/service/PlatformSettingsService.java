@@ -62,7 +62,7 @@ public class PlatformSettingsService {
   private final OpenCTIConfig openCTIConfig;
   private final XtmHubConfig xtmHubConfig;
   private final AiConfig aiConfig;
-  private final EnterpriseEditionService enterpriseEditionServiceService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final EngineService engineService;
   private final XtmHubConnectivityService xtmHubConnectivityService;
 
@@ -424,7 +424,7 @@ public class PlatformSettingsService {
     List<Setting> settingsToSave = new ArrayList<>();
     String certPem = input.getEnterpriseEdition();
     if (certPem != null && !certPem.isEmpty()) {
-      License license = enterpriseEditionServiceService.verifyCertificate(certPem);
+      License license = enterpriseEditionService.verifyCertificate(certPem);
       if (!license.isLicenseValidated()) {
         throw new BadRequestException("Invalid certificate");
       }

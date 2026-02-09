@@ -80,7 +80,7 @@ public class ExerciseService {
 
   @PersistenceContext private EntityManager entityManager;
 
-  private final EnterpriseEditionService enterpriseEditionServiceService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final InjectDuplicateService injectDuplicateService;
   private final TeamService teamService;
   private final VariableService variableService;
@@ -440,8 +440,7 @@ public class ExerciseService {
   }
 
   public void throwIfExerciseNotLaunchable(Exercise exercise) {
-    if (enterpriseEditionServiceService.isLicenseActive(
-        licenseCacheManager.getEnterpriseEditionInfo())) {
+    if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return;
     }
     exercise.getInjects().forEach(injectService::throwIfInjectNotLaunchable);

@@ -36,7 +36,7 @@ public class SentinelOneExecutorServiceTest {
   @Mock private SentinelOneExecutorConfig config;
   @Mock private LicenseCacheManager licenseCacheManager;
   @Mock private AssetGroupService assetGroupService;
-  @Mock private EnterpriseEditionService enterpriseEditionServiceService;
+  @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private EndpointService endpointService;
   @Mock private AgentService agentService;
   @Mock private ExecutorService executorService;
@@ -93,7 +93,7 @@ public class SentinelOneExecutorServiceTest {
       throws JsonProcessingException, InterruptedException {
     // Init datas
     when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(null);
-    doNothing().when(enterpriseEditionServiceService).throwEEExecutorService(any(), any(), any());
+    doNothing().when(enterpriseEditionService).throwEEExecutorService(any(), any(), any());
     when(config.isEnable()).thenReturn(true);
     when(config.getApiBatchExecutionActionPagination()).thenReturn(1);
     when(config.getWindowsScriptId()).thenReturn("1234567890");

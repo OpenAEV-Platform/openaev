@@ -52,7 +52,7 @@ public class SentinelOneExecutorIntegrationTest {
   @Autowired private AgentService agentService;
   @Autowired private AssetGroupService assetGroupService;
   @Autowired private ExecutorService executorService;
-  @Autowired private EnterpriseEditionService enterpriseEditionServiceService;
+  @Autowired private EnterpriseEditionService enterpriseEditionService;
   @Autowired private LicenseCacheManager licenseCacheManager;
   @Autowired private ComponentRequestEngine componentRequestEngine;
   @Autowired private ThreadPoolTaskScheduler taskScheduler;
@@ -79,7 +79,7 @@ public class SentinelOneExecutorIntegrationTest {
         agentService,
         endpointService,
         assetGroupService,
-        enterpriseEditionServiceService,
+        enterpriseEditionService,
         licenseCacheManager,
         taskScheduler,
         fileService,

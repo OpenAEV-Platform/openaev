@@ -55,7 +55,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 @ExtendWith(MockitoExtension.class)
 class ExerciseServiceTest extends IntegrationTest {
 
-  @Mock private EnterpriseEditionService enterpriseEditionServiceService;
+  @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private InjectDuplicateService injectDuplicateService;
   @Mock private TeamService teamService;
   @Mock private VariableService variableService;
@@ -96,7 +96,7 @@ class ExerciseServiceTest extends IntegrationTest {
   void setUp() {
     mockedExerciseService =
         new ExerciseService(
-            enterpriseEditionServiceService,
+            enterpriseEditionService,
             injectDuplicateService,
             teamService,
             variableService,

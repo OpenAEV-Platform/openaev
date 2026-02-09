@@ -112,7 +112,7 @@ public class ScenarioService {
   private final ActionMetricCollector actionMetricCollector;
   private final LicenseCacheManager licenseCacheManager;
 
-  private final EnterpriseEditionService enterpriseEditionServiceService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final VariableService variableService;
   private final ChallengeService challengeService;
   private final TeamService teamService;
@@ -302,8 +302,7 @@ public class ScenarioService {
   }
 
   public void throwIfScenarioNotLaunchable(Scenario scenario) {
-    if (enterpriseEditionServiceService.isLicenseActive(
-        licenseCacheManager.getEnterpriseEditionInfo())) {
+    if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return;
     }
     scenario.getInjects().forEach(injectService::throwIfInjectNotLaunchable);

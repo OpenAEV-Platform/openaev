@@ -44,7 +44,7 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
 
   private final CrowdStrikeExecutorConfig crowdStrikeExecutorConfig;
   private final CrowdStrikeExecutorClient crowdStrikeExecutorClient;
-  private final EnterpriseEditionService enterpriseEditionServiceService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final ExecutorService executorService;
 
@@ -60,7 +60,7 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
   public List<Agent> launchBatchExecutorSubprocess(
       Inject inject, Set<Agent> agents, InjectStatus injectStatus) {
 
-    enterpriseEditionServiceService.throwEEExecutorService(
+    enterpriseEditionService.throwEEExecutorService(
         licenseCacheManager.getEnterpriseEditionInfo(), SERVICE_NAME, injectStatus);
 
     List<Agent> csAgents = new ArrayList<>(agents);

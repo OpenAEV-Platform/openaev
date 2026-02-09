@@ -56,7 +56,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
   private final AgentService agentService;
   private final AssetGroupService assetGroupService;
   private final ExecutorService executorService;
-  private final EnterpriseEditionService enterpriseEditionServiceService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final ConnectorInstanceService connectorInstanceService;
@@ -71,7 +71,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
       AgentService agentService,
       AssetGroupService assetGroupService,
       ExecutorService executorService,
-      EnterpriseEditionService enterpriseEditionServiceService,
+      EnterpriseEditionService enterpriseEditionService,
       LicenseCacheManager licenseCacheManager,
       ComponentRequestEngine componentRequestEngine,
       ThreadPoolTaskScheduler taskScheduler,
@@ -83,7 +83,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;
     this.executorService = executorService;
-    this.enterpriseEditionServiceService = enterpriseEditionServiceService;
+    this.enterpriseEditionService = enterpriseEditionService;
     this.licenseCacheManager = licenseCacheManager;
     this.connectorInstanceService = connectorInstanceService;
     this.connectorInstance = connectorInstance;
@@ -124,7 +124,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
     client = new CrowdStrikeExecutorClient(config, httpClientFactory);
     crowdStrikeExecutorContextService =
         new CrowdStrikeExecutorContextService(
-            config, client, enterpriseEditionServiceService, licenseCacheManager, executorService);
+            config, client, enterpriseEditionService, licenseCacheManager, executorService);
     crowdStrikeExecutorService =
         new CrowdStrikeExecutorService(
             executor, client, config, endpointService, agentService, assetGroupService);

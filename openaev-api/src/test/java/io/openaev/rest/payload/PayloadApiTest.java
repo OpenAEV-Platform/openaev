@@ -64,7 +64,7 @@ class PayloadApiTest extends IntegrationTest {
 
   @Resource private ObjectMapper objectMapper;
 
-  @MockBean private EnterpriseEditionService enterpriseEditionServiceService;
+  @MockBean private EnterpriseEditionService enterpriseEditionService;
 
   @BeforeAll
   void beforeAll() {
@@ -188,7 +188,7 @@ class PayloadApiTest extends IntegrationTest {
     void
         given_payload_create_input_with_detection_remediation_should_return_payload_with_detection_remediation()
             throws Exception {
-      when(enterpriseEditionServiceService.isEnterpriseLicenseInactive(any())).thenReturn(false);
+      when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
 
       Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
       PayloadCreateInput input =
@@ -209,7 +209,7 @@ class PayloadApiTest extends IntegrationTest {
     void
         given_payload_update_input_with_detection_remediation_should_return_payload_with_detection_remediation_updated()
             throws Exception {
-      when(enterpriseEditionServiceService.isEnterpriseLicenseInactive(any())).thenReturn(false);
+      when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
       /******* Create *******/
       Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
       PayloadCreateInput input =
@@ -483,7 +483,7 @@ class PayloadApiTest extends IntegrationTest {
   void
       given_payload_update_input_with_detection_remediations_should_return_updated_payload_with_detection_remediations()
           throws Exception {
-    when(enterpriseEditionServiceService.isEnterpriseLicenseInactive(any())).thenReturn(false);
+    when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
 
     Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
     PayloadCreateInput createInput =
@@ -607,7 +607,7 @@ class PayloadApiTest extends IntegrationTest {
   void
       given_payload_upsert_input_with_detection_remediation_should_return_updated_payload_with_detection_remediations()
           throws Exception {
-    when(enterpriseEditionServiceService.isEnterpriseLicenseInactive(any())).thenReturn(false);
+    when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
 
     Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
     PayloadCreateInput input =

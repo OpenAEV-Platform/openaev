@@ -40,7 +40,7 @@ public class CrowdstrikeExecutorServiceTest {
   @Mock private CrowdStrikeExecutorConfig config;
   @Mock private LicenseCacheManager licenseCacheManager;
   @Mock private AssetGroupService assetGroupService;
-  @Mock private EnterpriseEditionService enterpriseEditionServiceService;
+  @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private EndpointService endpointService;
   @Mock private AgentService agentService;
   @Mock private ExecutorService executorService;
@@ -95,7 +95,7 @@ public class CrowdstrikeExecutorServiceTest {
       throws JsonProcessingException, InterruptedException {
     // Init datas
     when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(null);
-    doNothing().when(enterpriseEditionServiceService).throwEEExecutorService(any(), any(), any());
+    doNothing().when(enterpriseEditionService).throwEEExecutorService(any(), any(), any());
     when(config.getApiBatchExecutionActionPagination()).thenReturn(1);
     when(config.getWindowsScriptName()).thenReturn("MyScript");
     Command payloadCommand =

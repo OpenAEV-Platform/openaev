@@ -30,7 +30,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class TaniumExecutorContextService extends ExecutorContextService {
 
-  private final EnterpriseEditionService enterpriseEditionServiceService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final TaniumExecutorConfig taniumExecutorConfig;
   private final TaniumExecutorClient taniumExecutorClient;
@@ -49,7 +49,7 @@ public class TaniumExecutorContextService extends ExecutorContextService {
   public List<Agent> launchBatchExecutorSubprocess(
       Inject inject, Set<Agent> agents, InjectStatus injectStatus) {
 
-    enterpriseEditionServiceService.throwEEExecutorService(
+    enterpriseEditionService.throwEEExecutorService(
         licenseCacheManager.getEnterpriseEditionInfo(), SERVICE_NAME, injectStatus);
 
     if (!this.taniumExecutorConfig.isEnable()) {

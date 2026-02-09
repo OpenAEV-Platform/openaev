@@ -90,7 +90,7 @@ public class InjectService {
   private final AssetService assetService;
   private final AssetGroupService assetGroupService;
   private final CollectorService collectorService;
-  private final EnterpriseEditionService enterpriseEditionServiceService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final EndpointService endpointService;
   private final InjectRepository injectRepository;
   private final InjectDocumentRepository injectDocumentRepository;
@@ -396,12 +396,11 @@ public class InjectService {
   }
 
   public void throwIfInjectNotLaunchable(Inject inject) {
-    if (enterpriseEditionServiceService.isLicenseActive(
-        licenseCacheManager.getEnterpriseEditionInfo())) {
+    if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return;
     }
     List<Agent> agents = this.getAgentsByInject(inject);
-    List<String> eeExecutors = enterpriseEditionServiceService.detectEEExecutors(agents);
+    List<String> eeExecutors = enterpriseEditionService.detectEEExecutors(agents);
 
     if (!eeExecutors.isEmpty()) {
       throw new LicenseRestrictionException(

@@ -50,7 +50,7 @@ public class CalderaExecutorIntegrationTest {
   @Autowired private AgentService agentService;
   @Autowired private AssetGroupService assetGroupService;
   @Autowired private ExecutorService executorService;
-  @Autowired private EnterpriseEditionService enterpriseEditionServiceService;
+  @Autowired private EnterpriseEditionService enterpriseEditionService;
   @Autowired private LicenseCacheManager licenseCacheManager;
   @Autowired private ComponentRequestEngine componentRequestEngine;
   @Autowired private ThreadPoolTaskScheduler taskScheduler;

@@ -53,7 +53,7 @@ public class SentinelOneExecutorIntegration extends Integration {
   private final EndpointService endpointService;
   private final AssetGroupService assetGroupService;
   private final ExecutorService executorService;
-  private final EnterpriseEditionService enterpriseEditionServiceService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final ConnectorInstanceService connectorInstanceService;
@@ -69,7 +69,7 @@ public class SentinelOneExecutorIntegration extends Integration {
       EndpointService endpointService,
       AgentService agentService,
       AssetGroupService assetGroupService,
-      EnterpriseEditionService enterpriseEditionServiceService,
+      EnterpriseEditionService enterpriseEditionService,
       LicenseCacheManager licenseCacheManager,
       ComponentRequestEngine componentRequestEngine,
       ExecutorService executorService,
@@ -80,7 +80,7 @@ public class SentinelOneExecutorIntegration extends Integration {
     this.endpointService = endpointService;
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;
-    this.enterpriseEditionServiceService = enterpriseEditionServiceService;
+    this.enterpriseEditionService = enterpriseEditionService;
     this.licenseCacheManager = licenseCacheManager;
     this.executorService = executorService;
     this.taskScheduler = taskScheduler;
@@ -123,7 +123,7 @@ public class SentinelOneExecutorIntegration extends Integration {
     client = new SentinelOneExecutorClient(config, httpClientFactory);
     sentinelOneExecutorContextService =
         new SentinelOneExecutorContextService(
-            config, client, enterpriseEditionServiceService, licenseCacheManager, executorService);
+            config, client, enterpriseEditionService, licenseCacheManager, executorService);
     sentinelOneExecutorService =
         new SentinelOneExecutorService(
             executor, client, endpointService, agentService, assetGroupService);

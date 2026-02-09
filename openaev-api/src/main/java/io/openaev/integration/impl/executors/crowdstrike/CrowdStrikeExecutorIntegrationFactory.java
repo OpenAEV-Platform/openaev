@@ -35,7 +35,7 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
   private final AgentService agentService;
   private final AssetGroupService assetGroupService;
   private final ExecutorService executorService;
-  private final EnterpriseEditionService enterpriseEditionServiceService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final ComponentRequestEngine componentRequestEngine;
   private final ThreadPoolTaskScheduler taskScheduler;
@@ -52,7 +52,7 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
       AgentService agentService,
       AssetGroupService assetGroupService,
       ExecutorService executorService,
-      EnterpriseEditionService enterpriseEditionServiceService,
+      EnterpriseEditionService enterpriseEditionService,
       LicenseCacheManager licenseCacheManager,
       ComponentRequestEngine componentRequestEngine,
       ThreadPoolTaskScheduler taskScheduler,
@@ -65,7 +65,7 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;
     this.executorService = executorService;
-    this.enterpriseEditionServiceService = enterpriseEditionServiceService;
+    this.enterpriseEditionService = enterpriseEditionService;
     this.licenseCacheManager = licenseCacheManager;
     this.componentRequestEngine = componentRequestEngine;
     this.taskScheduler = taskScheduler;
@@ -122,7 +122,7 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
         agentService,
         assetGroupService,
         executorService,
-        enterpriseEditionServiceService,
+        enterpriseEditionService,
         licenseCacheManager,
         componentRequestEngine,
         taskScheduler,

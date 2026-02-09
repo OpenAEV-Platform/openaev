@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 public class GlobalMetricCollector {
   private final MetricRegistry metricRegistry;
   private final UserService userService;
-  private final EnterpriseEditionService enterpriseEditionServiceService;
+  private final EnterpriseEditionService enterpriseEditionService;
 
   @PostConstruct
   public void init() {
@@ -24,6 +24,6 @@ public class GlobalMetricCollector {
   }
 
   private long isEnterpriseEdition() {
-    return enterpriseEditionServiceService.getEnterpriseEditionInfo().isLicenseValidated() ? 1 : 0;
+    return enterpriseEditionService.getEnterpriseEditionInfo().isLicenseValidated() ? 1 : 0;
   }
 }

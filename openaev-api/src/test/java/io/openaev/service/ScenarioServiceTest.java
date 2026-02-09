@@ -53,7 +53,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Autowired private LessonsCategoryRepository lessonsCategoryRepository;
   @Autowired private HealthCheckUtils healthCheckUtils;
 
-  @Mock EnterpriseEditionService enterpriseEditionServiceService;
+  @Mock EnterpriseEditionService enterpriseEditionService;
   @Mock VariableService variableService;
   @Mock ChallengeService challengeService;
   @Autowired private TeamService teamService;
@@ -87,7 +87,7 @@ class ScenarioServiceTest extends IntegrationTest {
             exerciseMapper,
             actionMetricCollector,
             licenseCacheManager,
-            enterpriseEditionServiceService,
+            enterpriseEditionService,
             variableService,
             challengeService,
             teamService,
@@ -114,7 +114,7 @@ class ScenarioServiceTest extends IntegrationTest {
             exerciseMapper,
             actionMetricCollector,
             licenseCacheManager,
-            enterpriseEditionServiceService,
+            enterpriseEditionService,
             variableService,
             challengeService,
             teamService,

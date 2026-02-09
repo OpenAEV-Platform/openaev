@@ -41,7 +41,7 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
   private final AgentService agentService;
   private final EndpointService endpointService;
   private final AssetGroupService assetGroupService;
-  private final EnterpriseEditionService enterpriseEditionServiceService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final FileService fileService;
@@ -56,7 +56,7 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
       AgentService agentService,
       EndpointService endpointService,
       AssetGroupService assetGroupService,
-      EnterpriseEditionService enterpriseEditionServiceService,
+      EnterpriseEditionService enterpriseEditionService,
       LicenseCacheManager licenseCacheManager,
       ThreadPoolTaskScheduler taskScheduler,
       FileService fileService,
@@ -71,7 +71,7 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
     this.agentService = agentService;
     this.endpointService = endpointService;
     this.assetGroupService = assetGroupService;
-    this.enterpriseEditionServiceService = enterpriseEditionServiceService;
+    this.enterpriseEditionService = enterpriseEditionService;
     this.licenseCacheManager = licenseCacheManager;
     this.taskScheduler = taskScheduler;
     this.fileService = fileService;
@@ -121,7 +121,7 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
         endpointService,
         agentService,
         assetGroupService,
-        enterpriseEditionServiceService,
+        enterpriseEditionService,
         licenseCacheManager,
         componentRequestEngine,
         executorService,

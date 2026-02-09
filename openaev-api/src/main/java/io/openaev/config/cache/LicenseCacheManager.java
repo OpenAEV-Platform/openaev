@@ -8,19 +8,19 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class LicenseCacheManager {
-  private final EnterpriseEditionService enterpriseEditionServiceService;
+  private final EnterpriseEditionService enterpriseEditionService;
 
-  public LicenseCacheManager(EnterpriseEditionService enterpriseEditionServiceService) {
-    this.enterpriseEditionServiceService = enterpriseEditionServiceService;
+  public LicenseCacheManager(EnterpriseEditionService enterpriseEditionService) {
+    this.enterpriseEditionService = enterpriseEditionService;
   }
 
   @Cacheable("license")
   public License getEnterpriseEditionInfo() {
-    return enterpriseEditionServiceService.getEnterpriseEditionInfo();
+    return enterpriseEditionService.getEnterpriseEditionInfo();
   }
 
   @CacheEvict(value = "license", allEntries = true)
   public void refreshLicense() {
-    enterpriseEditionServiceService.getEnterpriseEditionInfo();
+    enterpriseEditionService.getEnterpriseEditionInfo();
   }
 }

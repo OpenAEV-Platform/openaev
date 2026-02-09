@@ -52,7 +52,7 @@ public class TaniumExecutorIntegration extends Integration {
   private final EndpointService endpointService;
   private final AssetGroupService assetGroupService;
   private final ExecutorService executorService;
-  private final EnterpriseEditionService enterpriseEditionServiceService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final ConnectorInstanceService connectorInstanceService;
@@ -68,7 +68,7 @@ public class TaniumExecutorIntegration extends Integration {
       EndpointService endpointService,
       AgentService agentService,
       AssetGroupService assetGroupService,
-      EnterpriseEditionService enterpriseEditionServiceService,
+      EnterpriseEditionService enterpriseEditionService,
       LicenseCacheManager licenseCacheManager,
       ComponentRequestEngine componentRequestEngine,
       ExecutorService executorService,
@@ -79,7 +79,7 @@ public class TaniumExecutorIntegration extends Integration {
     this.endpointService = endpointService;
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;
-    this.enterpriseEditionServiceService = enterpriseEditionServiceService;
+    this.enterpriseEditionService = enterpriseEditionService;
     this.licenseCacheManager = licenseCacheManager;
     this.executorService = executorService;
     this.taskScheduler = taskScheduler;
@@ -122,7 +122,7 @@ public class TaniumExecutorIntegration extends Integration {
     client = new TaniumExecutorClient(config, httpClientFactory);
     taniumExecutorContextService =
         new TaniumExecutorContextService(
-            enterpriseEditionServiceService, licenseCacheManager, config, client, executorService);
+            enterpriseEditionService, licenseCacheManager, config, client, executorService);
     taniumExecutorService =
         new TaniumExecutorService(
             executor, client, config, endpointService, agentService, assetGroupService);

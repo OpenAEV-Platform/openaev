@@ -30,7 +30,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class PayloadUtils {
 
-  private final EnterpriseEditionService enterpriseEditionServiceService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final OutputParserService outputParserService;
   private final DetectionRemediationUtils detectionRemediationUtils;
@@ -153,8 +153,7 @@ public class PayloadUtils {
     duplicate.setStatus(Payload.PAYLOAD_STATUS.UNVERIFIED);
     outputParserService.copyOutputParsersFromEntity(origin.getOutputParsers(), duplicate);
 
-    if (enterpriseEditionServiceService.isLicenseActive(
-        licenseCacheManager.getEnterpriseEditionInfo())) {
+    if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       detectionRemediationUtils.copy(origin.getDetectionRemediations(), duplicate, false);
     }
 

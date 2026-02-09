@@ -43,7 +43,7 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
 
   private final SentinelOneExecutorConfig config;
   private final SentinelOneExecutorClient client;
-  private final EnterpriseEditionService enterpriseEditionServiceService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final ExecutorService executorService;
 
@@ -59,7 +59,7 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
   public List<Agent> launchBatchExecutorSubprocess(
       Inject inject, Set<Agent> agents, InjectStatus injectStatus) {
 
-    enterpriseEditionServiceService.throwEEExecutorService(
+    enterpriseEditionService.throwEEExecutorService(
         licenseCacheManager.getEnterpriseEditionInfo(), SERVICE_NAME, injectStatus);
 
     if (!this.config.isEnable()) {

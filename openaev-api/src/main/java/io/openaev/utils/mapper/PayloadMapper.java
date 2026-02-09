@@ -40,7 +40,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class PayloadMapper {
 
-  private final EnterpriseEditionService enterpriseEditionServiceService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final ApplicationContext context;
 
@@ -275,8 +275,7 @@ public class PayloadMapper {
    */
   public List<DetectionRemediationOutput> toDetectionRemediationOutputs(
       List<DetectionRemediation> detectionRemediations) {
-    if (enterpriseEditionServiceService.isLicenseActive(
-        licenseCacheManager.getEnterpriseEditionInfo())) {
+    if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return detectionRemediations.stream()
           .map(PayloadMapper::toDetectionRemediationOutput)
           .toList();

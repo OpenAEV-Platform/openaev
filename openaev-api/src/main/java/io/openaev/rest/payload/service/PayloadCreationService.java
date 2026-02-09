@@ -28,7 +28,7 @@ public class PayloadCreationService {
   private final PayloadUtils payloadUtils;
 
   private final PayloadService payloadService;
-  private final EnterpriseEditionService enterpriseEditionServiceService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
 
   private final TagRepository tagRepository;
@@ -39,7 +39,7 @@ public class PayloadCreationService {
 
   @Transactional(rollbackOn = Exception.class)
   public Payload createPayload(PayloadCreateInput input) {
-    if (enterpriseEditionServiceService.isEnterpriseLicenseInactive(
+    if (enterpriseEditionService.isEnterpriseLicenseInactive(
         licenseCacheManager.getEnterpriseEditionInfo())) {
       input.setDetectionRemediations(null);
     }

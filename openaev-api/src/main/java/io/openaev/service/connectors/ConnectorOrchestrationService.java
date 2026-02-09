@@ -33,7 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ConnectorOrchestrationService {
   private final ConnectorInstanceService connectorInstanceService;
   private final XtmComposerService xtmComposerService;
-  private final EnterpriseEditionService enterpriseEditionServiceService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final CatalogConnectorService catalogConnectorService;
 
   private final CollectorService collectorService;
@@ -80,8 +80,7 @@ public class ConnectorOrchestrationService {
   }
 
   private void throwIfEnterpriseLicenseNotActive() throws LicenseRestrictionException {
-    if (!enterpriseEditionServiceService.isLicenseActive(
-        licenseCacheManager.getEnterpriseEditionInfo())) {
+    if (!enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       throw new LicenseRestrictionException("Manage instance is enterprise edition");
     }
   }
