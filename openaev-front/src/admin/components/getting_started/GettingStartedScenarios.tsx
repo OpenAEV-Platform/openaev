@@ -89,7 +89,7 @@ const GettingStartedScenarios = () => {
               }}
             >
               <MUILink
-                href="https://docs.openaev.io/latest/usage/scenarios_and_simulations/"
+                href="https://docs.openaev.io/latest/usage/scenarios-and-simulations/"
                 target="_blank"
                 rel="noopener noreferrer"
                 underline="hover"
