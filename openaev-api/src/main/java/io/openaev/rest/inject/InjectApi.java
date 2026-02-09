@@ -10,6 +10,7 @@ import io.openaev.aop.RBAC;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.config.RabbitMQSslConfiguration;
 import io.openaev.config.RabbitmqConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
@@ -93,6 +94,7 @@ public class InjectApi extends RestBehavior {
   private final RabbitmqConfig rabbitmqConfig;
   private final OpenAEVConfig openAEVConfig;
   private final ObjectMapper objectMapper;
+  private final RabbitMQSslConfiguration rabbitMQSslConfiguration;
 
   private final PreviewFeatureService previewFeatureService;
 
@@ -109,7 +111,8 @@ public class InjectApi extends RestBehavior {
               batchExecutionTraceExecutor::handleInjectExecutionCallbackList,
               rabbitmqConfig,
               objectMapper,
-              openAEVConfig.getQueueConfig().get("inject-trace"));
+              openAEVConfig.getQueueConfig().get("inject-trace"),
+              rabbitMQSslConfiguration);
     }
   }
 
