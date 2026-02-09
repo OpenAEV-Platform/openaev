@@ -4,7 +4,7 @@ import { type FunctionComponent } from 'react';
 
 import { capitalize } from '../../../../utils/String';
 import {
-  colorByLabel, type EsExpectationByDomainTypeAndStatus,
+  type EsExpectationByDomainTypeAndStatus,
   formatPercentage,
 } from '../../workspaces/custom_dashboards/widgets/viz/domains/SecurityDomainsWidgetUtils';
 import expectationIconByType from '../ExpectationIconByType';
@@ -28,14 +28,14 @@ const ExpectationPercentResultByType: FunctionComponent<Props> = ({ expectationT
       <Icon sx={{ color }}>
         {expectationIconByType(expectationType)}
       </Icon>
-      <Typography>
+      <Typography sx={{ whiteSpace: 'nowrap' }}>
         {`${capitalize(expectationType)} :`}
       </Typography>
       {datasByDomainsAndType.map(d => (
         <Tooltip
-          key={d.key}
-          onClick={() => onExpectationResultClick(d.label)}
-          style={{ color: colorByLabel(d.label, theme) }}
+          key={`${expectationType}-${d.key}`}
+          onClick={() => onExpectationResultClick(d.key)}
+          style={{ color: d.color }}
           title={d.label}
         >
           <Button

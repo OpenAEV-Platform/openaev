@@ -17,11 +17,15 @@ interface Props {
 }
 
 const useStyles = makeStyles()(theme => ({
-  container: {
+  widgetContainer: {
     width: '100%',
+    height: '100%',
     display: 'flex',
+    alignItems: 'center',
     justifyContent: 'space-evenly',
     gap: theme.spacing(1),
+    overflowX: 'auto',
+    overflowY: 'hidden',
   },
 }));
 
@@ -42,7 +46,7 @@ const SecurityDomainsWidget: FunctionComponent<Props> = ({ widgetId, data }) => 
   );
 
   return (
-    <div className={classes.container}>
+    <div className={classes.widgetContainer}>
       {orderedDomains.map((domain) => {
         const { domain_name } = domain;
         const domainData = domainDataMap.get(domain_name) ?? {

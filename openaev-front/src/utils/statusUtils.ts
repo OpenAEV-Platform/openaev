@@ -2,6 +2,7 @@ import { type Theme } from '@mui/material';
 
 import { HUMAN_EXPECTATION } from '../admin/components/common/injects/expectations/ExpectationUtils';
 import colorStyles from '../components/Color';
+import { capitalize } from './String';
 
 const injectExpectationMap = {
   SUCCESS: {
@@ -40,8 +41,8 @@ export function computeInjectExpectationLabel(
   const result = injectExpectationMap[normalizedStatus]?.[normalizedType];
   if (result) return result;
 
-  if (HUMAN_EXPECTATION.includes(type)) {
-    return status;
+  if (HUMAN_EXPECTATION.includes(type.toUpperCase())) {
+    return capitalize(status);
   }
 
   return undefined;
@@ -76,6 +77,7 @@ export const computeStatusStyle = (status: string | undefined | null) => {
     'RUNNING': colorStyles.green,
     'PREVENTED': colorStyles.green,
     'DETECTED': colorStyles.green,
+    'NOT VULNERABLE': colorStyles.green,
 
     'CANCELED': colorStyles.canceled,
 

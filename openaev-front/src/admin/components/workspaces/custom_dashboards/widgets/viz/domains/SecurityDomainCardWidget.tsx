@@ -18,6 +18,7 @@ const useStyles = makeStyles()(theme => ({
   container: {
     display: 'flex',
     gap: theme.spacing(1),
+    height: 'fit-content',
   },
   headerContainer: {
     display: 'flex',
@@ -95,7 +96,7 @@ const SecurityDomainCardWidget: FunctionComponent<Props> = ({
           {esDomainDatas.data.length > 0 ? (
             <List disablePadding>
               {esDomainDatas.data.map(({ label, color, data }) => (
-                <ListItem key={label} disablePadding disableGutters>
+                <ListItem key={`${domainName}-${label}`} disablePadding disableGutters>
                   <ExpectationPercentResultByType
                     datasByDomainsAndType={data}
                     expectationType={label}

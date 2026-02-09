@@ -5,6 +5,7 @@ import { type ComponentType, type CSSProperties, type ReactElement } from 'react
 
 import type { Domain, EsAvgs, EsDomainsAvgData, EsSeries, EsSeriesData } from '../../../../../../../utils/api-types';
 import { TO_CLASSIFY } from '../../../../../../../utils/domains/domainUtils';
+import { computeInjectExpectationLabel } from '../../../../../../../utils/statusUtils';
 import { type IconBarElement } from '../../../../../common/domains/IconBar-model';
 
 // Extend base types to add frontend values on objects
@@ -12,6 +13,7 @@ export type EsExpectationByDomainTypeAndStatus = EsSeriesData & {
   percentage?: number;
   color?: string;
   label: string;
+  key: string;
 };
 export type EsExpectationByDomainAndType = EsSeries & {
   data: EsExpectationByDomainTypeAndStatus[];
@@ -224,6 +226,7 @@ const manageExpectationByDomainAndType = (esSerie: EsSeries, theme: Theme): EsEx
   const calculatedAveragesByDomainTypeAndStatus = esSerie.data?.map((expectationData) => {
     return {
       ...expectationData,
+      label: expectationData.label ? computeInjectExpectationLabel(expectationData.label, esSerie.label) : '',
       percentage: expectationData.value != null && esSerie.value != null ? calcPercentage(expectationData.value, esSerie.value) : null,
       color: colorByLabel(expectationData.label ?? null, theme),
     } as EsExpectationByDomainTypeAndStatus;
