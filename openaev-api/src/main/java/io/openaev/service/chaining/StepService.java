@@ -40,9 +40,6 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     Workflow workflow = workflowService.getWorkflowById(workflowId);
 
     for (StepsCreateInput.StepCreateInput stepInput : steps) {
-      if (stepInput.getStepAction() == null) {
-        stepInput.setStepAction(StepActionClass.UNSUPPORTED);
-      }
       ActionStep actionStep = this.factoryAction(stepInput.getStepAction());
       if (actionStep == null) throw new BadRequestException("action step is null");
 
