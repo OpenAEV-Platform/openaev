@@ -12,6 +12,7 @@ import jakarta.annotation.Resource;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -33,8 +34,9 @@ public class UserEventService {
   /** Creates a {@link UserEventType#LOGIN_SUCCESS} event for the given user. */
   @Async
   @Transactional
-  public void createLoginSuccessEvent(User user) {
+  public CompletableFuture<Void> createLoginSuccessEvent(User user) {
     this.createEvent(LOGIN_SUCCESS, user);
+    return CompletableFuture.completedFuture(null);
   }
 
   /**
@@ -45,9 +47,11 @@ public class UserEventService {
    */
   @Async
   @Transactional
-  public void createLoginFailedEvent(String provider, String reason) {
+  public CompletableFuture<Void> createLoginFailedEvent(String provider, String reason) {
     JsonNode payload = mapper.createObjectNode().put("provider", provider).put("reason", reason);
+
     this.createEvent(UserEventType.LOGIN_FAILED, payload);
+    return CompletableFuture.completedFuture(null);
   }
 
   private void createEvent(UserEventType type, User user) {

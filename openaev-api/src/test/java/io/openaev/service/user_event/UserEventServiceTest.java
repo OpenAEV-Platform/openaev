@@ -13,10 +13,7 @@ import io.openaev.database.repository.UserEventRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.service.user_events.UserEventService;
 import java.util.List;
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +28,12 @@ class UserEventServiceTest extends IntegrationTest {
 
   @Autowired private UserRepository userRepository;
 
+  @BeforeEach
+  void setUp() {
+    // async execution: transaction rollback not applied
+    userEventRepository.deleteAll();
+  }
+
   // -- CRUD --
 
   @Test
@@ -39,7 +42,7 @@ class UserEventServiceTest extends IntegrationTest {
     User user = userRepository.save(getUser());
 
     // -- ACT --
-    userEventService.createLoginSuccessEvent(user);
+    userEventService.createLoginSuccessEvent(user).join();
 
     // -- ASSERT --
     List<UserEvent> events = fromIterable(userEventRepository.findAll());
@@ -55,7 +58,7 @@ class UserEventServiceTest extends IntegrationTest {
   @Test
   void should_create_login_failed_event() {
     // -- ACT --
-    userEventService.createLoginFailedEvent("local login", "BadCredentialsException");
+    userEventService.createLoginFailedEvent("local login", "BadCredentialsException").join();
 
     // -- ASSERT --
     List<UserEvent> events = fromIterable(userEventRepository.findAll());
