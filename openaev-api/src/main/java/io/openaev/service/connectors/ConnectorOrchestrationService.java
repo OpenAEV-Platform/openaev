@@ -80,7 +80,8 @@ public class ConnectorOrchestrationService {
   }
 
   private void throwIfEnterpriseLicenseNotActive() throws LicenseRestrictionException {
-    if (!enterpriseEditionServiceService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
+    if (!enterpriseEditionServiceService.isLicenseActive(
+        licenseCacheManager.getEnterpriseEditionInfo())) {
       throw new LicenseRestrictionException("Manage instance is enterprise edition");
     }
   }

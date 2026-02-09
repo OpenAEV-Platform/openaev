@@ -275,7 +275,8 @@ public class PayloadMapper {
    */
   public List<DetectionRemediationOutput> toDetectionRemediationOutputs(
       List<DetectionRemediation> detectionRemediations) {
-    if (enterpriseEditionServiceService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
+    if (enterpriseEditionServiceService.isLicenseActive(
+        licenseCacheManager.getEnterpriseEditionInfo())) {
       return detectionRemediations.stream()
           .map(PayloadMapper::toDetectionRemediationOutput)
           .toList();

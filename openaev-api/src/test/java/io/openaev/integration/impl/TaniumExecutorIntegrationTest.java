@@ -78,7 +78,7 @@ public class TaniumExecutorIntegrationTest {
         agentService,
         endpointService,
         assetGroupService,
-            enterpriseEditionServiceService,
+        enterpriseEditionServiceService,
         licenseCacheManager,
         taskScheduler,
         fileService,

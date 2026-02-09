@@ -2,8 +2,8 @@ package io.openaev.rest.finding;
 
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
-import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.LogExecutionTime;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.ResourceType;
@@ -64,7 +64,10 @@ public class FindingSearchApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping("/injects/{injectId}/search")
-  @AccessControl(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.INJECT)
   @ApiResponse(
       responseCode = "200",
       content =

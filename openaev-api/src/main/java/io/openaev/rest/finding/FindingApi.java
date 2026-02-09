@@ -24,7 +24,10 @@ public class FindingApi extends RestBehavior {
   // -- CRUD --
 
   @GetMapping("/{id}")
-  @AccessControl(resourceId = "#id", actionPerformed = Action.READ, resourceType = ResourceType.FINDING)
+  @AccessControl(
+      resourceId = "#id",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.FINDING)
   public ResponseEntity<Finding> finding(@PathVariable @NotNull final String id) {
     return ResponseEntity.ok(this.findingService.finding(id));
   }
@@ -38,7 +41,10 @@ public class FindingApi extends RestBehavior {
   }
 
   @PutMapping("/{id}")
-  @AccessControl(resourceId = "#id", actionPerformed = Action.WRITE, resourceType = ResourceType.FINDING)
+  @AccessControl(
+      resourceId = "#id",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.FINDING)
   public ResponseEntity<Finding> updateFinding(
       @PathVariable @NotNull final String id,
       @RequestBody @Valid @NotNull final FindingInput input) {
@@ -49,7 +55,10 @@ public class FindingApi extends RestBehavior {
   }
 
   @DeleteMapping("/{id}")
-  @AccessControl(resourceId = "#id", actionPerformed = Action.DELETE, resourceType = ResourceType.FINDING)
+  @AccessControl(
+      resourceId = "#id",
+      actionPerformed = Action.DELETE,
+      resourceType = ResourceType.FINDING)
   public ResponseEntity<Void> deleteFinding(@PathVariable @NotNull final String id) {
     this.findingService.deleteFinding(id);
     return ResponseEntity.noContent().build();

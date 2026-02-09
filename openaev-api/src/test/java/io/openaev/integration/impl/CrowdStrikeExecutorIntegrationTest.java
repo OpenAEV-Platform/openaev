@@ -77,7 +77,7 @@ public class CrowdStrikeExecutorIntegrationTest {
         agentService,
         assetGroupService,
         executorService,
-            enterpriseEditionServiceService,
+        enterpriseEditionServiceService,
         licenseCacheManager,
         componentRequestEngine,
         taskScheduler,

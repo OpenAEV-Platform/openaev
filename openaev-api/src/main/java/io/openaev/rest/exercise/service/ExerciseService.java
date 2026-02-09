@@ -440,7 +440,8 @@ public class ExerciseService {
   }
 
   public void throwIfExerciseNotLaunchable(Exercise exercise) {
-    if (enterpriseEditionServiceService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
+    if (enterpriseEditionServiceService.isLicenseActive(
+        licenseCacheManager.getEnterpriseEditionInfo())) {
       return;
     }
     exercise.getInjects().forEach(injectService::throwIfInjectNotLaunchable);

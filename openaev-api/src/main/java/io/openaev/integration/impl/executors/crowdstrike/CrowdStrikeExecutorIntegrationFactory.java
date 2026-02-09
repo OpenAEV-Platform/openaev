@@ -122,7 +122,7 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
         agentService,
         assetGroupService,
         executorService,
-            enterpriseEditionServiceService,
+        enterpriseEditionServiceService,
         licenseCacheManager,
         componentRequestEngine,
         taskScheduler,

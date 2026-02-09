@@ -122,7 +122,7 @@ public class TaniumExecutorIntegration extends Integration {
     client = new TaniumExecutorClient(config, httpClientFactory);
     taniumExecutorContextService =
         new TaniumExecutorContextService(
-                enterpriseEditionServiceService, licenseCacheManager, config, client, executorService);
+            enterpriseEditionServiceService, licenseCacheManager, config, client, executorService);
     taniumExecutorService =
         new TaniumExecutorService(
             executor, client, config, endpointService, agentService, assetGroupService);

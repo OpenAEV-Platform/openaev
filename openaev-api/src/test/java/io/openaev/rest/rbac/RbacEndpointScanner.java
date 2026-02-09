@@ -35,7 +35,8 @@ public class RbacEndpointScanner {
               : new String[] {""};
 
       for (Method method : targetClass.getDeclaredMethods()) {
-        AccessControl accessControlAnnotation = AnnotationUtils.findAnnotation(method, AccessControl.class);
+        AccessControl accessControlAnnotation =
+            AnnotationUtils.findAnnotation(method, AccessControl.class);
         if (accessControlAnnotation == null) continue;
 
         List<RequestMethod> httpMethods = new ArrayList<>();
@@ -87,7 +88,8 @@ public class RbacEndpointScanner {
           for (String methodPath : methodPaths) {
             String fullPath = normalizePath(classPath) + normalizePath(methodPath);
             for (RequestMethod httpMethod : httpMethods) {
-              endpoints.add(new EndpointInfo(httpMethod, fullPath, accessControlAnnotation, consumes));
+              endpoints.add(
+                  new EndpointInfo(httpMethod, fullPath, accessControlAnnotation, consumes));
             }
           }
         }

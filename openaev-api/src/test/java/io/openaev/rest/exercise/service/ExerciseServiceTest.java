@@ -96,7 +96,7 @@ class ExerciseServiceTest extends IntegrationTest {
   void setUp() {
     mockedExerciseService =
         new ExerciseService(
-                enterpriseEditionServiceService,
+            enterpriseEditionServiceService,
             injectDuplicateService,
             teamService,
             variableService,

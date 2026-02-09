@@ -4,8 +4,8 @@ import static io.openaev.helper.DatabaseHelper.updateRelation;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 
-import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.LogExecutionTime;
 import io.openaev.config.SessionManager;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawPlayer;
@@ -86,7 +86,10 @@ public class PlayerApi extends RestBehavior {
   }
 
   @PutMapping(PLAYER_URI + "/{userId}")
-  @AccessControl(resourceId = "#userId", actionPerformed = Action.WRITE, resourceType = ResourceType.PLAYER)
+  @AccessControl(
+      resourceId = "#userId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.PLAYER)
   public User updatePlayer(@PathVariable String userId, @Valid @RequestBody PlayerInput input) {
     User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
     user.setUpdateAttributes(input);
@@ -97,7 +100,10 @@ public class PlayerApi extends RestBehavior {
   }
 
   @DeleteMapping(PLAYER_URI + "/{userId}")
-  @AccessControl(resourceId = "#userId", actionPerformed = Action.DELETE, resourceType = ResourceType.PLAYER)
+  @AccessControl(
+      resourceId = "#userId",
+      actionPerformed = Action.DELETE,
+      resourceType = ResourceType.PLAYER)
   public void deletePlayer(@PathVariable String userId) {
     sessionManager.invalidateUserSession(userId);
     userRepository.deleteById(userId);

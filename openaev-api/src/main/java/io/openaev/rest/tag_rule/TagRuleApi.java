@@ -1,7 +1,7 @@
 package io.openaev.rest.tag_rule;
 
-import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UserRoleDescription;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;

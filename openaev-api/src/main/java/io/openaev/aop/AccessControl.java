@@ -38,8 +38,6 @@ public @interface AccessControl {
    */
   boolean skipRBAC() default false;
 
-  /**
-   * Whether the feature is Enterprise Edition (EE) only.
-   */
+  /** Whether the feature is Enterprise Edition (EE) only. */
   boolean isEnterpriseEdition() default false;
 }

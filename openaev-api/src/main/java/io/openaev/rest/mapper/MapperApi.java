@@ -3,8 +3,8 @@ package io.openaev.rest.mapper;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.LogExecutionTime;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ImportMapper;
 import io.openaev.database.model.ResourceType;
@@ -72,7 +72,10 @@ public class MapperApi extends RestBehavior {
   }
 
   @GetMapping("/api/mappers/{mapperId}")
-  @AccessControl(resourceId = "#mapperId", actionPerformed = Action.READ, resourceType = ResourceType.MAPPER)
+  @AccessControl(
+      resourceId = "#mapperId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.MAPPER)
   public ImportMapper getImportMapperById(@PathVariable String mapperId) {
     return importMapperRepository
         .findById(UUID.fromString(mapperId))

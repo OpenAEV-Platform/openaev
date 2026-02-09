@@ -72,7 +72,10 @@ public class TagApi extends RestBehavior {
   }
 
   @PutMapping("/api/tags/{tagId}")
-  @AccessControl(resourceId = "#tagId", actionPerformed = Action.WRITE, resourceType = ResourceType.TAG)
+  @AccessControl(
+      resourceId = "#tagId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.TAG)
   @Transactional(rollbackOn = Exception.class)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated tag")})
   @Operation(description = "Update a tag", summary = "Update tag")
@@ -103,7 +106,10 @@ public class TagApi extends RestBehavior {
   }
 
   @DeleteMapping("/api/tags/{tagId}")
-  @AccessControl(resourceId = "#tagId", actionPerformed = Action.DELETE, resourceType = ResourceType.TAG)
+  @AccessControl(
+      resourceId = "#tagId",
+      actionPerformed = Action.DELETE,
+      resourceType = ResourceType.TAG)
   @ApiResponses(value = {@ApiResponse(responseCode = "200")})
   @Operation(description = "Delete a tag", summary = "Delete tag")
   public void deleteTag(@PathVariable @Schema(description = "ID of the tag") String tagId) {

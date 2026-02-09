@@ -41,7 +41,8 @@ public class PayloadUpdateService {
 
   @Transactional(rollbackOn = Exception.class)
   public Payload updatePayload(String payloadId, PayloadUpdateInput input) {
-    if (enterpriseEditionServiceService.isEnterpriseLicenseInactive(licenseCacheManager.getEnterpriseEditionInfo())) {
+    if (enterpriseEditionServiceService.isEnterpriseLicenseInactive(
+        licenseCacheManager.getEnterpriseEditionInfo())) {
       input.setDetectionRemediations(null);
     }
 

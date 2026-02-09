@@ -124,7 +124,8 @@ public class AttackPatternApiTest extends IntegrationTest {
                           ]
                         }""",
                   HttpStatus.OK));
-      Mockito.when(mockEnterpriseEditionService.getEnterpriseEditionLicensePem()).thenReturn("mock-certificate");
+      Mockito.when(mockEnterpriseEditionService.getEnterpriseEditionLicensePem())
+          .thenReturn("mock-certificate");
       MockPart jsonPart = new MockPart("text", "Test".getBytes());
       byte[] content = new byte[] {1, 2, 3, 4, 5}; // Example binary content
       MockMultipartFile mockFile =

@@ -80,7 +80,8 @@ public class CveMapper {
   }
 
   private String getRemediationIfLicensed(final Vulnerability vulnerability) {
-    if (enterpriseEditionServiceService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
+    if (enterpriseEditionServiceService.isLicenseActive(
+        licenseCacheManager.getEnterpriseEditionInfo())) {
       return vulnerability.getRemediation();
     } else {
       log.debug("Enterprise Edition license inactive - omitting remediation field");

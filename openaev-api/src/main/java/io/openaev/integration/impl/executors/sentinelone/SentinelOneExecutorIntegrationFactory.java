@@ -121,7 +121,7 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
         endpointService,
         agentService,
         assetGroupService,
-            enterpriseEditionServiceService,
+        enterpriseEditionServiceService,
         licenseCacheManager,
         componentRequestEngine,
         executorService,

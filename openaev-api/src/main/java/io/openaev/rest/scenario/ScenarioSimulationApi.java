@@ -4,8 +4,8 @@ import static io.openaev.database.specification.ExerciseSpecification.fromScenar
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
-import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.LogExecutionTime;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.Exercise;

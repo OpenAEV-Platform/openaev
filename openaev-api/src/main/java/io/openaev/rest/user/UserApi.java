@@ -231,7 +231,10 @@ public class UserApi extends RestBehavior {
   }
 
   @PutMapping("/api/users/{userId}/password")
-  @AccessControl(resourceId = "#userId", actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
+  @AccessControl(
+      resourceId = "#userId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.USER)
   @Transactional(rollbackFor = Exception.class)
   @Operation(description = "Change the password of a user", summary = "Change password")
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The modified user")})
@@ -253,7 +256,10 @@ public class UserApi extends RestBehavior {
   }
 
   @PutMapping("/api/users/{userId}")
-  @AccessControl(resourceId = "#userId", actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
+  @AccessControl(
+      resourceId = "#userId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.USER)
   @Transactional(rollbackFor = Exception.class)
   @Operation(description = "Update a user", summary = "Update user")
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The modified user")})
@@ -264,7 +270,10 @@ public class UserApi extends RestBehavior {
   }
 
   @DeleteMapping("/api/users/{userId}")
-  @AccessControl(resourceId = "#userId", actionPerformed = Action.DELETE, resourceType = ResourceType.USER)
+  @AccessControl(
+      resourceId = "#userId",
+      actionPerformed = Action.DELETE,
+      resourceType = ResourceType.USER)
   @Transactional(rollbackFor = Exception.class)
   @Operation(description = "Delete a user", summary = "Delete user")
   @ApiResponses(value = {@ApiResponse(responseCode = "200")})

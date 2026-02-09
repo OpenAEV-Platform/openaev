@@ -44,8 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ExerciseServiceIntegrationTest extends IntegrationTest {
 
-  @Mock
-  EnterpriseEditionService enterpriseEditionServiceService;
+  @Mock EnterpriseEditionService enterpriseEditionServiceService;
   @Mock InjectDuplicateService injectDuplicateService;
   @Mock VariableService variableService;
 
@@ -87,7 +86,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   void setUp() {
     exerciseService =
         new ExerciseService(
-                enterpriseEditionServiceService,
+            enterpriseEditionServiceService,
             injectDuplicateService,
             teamService,
             variableService,

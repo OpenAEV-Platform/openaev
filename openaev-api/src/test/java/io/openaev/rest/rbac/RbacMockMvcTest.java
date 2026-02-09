@@ -103,7 +103,8 @@ public class RbacMockMvcTest extends IntegrationTest {
     // Arrange
     MockHttpServletRequestBuilder request = createRequestBuilder(endpoint);
     Authentication auth =
-        createAuthenticationForScenario(endpoint.getAccessControl(), endpointTestScenario, endpoint);
+        createAuthenticationForScenario(
+            endpoint.getAccessControl(), endpointTestScenario, endpoint);
     SecurityContextHolder.getContext().setAuthentication(auth);
 
     // Act
@@ -156,16 +157,18 @@ public class RbacMockMvcTest extends IntegrationTest {
 
   // -- Auth creation --
   private Authentication createAuthenticationForScenario(
-          AccessControl accessControl, EndpointTestScenarios scenario, EndpointInfo endpointInfo) {
+      AccessControl accessControl, EndpointTestScenarios scenario, EndpointInfo endpointInfo) {
     // For unprotected endpoints and open resources, always return admin (we don't really care about
     // the user permissions in this case)
     if (accessControl.skipRBAC()
-        || PermissionService.isOpenResource(accessControl.resourceType(), accessControl.actionPerformed())) {
+        || PermissionService.isOpenResource(
+            accessControl.resourceType(), accessControl.actionPerformed())) {
       return buildAuthenticationForAdmin();
     }
     return switch (scenario) {
       case ADMIN -> buildAuthenticationForAdmin();
-      case GROUP_WITH_BYPASS -> buildAuthForRoleWithCapability(Capability.BYPASS, false, accessControl);
+      case GROUP_WITH_BYPASS ->
+          buildAuthForRoleWithCapability(Capability.BYPASS, false, accessControl);
       case GROUP_NO_ROLE, GROUP_ROLE_NO_CAPABILITY ->
           buildAuthForRoleWithCapability(null, false, accessControl);
       case RESOURCE_GRANT_ONLY -> buildAuthForGrantOnly(accessControl);
@@ -175,7 +178,8 @@ public class RbacMockMvcTest extends IntegrationTest {
           // INJECT corresponds either to ATOMIC_TESTING, SIMULATION or SCENARIO capa
           if (endpointInfo.getPath().startsWith("/api/atomic-testings/")
               || endpointInfo.getPath().contains("/atomic-testing/")) {
-            capa = Capability.of(ResourceType.ATOMIC_TESTING, accessControl.actionPerformed()).get();
+            capa =
+                Capability.of(ResourceType.ATOMIC_TESTING, accessControl.actionPerformed()).get();
           } else if (endpointInfo.getPath().startsWith("/api/exercises/")) {
             capa = Capability.of(ResourceType.SIMULATION, accessControl.actionPerformed()).get();
           } else if (endpointInfo.getPath().startsWith("/api/scenarios/")) {
@@ -183,7 +187,8 @@ public class RbacMockMvcTest extends IntegrationTest {
           } else if (endpointInfo.getPath().startsWith("/api/findings/")) {
             capa = Capability.of(ResourceType.FINDING, accessControl.actionPerformed()).get();
           } else {
-            capa = Capability.of(accessControl.resourceType(), accessControl.actionPerformed()).get();
+            capa =
+                Capability.of(accessControl.resourceType(), accessControl.actionPerformed()).get();
           }
         } else if (ResourceType.SIMULATION_OR_SCENARIO.equals(accessControl.resourceType())) {
           capa = Capability.of(ResourceType.SIMULATION, accessControl.actionPerformed()).get();
@@ -221,7 +226,10 @@ public class RbacMockMvcTest extends IntegrationTest {
             .get();
 
     // Optionally add a grant
-    if (addGrant && accessControl != null && accessControl.resourceId() != null && !accessControl.resourceId().isBlank()) {
+    if (addGrant
+        && accessControl != null
+        && accessControl.resourceId() != null
+        && !accessControl.resourceId().isBlank()) {
       Grant.GRANT_RESOURCE_TYPE grantResourceType =
           Grant.GRANT_RESOURCE_TYPE.fromRbacResourceType(accessControl.resourceType());
       Grant.GRANT_TYPE grantType = Grant.GRANT_TYPE.fromRbacAction(accessControl.actionPerformed());
@@ -240,7 +248,8 @@ public class RbacMockMvcTest extends IntegrationTest {
     Grant.GRANT_RESOURCE_TYPE grantResourceType =
         Grant.GRANT_RESOURCE_TYPE.fromRbacResourceType(accessControl.resourceType());
     Grant.GRANT_TYPE grantType = Grant.GRANT_TYPE.fromRbacAction(accessControl.actionPerformed());
-    Grant grant = GrantFixture.getGrant(accessControl.resourceId(), grantResourceType, grantType, group);
+    Grant grant =
+        GrantFixture.getGrant(accessControl.resourceId(), grantResourceType, grantType, group);
     groupComposed.withGrant(grantComposer.forGrant(grant));
 
     User user =
@@ -273,7 +282,8 @@ public class RbacMockMvcTest extends IntegrationTest {
   private static List<EndpointTestScenarios> validScenariosFor(EndpointInfo endpoint) {
     AccessControl accessControl = endpoint.getAccessControl();
 
-    boolean hasResourceId = accessControl.resourceId() != null && !accessControl.resourceId().isBlank();
+    boolean hasResourceId =
+        accessControl.resourceId() != null && !accessControl.resourceId().isBlank();
 
     List<EndpointTestScenarios> scenarios =
         new ArrayList<>(

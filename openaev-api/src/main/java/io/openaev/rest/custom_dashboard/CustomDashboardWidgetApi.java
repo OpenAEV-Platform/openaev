@@ -28,7 +28,10 @@ public class CustomDashboardWidgetApi extends RestBehavior {
   // -- CRUD --
 
   @PostMapping
-  @AccessControl(resourceId = "#id", actionPerformed = Action.WRITE, resourceType = ResourceType.DASHBOARD)
+  @AccessControl(
+      resourceId = "#id",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<Widget> createWidget(
       @PathVariable @NotBlank final String id,
       @RequestBody @Valid @NotNull final WidgetInput input) {
@@ -36,20 +39,29 @@ public class CustomDashboardWidgetApi extends RestBehavior {
   }
 
   @GetMapping
-  @AccessControl(resourceId = "#id", actionPerformed = Action.READ, resourceType = ResourceType.DASHBOARD)
+  @AccessControl(
+      resourceId = "#id",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<List<Widget>> widgets(@PathVariable @NotBlank final String id) {
     return ResponseEntity.ok(this.widgetService.widgets(id));
   }
 
   @GetMapping("/{widgetId}")
-  @AccessControl(resourceId = "#id", actionPerformed = Action.READ, resourceType = ResourceType.DASHBOARD)
+  @AccessControl(
+      resourceId = "#id",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<Widget> widget(
       @PathVariable @NotBlank final String id, @PathVariable @NotBlank final String widgetId) {
     return ResponseEntity.ok(this.widgetService.widget(id, widgetId));
   }
 
   @PutMapping("/{widgetId}")
-  @AccessControl(resourceId = "#id", actionPerformed = Action.WRITE, resourceType = ResourceType.DASHBOARD)
+  @AccessControl(
+      resourceId = "#id",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<Widget> updateWidget(
       @PathVariable @NotBlank final String id,
       @PathVariable @NotBlank final String widgetId,
@@ -60,7 +72,10 @@ public class CustomDashboardWidgetApi extends RestBehavior {
   }
 
   @PutMapping("/{widgetId}/layout")
-  @AccessControl(resourceId = "#id", actionPerformed = Action.WRITE, resourceType = ResourceType.DASHBOARD)
+  @AccessControl(
+      resourceId = "#id",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<Widget> updateWidgetLayout(
       @PathVariable @NotBlank final String id,
       @PathVariable @NotBlank final String widgetId,
@@ -71,7 +86,10 @@ public class CustomDashboardWidgetApi extends RestBehavior {
   }
 
   @DeleteMapping("/{widgetId}")
-  @AccessControl(resourceId = "#id", actionPerformed = Action.WRITE, resourceType = ResourceType.DASHBOARD)
+  @AccessControl(
+      resourceId = "#id",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<Void> deleteWidget(
       @PathVariable @NotBlank final String id, @PathVariable @NotBlank final String widgetId) {
     this.widgetService.deleteWidget(id, widgetId);
