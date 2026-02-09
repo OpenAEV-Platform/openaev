@@ -1,9 +1,8 @@
 package io.openaev.security;
 
+import static io.openaev.security.SsoRefererAuthenticationUtils.extractUser;
 import static org.springframework.http.HttpHeaders.REFERER;
 
-import io.openaev.config.OpenAEVOAuth2User;
-import io.openaev.config.OpenAEVOidcUser;
 import io.openaev.database.model.User;
 import io.openaev.service.user_events.UserEventService;
 import jakarta.servlet.ServletException;
@@ -31,7 +30,7 @@ public class SsoRefererAuthenticationSuccessHandler extends SimpleUrlAuthenticat
       HttpServletRequest request, HttpServletResponse response, Authentication authentication)
       throws ServletException, IOException {
     User user = extractUser(authentication);
-    userEventService.createLoginEvent(user);
+    userEventService.createLoginSuccessEvent(user);
 
     SavedRequest savedRequest = this.requestCache.getRequest(request, response);
     if (savedRequest != null) {
@@ -42,17 +41,5 @@ public class SsoRefererAuthenticationSuccessHandler extends SimpleUrlAuthenticat
       }
     }
     super.onAuthenticationSuccess(request, response, authentication);
-  }
-
-  private User extractUser(Authentication authentication) {
-    Object principal = authentication.getPrincipal();
-
-    if (principal instanceof OpenAEVOidcUser oidcUser) {
-      return oidcUser.getUser();
-    }
-    if (principal instanceof OpenAEVOAuth2User oauth2User) {
-      return oauth2User.getUser();
-    }
-    return null;
   }
 }

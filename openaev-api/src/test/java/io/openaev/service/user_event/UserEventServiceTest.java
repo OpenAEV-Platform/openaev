@@ -34,12 +34,12 @@ class UserEventServiceTest extends IntegrationTest {
   // -- CRUD --
 
   @Test
-  void should_create_login_event() {
+  void should_create_login_success_event() {
     // -- ARRANGE --
     User user = userRepository.save(getUser());
 
     // -- ACT --
-    userEventService.createLoginEvent(user);
+    userEventService.createLoginSuccessEvent(user);
 
     // -- ASSERT --
     List<UserEvent> events = fromIterable(userEventRepository.findAll());
@@ -47,7 +47,22 @@ class UserEventServiceTest extends IntegrationTest {
     assertThat(events)
         .hasSize(1)
         .allMatch(
-            e -> e.getType() == UserEventType.LOGIN && e.getUser().getId().equals(user.getId()));
+            e ->
+                e.getType() == UserEventType.LOGIN_SUCCESS
+                    && e.getUser().getId().equals(user.getId()));
+  }
+
+  @Test
+  void should_create_login_failed_event() {
+    // -- ACT --
+    userEventService.createLoginFailedEvent("local login", "BadCredentialsException");
+
+    // -- ASSERT --
+    List<UserEvent> events = fromIterable(userEventRepository.findAll());
+
+    assertThat(events)
+        .hasSize(1)
+        .allMatch(e -> e.getType() == UserEventType.LOGIN_FAILED && e.getUser() == null);
   }
 
   // -- METRICS --
@@ -64,7 +79,7 @@ class UserEventServiceTest extends IntegrationTest {
     assertThat(userEventRepository.count()).isEqualTo(3);
 
     // -- ASSERT --
-    long avg = userEventService.averageDailyLogins(3);
+    long avg = userEventService.averageDailySuccessLogins(3);
     assertThat(avg).isEqualTo(1);
   }
 }

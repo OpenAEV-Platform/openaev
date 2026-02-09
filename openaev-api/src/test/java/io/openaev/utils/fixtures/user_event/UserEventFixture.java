@@ -9,7 +9,7 @@ public class UserEventFixture {
   public static UserEvent getUserEventLogin(User user) {
     UserEvent userEvent = new UserEvent();
     userEvent.setUser(user);
-    userEvent.setType(UserEventType.LOGIN);
+    userEvent.setType(UserEventType.LOGIN_SUCCESS);
     return userEvent;
   }
 }

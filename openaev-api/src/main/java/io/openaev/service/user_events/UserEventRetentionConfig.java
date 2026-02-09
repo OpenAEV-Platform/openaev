@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class UserEventRetentionSettingsService {
+public class UserEventRetentionConfig {
 
   private final SettingService settingService;
 
@@ -30,9 +30,11 @@ public class UserEventRetentionSettingsService {
 
   public int getRetentionDays(UserEventType type) {
     Objects.requireNonNull(type, "type must not be null");
-    if (type == UserEventType.LOGIN) {
-      return settingService.getInt(USER_EVENTS_RETENTION_LOGIN_DAYS);
-    }
-    return getDefaultDays();
+
+    return switch (type) {
+      case LOGIN_SUCCESS -> settingService.getInt(USER_EVENTS_RETENTION_LOGIN_SUCCESS_DAYS);
+      case LOGIN_FAILED -> settingService.getInt(USER_EVENTS_RETENTION_LOGIN_FAILED_DAYS);
+      default -> getDefaultDays();
+    };
   }
 }

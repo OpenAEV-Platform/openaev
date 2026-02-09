@@ -90,10 +90,12 @@ public class UserApi extends RestBehavior {
       User user = optionalUser.get();
       if (userService.isUserPasswordValid(user, input.getPassword())) {
         userService.createUserSession(user);
-        userEventService.createLoginEvent(user);
+        userEventService.createLoginSuccessEvent(user);
         return user;
       }
     }
+    userEventService.createLoginFailedEvent(
+        "local login", BadCredentialsException.class.getSimpleName());
     throw new BadCredentialsException("Invalid credential.");
   }
 

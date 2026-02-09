@@ -15,6 +15,7 @@ public class SettingService {
 
   private final SettingRepository settingRepository;
 
+  /** Retrieves a boolean setting value from the settings repository */
   public boolean getBoolean(SettingKeys key) {
     Objects.requireNonNull(key, "key must not be null");
     return settingRepository
@@ -24,6 +25,7 @@ public class SettingService {
         .orElseGet(() -> Boolean.parseBoolean(key.defaultValue()));
   }
 
+  /** Creates or updates a boolean setting value in the settings repository */
   public void setBoolean(SettingKeys key, boolean value) {
     Objects.requireNonNull(key, "key must not be null");
     Setting setting =
@@ -35,6 +37,7 @@ public class SettingService {
     settingRepository.save(setting);
   }
 
+  /** Retrieves an integer setting value from the settings repository */
   public int getInt(SettingKeys key) {
     Objects.requireNonNull(key, "key must not be null");
     int fallback = Integer.parseInt(key.defaultValue());

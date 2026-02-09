@@ -15,10 +15,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserEventRetentionService {
 
   private final UserEventRepository userEventRepository;
-  private final UserEventRetentionSettingsService settingsService;
+  private final UserEventRetentionConfig settingsService;
 
+  /** Applies retention rules to user events. */
   @Transactional
-  public void applyRetention() {
+  public void deleteOldEvents() {
     if (!settingsService.isEnabled()) {
       log.debug("UserEvent retention disabled");
       return;

@@ -104,7 +104,8 @@ public class AppSecurityConfig {
           login ->
               login
                   .successHandler(new SsoRefererAuthenticationSuccessHandler(this.userEventService))
-                  .failureHandler(new SsoRefererAuthenticationFailureHandler()));
+                  .failureHandler(
+                      new SsoRefererAuthenticationFailureHandler(this.userEventService)));
     }
 
     if (openAEVConfig.isAuthSaml2Enable()) {

@@ -1,5 +1,6 @@
 package io.openaev.database.model;
 
 public enum UserEventType {
-  LOGIN,
+  LOGIN_SUCCESS,
+  LOGIN_FAILED,
 }

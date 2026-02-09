@@ -15,8 +15,8 @@ public class UserMetricCollector {
   @PostConstruct
   public void init() {
     metricRegistry.registerGauge(
-        "avg_logins_per_day",
-        "Average daily logins for OAEV users",
-        () -> this.userEventService.averageDailyLogins(1));
+        "count_logins_per_day",
+        "Count daily logins for OAEV users",
+        () -> this.userEventService.averageDailySuccessLogins(1));
   }
 }

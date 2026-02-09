@@ -18,6 +18,6 @@ public class UserEventRetentionJob implements Job {
 
   @Override
   public void execute(JobExecutionContext context) throws JobExecutionException {
-    retentionService.applyRetention();
+    retentionService.deleteOldEvents();
   }
 }

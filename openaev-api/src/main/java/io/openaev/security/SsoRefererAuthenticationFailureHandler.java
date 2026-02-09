@@ -2,6 +2,7 @@ package io.openaev.security;
 
 import static org.springframework.http.HttpHeaders.REFERER;
 
+import io.openaev.service.user_events.UserEventService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -16,11 +17,19 @@ import org.springframework.security.web.savedrequest.SavedRequest;
 public class SsoRefererAuthenticationFailureHandler extends SimpleUrlAuthenticationFailureHandler {
 
   private RequestCache requestCache = new HttpSessionRequestCache();
+  private final UserEventService userEventService;
+
+  public SsoRefererAuthenticationFailureHandler(UserEventService userEventService) {
+    this.userEventService = userEventService;
+  }
 
   @Override
   public void onAuthenticationFailure(
       HttpServletRequest request, HttpServletResponse response, AuthenticationException exception)
       throws ServletException, IOException {
+    userEventService.createLoginFailedEvent(
+        request.getRequestURI(), exception.getClass().getSimpleName());
+
     this.saveException(request, exception);
     SavedRequest savedRequest = this.requestCache.getRequest(request, response);
     if (savedRequest != null) {

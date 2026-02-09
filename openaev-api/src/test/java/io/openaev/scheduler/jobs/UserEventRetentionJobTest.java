@@ -10,7 +10,7 @@ import io.openaev.database.model.UserEvent;
 import io.openaev.database.repository.UserEventRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.scheduler.jobs.user_event.UserEventRetentionJob;
-import io.openaev.service.user_events.UserEventRetentionSettingsService;
+import io.openaev.service.user_events.UserEventRetentionConfig;
 import jakarta.persistence.EntityManager;
 import java.util.List;
 import org.junit.jupiter.api.MethodOrderer;
@@ -34,7 +34,7 @@ class UserEventRetentionJobTest extends IntegrationTest {
 
   @Autowired private UserRepository userRepository;
 
-  @Autowired private UserEventRetentionSettingsService settingsService;
+  @Autowired private UserEventRetentionConfig settingsService;
 
   @Test
   void should_delete_old_login_events_and_keep_recent_ones() throws JobExecutionException {
