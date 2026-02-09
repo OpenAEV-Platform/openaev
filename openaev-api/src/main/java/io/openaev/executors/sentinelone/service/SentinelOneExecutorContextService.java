@@ -6,7 +6,7 @@ import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecu
 
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorHelper;
 import io.openaev.executors.ExecutorService;
@@ -42,7 +42,7 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
 
   private final SentinelOneExecutorConfig config;
   private final SentinelOneExecutorClient client;
-  private final Ee eeService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final ExecutorService executorService;
 
@@ -58,7 +58,7 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
   public List<Agent> launchBatchExecutorSubprocess(
       Inject inject, Set<Agent> agents, InjectStatus injectStatus) {
 
-    eeService.throwEEExecutorService(
+    enterpriseEditionService.throwEEExecutorService(
         licenseCacheManager.getEnterpriseEditionInfo(), SERVICE_NAME, injectStatus);
 
     List<Agent> sentinelOneAgents = new ArrayList<>(agents);

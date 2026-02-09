@@ -7,7 +7,7 @@ import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.integration.ComponentRequestEngine;
@@ -41,7 +41,7 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
   private final AgentService agentService;
   private final EndpointService endpointService;
   private final AssetGroupService assetGroupService;
-  private final Ee eeService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final FileService fileService;
@@ -56,7 +56,7 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
       AgentService agentService,
       EndpointService endpointService,
       AssetGroupService assetGroupService,
-      Ee eeService,
+      EnterpriseEditionService enterpriseEditionService,
       LicenseCacheManager licenseCacheManager,
       ThreadPoolTaskScheduler taskScheduler,
       FileService fileService,
@@ -71,7 +71,7 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
     this.agentService = agentService;
     this.endpointService = endpointService;
     this.assetGroupService = assetGroupService;
-    this.eeService = eeService;
+    this.enterpriseEditionService = enterpriseEditionService;
     this.licenseCacheManager = licenseCacheManager;
     this.taskScheduler = taskScheduler;
     this.fileService = fileService;
@@ -121,7 +121,7 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
         endpointService,
         agentService,
         assetGroupService,
-        eeService,
+        enterpriseEditionService,
         licenseCacheManager,
         componentRequestEngine,
         executorService,

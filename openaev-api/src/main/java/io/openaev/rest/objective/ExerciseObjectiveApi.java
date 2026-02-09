@@ -4,7 +4,7 @@ import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.helper.DatabaseHelper.resolveRelation;
 import static java.time.Instant.now;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.EvaluationRepository;
 import io.openaev.database.repository.ExerciseRepository;
@@ -34,7 +34,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
 
   // region objectives
   @GetMapping(EXERCISE_URI + "{exerciseId}/objectives")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -43,7 +43,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
   }
 
   @PostMapping(EXERCISE_URI + "{exerciseId}/objectives")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -59,7 +59,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
   }
 
   @PutMapping(EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -74,7 +74,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
   }
 
   @DeleteMapping(EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -86,7 +86,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
 
   // region evaluations
   @GetMapping(EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}/evaluations/{evaluationId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -96,7 +96,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
   }
 
   @GetMapping(EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}/evaluations")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -106,7 +106,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
   }
 
   @PostMapping(EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}/evaluations")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -134,7 +134,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
   }
 
   @PutMapping(EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}/evaluations/{evaluationId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -159,7 +159,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
   }
 
   @DeleteMapping(EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}/evaluations/{evaluationId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)

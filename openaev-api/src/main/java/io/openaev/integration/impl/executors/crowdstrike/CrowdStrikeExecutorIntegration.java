@@ -7,7 +7,7 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Executor;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
@@ -56,7 +56,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
   private final AgentService agentService;
   private final AssetGroupService assetGroupService;
   private final ExecutorService executorService;
-  private final Ee eeService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final ConnectorInstanceService connectorInstanceService;
@@ -71,7 +71,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
       AgentService agentService,
       AssetGroupService assetGroupService,
       ExecutorService executorService,
-      Ee eeService,
+      EnterpriseEditionService enterpriseEditionService,
       LicenseCacheManager licenseCacheManager,
       ComponentRequestEngine componentRequestEngine,
       ThreadPoolTaskScheduler taskScheduler,
@@ -83,7 +83,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;
     this.executorService = executorService;
-    this.eeService = eeService;
+    this.enterpriseEditionService = enterpriseEditionService;
     this.licenseCacheManager = licenseCacheManager;
     this.connectorInstanceService = connectorInstanceService;
     this.connectorInstance = connectorInstance;
@@ -124,7 +124,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
     client = new CrowdStrikeExecutorClient(config, httpClientFactory);
     crowdStrikeExecutorContextService =
         new CrowdStrikeExecutorContextService(
-            config, client, eeService, licenseCacheManager, executorService);
+            config, client, enterpriseEditionService, licenseCacheManager, executorService);
     crowdStrikeExecutorService =
         new CrowdStrikeExecutorService(
             executor, client, config, endpointService, agentService, assetGroupService);

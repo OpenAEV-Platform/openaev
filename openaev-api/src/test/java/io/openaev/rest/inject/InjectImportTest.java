@@ -20,7 +20,7 @@ import io.openaev.database.model.Tag;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioRepository;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.channel.ChannelInjectorIntegrationFactory;
@@ -84,7 +84,7 @@ class InjectImportTest extends IntegrationTest {
   @Autowired private InjectRepository injectRepository;
   @Autowired private ArticleService articleService;
   @Autowired private InjectorFixture injectorFixture;
-  @MockBean private Ee eeService;
+  @MockBean private EnterpriseEditionService enterpriseEditionService;
   @Autowired private ChannelInjectorIntegrationFactory channelInjectorIntegrationFactory;
   @Autowired private ChallengeInjectorIntegrationFactory challengeInjectorIntegrationFactory;
 
@@ -638,7 +638,7 @@ class InjectImportTest extends IntegrationTest {
       public void allPayloadsHaveBeenRecreated() throws Exception {
 
         // If We want to include detection remediations we need to have a licence
-        when(eeService.isEnterpriseLicenseInactive(any())).thenReturn(false);
+        when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
 
         byte[] exportData =
             getExportDataThenDelete(getInjectFromExerciseWrappers(), true, true, true);
@@ -1008,7 +1008,7 @@ class InjectImportTest extends IntegrationTest {
       public void allPayloadsHaveBeenRecreated() throws Exception {
 
         // If We want to include detection remediations we need to have a licence
-        when(eeService.isEnterpriseLicenseInactive(any())).thenReturn(false);
+        when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
 
         byte[] exportData =
             getExportDataThenDelete(getInjectFromScenarioWrappers(), true, true, true);
@@ -1270,7 +1270,7 @@ class InjectImportTest extends IntegrationTest {
       public void allPayloadsHaveBeenRecreated() throws Exception {
 
         // If We want to include detection remediations we need to have a licence
-        when(eeService.isEnterpriseLicenseInactive(any())).thenReturn(false);
+        when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
 
         byte[] exportData =
             getExportDataThenDelete(getInjectFromScenarioWrappers(), true, true, true);

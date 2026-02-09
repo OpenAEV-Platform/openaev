@@ -4,7 +4,7 @@ import static io.openaev.injectors.channel.ChannelContract.CHANNEL_PUBLISH;
 import static io.openaev.rest.channel.ChannelHelper.enrichArticleWithVirtualPublication;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Article;
 import io.openaev.database.model.Inject;
@@ -31,7 +31,7 @@ public class ScenarioArticleApi extends RestBehavior {
   private final ArticleRepository articleRepository;
 
   @GetMapping(SCENARIO_URI + "/{scenarioId}/articles")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)

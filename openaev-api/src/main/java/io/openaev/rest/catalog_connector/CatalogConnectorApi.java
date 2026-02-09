@@ -1,6 +1,6 @@
 package io.openaev.rest.catalog_connector;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CatalogConnectorConfiguration;
 import io.openaev.database.model.ResourceType;
@@ -35,13 +35,13 @@ public class CatalogConnectorApi extends RestBehavior {
   }
 
   @GetMapping(CATALOG_CONNECTOR_URI + "/undeployed")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
   public List<CatalogConnectorOutput> getUnDeployedCatalogConnectors() {
     return this.catalogConnectorService.getUnDeployedCatalogConnectors();
   }
 
   @GetMapping(CATALOG_CONNECTOR_URI + "/{catalogConnectorId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#catalogConnectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.CATALOG)
@@ -52,7 +52,7 @@ public class CatalogConnectorApi extends RestBehavior {
   @GetMapping(
       value = "/api/images/catalog/connectors/logos/{fileName}",
       produces = MediaType.IMAGE_PNG_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public ResponseEntity<byte[]> getCatalogLogo(@PathVariable String fileName) throws IOException {
     Optional<InputStream> fileStream = fileService.getCatalogConnectorImage(fileName);
 
@@ -65,7 +65,7 @@ public class CatalogConnectorApi extends RestBehavior {
   }
 
   @GetMapping(CATALOG_CONNECTOR_URI + "/{catalogConnectorId}/configurations")
-  @RBAC(
+  @AccessControl(
       resourceId = "#catalogConnectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.CATALOG)

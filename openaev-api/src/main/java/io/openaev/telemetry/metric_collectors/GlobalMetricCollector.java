@@ -1,6 +1,6 @@
 package io.openaev.telemetry.metric_collectors;
 
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.service.UserService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 public class GlobalMetricCollector {
   private final MetricRegistry metricRegistry;
   private final UserService userService;
-  private final Ee eeService;
+  private final EnterpriseEditionService enterpriseEditionService;
 
   @PostConstruct
   public void init() {
@@ -24,6 +24,6 @@ public class GlobalMetricCollector {
   }
 
   private long isEnterpriseEdition() {
-    return eeService.getEnterpriseEditionInfo().isLicenseValidated() ? 1 : 0;
+    return enterpriseEditionService.getEnterpriseEditionInfo().isLicenseValidated() ? 1 : 0;
   }
 }

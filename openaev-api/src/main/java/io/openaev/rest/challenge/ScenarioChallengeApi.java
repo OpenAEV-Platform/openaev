@@ -5,7 +5,7 @@ import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH
 import static io.openaev.rest.challenge.ChallengeHelper.resolveChallengeIds;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.ResourceType;
@@ -30,7 +30,7 @@ public class ScenarioChallengeApi extends RestBehavior {
   private final ChallengeRepository challengeRepository;
 
   @GetMapping(SCENARIO_URI + "/{scenarioId}/challenges")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)

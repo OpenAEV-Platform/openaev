@@ -1,7 +1,7 @@
 package io.openaev.rest.tag_rule;
 
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RBAC;
 import io.openaev.aop.UserRoleDescription;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -44,7 +44,7 @@ public class TagRuleApi extends RestBehavior {
 
   @LogExecutionTime
   @GetMapping(TagRuleApi.TAG_RULE_URI + "/{tagRuleId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#tagRuleId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.TAG_RULE)
@@ -57,7 +57,7 @@ public class TagRuleApi extends RestBehavior {
 
   @LogExecutionTime
   @GetMapping(TagRuleApi.TAG_RULE_URI)
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.TAG_RULE)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TAG_RULE)
   @Operation(description = "Get All TagRules", summary = "Get TagRules")
   @ApiResponses(
       value = {@ApiResponse(responseCode = "200", description = "The list of all TagRules")})
@@ -67,7 +67,7 @@ public class TagRuleApi extends RestBehavior {
 
   @LogExecutionTime
   @DeleteMapping(TagRuleApi.TAG_RULE_URI + "/{tagRuleId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#tagRuleId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.TAG_RULE)
@@ -85,7 +85,7 @@ public class TagRuleApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping(TagRuleApi.TAG_RULE_URI)
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.TAG_RULE)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.TAG_RULE)
   @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Create TagRule", description = "Tag and Asset Groups needs to exists")
   @ApiResponses(
@@ -100,7 +100,7 @@ public class TagRuleApi extends RestBehavior {
 
   @LogExecutionTime
   @PutMapping(TagRuleApi.TAG_RULE_URI + "/{tagRuleId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#tagRuleId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.TAG_RULE)
@@ -120,7 +120,7 @@ public class TagRuleApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping(TagRuleApi.TAG_RULE_URI + "/search")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.TAG_RULE)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.TAG_RULE)
   @Operation(
       description = "Search TagRules corresponding to search criteria",
       summary = "Search TagRules")

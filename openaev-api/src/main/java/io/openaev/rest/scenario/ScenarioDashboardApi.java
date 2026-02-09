@@ -2,7 +2,7 @@ package io.openaev.rest.scenario;
 
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.ResourceType;
@@ -38,7 +38,7 @@ public class ScenarioDashboardApi {
         @ApiResponse(responseCode = "404", description = "The Scenario doesn't exist")
       })
   @GetMapping(SCENARIO_URI + "/{scenarioId}/dashboard")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -48,7 +48,7 @@ public class ScenarioDashboardApi {
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/dashboard/count/{widgetId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -60,7 +60,7 @@ public class ScenarioDashboardApi {
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/dashboard/average/{widgetId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -73,7 +73,7 @@ public class ScenarioDashboardApi {
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/dashboard/series/{widgetId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -86,7 +86,7 @@ public class ScenarioDashboardApi {
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/dashboard/entities/{widgetId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -99,7 +99,7 @@ public class ScenarioDashboardApi {
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/dashboard/entities-runtime/{widgetId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -112,7 +112,7 @@ public class ScenarioDashboardApi {
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/dashboard/attack-paths/{widgetId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)

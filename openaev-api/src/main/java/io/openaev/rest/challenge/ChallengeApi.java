@@ -4,8 +4,8 @@ import static io.openaev.database.specification.ChallengeSpecification.fromIds;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RBAC;
 import io.openaev.database.model.*;
 import io.openaev.database.model.ChallengeFlag.FLAG_TYPE;
 import io.openaev.database.raw.RawDocument;
@@ -41,7 +41,7 @@ public class ChallengeApi extends RestBehavior {
   private final DocumentService documentService;
 
   @GetMapping("/api/challenges")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.CHALLENGE)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CHALLENGE)
   public Iterable<Challenge> challenges() {
     return fromIterable(challengeRepository.findAll()).stream()
         .map(challengeService::enrichChallengeWithExercisesOrScenarios)
@@ -50,7 +50,7 @@ public class ChallengeApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping("/api/challenges/find")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.CHALLENGE)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.CHALLENGE)
   @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public List<Challenge> findEndpoints(
       @RequestBody @Valid @NotNull final List<String> challengeIds) {
@@ -58,7 +58,7 @@ public class ChallengeApi extends RestBehavior {
   }
 
   @PutMapping("/api/challenges/{challengeId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#challengeId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.CHALLENGE)
@@ -91,7 +91,7 @@ public class ChallengeApi extends RestBehavior {
   }
 
   @PostMapping("/api/challenges")
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.CHALLENGE)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.CHALLENGE)
   @Transactional(rollbackOn = Exception.class)
   public Challenge createChallenge(@Valid @RequestBody ChallengeInput input) {
     Challenge challenge = new Challenge();
@@ -114,7 +114,7 @@ public class ChallengeApi extends RestBehavior {
   }
 
   @DeleteMapping("/api/challenges/{challengeId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#challengeId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.CHALLENGE)
@@ -124,7 +124,7 @@ public class ChallengeApi extends RestBehavior {
   }
 
   @PostMapping("/api/challenges/{challengeId}/try")
-  @RBAC(
+  @AccessControl(
       resourceId = "#challengeId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.CHALLENGE)
@@ -136,7 +136,7 @@ public class ChallengeApi extends RestBehavior {
   }
 
   @GetMapping("/api/challenges/{challengeId}/documents")
-  @RBAC(
+  @AccessControl(
       resourceId = "#challengeId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.CHALLENGE)

@@ -6,7 +6,7 @@ import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
@@ -69,7 +69,7 @@ public class InjectorApi extends RestBehavior {
   @Operation(
       summary = "Retrieve injectors",
       description = "Retrieve all injectors and pending injectors if includeNext is true")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
   @ApiResponse(
       responseCode = "200",
       content =
@@ -87,7 +87,7 @@ public class InjectorApi extends RestBehavior {
   }
 
   @GetMapping(INJECT0R_URI + "/{injectorId}/injector_contracts")
-  @RBAC(
+  @AccessControl(
       resourceId = "#injectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECTOR)
@@ -108,7 +108,7 @@ public class InjectorApi extends RestBehavior {
   }
 
   @PutMapping(INJECT0R_URI + "/{injectorId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#injectorId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECTOR)
@@ -129,7 +129,7 @@ public class InjectorApi extends RestBehavior {
   }
 
   @GetMapping(INJECT0R_URI + "/{injectorId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#injectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECTOR)
@@ -138,7 +138,7 @@ public class InjectorApi extends RestBehavior {
   }
 
   @GetMapping(INJECT0R_URI + "/{injectorId}/related-ids")
-  @RBAC(
+  @AccessControl(
       resourceId = "#injectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECTOR)
@@ -151,7 +151,7 @@ public class InjectorApi extends RestBehavior {
       value = INJECT0R_URI,
       produces = {MediaType.APPLICATION_JSON_VALUE},
       consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.MULTIPART_FORM_DATA_VALUE})
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.INJECTOR)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.INJECTOR)
   @Transactional(rollbackOn = Exception.class)
   public InjectorRegistration registerInjector(
       @Valid @RequestPart("input") InjectorCreateInput input,
@@ -159,11 +159,50 @@ public class InjectorApi extends RestBehavior {
     return injectorService.registerExternalInjector(input, file);
   }
 
+  @GetMapping(
+      value = "/api/implant/caldera/{platform}/{arch}",
+      produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+  @AccessControl(skipRBAC = true)
+  public @ResponseBody byte[] getCalderaImplant(
+      @PathVariable String platform, @PathVariable String arch) throws IOException {
+    return getCalderaFile(platform, arch, null);
+  }
+
+  @GetMapping(
+      value = "/api/implant/caldera/{platform}/{arch}/{extension}",
+      produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+  @AccessControl(skipRBAC = true)
+  public @ResponseBody byte[] getCalderaScript(
+      @PathVariable String platform, @PathVariable String arch, @PathVariable String extension)
+      throws IOException {
+    return getCalderaFile(platform, arch, extension);
+  }
+
+  private byte[] getCalderaFile(String platform, String arch, String extension) throws IOException {
+    if (!AVAILABLE_PLATFORMS.contains(platform)) {
+      throw new IllegalArgumentException("Platform invalid : " + platform);
+    }
+    if (!AVAILABLE_ARCHITECTURES.contains(arch)) {
+      throw new IllegalArgumentException("Architecture invalid : " + arch);
+    }
+
+    String resource =
+        "/implants/caldera/" + platform + "/" + arch + "/oaev-implant-caldera-" + platform;
+    if (extension != null) {
+      resource += "." + extension;
+    }
+    InputStream in = getClass().getResourceAsStream(resource);
+    if (in != null) {
+      return IOUtils.toByteArray(in);
+    }
+    return null;
+  }
+
   // Public API
   @GetMapping(
       value = "/api/implant/openaev/{platform}/{architecture}",
       produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getOpenAevImplant(
       @PathVariable String platform,
       @PathVariable String architecture,
@@ -212,7 +251,7 @@ public class InjectorApi extends RestBehavior {
   // -- OPTION --
 
   @GetMapping(INJECT0R_URI + "/options")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText,
       @RequestParam(required = false) final String sourceId) {
@@ -225,7 +264,7 @@ public class InjectorApi extends RestBehavior {
   }
 
   @PostMapping(INJECT0R_URI + "/options")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
   public List<FilterUtilsJpa.Option> optionsById(
       @RequestBody final List<String> ids, @RequestParam(required = false) final String sourceId) {
     return fromIterable(this.injectorRepository.findAllById(ids)).stream()

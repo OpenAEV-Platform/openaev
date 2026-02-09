@@ -2,7 +2,7 @@ package io.openaev.rest.scenario;
 
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ImportMapper;
 import io.openaev.database.model.ResourceType;
@@ -37,7 +37,7 @@ public class ScenarioImportApi extends RestBehavior {
   private final ScenarioService scenarioService;
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/xls/{importId}/dry")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -64,7 +64,7 @@ public class ScenarioImportApi extends RestBehavior {
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/xls/{importId}/import")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -100,7 +100,7 @@ public class ScenarioImportApi extends RestBehavior {
   @PostMapping(
       path = SCENARIO_URI + "/{scenarioId}/injects/import",
       consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)

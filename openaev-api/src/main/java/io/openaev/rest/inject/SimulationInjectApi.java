@@ -6,8 +6,8 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RBAC;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
@@ -81,7 +81,7 @@ public class SimulationInjectApi extends RestBehavior {
             }),
       })
   @GetMapping(EXERCISE_URI + "/{exerciseId}/injects/simple")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -92,7 +92,7 @@ public class SimulationInjectApi extends RestBehavior {
   }
 
   @PostMapping(EXERCISE_URI + "/{exerciseId}/injects/simple")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -117,7 +117,7 @@ public class SimulationInjectApi extends RestBehavior {
 
   @LogExecutionTime
   @GetMapping(EXERCISE_URI + "/{exerciseId}/injects")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -129,7 +129,7 @@ public class SimulationInjectApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping(EXERCISE_URI + "/{exerciseId}/injects/search")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -142,7 +142,7 @@ public class SimulationInjectApi extends RestBehavior {
 
   @LogExecutionTime
   @GetMapping(EXERCISE_URI + "/{exerciseId}/injects/results")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -152,7 +152,7 @@ public class SimulationInjectApi extends RestBehavior {
   }
 
   @GetMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -163,14 +163,20 @@ public class SimulationInjectApi extends RestBehavior {
   }
 
   @GetMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}/teams")
-  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  @AccessControl(
+      resourceId = "#exerciseId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.SIMULATION)
   public Iterable<Team> exerciseInjectTeams(
       @PathVariable String exerciseId, @PathVariable String injectId) {
     return simulationInjectService.findInjectTeamsForSimulation(exerciseId, injectId);
   }
 
   @GetMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}/communications")
-  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  @AccessControl(
+      resourceId = "#exerciseId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.SIMULATION)
   public Iterable<Communication> exerciseInjectCommunications(
       @PathVariable String exerciseId, @PathVariable String injectId) {
     return simulationInjectService.findAndAckCommunicationsForSimulation(exerciseId, injectId);
@@ -179,7 +185,7 @@ public class SimulationInjectApi extends RestBehavior {
   // -- CREATE --
 
   @PostMapping(EXERCISE_URI + "/{exerciseId}/injects")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -192,7 +198,7 @@ public class SimulationInjectApi extends RestBehavior {
   }
 
   @PostMapping(EXERCISE_URI + "/{exerciseId}/injects/bulk")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -205,10 +211,10 @@ public class SimulationInjectApi extends RestBehavior {
   }
 
   @PostMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}")
-  @RBAC(
-      resourceId = "#injectId",
-      actionPerformed = Action.CREATE,
-      resourceType = ResourceType.INJECT)
+  @AccessControl(
+      resourceId = "#exerciseId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.SIMULATION)
   public Inject duplicateInjectForExercise(
       @PathVariable @NotBlank final String exerciseId,
       @PathVariable @NotBlank final String injectId) {
@@ -218,7 +224,7 @@ public class SimulationInjectApi extends RestBehavior {
 
   @Transactional(rollbackFor = Exception.class)
   @PostMapping(value = EXERCISE_URI + "/{exerciseId}/inject")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SIMULATION)
@@ -267,11 +273,19 @@ public class SimulationInjectApi extends RestBehavior {
     }
   }
 
-  // -- UPDATE --
+  @Transactional(rollbackFor = Exception.class)
+  @DeleteMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}")
+  @AccessControl(
+      resourceId = "#exerciseId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.SIMULATION)
+  public void deleteInject(@PathVariable String exerciseId, @PathVariable String injectId) {
+    this.simulationInjectService.deleteInject(exerciseId, injectId);
+  }
 
   @PutMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}/activation")
-  @RBAC(
-      resourceId = "#injectId",
+  @AccessControl(
+      resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public Inject updateInjectActivationForExercise(
@@ -282,8 +296,8 @@ public class SimulationInjectApi extends RestBehavior {
   }
 
   @PutMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}/trigger")
-  @RBAC(
-      resourceId = "#injectId",
+  @AccessControl(
+      resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public Inject updateInjectTrigger(
@@ -293,8 +307,8 @@ public class SimulationInjectApi extends RestBehavior {
 
   @Transactional(rollbackFor = Exception.class)
   @PostMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}/status")
-  @RBAC(
-      resourceId = "#injectId",
+  @AccessControl(
+      resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public Inject setInjectStatus(
@@ -305,8 +319,8 @@ public class SimulationInjectApi extends RestBehavior {
   }
 
   @PutMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}/teams")
-  @RBAC(
-      resourceId = "#injectId",
+  @AccessControl(
+      resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public Inject updateInjectTeams(

@@ -1,6 +1,6 @@
 package io.openaev.rest.rbac;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,8 +35,9 @@ public class RbacEndpointScanner {
               : new String[] {""};
 
       for (Method method : targetClass.getDeclaredMethods()) {
-        RBAC rbacAnnotation = AnnotationUtils.findAnnotation(method, RBAC.class);
-        if (rbacAnnotation == null) continue;
+        AccessControl accessControlAnnotation =
+            AnnotationUtils.findAnnotation(method, AccessControl.class);
+        if (accessControlAnnotation == null) continue;
 
         List<RequestMethod> httpMethods = new ArrayList<>();
         List<String> methodPaths = new ArrayList<>();
@@ -87,7 +88,8 @@ public class RbacEndpointScanner {
           for (String methodPath : methodPaths) {
             String fullPath = normalizePath(classPath) + normalizePath(methodPath);
             for (RequestMethod httpMethod : httpMethods) {
-              endpoints.add(new EndpointInfo(httpMethod, fullPath, rbacAnnotation, consumes));
+              endpoints.add(
+                  new EndpointInfo(httpMethod, fullPath, accessControlAnnotation, consumes));
             }
           }
         }

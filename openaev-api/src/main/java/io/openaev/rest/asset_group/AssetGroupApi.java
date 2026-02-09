@@ -4,8 +4,8 @@ import static io.openaev.database.specification.AssetGroupSpecification.fromIds;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Endpoint;
@@ -54,7 +54,7 @@ public class AssetGroupApi extends RestBehavior {
   private final AssetGroupRepository assetGroupRepository;
 
   @PostMapping(ASSET_GROUP_URI)
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET_GROUP)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET_GROUP)
   @Transactional(rollbackFor = Exception.class)
   public AssetGroup createAssetGroup(@Valid @RequestBody final AssetGroupInput input) {
     AssetGroup assetGroup = new AssetGroup();
@@ -64,21 +64,21 @@ public class AssetGroupApi extends RestBehavior {
   }
 
   @GetMapping(ASSET_GROUP_URI)
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.ASSET_GROUP)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET_GROUP)
   public List<AssetGroup> assetGroups() {
     return this.assetGroupService.assetGroups();
   }
 
   @LogExecutionTime
   @PostMapping(ASSET_GROUP_URI + "/search")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
   public Page<AssetGroupOutput> assetGroups(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return this.assetGroupCriteriaBuilderService.assetGroupPagination(searchPaginationInput);
   }
 
   @PostMapping(ASSET_GROUP_URI + "/{assetGroupId}/assets/search")
-  @RBAC(
+  @AccessControl(
       resourceId = "#assetGroupId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET_GROUP)
@@ -107,7 +107,7 @@ public class AssetGroupApi extends RestBehavior {
   }
 
   @PostMapping(ASSET_GROUP_URI + "/find")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
   @Transactional(readOnly = true)
   public List<AssetGroupOutput> findAssetGroups(
       @RequestBody @Valid @NotNull final List<String> assetGroupIds) {
@@ -115,7 +115,7 @@ public class AssetGroupApi extends RestBehavior {
   }
 
   @GetMapping(ASSET_GROUP_URI + "/{assetGroupId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#assetGroupId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET_GROUP)
@@ -124,7 +124,7 @@ public class AssetGroupApi extends RestBehavior {
   }
 
   @PutMapping(ASSET_GROUP_URI + "/{assetGroupId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#assetGroupId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.ASSET_GROUP)
@@ -139,7 +139,7 @@ public class AssetGroupApi extends RestBehavior {
   }
 
   @PutMapping(ASSET_GROUP_URI + "/{assetGroupId}/assets")
-  @RBAC(
+  @AccessControl(
       resourceId = "#assetGroupId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.ASSET_GROUP)
@@ -152,7 +152,7 @@ public class AssetGroupApi extends RestBehavior {
   }
 
   @DeleteMapping(ASSET_GROUP_URI + "/{assetGroupId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#assetGroupId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.ASSET_GROUP)
@@ -169,7 +169,7 @@ public class AssetGroupApi extends RestBehavior {
   // -- OPTION --
 
   @GetMapping(ASSET_GROUP_URI + "/options")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText,
       @RequestParam(required = false) final String sourceId,
@@ -227,7 +227,7 @@ public class AssetGroupApi extends RestBehavior {
 
   @LogExecutionTime
   @GetMapping(ASSET_GROUP_URI + "/findings/options")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
   public List<FilterUtilsJpa.Option> optionsByNameLinkedToFindings(
       @RequestParam(required = false) final String searchText,
       @RequestParam(required = false) final String sourceId) {
@@ -237,7 +237,7 @@ public class AssetGroupApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping(ASSET_GROUP_URI + "/options")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.assetGroupRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))

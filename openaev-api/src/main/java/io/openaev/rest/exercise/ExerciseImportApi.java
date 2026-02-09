@@ -2,7 +2,7 @@ package io.openaev.rest.exercise;
 
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ImportMapper;
@@ -37,7 +37,7 @@ public class ExerciseImportApi extends RestBehavior {
   private final ExerciseService exerciseService;
 
   @PostMapping(EXERCISE_URI + "/{exerciseId}/xls/{importId}/dry")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -64,7 +64,7 @@ public class ExerciseImportApi extends RestBehavior {
   }
 
   @PostMapping(EXERCISE_URI + "/{exerciseId}/xls/{importId}/import")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -100,7 +100,7 @@ public class ExerciseImportApi extends RestBehavior {
   @PostMapping(
       path = EXERCISE_URI + "/{simulationId}/injects/import",
       consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
-  @RBAC(
+  @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)

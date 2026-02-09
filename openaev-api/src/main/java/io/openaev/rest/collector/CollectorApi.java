@@ -1,6 +1,6 @@
 package io.openaev.rest.collector;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.ResourceType;
@@ -39,7 +39,7 @@ public class CollectorApi extends RestBehavior {
   private final FileService fileService;
 
   @GetMapping(COLLECTOR_URI)
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.COLLECTOR)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.COLLECTOR)
   @Operation(
       summary = "Retrieve collectors",
       description = "Retrieve all collectors and pending collectors if includeNext is true")
@@ -80,7 +80,7 @@ public class CollectorApi extends RestBehavior {
   }
 
   @GetMapping(COLLECTOR_URI + "/{collectorId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#collectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.COLLECTOR)
@@ -89,7 +89,7 @@ public class CollectorApi extends RestBehavior {
   }
 
   @GetMapping(COLLECTOR_URI + "/{collectorId}/related-ids")
-  @RBAC(
+  @AccessControl(
       resourceId = "#collectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.COLLECTOR)
@@ -99,7 +99,7 @@ public class CollectorApi extends RestBehavior {
   }
 
   @PutMapping(COLLECTOR_URI + "/{collectorId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#collectorId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.COLLECTOR)
@@ -120,7 +120,7 @@ public class CollectorApi extends RestBehavior {
       value = COLLECTOR_URI,
       produces = {MediaType.APPLICATION_JSON_VALUE},
       consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.MULTIPART_FORM_DATA_VALUE})
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.COLLECTOR)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.COLLECTOR)
   @Transactional(rollbackOn = Exception.class)
   public Collector registerCollector(
       @Valid @RequestPart("input") CollectorCreateInput input,

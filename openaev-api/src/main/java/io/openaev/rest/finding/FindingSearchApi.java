@@ -2,8 +2,8 @@ package io.openaev.rest.finding;
 
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.ResourceType;
@@ -38,7 +38,7 @@ public class FindingSearchApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping("/search")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.FINDING)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.FINDING)
   @ApiResponse(
       responseCode = "200",
       content =
@@ -64,7 +64,10 @@ public class FindingSearchApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping("/injects/{injectId}/search")
-  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.INJECT)
   @ApiResponse(
       responseCode = "200",
       content =
@@ -93,7 +96,7 @@ public class FindingSearchApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping("/exercises/{simulationId}/search")
-  @RBAC(
+  @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -125,7 +128,7 @@ public class FindingSearchApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping("/scenarios/{scenarioId}/search")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -159,7 +162,7 @@ public class FindingSearchApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping("/endpoints/{endpointId}/search")
-  @RBAC(
+  @AccessControl(
       resourceId = "#endpointId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)

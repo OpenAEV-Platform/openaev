@@ -3,7 +3,7 @@ package io.openaev.rest.lessons;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static java.time.Instant.now;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.LessonsCategorySpecification;
@@ -32,7 +32,7 @@ public class ScenarioLessonsApi extends RestBehavior {
   private final UserRepository userRepository;
 
   @GetMapping(SCENARIO_URI + "{scenarioId}/lessons_categories")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -41,7 +41,7 @@ public class ScenarioLessonsApi extends RestBehavior {
   }
 
   @PostMapping(SCENARIO_URI + "{scenarioId}/lessons_apply_template/{lessonsTemplateId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -81,7 +81,7 @@ public class ScenarioLessonsApi extends RestBehavior {
   }
 
   @PostMapping(SCENARIO_URI + "{scenarioId}/lessons_categories")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -97,7 +97,7 @@ public class ScenarioLessonsApi extends RestBehavior {
   }
 
   @PostMapping(SCENARIO_URI + "{scenarioId}/lessons_empty")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -118,7 +118,7 @@ public class ScenarioLessonsApi extends RestBehavior {
   }
 
   @PutMapping(SCENARIO_URI + "{scenarioId}/lessons_categories/{lessonsCategoryId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -137,7 +137,7 @@ public class ScenarioLessonsApi extends RestBehavior {
   }
 
   @DeleteMapping(SCENARIO_URI + "{scenarioId}/lessons_categories/{lessonsCategoryId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -148,7 +148,7 @@ public class ScenarioLessonsApi extends RestBehavior {
   }
 
   @PutMapping(SCENARIO_URI + "{scenarioId}/lessons_categories/{lessonsCategoryId}/teams")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -167,7 +167,7 @@ public class ScenarioLessonsApi extends RestBehavior {
   }
 
   @GetMapping(SCENARIO_URI + "{scenarioId}/lessons_questions")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -185,7 +185,7 @@ public class ScenarioLessonsApi extends RestBehavior {
 
   @GetMapping(
       SCENARIO_URI + "{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -197,7 +197,7 @@ public class ScenarioLessonsApi extends RestBehavior {
 
   @PostMapping(
       SCENARIO_URI + "{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -218,7 +218,7 @@ public class ScenarioLessonsApi extends RestBehavior {
   @PutMapping(
       SCENARIO_URI
           + "{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -238,7 +238,7 @@ public class ScenarioLessonsApi extends RestBehavior {
   @DeleteMapping(
       SCENARIO_URI
           + "{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)

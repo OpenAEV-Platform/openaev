@@ -1,7 +1,7 @@
 package io.openaev.rest.role;
 
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -39,7 +39,7 @@ public class RoleApi {
 
   @LogExecutionTime
   @GetMapping(RoleApi.ROLE_URI + "/{roleId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#roleId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.GROUP_ROLE)
@@ -59,7 +59,7 @@ public class RoleApi {
 
   @LogExecutionTime
   @GetMapping(RoleApi.ROLE_URI)
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.GROUP_ROLE)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.GROUP_ROLE)
   @Operation(description = "Get All Roles", summary = "Get Roles")
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of all Roles")})
   public List<RoleOutput> roles() {
@@ -68,7 +68,7 @@ public class RoleApi {
 
   @LogExecutionTime
   @DeleteMapping(RoleApi.ROLE_URI + "/{roleId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#roleId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.GROUP_ROLE)
@@ -86,7 +86,7 @@ public class RoleApi {
 
   @LogExecutionTime
   @PostMapping(RoleApi.ROLE_URI)
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.GROUP_ROLE)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.GROUP_ROLE)
   @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Create Role")
   @ApiResponses(
@@ -101,7 +101,7 @@ public class RoleApi {
 
   @LogExecutionTime
   @PutMapping(RoleApi.ROLE_URI + "/{roleId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#roleId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.GROUP_ROLE)
@@ -122,7 +122,7 @@ public class RoleApi {
 
   @LogExecutionTime
   @PostMapping(RoleApi.ROLE_URI + "/search")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.GROUP_ROLE)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.GROUP_ROLE)
   @Operation(
       description = "Search Roles corresponding to search criteria",
       summary = "Search Roles")

@@ -1,6 +1,6 @@
 package io.openaev.rest.connector_instance;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
 import io.openaev.rest.connector_instance.dto.*;
 import io.openaev.rest.helper.RestBehavior;
@@ -35,7 +35,7 @@ public class ConnectorInstanceApi extends RestBehavior {
   @Operation(
       summary = "Create a new connector instance",
       description = "Create a new connector instance in the platform")
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "Successfully created connector instance")
@@ -57,7 +57,7 @@ public class ConnectorInstanceApi extends RestBehavior {
 
   @GetMapping(value = CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}")
   @Operation(summary = "Retrieve connector Instance by id")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -71,7 +71,7 @@ public class ConnectorInstanceApi extends RestBehavior {
 
   @GetMapping(value = CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/configurations")
   @Operation(summary = "Retrieve connector Instance configuratiosn by instance id")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
   @ApiResponse(
       responseCode = "200",
       content =
@@ -88,7 +88,7 @@ public class ConnectorInstanceApi extends RestBehavior {
 
   @PutMapping(value = CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/configurations")
   @Operation(summary = "Update connector instance configuration")
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
   @ApiResponse(
       responseCode = "200",
       content =
@@ -114,7 +114,7 @@ public class ConnectorInstanceApi extends RestBehavior {
 
   @GetMapping(value = CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/logs")
   @Operation(summary = "Retrieve connector instance logs")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
   @ApiResponse(
       responseCode = "200",
       content =
@@ -130,7 +130,7 @@ public class ConnectorInstanceApi extends RestBehavior {
   @Operation(
       summary = "Update requested status",
       description = "Update requested status of connector instance")
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "Successfully updated requested status")
@@ -144,7 +144,7 @@ public class ConnectorInstanceApi extends RestBehavior {
 
   @DeleteMapping(value = CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}")
   @Operation(summary = "Delete connector instance")
-  @RBAC(actionPerformed = Action.DELETE, resourceType = ResourceType.CATALOG)
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.CATALOG)
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "Successfully deleted connector instance")

@@ -4,7 +4,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static java.time.Instant.now;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.LessonsTemplateCategoryRepository;
 import io.openaev.database.repository.LessonsTemplateQuestionRepository;
@@ -36,7 +36,7 @@ public class LessonsTemplateApi extends RestBehavior {
   // -- LESSONS TEMPLATES --
 
   @PostMapping(LESSON_TEMPLATE_URI)
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.LESSON_LEARNED)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.LESSON_LEARNED)
   @Transactional(rollbackOn = Exception.class)
   public LessonsTemplate createLessonsTemplate(@Valid @RequestBody LessonsTemplateInput input) {
     LessonsTemplate lessonsTemplate = new LessonsTemplate();
@@ -45,13 +45,13 @@ public class LessonsTemplateApi extends RestBehavior {
   }
 
   @GetMapping(LESSON_TEMPLATE_URI)
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.LESSON_LEARNED)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.LESSON_LEARNED)
   public Iterable<LessonsTemplate> lessonsTemplates() {
     return fromIterable(lessonsTemplateRepository.findAll()).stream().toList();
   }
 
   @PostMapping(LESSON_TEMPLATE_URI + "/search")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.LESSON_LEARNED)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.LESSON_LEARNED)
   public Page<LessonsTemplate> lessonsTemplates(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return buildPaginationJPA(
@@ -59,7 +59,7 @@ public class LessonsTemplateApi extends RestBehavior {
   }
 
   @PutMapping(LESSON_TEMPLATE_URI + "/{lessonsTemplateId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.LESSON_LEARNED)
@@ -75,7 +75,7 @@ public class LessonsTemplateApi extends RestBehavior {
   }
 
   @DeleteMapping(LESSON_TEMPLATE_URI + "/{lessonsTemplateId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.LESSON_LEARNED)
@@ -89,7 +89,7 @@ public class LessonsTemplateApi extends RestBehavior {
       LESSON_TEMPLATE_URI + "/{lessonsTemplateId}/lessons_template_categories";
 
   @PostMapping(LESSON_CATEGORY_URI)
-  @RBAC(
+  @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.LESSON_LEARNED)
@@ -108,7 +108,7 @@ public class LessonsTemplateApi extends RestBehavior {
   }
 
   @GetMapping(LESSON_CATEGORY_URI)
-  @RBAC(
+  @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.LESSON_LEARNED)
@@ -119,7 +119,7 @@ public class LessonsTemplateApi extends RestBehavior {
   }
 
   @PutMapping(LESSON_CATEGORY_URI + "/{lessonsTemplateCategoryId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.LESSON_LEARNED)
@@ -138,7 +138,7 @@ public class LessonsTemplateApi extends RestBehavior {
   }
 
   @DeleteMapping(LESSON_CATEGORY_URI + "/{lessonsTemplateCategoryId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.LESSON_LEARNED)
@@ -150,7 +150,7 @@ public class LessonsTemplateApi extends RestBehavior {
   // -- LESSONS TEMPLATES QUESTIONS --
 
   @GetMapping(LESSON_TEMPLATE_URI + "/{lessonsTemplateId}/lessons_template_questions")
-  @RBAC(
+  @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.LESSON_LEARNED)
@@ -173,7 +173,7 @@ public class LessonsTemplateApi extends RestBehavior {
       LESSON_CATEGORY_URI + "/{lessonsTemplateCategoryId}/lessons_template_questions";
 
   @PostMapping(LESSON_QUESTION_URI)
-  @RBAC(
+  @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.LESSON_LEARNED)
@@ -192,7 +192,7 @@ public class LessonsTemplateApi extends RestBehavior {
   }
 
   @GetMapping(LESSON_QUESTION_URI)
-  @RBAC(
+  @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.LESSON_LEARNED)
@@ -203,7 +203,7 @@ public class LessonsTemplateApi extends RestBehavior {
   }
 
   @PutMapping(LESSON_QUESTION_URI + "/{lessonsTemplateQuestionId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.LESSON_LEARNED)
@@ -222,7 +222,7 @@ public class LessonsTemplateApi extends RestBehavior {
   }
 
   @DeleteMapping(LESSON_QUESTION_URI + "/{lessonsTemplateQuestionId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.LESSON_LEARNED)

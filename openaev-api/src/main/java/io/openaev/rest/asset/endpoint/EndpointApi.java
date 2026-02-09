@@ -2,8 +2,8 @@ package io.openaev.rest.asset.endpoint;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
 
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.AssetAgentJob;
 import io.openaev.database.model.Endpoint;
@@ -52,21 +52,21 @@ public class EndpointApi extends RestBehavior {
   private final EndpointMapper endpointMapper;
 
   @PostMapping(ENDPOINT_URI + "/agentless")
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
   public Endpoint createEndpoint(@Valid @RequestBody final EndpointInput input) {
     return this.endpointService.createEndpoint(input);
   }
 
   @PostMapping(ENDPOINT_URI + "/agentless/upsert")
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
   public Endpoint upsertAgentLessEndpoint(@Valid @RequestBody final EndpointInput input) {
     return this.endpointService.upsertEndpoint(input);
   }
 
   @PostMapping(ENDPOINT_URI + "/register")
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
   public Endpoint upsertEndpoint(@Valid @RequestBody final EndpointRegisterInput input)
       throws IOException {
@@ -76,7 +76,7 @@ public class EndpointApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping(ENDPOINT_URI + "/jobs")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
   public List<AssetAgentJob> getEndpointJobs(@RequestBody final EndpointRegisterInput input) {
     List<AssetAgentJob> jobs = this.endpointService.getEndpointJobs(input);
@@ -87,7 +87,7 @@ public class EndpointApi extends RestBehavior {
   @Deprecated(since = "1.11.0")
   @LogExecutionTime
   @GetMapping(ENDPOINT_URI + "/jobs/{endpointExternalReference}")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
   public List<AssetAgentJob> getEndpointJobs(
       @PathVariable @NotBlank final String endpointExternalReference) {
@@ -96,7 +96,7 @@ public class EndpointApi extends RestBehavior {
   }
 
   @DeleteMapping(ENDPOINT_URI + "/jobs/{assetAgentJobId}")
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.JOB)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.JOB)
   @Transactional(rollbackFor = Exception.class)
   public void cleanupAssetAgentJob(@PathVariable @NotBlank final String assetAgentJobId) {
     this.assetAgentJobRepository.deleteById(assetAgentJobId);
@@ -104,7 +104,7 @@ public class EndpointApi extends RestBehavior {
 
   @Deprecated(since = "1.11.0")
   @PostMapping(ENDPOINT_URI + "/jobs/{assetAgentJobId}")
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.JOB)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.JOB)
   @Transactional(rollbackFor = Exception.class)
   public void cleanupAssetAgentJobDepreacted(@PathVariable @NotBlank final String assetAgentJobId) {
     this.assetAgentJobRepository.deleteById(assetAgentJobId);
@@ -112,7 +112,7 @@ public class EndpointApi extends RestBehavior {
 
   @LogExecutionTime
   @GetMapping(ENDPOINT_URI)
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public List<Endpoint> endpoints() {
     return this.endpointService.endpoints(
         EndpointSpecification.findEndpointsForInjectionOrAgentlessEndpoints());
@@ -120,7 +120,7 @@ public class EndpointApi extends RestBehavior {
 
   @LogExecutionTime
   @GetMapping(ENDPOINT_URI + "/{endpointId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#endpointId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
@@ -130,7 +130,7 @@ public class EndpointApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping(ENDPOINT_URI + "/search")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public Page<EndpointOutput> endpoints(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     Page<Endpoint> endpointPage = endpointService.searchEndpoints(searchPaginationInput);
@@ -143,7 +143,7 @@ public class EndpointApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping(ENDPOINT_URI + "/targets")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public Page<EndpointTargetOutput> targetEndpoints(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
 
@@ -156,14 +156,14 @@ public class EndpointApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping(ENDPOINT_URI + "/find")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   @Transactional(readOnly = true)
   public List<Endpoint> findEndpoints(@RequestBody @Valid @NotNull final List<String> endpointIds) {
     return this.endpointService.endpoints(endpointIds);
   }
 
   @PutMapping(ENDPOINT_URI + "/{endpointId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#endpointId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.ASSET)
@@ -176,7 +176,7 @@ public class EndpointApi extends RestBehavior {
   }
 
   @DeleteMapping(ENDPOINT_URI + "/{endpointId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#endpointId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.ASSET)
@@ -188,7 +188,7 @@ public class EndpointApi extends RestBehavior {
   // -- OPTION --
 
   @GetMapping(ENDPOINT_URI + "/options")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText,
       @RequestParam(required = false) final String sourceId,
@@ -244,7 +244,7 @@ public class EndpointApi extends RestBehavior {
 
   @LogExecutionTime
   @GetMapping(ENDPOINT_URI + "/findings/options")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public List<FilterUtilsJpa.Option> optionsByNameLinkedToFindings(
       @RequestParam(required = false) final String searchText,
       @RequestParam(required = false) final String sourceId) {
@@ -253,7 +253,7 @@ public class EndpointApi extends RestBehavior {
   }
 
   @PostMapping(ENDPOINT_URI + "/options")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.endpointRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))

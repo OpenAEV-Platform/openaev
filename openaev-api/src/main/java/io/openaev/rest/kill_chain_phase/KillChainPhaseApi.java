@@ -4,7 +4,7 @@ import static io.openaev.database.specification.KillChainPhaseSpecification.byNa
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.KillChainPhase;
 import io.openaev.database.model.ResourceType;
@@ -38,13 +38,13 @@ public class KillChainPhaseApi extends RestBehavior {
   private final KillChainPhaseRepository killChainPhaseRepository;
 
   @GetMapping("/api/kill_chain_phases")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.KILL_CHAIN_PHASE)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.KILL_CHAIN_PHASE)
   public Iterable<KillChainPhase> killChainPhases() {
     return killChainPhaseRepository.findAll();
   }
 
   @PostMapping("/api/kill_chain_phases/search")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.KILL_CHAIN_PHASE)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.KILL_CHAIN_PHASE)
   public Page<KillChainPhase> killChainPhases(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return buildPaginationJPA(
@@ -55,7 +55,7 @@ public class KillChainPhaseApi extends RestBehavior {
   }
 
   @GetMapping("/api/kill_chain_phases/{killChainPhaseId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#killChainPhaseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.KILL_CHAIN_PHASE)
@@ -66,7 +66,7 @@ public class KillChainPhaseApi extends RestBehavior {
   }
 
   @PutMapping("/api/kill_chain_phases/{killChainPhaseId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#killChainPhaseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.KILL_CHAIN_PHASE)
@@ -83,7 +83,7 @@ public class KillChainPhaseApi extends RestBehavior {
   }
 
   @PostMapping("/api/kill_chain_phases")
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.KILL_CHAIN_PHASE)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.KILL_CHAIN_PHASE)
   @Transactional(rollbackOn = Exception.class)
   public KillChainPhase createKillChainPhase(@Valid @RequestBody KillChainPhaseCreateInput input) {
     KillChainPhase killChainPhase = new KillChainPhase();
@@ -92,7 +92,7 @@ public class KillChainPhaseApi extends RestBehavior {
   }
 
   @PostMapping("/api/kill_chain_phases/upsert")
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.KILL_CHAIN_PHASE)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.KILL_CHAIN_PHASE)
   @Transactional(rollbackOn = Exception.class)
   public Iterable<KillChainPhase> upsertKillChainPhases(
       @Valid @RequestBody KillChainPhaseUpsertInput input) {
@@ -130,7 +130,7 @@ public class KillChainPhaseApi extends RestBehavior {
   }
 
   @DeleteMapping("/api/kill_chain_phases/{killChainPhaseId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#killChainPhaseId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.KILL_CHAIN_PHASE)
@@ -141,7 +141,7 @@ public class KillChainPhaseApi extends RestBehavior {
   // -- OPTION --
 
   @GetMapping(KILL_CHAIN_PHASE_URI + "/options")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.KILL_CHAIN_PHASE)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.KILL_CHAIN_PHASE)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText) {
     return fromIterable(
@@ -153,7 +153,7 @@ public class KillChainPhaseApi extends RestBehavior {
   }
 
   @PostMapping(KILL_CHAIN_PHASE_URI + "/options")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.KILL_CHAIN_PHASE)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.KILL_CHAIN_PHASE)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.killChainPhaseRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))

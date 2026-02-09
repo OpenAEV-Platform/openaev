@@ -4,7 +4,7 @@ import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.helper.DatabaseHelper.resolveRelation;
 import static java.time.Instant.now;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.EvaluationRepository;
 import io.openaev.database.repository.ObjectiveRepository;
@@ -34,7 +34,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
 
   // region objectives
   @GetMapping(SCENARIO_URI + "{scenarioId}/objectives")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -43,7 +43,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
   }
 
   @PostMapping(SCENARIO_URI + "{scenarioId}/objectives")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -59,7 +59,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
   }
 
   @PutMapping(SCENARIO_URI + "{scenarioId}/objectives/{objectiveId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -74,7 +74,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
   }
 
   @DeleteMapping(SCENARIO_URI + "{scenarioId}/objectives/{objectiveId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -86,7 +86,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
 
   // region evaluations
   @GetMapping(SCENARIO_URI + "{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -96,7 +96,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
   }
 
   @GetMapping(SCENARIO_URI + "{scenarioId}/objectives/{objectiveId}/evaluations")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -106,7 +106,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
   }
 
   @PostMapping(SCENARIO_URI + "{scenarioId}/objectives/{objectiveId}/evaluations")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -134,7 +134,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
   }
 
   @PutMapping(SCENARIO_URI + "{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -159,7 +159,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
   }
 
   @DeleteMapping(SCENARIO_URI + "{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)

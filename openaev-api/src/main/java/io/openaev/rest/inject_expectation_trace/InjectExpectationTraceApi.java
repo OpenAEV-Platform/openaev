@@ -1,7 +1,7 @@
 package io.openaev.rest.inject_expectation_trace;
 
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.InjectExpectationTrace;
@@ -47,7 +47,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
               + INJECT_EXPECTATION_TRACES_URI
               + "/bulk")
   @PostMapping()
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   public InjectExpectationTrace createInjectExpectationTraceForCollector(
       @Valid @RequestBody InjectExpectationTraceInput input) {
 
@@ -83,7 +83,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
       })
   @LogExecutionTime
   @PostMapping("/bulk")
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   public void bulkInsertInjectExpectationTraceForCollector(
       @Valid @RequestBody @NotNull InjectExpectationTraceBulkInsertInput inputs) {
     if (inputs.getExpectationTraces().isEmpty()) {
@@ -95,7 +95,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
 
   @Operation(summary = "Get inject expectation traces from collector")
   @GetMapping()
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   public List<InjectExpectationTrace> getInjectExpectationTracesFromCollector(
       @RequestParam String injectExpectationId, @RequestParam String sourceId) {
     try {
@@ -112,7 +112,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
 
   @Operation(summary = "Get inject expectation traces' count")
   @GetMapping("/count")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   public long getAlertLinksNumber(
       @RequestParam String injectExpectationId,
       @RequestParam String sourceId,

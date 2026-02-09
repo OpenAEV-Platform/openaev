@@ -3,7 +3,7 @@ package io.openaev.rest.injector_contract;
 import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.ResourceType;
@@ -31,7 +31,7 @@ public class InjectorContractApi extends RestBehavior {
   private final InjectorContractService injectorContractService;
 
   @GetMapping(INJECTOR_CONTRACT_URL)
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   public Iterable<RawInjectorsContracts> injectContracts() {
     return injectorContractService.getAllRawInjectContracts();
   }
@@ -45,7 +45,7 @@ public class InjectorContractApi extends RestBehavior {
    * @return a page of injector contract outputs
    */
   @PostMapping(INJECTOR_CONTRACT_URL + "/search")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   public Page<? extends InjectorContractBaseOutput> injectorContracts(
       @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     if (input.isIncludeFullDetails()) {
@@ -62,7 +62,7 @@ public class InjectorContractApi extends RestBehavior {
   }
 
   @PostMapping(INJECTOR_CONTRACT_URL + "/domain-counts")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   public List<InjectorContractDomainCountOutput> getDomainCounts(
       @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     SearchPaginationInput filtered = handleArchitectureFilter(input);
@@ -76,7 +76,7 @@ public class InjectorContractApi extends RestBehavior {
    * @return the injector contract
    */
   @GetMapping(INJECTOR_CONTRACT_URL + "/{injectorContractId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#injectorContractId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECTOR_CONTRACT)
@@ -91,7 +91,7 @@ public class InjectorContractApi extends RestBehavior {
    * @return the created injector contract
    */
   @PostMapping(INJECTOR_CONTRACT_URL)
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.INJECTOR_CONTRACT)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.INJECTOR_CONTRACT)
   public InjectorContract createInjectorContract(
       @Valid @RequestBody InjectorContractAddInput input) {
     return injectorContractService.createNewInjectorContract(input);
@@ -105,7 +105,7 @@ public class InjectorContractApi extends RestBehavior {
    * @return the updated injector contract
    */
   @PutMapping(INJECTOR_CONTRACT_URL + "/{injectorContractId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#injectorContractId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECTOR_CONTRACT)
@@ -123,7 +123,7 @@ public class InjectorContractApi extends RestBehavior {
    * @return the updated injector contract
    */
   @PutMapping(INJECTOR_CONTRACT_URL + "/{injectorContractId}/mapping")
-  @RBAC(
+  @AccessControl(
       resourceId = "#injectorContractId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECTOR_CONTRACT)
@@ -141,7 +141,7 @@ public class InjectorContractApi extends RestBehavior {
    * @param injectorContractId the contract ID to delete
    */
   @DeleteMapping(INJECTOR_CONTRACT_URL + "/{injectorContractId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#injectorContractId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.INJECTOR_CONTRACT)

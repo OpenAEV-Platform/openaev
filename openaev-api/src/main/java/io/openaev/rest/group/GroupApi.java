@@ -4,7 +4,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.StreamSupport.stream;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.GrantRepository;
 import io.openaev.database.repository.GroupRepository;
@@ -40,19 +40,19 @@ public class GroupApi extends RestBehavior {
   private final GrantService grantService;
 
   @GetMapping("/api/groups")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.USER_GROUP)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.USER_GROUP)
   public Iterable<Group> groups() {
     return groupRepository.findAll();
   }
 
   @PostMapping("/api/groups/search")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.USER_GROUP)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.USER_GROUP)
   public Page<Group> users(@RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return buildPaginationJPA(this.groupRepository::findAll, searchPaginationInput, Group.class);
   }
 
   @GetMapping("/api/groups/{groupId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#groupId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.USER_GROUP)
@@ -61,14 +61,14 @@ public class GroupApi extends RestBehavior {
   }
 
   @PostMapping("/api/groups")
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.USER_GROUP)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.USER_GROUP)
   @Transactional(rollbackOn = Exception.class)
   public Group createGroup(@Valid @RequestBody GroupCreateInput input) {
     return groupService.createGroup(input);
   }
 
   @PutMapping("/api/groups/{groupId}/users")
-  @RBAC(
+  @AccessControl(
       resourceId = "#groupId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
@@ -83,7 +83,7 @@ public class GroupApi extends RestBehavior {
   }
 
   @PutMapping("/api/groups/{groupId}/roles")
-  @RBAC(
+  @AccessControl(
       resourceId = "#groupId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
@@ -102,7 +102,7 @@ public class GroupApi extends RestBehavior {
   }
 
   @PutMapping("/api/groups/{groupId}/information")
-  @RBAC(
+  @AccessControl(
       resourceId = "#groupId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
@@ -113,7 +113,7 @@ public class GroupApi extends RestBehavior {
   }
 
   @PostMapping("/api/groups/{groupId}/grants")
-  @RBAC(
+  @AccessControl(
       resourceId = "#groupId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
@@ -137,7 +137,7 @@ public class GroupApi extends RestBehavior {
   }
 
   @DeleteMapping("/api/groups/{groupId}/grants/{grantId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#groupId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
@@ -150,7 +150,7 @@ public class GroupApi extends RestBehavior {
   }
 
   @DeleteMapping("/api/groups/{groupId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#groupId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.USER_GROUP)

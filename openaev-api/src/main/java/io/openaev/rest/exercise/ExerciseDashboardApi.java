@@ -2,7 +2,7 @@ package io.openaev.rest.exercise;
 
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.ResourceType;
@@ -32,7 +32,7 @@ public class ExerciseDashboardApi {
   private final CustomDashboardService customDashboardService;
 
   @GetMapping(EXERCISE_URI + "/{simulationId}/dashboard")
-  @RBAC(
+  @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -48,7 +48,7 @@ public class ExerciseDashboardApi {
   }
 
   @PostMapping(EXERCISE_URI + "/{simulationId}/dashboard/count/{widgetId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -61,7 +61,7 @@ public class ExerciseDashboardApi {
   }
 
   @PostMapping(EXERCISE_URI + "/{simulationId}/dashboard/average/{widgetId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -74,7 +74,7 @@ public class ExerciseDashboardApi {
   }
 
   @PostMapping(EXERCISE_URI + "/{simulationId}/dashboard/series/{widgetId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -87,7 +87,7 @@ public class ExerciseDashboardApi {
   }
 
   @PostMapping(EXERCISE_URI + "/{simulationId}/dashboard/entities/{widgetId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -100,7 +100,7 @@ public class ExerciseDashboardApi {
   }
 
   @PostMapping(EXERCISE_URI + "/{simulationId}/dashboard/entities-runtime/{widgetId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -113,7 +113,7 @@ public class ExerciseDashboardApi {
   }
 
   @PostMapping(EXERCISE_URI + "/{simulationId}/dashboard/attack-paths/{widgetId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)

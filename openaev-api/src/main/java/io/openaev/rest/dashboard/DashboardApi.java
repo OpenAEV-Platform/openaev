@@ -1,6 +1,6 @@
 package io.openaev.rest.dashboard;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.engine.model.EsBase;
@@ -28,7 +28,7 @@ public class DashboardApi extends RestBehavior {
   private final DashboardService dashboardService;
 
   @PostMapping(DASHBOARD_URI + "/count/{widgetId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
@@ -39,7 +39,7 @@ public class DashboardApi extends RestBehavior {
   }
 
   @PostMapping(DASHBOARD_URI + "/average/{widgetId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
@@ -50,7 +50,7 @@ public class DashboardApi extends RestBehavior {
   }
 
   @PostMapping(DASHBOARD_URI + "/series/{widgetId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
@@ -61,7 +61,7 @@ public class DashboardApi extends RestBehavior {
   }
 
   @PostMapping(DASHBOARD_URI + "/entities/{widgetId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
@@ -72,7 +72,7 @@ public class DashboardApi extends RestBehavior {
   }
 
   @PostMapping(DASHBOARD_URI + "/entities-runtime/{widgetId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
@@ -82,7 +82,7 @@ public class DashboardApi extends RestBehavior {
   }
 
   @PostMapping(DASHBOARD_URI + "/attack-paths/{widgetId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
@@ -94,7 +94,7 @@ public class DashboardApi extends RestBehavior {
   }
 
   @GetMapping(DASHBOARD_URI + "/search/{search}")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.DASHBOARD)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DASHBOARD)
   public List<EsSearch> search(@PathVariable final String search) {
     return this.dashboardService.search(search);
   }

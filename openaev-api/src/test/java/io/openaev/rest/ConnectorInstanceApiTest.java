@@ -23,7 +23,7 @@ import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.ConnectorInstanceLogRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.database.repository.TokenRepository;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import io.openaev.rest.connector_instance.dto.UpdateConnectorInstanceRequestedStatus;
 import io.openaev.service.PlatformSettingsService;
@@ -61,7 +61,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
   @MockBean private TokenRepository tokenRepository;
 
   @Autowired private PlatformSettingsService platformSettingsService;
-  @MockBean private Ee eeService;
+  @MockBean private EnterpriseEditionService enterpriseEditionService;
   @MockBean private XtmComposerEncryptionService xtmComposerEncryptionService;
 
   @Autowired private CatalogConnectorComposer catalogConnectorComposer;
@@ -128,7 +128,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
     @DisplayName("Given connector supported by manager should throw an error when xtmComposer down")
     void givenConnectorSupportedByManager_should_throwErrorIfXtmComposerDown() throws Exception {
       CatalogConnector catalogConnector = getCatalogConnector();
-      when(eeService.isLicenseActive(any())).thenReturn(true);
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
 
       CreateConnectorInstanceInput input = new CreateConnectorInstanceInput();
       input.setCatalogConnectorId(catalogConnector.getId());
@@ -171,7 +171,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
     @Test
     @DisplayName("Duplicate catalog connector instance id should throw an error")
     void duplicateCatalogConnectorInstance_should_throwError() throws Exception {
-      when(eeService.isLicenseActive(any())).thenReturn(true);
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
       CatalogConnector catalogConnector = getCatalogConnector();
       ConnectorInstancePersisted instance = createDefaultConnectorInstance();
       instance.setCatalogConnector(catalogConnector);
@@ -385,7 +385,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
     @Test
     @DisplayName("Should successfully create a connector instance from a catalog connector")
     void should_successfullyCreateConnectorInstance() throws Exception {
-      when(eeService.isLicenseActive(any())).thenReturn(true);
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
       when(xtmComposerEncryptionService.encrypt(any())).thenReturn("fake-encrypted-value");
       Token token = new Token();
       token.setValue("fake-token-value");
@@ -607,7 +607,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
     void givenConnectorSupportedByManager_should_throwErrorIfXtmComposerDown() throws Exception {
       CatalogConnector catalogConnector = getCatalogConnector();
       ConnectorInstance instance = getConnectorInstance(catalogConnector, new HashSet<>());
-      when(eeService.isLicenseActive(any())).thenReturn(true);
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
 
       CreateConnectorInstanceInput input = new CreateConnectorInstanceInput();
       input.setCatalogConnectorId(catalogConnector.getId());
@@ -651,7 +651,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
     @DisplayName(
         "Should successfully update connector instance configuration and remove old configurations")
     void shouldSuccessfullyUpdateConnectorInstanceConfiguration() throws Exception {
-      when(eeService.isLicenseActive(any())).thenReturn(true);
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
 
       CatalogConnectorConfiguration confDef1 =
           createCatalogConfiguration(
@@ -744,7 +744,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
     @Test
     @DisplayName("Given connector supported by manager should throw an error when xtmComposer down")
     void givenConnectorSupportedByManager_should_throwErrorIfXtmComposerDown() throws Exception {
-      when(eeService.isLicenseActive(any())).thenReturn(true);
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
 
       CatalogConnector catalogConnector = getCatalogConnector();
       ConnectorInstance connectorInstance = getConnectorInstance(catalogConnector, Set.of());
@@ -791,7 +791,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
     @Test
     @DisplayName("Should successfully update requested status")
     void shouldSuccessfullyUpdateRequestedStatus() throws Exception {
-      when(eeService.isLicenseActive(any())).thenReturn(true);
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
 
       CatalogConnector catalogConnector = getCatalogConnector();
       ConnectorInstance connectorInstance = getConnectorInstance(catalogConnector, Set.of());

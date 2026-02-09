@@ -1,6 +1,6 @@
 package io.openaev.search;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Base;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -24,14 +24,14 @@ public class FullTextSearchApi extends RestBehavior {
   private final FullTextSearchService<? extends Base> fullTextSearchService;
 
   @PostMapping(GLOBAL_SEARCH_URI)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public Map<? extends Class<? extends Base>, FullTextSearchService.FullTextSearchCountResult>
       fullTextSearch(@Valid @RequestBody final SearchTerm searchTerm) {
     return this.fullTextSearchService.fullTextSearch(searchTerm.getSearchTerm());
   }
 
   @PostMapping(GLOBAL_SEARCH_URI + "/{clazz}")
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public Page<FullTextSearchService.FullTextSearchResult> fullTextSearch(
       @PathVariable @NotBlank final String clazz,
       @RequestBody @Valid SearchPaginationInput searchPaginationInput)

@@ -1,6 +1,6 @@
 package io.openaev.rest.payload;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.PayloadRepository;
@@ -39,14 +39,14 @@ public class PayloadApi extends RestBehavior {
   private final CollectorService collectorsService;
 
   @PostMapping(PAYLOAD_URI + "/search")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PAYLOAD)
   public Page<Payload> payloads(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return this.payloadService.searchPayloads(searchPaginationInput);
   }
 
   @GetMapping(PAYLOAD_URI + "/{payloadId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.PAYLOAD)
@@ -55,14 +55,14 @@ public class PayloadApi extends RestBehavior {
   }
 
   @PostMapping(PAYLOAD_URI)
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackOn = Exception.class)
   public Payload createPayload(@Valid @RequestBody PayloadCreateInput input) {
     return this.payloadCreationService.createPayload(input);
   }
 
   @PutMapping(PAYLOAD_URI + "/{payloadId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.PAYLOAD)
@@ -74,7 +74,7 @@ public class PayloadApi extends RestBehavior {
   }
 
   @PostMapping(PAYLOAD_URI + "/{payloadId}/duplicate")
-  @RBAC(
+  @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.PAYLOAD)
@@ -84,14 +84,76 @@ public class PayloadApi extends RestBehavior {
   }
 
   @PostMapping(PAYLOAD_URI + "/upsert")
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
   @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
   public Payload upsertPayload(@Valid @RequestBody PayloadUpsertInput input) {
     return this.payloadUpsertService.upsertPayload(input);
   }
 
+  @PostMapping(path = PAYLOAD_URI + "/{payloadId}/export", produces = "application/zip")
+  @AccessControl(
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.PAYLOAD,
+      resourceId = "#payloadId")
+  public ResponseEntity<byte[]> payloadExport(@NotBlank @PathVariable String payloadId)
+      throws IOException {
+    List<String> targetIds = List.of(payloadId);
+    List<Payload> payloads = StreamHelper.fromIterable(payloadRepository.findAllById(targetIds));
+    byte[] zippedExport = payloadExportService.exportPayloadsToZip(payloads);
+    String zipName = payloadExportService.getZipFileName();
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + zipName);
+    headers.add(HttpHeaders.CONTENT_TYPE, "application/zip");
+    headers.setContentLength(zippedExport.length);
+
+    return new ResponseEntity<>(zippedExport, headers, HttpStatus.OK);
+  }
+
+  @PostMapping(PAYLOAD_URI + "/export")
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PAYLOAD)
+  public void payloadsExport(
+      @RequestBody @Valid final PayloadExportRequestInput payloadExportRequestInput,
+      HttpServletResponse response)
+      throws IOException {
+    List<String> targetIds = payloadExportRequestInput.getTargetsIds();
+    User currentUser = userService.currentUser();
+
+    List<Payload> payloads =
+        payloadRepository.findAll(
+            Specification.where(SpecificationUtils.<Payload>hasIdIn(targetIds))
+                .and(
+                    SpecificationUtils.hasGrantAccess(
+                        currentUser.getId(),
+                        currentUser.isAdminOrBypass(),
+                        currentUser.getCapabilities().contains(Capability.ACCESS_PAYLOADS),
+                        Grant.GRANT_TYPE.OBSERVER)));
+    runPayloadExport(payloads, response);
+  }
+
+  @PostMapping(PAYLOAD_URI + "/import")
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
+  public void importPayloads(@RequestPart("file") @NotNull MultipartFile file) throws Exception {
+    this.importService.handleFileImport(file, null, null);
+  }
+
+  private void runPayloadExport(List<Payload> payloads, HttpServletResponse response)
+      throws IOException {
+    byte[] zippedExport = payloadExportService.exportPayloadsToZip(payloads);
+    String zipName = payloadExportService.getZipFileName();
+
+    response.addHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + zipName);
+    response.addHeader(HttpHeaders.CONTENT_TYPE, "application/zip");
+    response.setContentLength(zippedExport.length);
+    response.setStatus(HttpServletResponse.SC_OK);
+    ServletOutputStream outputStream = response.getOutputStream();
+    outputStream.write(zippedExport);
+    outputStream.flush();
+    outputStream.close();
+  }
+
   @DeleteMapping(PAYLOAD_URI + "/{payloadId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.PAYLOAD)
@@ -100,7 +162,7 @@ public class PayloadApi extends RestBehavior {
   }
 
   @PostMapping(PAYLOAD_URI + "/deprecate")
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackOn = Exception.class)
   public void deprecateNonProcessedPayloadsByCollector(
       @Valid @RequestBody PayloadsDeprecateInput input) {
@@ -109,7 +171,7 @@ public class PayloadApi extends RestBehavior {
   }
 
   @GetMapping(PAYLOAD_URI + "/{payloadId}/documents")
-  @RBAC(
+  @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.PAYLOAD)
@@ -123,7 +185,7 @@ public class PayloadApi extends RestBehavior {
   }
 
   @GetMapping(PAYLOAD_URI + "/{payloadId}/collectors")
-  @RBAC(
+  @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.PAYLOAD)

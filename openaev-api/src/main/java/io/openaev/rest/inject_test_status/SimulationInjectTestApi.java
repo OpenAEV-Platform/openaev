@@ -3,8 +3,8 @@ package io.openaev.rest.inject_test_status;
 import static io.openaev.database.specification.InjectSpecification.testable;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Inject;
@@ -39,7 +39,7 @@ public class SimulationInjectTestApi extends RestBehavior {
    * @see #findExercisePageInjectTests
    */
   @PostMapping("/api/exercise/{simulationId}/injects/test")
-  @RBAC(
+  @AccessControl(
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION,
       resourceId = "#simulationId")
@@ -51,7 +51,7 @@ public class SimulationInjectTestApi extends RestBehavior {
   }
 
   @PostMapping(EXERCISE_URI + "/{simulationId}/injects/test/search")
-  @RBAC(
+  @AccessControl(
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION,
       resourceId = "#simulationId")
@@ -64,7 +64,7 @@ public class SimulationInjectTestApi extends RestBehavior {
 
   @Transactional(rollbackFor = Exception.class)
   @GetMapping(EXERCISE_URI + "/{simulationId}/injects/{injectId}/test")
-  @RBAC(
+  @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -76,7 +76,7 @@ public class SimulationInjectTestApi extends RestBehavior {
 
   @Transactional(rollbackFor = Exception.class)
   @GetMapping(EXERCISE_URI + "/injects/test/{testId}")
-  @RBAC(
+  @AccessControl(
       actionPerformed = Action.SEARCH,
       resourceType =
           ResourceType.SIMULATION) // fixme : should use action search on resourceType simulation
@@ -86,7 +86,7 @@ public class SimulationInjectTestApi extends RestBehavior {
 
   @Transactional(rollbackFor = Exception.class)
   @DeleteMapping(EXERCISE_URI + "/{simulationId}/injects/test/{testId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -100,7 +100,7 @@ public class SimulationInjectTestApi extends RestBehavior {
       tags = {"Injects", "Tests"})
   @Transactional(rollbackFor = Exception.class)
   @PostMapping(EXERCISE_URI + "/{simulationId}/injects/test")
-  @RBAC(
+  @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)

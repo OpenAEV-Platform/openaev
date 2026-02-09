@@ -37,10 +37,10 @@ public class RBACAspect {
 
   private final ExpressionParser parser = new SpelExpressionParser();
 
-  @Before("@annotation(rbac)")
-  public void methodRBACVerification(JoinPoint joinPoint, RBAC rbac)
+  @Before("@annotation(accessControl)")
+  public void methodRBACVerification(JoinPoint joinPoint, AccessControl accessControl)
       throws AuthenticationException {
-    if (rbac.skipRBAC()) {
+    if (accessControl.skipRBAC()) {
       // If RBAC is disabled, skip the verification
       return;
     }
@@ -70,8 +70,8 @@ public class RBACAspect {
 
     // Evaluate SpEL expressions to retrieve the resource ID if present
     String resourceId = "";
-    if (!rbac.resourceId().isEmpty()) {
-      Expression exp = parser.parseExpression(rbac.resourceId());
+    if (!accessControl.resourceId().isEmpty()) {
+      Expression exp = parser.parseExpression(accessControl.resourceId());
       resourceId =
           exp.getValue(context) != null
               ? Objects.requireNonNull(exp.getValue(context)).toString()
@@ -94,15 +94,19 @@ public class RBACAspect {
     // Perform your RBAC check with the extracted value
     boolean allowed =
         permissionService.hasPermission(
-            principal, httpMappingInfo, resourceId, rbac.resourceType(), rbac.actionPerformed());
+            principal,
+            httpMappingInfo,
+            resourceId,
+            accessControl.resourceType(),
+            accessControl.actionPerformed());
 
     if (!allowed) {
       log.warn(
           "Access denied for user: {} on resource: {} of type: {} and action: {}",
           principal.getId(),
           resourceId,
-          rbac.resourceType(),
-          rbac.actionPerformed());
+          accessControl.resourceType(),
+          accessControl.actionPerformed());
       throw new ResponseStatusException(
           HttpStatus.FORBIDDEN, "Access denied for user: " + principal.getName()) {};
     }

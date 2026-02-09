@@ -5,7 +5,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static java.time.Instant.now;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawOrganization;
 import io.openaev.database.repository.OrganizationRepository;
@@ -36,7 +36,7 @@ public class OrganizationApi extends RestBehavior {
   private final OrganizationService organizationService;
 
   @GetMapping(ORGANIZATION_URI)
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public Iterable<RawOrganization> organizations() {
     List<RawOrganization> organizations;
     organizations = fromIterable(organizationRepository.rawAll());
@@ -44,14 +44,14 @@ public class OrganizationApi extends RestBehavior {
   }
 
   @PostMapping(ORGANIZATION_URI + "/search")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public Page<Organization> organizations(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return this.organizationService.organizationPagination(searchPaginationInput);
   }
 
   @PostMapping(ORGANIZATION_URI)
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.ORGANIZATION)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ORGANIZATION)
   @Transactional(rollbackOn = Exception.class)
   public Organization createOrganization(@Valid @RequestBody OrganizationCreateInput input) {
     Organization organization = new Organization();
@@ -61,7 +61,7 @@ public class OrganizationApi extends RestBehavior {
   }
 
   @PutMapping(ORGANIZATION_URI + "/{organizationId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#organizationId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.ORGANIZATION)
@@ -76,7 +76,7 @@ public class OrganizationApi extends RestBehavior {
   }
 
   @DeleteMapping(ORGANIZATION_URI + "/{organizationId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#organizationId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.ORGANIZATION)
@@ -87,7 +87,7 @@ public class OrganizationApi extends RestBehavior {
   // -- OPTION --
 
   @GetMapping(ORGANIZATION_URI + "/options")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText) {
     return fromIterable(
@@ -99,7 +99,7 @@ public class OrganizationApi extends RestBehavior {
   }
 
   @PostMapping(ORGANIZATION_URI + "/options")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.organizationRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
