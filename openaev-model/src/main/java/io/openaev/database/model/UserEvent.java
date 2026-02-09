@@ -5,6 +5,7 @@ import static java.time.Instant.now;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -14,9 +15,8 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UuidGenerator;
-import org.hibernate.type.SqlTypes;
 
 @Data
 @Entity
@@ -45,7 +45,7 @@ public class UserEvent implements Base {
   private UserEventType type;
 
   @Column(name = "user_event_payload", columnDefinition = "jsonb")
-  @JdbcTypeCode(SqlTypes.JSON)
+  @Type(JsonType.class)
   private JsonNode payload;
 
   // -- AUDIT --
