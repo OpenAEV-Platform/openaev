@@ -1,5 +1,8 @@
 package io.openaev.injectors.openaev.util;
 
+import static io.openaev.executors.Executor.CMD;
+import static io.openaev.executors.Executor.PSH;
+
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.HashMap;
@@ -24,7 +27,7 @@ public class OpenAEVObfuscationMap {
   public OpenAEVObfuscationMap(String executor) {
     this.obfuscationMap = new HashMap<>();
     this.registerObfuscation("plain-text", "", this::obfuscatePlainText);
-    if (!"cmd".equals(executor)) {
+    if (!CMD.equals(executor)) {
       this.registerObfuscation("base64", "", this::obfuscateBase64);
     }
   }
@@ -60,7 +63,7 @@ public class OpenAEVObfuscationMap {
   private String obfuscateBase64(String command, String executor) {
     String obfuscatedCommand = command;
 
-    if (executor.equals("psh") || executor.equals("cmd")) {
+    if (PSH.equals(executor) || CMD.equals(executor)) {
       byte[] utf16Bytes = command.getBytes(StandardCharsets.UTF_16LE);
       String base64 = Base64.getEncoder().encodeToString(utf16Bytes);
       obfuscatedCommand = String.format("powershell -Enc %s", base64);

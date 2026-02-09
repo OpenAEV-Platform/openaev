@@ -1,6 +1,7 @@
 package io.openaev.rest.inject.service;
 
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_ASSET_SEPARATOR;
+import static io.openaev.executors.Executor.CMD;
 import static org.springframework.util.CollectionUtils.isEmpty;
 import static org.springframework.util.StringUtils.hasText;
 
@@ -181,7 +182,7 @@ public class ExecutableInjectService {
         replaceArgumentsByValue(
             command, defaultPayloadArguments, injectorContractContentFields, injectContent);
 
-    if (executor.equals("cmd")) {
+    if (CMD.equals(executor)) {
       computedCommand = replaceCmdVariables(computedCommand);
       computedCommand = formatMultilineCommand(computedCommand);
     }
