@@ -1,6 +1,7 @@
 package io.openaev.service.user_events;
 
 import static io.openaev.database.model.UserEventType.LOGIN_SUCCESS;
+import static io.openaev.database.model.UserEventType.USER_CREATED;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,6 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserEventService {
 
   private static final int DEFAULT_WINDOW_DAYS = 7;
+  public static final String PAYLOAD_PROVIDER = "provider";
+  public static final String PAYLOAD_REASON = "reason";
 
   @Resource private ObjectMapper mapper;
   private final UserEventRepository userEventRepository;
@@ -35,8 +38,7 @@ public class UserEventService {
   @Async
   @Transactional
   public CompletableFuture<Void> createLoginSuccessEvent(User user) {
-    this.createEvent(LOGIN_SUCCESS, user);
-    return CompletableFuture.completedFuture(null);
+    return createEvent(LOGIN_SUCCESS, user, null);
   }
 
   /**
@@ -48,30 +50,30 @@ public class UserEventService {
   @Async
   @Transactional
   public CompletableFuture<Void> createLoginFailedEvent(String provider, String reason) {
-    JsonNode payload = mapper.createObjectNode().put("provider", provider).put("reason", reason);
+    JsonNode payload =
+        mapper.createObjectNode().put(PAYLOAD_PROVIDER, provider).put(PAYLOAD_REASON, reason);
 
-    this.createEvent(UserEventType.LOGIN_FAILED, payload);
-    return CompletableFuture.completedFuture(null);
+    return createEvent(UserEventType.LOGIN_FAILED, null, payload);
   }
 
-  private void createEvent(UserEventType type, User user) {
+  /** Creates a {@link UserEventType#USER_CREATED} event for the given user. */
+  @Async
+  @Transactional
+  public CompletableFuture<Void> createUserCreatedEvent(User user, String provider) {
+    JsonNode payload = mapper.createObjectNode().put(PAYLOAD_PROVIDER, provider);
+    return createEvent(USER_CREATED, user, payload);
+  }
+
+  private CompletableFuture<Void> createEvent(UserEventType type, User user, JsonNode payload) {
     Objects.requireNonNull(type, "event type must not be null");
-    Objects.requireNonNull(user, "user must not be null");
 
     UserEvent event = new UserEvent();
     event.setType(type);
     event.setUser(user);
-    this.userEventRepository.save(event);
-  }
-
-  private void createEvent(UserEventType type, JsonNode payload) {
-    Objects.requireNonNull(type, "event type must not be null");
-    Objects.requireNonNull(payload, "payload must not be null");
-
-    UserEvent event = new UserEvent();
-    event.setType(type);
     event.setPayload(payload);
-    this.userEventRepository.save(event);
+
+    userEventRepository.save(event);
+    return CompletableFuture.completedFuture(null);
   }
 
   // -- METRICS --

@@ -68,6 +68,25 @@ class UserEventServiceTest extends IntegrationTest {
         .allMatch(e -> e.getType() == UserEventType.LOGIN_FAILED && e.getUser() == null);
   }
 
+  @Test
+  void should_create_user_created_event() {
+    // -- ARRANGE --
+    User user = userRepository.save(getUser());
+
+    // -- ACT --
+    userEventService.createUserCreatedEvent(user, "saml").join();
+
+    // -- ASSERT --
+    List<UserEvent> events = fromIterable(userEventRepository.findAll());
+
+    assertThat(events)
+        .hasSize(1)
+        .allMatch(
+            e ->
+                e.getType() == UserEventType.USER_CREATED
+                    && e.getUser().getId().equals(user.getId()));
+  }
+
   // -- METRICS --
 
   @Test

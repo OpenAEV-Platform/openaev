@@ -34,6 +34,7 @@ public class UserEventRetentionConfig {
     return switch (type) {
       case LOGIN_SUCCESS -> settingService.getInt(USER_EVENTS_RETENTION_LOGIN_SUCCESS_DAYS);
       case LOGIN_FAILED -> settingService.getInt(USER_EVENTS_RETENTION_LOGIN_FAILED_DAYS);
+      case USER_CREATED -> settingService.getInt(USER_EVENTS_RETENTION_USER_CREATED_DAYS);
       default -> getDefaultDays();
     };
   }
