@@ -49,6 +49,10 @@ public class DomainService {
     return domainRepository.findById(domainId);
   }
 
+  public Optional<Domain> findOptionalByName(final String name) {
+    return domainRepository.findByName(name);
+  }
+
   public Domain findById(final String domainId) {
     return domainRepository
         .findById(domainId)

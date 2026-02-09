@@ -22,6 +22,7 @@ import io.openaev.database.repository.*;
 import io.openaev.injectors.challenge.model.ChallengeContent;
 import io.openaev.injectors.channel.model.ChannelContent;
 import io.openaev.rest.domain.DomainService;
+import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exercise.exports.VariableWithValueMixin;
 import io.openaev.rest.inject.form.InjectDependencyInput;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
@@ -254,6 +255,15 @@ public class V1_DataImporter implements Importer {
                 domainIds.add(createdDomain.getId());
               }
             });
+
+    // if no domain found we marked it as "TOCLASSIFY"
+    if (domainIds.isEmpty()) {
+      domainIds.add(
+          domainService
+              .findOptionalByName(PresetDomain.TOCLASSIFY.getName())
+              .orElseThrow()
+              .getId());
+    }
 
     return domainIds;
   }

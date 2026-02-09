@@ -1,0 +1,479 @@
+{
+  "export_version" : 1,
+  "scenario_information" : {
+    "scenario_id" : "586b5182-4630-49a3-947d-f8235ab4da82",
+    "scenario_name" : "Enumeration SMB without Signature",
+    "scenario_description" : "Objectives:\n\nDetect SMB Servers without signature",
+    "scenario_subtitle" : "",
+    "scenario_category" : "attack-scenario",
+    "scenario_main_focus" : "endpoint-protection",
+    "scenario_severity" : "high",
+    "scenario_message_header" : "SIMULATION HEADER",
+    "scenario_message_footer" : "SIMULATION FOOTER",
+    "scenario_mail_from" : "no-reply@openbas.io",
+    "scenario_tags" : [ ],
+    "scenario_documents" : [ ]
+  },
+  "scenario_teams" : [ ],
+  "scenario_objectives" : null,
+  "scenario_users" : [ ],
+  "scenario_organizations" : [ ],
+  "scenario_injects" : [ {
+    "inject_id" : "2531dfca-0c6b-40af-832b-b9c63a807679",
+    "inject_title" : "SMB Lateral Movement - Enumeration SMB Without Signing",
+    "inject_description" : "",
+    "inject_country" : null,
+    "inject_city" : null,
+    "inject_enabled" : true,
+    "inject_content" : {
+      "expectations" : [ {
+        "expectation_type" : "PREVENTION",
+        "expectation_name" : "Prevention",
+        "expectation_description" : null,
+        "expectation_score" : 100,
+        "expectation_expectation_group" : false,
+        "expectation_expiration_time" : 21600
+      }, {
+        "expectation_type" : "DETECTION",
+        "expectation_name" : "Detection",
+        "expectation_description" : null,
+        "expectation_score" : 100,
+        "expectation_expectation_group" : false,
+        "expectation_expiration_time" : 21600
+      } ],
+      "obfuscator" : "plain-text",
+      "IP" : "127.0.0.1"
+    },
+    "inject_all_teams" : false,
+    "inject_depends_on" : [ ],
+    "inject_depends_duration" : 0,
+    "inject_injector_contract" : {
+      "convertedContent" : {
+        "config" : {
+          "type" : "openbas_implant",
+          "expose" : true,
+          "label" : {
+            "en" : "OpenBAS Implant",
+            "fr" : "OpenBAS Implant"
+          },
+          "color_dark" : "#000000",
+          "color_light" : "#000000"
+        },
+        "label" : {
+          "en" : "SMB Lateral Movement - Enumeration SMB Without Signing",
+          "fr" : "SMB Lateral Movement - Enumeration SMB Without Signing"
+        },
+        "manual" : false,
+        "fields" : [ {
+          "key" : "assets",
+          "label" : "Assets",
+          "mandatory" : false,
+          "readOnly" : false,
+          "mandatoryGroups" : [ "assets", "assetgroups" ],
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "cardinality" : "n",
+          "defaultValue" : [ ],
+          "type" : "asset"
+        }, {
+          "key" : "assetgroups",
+          "label" : "Asset groups",
+          "mandatory" : false,
+          "readOnly" : false,
+          "mandatoryGroups" : [ "assets", "assetgroups" ],
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "cardinality" : "n",
+          "defaultValue" : [ ],
+          "type" : "asset-group"
+        }, {
+          "key" : "obfuscator",
+          "label" : "Obfuscators",
+          "mandatory" : false,
+          "readOnly" : false,
+          "mandatoryGroups" : null,
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "cardinality" : "1",
+          "defaultValue" : [ "plain-text" ],
+          "choices" : [ {
+            "label" : "plain-text",
+            "value" : "plain-text",
+            "information" : ""
+          }, {
+            "label" : "base64",
+            "value" : "base64",
+            "information" : "CMD does not support base64 obfuscation"
+          } ],
+          "type" : "choice"
+        }, {
+          "key" : "expectations",
+          "label" : "Expectations",
+          "mandatory" : false,
+          "readOnly" : false,
+          "mandatoryGroups" : null,
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "cardinality" : "n",
+          "defaultValue" : [ ],
+          "predefinedExpectations" : [ {
+            "expectation_type" : "PREVENTION",
+            "expectation_name" : "Prevention",
+            "expectation_description" : null,
+            "expectation_score" : 100.0,
+            "expectation_expectation_group" : false,
+            "expectation_expiration_time" : 21600
+          }, {
+            "expectation_type" : "DETECTION",
+            "expectation_name" : "Detection",
+            "expectation_description" : null,
+            "expectation_score" : 100.0,
+            "expectation_expectation_group" : false,
+            "expectation_expiration_time" : 21600
+          }, {
+            "expectation_type" : "VULNERABILITY",
+            "expectation_name" : "Not vulnerable",
+            "expectation_description" : "",
+            "expectation_score" : 100.0,
+            "expectation_expectation_group" : false,
+            "expectation_expiration_time" : 21600
+          } ],
+          "type" : "expectation"
+        }, {
+          "key" : "IP",
+          "label" : "IP",
+          "mandatory" : true,
+          "readOnly" : false,
+          "mandatoryGroups" : null,
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "defaultValue" : "192.168.56.0/24",
+          "type" : "text"
+        } ],
+        "variables" : [ {
+          "key" : "user",
+          "label" : "User that will receive the injection",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ {
+            "key" : "user.id",
+            "label" : "Id of the user in the platform",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "user.email",
+            "label" : "Email of the user",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "user.firstname",
+            "label" : "First name of the user",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "user.lastname",
+            "label" : "Last name of the user",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "user.lang",
+            "label" : "Language of the user",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          } ]
+        }, {
+          "key" : "exercise",
+          "label" : "Exercise of the current injection",
+          "type" : "Object",
+          "cardinality" : "1",
+          "children" : [ {
+            "key" : "exercise.id",
+            "label" : "Id of the user in the platform",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "exercise.name",
+            "label" : "Name of the exercise",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "exercise.description",
+            "label" : "Description of the exercise",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          } ]
+        }, {
+          "key" : "teams",
+          "label" : "List of team name for the injection",
+          "type" : "String",
+          "cardinality" : "n",
+          "children" : [ ]
+        }, {
+          "key" : "player_uri",
+          "label" : "Player interface platform link",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ ]
+        }, {
+          "key" : "challenges_uri",
+          "label" : "Challenges interface platform link",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ ]
+        }, {
+          "key" : "scoreboard_uri",
+          "label" : "Scoreboard interface platform link",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ ]
+        }, {
+          "key" : "lessons_uri",
+          "label" : "Lessons learned interface platform link",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ ]
+        } ],
+        "context" : { },
+        "contract_id" : "972bb093-3e7d-43d9-bd15-24d8b0e61c55",
+        "contract_attack_patterns_external_ids" : [ ],
+        "is_atomic_testing" : true,
+        "needs_executor" : true,
+        "platforms" : [ "Windows" ]
+      },
+      "listened" : true,
+      "injector_contract_id" : "972bb093-3e7d-43d9-bd15-24d8b0e61c55",
+      "injector_contract_labels" : {
+        "en" : "SMB Lateral Movement - Enumeration SMB Without Signing",
+        "fr" : "SMB Lateral Movement - Enumeration SMB Without Signing"
+      },
+      "injector_contract_manual" : false,
+      "injector_contract_content" : "{\"config\":{\"type\":\"openbas_implant\",\"expose\":true,\"label\":{\"en\":\"OpenBAS Implant\",\"fr\":\"OpenBAS Implant\"},\"color_dark\":\"#000000\",\"color_light\":\"#000000\"},\"label\":{\"en\":\"SMB Lateral Movement - Enumeration SMB Without Signing\",\"fr\":\"SMB Lateral Movement - Enumeration SMB Without Signing\"},\"manual\":false,\"fields\":[{\"key\":\"assets\",\"label\":\"Assets\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":[\"assets\",\"assetgroups\"],\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"type\":\"asset\"},{\"key\":\"assetgroups\",\"label\":\"Asset groups\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":[\"assets\",\"assetgroups\"],\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"type\":\"asset-group\"},{\"key\":\"obfuscator\",\"label\":\"Obfuscators\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"1\",\"defaultValue\":[\"plain-text\"],\"choices\":[{\"label\":\"plain-text\",\"value\":\"plain-text\",\"information\":\"\"},{\"label\":\"base64\",\"value\":\"base64\",\"information\":\"CMD does not support base64 obfuscation\"}],\"type\":\"choice\"},{\"key\":\"expectations\",\"label\":\"Expectations\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"predefinedExpectations\":[{\"expectation_type\":\"PREVENTION\",\"expectation_name\":\"Prevention\",\"expectation_description\":null,\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600},{\"expectation_type\":\"DETECTION\",\"expectation_name\":\"Detection\",\"expectation_description\":null,\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600},{\"expectation_type\":\"VULNERABILITY\",\"expectation_name\":\"Not vulnerable\",\"expectation_description\":\"\",\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600}],\"type\":\"expectation\"},{\"key\":\"IP\",\"label\":\"IP\",\"mandatory\":true,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"defaultValue\":\"192.168.56.0/24\",\"type\":\"text\"}],\"variables\":[{\"key\":\"user\",\"label\":\"User that will receive the injection\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[{\"key\":\"user.id\",\"label\":\"Id of the user in the platform\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.email\",\"label\":\"Email of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.firstname\",\"label\":\"First name of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.lastname\",\"label\":\"Last name of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.lang\",\"label\":\"Language of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}]},{\"key\":\"exercise\",\"label\":\"Exercise of the current injection\",\"type\":\"Object\",\"cardinality\":\"1\",\"children\":[{\"key\":\"exercise.id\",\"label\":\"Id of the user in the platform\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"exercise.name\",\"label\":\"Name of the exercise\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"exercise.description\",\"label\":\"Description of the exercise\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}]},{\"key\":\"teams\",\"label\":\"List of team name for the injection\",\"type\":\"String\",\"cardinality\":\"n\",\"children\":[]},{\"key\":\"player_uri\",\"label\":\"Player interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"challenges_uri\",\"label\":\"Challenges interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"scoreboard_uri\",\"label\":\"Scoreboard interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"lessons_uri\",\"label\":\"Lessons learned interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}],\"context\":{},\"contract_id\":\"972bb093-3e7d-43d9-bd15-24d8b0e61c55\",\"contract_attack_patterns_external_ids\":[],\"is_atomic_testing\":true,\"needs_executor\":true,\"platforms\":[\"Windows\"]}",
+      "injector_contract_custom" : false,
+      "injector_contract_needs_executor" : true,
+      "injector_contract_platforms" : [ "Windows" ],
+      "injector_contract_payload" : {
+        "listened" : true,
+        "payload_id" : "fd87f60a-0cef-4fc0-8056-5970b1af360b",
+        "payload_type" : "Command",
+        "payload_name" : "SMB Lateral Movement - Enumeration SMB Without Signing",
+        "payload_description" : "Null session, also known as anonymous authentication, is a special kind of authentication during which the user doesn’t submit any credentials. When a user connects via a null session, he connects as a member of the “Anonymous Logon” group and inherits all ACL’s assigned to this group. You can launch a null session authentication using the following commands with Netexec:\n\nReference: https://blog.whiteflag.io/blog/guest-vs-null-session-on-windows/",
+        "payload_platforms" : [ "Windows" ],
+        "payload_attack_patterns" : [ {
+          "attack_pattern_id" : "7bdfe370-166f-4bd6-af6c-f46ec37a0a59",
+          "attack_pattern_name" : "Domain Account",
+          "attack_pattern_description" : "Adversaries may attempt to get a listing of domain accounts. This information can help adversaries determine which domain accounts exist to aid in follow-on behavior such as targeting specific accounts which possess particular privileges.\n\nCommands such as <code>net user /domain</code> and <code>net group /domain</code> of the [Net](https://attack.mitre.org/software/S0039) utility, <code>dscacheutil -q group</code> on macOS, and <code>ldapsearch</code> on Linux can list domain users and groups. [PowerShell](https://attack.mitre.org/techniques/T1059/001) cmdlets including <code>Get-ADUser</code> and <code>Get-ADGroupMember</code> may enumerate members of Active Directory groups.(Citation: CrowdStrike StellarParticle January 2022)  ",
+          "attack_pattern_external_id" : "T1087.002",
+          "attack_pattern_kill_chain_phases" : [ {
+            "phase_id" : "e0a815b3-1d61-4145-915a-d17482f5887d",
+            "phase_external_id" : "TA0007",
+            "phase_stix_id" : "x-mitre-tactic--c17c5845-175e-4421-9713-829d0573dbc9",
+            "phase_name" : "Discovery",
+            "phase_shortname" : "discovery",
+            "phase_kill_chain_name" : "mitre-attack",
+            "phase_description" : "The adversary is trying to figure out your environment.\n\nDiscovery consists of techniques an adversary may use to gain knowledge about the system and internal network. These techniques help adversaries observe the environment and orient themselves before deciding how to act. They also allow adversaries to explore what they can control and what’s around their entry point in order to discover how it could benefit their current objective. Native operating system tools are often used toward this post-compromise information-gathering objective. ",
+            "phase_order" : 8
+          } ]
+        }, {
+          "attack_pattern_id" : "11201cbd-c89d-4592-9dd6-61e2655637f3",
+          "attack_pattern_name" : "Domain Groups",
+          "attack_pattern_description" : "Adversaries may attempt to find domain-level groups and permission settings. The knowledge of domain-level permission groups can help adversaries determine which groups exist and which users belong to a particular group. Adversaries may use this information to determine which users have elevated permissions, such as domain administrators.\n\nCommands such as <code>net group /domain</code> of the [Net](https://attack.mitre.org/software/S0039) utility,  <code>dscacheutil -q group</code> on macOS, and <code>ldapsearch</code> on Linux can list domain-level groups.",
+          "attack_pattern_external_id" : "T1069.002",
+          "attack_pattern_kill_chain_phases" : [ {
+            "phase_id" : "e0a815b3-1d61-4145-915a-d17482f5887d",
+            "phase_external_id" : "TA0007",
+            "phase_stix_id" : "x-mitre-tactic--c17c5845-175e-4421-9713-829d0573dbc9",
+            "phase_name" : "Discovery",
+            "phase_shortname" : "discovery",
+            "phase_kill_chain_name" : "mitre-attack",
+            "phase_description" : "The adversary is trying to figure out your environment.\n\nDiscovery consists of techniques an adversary may use to gain knowledge about the system and internal network. These techniques help adversaries observe the environment and orient themselves before deciding how to act. They also allow adversaries to explore what they can control and what’s around their entry point in order to discover how it could benefit their current objective. Native operating system tools are often used toward this post-compromise information-gathering objective. ",
+            "phase_order" : 8
+          } ]
+        }, {
+          "attack_pattern_id" : "853024a5-e051-4d81-b63a-1cdde660a397",
+          "attack_pattern_name" : "Remote System Discovery",
+          "attack_pattern_description" : "Adversaries may attempt to get a listing of other systems by IP address, hostname, or other logical identifier on a network that may be used for Lateral Movement from the current system. Functionality could exist within remote access tools to enable this, but utilities available on the operating system could also be used such as  [Ping](https://attack.mitre.org/software/S0097), <code>net view</code> using [Net](https://attack.mitre.org/software/S0039), or, on ESXi servers, `esxcli network diag ping`.\n\nAdversaries may also analyze data from local host files (ex: <code>C:\\Windows\\System32\\Drivers\\etc\\hosts</code> or <code>/etc/hosts</code>) or other passive means (such as local [Arp](https://attack.mitre.org/software/S0099) cache entries) in order to discover the presence of remote systems in an environment.\n\nAdversaries may also target discovery of network infrastructure as well as leverage [Network Device CLI](https://attack.mitre.org/techniques/T1059/008) commands on network devices to gather detailed information about systems within a network (e.g. <code>show cdp neighbors</code>, <code>show arp</code>).(Citation: US-CERT-TA18-106A)(Citation: CISA AR21-126A FIVEHANDS May 2021)  \n",
+          "attack_pattern_external_id" : "T1018",
+          "attack_pattern_kill_chain_phases" : [ {
+            "phase_id" : "e0a815b3-1d61-4145-915a-d17482f5887d",
+            "phase_external_id" : "TA0007",
+            "phase_stix_id" : "x-mitre-tactic--c17c5845-175e-4421-9713-829d0573dbc9",
+            "phase_name" : "Discovery",
+            "phase_shortname" : "discovery",
+            "phase_kill_chain_name" : "mitre-attack",
+            "phase_description" : "The adversary is trying to figure out your environment.\n\nDiscovery consists of techniques an adversary may use to gain knowledge about the system and internal network. These techniques help adversaries observe the environment and orient themselves before deciding how to act. They also allow adversaries to explore what they can control and what’s around their entry point in order to discover how it could benefit their current objective. Native operating system tools are often used toward this post-compromise information-gathering objective. ",
+            "phase_order" : 8
+          } ]
+        }, {
+          "attack_pattern_id" : "88d152fe-21af-49f0-bbd5-377598e9f6e9",
+          "attack_pattern_name" : "Network Service Discovery",
+          "attack_pattern_description" : "Adversaries may attempt to get a listing of services running on remote hosts and local network infrastructure devices, including those that may be vulnerable to remote software exploitation. Common methods to acquire this information include port, vulnerability, and/or wordlist scans using tools that are brought onto a system.(Citation: CISA AR21-126A FIVEHANDS May 2021)   \n\nWithin cloud environments, adversaries may attempt to discover services running on other cloud hosts. Additionally, if the cloud environment is connected to a on-premises environment, adversaries may be able to identify services running on non-cloud systems as well.\n\nWithin macOS environments, adversaries may use the native Bonjour application to discover services running on other macOS hosts within a network. The Bonjour mDNSResponder daemon automatically registers and advertises a host’s registered services on the network. For example, adversaries can use a mDNS query (such as <code>dns-sd -B _ssh._tcp .</code>) to find other systems broadcasting the ssh service.(Citation: apple doco bonjour description)(Citation: macOS APT Activity Bradley)",
+          "attack_pattern_external_id" : "T1046",
+          "attack_pattern_kill_chain_phases" : [ {
+            "phase_id" : "e0a815b3-1d61-4145-915a-d17482f5887d",
+            "phase_external_id" : "TA0007",
+            "phase_stix_id" : "x-mitre-tactic--c17c5845-175e-4421-9713-829d0573dbc9",
+            "phase_name" : "Discovery",
+            "phase_shortname" : "discovery",
+            "phase_kill_chain_name" : "mitre-attack",
+            "phase_description" : "The adversary is trying to figure out your environment.\n\nDiscovery consists of techniques an adversary may use to gain knowledge about the system and internal network. These techniques help adversaries observe the environment and orient themselves before deciding how to act. They also allow adversaries to explore what they can control and what’s around their entry point in order to discover how it could benefit their current objective. Native operating system tools are often used toward this post-compromise information-gathering objective. ",
+            "phase_order" : 8
+          } ]
+        } ],
+        "payload_cleanup_executor" : "psh",
+        "payload_cleanup_command" : "remove-item \"C:\\users\\public\\nxc-windows-latest\" -Recurse -Force",
+        "payload_elevation_required" : false,
+        "payload_arguments" : [ {
+          "type" : "text",
+          "key" : "IP",
+          "default_value" : "192.168.56.0/24",
+          "description" : null,
+          "separator" : null
+        } ],
+        "payload_prerequisites" : [ {
+          "executor" : "psh",
+          "get_command" : "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12;$zipUrl = \"https://github.com/Pennyw0rth/NetExec/releases/download/v1.4.0/nxc-windows-latest.zip\"; $tempZip = \"c:\\users\\public\\nxc-windows-latest.zip\"; $tempDir = \"c:\\users\\public\\nxc-windows-latest\"; $destPath = \"c:\\users\\public\\nxc-windows-latest\\nxc.exe\" ; Invoke-WebRequest -Uri $zipUrl -OutFile $tempZip; Expand-Archive -Path $tempZip -DestinationPath $tempDir -Force; Remove-Item -Path $tempZip -Force",
+          "check_command" : "if (Test-Path 'c:\\users\\public\\nxc-windows-latest\\nxc.exe') {exit 0} else {exit 1}",
+          "description" : null
+        } ],
+        "payload_external_id" : null,
+        "payload_source" : "MANUAL",
+        "payload_status" : "UNVERIFIED",
+        "payload_execution_arch" : "ALL_ARCHITECTURES",
+        "payload_collector" : null,
+        "payload_detection_remediations" : [ ],
+        "payload_tags" : [ ],
+        "payload_output_parsers" : [ {
+          "listened" : true,
+          "output_parser_id" : "c695e629-e546-4fec-aa72-f1f2cffd7152",
+          "output_parser_mode" : "STDOUT",
+          "output_parser_type" : "REGEX",
+          "output_parser_contract_output_elements" : [ {
+            "listened" : true,
+            "contract_output_element_id" : "7dcd63c4-85c1-475a-8c70-a401e80adecd",
+            "contract_output_element_is_finding" : true,
+            "contract_output_element_rule" : "^SMB\\s+(\\d{1,3}(?:\\.\\d{1,3}){3})\\s+\\d+\\s+\\S+\\s+\\[\\*\\].*signing:False",
+            "contract_output_element_name" : "SMB_Unsigned",
+            "contract_output_element_regex_groups" : [ {
+              "listened" : true,
+              "regex_group_id" : "5828ce1f-4302-49f9-9b67-6870e793dfd2",
+              "regex_group_field" : "ipv4",
+              "regex_group_index_values" : "$1",
+              "regex_group_created_at" : "2025-06-26T08:35:10.063953Z",
+              "regex_group_updated_at" : "2025-06-26T08:35:10.063953Z"
+            } ],
+            "contract_output_element_key" : "SMB_Unsigned",
+            "contract_output_element_type" : "ipv4",
+            "contract_output_element_tags" : [ ],
+            "contract_output_element_created_at" : "2025-06-26T08:35:10.063681Z",
+            "contract_output_element_updated_at" : "2025-06-26T08:35:10.063681Z"
+          } ],
+          "output_parser_created_at" : "2025-06-26T08:35:10.063598Z",
+          "output_parser_updated_at" : "2025-06-26T08:35:10.063598Z"
+        } ],
+        "payload_created_at" : "2025-06-26T08:35:10.063317Z",
+        "payload_updated_at" : "2025-06-26T08:35:10.063317Z",
+        "command_executor" : "cmd",
+        "command_content" : "C:\\Users\\Public\\nxc-windows-latest\\nxc.exe smb #{IP}",
+        "payload_collector_type" : null
+      },
+      "injector_contract_created_at" : "2025-06-26T08:35:10.107053Z",
+      "injector_contract_updated_at" : "2025-06-26T08:35:10.107053Z",
+      "injector_contract_injector" : "49229430-b5b5-431f-ba5b-f36f599b0144",
+      "injector_contract_attack_patterns" : [ {
+        "attack_pattern_id" : "7bdfe370-166f-4bd6-af6c-f46ec37a0a59",
+        "attack_pattern_name" : "Domain Account",
+        "attack_pattern_description" : "Adversaries may attempt to get a listing of domain accounts. This information can help adversaries determine which domain accounts exist to aid in follow-on behavior such as targeting specific accounts which possess particular privileges.\n\nCommands such as <code>net user /domain</code> and <code>net group /domain</code> of the [Net](https://attack.mitre.org/software/S0039) utility, <code>dscacheutil -q group</code> on macOS, and <code>ldapsearch</code> on Linux can list domain users and groups. [PowerShell](https://attack.mitre.org/techniques/T1059/001) cmdlets including <code>Get-ADUser</code> and <code>Get-ADGroupMember</code> may enumerate members of Active Directory groups.(Citation: CrowdStrike StellarParticle January 2022)  ",
+        "attack_pattern_external_id" : "T1087.002",
+        "attack_pattern_kill_chain_phases" : [ {
+          "phase_id" : "e0a815b3-1d61-4145-915a-d17482f5887d",
+          "phase_external_id" : "TA0007",
+          "phase_stix_id" : "x-mitre-tactic--c17c5845-175e-4421-9713-829d0573dbc9",
+          "phase_name" : "Discovery",
+          "phase_shortname" : "discovery",
+          "phase_kill_chain_name" : "mitre-attack",
+          "phase_description" : "The adversary is trying to figure out your environment.\n\nDiscovery consists of techniques an adversary may use to gain knowledge about the system and internal network. These techniques help adversaries observe the environment and orient themselves before deciding how to act. They also allow adversaries to explore what they can control and what’s around their entry point in order to discover how it could benefit their current objective. Native operating system tools are often used toward this post-compromise information-gathering objective. ",
+          "phase_order" : 8
+        } ]
+      }, {
+        "attack_pattern_id" : "11201cbd-c89d-4592-9dd6-61e2655637f3",
+        "attack_pattern_name" : "Domain Groups",
+        "attack_pattern_description" : "Adversaries may attempt to find domain-level groups and permission settings. The knowledge of domain-level permission groups can help adversaries determine which groups exist and which users belong to a particular group. Adversaries may use this information to determine which users have elevated permissions, such as domain administrators.\n\nCommands such as <code>net group /domain</code> of the [Net](https://attack.mitre.org/software/S0039) utility,  <code>dscacheutil -q group</code> on macOS, and <code>ldapsearch</code> on Linux can list domain-level groups.",
+        "attack_pattern_external_id" : "T1069.002",
+        "attack_pattern_kill_chain_phases" : [ {
+          "phase_id" : "e0a815b3-1d61-4145-915a-d17482f5887d",
+          "phase_external_id" : "TA0007",
+          "phase_stix_id" : "x-mitre-tactic--c17c5845-175e-4421-9713-829d0573dbc9",
+          "phase_name" : "Discovery",
+          "phase_shortname" : "discovery",
+          "phase_kill_chain_name" : "mitre-attack",
+          "phase_description" : "The adversary is trying to figure out your environment.\n\nDiscovery consists of techniques an adversary may use to gain knowledge about the system and internal network. These techniques help adversaries observe the environment and orient themselves before deciding how to act. They also allow adversaries to explore what they can control and what’s around their entry point in order to discover how it could benefit their current objective. Native operating system tools are often used toward this post-compromise information-gathering objective. ",
+          "phase_order" : 8
+        } ]
+      }, {
+        "attack_pattern_id" : "853024a5-e051-4d81-b63a-1cdde660a397",
+        "attack_pattern_name" : "Remote System Discovery",
+        "attack_pattern_description" : "Adversaries may attempt to get a listing of other systems by IP address, hostname, or other logical identifier on a network that may be used for Lateral Movement from the current system. Functionality could exist within remote access tools to enable this, but utilities available on the operating system could also be used such as  [Ping](https://attack.mitre.org/software/S0097), <code>net view</code> using [Net](https://attack.mitre.org/software/S0039), or, on ESXi servers, `esxcli network diag ping`.\n\nAdversaries may also analyze data from local host files (ex: <code>C:\\Windows\\System32\\Drivers\\etc\\hosts</code> or <code>/etc/hosts</code>) or other passive means (such as local [Arp](https://attack.mitre.org/software/S0099) cache entries) in order to discover the presence of remote systems in an environment.\n\nAdversaries may also target discovery of network infrastructure as well as leverage [Network Device CLI](https://attack.mitre.org/techniques/T1059/008) commands on network devices to gather detailed information about systems within a network (e.g. <code>show cdp neighbors</code>, <code>show arp</code>).(Citation: US-CERT-TA18-106A)(Citation: CISA AR21-126A FIVEHANDS May 2021)  \n",
+        "attack_pattern_external_id" : "T1018",
+        "attack_pattern_kill_chain_phases" : [ {
+          "phase_id" : "e0a815b3-1d61-4145-915a-d17482f5887d",
+          "phase_external_id" : "TA0007",
+          "phase_stix_id" : "x-mitre-tactic--c17c5845-175e-4421-9713-829d0573dbc9",
+          "phase_name" : "Discovery",
+          "phase_shortname" : "discovery",
+          "phase_kill_chain_name" : "mitre-attack",
+          "phase_description" : "The adversary is trying to figure out your environment.\n\nDiscovery consists of techniques an adversary may use to gain knowledge about the system and internal network. These techniques help adversaries observe the environment and orient themselves before deciding how to act. They also allow adversaries to explore what they can control and what’s around their entry point in order to discover how it could benefit their current objective. Native operating system tools are often used toward this post-compromise information-gathering objective. ",
+          "phase_order" : 8
+        } ]
+      }, {
+        "attack_pattern_id" : "88d152fe-21af-49f0-bbd5-377598e9f6e9",
+        "attack_pattern_name" : "Network Service Discovery",
+        "attack_pattern_description" : "Adversaries may attempt to get a listing of services running on remote hosts and local network infrastructure devices, including those that may be vulnerable to remote software exploitation. Common methods to acquire this information include port, vulnerability, and/or wordlist scans using tools that are brought onto a system.(Citation: CISA AR21-126A FIVEHANDS May 2021)   \n\nWithin cloud environments, adversaries may attempt to discover services running on other cloud hosts. Additionally, if the cloud environment is connected to a on-premises environment, adversaries may be able to identify services running on non-cloud systems as well.\n\nWithin macOS environments, adversaries may use the native Bonjour application to discover services running on other macOS hosts within a network. The Bonjour mDNSResponder daemon automatically registers and advertises a host’s registered services on the network. For example, adversaries can use a mDNS query (such as <code>dns-sd -B _ssh._tcp .</code>) to find other systems broadcasting the ssh service.(Citation: apple doco bonjour description)(Citation: macOS APT Activity Bradley)",
+        "attack_pattern_external_id" : "T1046",
+        "attack_pattern_kill_chain_phases" : [ {
+          "phase_id" : "e0a815b3-1d61-4145-915a-d17482f5887d",
+          "phase_external_id" : "TA0007",
+          "phase_stix_id" : "x-mitre-tactic--c17c5845-175e-4421-9713-829d0573dbc9",
+          "phase_name" : "Discovery",
+          "phase_shortname" : "discovery",
+          "phase_kill_chain_name" : "mitre-attack",
+          "phase_description" : "The adversary is trying to figure out your environment.\n\nDiscovery consists of techniques an adversary may use to gain knowledge about the system and internal network. These techniques help adversaries observe the environment and orient themselves before deciding how to act. They also allow adversaries to explore what they can control and what’s around their entry point in order to discover how it could benefit their current objective. Native operating system tools are often used toward this post-compromise information-gathering objective. ",
+          "phase_order" : 8
+        } ]
+      } ],
+      "injector_contract_atomic_testing" : true,
+      "injector_contract_import_available" : false,
+      "injector_contract_arch" : "ALL_ARCHITECTURES",
+      "injector_contract_injector_type" : "openbas_implant",
+      "injector_contract_injector_type_name" : "OpenBAS Implant"
+    },
+    "inject_tags" : [ ],
+    "inject_teams" : [ ],
+    "inject_documents" : [ ]
+  } ],
+  "scenario_tags" : [ ],
+  "scenario_documents" : [ ],
+  "scenario_channels" : [ ],
+  "scenario_articles" : [ ],
+  "scenario_challenges" : [ ],
+  "scenario_lessons_categories" : [ ],
+  "scenario_lessons_questions" : [ ],
+  "scenario_variables" : [ ]
+}

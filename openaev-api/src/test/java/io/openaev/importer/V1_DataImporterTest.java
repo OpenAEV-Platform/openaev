@@ -13,6 +13,7 @@ import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.constants.Constants;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
@@ -180,6 +181,28 @@ class V1_DataImporterTest extends IntegrationTest {
     List<InjectorContract> injectorContracts =
         injectorContractRepository.findInjectorContractsByInjector(dummyInjector);
     assertEquals(1, injectorContracts.size());
+  }
+
+  @Test
+  @Transactional
+  void testImportXTMHubScenarios() throws IOException {
+    MockitoAnnotations.openMocks(this);
+
+    ObjectMapper mapper = new ObjectMapper();
+    Path xtmHubScenariosDir = Paths.get("src/test/resources/xtmhub-scenarios");
+
+    List<Path> xtmScenariosFilesPath =
+        Files.list(xtmHubScenariosDir)
+            .filter(Files::isRegularFile)
+            .filter(p -> p.toString().endsWith(".json"))
+            .toList();
+
+    for (Path xtmScenariosFilePath : xtmScenariosFilesPath) {
+      String jsonContent = Files.readString(xtmScenariosFilePath);
+      JsonNode importNode = mapper.readTree(jsonContent);
+      this.importer.importData(
+          importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    }
   }
 
   // -- UTILS --
