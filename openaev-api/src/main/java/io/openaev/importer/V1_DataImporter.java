@@ -257,13 +257,13 @@ public class V1_DataImporter implements Importer {
             });
 
     // if no domain found we marked it as "TOCLASSIFY"
-    /*if (domainIds.isEmpty()) {
+    if (domainIds.isEmpty()) {
       domainIds.add(
           domainService
               .findOptionalByName(PresetDomain.TOCLASSIFY.getName())
               .orElseThrow()
               .getId());
-    }*/
+    }
 
     return domainIds;
   }
