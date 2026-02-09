@@ -16,13 +16,14 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.math.NumberUtils;
+import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @RequiredArgsConstructor
 @Service
 public class StepService implements StepEventHandler, ExternalUpdateEventHandler {
-  private final InjectExecutionStep injectExecutionStep;
+  private final ApplicationContext applicationContext;
 
   private final WorkflowService workflowService;
   private final StepRepository stepRepository;
@@ -169,10 +170,10 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
    * @return the corresponding action step class
    */
   public ActionStep factoryAction(StepActionClass actionClass) {
-    if(actionClass == null) return null;
+    if (actionClass == null) return null;
     return switch (actionClass) {
-        case StepActionClass.INJECT_EXECUTION -> injectExecutionStep;
-      default -> null;
+      case StepActionClass.INJECT_EXECUTION ->
+          applicationContext.getBean(InjectExecutionStep.class);
     };
   }
 
