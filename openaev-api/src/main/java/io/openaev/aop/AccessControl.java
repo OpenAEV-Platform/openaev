@@ -41,5 +41,5 @@ public @interface AccessControl {
   /**
    * Whether the feature is Enterprise Edition (EE) only.
    */
-  boolean ee() default false;
+  boolean isEnterpriseEdition() default false;
 }
