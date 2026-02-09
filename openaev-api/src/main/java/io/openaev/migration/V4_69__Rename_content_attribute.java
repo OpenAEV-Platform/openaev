@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 import java.sql.Statement;
 
 @Component
-public class V4_68__Rename_content_attribute extends BaseJavaMigration {
+public class V4_69__Rename_content_attribute extends BaseJavaMigration {
 
     @Override
     public void migrate(Context context) throws Exception {
