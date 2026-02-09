@@ -9,7 +9,7 @@ import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.SecurityCoverage;
 import io.openaev.database.model.StixRefToExternalRef;
 import io.openaev.database.repository.AttackPatternRepository;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.attack_pattern.form.AnalysisResultFromTTPExtractionAIWebserviceOutput;
 import io.openaev.rest.exception.ElementNotFoundException;
 import jakarta.annotation.Resource;
@@ -42,7 +42,7 @@ public class AttackPatternService {
 
   private final Environment env;
   private final AttackPatternRepository attackPatternRepository;
-  private final Ee ee;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final RestTemplate restTemplate;
 
   /**
@@ -56,7 +56,7 @@ public class AttackPatternService {
   private String callTTPExtractionAIWebservice(List<MultipartFile> files, String text)
       throws IOException {
     String url = Objects.requireNonNull(env.getProperty("ttp.extraction.ai.webservice.url"));
-    String certificate = ee.getEnterpriseEditionLicensePem();
+    String certificate = enterpriseEditionService.getEnterpriseEditionLicensePem();
     if (certificate == null || certificate.isBlank()) {
       throw new IllegalStateException("Enterprise Edition is not available");
     }

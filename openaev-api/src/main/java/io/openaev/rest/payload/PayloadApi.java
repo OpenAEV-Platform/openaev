@@ -1,6 +1,6 @@
 package io.openaev.rest.payload;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.PayloadRepository;
@@ -53,14 +53,14 @@ public class PayloadApi extends RestBehavior {
   private final UserService userService;
 
   @PostMapping(PAYLOAD_URI + "/search")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PAYLOAD)
   public Page<Payload> payloads(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return this.payloadService.searchPayloads(searchPaginationInput);
   }
 
   @GetMapping(PAYLOAD_URI + "/{payloadId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.PAYLOAD)
@@ -69,14 +69,14 @@ public class PayloadApi extends RestBehavior {
   }
 
   @PostMapping(PAYLOAD_URI)
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackOn = Exception.class)
   public Payload createPayload(@Valid @RequestBody PayloadCreateInput input) {
     return this.payloadCreationService.createPayload(input);
   }
 
   @PutMapping(PAYLOAD_URI + "/{payloadId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.PAYLOAD)
@@ -88,7 +88,7 @@ public class PayloadApi extends RestBehavior {
   }
 
   @PostMapping(PAYLOAD_URI + "/{payloadId}/duplicate")
-  @RBAC(
+  @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.PAYLOAD)
@@ -98,14 +98,14 @@ public class PayloadApi extends RestBehavior {
   }
 
   @PostMapping(PAYLOAD_URI + "/upsert")
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
   @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
   public Payload upsertPayload(@Valid @RequestBody PayloadUpsertInput input) {
     return this.payloadUpsertService.upsertPayload(input);
   }
 
   @PostMapping(path = PAYLOAD_URI + "/{payloadId}/export", produces = "application/zip")
-  @RBAC(
+  @AccessControl(
       actionPerformed = Action.READ,
       resourceType = ResourceType.PAYLOAD,
       resourceId = "#payloadId")
@@ -125,7 +125,7 @@ public class PayloadApi extends RestBehavior {
   }
 
   @PostMapping(PAYLOAD_URI + "/export")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PAYLOAD)
   public void payloadsExport(
       @RequestBody @Valid final PayloadExportRequestInput payloadExportRequestInput,
       HttpServletResponse response)
@@ -146,7 +146,7 @@ public class PayloadApi extends RestBehavior {
   }
 
   @PostMapping(PAYLOAD_URI + "/import")
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
   public void importPayloads(@RequestPart("file") @NotNull MultipartFile file) throws Exception {
     this.importService.handleFileImport(file, null, null);
   }
@@ -167,7 +167,7 @@ public class PayloadApi extends RestBehavior {
   }
 
   @DeleteMapping(PAYLOAD_URI + "/{payloadId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.PAYLOAD)
@@ -176,7 +176,7 @@ public class PayloadApi extends RestBehavior {
   }
 
   @PostMapping(PAYLOAD_URI + "/deprecate")
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackOn = Exception.class)
   public void deprecateNonProcessedPayloadsByCollector(
       @Valid @RequestBody PayloadsDeprecateInput input) {
@@ -185,7 +185,7 @@ public class PayloadApi extends RestBehavior {
   }
 
   @GetMapping(PAYLOAD_URI + "/{payloadId}/documents")
-  @RBAC(
+  @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.PAYLOAD)
@@ -199,7 +199,7 @@ public class PayloadApi extends RestBehavior {
   }
 
   @GetMapping(PAYLOAD_URI + "/{payloadId}/collectors")
-  @RBAC(
+  @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.PAYLOAD)

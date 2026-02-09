@@ -45,7 +45,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
-public class Ee {
+public class EnterpriseEditionService {
 
   public static final String LICENSE_OPTION_TYPE = "2.14521.4.4.10";
   public static final String LICENSE_OPTION_PRODUCT = "2.14521.4.4.20";

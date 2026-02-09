@@ -1,6 +1,6 @@
 package io.openaev.rest.settings;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.UserRoleDescription;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CustomDashboard;
@@ -50,7 +50,7 @@ public class PlatformSettingsApi extends RestBehavior {
   private final CustomDashboardService customDashboardService;
 
   @GetMapping()
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of settings")})
   @Operation(summary = "List settings", description = "Return the settings")
   public PlatformSettings settings() {
@@ -71,7 +71,7 @@ public class PlatformSettingsApi extends RestBehavior {
   }
 
   @GetMapping("/version")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The platform version")})
   @Operation(summary = "Get platform version", description = "Return the platform version")
   public String platformVersion() {
@@ -79,7 +79,7 @@ public class PlatformSettingsApi extends RestBehavior {
   }
 
   @PutMapping()
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
   @Operation(summary = "Update settings", description = "Update the settings")
   public PlatformSettings updateBasicConfigurationSettings(
@@ -88,7 +88,7 @@ public class PlatformSettingsApi extends RestBehavior {
   }
 
   @PutMapping("/enterprise-edition")
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "The updated settings"),
@@ -101,7 +101,7 @@ public class PlatformSettingsApi extends RestBehavior {
   }
 
   @PutMapping("/platform_whitemark")
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
   @Operation(summary = "Update Whitemark settings", description = "Update the whitemark settings")
   public PlatformSettings updateSettingsPlatformWhitemark(
@@ -110,7 +110,7 @@ public class PlatformSettingsApi extends RestBehavior {
   }
 
   @PutMapping("/theme/light")
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
   @Operation(
       summary = "Update light theme settings",
@@ -120,7 +120,7 @@ public class PlatformSettingsApi extends RestBehavior {
   }
 
   @PutMapping("/theme/dark")
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
   @Operation(summary = "Update dark theme settings", description = "Update the dark theme settings")
   public PlatformSettings updateThemeDark(@Valid @RequestBody ThemeInput input) {
@@ -128,7 +128,7 @@ public class PlatformSettingsApi extends RestBehavior {
   }
 
   @PutMapping("/policies")
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
   @Operation(summary = "Update policies settings", description = "Update the policies settings")
   public PlatformSettings updateSettingsPolicies(@Valid @RequestBody PolicyInput input) {
@@ -136,13 +136,13 @@ public class PlatformSettingsApi extends RestBehavior {
   }
 
   @GetMapping("/home-dashboard")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
   public ResponseEntity<CustomDashboard> homeDashboard() {
     return ResponseEntity.ok(customDashboardService.findHomeDashboard().orElse(null));
   }
 
   @PostMapping("/home-dashboard/count/{widgetId}")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
   public EsCountInterval homeDashboardCount(
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
@@ -150,7 +150,7 @@ public class PlatformSettingsApi extends RestBehavior {
   }
 
   @PostMapping("/home-dashboard/average/{widgetId}")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
   public EsAvgs homeDashboardAverage(
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
@@ -158,7 +158,7 @@ public class PlatformSettingsApi extends RestBehavior {
   }
 
   @PostMapping("/home-dashboard/series/{widgetId}")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
   public List<EsSeries> homeDashboardSeries(
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
@@ -166,7 +166,7 @@ public class PlatformSettingsApi extends RestBehavior {
   }
 
   @PostMapping("/home-dashboard/entities/{widgetId}")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
   public List<EsBase> homeDashboardEntities(
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
@@ -174,14 +174,14 @@ public class PlatformSettingsApi extends RestBehavior {
   }
 
   @PostMapping("/home-dashboard/entities-runtime/{widgetId}")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
   public WidgetToEntitiesOutput homeWidgetToEntitiesRuntime(
       @PathVariable final String widgetId, @Valid @RequestBody WidgetToEntitiesInput input) {
     return customDashboardService.homeWidgetToEntitiesRuntimeOnResourceId(widgetId, input);
   }
 
   @PostMapping("/home-dashboard/attack-paths/{widgetId}")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
   public List<EsAttackPath> homeDashboardAttackPaths(
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters)

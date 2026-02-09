@@ -23,7 +23,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.InjectSpecification;
 import io.openaev.database.specification.SpecificationUtils;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
@@ -90,7 +90,7 @@ public class InjectService {
   private final AssetService assetService;
   private final AssetGroupService assetGroupService;
   private final CollectorService collectorService;
-  private final Ee eeService;
+  private final EnterpriseEditionService enterpriseEditionServiceService;
   private final EndpointService endpointService;
   private final InjectRepository injectRepository;
   private final InjectDocumentRepository injectDocumentRepository;
@@ -396,11 +396,11 @@ public class InjectService {
   }
 
   public void throwIfInjectNotLaunchable(Inject inject) {
-    if (eeService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
+    if (enterpriseEditionServiceService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return;
     }
     List<Agent> agents = this.getAgentsByInject(inject);
-    List<String> eeExecutors = eeService.detectEEExecutors(agents);
+    List<String> eeExecutors = enterpriseEditionServiceService.detectEEExecutors(agents);
 
     if (!eeExecutors.isEmpty()) {
       throw new LicenseRestrictionException(

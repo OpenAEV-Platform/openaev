@@ -1,6 +1,6 @@
 package io.openaev.api.payload;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.ResourceType;
@@ -40,7 +40,7 @@ public class PayloadApiImporter extends RestBehavior {
       consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
       produces = MediaType.APPLICATION_JSON_VALUE)
   @Transactional
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
   public ResponseEntity<JsonApiDocument<ResourceObject>> importJson(
       @RequestPart("file") @NotNull MultipartFile file) throws Exception {
     try {

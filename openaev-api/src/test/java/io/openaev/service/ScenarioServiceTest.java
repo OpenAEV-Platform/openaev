@@ -13,7 +13,7 @@ import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
@@ -53,7 +53,8 @@ class ScenarioServiceTest extends IntegrationTest {
   @Autowired private LessonsCategoryRepository lessonsCategoryRepository;
   @Autowired private HealthCheckUtils healthCheckUtils;
 
-  @Mock Ee eeService;
+  @Mock
+  EnterpriseEditionService enterpriseEditionServiceService;
   @Mock VariableService variableService;
   @Mock ChallengeService challengeService;
   @Autowired private TeamService teamService;
@@ -87,7 +88,7 @@ class ScenarioServiceTest extends IntegrationTest {
             exerciseMapper,
             actionMetricCollector,
             licenseCacheManager,
-            eeService,
+                enterpriseEditionServiceService,
             variableService,
             challengeService,
             teamService,
@@ -114,7 +115,7 @@ class ScenarioServiceTest extends IntegrationTest {
             exerciseMapper,
             actionMetricCollector,
             licenseCacheManager,
-            eeService,
+                enterpriseEditionServiceService,
             variableService,
             challengeService,
             teamService,

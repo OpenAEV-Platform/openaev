@@ -5,7 +5,7 @@ import static io.openaev.database.specification.TeamSpecification.fromExercise;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Team;
@@ -30,7 +30,7 @@ public class ExerciseTeamApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping(EXERCISE_URI + "/{exerciseId}/teams/search")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)

@@ -7,7 +7,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.collectors.utils.CollectorsUtils;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.service.PlatformSettingsService;
 import jakarta.annotation.Resource;
 import java.io.IOException;
@@ -44,7 +44,7 @@ public class DetectionRemediationAIService {
   @Value("#{${remediation.detection.webservice.retry.waiting.milliseconds: null} ?: 30000}")
   Long RETRY_CONNECTION_WAITING_MILLISECONDS;
 
-  private final Ee ee;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final HttpClientFactory httpClientFactory;
   @Resource protected ObjectMapper mapper;
   private final PlatformSettingsService platformSettingsService;
@@ -52,7 +52,7 @@ public class DetectionRemediationAIService {
   public DetectionRemediationAIResponse callRemediationDetectionAIWebservice(
       DetectionRemediationRequest payload, String collectorType) {
     // Check if account has EE licence
-    String certificate = ee.getEncodedCertificate();
+    String certificate = enterpriseEditionService.getEncodedCertificate();
 
     payload.setSessionId(
         platformSettingsService.findSettings().getPlatformId() + "-" + new Date().getTime());
@@ -117,7 +117,7 @@ public class DetectionRemediationAIService {
 
   public DetectionRemediationHealthResponse checkHealthWebservice() {
     // Check if account has EE licence
-    ee.getEncodedCertificate();
+    enterpriseEditionService.getEncodedCertificate();
 
     String url = REMEDIATION_DETECTION_WEBSERVICE + "/health";
     String errorMessage = "Connection to Remediation Detection AI Webservice failed: ";
