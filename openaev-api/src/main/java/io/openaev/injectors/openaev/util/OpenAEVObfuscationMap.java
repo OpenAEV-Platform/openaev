@@ -25,7 +25,7 @@ public class OpenAEVObfuscationMap {
     this.obfuscationMap = new HashMap<>();
     this.registerObfuscation("plain-text", "", this::obfuscatePlainText);
     if (!"cmd".equals(executor)) {
-        this.registerObfuscation("base64", "", this::obfuscateBase64);
+      this.registerObfuscation("base64", "", this::obfuscateBase64);
     }
   }
 
