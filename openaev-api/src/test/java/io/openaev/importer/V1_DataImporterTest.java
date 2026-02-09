@@ -9,12 +9,14 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
+import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.constants.Constants;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -55,6 +57,8 @@ class V1_DataImporterTest extends IntegrationTest {
   @Autowired private InjectorContractRepository injectorContractRepository;
 
   @Autowired private InjectRepository injectRepository;
+
+  @Autowired private DomainRepository domainRepository;
 
   private JsonNode importNode;
 
@@ -203,6 +207,27 @@ class V1_DataImporterTest extends IntegrationTest {
       this.importer.importData(
           importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
     }
+  }
+
+  @Test
+  @Transactional
+  void test_empty() throws IOException {
+    ObjectMapper mapper = new ObjectMapper();
+    String jsonContent =
+        new String(
+            Files.readAllBytes(
+                Paths.get(
+                    "src/test/resources/payload-json-for-domain-tests/payload_with_no_domain.json")));
+    this.importNode = mapper.readTree(jsonContent);
+
+    Domain domainToClassify =
+        domainRepository.findByName(PresetDomain.TOCLASSIFY.getName()).orElseThrow();
+
+    List<String> importDomainIds =
+        this.importer.importDomains(this.importNode, "payload_", new HashMap<>());
+
+    assertEquals(1, importDomainIds.size());
+    assertEquals(domainToClassify.getId(), importDomainIds.get(0));
   }
 
   // -- UTILS --
