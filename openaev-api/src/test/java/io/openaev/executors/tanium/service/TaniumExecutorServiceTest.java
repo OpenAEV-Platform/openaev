@@ -95,7 +95,6 @@ public class TaniumExecutorServiceTest {
     // Init datas
     when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(null);
     doNothing().when(enterpriseEditionService).throwEEExecutorService(any(), any(), any());
-    when(config.isEnable()).thenReturn(true);
     when(config.getApiBatchExecutionActionPagination()).thenReturn(1);
     when(config.getWindowsPackageId()).thenReturn(112200);
     Command payloadCommand =
