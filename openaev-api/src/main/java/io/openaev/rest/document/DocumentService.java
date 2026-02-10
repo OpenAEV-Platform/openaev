@@ -16,6 +16,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.FileService;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -70,8 +71,9 @@ public class DocumentService {
       String fileContentType,
       DocumentCreateInput input)
       throws Exception {
+    byte[] content = fileIS.readAllBytes();
     String extension = FilenameUtils.getExtension(fileName);
-    String fileTarget = DigestUtils.md5Hex(fileIS) + "." + extension;
+    String fileTarget = DigestUtils.md5Hex(new ByteArrayInputStream(content)) + "." + extension;
     Optional<Document> targetDocument = documentRepository.findByTarget(fileTarget);
     // Document already exists by hash
     if (targetDocument.isPresent()) {
@@ -103,7 +105,8 @@ public class DocumentService {
       if (existingDocument.isPresent()) {
         Document document = existingDocument.get();
         // Update doc
-        fileService.uploadFile(fileTarget, fileIS, fileSize, fileContentType);
+        fileService.uploadFile(
+            fileTarget, new ByteArrayInputStream(content), fileSize, fileContentType);
         document.setDescription(input.getDescription());
 
         // Compute exercises
@@ -129,7 +132,8 @@ public class DocumentService {
         document.setTags(tags);
         return documentRepository.save(document);
       } else {
-        fileService.uploadFile(fileTarget, fileIS, fileSize, fileContentType);
+        fileService.uploadFile(
+            fileTarget, new ByteArrayInputStream(content), fileSize, fileContentType);
         Document document = new Document();
         document.setTarget(fileTarget);
         document.setName(fileName);

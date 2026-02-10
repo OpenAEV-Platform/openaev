@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
 import io.openaev.opencti.client.OpenCTIClient;
 import io.openaev.opencti.client.mutations.*;
+import io.openaev.opencti.client.response.File;
 import io.openaev.opencti.client.response.Response;
 import io.openaev.opencti.client.response.fields.Error;
 import io.openaev.opencti.config.OpenCTIConfig;
@@ -14,10 +15,16 @@ import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.connectors.service.PrivilegeService;
 import io.openaev.opencti.errors.ConnectorError;
+import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.document.form.DocumentCreateInput;
+import io.openaev.rest.tag.TagService;
+import io.openaev.rest.tag.form.TagCreateInput;
 import io.openaev.stix.objects.Bundle;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +39,8 @@ public class OpenCTIService {
   private final OpenCTIClient openCTIClient;
   private final ObjectMapper mapper;
   private final PrivilegeService privilegeService;
+  private final TagService tagService;
+  private final DocumentService documentService;
 
   private void applyJwksIfApplicable(ConnectorBase connector, String jwks) {
     if (connector instanceof SecurityCoverageConnector scc) {
@@ -243,5 +252,40 @@ public class OpenCTIService {
     } else {
       execution.addTrace(getNewErrorTrace("Fail to POST", ExecutionTraceAction.COMPLETE));
     }
+  }
+
+  public Document downloadAndSaveFile(String uri, String name, String mimeType) {
+    File octiFile = downloadFile(uri);
+
+    if (octiFile != null) {
+      Tag openCtiTag = getTag();
+      DocumentCreateInput documentCreateInput = new DocumentCreateInput();
+      documentCreateInput.setDescription(name);
+      documentCreateInput.setTagIds(new ArrayList<>(Set.of(openCtiTag.getId())));
+
+      try {
+        return documentService.upsert(
+            name, octiFile.getInputStream(), octiFile.getSize(), mimeType, documentCreateInput);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
+    return null;
+  }
+
+  public File downloadFile(String uri) {
+    try {
+      return openCTIClient.download(
+          classicOpenCTIConfig.getApiUrl() + uri, classicOpenCTIConfig.getToken());
+    } catch (IOException e) {
+      log.error(String.format("Error while downloading file from %s", uri), e);
+      return null;
+    }
+  }
+
+  public Tag getTag() {
+    TagCreateInput tagCreateInput = new TagCreateInput();
+    tagCreateInput.setName(Tag.OPENCTI_TAG_NAME);
+    return tagService.upsertTag(tagCreateInput);
   }
 }

@@ -4,34 +4,20 @@ import static io.openaev.utils.constants.StixConstants.*;
 
 import io.openaev.database.model.Document;
 import io.openaev.database.model.StixRefToExternalRef;
-import io.openaev.database.model.Tag;
+import io.openaev.opencti.service.OpenCTIService;
 import io.openaev.rest.document.DocumentService;
-import io.openaev.rest.document.form.DocumentCreateInput;
-import io.openaev.rest.tag.TagService;
-import io.openaev.rest.tag.form.TagCreateInput;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.objects.ObjectBase;
 import io.openaev.stix.objects.constants.CommonProperties;
 import io.openaev.stix.objects.constants.ExtendedProperties;
 import io.openaev.stix.objects.constants.ObjectTypes;
-import io.openaev.stix.types.BaseType;
 import io.openaev.stix.types.Dictionary;
 import io.openaev.utils.constants.StixConstants;
-import jakarta.validation.constraints.NotBlank;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URISyntaxException;
-import java.net.URL;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.coyote.BadRequestException;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -52,17 +38,13 @@ import org.springframework.stereotype.Component;
 public class SecurityCoverageUtils {
 
   private static final String DOMAIN_NAME = "Domain-Name";
-  private final TagService tagService;
+  private final OpenCTIService openCtiService;
 
   /** Connection timeout in milliseconds for file downloads (10 seconds). */
   private static final int CONNECTION_TIMEOUT_MS = 10000;
 
   /** Read timeout in milliseconds for file downloads (30 seconds). */
   private static final int READ_TIMEOUT_MS = 30000;
-
-  @NotBlank
-  @Value("${openaev.xtm.opencti.url:#{null}}")
-  private String octiUrl;
 
   private final DocumentService documentService;
 
@@ -135,64 +117,11 @@ public class SecurityCoverageUtils {
         Dictionary extensionObj =
             (Dictionary) obj.getExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION);
         if (extensionObj.has(StixConstants.FILES)) {
-
-          TagCreateInput tagCreateInput = new TagCreateInput();
-          tagCreateInput.setName(Tag.OPENCTI_TAG_NAME);
-          Tag openCtiTag = tagService.upsertTag(tagCreateInput);
-          String openCitTagId = openCtiTag.getId();
-          List<String> documentIds = new ArrayList<>();
-          String url = octiUrl.endsWith("/") ? octiUrl.substring(0, octiUrl.length() - 1) : octiUrl;
-
-          io.openaev.stix.types.List<Dictionary> filesList = (io.openaev.stix.types.List<Dictionary>) extensionObj.get(StixConstants.FILES);
-          filesList.getValue().stream()
-                  .filter(
-                      file ->
-                          file.has(CommonProperties.NAME.toString())
-                              && file.has(CommonProperties.URI.toString())
-                              && file.has(CommonProperties.MIME_TYPE.toString()))
-                  .forEach(
-                      file -> {
-                        String fileName =
-                            (String) file.get(CommonProperties.NAME.toString()).getValue();
-                        String fileUri =
-                            (String) file.get(CommonProperties.URI.toString()).getValue();
-                        String fileMymeType =
-                            (String) file.get(CommonProperties.MIME_TYPE.toString()).getValue();
-
-                        try {
-
-                          HttpURLConnection connection = (HttpURLConnection) new URL(url + fileUri).openConnection();
-                          connection.setConnectTimeout(CONNECTION_TIMEOUT_MS);
-                          connection.setReadTimeout(READ_TIMEOUT_MS);
-
-                          if (connection instanceof HttpURLConnection httpConnection) {
-                              httpConnection.setRequestMethod("GET");
-                          }
-
-                          try (InputStream inputStream = connection.getInputStream()) {
-                              DocumentCreateInput documentCreateInput = new DocumentCreateInput();
-                              documentCreateInput.setDescription(fileName);
-                              documentCreateInput.setTagIds(new ArrayList<>(Set.of(openCitTagId)));
-
-                              Document document =
-                                      documentService.upsert(
-                                              fileName,
-                                              inputStream,
-                                              connection.getContentLengthLong(),
-                                              fileMymeType,
-                                              documentCreateInput);
-                              documentIds.add(document.getId());
-                          }
-                        } catch (IOException e) {
-                            throw new RuntimeException("Error while downloading file "  + fileName + " from octi URL " + url + fileUri, e);
-                        } catch (URISyntaxException e) {
-                            throw new RuntimeException("Invalid file URL: " + url + fileUri, e);
-                        } catch (Exception e) {
-                            throw new RuntimeException("Error during management of file " + fileName + " from URL " + url + fileUri, e);
-                        }
-                      });
-            manageAndAddStixRefToExternalRefs(stixToRef, obj, documentIds);
-            continue;
+          List<String> documentIds =
+              getAllDocumentIdsFromFiles(
+                  (io.openaev.stix.types.List<Dictionary>) extensionObj.get(StixConstants.FILES));
+          manageAndAddStixRefToExternalRefs(stixToRef, obj, documentIds);
+          continue;
         }
       }
 
@@ -258,5 +187,25 @@ public class SecurityCoverageUtils {
     return domainName != null
         ? (String) domainName.get(CommonProperties.VALUE.toString()).getValue()
         : null;
+  }
+
+  private List<String> getAllDocumentIdsFromFiles(
+      io.openaev.stix.types.List<Dictionary> filesList) {
+    return filesList.getValue().stream()
+        .filter(
+            file ->
+                file.has(CommonProperties.NAME.toString())
+                    && file.has(CommonProperties.URI.toString())
+                    && file.has(CommonProperties.MIME_TYPE.toString()))
+        .map(
+            file -> {
+              Document document =
+                  openCtiService.downloadAndSaveFile(
+                      (String) file.get(CommonProperties.URI.toString()).getValue(),
+                      (String) file.get(CommonProperties.NAME.toString()).getValue(),
+                      (String) file.get(CommonProperties.MIME_TYPE.toString()).getValue());
+              return document != null ? document.getId() : null;
+            })
+        .toList();
   }
 }
