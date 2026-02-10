@@ -247,22 +247,6 @@ export interface ArticleUpdateInput {
   article_shares?: number;
 }
 
-export interface Asset {
-  /** @format date-time */
-  asset_created_at: string;
-  asset_description?: string;
-  asset_external_reference?: string;
-  /** @minLength 1 */
-  asset_id: string;
-  /** @minLength 1 */
-  asset_name: string;
-  asset_tags?: string[];
-  asset_type?: string;
-  /** @format date-time */
-  asset_updated_at: string;
-  listened?: boolean;
-}
-
 export interface AssetAgentJob {
   asset_agent_agent?: string;
   /** @deprecated */
@@ -3399,13 +3383,6 @@ export interface InjectDependencyInput {
   dependency_relationship?: InjectDependencyIdInput;
 }
 
-export interface InjectDocument {
-  document_attached?: boolean;
-  document_id?: string;
-  document_name?: string;
-  inject_id?: string;
-}
-
 export interface InjectDocumentInput {
   document_attached?: boolean;
   document_id?: string;
@@ -3669,10 +3646,10 @@ export interface InjectOutput {
   footer?: string;
   /** Header of the inject */
   header?: string;
-  inject_asset_groups?: AssetGroup[];
-  inject_assets?: Asset[];
+  inject_asset_groups?: string[];
+  inject_assets?: string[];
   inject_attack_patterns?: AttackPattern[];
-  inject_communications?: Communication[];
+  inject_communications?: string[];
   /**
    * Communications not ack count of the inject
    * @format int64
@@ -3702,12 +3679,12 @@ export interface InjectOutput {
    */
   inject_depends_duration: number;
   inject_depends_on?: InjectDependency[];
-  inject_documents?: InjectDocument[];
+  inject_documents?: string[];
   /** Enabled state of the inject */
   inject_enabled?: boolean;
   /** Simulation ID of the inject */
   inject_exercise?: string;
-  inject_expectations?: InjectExpectation[];
+  inject_expectations?: string[];
   inject_healthchecks?: HealthCheck[];
   /**
    * ID of the inject
@@ -3727,8 +3704,8 @@ export interface InjectOutput {
    */
   inject_sent_at?: string;
   /** @uniqueItems true */
-  inject_tags?: Tag[];
-  inject_teams?: Team[];
+  inject_tags?: string[];
+  inject_teams?: string[];
   /** Testable state of the inject */
   inject_testable?: boolean;
   /**
