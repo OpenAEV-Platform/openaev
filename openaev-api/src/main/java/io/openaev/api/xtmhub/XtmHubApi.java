@@ -1,6 +1,6 @@
 package io.openaev.api.xtmhub;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
@@ -33,7 +33,7 @@ public class XtmHubApi extends RestBehavior {
       summary = "Register OpenAEV into XTM Hub",
       description = "Save registration data into settings from XTM Hub registration")
   @ApiResponses({@ApiResponse(responseCode = "200", description = "Successful registration")})
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @Transactional(rollbackFor = Exception.class)
   public PlatformSettings register(@Valid @RequestBody XtmHubRegisterInput input) {
     return this.xtmHubService.register(input.getToken());
@@ -47,7 +47,7 @@ public class XtmHubApi extends RestBehavior {
       summary = "Unregister OpenAEV from XTM Hub",
       description = "Delete XTM Hub registration data from Settings.")
   @ApiResponses({@ApiResponse(responseCode = "200", description = "Successful unregistration")})
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @Transactional(rollbackFor = Exception.class)
   public PlatformSettings unregister() {
     return this.xtmHubService.unregister();
@@ -61,7 +61,7 @@ public class XtmHubApi extends RestBehavior {
       summary = "Refresh connectivity with XTM Hub",
       description = "Refresh status in settings and version in XTM Hub")
   @ApiResponses({@ApiResponse(responseCode = "200", description = "Successful refresh")})
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @Transactional(rollbackFor = Exception.class)
   public PlatformSettings refreshConnectivity() {
     return this.xtmHubService.refreshConnectivity();
@@ -77,7 +77,7 @@ public class XtmHubApi extends RestBehavior {
     @ApiResponse(responseCode = "502", description = "Registration failed on XTM Hub call"),
     @ApiResponse(responseCode = "500", description = "Internal error")
   })
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @Transactional(rollbackFor = Exception.class)
   public void autoRegister(@Valid @RequestBody XtmHubRegisterInput input) {
     this.xtmHubService.autoRegister(input.getToken());

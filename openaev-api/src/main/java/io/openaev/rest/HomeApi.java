@@ -2,7 +2,7 @@ package io.openaev.rest;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
@@ -37,7 +37,7 @@ public class HomeApi {
         "/{path:^(?!api$|login$|logout$|oauth2$|saml2$|assets$|static$|swagger-ui$).*$}/**"
       },
       produces = MediaType.TEXT_HTML_VALUE)
-  @RBAC(skipRBAC = true) // No RBAC check for home endpoint
+  @AccessControl(skipRBAC = true) // No RBAC check for home endpoint
   public ResponseEntity<String> home() {
     ClassPathResource classPathResource = new ClassPathResource("/build/index.html");
     String index = readResourceAsString(classPathResource);

@@ -8,7 +8,7 @@ import static org.mockito.Mockito.*;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -45,7 +45,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class ExerciseServiceUnitTest {
 
-  @Mock private Ee eeService;
+  @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private InjectDuplicateService injectDuplicateService;
   @Mock private TeamService teamService;
   @Mock private VariableService variableService;
@@ -443,11 +443,11 @@ class ExerciseServiceUnitTest {
     @Test
     void shouldSkipValidationWhenLicenseIsActive() {
       Exercise exercise = mock(Exercise.class);
-      when(eeService.isLicenseActive(any())).thenReturn(true);
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
 
       mockedExerciseService.throwIfExerciseNotLaunchable(exercise);
 
-      verify(eeService).isLicenseActive(any());
+      verify(enterpriseEditionService).isLicenseActive(any());
       verify(exercise, never()).getInjects();
       verify(injectService, never()).throwIfInjectNotLaunchable(any());
     }
@@ -458,11 +458,11 @@ class ExerciseServiceUnitTest {
       Inject inject1 = mock(Inject.class);
       Inject inject2 = mock(Inject.class);
       when(exercise.getInjects()).thenReturn(List.of(inject1, inject2));
-      when(eeService.isLicenseActive(any())).thenReturn(false);
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(false);
 
       mockedExerciseService.throwIfExerciseNotLaunchable(exercise);
 
-      verify(eeService).isLicenseActive(any());
+      verify(enterpriseEditionService).isLicenseActive(any());
       verify(injectService).throwIfInjectNotLaunchable(inject1);
       verify(injectService).throwIfInjectNotLaunchable(inject2);
     }

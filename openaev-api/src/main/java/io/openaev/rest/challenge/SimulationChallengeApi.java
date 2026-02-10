@@ -6,7 +6,7 @@ import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH
 import static io.openaev.rest.challenge.ChallengeHelper.resolveChallengeIds;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.ExerciseRepository;
@@ -43,7 +43,7 @@ public class SimulationChallengeApi extends RestBehavior {
   private final ExerciseService exerciseService;
 
   @GetMapping(EXERCISE_URI + "/{exerciseId}/challenges")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -62,7 +62,7 @@ public class SimulationChallengeApi extends RestBehavior {
   }
 
   @PostMapping("/api/player/challenges/{exerciseId}/{challengeId}/validate")
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   public SimulationChallengesReader validateChallenge(
       @PathVariable String exerciseId,
@@ -81,7 +81,7 @@ public class SimulationChallengeApi extends RestBehavior {
   }
 
   @GetMapping("/api/player/simulations/{simulationId}/documents")
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public List<Document> playerDocuments(
       @PathVariable String simulationId, @RequestParam Optional<String> userId) {
     Optional<Exercise> exerciseOpt = this.exerciseRepository.findById(simulationId);
@@ -101,7 +101,7 @@ public class SimulationChallengeApi extends RestBehavior {
   }
 
   @GetMapping("/api/observer/simulations/{simulationId}/challenges")
-  @RBAC(
+  @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -119,7 +119,7 @@ public class SimulationChallengeApi extends RestBehavior {
   }
 
   @GetMapping("/api/player/simulations/{simulationId}/challenges")
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public SimulationChallengesReader playerChallenges(
       @PathVariable String simulationId, @RequestParam Optional<String> userId) {
     final User user = impersonateUser(userRepository, userId);

@@ -1,6 +1,6 @@
 package io.openaev.rest.exercise;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.UserRepository;
@@ -24,7 +24,7 @@ public class ExercisePlayerApi extends RestBehavior {
   private final ExerciseRepository exerciseRepository;
 
   @GetMapping(EXERCISE_URI + "/{exerciseId}")
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public PublicExercise playerExercise(
       @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
     impersonateUser(this.userRepository, userId);

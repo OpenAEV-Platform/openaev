@@ -3,7 +3,7 @@ package io.openaev.service.connectors;
 import io.openaev.api.xtm_composer.dto.XtmComposerInstanceOutput;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
@@ -33,7 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ConnectorOrchestrationService {
   private final ConnectorInstanceService connectorInstanceService;
   private final XtmComposerService xtmComposerService;
-  private final Ee eeService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final CatalogConnectorService catalogConnectorService;
 
   private final CollectorService collectorService;
@@ -80,7 +80,7 @@ public class ConnectorOrchestrationService {
   }
 
   private void throwIfEnterpriseLicenseNotActive() throws LicenseRestrictionException {
-    if (!eeService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
+    if (!enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       throw new LicenseRestrictionException("Manage instance is enterprise edition");
     }
   }

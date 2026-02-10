@@ -9,7 +9,7 @@ import static java.util.Optional.ofNullable;
 
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.atomic_testing.form.AttackPatternSimple;
 import io.openaev.rest.atomic_testing.form.StatusPayloadOutput;
 import io.openaev.rest.document.form.RelatedEntityOutput;
@@ -40,7 +40,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class PayloadMapper {
 
-  private final Ee eeService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final ApplicationContext context;
 
@@ -275,7 +275,7 @@ public class PayloadMapper {
    */
   public List<DetectionRemediationOutput> toDetectionRemediationOutputs(
       List<DetectionRemediation> detectionRemediations) {
-    if (eeService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
+    if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return detectionRemediations.stream()
           .map(PayloadMapper::toDetectionRemediationOutput)
           .toList();
