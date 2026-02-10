@@ -25,7 +25,6 @@ public enum CommonProperties {
   VALUE("value"),
   NAME("name"),
   DESCRIPTION("description"),
-  FILES("files"),
   MIME_TYPE("mime_type");
 
   private final String value;

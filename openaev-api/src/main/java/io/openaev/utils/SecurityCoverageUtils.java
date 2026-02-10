@@ -14,13 +14,20 @@ import io.openaev.stix.objects.ObjectBase;
 import io.openaev.stix.objects.constants.CommonProperties;
 import io.openaev.stix.objects.constants.ExtendedProperties;
 import io.openaev.stix.objects.constants.ObjectTypes;
+import io.openaev.stix.types.BaseType;
 import io.openaev.stix.types.Dictionary;
+import io.openaev.utils.constants.StixConstants;
 import jakarta.validation.constraints.NotBlank;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.HttpURLConnection;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.coyote.BadRequestException;
@@ -45,8 +52,13 @@ import org.springframework.stereotype.Component;
 public class SecurityCoverageUtils {
 
   private static final String DOMAIN_NAME = "Domain-Name";
-  private static final String ARTIFACT = "Artifact";
   private final TagService tagService;
+
+  /** Connection timeout in milliseconds for file downloads (10 seconds). */
+  private static final int CONNECTION_TIMEOUT_MS = 10000;
+
+  /** Read timeout in milliseconds for file downloads (30 seconds). */
+  private static final int READ_TIMEOUT_MS = 30000;
 
   @NotBlank
   @Value("${openaev.xtm.opencti.url:#{null}}")
@@ -122,17 +134,17 @@ public class SecurityCoverageUtils {
           && obj.hasExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION)) {
         Dictionary extensionObj =
             (Dictionary) obj.getExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION);
-        if (ARTIFACT.equals(extensionObj.get(CommonProperties.TYPE.toString()))
-            && extensionObj.has(CommonProperties.FILES.toString())) {
+        if (extensionObj.has(StixConstants.FILES)) {
 
           TagCreateInput tagCreateInput = new TagCreateInput();
           tagCreateInput.setName(Tag.OPENCTI_TAG_NAME);
           Tag openCtiTag = tagService.upsertTag(tagCreateInput);
           String openCitTagId = openCtiTag.getId();
           List<String> documentIds = new ArrayList<>();
+          String url = octiUrl.endsWith("/") ? octiUrl.substring(0, octiUrl.length() - 1) : octiUrl;
 
-          ((Collection<Dictionary>) extensionObj.get(CommonProperties.FILES.toString()))
-              .stream()
+          io.openaev.stix.types.List<Dictionary> filesList = (io.openaev.stix.types.List<Dictionary>) extensionObj.get(StixConstants.FILES);
+          filesList.getValue().stream()
                   .filter(
                       file ->
                           file.has(CommonProperties.NAME.toString())
@@ -148,34 +160,39 @@ public class SecurityCoverageUtils {
                             (String) file.get(CommonProperties.MIME_TYPE.toString()).getValue();
 
                         try {
-                          URL url = new URL(octiUrl + fileUri);
-                          HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-                          connection.setRequestMethod("GET");
-                          connection.setConnectTimeout(5000);
-                          connection.setReadTimeout(5000);
 
-                          int responseCode = connection.getResponseCode();
-                          if (responseCode == HttpURLConnection.HTTP_OK) {
-                            DocumentCreateInput documentCreateInput = new DocumentCreateInput();
-                            documentCreateInput.setDescription(fileName);
-                            documentCreateInput.setTagIds(new ArrayList<>(Set.of(openCitTagId)));
+                          HttpURLConnection connection = (HttpURLConnection) new URL(url + fileUri).openConnection();
+                          connection.setConnectTimeout(CONNECTION_TIMEOUT_MS);
+                          connection.setReadTimeout(READ_TIMEOUT_MS);
 
-                            Document document =
-                                documentService.upsert(
-                                    fileName,
-                                    connection.getInputStream(),
-                                    connection.getContentLengthLong(),
-                                    fileMymeType,
-                                    documentCreateInput);
-                            documentIds.add(document.getId());
-                          } else {
-                            throw new Exception("Erreur HTTP: " + responseCode);
+                          if (connection instanceof HttpURLConnection httpConnection) {
+                              httpConnection.setRequestMethod("GET");
                           }
+
+                          try (InputStream inputStream = connection.getInputStream()) {
+                              DocumentCreateInput documentCreateInput = new DocumentCreateInput();
+                              documentCreateInput.setDescription(fileName);
+                              documentCreateInput.setTagIds(new ArrayList<>(Set.of(openCitTagId)));
+
+                              Document document =
+                                      documentService.upsert(
+                                              fileName,
+                                              inputStream,
+                                              connection.getContentLengthLong(),
+                                              fileMymeType,
+                                              documentCreateInput);
+                              documentIds.add(document.getId());
+                          }
+                        } catch (IOException e) {
+                            throw new RuntimeException("Error while downloading file "  + fileName + " from octi URL " + url + fileUri, e);
+                        } catch (URISyntaxException e) {
+                            throw new RuntimeException("Invalid file URL: " + url + fileUri, e);
                         } catch (Exception e) {
-                          log.error("Erreur HTTP: " + e.getMessage());
+                            throw new RuntimeException("Error during management of file " + fileName + " from URL " + url + fileUri, e);
                         }
                       });
             manageAndAddStixRefToExternalRefs(stixToRef, obj, documentIds);
+            continue;
         }
       }
 
