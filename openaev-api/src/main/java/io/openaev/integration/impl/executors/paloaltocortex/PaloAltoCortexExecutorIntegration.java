@@ -7,7 +7,7 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Executor;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.exception.ExecutorException;
 import io.openaev.executors.paloaltocortex.client.PaloAltoCortexExecutorClient;
@@ -35,7 +35,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 public class PaloAltoCortexExecutorIntegration extends Integration {
   public static final String PALOALTOCORTEX_EXECUTOR_DEFAULT_ID =
       "2177ceeb-a9e2-4a33-bf30-1bf7c47f150a";
-  public static final String PALOALTOCORTEX_EXECUTOR_TYPE = "openaev_paloaltocortex";
+  public static final String PALOALTOCORTEX_EXECUTOR_TYPE = "openaev_paloaltocortex_executor";
   public static final String PALOALTOCORTEX_EXECUTOR_NAME = "PaloAltoCortex";
   private static final String PALOALTOCORTEX_EXECUTOR_DOCUMENTATION_LINK =
       "https://docs.openaev.io/latest/deployment/ecosystem/executors/#paloaltocortex-agent";
@@ -53,7 +53,7 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
   private final EndpointService endpointService;
   private final AssetGroupService assetGroupService;
   private final ExecutorService executorService;
-  private final Ee eeService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final ConnectorInstanceService connectorInstanceService;
@@ -69,7 +69,7 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
       EndpointService endpointService,
       AgentService agentService,
       AssetGroupService assetGroupService,
-      Ee eeService,
+      EnterpriseEditionService enterpriseEditionService,
       LicenseCacheManager licenseCacheManager,
       ComponentRequestEngine componentRequestEngine,
       ExecutorService executorService,
@@ -80,7 +80,7 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
     this.endpointService = endpointService;
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;
-    this.eeService = eeService;
+    this.enterpriseEditionService = enterpriseEditionService;
     this.licenseCacheManager = licenseCacheManager;
     this.executorService = executorService;
     this.taskScheduler = taskScheduler;
@@ -123,7 +123,7 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
     client = new PaloAltoCortexExecutorClient(config, httpClientFactory);
     paloAltoCortexExecutorContextService =
         new PaloAltoCortexExecutorContextService(
-            config, client, eeService, licenseCacheManager, executorService);
+            config, client, enterpriseEditionService, licenseCacheManager, executorService);
     paloAltoCortexExecutorService =
         new PaloAltoCortexExecutorService(
             executor, client, config, endpointService, agentService, assetGroupService);
