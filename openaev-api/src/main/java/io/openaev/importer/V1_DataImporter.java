@@ -16,12 +16,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.annotations.VisibleForTesting;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Scenario.SEVERITY;
 import io.openaev.database.repository.*;
 import io.openaev.injectors.challenge.model.ChallengeContent;
 import io.openaev.injectors.channel.model.ChannelContent;
 import io.openaev.rest.domain.DomainService;
+import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exercise.exports.VariableWithValueMixin;
 import io.openaev.rest.inject.form.InjectDependencyInput;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
@@ -223,7 +225,8 @@ public class V1_DataImporter implements Importer {
   }
 
   // -- DOMAINS --
-  private List<String> importDomains(
+  @VisibleForTesting
+  protected List<String> importDomains(
       JsonNode importNode, String prefix, Map<String, Base> baseIds) {
     List<String> domainIds = new ArrayList<>();
     resolveJsonElements(importNode, prefix + "domains")
@@ -254,6 +257,15 @@ public class V1_DataImporter implements Importer {
                 domainIds.add(createdDomain.getId());
               }
             });
+
+    // if no domain found we marked it as "TOCLASSIFY"
+    if (domainIds.isEmpty()) {
+      domainIds.add(
+          domainService
+              .findOptionalByName(PresetDomain.TOCLASSIFY.getName())
+              .orElseThrow()
+              .getId());
+    }
 
     return domainIds;
   }
