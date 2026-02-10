@@ -77,6 +77,20 @@ public class V4_69__Rename_content_attribute extends BaseJavaMigration {
                         WHERE field->>'key' = 'obfuscator'
                     );
                 """);
+
+      stmt.execute(
+          """
+        UPDATE injects
+        SET inject_content = jsonb_set(
+                inject_content::jsonb,
+                '{obfuscator}',
+                '"plain-text"'::jsonb
+                             )
+        FROM injectors_contracts
+                 LEFT JOIN payloads ON injectors_contracts.injector_contract_payload = payloads.payload_id
+        WHERE injects.inject_injector_contract = injectors_contracts.injector_contract_id
+          AND payloads.command_executor = 'cmd';
+      """);
     }
   }
 }

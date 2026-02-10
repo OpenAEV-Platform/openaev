@@ -15,29 +15,26 @@ public class OpenAEVObfuscationMap {
 
   @Getter
   public static class OpenAEVObfuscation {
-    private final String information;
     private final BiFunction<String, String, String> obfuscate;
 
-    public OpenAEVObfuscation(String information, BiFunction<String, String, String> obfuscate) {
-      this.information = information;
+    public OpenAEVObfuscation(BiFunction<String, String, String> obfuscate) {
       this.obfuscate = obfuscate;
     }
   }
 
   public OpenAEVObfuscationMap(String executor) {
     this.obfuscationMap = new HashMap<>();
-    this.registerObfuscation("plain-text", "", this::obfuscatePlainText);
+    this.registerObfuscation("plain-text", this::obfuscatePlainText);
     if (!CMD.equals(executor)) {
-      this.registerObfuscation("base64", "", this::obfuscateBase64);
+      this.registerObfuscation("base64", this::obfuscateBase64);
     }
   }
 
-  public void registerObfuscation(
-      String key, String information, BiFunction<String, String, String> function) {
+  public void registerObfuscation(String key, BiFunction<String, String, String> function) {
     if (key == null || function == null) {
       throw new IllegalArgumentException("Key and function must not be null.");
     }
-    obfuscationMap.put(key, new OpenAEVObfuscation(information, function));
+    obfuscationMap.put(key, new OpenAEVObfuscation(function));
   }
 
   public String executeObfuscation(String key, String command, String executor) {
@@ -51,7 +48,7 @@ public class OpenAEVObfuscationMap {
   public Map<String, String> getAllObfuscationInfo() {
     Map<String, String> keyInfoMap = new HashMap<>();
     for (Map.Entry<String, OpenAEVObfuscation> entry : obfuscationMap.entrySet()) {
-      keyInfoMap.put(entry.getKey(), entry.getValue().getInformation());
+      keyInfoMap.put(entry.getKey(), "");
     }
     return keyInfoMap;
   }

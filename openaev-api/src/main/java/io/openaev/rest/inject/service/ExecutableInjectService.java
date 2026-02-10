@@ -144,7 +144,7 @@ public class ExecutableInjectService {
     return result.toString();
   }
 
-  private static String formatMultilineCommand(String command) {
+  public static String formatMultilineCommand(String command) {
     String[] lines = command.split("\n");
     StringBuilder formattedCommand = new StringBuilder();
 
