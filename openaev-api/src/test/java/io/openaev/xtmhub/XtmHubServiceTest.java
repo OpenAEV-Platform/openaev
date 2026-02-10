@@ -1,6 +1,6 @@
 package io.openaev.xtmhub;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import io.openaev.ee.License;
