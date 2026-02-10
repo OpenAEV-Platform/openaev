@@ -33,7 +33,7 @@ const PayloadForm = ({
   initialValues = {
     payload_id: '',
     // @ts-expect-error set payload type to null to get a controlled component from the start
-    payload_type: null,
+    payload_type: '',
     payload_name: '',
     payload_platforms: [],
     payload_expectations: ['PREVENTION', 'DETECTION'],
@@ -63,33 +63,34 @@ const PayloadForm = ({
     setEEFeatureDetectedInfo,
   } = useEnterpriseEdition();
   const { snapshot } = useSnapshotRemediation();
+  type PayloadCreateInput = z.infer<typeof schema>;
 
   const regexGroupObject = z.object({
     ...editing && { regex_group_id: z.string().optional() },
-    regex_group_field: z.string().min(1, { message: t('Should not be empty') }),
-    regex_group_index_values: z.string().min(1, { message: t('Should not be empty') }),
+    regex_group_field: z.string().min(1, { error: t('Should not be empty') }),
+    regex_group_index_values: z.string().min(1, { error: t('Should not be empty') }),
   });
 
   const contractOutputElementObject = z.object({
     ...editing && { contract_output_element_id: z.string().optional() },
     contract_output_element_is_finding: z.boolean(),
-    contract_output_element_name: z.string().min(1, { message: t('Should not be empty') }),
-    contract_output_element_key: z.string().min(1, { message: t('Should not be empty') }),
-    contract_output_element_type: z.enum(['text', 'number', 'port', 'portscan', 'ipv4', 'ipv6', 'credentials', 'cve'], { message: t('Should not be empty') }),
+    contract_output_element_name: z.string().min(1, { error: t('Should not be empty') }),
+    contract_output_element_key: z.string().min(1, { error: t('Should not be empty') }),
+    contract_output_element_type: z.enum(['text', 'number', 'port', 'portscan', 'ipv4', 'ipv6', 'credentials', 'cve'], { error: t('Should not be empty') }),
     contract_output_element_tags: z.string().array().optional(),
-    contract_output_element_rule: z.string().min(1, { message: t('Should not be empty') }),
+    contract_output_element_rule: z.string().min(1, { error: t('Should not be empty') }),
     contract_output_element_regex_groups: z.array(regexGroupObject),
   });
   const outputParserObject = z.object({
     ...editing && { output_parser_id: z.string().optional() },
-    output_parser_mode: z.enum(['STDOUT', 'STDERR', 'READ_FILE'], { message: t('Should not be empty') }),
-    output_parser_type: z.enum(['REGEX'], { message: t('Should not be empty') }),
+    output_parser_mode: z.enum(['STDOUT', 'STDERR', 'READ_FILE'], { error: t('Should not be empty') }),
+    output_parser_type: z.enum(['REGEX'], { error: t('Should not be empty') }),
     output_parser_contract_output_elements: z.array(contractOutputElementObject),
   });
 
   const payloadPrerequisiteZodObject = z.object({
-    executor: z.string().min(1, { message: t('Should not be empty') }),
-    get_command: z.string().min(1, { message: t('Should not be empty') }),
+    executor: z.string().min(1, { error: t('Should not be empty') }),
+    get_command: z.string().min(1, { error: t('Should not be empty') }),
     description: z.string().optional().nullable(),
     check_command: z.string().optional(),
   });
@@ -103,7 +104,7 @@ const PayloadForm = ({
   }).refine(
     data => data.type !== 'targeted-asset' || !!data.separator,
     {
-      message: t('Should not be empty'),
+      error: t('Should not be empty'),
       path: ['separator'],
     },
   );
@@ -113,50 +114,49 @@ const PayloadForm = ({
     domain_name: z.string(),
     domain_color: z.string(),
   });
-
   const baseSchema = {
-    payload_name: z.string().min(1, { message: t('Should not be empty') }).describe('General-tab'),
+    payload_name: z.string().min(1, { error: t('Should not be empty') }).describe('General-tab'),
     payload_description: z.string().optional().describe('General-tab'),
     payload_attack_patterns: z.string().array().optional(),
     payload_tags: z.string().array().optional(),
     payload_domains: z.array(payloadDomainZodObject).refine(arr => arr.length > 0, t('Should not be empty')).describe('General-tab'),
     payload_expectations: z.enum(['PREVENTION', 'DETECTION', 'VULNERABILITY', 'MANUAL', 'TEXT', 'CHALLENGE', 'DOCUMENT', 'ARTICLE']).array().optional(),
-    payload_platforms: z.enum(['Linux', 'Windows', 'MacOS', 'Container', 'Service', 'Generic', 'Internal', 'Unknown']).array().min(1, { message: t('Should not be empty') }).describe('Commands-tab'),
-    payload_execution_arch: z.enum(['x86_64', 'arm64', 'ALL_ARCHITECTURES'], { message: t('Should not be empty') }).describe('Commands-tab'),
+    payload_platforms: z.enum(['Linux', 'Windows', 'MacOS', 'Container', 'Service', 'Generic', 'Internal', 'Unknown']).array().min(1, { error: t('Should not be empty') }).describe('Commands-tab'),
+    payload_execution_arch: z.enum(['x86_64', 'arm64', 'ALL_ARCHITECTURES'], { error: t('Should not be empty') }).describe('Commands-tab'),
     payload_cleanup_command: z.string().optional().describe('Commands-tab'),
     payload_cleanup_executor: z.string().optional(),
     payload_arguments: z.array(payloadArgumentZodObject).optional().describe('Commands-tab'),
     payload_prerequisites: z.array(payloadPrerequisiteZodObject).optional().describe('Commands-tab'),
     payload_output_parsers: z.array(outputParserObject).optional().describe('Output-tab'),
-    remediations: z.any(),
+    remediations: z.any().optional(),
   };
 
   const commandSchema = z.object({
     ...baseSchema,
     payload_type: z.literal('Command').describe('Commands-tab'),
-    command_executor: z.string().min(1, { message: 'Should not be empty' }).describe('Commands-tab'),
-    command_content: z.string().min(1, { message: 'Should not be empty' }).describe('Commands-tab'),
+    command_executor: z.string().min(1, { error: 'Should not be empty' }).describe('Commands-tab'),
+    command_content: z.string().min(1, { error: 'Should not be empty' }).describe('Commands-tab'),
   });
   const executableSchema = z.object({
     ...baseSchema,
     payload_type: z.literal('Executable').describe('Commands-tab'),
-    executable_file: z.string().min(1, { message: t('Should not be empty') }).describe('Commands-tab'),
+    executable_file: z.string().min(1, { error: t('Should not be empty') }).describe('Commands-tab'),
   });
   const fileDropSchema = z.object({
     ...baseSchema,
     payload_type: z.literal('FileDrop').describe('Commands-tab'),
-    file_drop_file: z.string().min(1, { message: t('Should not be empty') }).describe('Commands-tab'),
+    file_drop_file: z.string().min(1, { error: t('Should not be empty') }).describe('Commands-tab'),
   });
   const dnsResolutionSchema = z.object({
     ...baseSchema,
     payload_type: z.literal('DnsResolution').describe('Commands-tab'),
-    dns_resolution_hostname: z.string().min(1, { message: t('Should not be empty') }).describe('Commands-tab'),
+    dns_resolution_hostname: z.string().min(1, { error: t('Should not be empty') }).describe('Commands-tab'),
   });
 
   const schema = z.discriminatedUnion('payload_type', [commandSchema, executableSchema, fileDropSchema, dnsResolutionSchema])
     .refine(data => !(data.payload_cleanup_command && !data.payload_cleanup_executor), {
-      message: 'Should not be empty',
       path: ['payload_cleanup_executor'],
+      error: 'Should not be empty',
     });
 
   const methods = useForm<PayloadCreateInput>({
@@ -222,7 +222,6 @@ const PayloadForm = ({
 
     handleChangeTab(tabName);
   };
-
   const handleSubmitWithoutDefault = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const isValid = await methods.trigger();

@@ -3,10 +3,10 @@ package io.openaev.rest.inject;
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
+import co.elastic.clients.util.VisibleForTesting;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.annotations.VisibleForTesting;
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RBAC;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.OpenAEVConfig;
@@ -119,14 +119,17 @@ public class InjectApi extends RestBehavior {
   // -- INJECTS --
 
   @GetMapping(INJECT_URI + "/{injectId}")
-  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.INJECT)
   public Inject inject(@PathVariable @NotBlank final String injectId) {
     return this.injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
   }
 
   @LogExecutionTime
   @PostMapping(INJECT_URI + "/search/export")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
   public void injectsExportFromSearch(
       @RequestBody @Valid InjectExportFromSearchRequestInput input, HttpServletResponse response)
       throws IOException {
@@ -149,7 +152,7 @@ public class InjectApi extends RestBehavior {
   }
 
   @PostMapping(INJECT_URI + "/export")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
   public void injectsExport(
       @RequestBody @Valid final InjectExportRequestInput injectExportRequestInput,
       HttpServletResponse response)
@@ -189,7 +192,10 @@ public class InjectApi extends RestBehavior {
         @ApiResponse(responseCode = "404", description = "The inject was not found")
       })
   @PostMapping(INJECT_URI + "/{injectId}/inject_export")
-  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.INJECT)
   public void injectsIndividualExport(
       @PathVariable @NotBlank final String injectId,
       @RequestBody @Valid
@@ -238,7 +244,10 @@ public class InjectApi extends RestBehavior {
       })
   @LogExecutionTime
   @PostMapping(path = INJECT_URI + "/{injectId}/targets/{targetType}/search")
-  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.INJECT)
   public Page<InjectTarget> injectTargetSearch(
       @PathVariable String injectId,
       @PathVariable String targetType,
@@ -274,7 +283,10 @@ public class InjectApi extends RestBehavior {
       })
   @LogExecutionTime
   @GetMapping(path = INJECT_URI + "/{injectId}/targets/{targetType}/options")
-  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.INJECT)
   public List<FilterUtilsJpa.Option> targetOptions(
       @PathVariable String injectId,
       @PathVariable String targetType,
@@ -309,7 +321,7 @@ public class InjectApi extends RestBehavior {
       })
   @LogExecutionTime
   @PostMapping(path = INJECT_URI + "/targets/{targetType}/options")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public List<FilterUtilsJpa.Option> targetOptionsById(
       @PathVariable String targetType, @RequestBody final List<String> ids) {
     TargetType injectTargetTypeEnum;
@@ -323,7 +335,7 @@ public class InjectApi extends RestBehavior {
   }
 
   @PostMapping(INJECT_URI + "/execution/reception/{injectId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
@@ -336,7 +348,7 @@ public class InjectApi extends RestBehavior {
   }
 
   @PostMapping(INJECT_URI + "/execution/callback/{injectId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
@@ -347,7 +359,7 @@ public class InjectApi extends RestBehavior {
   }
 
   @PostMapping(INJECT_URI + "/execution/{agentId}/callback/{injectId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
@@ -391,7 +403,10 @@ public class InjectApi extends RestBehavior {
   }
 
   @GetMapping(INJECT_URI + "/{injectId}/{agentId}/executable-payload")
-  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.INJECT)
   @Operation(
       summary = "Get the payload ready to be executed",
       description =
@@ -406,7 +421,7 @@ public class InjectApi extends RestBehavior {
 
   @Transactional(rollbackFor = Exception.class)
   @PutMapping(INJECT_URI + "/{exerciseId}/{injectId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -445,7 +460,7 @@ public class InjectApi extends RestBehavior {
   }
 
   @GetMapping(INJECT_URI + "/next")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
   public List<Inject> nextInjectsToExecute(@RequestParam Optional<Integer> size) {
     return injectRepository.findAll(InjectSpecification.next()).stream()
         // Keep only injects visible by the user
@@ -472,7 +487,7 @@ public class InjectApi extends RestBehavior {
       tags = {"Injects"})
   @Transactional(rollbackFor = Exception.class)
   @PutMapping(INJECT_URI)
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.INJECT)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.INJECT)
   @LogExecutionTime
   public List<Inject> bulkUpdateInject(@RequestBody @Valid final InjectBulkUpdateInputs input) {
 
@@ -489,7 +504,7 @@ public class InjectApi extends RestBehavior {
       tags = {"injects-api"})
   @Transactional(rollbackFor = Exception.class)
   @DeleteMapping(INJECT_URI)
-  @RBAC(actionPerformed = Action.DELETE, resourceType = ResourceType.INJECT)
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.INJECT)
   @LogExecutionTime
   public List<Inject> bulkDelete(@RequestBody @Valid final InjectBulkProcessingInput input) {
 
@@ -505,7 +520,7 @@ public class InjectApi extends RestBehavior {
   // -- OPTION --
 
   @GetMapping(INJECT_URI + "/findings/options")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public List<FilterUtilsJpa.Option> optionsByTitleLinkedToFindings(
       @RequestParam(required = false) final String searchText,
       @RequestParam(required = false) final String sourceId) {
@@ -514,7 +529,7 @@ public class InjectApi extends RestBehavior {
   }
 
   @PostMapping(INJECT_URI + "/options")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.injectRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getTitle()))
@@ -550,7 +565,10 @@ public class InjectApi extends RestBehavior {
       description =
           "Get ExecutionTraces from a specific inject and target (asset, agent, team, player)")
   @GetMapping(INJECT_URI + "/execution-traces")
-  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.INJECT)
   @LogExecutionTime
   public List<ExecutionTraceOutput> getInjectTracesFromInjectAndTarget(
       @RequestParam String injectId,
@@ -562,7 +580,10 @@ public class InjectApi extends RestBehavior {
 
   @Operation(description = "Get InjectStatus with global execution traces")
   @GetMapping(INJECT_URI + "/status")
-  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.INJECT)
   @LogExecutionTime
   public InjectStatusOutput getInjectStatusWithGlobalExecutionTraces(
       @RequestParam String injectId) {
@@ -571,7 +592,10 @@ public class InjectApi extends RestBehavior {
 
   @Operation(description = "Get detection remediation by inject based on the payload definition")
   @GetMapping(INJECT_URI + "/detection-remediations/{injectId}")
-  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.INJECT)
   public List<DetectionRemediationOutput> getPayloadDetectionRemediations(
       @PathVariable String injectId) {
     return payloadMapper.toDetectionRemediationOutputs(
@@ -580,7 +604,10 @@ public class InjectApi extends RestBehavior {
 
   @Operation(description = "Get documents by inject and payload id")
   @GetMapping(INJECT_URI + "/{injectId}/payload/{payloadId}/documents")
-  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.INJECT)
   public List<RawDocument> getPayloadDocumentsByInjectIdAndPayloadId(
       @PathVariable String injectId, @PathVariable String payloadId) {
     Payload payload = injectService.getPayloadByInjectId(injectId);

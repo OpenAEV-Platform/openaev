@@ -247,6 +247,22 @@ export interface ArticleUpdateInput {
   article_shares?: number;
 }
 
+export interface Asset {
+  /** @format date-time */
+  asset_created_at: string;
+  asset_description?: string;
+  asset_external_reference?: string;
+  /** @minLength 1 */
+  asset_id: string;
+  /** @minLength 1 */
+  asset_name: string;
+  asset_tags?: string[];
+  asset_type?: string;
+  /** @format date-time */
+  asset_updated_at: string;
+  listened?: boolean;
+}
+
 export interface AssetAgentJob {
   asset_agent_agent?: string;
   /** @deprecated */
@@ -449,9 +465,7 @@ export interface AttackPatternUpsertInput {
 export type AverageConfiguration = UtilRequiredKeys<
   WidgetConfiguration,
   "series" | "widget_configuration_type" | "time_range" | "date_attribute"
-> & {
-  field: Record<string, string>;
-};
+>;
 
 interface BaseEsBase {
   /** @format date-time */
@@ -1385,7 +1399,10 @@ export interface CreateExerciseInput {
   exercise_main_focus?: string;
   exercise_message_footer?: string;
   exercise_message_header?: string;
-  /** @minLength 1 */
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
   exercise_name: string;
   exercise_severity?: string;
   /** @format date-time */
@@ -3171,7 +3188,7 @@ export interface HealthCheck {
    */
   creation_date: string;
   /** Detail of the check failure */
-  detail: "SERVICE_UNAVAILABLE" | "NOT_READY" | "EMPTY";
+  detail: "SERVICE_UNAVAILABLE" | "NOT_READY" | "EMPTY" | "MANDATORY_CONTENT";
   /** Define if it's an error or a warning */
   status: "ERROR" | "WARNING";
   /** Type of the check, could be a service, an attribute, etc */
@@ -3183,7 +3200,15 @@ export interface HealthCheck {
     | "INJECT"
     | "TEAMS"
     | "NMAP"
-    | "NUCLEI";
+    | "NUCLEI"
+    | "INJECTOR_CONTRACT"
+    | "ASSETS"
+    | "ASSET_GROUPS"
+    | "SUBJECT"
+    | "BODY"
+    | "OPTIONAL_ARGS"
+    | "MESSAGE"
+    | "UNKNOWN";
 }
 
 export interface ImportMapper {
@@ -3242,10 +3267,11 @@ export interface ImportPostSummary {
 
 export interface ImportTestSummary {
   import_message?: ImportMessage[];
-  /** @deprecated */
   injects?: InjectOutput[];
   /** @format int32 */
   total_injects?: number;
+  /** @format int32 */
+  total_rows_analysed?: number;
 }
 
 export interface Inject {
@@ -3285,7 +3311,6 @@ export interface Inject {
   inject_id: string;
   inject_injector_contract?: InjectorContract;
   inject_kill_chain_phases?: KillChainPhase[];
-  inject_ready?: boolean;
   inject_scenario?: string;
   /** @format date-time */
   inject_sent_at?: string;
@@ -3372,6 +3397,13 @@ export interface InjectDependencyIdInput {
 export interface InjectDependencyInput {
   dependency_condition?: InjectDependencyCondition;
   dependency_relationship?: InjectDependencyIdInput;
+}
+
+export interface InjectDocument {
+  document_attached?: boolean;
+  document_id?: string;
+  document_name?: string;
+  inject_id?: string;
 }
 
 export interface InjectDocumentInput {
@@ -3633,8 +3665,24 @@ export interface InjectInput {
 }
 
 export interface InjectOutput {
-  inject_asset_groups?: string[];
-  inject_assets?: string[];
+  /** Footer of the inject */
+  footer?: string;
+  /** Header of the inject */
+  header?: string;
+  inject_asset_groups?: AssetGroup[];
+  inject_assets?: Asset[];
+  inject_attack_patterns?: AttackPattern[];
+  inject_communications?: Communication[];
+  /**
+   * Communications not ack count of the inject
+   * @format int64
+   */
+  inject_communications_not_ack_number?: number;
+  /**
+   * Communications count of the inject
+   * @format int64
+   */
+  inject_communications_number?: number;
   /** Content of the inject */
   inject_content?: object;
   /**
@@ -3643,16 +3691,23 @@ export interface InjectOutput {
    */
   inject_contract_domains?: Domain[];
   /**
+   * Date of the inject
+   * @format date-time
+   */
+  inject_date?: string;
+  /**
    * Depend duration of the inject
    * @format int64
    * @min 0
    */
   inject_depends_duration: number;
   inject_depends_on?: InjectDependency[];
+  inject_documents?: InjectDocument[];
   /** Enabled state of the inject */
   inject_enabled?: boolean;
   /** Simulation ID of the inject */
   inject_exercise?: string;
+  inject_expectations?: InjectExpectation[];
   inject_healthchecks?: HealthCheck[];
   /**
    * ID of the inject
@@ -3661,13 +3716,19 @@ export interface InjectOutput {
   inject_id: string;
   /** Injector contract of the inject */
   inject_injector_contract?: InjectorContract;
+  inject_kill_chain_phases?: KillChainPhase[];
   /** Ready state of the inject */
   inject_ready?: boolean;
   /** Scenario ID of the inject */
   inject_scenario?: string;
+  /**
+   * Sent date of the inject
+   * @format date-time
+   */
+  inject_sent_at?: string;
   /** @uniqueItems true */
-  inject_tags?: string[];
-  inject_teams?: string[];
+  inject_tags?: Tag[];
+  inject_teams?: Team[];
   /** Testable state of the inject */
   inject_testable?: boolean;
   /**
@@ -3677,7 +3738,13 @@ export interface InjectOutput {
   inject_title: string;
   /** Type of the inject */
   inject_type?: string;
-  ready?: boolean;
+  /**
+   * Count of users targeted by the inject
+   * @format int64
+   */
+  inject_users_number?: number;
+  /** Stream listener value of the inject */
+  listened?: boolean;
 }
 
 export interface InjectReceptionInput {
@@ -3938,7 +4005,7 @@ export interface InjectorContractAddInput {
   /** @minLength 1 */
   contract_content: string;
   /** @uniqueItems true */
-  contract_domains: Domain[];
+  contract_domains: InjectorContractDomainDTO[];
   /** @minLength 1 */
   contract_id: string;
   contract_labels?: Record<string, string>;
@@ -3977,6 +4044,15 @@ export interface InjectorContractDomainCountOutput {
    * @example "Endpoints"
    */
   domain: string;
+}
+
+export interface InjectorContractDomainDTO {
+  /** @minLength 1 */
+  domain_color: string;
+  /** @minLength 1 */
+  domain_id: string;
+  /** @minLength 1 */
+  domain_name: string;
 }
 
 export interface InjectorContractFullOutput {
@@ -4032,7 +4108,7 @@ export interface InjectorContractInput {
   /** @minLength 1 */
   contract_content: string;
   /** @uniqueItems true */
-  contract_domains?: Domain[];
+  contract_domains?: InjectorContractDomainDTO[];
   /** @minLength 1 */
   contract_id: string;
   contract_labels?: Record<string, string>;
@@ -4098,7 +4174,7 @@ export interface InjectorContractUpdateInput {
   /** @minLength 1 */
   contract_content: string;
   /** @uniqueItems true */
-  contract_domains?: Domain[];
+  contract_domains?: InjectorContractDomainDTO[];
   contract_labels?: Record<string, string>;
   contract_manual?: boolean;
   contract_platforms?: string[];
@@ -5579,7 +5655,7 @@ export interface PayloadUpsertInput {
    * Update list of domains
    * @uniqueItems true
    */
-  payload_domains: Domain[];
+  payload_domains: InjectorContractDomainDTO[];
   payload_elevation_required?: boolean;
   payload_execution_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (
@@ -5644,8 +5720,10 @@ export interface PlatformSettings {
   /** List of enabled dev features */
   enabled_dev_features?: (
     | "_RESERVED"
+    | "FEATURE_FLAG_ALL"
     | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
     | "LEGACY_INGESTION_EXECUTION_TRACE"
+    | "MULTI_TENANCY"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -7097,7 +7175,10 @@ export interface UpdateExerciseInput {
   exercise_main_focus?: string;
   exercise_message_footer?: string;
   exercise_message_header?: string;
-  /** @minLength 1 */
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
   exercise_name: string;
   exercise_severity?: string;
   exercise_subtitle?: string;

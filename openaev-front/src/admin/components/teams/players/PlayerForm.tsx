@@ -32,7 +32,7 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
   const ability = useContext(AbilityContext);
 
   const playerFormSchemaValidation = z.object({
-    user_email: z.string().email(t('Should be a valid email address')),
+    user_email: z.email(t('Should be a valid email address')),
     user_phone: z
       .string()
       .regex(

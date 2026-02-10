@@ -2,7 +2,7 @@ package io.openaev.rest.scenario;
 
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ImportMapper;
 import io.openaev.database.model.ResourceType;
@@ -11,7 +11,6 @@ import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.UnprocessableContentException;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.form.InjectsImportInput;
 import io.openaev.rest.scenario.response.ImportTestSummary;
 import io.openaev.service.InjectImportService;
@@ -33,16 +32,15 @@ import org.springframework.web.multipart.MultipartFile;
 @Slf4j
 public class ScenarioImportApi extends RestBehavior {
 
-  private final InjectService injectService;
   private final InjectImportService injectImportService;
   private final ImportMapperRepository importMapperRepository;
   private final ScenarioService scenarioService;
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/xls/{importId}/dry")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.SIMULATION)
+      resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackOn = Exception.class)
   @Operation(summary = "Test the import of injects from an xls file")
   public ImportTestSummary dryRunImportXLSFile(
@@ -66,10 +64,10 @@ public class ScenarioImportApi extends RestBehavior {
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/xls/{importId}/import")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.SIMULATION)
+      resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackOn = Exception.class)
   @Operation(summary = "Validate and import injects from an xls file")
   public ImportTestSummary validateImportXLSFile(
@@ -102,7 +100,7 @@ public class ScenarioImportApi extends RestBehavior {
   @PostMapping(
       path = SCENARIO_URI + "/{scenarioId}/injects/import",
       consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)

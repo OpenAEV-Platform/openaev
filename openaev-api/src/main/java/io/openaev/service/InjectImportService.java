@@ -1,6 +1,9 @@
 package io.openaev.service;
 
 import static io.openaev.config.SessionHelper.currentUser;
+import static io.openaev.utils.SecurityUtils.getSanitizedExtension;
+import static io.openaev.utils.SecurityUtils.validatePathTraversal;
+import static io.openaev.utils.StringUtils.isValidUUID;
 import static java.util.Collections.emptyList;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -11,15 +14,16 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.response.ImportMessage;
 import io.openaev.rest.scenario.response.ImportPostSummary;
 import io.openaev.rest.scenario.response.ImportTestSummary;
-import io.openaev.service.utils.InjectImportUtils;
+import io.openaev.utils.InjectImportUtils;
 import io.openaev.utils.InjectUtils;
+import io.openaev.utils.mapper.InjectMapper;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.*;
@@ -31,16 +35,17 @@ import java.time.temporal.Temporal;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FilenameUtils;
 import org.apache.logging.log4j.util.Strings;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellReference;
@@ -67,20 +72,22 @@ public class InjectImportService {
   final Pattern relativeHourPattern = Pattern.compile("^.*[HT]([+\\-]?[0-9]*).*$");
   final Pattern relativeMinutePattern = Pattern.compile("^.*[M]([+\\-]?[0-9]*).*$");
 
-  final String pathSeparator = FileSystems.getDefault().getSeparator();
+  public static final String BASE_DIR = System.getProperty("java.io.tmpdir");
+  static final int FILE_STORAGE_DURATION = 60;
 
-  final int FILE_STORAGE_DURATION = 60;
+  private final InjectMapper injectMapper;
+  private final InjectService injectService;
 
   /**
-   * Store an xls file for ulterior import. The file will be deleted on exit.
+   * Store a xls file for ulterior import. The file will be deleted on exit.
    *
-   * @param file
-   * @return
+   * @param file MultipartFile
+   * @return ImportPostSummary containing the importId and the list of available sheets
    */
   public ImportPostSummary storeXlsFileForImport(MultipartFile file) {
     ImportPostSummary result = new ImportPostSummary();
     result.setAvailableSheets(new ArrayList<>());
-    // Generating an UUID for identifying the file
+    // Generating a UUID for identifying the file
     String fileID = UUID.randomUUID().toString();
     result.setImportId(fileID);
     try {
@@ -89,11 +96,13 @@ public class InjectImportService {
       for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
         result.getAvailableSheets().add(workbook.getSheetName(i));
       }
+
       // Writing the file in a temp dir
-      Path tempDir = Files.createDirectory(Path.of(System.getProperty("java.io.tmpdir"), fileID));
-      Path tempFile =
-          Files.createTempFile(
-              tempDir, null, "." + FilenameUtils.getExtension(file.getOriginalFilename()));
+      Path tempDir = Files.createDirectory(validatePathTraversal(BASE_DIR, fileID));
+
+      // Sanitize filename extracting only extension from the base name
+      String extension = getSanitizedExtension(file);
+      Path tempFile = Files.createTempFile(tempDir, null, "." + extension);
       Files.write(tempFile, file.getBytes());
 
       CompletableFuture.delayedExecutor(FILE_STORAGE_DURATION, TimeUnit.MINUTES)
@@ -160,14 +169,13 @@ public class InjectImportService {
       // empty the list of injects, we just keep the messages
       importTestSummary.setTotalNumberOfInjects(0);
       importTestSummary.setInjects(new ArrayList<>());
+    } else if (importTestSummary.getInjects().isEmpty()
+        && !importTestSummary.getImportMessage().isEmpty()) {
+      return importTestSummary;
     } else if (saveAll) {
       importTestSummary.setInjects(
           importTestSummary.getInjects().stream()
-              .map(
-                  inject -> {
-                    inject.setListened(false);
-                    return inject;
-                  })
+              .peek(inject -> inject.setListened(false))
               .toList());
       Iterable<Inject> newInjects = injectRepository.saveAll(importTestSummary.getInjects());
       if (exercise != null) {
@@ -178,9 +186,13 @@ public class InjectImportService {
         throw new IllegalArgumentException(
             "At least one of exercise or scenario should be present");
       }
-      importTestSummary.setInjects(new ArrayList<>());
+      importTestSummary.setInjectOutputs(new ArrayList<>());
     } else {
-      importTestSummary.setInjects(importTestSummary.getInjects().stream().limit(5).toList());
+      importTestSummary.setInjectOutputs(
+          importTestSummary.getInjects().stream()
+              .limit(5)
+              .map(inject -> injectMapper.toInjectOutput(inject, Collections.emptyList()))
+              .toList());
     }
 
     return importTestSummary;
@@ -206,7 +218,10 @@ public class InjectImportService {
                       team.getUsers()
                           .forEach(
                               user -> {
-                                if (!exercise.getTeamUsers().contains(user)) {
+                                if (!exercise.getTeamUsers().stream()
+                                    .map(ExerciseTeamUser::getUser)
+                                    .toList()
+                                    .contains(user)) {
                                   ExerciseTeamUserId compositeId = new ExerciseTeamUserId();
                                   compositeId.setExerciseId(exercise.getId());
                                   compositeId.setTeamId(team.getId());
@@ -248,7 +263,10 @@ public class InjectImportService {
                       team.getUsers()
                           .forEach(
                               user -> {
-                                if (!scenario.getTeamUsers().contains(user)) {
+                                if (!scenario.getTeamUsers().stream()
+                                    .map(ScenarioTeamUser::getUser)
+                                    .toList()
+                                    .contains(user)) {
                                   ScenarioTeamUserId compositeId = new ScenarioTeamUserId();
                                   compositeId.setScenarioId(scenario.getId());
                                   compositeId.setTeamId(team.getId());
@@ -280,12 +298,20 @@ public class InjectImportService {
     ImportTestSummary importTestSummary = new ImportTestSummary();
 
     try {
+      // Validate importId is a valid UUID
+      isValidUUID(importId);
+
       // We open the previously saved file
-      String tmpdir = System.getProperty("java.io.tmpdir");
-      Path file =
-          Files.list(Path.of(tmpdir, pathSeparator, importId, pathSeparator))
-              .findFirst()
-              .orElseThrow();
+      // Ensure the resolved path is still within the temp directory
+      Path importDir = validatePathTraversal(BASE_DIR, importId);
+
+      Path file;
+      try (Stream<Path> files = Files.list(importDir)) {
+        file =
+            files
+                .findFirst()
+                .orElseThrow(() -> new BadRequestException("No file found in import directory"));
+      }
 
       // We open the file and convert it to an apache POI object
       InputStream xlsFile = Files.newInputStream(file);
@@ -344,6 +370,7 @@ public class InjectImportService {
 
       ZoneOffset zoneOffset = ZoneOffset.ofTotalSeconds(timezoneOffset * 60);
 
+      AtomicInteger count = new AtomicInteger(0);
       // For each rows of the selected sheet
       selectedSheet
           .rowIterator()
@@ -366,7 +393,8 @@ public class InjectImportService {
                         mapPatternByInjectImport,
                         mapTeamByName,
                         mapPatternByAllTeams,
-                        zoneOffset);
+                        zoneOffset,
+                        count);
                 // We set the exercise or scenario
                 Inject inject = rowSummary.getInject();
                 if (scenario != null && inject != null) {
@@ -388,7 +416,7 @@ public class InjectImportService {
       // Now that we did our first pass, we do another one real quick to find out
       // the date relative to each others
       importTestSummary.getImportMessage().addAll(updateInjectDates(mapInstantByRowIndex));
-
+      importTestSummary.setTotalRowsAnalysed(count.get());
       // We get the earliest date
       Optional<Instant> earliestDate =
           mapInstantByRowIndex.values().stream()
@@ -446,7 +474,8 @@ public class InjectImportService {
       Map<String, Pattern> mapPatternByInjectImport,
       Map<String, Team> mapTeamByName,
       Map<String, Pattern> mapPatternByAllTeams,
-      ZoneOffset timezoneOffset) {
+      ZoneOffset timezoneOffset,
+      AtomicInteger count) {
     ImportRow importTestSummary = new ImportRow();
     // The column that differenciate the importer is the same for all so we get it right now
     int colTypeIdx = CellReference.convertColStringToIndex(importMapper.getInjectTypeColumn());
@@ -469,6 +498,8 @@ public class InjectImportService {
     // If the row is completely empty, we ignore it altogether and do not send a warn message
     if (InjectUtils.checkIfRowIsEmpty(row)) {
       return importTestSummary;
+    } else {
+      count.getAndIncrement();
     }
     // First of all, we get the value of the differentiation cell
     Cell typeCell = row.getCell(colTypeIdx);
@@ -717,19 +748,18 @@ public class InjectImportService {
     matchingInjectImporter
         .getRuleAttributes()
         .forEach(
-            ruleAttribute -> {
-              importTestSummary
-                  .getImportMessages()
-                  .addAll(
-                      addFields(
-                          inject,
-                          ruleAttribute,
-                          row,
-                          mapTeamByName,
-                          expectation,
-                          importMapper,
-                          mapPatternByAllTeams));
-            });
+            ruleAttribute ->
+                importTestSummary
+                    .getImportMessages()
+                    .addAll(
+                        addFields(
+                            inject,
+                            ruleAttribute,
+                            row,
+                            mapTeamByName,
+                            expectation,
+                            importMapper,
+                            mapPatternByAllTeams)));
     // The user is the one doing the import
     inject.setUser(
         userRepository
@@ -820,9 +850,8 @@ public class InjectImportService {
       type = "expectation";
     }
     switch (type) {
-      case "text":
-      case "textarea":
-        // If text, we get the columns, split by "+" if there is a concatenation of columns
+      case "text", "textarea":
+        // If it is a text, we get the columns, split by "+" if there is a concatenation of columns
         // and then joins the result of the cells
         String columnValue = Strings.EMPTY;
         if (ruleAttribute.getColumns() != null) {
@@ -930,7 +959,7 @@ public class InjectImportService {
                     columns.stream()
                         .map(column -> InjectImportUtils.getValueAsDouble(row, column))
                         .reduce(0.0, Double::sum);
-                expectation.get().setExpectedScore(columnValueExpectation.doubleValue());
+                expectation.get().setExpectedScore(columnValueExpectation);
               } else {
                 try {
                   expectation
@@ -1179,13 +1208,12 @@ public class InjectImportService {
             mapInstantByRowIndex.values().stream()
                 .filter(injectTime -> injectTime.getDate() != null)
                 .forEach(
-                    injectTime -> {
-                      injectTime
-                          .getLinkedInject()
-                          .setDependsDuration(
-                              injectTime.getDate().getEpochSecond()
-                                  - earliestInstant.getEpochSecond());
-                    }));
+                    injectTime ->
+                        injectTime
+                            .getLinkedInject()
+                            .setDependsDuration(
+                                injectTime.getDate().getEpochSecond()
+                                    - earliestInstant.getEpochSecond())));
   }
 
   public void importInjectsForScenario(MultipartFile file, String scenarioId) throws Exception {

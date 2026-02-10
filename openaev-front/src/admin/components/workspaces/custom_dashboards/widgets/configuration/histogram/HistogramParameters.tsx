@@ -5,8 +5,9 @@ import { type Control, Controller, useFormContext, type UseFormSetValue, useWatc
 import { engineSchemas } from '../../../../../../../actions/schema/schema-action';
 import { useFormatter } from '../../../../../../../components/i18n';
 import { type PropertySchemaDTO, type Widget } from '../../../../../../../utils/api-types';
+import { type WidgetInputWithoutLayout } from '../../../../../../../utils/api-types-custom';
 import { type GroupOption } from '../../../../../../../utils/Option';
-import { getAvailableModes, getBaseEntities, getLimit, type WidgetInputWithoutLayout } from '../../WidgetUtils';
+import { getAvailableModes, getBaseEntities, getLimit } from '../../WidgetUtils';
 import WidgetConfigDateAttributeController from '../common/WidgetConfigDateAttributeController';
 import WidgetConfigTimeRangeController from '../common/WidgetConfigTimeRangeController';
 import getEntityPropertiesListOptions from '../EntityPropertiesListOptions';
@@ -71,6 +72,7 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
 
   // -- HANDLE MODE --
   const availableModes = getAvailableModes(widgetType);
+
   useEffect(() => {
     if (availableModes.length === 1) {
       setValue('widget_config.mode', availableModes[0]); // If only one mode is available, hide the field and set it automatically

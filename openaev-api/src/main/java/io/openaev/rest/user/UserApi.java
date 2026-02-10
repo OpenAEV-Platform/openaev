@@ -2,7 +2,7 @@ package io.openaev.rest.user;
 
 import static io.openaev.database.specification.UserSpecification.fromIds;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.UserRoleDescription;
 import io.openaev.config.SessionManager;
 import io.openaev.database.model.Action;
@@ -81,7 +81,7 @@ public class UserApi extends RestBehavior {
             content = @Content(schema = @Schema(implementation = User.class))),
       })
   @PostMapping("/api/login")
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   @UserRoleDescription(needAuthenticated = false)
   public User login(@Valid @RequestBody LoginUserInput input) {
     Optional<User> optionalUser = userRepository.findByEmailIgnoreCase(input.getLogin());
@@ -102,7 +102,7 @@ public class UserApi extends RestBehavior {
         @ApiResponse(responseCode = "400", description = "The user was not found")
       })
   @PostMapping("/api/reset")
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public ResponseEntity<?> passwordReset(@Valid @RequestBody ResetUserInput input) {
     Optional<User> optionalUser = userRepository.findByEmailIgnoreCase(input.getLogin());
     // always compute a random value to reduce gap in time
@@ -153,7 +153,7 @@ public class UserApi extends RestBehavior {
             content = @Content(schema = @Schema(implementation = User.class))),
       })
   @PostMapping("/api/reset/{token}")
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public User changePasswordReset(
       @PathVariable @Schema(description = "Token generated during reset") String token,
       @Valid @RequestBody ChangePasswordInput input)
@@ -196,7 +196,7 @@ public class UserApi extends RestBehavior {
             content = @Content(schema = @Schema(implementation = Boolean.class))),
       })
   @GetMapping("/api/reset/{token}")
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public boolean validatePasswordResetToken(
       @PathVariable @Schema(description = "Token generated during reset") String token) {
     return resetTokenMap.get(token) != null;
@@ -205,7 +205,7 @@ public class UserApi extends RestBehavior {
   @Operation(description = "List all the users", summary = "List users")
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of users")})
   @GetMapping("/api/users")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.USER)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.USER)
   public List<RawUser> users() {
     return userRepository.rawAll();
   }
@@ -215,7 +215,7 @@ public class UserApi extends RestBehavior {
       summary = "Search users")
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of users")})
   @PostMapping(USER_URI + "/search")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.USER)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.USER)
   public Page<UserOutput> users(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return this.userCriteriaBuilderService.userPagination(searchPaginationInput);
@@ -224,7 +224,7 @@ public class UserApi extends RestBehavior {
   @Operation(description = "Find a list of users based on their ids", summary = "Find users")
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of users")})
   @PostMapping(USER_URI + "/find")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.USER)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.USER)
   @Transactional(readOnly = true)
   public List<UserOutput> findUsers(
       @RequestBody @Valid @NotNull @Parameter(description = "List of ids")
@@ -233,7 +233,10 @@ public class UserApi extends RestBehavior {
   }
 
   @PutMapping("/api/users/{userId}/password")
-  @RBAC(resourceId = "#userId", actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
+  @AccessControl(
+      resourceId = "#userId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.USER)
   @Transactional(rollbackFor = Exception.class)
   @Operation(description = "Change the password of a user", summary = "Change password")
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The modified user")})
@@ -246,7 +249,7 @@ public class UserApi extends RestBehavior {
   }
 
   @PostMapping("/api/users")
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.USER)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.USER)
   @Transactional(rollbackFor = Exception.class)
   @Operation(description = "Create a new user", summary = "Create user")
   @ApiResponses({
@@ -261,7 +264,10 @@ public class UserApi extends RestBehavior {
   }
 
   @PutMapping("/api/users/{userId}")
-  @RBAC(resourceId = "#userId", actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
+  @AccessControl(
+      resourceId = "#userId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.USER)
   @Transactional(rollbackFor = Exception.class)
   @Operation(description = "Update a user", summary = "Update user")
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The modified user")})
@@ -272,7 +278,10 @@ public class UserApi extends RestBehavior {
   }
 
   @DeleteMapping("/api/users/{userId}")
-  @RBAC(resourceId = "#userId", actionPerformed = Action.DELETE, resourceType = ResourceType.USER)
+  @AccessControl(
+      resourceId = "#userId",
+      actionPerformed = Action.DELETE,
+      resourceType = ResourceType.USER)
   @Transactional(rollbackFor = Exception.class)
   @Operation(description = "Delete a user", summary = "Delete user")
   @ApiResponses(value = {@ApiResponse(responseCode = "200")})

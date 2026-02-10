@@ -8,8 +8,8 @@ import static java.time.Instant.now;
 import static java.time.temporal.ChronoUnit.MINUTES;
 import static org.springframework.util.StringUtils.hasText;
 
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RBAC;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawPaginationScenario;
 import io.openaev.database.raw.RawPlayer;
@@ -72,7 +72,7 @@ public class ScenarioApi extends RestBehavior {
   private final PlatformSettingsService platformSettingsService;
 
   @PostMapping(SCENARIO_URI)
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
   public Scenario createScenario(@Valid @RequestBody final ScenarioInput input) {
     if (input == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Scenario input cannot be null");
@@ -96,7 +96,7 @@ public class ScenarioApi extends RestBehavior {
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.SCENARIO)
@@ -105,14 +105,14 @@ public class ScenarioApi extends RestBehavior {
   }
 
   @GetMapping(SCENARIO_URI)
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   public List<ScenarioSimple> scenarios() {
     return this.scenarioService.scenarios();
   }
 
   @LogExecutionTime
   @PostMapping(SCENARIO_URI + "/search")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   public Page<RawPaginationScenario> scenarios(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return this.scenarioService.scenarios(searchPaginationInput);
@@ -120,7 +120,7 @@ public class ScenarioApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping(SCENARIO_URI + "/search-by-id")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   @Operation(
       summary = "Get scenarios by their id",
       description = "Get the scenarios with the specified ids if you have the right to see them")
@@ -130,7 +130,7 @@ public class ScenarioApi extends RestBehavior {
   }
 
   @GetMapping(SCENARIO_URI + "/{scenarioId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -139,7 +139,7 @@ public class ScenarioApi extends RestBehavior {
   }
 
   @GetMapping(SCENARIO_URI + "/{scenarioId}/healthchecks")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -148,7 +148,7 @@ public class ScenarioApi extends RestBehavior {
   }
 
   @PutMapping(SCENARIO_URI + "/{scenarioId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -169,7 +169,7 @@ public class ScenarioApi extends RestBehavior {
   }
 
   @DeleteMapping(SCENARIO_URI + "/{scenarioId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SCENARIO)
@@ -180,7 +180,7 @@ public class ScenarioApi extends RestBehavior {
   // -- TAGS --
 
   @PutMapping(SCENARIO_URI + "/{scenarioId}/tags")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -196,7 +196,7 @@ public class ScenarioApi extends RestBehavior {
   // -- EXPORT --
 
   @GetMapping(SCENARIO_URI + "/{scenarioId}/export")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.SEARCH,
       resourceType = ResourceType.SCENARIO)
@@ -214,7 +214,7 @@ public class ScenarioApi extends RestBehavior {
   // -- IMPORT --
 
   @PostMapping(SCENARIO_URI + "/import")
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
   public void importScenario(@RequestPart("file") @NotNull MultipartFile file) throws Exception {
     this.importService.handleFileImport(file, null, null);
   }
@@ -222,7 +222,7 @@ public class ScenarioApi extends RestBehavior {
   // -- TEAMS --
   @LogExecutionTime
   @GetMapping(SCENARIO_URI + "/{scenarioId}/teams")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -232,7 +232,7 @@ public class ScenarioApi extends RestBehavior {
 
   @Transactional(rollbackOn = Exception.class)
   @PutMapping(SCENARIO_URI + "/{scenarioId}/teams/remove")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -244,7 +244,7 @@ public class ScenarioApi extends RestBehavior {
 
   @Transactional(rollbackOn = Exception.class)
   @PutMapping(SCENARIO_URI + "/{scenarioId}/teams/replace")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -255,7 +255,7 @@ public class ScenarioApi extends RestBehavior {
   }
 
   @GetMapping(SCENARIO_URI + "/{scenarioId}/players")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -265,7 +265,7 @@ public class ScenarioApi extends RestBehavior {
 
   @Transactional(rollbackOn = Exception.class)
   @PutMapping(SCENARIO_URI + "/{scenarioId}/teams/{teamId}/players/enable")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -279,7 +279,7 @@ public class ScenarioApi extends RestBehavior {
 
   @Transactional(rollbackOn = Exception.class)
   @PutMapping(SCENARIO_URI + "/{scenarioId}/teams/{teamId}/players/disable")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -292,7 +292,7 @@ public class ScenarioApi extends RestBehavior {
 
   @Transactional(rollbackOn = Exception.class)
   @PutMapping(SCENARIO_URI + "/{scenarioId}/teams/{teamId}/players/add")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -305,7 +305,7 @@ public class ScenarioApi extends RestBehavior {
 
   @Transactional(rollbackOn = Exception.class)
   @PutMapping(SCENARIO_URI + "/{scenarioId}/teams/{teamId}/players/remove")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -323,7 +323,7 @@ public class ScenarioApi extends RestBehavior {
   // -- RECURRENCE --
 
   @PutMapping(SCENARIO_URI + "/{scenarioId}/recurrence")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SCENARIO)
@@ -341,7 +341,7 @@ public class ScenarioApi extends RestBehavior {
   // -- OPTION --
 
   @GetMapping(SCENARIO_URI + "/options")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText) {
     return fromIterable(
@@ -353,7 +353,7 @@ public class ScenarioApi extends RestBehavior {
   }
 
   @PostMapping(SCENARIO_URI + "/options")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.scenarioRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
@@ -361,7 +361,7 @@ public class ScenarioApi extends RestBehavior {
   }
 
   @GetMapping(SCENARIO_URI + "/category/options")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   public List<FilterUtilsJpa.Option> categoryOptionsByName(
       @RequestParam(required = false) final String searchText) {
     return this.scenarioRepository
@@ -373,7 +373,7 @@ public class ScenarioApi extends RestBehavior {
 
   // -- LESSON --
   @PutMapping(SCENARIO_URI + "/{scenarioId}/lessons")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -386,7 +386,7 @@ public class ScenarioApi extends RestBehavior {
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/exercise/running")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SCENARIO)
@@ -399,7 +399,7 @@ public class ScenarioApi extends RestBehavior {
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/check-rules")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -419,7 +419,7 @@ public class ScenarioApi extends RestBehavior {
 
   // region asset groups, endpoints, documents and channels
   @GetMapping(SCENARIO_URI + "/{scenarioId}/asset-groups")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -432,7 +432,7 @@ public class ScenarioApi extends RestBehavior {
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/asset-groups/find")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -447,7 +447,7 @@ public class ScenarioApi extends RestBehavior {
   }
 
   @GetMapping(SCENARIO_URI + "/{scenarioId}/channels")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -459,7 +459,7 @@ public class ScenarioApi extends RestBehavior {
   }
 
   @GetMapping(SCENARIO_URI + "/{scenarioId}/endpoints")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -471,7 +471,7 @@ public class ScenarioApi extends RestBehavior {
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/endpoints/find")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -486,7 +486,7 @@ public class ScenarioApi extends RestBehavior {
   }
 
   @GetMapping(SCENARIO_URI + "/{scenarioId}/documents")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)

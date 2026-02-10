@@ -7,6 +7,7 @@ import { fetchExecutor, fetchExecutorRelatedIds, fetchExecutors } from '../../..
 import { fetchInjector, fetchInjectorRelatedIds, fetchInjectors } from '../../../../actions/injectors/injector-action';
 import type {
   CatalogConnectorOutput, CatalogConnectorSimpleOutput,
+  Collector,
   CollectorOutput, ConnectorIds,
   ConnectorInstanceOutput,
   ExecutorOutput,
@@ -68,7 +69,7 @@ export const injectorConfig: ConnectorContextType<InjectorOutput> = {
   }),
 };
 
-export const collectorConfig: ConnectorContextType<CollectorOutput> = {
+export const collectorConfig: ConnectorContextType<CollectorOutput & Collector> = {
   connectorType: 'collector',
   apiRequest: {
     fetchAll: () => fetchCollectors(true),
@@ -81,7 +82,7 @@ export const collectorConfig: ConnectorContextType<CollectorOutput> = {
     name: data?.collector_name,
     type: data?.collector_type,
     catalog: data?.catalog,
-    updatedAt: data?.collector_last_execution,
+    updatedAt: data?.collector_last_execution || data?.collector_updated_at,
     isVerified: data?.is_verified ?? false,
     currentStatus: data?.current_status,
     isExternal: data?.collector_external,

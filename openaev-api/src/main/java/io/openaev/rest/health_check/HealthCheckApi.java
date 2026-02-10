@@ -1,6 +1,6 @@
 package io.openaev.rest.health_check;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.HealthCheckService;
 import io.openaev.service.exception.HealthCheckFailureException;
@@ -40,7 +40,7 @@ public class HealthCheckApi extends RestBehavior {
   }
 
   @GetMapping(HEALTH_CHECK_URI)
-  @RBAC(skipRBAC = true) // No RBAC check for health check endpoint
+  @AccessControl(skipRBAC = true) // No RBAC check for health check endpoint
   @Operation(
       summary = "Run an healthcheck ",
       description = "Tries to connect to dependencies (DB/Minio/RabbitMQ)")

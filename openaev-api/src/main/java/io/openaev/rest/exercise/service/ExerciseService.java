@@ -22,7 +22,7 @@ import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawInjectExpectation;
 import io.openaev.database.raw.RawSimulation;
 import io.openaev.database.repository.*;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.document.DocumentService;
@@ -80,7 +80,7 @@ public class ExerciseService {
 
   @PersistenceContext private EntityManager entityManager;
 
-  private final Ee eeService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final InjectDuplicateService injectDuplicateService;
   private final TeamService teamService;
   private final VariableService variableService;
@@ -440,7 +440,7 @@ public class ExerciseService {
   }
 
   public void throwIfExerciseNotLaunchable(Exercise exercise) {
-    if (eeService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
+    if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return;
     }
     exercise.getInjects().forEach(injectService::throwIfInjectNotLaunchable);

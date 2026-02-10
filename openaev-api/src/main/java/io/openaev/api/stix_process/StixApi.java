@@ -2,7 +2,7 @@ package io.openaev.api.stix_process;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Scenario;
@@ -53,7 +53,7 @@ public class StixApi extends RestBehavior {
         description = "Invalid STIX bundle (e.g., too many security coverages)"),
     @ApiResponse(responseCode = "500", description = "Unexpected server error")
   })
-  @RBAC(actionPerformed = Action.PROCESS, resourceType = ResourceType.STIX_BUNDLE)
+  @AccessControl(actionPerformed = Action.PROCESS, resourceType = ResourceType.STIX_BUNDLE)
   public ResponseEntity<?> processBundle(@RequestBody String ctiEvent) {
     String workId = null;
     try {

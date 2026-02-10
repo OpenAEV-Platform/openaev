@@ -15,7 +15,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exercise.form.ExercisesGlobalScoresInput;
@@ -55,7 +55,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 @ExtendWith(MockitoExtension.class)
 class ExerciseServiceTest extends IntegrationTest {
 
-  @Mock private Ee eeService;
+  @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private InjectDuplicateService injectDuplicateService;
   @Mock private TeamService teamService;
   @Mock private VariableService variableService;
@@ -96,7 +96,7 @@ class ExerciseServiceTest extends IntegrationTest {
   void setUp() {
     mockedExerciseService =
         new ExerciseService(
-            eeService,
+            enterpriseEditionService,
             injectDuplicateService,
             teamService,
             variableService,

@@ -13,7 +13,7 @@ import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
@@ -53,7 +53,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Autowired private LessonsCategoryRepository lessonsCategoryRepository;
   @Autowired private HealthCheckUtils healthCheckUtils;
 
-  @Mock Ee eeService;
+  @Mock EnterpriseEditionService enterpriseEditionService;
   @Mock VariableService variableService;
   @Mock ChallengeService challengeService;
   @Autowired private TeamService teamService;
@@ -87,7 +87,7 @@ class ScenarioServiceTest extends IntegrationTest {
             exerciseMapper,
             actionMetricCollector,
             licenseCacheManager,
-            eeService,
+            enterpriseEditionService,
             variableService,
             challengeService,
             teamService,
@@ -114,7 +114,7 @@ class ScenarioServiceTest extends IntegrationTest {
             exerciseMapper,
             actionMetricCollector,
             licenseCacheManager,
-            eeService,
+            enterpriseEditionService,
             variableService,
             challengeService,
             teamService,
@@ -350,7 +350,7 @@ class ScenarioServiceTest extends IntegrationTest {
         healthchecks.stream()
             .filter(hc -> HealthCheck.Type.SMTP.equals(hc.getType()))
             .findFirst()
-            .orElse(new HealthCheck(null, null, null, null));
+            .orElse(new HealthCheck(null, null, null, now()));
     assertEquals(HealthCheck.Type.SMTP, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.SERVICE_UNAVAILABLE, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.ERROR, healthCheckToVerify.getStatus());
@@ -385,7 +385,7 @@ class ScenarioServiceTest extends IntegrationTest {
         healthchecks.stream()
             .filter(hc -> HealthCheck.Type.IMAP.equals(hc.getType()))
             .findFirst()
-            .orElse(new HealthCheck(null, null, null, null));
+            .orElse(new HealthCheck(null, null, null, now()));
     assertEquals(HealthCheck.Type.IMAP, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.SERVICE_UNAVAILABLE, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.WARNING, healthCheckToVerify.getStatus());
@@ -419,7 +419,7 @@ class ScenarioServiceTest extends IntegrationTest {
         healthchecks.stream()
             .filter(hc -> HealthCheck.Type.AGENT_OR_EXECUTOR.equals(hc.getType()))
             .findFirst()
-            .orElse(new HealthCheck(null, null, null, null));
+            .orElse(new HealthCheck(null, null, null, now()));
     assertEquals(HealthCheck.Type.AGENT_OR_EXECUTOR, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.EMPTY, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.ERROR, healthCheckToVerify.getStatus());
@@ -453,7 +453,7 @@ class ScenarioServiceTest extends IntegrationTest {
         healthchecks.stream()
             .filter(hc -> HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR.equals(hc.getType()))
             .findFirst()
-            .orElse(new HealthCheck(null, null, null, null));
+            .orElse(new HealthCheck(null, null, null, now()));
     assertEquals(HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.EMPTY, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.ERROR, healthCheckToVerify.getStatus());
@@ -487,7 +487,7 @@ class ScenarioServiceTest extends IntegrationTest {
         healthchecks.stream()
             .filter(hc -> HealthCheck.Type.INJECT.equals(hc.getType()))
             .findFirst()
-            .orElse(new HealthCheck(null, null, null, null));
+            .orElse(new HealthCheck(null, null, null, now()));
     assertEquals(HealthCheck.Type.INJECT, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.NOT_READY, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.WARNING, healthCheckToVerify.getStatus());
@@ -524,7 +524,7 @@ class ScenarioServiceTest extends IntegrationTest {
         healthchecks.stream()
             .filter(hc -> HealthCheck.Type.TEAMS.equals(hc.getType()))
             .findFirst()
-            .orElse(new HealthCheck(null, null, null, null));
+            .orElse(new HealthCheck(null, null, null, now()));
     assertEquals(HealthCheck.Type.TEAMS, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.EMPTY, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.WARNING, healthCheckToVerify.getStatus());

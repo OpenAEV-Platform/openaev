@@ -9,6 +9,7 @@ import static io.openaev.utils.fixtures.payload_fixture.RegexGroupInputFixture.c
 import static io.openaev.utils.fixtures.payload_fixture.RegexGroupInputFixture.createDefaultRegexGroupInputIPV6;
 
 import io.openaev.database.model.*;
+import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
 import io.openaev.rest.payload.contract_output_element.ContractOutputElementInput;
 import io.openaev.rest.payload.form.*;
 import io.openaev.rest.payload.output_parser.OutputParserInput;
@@ -17,6 +18,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class PayloadInputFixture {
 
@@ -148,7 +150,8 @@ public class PayloadInputFixture {
     input.setSource(COMMUNITY);
     input.setStatus(UNVERIFIED);
     input.setPlatforms(new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.MacOS});
-    input.setDomains(domains);
+    input.setDomains(
+        domains.stream().map(InjectorContractDomainDTO::fromDomain).collect(Collectors.toSet()));
     return input;
   }
 

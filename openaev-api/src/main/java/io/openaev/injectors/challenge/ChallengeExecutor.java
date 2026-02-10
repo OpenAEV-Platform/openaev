@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.springframework.beans.factory.annotation.Value;
 
 public class ChallengeExecutor extends Injector {
 
@@ -42,9 +41,6 @@ public class ChallengeExecutor extends Injector {
     this.emailService = emailService;
     this.injectExpectationService = injectExpectationService;
   }
-
-  @Value("${openaev.mail.imap.enabled}")
-  private boolean imapEnabled;
 
   private String buildChallengeUri(
       ExecutionContext executionContext, Exercise exercise, Challenge challenge) {
@@ -96,7 +92,8 @@ public class ChallengeExecutor extends Injector {
                 .map(InjectDocument::getDocument)
                 .toList();
         List<DataAttachment> attachments = resolveAttachments(execution, injection, documents);
-        String message = content.buildMessage(injection, imapEnabled);
+        String message =
+            content.buildMessage(injection, this.context.getOpenAEVConfig().getBaseUrl());
         boolean encrypted = content.isEncrypted();
         users.forEach(
             userInjectContext -> {

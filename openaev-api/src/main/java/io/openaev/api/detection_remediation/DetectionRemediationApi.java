@@ -2,8 +2,8 @@ package io.openaev.api.detection_remediation;
 
 import static io.openaev.api.detection_remediation.DetectionRemediationApi.DETECTION_REMEDIATION_URI;
 
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RBAC;
 import io.openaev.api.detection_remediation.dto.DetectionRemediationAIOutput;
 import io.openaev.api.detection_remediation.dto.PayloadInput;
 import io.openaev.database.model.*;
@@ -46,7 +46,7 @@ public class DetectionRemediationApi {
       })
   @GetMapping("/health")
   @LogExecutionTime
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public ResponseEntity<DetectionRemediationHealthResponse> checkHealth() {
     return ResponseEntity.ok(detectionRemediationService.checkHealthWebservice());
   }
@@ -75,7 +75,7 @@ public class DetectionRemediationApi {
       })
   @PostMapping("/rules/{collectorType}")
   @LogExecutionTime
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
   public ResponseEntity<DetectionRemediationAIOutput> postRuleDetectionRemediation(
       @PathVariable @NotBlank final String collectorType, @Valid @RequestBody PayloadInput input) {
     if (input.getType().equals(FileDrop.FILE_DROP_TYPE)
@@ -139,7 +139,7 @@ public class DetectionRemediationApi {
             description = "Collector not found with type {collectorType}")
       })
   @LogExecutionTime
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
   @PostMapping("rules/inject/{injectId}/collector/{collectorType}")
   public ResponseEntity<DetectionRemediationOutput>
       postRuleDetectionRemediationByInjectIdAndCollectorType(

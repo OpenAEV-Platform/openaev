@@ -42,7 +42,14 @@ const InjectorContractPopover = ({ injectorContract, killChainPhasesMap, attackP
       ...restData,
       contract_attack_patterns_ids:
         injector_contract_attack_patterns?.map(p => p.id),
-      contract_domains: injector_contract_domains,
+      contract_domains: injector_contract_domains.map(d => d.domain_id
+        ? d.domain_id
+        : {
+            domain_id: d.domain_id,
+            domain_name: d.domain_name,
+            domain_color: d.domain_color,
+          },
+      ),
     };
 
     return dispatch(
@@ -79,7 +86,13 @@ const InjectorContractPopover = ({ injectorContract, killChainPhasesMap, attackP
       contract_labels: { en: data.injector_contract_name },
       contract_attack_patterns_ids: R.pluck('id', data.injector_contract_attack_patterns),
       contract_content: JSON.stringify(newInjectorContractContent),
-      contract_domains: data.injector_contract_domains, // doit être un tableau d'objets Domain complets
+      contract_domains: data.injector_contract_domains.map((d) => {
+        return {
+          domain_id: d.domain_id,
+          domain_name: d.domain_name,
+          domain_color: d.domain_color,
+        };
+      }),
     };
 
     return dispatch(updateInjectorContract(injectorContract.injector_contract_id, inputValues))

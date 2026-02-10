@@ -1,4 +1,4 @@
-import { Chip, CircularProgress, Tooltip } from '@mui/material';
+import { Box, Chip, CircularProgress, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
@@ -125,7 +125,9 @@ const ItemBooleanComponent = (props) => {
   if (tooltip) {
     return (
       <Tooltip title={tooltip}>
-        <RenderChip {...props} />
+        <Box component="span" sx={{ display: 'inline-block' }}>
+          <RenderChip {...props} />
+        </Box>
       </Tooltip>
     );
   }
@@ -139,6 +141,7 @@ ItemBooleanComponent.propTypes = {
   neutralLabel: PropTypes.string,
   variant: PropTypes.string,
   reverse: PropTypes.bool,
+  tooltip: PropTypes.string,
 };
 
 const ItemBoolean = R.compose(

@@ -8,7 +8,7 @@ import { fetchCalderaSettings } from '../../../actions/settings/settings-action'
 import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
 import useTabs from '../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../components/i18n';
-import { type CalderaSettings, type ExecutorOutput, type Token } from '../../../utils/api-types';
+import { type BasePayload, type CalderaSettings, type ExecutorOutput, type Token } from '../../../utils/api-types';
 import useAuth from '../../../utils/hooks/useAuth';
 import { copyToClipboard, download } from '../../../utils/utils';
 
@@ -210,7 +210,14 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
         <Select
           labelId="arch"
           value={arch}
-          onChange={event => setArch(event.target.value ?? x86_64)}
+          onChange={(event) => {
+            const allowedArchs = ['x86_64', 'arm64', 'ALL_ARCHITECTURES'] as const;
+            if (allowedArchs.includes(event.target.value as BasePayload['payload_execution_arch'])) {
+              setArch(event.target.value as BasePayload['payload_execution_arch']);
+            } else {
+              setArch(x86_64);
+            }
+          }}
           fullWidth
         >
           <MenuItem value="x86_64">{t(x86_64)}</MenuItem>

@@ -13,7 +13,7 @@ import io.openaev.config.RabbitmqConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.SettingRepository;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.ee.License;
 import io.openaev.engine.EngineService;
 import io.openaev.expectation.ExpectationPropertiesConfig;
@@ -62,7 +62,7 @@ public class PlatformSettingsService {
   private final OpenCTIConfig openCTIConfig;
   private final XtmHubConfig xtmHubConfig;
   private final AiConfig aiConfig;
-  private final Ee eeService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final EngineService engineService;
   private final XtmHubConnectivityService xtmHubConnectivityService;
 
@@ -424,7 +424,7 @@ public class PlatformSettingsService {
     List<Setting> settingsToSave = new ArrayList<>();
     String certPem = input.getEnterpriseEdition();
     if (certPem != null && !certPem.isEmpty()) {
-      License license = eeService.verifyCertificate(certPem);
+      License license = enterpriseEditionService.verifyCertificate(certPem);
       if (!license.isLicenseValidated()) {
         throw new BadRequestException("Invalid certificate");
       }

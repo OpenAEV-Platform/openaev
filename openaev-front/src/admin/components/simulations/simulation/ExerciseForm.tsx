@@ -12,6 +12,7 @@ import { useFormatter } from '../../../../components/i18n';
 import { type CreateExerciseInput } from '../../../../utils/api-types';
 import { zodImplement } from '../../../../utils/Zod';
 import { scenarioCategories } from '../../scenarios/constants';
+import { EXERCISE_NAME_MAX_LENGTH, EXERCISE_NAME_MIN_LENGTH } from '../constants';
 
 interface Props {
   onSubmit: SubmitHandler<CreateExerciseInput>;
@@ -55,16 +56,17 @@ const ExerciseForm: FunctionComponent<Props> = ({
     mode: 'onTouched',
     resolver: zodResolver(
       zodImplement<CreateExerciseInput>().with({
-        exercise_name: z.string().min(1, { message: t('Should not be empty') }),
+        exercise_name: z.string().min(EXERCISE_NAME_MIN_LENGTH, { message: t('Should not be empty') })
+          .max(EXERCISE_NAME_MAX_LENGTH, { message: t('Should not exceed {max_length} characters', { max_length: EXERCISE_NAME_MAX_LENGTH.toString() }) }),
         exercise_subtitle: z.string().optional(),
         exercise_category: z.string().optional(),
         exercise_main_focus: z.string().optional(),
         exercise_severity: z.string().optional(),
         exercise_description: z.string().optional(),
-        exercise_start_date: z.string().datetime().optional().nullable(),
+        exercise_start_date: z.iso.datetime().optional().nullable(),
         exercise_tags: z.string().array().optional(),
-        exercise_mail_from: z.string().email(t('Should be a valid email address')).optional(),
-        exercise_mails_reply_to: z.array(z.string().email(t('Should be a valid email address'))).optional(),
+        exercise_mail_from: z.email(t('Should be a valid email address')).optional(),
+        exercise_mails_reply_to: z.array(z.email(t('Should be a valid email address'))).optional(),
         exercise_message_header: z.string().optional(),
         exercise_message_footer: z.string().optional(),
         exercise_custom_dashboard: z.string().optional(),
@@ -95,6 +97,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
         control={control}
         setValue={setValue}
         askAi={true}
+        maxLength={255}
       />
       <GridLegacy container spacing={2}>
         <GridLegacy item xs={7}>

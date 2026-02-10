@@ -12,7 +12,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.service.InjectDuplicateService;
@@ -44,7 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ExerciseServiceIntegrationTest extends IntegrationTest {
 
-  @Mock Ee eeService;
+  @Mock EnterpriseEditionService enterpriseEditionService;
   @Mock InjectDuplicateService injectDuplicateService;
   @Mock VariableService variableService;
 
@@ -86,7 +86,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   void setUp() {
     exerciseService =
         new ExerciseService(
-            eeService,
+            enterpriseEditionService,
             injectDuplicateService,
             teamService,
             variableService,

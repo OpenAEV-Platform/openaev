@@ -1,6 +1,6 @@
 package io.openaev.rest.inject;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.api.inject_result.dto.InjectResultPayloadExecutionOutput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -25,7 +25,10 @@ public class InjectExecutionResultApi extends RestBehavior {
   private final InjectExecutionResultService injectExecutionService;
 
   @GetMapping(INJECT_EXECUTION_URI + "/execution-result")
-  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.INJECT)
   public InjectResultPayloadExecutionOutput injectExecutionResultPayload(
       @PathVariable @NotBlank final String injectId,
       @RequestParam @NotBlank final String targetId,

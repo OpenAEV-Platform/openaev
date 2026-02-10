@@ -9,7 +9,7 @@ import java.lang.annotation.Target;
 
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface RBAC {
+public @interface AccessControl {
 
   /**
    * The ID of the resource manipulated by the target endpoint. This is used to determine the RBAC
@@ -37,4 +37,7 @@ public @interface RBAC {
    * actionPerformed must be specified.
    */
   boolean skipRBAC() default false;
+
+  /** Whether the feature is Enterprise Edition (EE) only. */
+  boolean isEnterpriseEdition() default false;
 }
