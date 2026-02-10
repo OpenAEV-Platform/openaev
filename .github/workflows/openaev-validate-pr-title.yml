@@ -1,4 +1,4 @@
-name: "[OAEV Shared] Validate PR title Worker"
+name: "[OpenAEV] Validate PR title Worker"
 on:
   pull_request:
     branches: [master, release/current]

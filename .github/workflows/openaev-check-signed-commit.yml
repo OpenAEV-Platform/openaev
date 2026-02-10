@@ -1,4 +1,4 @@
-name: "[OAEV Shared] Check Signed Commits in PR"
+name: "[OpenAEV] Check Signed Commits in PR"
 on:
   pull_request_target:
     branches: [master, release/current]
