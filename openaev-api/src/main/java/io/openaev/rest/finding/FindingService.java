@@ -5,6 +5,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.annotations.VisibleForTesting;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.FindingRepository;
@@ -61,7 +62,7 @@ public class FindingService {
   public Iterable<Finding> createFindings(
       @NotNull final List<Finding> findings, @NotBlank final String injectId) {
     Inject inject = this.injectService.inject(injectId);
-    findings.forEach((finding) -> finding.setInject(inject));
+    findings.forEach(finding -> finding.setInject(inject));
     return this.findingRepository.saveAll(findings);
   }
 
@@ -112,9 +113,7 @@ public class FindingService {
   // from ExecutionInjectInput sent by injectors
   // This structured output is generated based on injectorcontract where we can find the node
   // Outputs and with that the injector generate this structure output--
-
   public void extractFindingsFromInjectorContract(Inject inject, ObjectNode structuredOutput) {
-
     if (structuredOutput == null) {
       return;
     }
@@ -129,6 +128,18 @@ public class FindingService {
       log.warn("No contract outputs found for inject: " + inject.getId());
       return;
     }
+
+    List<Finding> findings = getFindingsFromInjectorContract(contractOutputs, structuredOutput);
+    if (findings == null) {
+      return;
+    }
+
+    this.createFindings(findings, inject.getId());
+  }
+
+  @VisibleForTesting
+  List<Finding> getFindingsFromInjectorContract(
+      List<InjectorContractContentOutputElement> contractOutputs, ObjectNode structuredOutput) {
 
     List<Finding> findings = new ArrayList<>();
     contractOutputs.forEach(
@@ -160,7 +171,8 @@ public class FindingService {
             findings.add(linkedFinding);
           }
         });
-    this.createFindings(findings, inject.getId());
+
+    return findings;
   }
 
   private Finding linkFindings(

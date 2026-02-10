@@ -3,26 +3,32 @@ package io.openaev.rest.finding;
 import static io.openaev.utils.fixtures.AssetFixture.createDefaultAsset;
 import static io.openaev.utils.fixtures.InjectFixture.getDefaultInject;
 import static io.openaev.utils.fixtures.OutputParserFixture.getDefaultContractOutputElement;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.ContractOutputElement;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.Inject;
 import io.openaev.database.repository.FindingRepository;
+import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
+import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.helpers.InjectTestHelper;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
+@Transactional
 @ExtendWith(MockitoExtension.class)
 class FindingServiceTest extends IntegrationTest {
 
@@ -32,10 +38,10 @@ class FindingServiceTest extends IntegrationTest {
   @Autowired private InjectTestHelper injectTestHelper;
   @Autowired private FindingService findingService;
   @Autowired private FindingRepository findingRepository;
+  @Autowired private InjectorContractContentUtils injectorContractContentUtils;
 
   @Test
   @DisplayName("Should have two assets for a finding")
-  @Transactional
   void given_a_finding_already_existent_with_one_asset_should_have_two_assets() {
     Inject inject = getDefaultInject();
     Asset asset1 = createDefaultAsset(ASSET_1);
@@ -75,7 +81,6 @@ class FindingServiceTest extends IntegrationTest {
 
   @Test
   @DisplayName("Should have one asset for a finding")
-  @Transactional
   void given_a_finding_already_existent_with_same_asset_should_have_one_assets() {
     Inject inject = getDefaultInject();
     Asset asset1 = createDefaultAsset(ASSET_1);
@@ -108,5 +113,55 @@ class FindingServiceTest extends IntegrationTest {
     Set<String> assetIds =
         capturedFinding.getAssets().stream().map(Asset::getId).collect(Collectors.toSet());
     assertTrue(assetIds.contains(asset1.getId()));
+  }
+
+  @Test
+  @DisplayName("Should return empty findings when contract output is not finding compatible")
+  void shouldReturnEmptyFindingsWhenContractOutputIsNotFindingCompatible() throws Exception {
+
+    ObjectMapper mapper = new ObjectMapper();
+
+    // Simulate a contract with a non-finding-compatible output
+    String contractJson =
+        """
+            {
+              "outputs": [
+                {
+                  "field": "found_assets",
+                  "isFindingCompatible": false,
+                  "isMultiple": true,
+                  "labels": ["shodan"],
+                  "type": "asset"
+                }
+              ]
+            }
+            """;
+
+    ObjectNode convertedContent = (ObjectNode) mapper.readTree(contractJson);
+
+    // Simulate structured output
+    ObjectNode structuredOutput =
+        (ObjectNode)
+            mapper.readTree(
+                """
+                    {
+                      "found_assets": [
+                        { "name": "Asset A" },
+                        { "name": "Asset B" }
+                      ]
+                    }
+                    """);
+
+    // Convert JSON outputs to InjectorContractContentOutputElement
+    List<InjectorContractContentOutputElement> contractOutputs =
+        injectorContractContentUtils.getContractOutputs(convertedContent, mapper);
+
+    // Call the method to check behavior when isFindingCompatible=false
+    List<Finding> findings =
+        findingService.getFindingsFromInjectorContract(contractOutputs, structuredOutput);
+
+    // Assert that findings is empty because isFindingCompatible=false
+    assertNotNull(findings);
+    assertTrue(findings.isEmpty());
   }
 }

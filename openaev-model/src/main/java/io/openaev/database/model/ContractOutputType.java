@@ -4,6 +4,7 @@ import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
+import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
@@ -149,6 +150,18 @@ public enum ContractOutputType {
           return List.of(assetIdNode.asText());
         }
       },
+      null,
+      null),
+  @Hidden
+  @JsonProperty("asset")
+  Asset(
+      "asset",
+      ContractOutputTechnicalType.Object,
+      null,
+      false,
+      Objects::nonNull,
+      ContractOutputType::buildString,
+      null,
       null,
       null);
 
