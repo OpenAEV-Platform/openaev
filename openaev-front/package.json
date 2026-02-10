@@ -50,11 +50,11 @@
     "prop-types": "15.8.1",
     "qs": "6.14.1",
     "ramda": "0.32.0",
-    "react": "19.2.3",
+    "react": "19.2.4",
     "react-apexcharts": "patch:react-apexcharts@npm%3A1.7.0#~/.yarn/patches/react-apexcharts-npm-1.7.0-334ef0640d.patch",
     "react-color": "2.19.3",
     "react-csv": "2.2.2",
-    "react-dom": "19.2.3",
+    "react-dom": "19.2.4",
     "react-final-form": "6.5.9",
     "react-final-form-arrays": "3.1.4",
     "react-grid-layout": "1.5.3",
@@ -120,7 +120,7 @@
     "vitest": "3.2.4"
   },
   "resolutions": {
-    "@types/react": "19.2.7",
+    "@types/react": "19.2.13",
     "form-data": "4.0.5"
   },
   "engines": {
