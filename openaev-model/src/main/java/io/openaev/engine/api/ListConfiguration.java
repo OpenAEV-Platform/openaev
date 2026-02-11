@@ -2,7 +2,6 @@ package io.openaev.engine.api;
 
 import static io.openaev.config.EngineConfig.Defaults.ENTITIES_CAP;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.openaev.database.model.Filters;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -16,7 +15,6 @@ import lombok.Setter;
 
 @Getter
 @Setter
-@JsonIgnoreProperties(ignoreUnknown = true)
 public class ListConfiguration extends WidgetConfiguration {
 
   @NotNull ListPerspective perspective;
