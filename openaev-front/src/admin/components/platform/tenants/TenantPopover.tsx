@@ -100,7 +100,7 @@ const TenantPopover: FunctionComponent<Props> = ({
             open={isDeleteOpen}
             handleClose={handleCloseDelete}
             handleSubmit={handleDelete}
-            text={`${t('Do you want to delete this tenant:')} ${tenant.tenant_name} ?`}
+            text={`${t('Do you want to delete this tenant?')}`}
           />
         )}
     </>
