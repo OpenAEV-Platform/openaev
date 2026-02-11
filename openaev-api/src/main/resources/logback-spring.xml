@@ -11,11 +11,6 @@
             <appender-ref ref="STDOUT" />
         </root>
     </springProfile>
-    <springProfile name="dev">
-      <logger name="io.openaev.tools.AppReadyListener" level="INFO" additivity="false">
-        <appender-ref ref="STDOUT"/>
-      </logger>
-    </springProfile>
     <springProfile name="!(dev | test)">
         <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
         <appender name="jsonEncoder" class="ch.qos.logback.core.ConsoleAppender">
