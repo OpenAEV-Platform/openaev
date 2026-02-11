@@ -2,8 +2,7 @@ package io.openaev.rest.dashboard;
 
 import static io.openaev.database.model.CustomDashboardParameters.CustomDashboardParameterType.timeRange;
 import static io.openaev.rest.dashboard.DashboardApi.DASHBOARD_URI;
-import static io.openaev.utils.CustomDashboardTimeRange.ALL_TIME;
-import static io.openaev.utils.CustomDashboardTimeRange.LAST_QUARTER;
+import static io.openaev.utils.CustomDashboardTimeRange.*;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -50,6 +49,7 @@ class DashboardApiTest extends IntegrationTest {
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private WidgetComposer widgetComposer;
   @Autowired private CustomDashboardComposer customDashboardComposer;
+  @Autowired private DomainComposer domainComposer;
   @Autowired private MockMvc mvc;
   @Autowired private EntityManager entityManager;
   @Autowired private ExerciseComposer exerciseComposer;
@@ -715,7 +715,9 @@ class DashboardApiTest extends IntegrationTest {
       parameterInput.put(timeRangeParameterId, String.valueOf(ALL_TIME));
 
       WidgetToEntitiesInput input = new WidgetToEntitiesInput();
-      input.setFilterValues(List.of(Endpoint.PLATFORM_TYPE.Windows.name()));
+      Map<String, List<String>> filterValuesMap = new HashMap<>();
+      filterValuesMap.put("endpoint_platform", List.of(Endpoint.PLATFORM_TYPE.Windows.name()));
+      input.setFilterValuesMap(filterValuesMap);
       input.setSeriesIndex(0);
       input.setParameters(parameterInput);
 
@@ -807,7 +809,10 @@ class DashboardApiTest extends IntegrationTest {
       Thread.sleep(1000);
 
       WidgetToEntitiesInput input = new WidgetToEntitiesInput();
-      input.setFilterValues(List.of(attackPattern1.getId(), attackPattern2.getId()));
+      Map<String, List<String>> filterValuesMap = new HashMap<>();
+      filterValuesMap.put(
+          "base_attack_patterns_side", List.of(attackPattern1.getId(), attackPattern2.getId()));
+      input.setFilterValuesMap(filterValuesMap);
       input.setSeriesIndex(0);
       input.setParameters(new HashMap<>());
 
@@ -837,6 +842,138 @@ class DashboardApiTest extends IntegrationTest {
           .hasSize(6)
           .extracting("base_inject_side")
           .containsOnly(inject1.getId(), inject2.getId(), inject3.getId());
+    }
+
+    private Inject createInjectWithDomainAndExpectations(
+        Domain domain, List<InjectExpectationComposer.Composer> injectExpectationsComposer) {
+      EndpointComposer.Composer endpointWrapper =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist();
+      InjectComposer.Composer injectWrapper =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withInjectorContract(
+                  injectorContractComposer.forInjectorContract(
+                      InjectorContractFixture.createInjectorContractWithDomain(domain)));
+      injectExpectationsComposer.forEach(
+          expectation -> injectWrapper.withExpectation(expectation.withEndpoint(endpointWrapper)));
+      return injectWrapper.persist().get();
+    }
+
+    private InjectExpectationComposer.Composer createInjectExpectationWithTypeAndStatusComposer(
+        InjectExpectation.EXPECTATION_TYPE type, InjectExpectation.EXPECTATION_STATUS status) {
+      return injectExpectationComposer.forExpectation(
+          InjectExpectationFixture.createExpectationWithTypeAndStatus(type, status));
+    }
+
+    @Test
+    @DisplayName(
+        "Given security domain widget should return list of expectation filtered by domain, type and status")
+    void given_securityDomainWidget_should_returnListOfExpectationFilteredByDomain()
+        throws Exception {
+      Domain networkDomain =
+          domainComposer
+              .forDomain(DomainFixture.getDomainWithNameAndColour("Network-test", "red"))
+              .persist()
+              .get();
+      Domain endpointDomain =
+          domainComposer
+              .forDomain(DomainFixture.getDomainWithNameAndColour("Endpoint-test", "blue"))
+              .persist()
+              .get();
+      InjectExpectationComposer.Composer detectionSuccess =
+          createInjectExpectationWithTypeAndStatusComposer(
+              InjectExpectation.EXPECTATION_TYPE.DETECTION,
+              InjectExpectation.EXPECTATION_STATUS.SUCCESS);
+      InjectExpectationComposer.Composer detection2Success =
+          createInjectExpectationWithTypeAndStatusComposer(
+              InjectExpectation.EXPECTATION_TYPE.DETECTION,
+              InjectExpectation.EXPECTATION_STATUS.SUCCESS);
+      InjectExpectationComposer.Composer detection3Success =
+          createInjectExpectationWithTypeAndStatusComposer(
+              InjectExpectation.EXPECTATION_TYPE.DETECTION,
+              InjectExpectation.EXPECTATION_STATUS.SUCCESS);
+      InjectExpectationComposer.Composer detectionFailed =
+          createInjectExpectationWithTypeAndStatusComposer(
+              InjectExpectation.EXPECTATION_TYPE.DETECTION,
+              InjectExpectation.EXPECTATION_STATUS.FAILED);
+      InjectExpectationComposer.Composer preventionSuccess =
+          createInjectExpectationWithTypeAndStatusComposer(
+              InjectExpectation.EXPECTATION_TYPE.PREVENTION,
+              InjectExpectation.EXPECTATION_STATUS.SUCCESS);
+      InjectExpectationComposer.Composer preventionFailed =
+          createInjectExpectationWithTypeAndStatusComposer(
+              InjectExpectation.EXPECTATION_TYPE.PREVENTION,
+              InjectExpectation.EXPECTATION_STATUS.FAILED);
+
+      Inject inject1 =
+          createInjectWithDomainAndExpectations(
+              networkDomain,
+              List.of(detectionSuccess, detectionFailed, preventionFailed, preventionSuccess));
+      Inject inject2 =
+          createInjectWithDomainAndExpectations(networkDomain, List.of(detection2Success));
+      Inject inject3 =
+          createInjectWithDomainAndExpectations(endpointDomain, List.of(detection3Success));
+
+      Widget widgetTEst =
+          widgetComposer
+              .forWidget(WidgetFixture.createSecurityDomainWidget(DEFAULT, "base_created_at"))
+              .withCustomDashboard(
+                  customDashboardComposer.forCustomDashboard(
+                      CustomDashboardFixture.createCustomDashboardWithDefaultParams()))
+              .persist()
+              .get();
+
+      // force persistence
+      entityManager.flush();
+      entityManager.clear();
+      engineService.bulkProcessing(engineContext.getModels().stream());
+      // elastic needs to process the data; it does so async, so the method above
+      // completes before the data is available in the system
+      Thread.sleep(1000);
+
+      WidgetToEntitiesInput input = new WidgetToEntitiesInput();
+      Map<String, List<String>> filterValuesMap = new HashMap<>();
+      filterValuesMap.put("base_security_domains_side", List.of(networkDomain.getId()));
+      filterValuesMap.put("inject_expectation_status", List.of("SUCCESS"));
+      filterValuesMap.put("inject_expectation_type", List.of("DETECTION"));
+      input.setFilterValuesMap(filterValuesMap);
+      input.setSeriesIndex(0);
+      input.setParameters(new HashMap<>());
+
+      String response =
+          mvc.perform(
+                  post(DASHBOARD_URI + "/entities-runtime/" + widgetTEst.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThatJson(response)
+          .node("list_configuration.perspective.filter.filters")
+          .isArray()
+          .anySatisfy(
+              filter -> {
+                assertThatJson(filter).node("key").isEqualTo("base_entity");
+                assertThatJson(filter)
+                    .node("values")
+                    .isArray()
+                    .containsExactly("expectation-inject");
+              });
+      assertThatJson(response)
+          .node("list_configuration.perspective.filter.filters")
+          .isArray()
+          .anySatisfy(
+              filter -> {
+                assertThatJson(filter).node("key").isEqualTo("base_security_domains_side");
+                assertThatJson(filter)
+                    .node("values")
+                    .isArray()
+                    .containsExactly(networkDomain.getId());
+              });
+
+      assertThatJson(response).node("es_entities").isArray().hasSize(2);
     }
   }
 }

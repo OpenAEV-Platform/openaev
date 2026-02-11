@@ -1,7 +1,6 @@
 import {
   type Challenge,
   type Document,
-  type Domain,
   type Exercise,
   type Organization,
   type PlatformSettings,

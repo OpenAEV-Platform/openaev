@@ -17,10 +17,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.database.model.Endpoint;
-import io.openaev.database.model.Injector;
-import io.openaev.database.model.InjectorContract;
-import io.openaev.database.model.Payload;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.injector_contract.ContractCardinality;
 import io.openaev.injector_contract.ContractDef;
@@ -124,6 +121,14 @@ public class InjectorContractFixture {
 
   public static InjectorContract createDefaultInjectorContract() {
     return createDefaultInjectorContractInternal();
+  }
+
+  public static InjectorContract createInjectorContractWithDomain(Domain domain) {
+    InjectorContract injectorContract = createDefaultInjectorContractInternal();
+    Set<Domain> domains = new HashSet<>();
+    domains.add(domain);
+    injectorContract.setDomains(domains);
+    return injectorContract;
   }
 
   public static InjectorContract createDefaultInjectorContractWithExternalId(String externalId) {
