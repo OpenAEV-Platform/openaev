@@ -49,7 +49,7 @@ const Tenants = () => {
       <Breadcrumbs
         variant="list"
         elements={[{ label: t('Platform') }, {
-          label: t('Tenant management'),
+          label: t('Tenants management'),
           current: true,
         }]}
       />
