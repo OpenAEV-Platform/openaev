@@ -14,7 +14,6 @@ import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
-import io.openaev.integration.migration.PaloAltoCortexExecutorConfigurationMigration;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -42,8 +41,6 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
   private final ThreadPoolTaskScheduler taskScheduler;
   private final FileService fileService;
   private final ConnectorInstanceService connectorInstanceService;
-  private final PaloAltoCortexExecutorConfigurationMigration
-      paloAltoCortexExecutorConfigurationMigration;
   private final CatalogConnectorService catalogConnectorService;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
@@ -58,7 +55,6 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
       EnterpriseEditionService enterpriseEditionService,
       LicenseCacheManager licenseCacheManager,
       ThreadPoolTaskScheduler taskScheduler,
-      PaloAltoCortexExecutorConfigurationMigration paloAltoCortexExecutorConfigurationMigration,
       FileService fileService,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
       HttpClientFactory httpClientFactory) {
@@ -73,8 +69,6 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
     this.enterpriseEditionService = enterpriseEditionService;
     this.licenseCacheManager = licenseCacheManager;
     this.taskScheduler = taskScheduler;
-    this.paloAltoCortexExecutorConfigurationMigration =
-        paloAltoCortexExecutorConfigurationMigration;
     this.fileService = fileService;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
   }
@@ -86,7 +80,7 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
 
   @Override
   protected void runMigrations() throws Exception {
-    paloAltoCortexExecutorConfigurationMigration.migrate();
+    // No
   }
 
   @Override

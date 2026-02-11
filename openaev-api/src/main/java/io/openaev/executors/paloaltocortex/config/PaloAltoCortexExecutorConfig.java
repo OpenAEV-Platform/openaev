@@ -120,7 +120,7 @@ public class PaloAltoCortexExecutorConfig extends BaseIntegrationConfiguration {
   private String groupName;
 
   @IntegrationConfigKey(
-      key = "EXECUTOR_PALOALTOCORTEX_WINDOWS_SCRIPT_ID",
+      key = "EXECUTOR_PALOALTOCORTEX_WINDOWS_SCRIPT_UID",
       description =
           """
           Uid of the OpenAEV Palo Alto Cortex Windows script
@@ -128,10 +128,10 @@ public class PaloAltoCortexExecutorConfig extends BaseIntegrationConfiguration {
       isRequired = true)
   @Getter
   @NotBlank
-  private String windowsScriptId;
+  private String windowsScriptUid;
 
   @IntegrationConfigKey(
-      key = "EXECUTOR_PALOALTOCORTEX_UNIX_SCRIPT_ID",
+      key = "EXECUTOR_PALOALTOCORTEX_UNIX_SCRIPT_UID",
       description =
           """
           Uid of the OpenAEV Palo Alto Cortex Unix script
@@ -139,7 +139,7 @@ public class PaloAltoCortexExecutorConfig extends BaseIntegrationConfiguration {
       isRequired = true)
   @Getter
   @NotBlank
-  private String unixScriptId;
+  private String unixScriptUid;
 
   public String getApiUrl() {
     return url + API_URI;

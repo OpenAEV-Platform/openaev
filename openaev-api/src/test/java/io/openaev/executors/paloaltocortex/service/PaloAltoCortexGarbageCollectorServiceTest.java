@@ -37,7 +37,7 @@ public class PaloAltoCortexGarbageCollectorServiceTest {
     agent.setAsset(EndpointFixture.createEndpoint());
     when(agentService.getAgentsByExecutorType(PALOALTOCORTEX_EXECUTOR_TYPE))
         .thenReturn(List.of(agent));
-    when(config.getWindowsScriptId()).thenReturn("test script");
+    when(config.getWindowsScriptUid()).thenReturn("test script");
     // Run method to test
     paloAltoCortexGarbageCollectorService.run();
     // Asserts

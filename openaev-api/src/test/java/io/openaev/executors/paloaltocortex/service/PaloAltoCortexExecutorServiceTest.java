@@ -91,7 +91,7 @@ public class PaloAltoCortexExecutorServiceTest {
     when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(null);
     doNothing().when(enterpriseEditionService).throwEEExecutorService(any(), any(), any());
     when(config.getApiBatchExecutionActionPagination()).thenReturn(1);
-    when(config.getWindowsScriptId()).thenReturn("1234567890");
+    when(config.getWindowsScriptUid()).thenReturn("1234567890");
     Command payloadCommand =
         PayloadFixture.createCommand(
             "cmd",

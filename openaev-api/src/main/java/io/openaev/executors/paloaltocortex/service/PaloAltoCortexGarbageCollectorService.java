@@ -44,7 +44,7 @@ public class PaloAltoCortexGarbageCollectorService implements Runnable {
       for (Agent agent : windowsAgents) {
         PaloAltoCortexAction action = new PaloAltoCortexAction();
         action.setAgentExternalReference(agent.getExternalReference());
-        action.setScriptId(this.config.getWindowsScriptId());
+        action.setScriptId(this.config.getWindowsScriptUid());
         PaloAltoCortexCommandList commandWindows = new PaloAltoCortexCommandList();
         commandWindows.setCommands_list(
             List.of(
@@ -61,7 +61,7 @@ public class PaloAltoCortexGarbageCollectorService implements Runnable {
       for (Agent agent : unixAgents) {
         PaloAltoCortexAction action = new PaloAltoCortexAction();
         action.setAgentExternalReference(agent.getExternalReference());
-        action.setScriptId(this.config.getUnixScriptId());
+        action.setScriptId(this.config.getUnixScriptUid());
         PaloAltoCortexCommand commandUnix = new PaloAltoCortexCommand();
         commandUnix.setCommand(
             Base64.getEncoder()

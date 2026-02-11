@@ -20,7 +20,6 @@ import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration;
 import io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegrationFactory;
-import io.openaev.integration.migration.PaloAltoCortexExecutorConfigurationMigration;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -64,9 +63,6 @@ public class PaloAltoCortexExecutorIntegrationTest {
   @Autowired private HttpClientFactory httpClientFactory;
   @Autowired private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
-  @Autowired
-  private PaloAltoCortexExecutorConfigurationMigration paloAltoCortexExecutorConfigurationMigration;
-
   @Autowired private FileService fileService;
 
   private PaloAltoCortexExecutorIntegrationFactory getFactory() {
@@ -81,7 +77,6 @@ public class PaloAltoCortexExecutorIntegrationTest {
         enterpriseEditionService,
         licenseCacheManager,
         taskScheduler,
-        paloAltoCortexExecutorConfigurationMigration,
         fileService,
         baseIntegrationConfigurationBuilder,
         httpClientFactory);

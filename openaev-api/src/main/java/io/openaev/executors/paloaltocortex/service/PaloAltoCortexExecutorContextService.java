@@ -127,7 +127,7 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
     List<PaloAltoCortexAction> actions = new ArrayList<>();
     for (Agent agent : agents) {
       PaloAltoCortexAction actionWindows = new PaloAltoCortexAction();
-      actionWindows.setScriptId(this.config.getWindowsScriptId());
+      actionWindows.setScriptId(this.config.getWindowsScriptUid());
       String implantLocation =
           "$location="
               + ExecutorHelper.IMPLANT_LOCATION_WINDOWS
@@ -172,7 +172,7 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
     List<PaloAltoCortexAction> actions = new ArrayList<>();
     for (Agent agent : agents) {
       PaloAltoCortexAction actionUnix = new PaloAltoCortexAction();
-      actionUnix.setScriptId(this.config.getUnixScriptId());
+      actionUnix.setScriptId(this.config.getUnixScriptUid());
       String implantLocation =
           "location="
               + ExecutorHelper.IMPLANT_LOCATION_UNIX
