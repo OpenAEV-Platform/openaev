@@ -123,7 +123,7 @@ public class PaloAltoCortexExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_PALOALTOCORTEX_WINDOWS_SCRIPT_ID",
       description =
           """
-          Id of the OpenAEV Palo Alto Cortex Windows script
+          Uid of the OpenAEV Palo Alto Cortex Windows script
           """,
       isRequired = true)
   @Getter
@@ -134,7 +134,7 @@ public class PaloAltoCortexExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_PALOALTOCORTEX_UNIX_SCRIPT_ID",
       description =
           """
-          Id of the OpenAEV Palo Alto Cortex Unix script
+          Uid of the OpenAEV Palo Alto Cortex Unix script
           """,
       isRequired = true)
   @Getter

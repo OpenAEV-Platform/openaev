@@ -25,8 +25,10 @@ import java.util.regex.Matcher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
+import org.springframework.stereotype.Service;
 
 @Slf4j
+@Service(PaloAltoCortexExecutorContextService.SERVICE_NAME)
 @RequiredArgsConstructor
 public class PaloAltoCortexExecutorContextService extends ExecutorContextService {
   public static final String SERVICE_NAME = PALOALTOCORTEX_EXECUTOR_NAME;
