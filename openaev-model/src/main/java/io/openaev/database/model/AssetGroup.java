@@ -13,7 +13,6 @@ import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.Filters.FilterGroup;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -66,7 +65,7 @@ public class AssetGroup implements Base {
   @NotNull
   private FilterGroup dynamicFilter = FilterGroup.defaultFilterGroup();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "asset_groups_assets",
@@ -82,7 +81,7 @@ public class AssetGroup implements Base {
   private List<Asset> dynamicAssets = new ArrayList<>();
 
   // Getter is Mandatory when we use @Transient annotation
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @JsonSerialize(using = MultiIdListSerializer.class)
   public List<Asset> getDynamicAssets() {
     return this.dynamicAssets;
@@ -90,7 +89,7 @@ public class AssetGroup implements Base {
 
   // -- TAG --
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "asset_groups_tags",
@@ -103,7 +102,7 @@ public class AssetGroup implements Base {
 
   // -- INJECT --
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "injects_asset_groups",

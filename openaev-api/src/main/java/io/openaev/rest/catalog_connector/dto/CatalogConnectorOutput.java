@@ -9,6 +9,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.Set;
 import lombok.Builder;
+import lombok.Getter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -57,6 +58,9 @@ public class CatalogConnectorOutput {
   @JsonProperty("catalog_connector_use_cases")
   private Set<String> useCases;
 
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("catalog_connector_manager_supported"))
   @JsonProperty("catalog_connector_manager_supported")
   private boolean isManagerSupported;
 

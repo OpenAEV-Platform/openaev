@@ -28,7 +28,7 @@ public class Executable extends Payload {
   @JoinColumn(name = "executable_file")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("executable_file")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   @NotNull
   private Document executableFile;
 

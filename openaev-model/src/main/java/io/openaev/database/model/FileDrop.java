@@ -28,7 +28,7 @@ public class FileDrop extends Payload {
   @JoinColumn(name = "file_drop_file")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("file_drop_file")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   @NotNull
   private Document fileDropFile;
 

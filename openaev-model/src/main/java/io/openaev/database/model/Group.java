@@ -8,7 +8,6 @@ import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiModelSerializer;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -57,7 +56,7 @@ public class Group implements Base {
   @Fetch(value = FetchMode.SUBSELECT)
   private List<Grant> grants = new ArrayList<>();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
       name = "users_groups",
@@ -68,7 +67,7 @@ public class Group implements Base {
   @Fetch(value = FetchMode.SUBSELECT)
   private List<User> users = new ArrayList<>();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
       name = "groups_roles",

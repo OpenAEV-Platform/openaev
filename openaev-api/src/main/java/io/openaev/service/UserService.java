@@ -26,6 +26,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
@@ -184,6 +185,11 @@ public class UserService {
    * @return the created user
    */
   public User createUser(CreateUserInput input, int status) {
+    // Check for existing user with same email
+    if (userRepository.findByEmailIgnoreCase(input.getEmail()).isPresent()) {
+      throw new DataIntegrityViolationException(
+          "User with email " + input.getEmail() + " already exists");
+    }
     User user = new User();
     user.setUpdateAttributes(input);
     user.setStatus((short) status);

@@ -13,6 +13,7 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.helper.ViolationErrorBag;
 import io.openaev.rest.user.form.login.LoginUserInput;
 import io.openaev.rest.user.form.login.ResetUserInput;
 import io.openaev.rest.user.form.user.ChangePasswordInput;
@@ -160,7 +161,8 @@ public class UserApi extends RestBehavior {
     String userId = null;
     synchronized (resetTokenMap) {
       for (Map.Entry<String, String> entry : resetTokenMap.entrySet()) {
-        if (entry.getValue().equals(token)) {
+        // Use token.equals() to handle null values from expired entries in PassiveExpiringMap
+        if (token.equals(entry.getValue())) {
           userId = entry.getKey(); // don't break out
         }
       }
@@ -247,7 +249,13 @@ public class UserApi extends RestBehavior {
   @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.USER)
   @Transactional(rollbackFor = Exception.class)
   @Operation(description = "Create a new user", summary = "Create user")
-  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The new user")})
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "The new user"),
+    @ApiResponse(
+        responseCode = "409",
+        description = "Conflict",
+        content = @Content(schema = @Schema(implementation = ViolationErrorBag.class)))
+  })
   public User createUser(@Valid @RequestBody CreateUserInput input) {
     return userService.createUser(input, 1);
   }

@@ -7,6 +7,7 @@ import io.openaev.database.model.Agent;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
@@ -16,9 +17,15 @@ public class EndpointRegisterInput extends EndpointInput {
   @JsonProperty("asset_external_reference")
   private String externalReference;
 
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("agent_is_service"))
   @JsonProperty("agent_is_service")
   private boolean isService = true;
 
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("agent_is_elevated"))
   @JsonProperty("agent_is_elevated")
   private boolean isElevated = true;
 

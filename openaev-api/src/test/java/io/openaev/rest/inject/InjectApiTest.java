@@ -66,12 +66,12 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.MediaType;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
@@ -92,7 +92,7 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private EntityManager entityManager;
   @Autowired private ScenarioService scenarioService;
   @Autowired private ExerciseService exerciseService;
-  @SpyBean private InjectStatusService injectStatusService;
+  @MockitoSpyBean private InjectStatusService injectStatusService;
 
   @Autowired private InjectsExecutionJob injectsExecutionJob;
 
@@ -112,7 +112,7 @@ class InjectApiTest extends IntegrationTest {
 
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private AgentRepository agentRepository;
-  @SpyBean private Executor executor;
+  @MockitoSpyBean private Executor executor;
   @Autowired private EndpointRepository endpointRepository;
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private InjectRepository injectRepository;
@@ -126,7 +126,7 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private UserRepository userRepository;
   @Resource private ObjectMapper objectMapper;
-  @MockBean private JavaMailSender javaMailSender;
+  @MockitoBean private JavaMailSender javaMailSender;
 
   @Autowired private InjectTestHelper injectTestHelper;
   @Autowired private InjectExpectationComposer injectExpectationComposer;

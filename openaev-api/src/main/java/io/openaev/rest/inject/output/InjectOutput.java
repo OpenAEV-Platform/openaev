@@ -17,6 +17,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Data
@@ -64,6 +65,9 @@ public class InjectOutput {
   @ArraySchema(schema = @Schema(description = "Tags of the inject"))
   private Set<String> tags;
 
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("inject_ready"))
   @JsonProperty("inject_ready")
   @Schema(description = "Ready state of the inject")
   public boolean isReady;

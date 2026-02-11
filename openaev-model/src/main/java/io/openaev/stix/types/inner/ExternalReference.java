@@ -2,6 +2,7 @@ package io.openaev.stix.types.inner;
 
 import static io.openaev.stix.types.Hashes.parseHashes;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -11,7 +12,8 @@ import lombok.Setter;
 
 @Getter
 @Setter
-@JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
+@JsonSerialize
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ExternalReference {
   @JsonProperty("source_name")
   private String sourceName;

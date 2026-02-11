@@ -39,7 +39,6 @@ import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
-import jakarta.transaction.Transactional;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -51,6 +50,7 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
@@ -920,9 +920,12 @@ class StixApiTest extends IntegrationTest {
     @DisplayName("Should not remove security coverage even if scenario is deleted")
     void shouldExistSecurityCoverage() throws Exception {
       String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(stixSecurityCoverage));
+      entityManager.clear();
       Scenario scenario = scenarioRepository.findById(scenarioId).orElseThrow();
       String securityCoverageId = scenario.getSecurityCoverage().getId();
+      entityManager.clear();
       scenarioRepository.deleteById(scenarioId);
+      entityManager.clear();
       assertThat(securityCoverageRepository.findByExternalId(securityCoverageId)).isNotNull();
     }
 

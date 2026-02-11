@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -74,14 +73,14 @@ public class Article implements Base {
   @JoinColumn(name = "article_exercise")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("article_exercise")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Exercise exercise;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "article_scenario")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("article_scenario")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Scenario scenario;
 
   @ManyToOne(fetch = FetchType.LAZY)
@@ -89,10 +88,10 @@ public class Article implements Base {
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("article_channel")
   @NotNull
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Channel channel;
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "articles_documents",

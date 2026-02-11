@@ -11,13 +11,13 @@ import lombok.Data;
 public class InjectExpectationTraceInput {
 
   @JsonProperty("inject_expectation_trace_expectation")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   @NotBlank
   private String injectExpectationId;
 
   @NotBlank
   @JsonProperty("inject_expectation_trace_source_id")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private String sourceId;
 
   @NotBlank

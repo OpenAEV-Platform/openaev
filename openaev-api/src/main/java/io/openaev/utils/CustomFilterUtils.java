@@ -3,8 +3,8 @@ package io.openaev.utils;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.Filters;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.validation.constraints.NotNull;
 import java.util.function.UnaryOperator;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.data.jpa.domain.Specification;
 
 /**

@@ -728,6 +728,9 @@ public class ExerciseApi extends RestBehavior {
       lessonsAnswerRepository.deleteAll(lessonsAnswers);
       entityManager.flush();
       entityManager.clear();
+      // Reload exercise after clearing entity manager to avoid detached entity issues
+      exercise =
+          this.exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
       // Delete exercise transient files (communications, ...)
       fileService.deleteDirectory(exerciseId);
     }

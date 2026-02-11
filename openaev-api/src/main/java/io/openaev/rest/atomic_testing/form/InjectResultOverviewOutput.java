@@ -69,6 +69,9 @@ public class InjectResultOverviewOutput {
   @JsonProperty("inject_tags")
   private Set<String> tags;
 
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("inject_ready"))
   @Schema(description = "Indicates whether the inject is ready for use")
   @JsonProperty("inject_ready")
   private boolean isReady;

@@ -7,11 +7,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
-import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.constants.Constants;
+import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,8 +20,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import org.jetbrains.annotations.NotNull;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.mockito.MockitoAnnotations;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
@@ -148,6 +149,10 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // delete scenario and payload before reimporting to verify that the killchainphase is not
     // recreated
+    // Clear the persistence context to avoid TransientObjectException from stale references
+    entityManager.clear();
+    // Delete injects first (they reference Scenario), then scenarios, then payloads
+    injectRepository.deleteAll();
     scenarioRepository.deleteAll();
     payloadRepository.deleteAll();
 

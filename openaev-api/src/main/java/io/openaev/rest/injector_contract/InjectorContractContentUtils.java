@@ -14,11 +14,11 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Spliterators;
 import java.util.stream.StreamSupport;
 import lombok.NoArgsConstructor;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 
 @Component

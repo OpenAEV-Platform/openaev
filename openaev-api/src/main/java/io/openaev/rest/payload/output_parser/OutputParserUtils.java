@@ -1,7 +1,7 @@
 package io.openaev.rest.payload.output_parser;
 
 import io.openaev.database.model.OutputParser;
-import org.jetbrains.annotations.NotNull;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.beans.BeanUtils;
 
 public class OutputParserUtils {

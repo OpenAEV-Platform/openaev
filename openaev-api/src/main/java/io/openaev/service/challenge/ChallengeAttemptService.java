@@ -7,10 +7,10 @@ import io.openaev.database.model.ChallengeAttempt;
 import io.openaev.database.model.ChallengeAttemptId;
 import io.openaev.database.repository.ChallengeAttemptRepository;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 
 @Service

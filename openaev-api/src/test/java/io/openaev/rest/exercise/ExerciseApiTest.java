@@ -14,7 +14,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
-import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
 import io.openaev.rest.exercise.form.*;
 import io.openaev.rest.inject.form.InjectInput;
@@ -23,19 +22,22 @@ import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.annotation.Nullable;
-import jakarta.transaction.Transactional;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @TestExecutionListeners(
@@ -43,6 +45,7 @@ import org.springframework.test.web.servlet.MockMvc;
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @AutoConfigureMockMvc
 @TestInstance(PER_CLASS)
+@Transactional
 public class ExerciseApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper objectMapper;
@@ -64,26 +67,14 @@ public class ExerciseApiTest extends IntegrationTest {
   @Autowired private CustomDashboardRepository customDashboardRepository;
   @Autowired private SettingRepository settingRepository;
 
-  List<ExerciseComposer.Composer> exerciseWrapperComposers = new ArrayList<>();
+  private static final List<String> COMPOSER_EXERCISE_IDS = new ArrayList<>();
   private static final List<String> EXERCISE_IDS = new ArrayList<>();
   private static final List<String> USER_IDS = new ArrayList<>();
   private static final List<String> TEAM_IDS = new ArrayList<>();
 
-  @AfterAll
-  void afterAll() {
-    exerciseWrapperComposers.forEach(ExerciseComposer.Composer::delete);
-    this.exerciseRepository.deleteAllById(EXERCISE_IDS);
-    this.userRepository.deleteAllById(USER_IDS);
-    this.teamRepository.deleteAllById(TEAM_IDS);
-    this.tagRuleRepository.deleteAll();
-    this.assetGroupRepository.deleteAll();
-    this.tagRepository.deleteAll();
-  }
-
   @DisplayName("Create simulation succeed with default dashboard")
   @Test
   @WithMockUser(isAdmin = true)
-  @Transactional
   void given_exercise_creation_should_set_default_custom_dashboard() throws Exception {
     // -- PREPARE --
     CustomDashboard defaultDashboard = new CustomDashboard();
@@ -233,7 +224,7 @@ public class ExerciseApiTest extends IntegrationTest {
   void checkIfRuleAppliesTest_WHEN_rule_found() throws Exception {
     this.tagRuleRepository.deleteAll();
     this.tagRepository.deleteAll();
-    io.openaev.database.model.Tag tag2 = TagFixture.getTag();
+    io.openaev.database.model.Tag tag2 = TagFixture.getTagNoId();
     tag2.setName("tag2");
     tag2 = this.tagRepository.save(tag2);
 
@@ -270,7 +261,7 @@ public class ExerciseApiTest extends IntegrationTest {
   void checkIfRuleAppliesTest_WHEN_no_rule_found() throws Exception {
     this.tagRuleRepository.deleteAll();
     this.tagRepository.deleteAll();
-    Tag tag2 = TagFixture.getTag();
+    Tag tag2 = TagFixture.getTagNoId();
     tag2.setName("tag2");
     tag2 = this.tagRepository.save(tag2);
     CheckExerciseRulesInput input = new CheckExerciseRulesInput();
@@ -317,7 +308,7 @@ public class ExerciseApiTest extends IntegrationTest {
                           injectStatusComposer.forInjectStatus(
                               InjectStatusFixture.createDraftInjectStatus())))
               .persist();
-      exerciseWrapperComposers.add(newExerciseComposer);
+      COMPOSER_EXERCISE_IDS.add(newExerciseComposer.get().getId());
       return newExerciseComposer.get();
     }
 
@@ -379,8 +370,7 @@ public class ExerciseApiTest extends IntegrationTest {
               .forEndpoint(EndpointFixture.createEndpoint())
               .withAgent(
                   agentComposer.forAgent(
-                      AgentFixture.createDefaultAgentSession(
-                          executorFixture.getCrowdstrikeExecutor())))
+                      AgentFixture.createDefaultAgentSession(executorFixture.getTaniumExecutor())))
               .persist()
               .get();
 
@@ -402,7 +392,6 @@ public class ExerciseApiTest extends IntegrationTest {
   }
 
   @Test
-  @Transactional
   @DisplayName("Should enable all users of newly added teams when replacing exercise teams")
   @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
   void replacingTeamsShouldEnableNewTeamUsers() throws Exception {

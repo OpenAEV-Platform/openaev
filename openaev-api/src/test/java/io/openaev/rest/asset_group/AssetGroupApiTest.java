@@ -58,7 +58,7 @@ class AssetGroupApiTest extends IntegrationTest {
   void given_validAssetGroupInput_should_createAndGetAssetGroupWithoutDynamicFilterSuccessfully()
       throws Exception {
     // -- PREPARE --
-    Tag tag = tagRepository.save(TagFixture.getTag());
+    Tag tag = tagRepository.save(TagFixture.getTagNoId());
     AssetGroupInput assetGroupInput = createAssetGroupWithTags("Asset group", List.of(tag.getId()));
     Filters.FilterGroup filterGroupExpected = Filters.FilterGroup.defaultFilterGroup();
 
@@ -168,7 +168,7 @@ class AssetGroupApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void should_createOneAssetGroupWithJavaAndOneWithSQLAndCompareThem() throws Exception {
     // -- PREPARE --
-    Tag tag = tagRepository.save(TagFixture.getTag());
+    Tag tag = tagRepository.save(TagFixture.getTagNoId());
     AssetGroupInput assetGroupInput = createAssetGroupWithTags("Asset group", List.of(tag.getId()));
 
     // --EXECUTE--

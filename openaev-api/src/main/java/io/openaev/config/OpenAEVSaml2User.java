@@ -1,11 +1,11 @@
 package io.openaev.config;
 
 import io.openaev.database.model.User;
+import jakarta.validation.constraints.NotNull;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.saml2.provider.service.authentication.Saml2AuthenticatedPrincipal;

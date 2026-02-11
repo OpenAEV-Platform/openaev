@@ -16,7 +16,6 @@ import io.openaev.database.converter.ContentConverter;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -86,7 +85,7 @@ public class InjectorContract implements Base {
   @JsonProperty("injector_contract_arch")
   @Enumerated(EnumType.STRING)
   public Payload.PAYLOAD_EXECUTION_ARCH getArch() {
-    return ofNullable(getPayload()).map(payload -> payload.getExecutionArch()).orElse(null);
+    return ofNullable(getPayload()).map(Payload::getExecutionArch).orElse(null);
   }
 
   @Queryable(filterable = true)
@@ -114,10 +113,10 @@ public class InjectorContract implements Base {
   @JsonProperty("injector_contract_injector")
   @Queryable(filterable = true, dynamicValues = true)
   @NotNull
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Injector injector;
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
       name = "injectors_contracts_attack_patterns",
@@ -152,7 +151,7 @@ public class InjectorContract implements Base {
     return this.payload != null ? this.payload.getDomains() : this.domains;
   }
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
       name = "injectors_contracts_vulnerabilities",
@@ -169,13 +168,17 @@ public class InjectorContract implements Base {
     this.vulnerabilities = vulnerabilities;
   }
 
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("injector_contract_atomic_testing"))
   @Column(name = "injector_contract_atomic_testing")
-  @JsonProperty("injector_contract_atomic_testing")
   @Queryable(filterable = true)
   private boolean isAtomicTesting;
 
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("injector_contract_import_available"))
   @Column(name = "injector_contract_import_available")
-  @JsonProperty("injector_contract_import_available")
   @Queryable(filterable = true)
   private boolean isImportAvailable;
 

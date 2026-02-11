@@ -6,8 +6,8 @@ import static io.openaev.database.model.ExerciseStatus.SCHEDULED;
 import io.openaev.database.model.Exercise;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.criteria.Path;
+import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.data.jpa.domain.Specification;
 
 public class ExerciseSpecification {
