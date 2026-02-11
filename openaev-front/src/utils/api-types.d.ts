@@ -2218,6 +2218,7 @@ export interface EsCountInterval {
 
 export interface EsDomainsAvgData {
   data: EsSeries[];
+  /** @minLength 1 */
   label: string;
 }
 
@@ -4558,11 +4559,6 @@ export type ListConfiguration = UtilRequiredKeys<
   "widget_configuration_type" | "time_range" | "date_attribute"
 > & {
   columns?: string[];
-  /**
-   * @format int32
-   * @min 0
-   */
-  from?: number;
   /**
    * @format int32
    * @min 1
