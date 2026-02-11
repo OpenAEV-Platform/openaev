@@ -58,7 +58,7 @@ const ConnectorLayout = () => {
   const { connector: catalogConnector } = useHelper((helper: CatalogConnectorsHelper) => ({ connector: helper.getCatalogConnector(relatedIds?.catalog_connector_id ?? '') }));
   const { instance } = useHelper((helper: ConnectorInstanceHelper) => ({ instance: helper.getConnectorInstance(relatedIds?.connector_instance_id ?? '') }));
 
-  useEffect(() => {
+  useDataLoader(() => {
     isXtmComposerIsReachable().then(({ data }) => setIsXtmComposerUp(data));
 
     if (!connectorId) {
@@ -68,28 +68,23 @@ const ConnectorLayout = () => {
     }
     setLoading(true);
     apiRequest.getRelatedIds(connectorId).then(({ data }: { data: ConnectorIds }) => {
-      setRelatedIds(data);
-    })
-      .catch(() => {
+      if(!data) {
         setLoading(false);
-      });
-  }, [connectorId]);
-
-  useDataLoader(() => {
-    if (!relatedIds || !connectorId) {
-      return;
-    }
-    const promises: Promise<typeof store.dispatch>[] = [
-      dispatch(apiRequest.fetchSingle(connectorId)),
-    ];
-    if (relatedIds?.catalog_connector_id) {
-      promises.push(dispatch(fetchConnector(relatedIds.catalog_connector_id)));
-    }
-    if (relatedIds?.connector_instance_id) {
-      promises.push(dispatch(fetchConnectorInstance(relatedIds.connector_instance_id)));
-    }
-    Promise.all(promises).finally(() => setLoading(false));
-  }, [relatedIds]);
+      } else {
+        setRelatedIds(data);
+        const promises: Promise<typeof store.dispatch>[] = [
+          dispatch(apiRequest.fetchSingle(connectorId)),
+        ];
+        if (data?.catalog_connector_id) {
+          promises.push(dispatch(fetchConnector(data.catalog_connector_id)));
+        }
+        if (data?.connector_instance_id) {
+          promises.push(dispatch(fetchConnectorInstance(data.connector_instance_id)));
+        }
+        Promise.all(promises).finally(() => setLoading(false));
+      }
+    }).catch(() => setLoading(false))
+  }, [connectorId, apiRequest, dispatch]);
 
   const breadcrumbElements = connectorId
     ? [
