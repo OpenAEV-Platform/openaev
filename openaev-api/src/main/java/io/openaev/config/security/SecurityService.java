@@ -52,6 +52,7 @@ public class SecurityService {
         }
         User user = this.userService.createUser(createUserInput, 0);
         this.userEventService.createUserCreatedEvent(user, registrationId);
+        userEventService.createLoginSuccessEvent(user);
         return user;
       } else {
         // If user exists, update it
@@ -61,6 +62,7 @@ public class SecurityService {
         if (allAdmin || !adminRoles.isEmpty()) {
           currentUser.setAdmin(isAdmin);
         }
+        userEventService.createLoginSuccessEvent(currentUser);
         return this.userService.updateUser(currentUser);
       }
     }

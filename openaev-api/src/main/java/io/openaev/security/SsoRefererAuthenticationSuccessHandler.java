@@ -1,10 +1,7 @@
 package io.openaev.security;
 
-import static io.openaev.security.SsoRefererAuthenticationUtils.extractUser;
 import static org.springframework.http.HttpHeaders.REFERER;
 
-import io.openaev.database.model.User;
-import io.openaev.service.user_events.UserEventService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -19,19 +16,11 @@ import org.springframework.security.web.savedrequest.SavedRequest;
 public class SsoRefererAuthenticationSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
   private final RequestCache requestCache = new HttpSessionRequestCache();
-  private final UserEventService userEventService;
-
-  public SsoRefererAuthenticationSuccessHandler(UserEventService userEventService) {
-    this.userEventService = userEventService;
-  }
 
   @Override
   public void onAuthenticationSuccess(
       HttpServletRequest request, HttpServletResponse response, Authentication authentication)
       throws ServletException, IOException {
-    User user = extractUser(authentication);
-    userEventService.createLoginSuccessEvent(user);
-
     SavedRequest savedRequest = this.requestCache.getRequest(request, response);
     if (savedRequest != null) {
       List<String> refererValues = savedRequest.getHeaderValues(REFERER);

@@ -103,7 +103,7 @@ public class AppSecurityConfig {
       http.oauth2Login(
           login ->
               login
-                  .successHandler(new SsoRefererAuthenticationSuccessHandler(this.userEventService))
+                  .successHandler(new SsoRefererAuthenticationSuccessHandler())
                   .failureHandler(
                       new SsoRefererAuthenticationFailureHandler(this.userEventService)));
     }

@@ -66,8 +66,7 @@ public class OpenSamlConfig {
             saml2Login ->
                 saml2Login
                     .authenticationManager(new ProviderManager(authenticationProvider))
-                    .successHandler(
-                        new SsoRefererAuthenticationSuccessHandler(this.userEventService)));
+                    .successHandler(new SsoRefererAuthenticationSuccessHandler()));
   }
 
   // -- PRIVATE --
