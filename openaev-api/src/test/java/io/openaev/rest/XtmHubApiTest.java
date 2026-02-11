@@ -3,27 +3,38 @@ package io.openaev.rest;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.xtmhub.XtmHubApi;
+import io.openaev.api.xtmhub.XtmHubContactUsInput;
 import io.openaev.api.xtmhub.XtmHubRegisterInput;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.xtmhub.XtmHubClient;
 import io.openaev.xtmhub.XtmHubRegistrationStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
+@AutoConfigureMockMvc
+@ExtendWith(MockitoExtension.class)
 @DisplayName("XTM Hub API tests")
 public class XtmHubApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
@@ -114,5 +125,31 @@ public class XtmHubApiTest extends IntegrationTest {
     assertNull(settings.getXtmHubRegistrationDate());
     assertNull(settings.getXtmHubLastConnectivityCheck());
     assertNull(settings.getXtmHubShouldSendConnectivityEmail());
+  }
+
+  @MockBean private XtmHubClient xtmHubClient;
+
+  @Test
+  @WithMockUser()
+  @DisplayName("Should successfully send contact message")
+  public void whenContactUsSendMessage() throws Exception {
+    String message = "I would like to get more information about your services";
+    XtmHubContactUsInput input = new XtmHubContactUsInput();
+    input.setMessage(message);
+
+    when(xtmHubClient.contactUs(any(), any(), any())).thenReturn(true);
+
+    String response =
+        mvc.perform(
+                post(XtmHubApi.XTMHUB_URI + "/contact-us")
+                    .content(asJsonString(input))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    Boolean result = JsonPath.read(response, "$");
+    assertTrue(result);
   }
 }

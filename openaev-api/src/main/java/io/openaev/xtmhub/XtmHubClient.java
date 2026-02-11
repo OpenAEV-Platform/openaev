@@ -45,14 +45,14 @@ public class XtmHubClient {
 
   public Boolean contactUs(String message, String token, String platformId) {
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
-      HttpPost httpPost = new HttpPost(config.getApiUrl() + "/graphql-api");
+      HttpPost httpPost = new HttpPost(this.graphqlEndpoint);
       httpPost.addHeader("Content-Type", "application/json; charset=utf-8");
       httpPost.addHeader("Accept", "application/json");
       httpPost.addHeader(XTMHUB_PLATFORM_TOKEN_HEADER, token);
       httpPost.addHeader(XTMHUB_PLATFORM_ID_HEADER, platformId);
       StringEntity httpBody = buildMutationContactUsBody(message);
       httpPost.setEntity(httpBody);
-      return httpClient.execute(httpPost, this::parseResponseAsContactUs);
+      return httpClient.execute(httpPost, this::isContactUsResponseSuccessful);
     } catch (Exception e) {
       log.error("XTM Hub is unreachable on {}: {}", config.getApiUrl(), e.getMessage(), e);
       return false;
@@ -244,7 +244,7 @@ public class XtmHubClient {
     }
   }
 
-  private Boolean parseResponseAsContactUs(ClassicHttpResponse response) {
+  private Boolean isContactUsResponseSuccessful(ClassicHttpResponse response) {
     return response.getCode() == HttpStatus.SC_OK;
   }
 }

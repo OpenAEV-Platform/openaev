@@ -1,6 +1,7 @@
 import { ChevronRight } from '@mui/icons-material';
 import { type Theme } from '@mui/material';
 import { Button } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { type SxProps } from '@mui/system';
 import type React from 'react';
 
@@ -45,6 +46,7 @@ interface TopBannerProps {
 }
 
 const TopBanner = ({ bannerText, bannerColor = 'gradient_blue', buttonText, buttonStyle, onButtonClick }: TopBannerProps) => {
+  const theme = useTheme();
   const { settings } = useHelper((helper: LoggedHelper) => {
     return { settings: helper.getPlatformSettings() };
   });
@@ -60,7 +62,7 @@ const TopBanner = ({ bannerText, bannerColor = 'gradient_blue', buttonText, butt
       zIndex: 1202,
       color: '#000000',
       width: '100%',
-      padding: 4,
+      padding: theme.spacing(0.5),
       borderRadius: 0,
       backgroundImage: `linear-gradient(to right, ${colors.from}, ${colors.to})`,
       justifyContent: 'center',
@@ -77,14 +79,12 @@ const TopBanner = ({ bannerText, bannerColor = 'gradient_blue', buttonText, butt
           variant="contained"
           onClick={onButtonClick}
           sx={{
-            'marginLeft': 1,
-            'backgroundColor': '#ffffff',
-            'color': '#000000',
-            'padding': '1px 6px',
+            'marginLeft': theme.spacing(1),
+            'padding': theme.spacing('1px', '6px'),
             'fontSize': '0.8rem',
             'textTransform': 'none',
             'lineHeight': 1.2,
-            '& .MuiButton-endIcon': { marginLeft: '2px' },
+            '& .MuiButton-endIcon': { marginLeft: theme.spacing('2px') },
             ...buttonStyle,
           }}
           endIcon={<ChevronRight />}

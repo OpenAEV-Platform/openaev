@@ -1,12 +1,13 @@
 import { type PlatformSettings } from '../../../utils/api-types';
 import { isNotEmptyField, recordEntries, recordKeys } from '../../../utils/utils';
+import { LICENSE_OPTION_TRIAL } from '../trialbanners/LicenseBanner';
 
 const SYSTEM_BANNER_HEIGHT_PER_MESSAGE = 18;
 export type BannerMessage = Record<'debug' | 'info' | 'warn' | 'error' | 'fatal', string[]>;
 // eslint-disable-next-line import/prefer-default-export
 export const computeBannerSettings = (settings: PlatformSettings) => {
   const bannerByLevel = settings.platform_banner_by_level;
-  const isBannerActivated = (bannerByLevel !== undefined && isNotEmptyField(recordKeys(bannerByLevel))) || settings.platform_license?.license_type === 'trial';
+  const isBannerActivated = (bannerByLevel !== undefined && isNotEmptyField(recordKeys(bannerByLevel))) || settings.platform_license?.license_type === LICENSE_OPTION_TRIAL;
   let numberOfElements = 0;
   if (settings.platform_banner_by_level !== undefined) {
     for (const bannerLevel of recordEntries(settings.platform_banner_by_level)) {

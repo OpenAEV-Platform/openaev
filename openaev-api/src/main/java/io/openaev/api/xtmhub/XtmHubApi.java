@@ -89,7 +89,7 @@ public class XtmHubApi extends RestBehavior {
       produces = MediaType.APPLICATION_JSON_VALUE)
   @Operation(summary = "Contact Sales", description = "Contact the sales team throught XTM Hub")
   @ApiResponses({@ApiResponse(responseCode = "200", description = "Successful contact")})
-  @RBAC()
+  @RBAC(skipRBAC = true)
   @Transactional(rollbackFor = Exception.class)
   public Boolean contactUs(@Valid @RequestBody XtmHubContactUsInput request) {
     return this.xtmHubService.contactUs(request.getMessage());
