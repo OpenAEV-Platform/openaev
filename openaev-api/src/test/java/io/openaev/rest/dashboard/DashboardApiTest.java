@@ -676,60 +676,128 @@ class DashboardApiTest extends IntegrationTest {
   @Nested
   @DisplayName("Create List widget in runtime")
   class CreateListWidgetInRuntime {
-    private void createEndpoint(String name, Endpoint.PLATFORM_TYPE platform) {
-      endpointComposer
-          .forEndpoint(EndpointFixture.createEndpointWithPlatform(name, platform))
+    // ==================== Common Helper Methods ====================
+    private void flushAndProcessElastic() throws InterruptedException {
+      entityManager.flush();
+      entityManager.clear();
+      engineService.bulkProcessing(engineContext.getModels().stream());
+      // elastic needs to process the data; it does so async
+      Thread.sleep(1000);
+    }
+
+    private String performWidgetEntitiesRuntimeRequest(Widget widget, WidgetToEntitiesInput input)
+            throws Exception {
+      return mvc.perform(
+                      post(DASHBOARD_URI + "/entities-runtime/" + widget.getId())
+                              .contentType(MediaType.APPLICATION_JSON)
+                              .content(asJsonString(input)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+    }
+
+    private WidgetToEntitiesInput createWidgetInput(
+            Map<String, List<String>> filterValuesMap,
+            int seriesIndex,
+            Map<String, String> parameters) {
+      WidgetToEntitiesInput input = new WidgetToEntitiesInput();
+      input.setFilterValuesMap(filterValuesMap);
+      input.setSeriesIndex(seriesIndex);
+      input.setParameters(parameters);
+      return input;
+    }
+
+    private Widget createWidgetWithDashboard(Widget widget) {
+      return widgetComposer
+              .forWidget(widget)
+              .withCustomDashboard(
+                      customDashboardComposer.forCustomDashboard(
+                              CustomDashboardFixture.createCustomDashboardWithDefaultParams()))
+              .persist()
+              .get();
+    }
+
+    private EndpointComposer.Composer createEndpoint(Endpoint endpoint) {
+      return endpointComposer
+          .forEndpoint(endpoint)
           .persist();
     }
+
+    private Domain createDomain(String name, String colour) {
+      return domainComposer
+              .forDomain(DomainFixture.getDomainWithNameAndColour(name, colour))
+              .persist()
+              .get();
+    }
+
+    private InjectExpectationComposer.Composer createExpectationComposer(
+            InjectExpectation.EXPECTATION_TYPE type,
+            InjectExpectation.EXPECTATION_STATUS status) {
+      return injectExpectationComposer.forExpectation(
+              InjectExpectationFixture.createExpectationWithTypeAndStatus(type, status));
+    }
+
+    private Inject createTechnicalInject(
+            Domain domain,
+            AttackPattern attackPattern,
+            List<InjectExpectationComposer.Composer> expectations) {
+      EndpointComposer.Composer endpointWrapper = createEndpoint(EndpointFixture.createEndpoint());
+      InjectorContractComposer.Composer injectorContract;
+
+      if (domain != null) {
+        injectorContract = injectorContractComposer
+                .forInjectorContract(InjectorContractFixture.createInjectorContractWithDomain(domain));
+      } else {
+        injectorContract = injectorContractComposer
+                .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract());
+      }
+
+      if (attackPattern != null) {
+        injectorContract.withAttackPattern(attackPatternComposer.forAttackPattern(attackPattern));
+      }
+
+      InjectComposer.Composer injectWrapper = injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withEndpoint(endpointWrapper)
+              .withInjectorContract(injectorContract);
+
+      expectations.forEach(exp -> injectWrapper.withExpectation(exp.withEndpoint(endpointWrapper)));
+
+      return injectWrapper.persist().get();
+    }
+
+    // ==================== End Common Helper Methods ====================
 
     @Test
     @DisplayName(
         "Given Structural Endpoint Histogram breakdown by platform, should return list of windows endpoint")
     void given_structuralEndpointHistogram_should_returnListOfWindowsEndpoint() throws Exception {
-      createEndpoint("Endpoint A", Endpoint.PLATFORM_TYPE.Windows);
-      createEndpoint("Endpoint B", Endpoint.PLATFORM_TYPE.Windows);
-      createEndpoint("Endpoint C", Endpoint.PLATFORM_TYPE.Linux);
-      createEndpoint("Endpoint D", Endpoint.PLATFORM_TYPE.MacOS);
-      Widget widget =
-          widgetComposer
-              .forWidget(
-                  WidgetFixture.createStructuralWidgetWithTimeRange(
-                      LAST_QUARTER, "base_created_at", "endpoint_platform", "endpoint"))
-              .withCustomDashboard(
-                  customDashboardComposer.forCustomDashboard(
-                      CustomDashboardFixture.createCustomDashboardWithDefaultParams()))
-              .persist()
-              .get();
-      // force persistence
-      entityManager.flush();
-      entityManager.clear();
-      engineService.bulkProcessing(engineContext.getModels().stream());
-      // elastic needs to process the data; it does so async, so the method above
-      // completes before the data is available in the system
-      Thread.sleep(1000);
+      createEndpoint(EndpointFixture.createEndpointWithPlatform("Endpoint A", Endpoint.PLATFORM_TYPE.Windows));
+      createEndpoint(EndpointFixture.createEndpointWithPlatform("Endpoint B", Endpoint.PLATFORM_TYPE.Windows));
+      createEndpoint(EndpointFixture.createEndpointWithPlatform("Endpoint C", Endpoint.PLATFORM_TYPE.Linux));
+      createEndpoint(EndpointFixture.createEndpointWithPlatform("Endpoint D", Endpoint.PLATFORM_TYPE.MacOS));
 
+      Widget widget = createWidgetWithDashboard(
+              WidgetFixture.createStructuralWidgetWithTimeRange(
+                      LAST_QUARTER, "base_created_at", "endpoint_platform", "endpoint"));
+
+      flushAndProcessElastic();
+
+      // Build request
       List<CustomDashboardParameters> parameters = widget.getCustomDashboard().getParameters();
-      String timeRangeParameterId =
-          parameters.stream().filter(param -> param.getType() == timeRange).toString();
-      Map<String, String> parameterInput = new HashMap<>();
-      parameterInput.put(timeRangeParameterId, String.valueOf(ALL_TIME));
+      String timeRangeParameterId = parameters.stream()
+              .filter(param -> param.getType() == timeRange)
+              .toString();
 
-      WidgetToEntitiesInput input = new WidgetToEntitiesInput();
-      Map<String, List<String>> filterValuesMap = new HashMap<>();
-      filterValuesMap.put("endpoint_platform", List.of(Endpoint.PLATFORM_TYPE.Windows.name()));
-      input.setFilterValuesMap(filterValuesMap);
-      input.setSeriesIndex(0);
-      input.setParameters(parameterInput);
+      WidgetToEntitiesInput input = createWidgetInput(
+              Map.of("endpoint_platform", List.of(Endpoint.PLATFORM_TYPE.Windows.name())),
+              0,
+              Map.of(timeRangeParameterId, String.valueOf(ALL_TIME)));
 
-      String response =
-          mvc.perform(
-                  post(DASHBOARD_URI + "/entities-runtime/" + widget.getId())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input)))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
+      // Execute & Assert
+      String response = performWidgetEntitiesRuntimeRequest(widget, input);
+
       assertThatJson(response)
           .node("list_configuration.perspective.filter.filters")
           .isArray()
@@ -750,32 +818,6 @@ class DashboardApiTest extends IntegrationTest {
       assertThatJson(response).node("es_entities").isArray().size().isEqualTo(2);
     }
 
-    private Inject createInjectWithDetectionExpectation(AttackPattern attackPattern) {
-      EndpointComposer.Composer endpointWrapper =
-          endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist();
-      InjectExpectation detection1 =
-          InjectExpectationFixture.createExpectationWithTypeAndStatus(
-              InjectExpectation.EXPECTATION_TYPE.DETECTION,
-              InjectExpectation.EXPECTATION_STATUS.SUCCESS);
-      InjectExpectation detection2 =
-          InjectExpectationFixture.createExpectationWithTypeAndStatus(
-              InjectExpectation.EXPECTATION_TYPE.DETECTION,
-              InjectExpectation.EXPECTATION_STATUS.SUCCESS);
-      return injectComposer
-          .forInject(InjectFixture.getDefaultInject())
-          .withEndpoint(endpointWrapper)
-          .withInjectorContract(
-              injectorContractComposer
-                  .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
-                  .withAttackPattern(attackPatternComposer.forAttackPattern(attackPattern)))
-          .withExpectation(
-              injectExpectationComposer.forExpectation(detection1).withEndpoint(endpointWrapper))
-          .withExpectation(
-              injectExpectationComposer.forExpectation(detection2).withEndpoint(endpointWrapper))
-          .persist()
-          .get();
-    }
-
     @Test
     @DisplayName("Given security coverage widget should return list of inject expectations")
     void given_securityCoverageWidget_should_returnListOfInjectExpectations() throws Exception {
@@ -785,46 +827,38 @@ class DashboardApiTest extends IntegrationTest {
           attackPatternRepository.save(AttackPatternFixture.createDefaultAttackPattern());
       AttackPattern attackPattern3 =
           attackPatternRepository.save(AttackPatternFixture.createDefaultAttackPattern());
-      Inject inject1 = createInjectWithDetectionExpectation(attackPattern1);
-      Inject inject2 = createInjectWithDetectionExpectation(attackPattern1);
-      Inject inject3 = createInjectWithDetectionExpectation(attackPattern2);
-      createInjectWithDetectionExpectation(attackPattern3);
-      Widget widget =
-          widgetComposer
-              .forWidget(
-                  WidgetFixture.createSecurityConverageWidget(
-                      ALL_TIME, "base_created_at", InjectExpectation.EXPECTATION_TYPE.DETECTION))
-              .withCustomDashboard(
-                  customDashboardComposer.forCustomDashboard(
-                      CustomDashboardFixture.createCustomDashboardWithDefaultParams()))
-              .persist()
-              .get();
+      Inject inject1 =  createTechnicalInject(null, attackPattern1, List.of(
+              createExpectationComposer(InjectExpectation.EXPECTATION_TYPE.DETECTION, InjectExpectation.EXPECTATION_STATUS.SUCCESS),
+              createExpectationComposer(InjectExpectation.EXPECTATION_TYPE.DETECTION, InjectExpectation.EXPECTATION_STATUS.SUCCESS)
+              ));
+      Inject inject2 =  createTechnicalInject(null, attackPattern1, List.of(
+              createExpectationComposer(InjectExpectation.EXPECTATION_TYPE.DETECTION, InjectExpectation.EXPECTATION_STATUS.SUCCESS),
+              createExpectationComposer(InjectExpectation.EXPECTATION_TYPE.DETECTION, InjectExpectation.EXPECTATION_STATUS.SUCCESS)
+      ));
+      Inject inject3 = createTechnicalInject(null, attackPattern2, List.of(
+              createExpectationComposer(InjectExpectation.EXPECTATION_TYPE.DETECTION, InjectExpectation.EXPECTATION_STATUS.SUCCESS),
+              createExpectationComposer(InjectExpectation.EXPECTATION_TYPE.DETECTION, InjectExpectation.EXPECTATION_STATUS.SUCCESS)
+      ));
+      createTechnicalInject(null, attackPattern3, List.of(
+              createExpectationComposer(InjectExpectation.EXPECTATION_TYPE.DETECTION, InjectExpectation.EXPECTATION_STATUS.SUCCESS),
+              createExpectationComposer(InjectExpectation.EXPECTATION_TYPE.DETECTION, InjectExpectation.EXPECTATION_STATUS.SUCCESS)
+      ));
 
-      // force persistence
-      entityManager.flush();
-      entityManager.clear();
-      engineService.bulkProcessing(engineContext.getModels().stream());
-      // elastic needs to process the data; it does so async, so the method above
-      // completes before the data is available in the system
-      Thread.sleep(1000);
+      Widget widget = createWidgetWithDashboard(
+              WidgetFixture.createSecurityConverageWidget(
+                      ALL_TIME, "base_created_at", InjectExpectation.EXPECTATION_TYPE.DETECTION));
 
-      WidgetToEntitiesInput input = new WidgetToEntitiesInput();
-      Map<String, List<String>> filterValuesMap = new HashMap<>();
-      filterValuesMap.put(
-          "base_attack_patterns_side", List.of(attackPattern1.getId(), attackPattern2.getId()));
-      input.setFilterValuesMap(filterValuesMap);
-      input.setSeriesIndex(0);
-      input.setParameters(new HashMap<>());
+      flushAndProcessElastic();
 
-      String response =
-          mvc.perform(
-                  post(DASHBOARD_URI + "/entities-runtime/" + widget.getId())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input)))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
+      // Build request
+      WidgetToEntitiesInput input = createWidgetInput(
+              Map.of("base_attack_patterns_side", List.of(attackPattern1.getId(), attackPattern2.getId())),
+              0,
+              new HashMap<>());
+
+      // Execute & Assert
+      String response = performWidgetEntitiesRuntimeRequest(widget, input);
+
       assertThatJson(response)
           .node("list_configuration.perspective.filter.filters")
           .isArray()
@@ -844,111 +878,41 @@ class DashboardApiTest extends IntegrationTest {
           .containsOnly(inject1.getId(), inject2.getId(), inject3.getId());
     }
 
-    private Inject createInjectWithDomainAndExpectations(
-        Domain domain, List<InjectExpectationComposer.Composer> injectExpectationsComposer) {
-      EndpointComposer.Composer endpointWrapper =
-          endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist();
-      InjectComposer.Composer injectWrapper =
-          injectComposer
-              .forInject(InjectFixture.getDefaultInject())
-              .withInjectorContract(
-                  injectorContractComposer.forInjectorContract(
-                      InjectorContractFixture.createInjectorContractWithDomain(domain)));
-      injectExpectationsComposer.forEach(
-          expectation -> injectWrapper.withExpectation(expectation.withEndpoint(endpointWrapper)));
-      return injectWrapper.persist().get();
-    }
-
-    private InjectExpectationComposer.Composer createInjectExpectationWithTypeAndStatusComposer(
-        InjectExpectation.EXPECTATION_TYPE type, InjectExpectation.EXPECTATION_STATUS status) {
-      return injectExpectationComposer.forExpectation(
-          InjectExpectationFixture.createExpectationWithTypeAndStatus(type, status));
-    }
-
     @Test
     @DisplayName(
         "Given security domain widget should return list of expectation filtered by domain, type and status")
     void given_securityDomainWidget_should_returnListOfExpectationFilteredByDomain()
         throws Exception {
-      Domain networkDomain =
-          domainComposer
-              .forDomain(DomainFixture.getDomainWithNameAndColour("Network-test", "red"))
-              .persist()
-              .get();
-      Domain endpointDomain =
-          domainComposer
-              .forDomain(DomainFixture.getDomainWithNameAndColour("Endpoint-test", "blue"))
-              .persist()
-              .get();
-      InjectExpectationComposer.Composer detectionSuccess =
-          createInjectExpectationWithTypeAndStatusComposer(
-              InjectExpectation.EXPECTATION_TYPE.DETECTION,
-              InjectExpectation.EXPECTATION_STATUS.SUCCESS);
-      InjectExpectationComposer.Composer detection2Success =
-          createInjectExpectationWithTypeAndStatusComposer(
-              InjectExpectation.EXPECTATION_TYPE.DETECTION,
-              InjectExpectation.EXPECTATION_STATUS.SUCCESS);
-      InjectExpectationComposer.Composer detection3Success =
-          createInjectExpectationWithTypeAndStatusComposer(
-              InjectExpectation.EXPECTATION_TYPE.DETECTION,
-              InjectExpectation.EXPECTATION_STATUS.SUCCESS);
-      InjectExpectationComposer.Composer detectionFailed =
-          createInjectExpectationWithTypeAndStatusComposer(
-              InjectExpectation.EXPECTATION_TYPE.DETECTION,
-              InjectExpectation.EXPECTATION_STATUS.FAILED);
-      InjectExpectationComposer.Composer preventionSuccess =
-          createInjectExpectationWithTypeAndStatusComposer(
-              InjectExpectation.EXPECTATION_TYPE.PREVENTION,
-              InjectExpectation.EXPECTATION_STATUS.SUCCESS);
-      InjectExpectationComposer.Composer preventionFailed =
-          createInjectExpectationWithTypeAndStatusComposer(
-              InjectExpectation.EXPECTATION_TYPE.PREVENTION,
-              InjectExpectation.EXPECTATION_STATUS.FAILED);
+      Domain networkDomain = createDomain("Network-test", "red");
+      Domain endpointDomain = createDomain("Endpoint-test", "blue");
 
-      Inject inject1 =
-          createInjectWithDomainAndExpectations(
-              networkDomain,
-              List.of(detectionSuccess, detectionFailed, preventionFailed, preventionSuccess));
-      Inject inject2 =
-          createInjectWithDomainAndExpectations(networkDomain, List.of(detection2Success));
-      Inject inject3 =
-          createInjectWithDomainAndExpectations(endpointDomain, List.of(detection3Success));
+      createTechnicalInject(networkDomain, null, List.of(
+              createExpectationComposer(InjectExpectation.EXPECTATION_TYPE.DETECTION, InjectExpectation.EXPECTATION_STATUS.FAILED),
+              createExpectationComposer(InjectExpectation.EXPECTATION_TYPE.DETECTION, InjectExpectation.EXPECTATION_STATUS.SUCCESS),
+              createExpectationComposer(InjectExpectation.EXPECTATION_TYPE.PREVENTION, InjectExpectation.EXPECTATION_STATUS.SUCCESS)
+      ));
+      createTechnicalInject(networkDomain, null, List.of(
+              createExpectationComposer(InjectExpectation.EXPECTATION_TYPE.DETECTION, InjectExpectation.EXPECTATION_STATUS.SUCCESS)
+      ));
+      createTechnicalInject(endpointDomain, null, List.of(
+              createExpectationComposer(InjectExpectation.EXPECTATION_TYPE.DETECTION, InjectExpectation.EXPECTATION_STATUS.SUCCESS)
+      ));
 
-      Widget widgetTEst =
-          widgetComposer
-              .forWidget(WidgetFixture.createSecurityDomainWidget(DEFAULT, "base_created_at"))
-              .withCustomDashboard(
-                  customDashboardComposer.forCustomDashboard(
-                      CustomDashboardFixture.createCustomDashboardWithDefaultParams()))
-              .persist()
-              .get();
+      Widget widget = createWidgetWithDashboard(WidgetFixture.createSecurityDomainWidget(DEFAULT, "base_created_at"));
 
-      // force persistence
-      entityManager.flush();
-      entityManager.clear();
-      engineService.bulkProcessing(engineContext.getModels().stream());
-      // elastic needs to process the data; it does so async, so the method above
-      // completes before the data is available in the system
-      Thread.sleep(1000);
+      flushAndProcessElastic();
 
-      WidgetToEntitiesInput input = new WidgetToEntitiesInput();
       Map<String, List<String>> filterValuesMap = new HashMap<>();
       filterValuesMap.put("base_security_domains_side", List.of(networkDomain.getId()));
       filterValuesMap.put("inject_expectation_status", List.of("SUCCESS"));
       filterValuesMap.put("inject_expectation_type", List.of("DETECTION"));
-      input.setFilterValuesMap(filterValuesMap);
-      input.setSeriesIndex(0);
-      input.setParameters(new HashMap<>());
+      WidgetToEntitiesInput input = createWidgetInput(
+              filterValuesMap,
+              0,
+              new HashMap<>());
 
-      String response =
-          mvc.perform(
-                  post(DASHBOARD_URI + "/entities-runtime/" + widgetTEst.getId())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input)))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
+      // Execute & Assert
+      String response = performWidgetEntitiesRuntimeRequest(widget, input);
 
       assertThatJson(response)
           .node("list_configuration.perspective.filter.filters")
