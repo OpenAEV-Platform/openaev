@@ -686,21 +686,21 @@ class DashboardApiTest extends IntegrationTest {
     }
 
     private String performWidgetEntitiesRuntimeRequest(Widget widget, WidgetToEntitiesInput input)
-            throws Exception {
+        throws Exception {
       return mvc.perform(
-                      post(DASHBOARD_URI + "/entities-runtime/" + widget.getId())
-                              .contentType(MediaType.APPLICATION_JSON)
-                              .content(asJsonString(input)))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
+              post(DASHBOARD_URI + "/entities-runtime/" + widget.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input)))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
     }
 
     private WidgetToEntitiesInput createWidgetInput(
-            Map<String, List<String>> filterValuesMap,
-            int seriesIndex,
-            Map<String, String> parameters) {
+        Map<String, List<String>> filterValuesMap,
+        int seriesIndex,
+        Map<String, String> parameters) {
       WidgetToEntitiesInput input = new WidgetToEntitiesInput();
       input.setFilterValuesMap(filterValuesMap);
       input.setSeriesIndex(seriesIndex);
@@ -710,54 +710,54 @@ class DashboardApiTest extends IntegrationTest {
 
     private Widget createWidgetWithDashboard(Widget widget) {
       return widgetComposer
-              .forWidget(widget)
-              .withCustomDashboard(
-                      customDashboardComposer.forCustomDashboard(
-                              CustomDashboardFixture.createCustomDashboardWithDefaultParams()))
-              .persist()
-              .get();
+          .forWidget(widget)
+          .withCustomDashboard(
+              customDashboardComposer.forCustomDashboard(
+                  CustomDashboardFixture.createCustomDashboardWithDefaultParams()))
+          .persist()
+          .get();
     }
 
     private EndpointComposer.Composer createEndpoint(Endpoint endpoint) {
-      return endpointComposer
-          .forEndpoint(endpoint)
-          .persist();
+      return endpointComposer.forEndpoint(endpoint).persist();
     }
 
     private Domain createDomain(String name, String colour) {
       return domainComposer
-              .forDomain(DomainFixture.getDomainWithNameAndColour(name, colour))
-              .persist()
-              .get();
+          .forDomain(DomainFixture.getDomainWithNameAndColour(name, colour))
+          .persist()
+          .get();
     }
 
     private InjectExpectationComposer.Composer createExpectationComposer(
-            InjectExpectation.EXPECTATION_TYPE type,
-            InjectExpectation.EXPECTATION_STATUS status) {
+        InjectExpectation.EXPECTATION_TYPE type, InjectExpectation.EXPECTATION_STATUS status) {
       return injectExpectationComposer.forExpectation(
-              InjectExpectationFixture.createExpectationWithTypeAndStatus(type, status));
+          InjectExpectationFixture.createExpectationWithTypeAndStatus(type, status));
     }
 
     private Inject createTechnicalInject(
-            Domain domain,
-            AttackPattern attackPattern,
-            List<InjectExpectationComposer.Composer> expectations) {
+        Domain domain,
+        AttackPattern attackPattern,
+        List<InjectExpectationComposer.Composer> expectations) {
       EndpointComposer.Composer endpointWrapper = createEndpoint(EndpointFixture.createEndpoint());
       InjectorContractComposer.Composer injectorContract;
 
       if (domain != null) {
-        injectorContract = injectorContractComposer
-                .forInjectorContract(InjectorContractFixture.createInjectorContractWithDomain(domain));
+        injectorContract =
+            injectorContractComposer.forInjectorContract(
+                InjectorContractFixture.createInjectorContractWithDomain(domain));
       } else {
-        injectorContract = injectorContractComposer
-                .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract());
+        injectorContract =
+            injectorContractComposer.forInjectorContract(
+                InjectorContractFixture.createDefaultInjectorContract());
       }
 
       if (attackPattern != null) {
         injectorContract.withAttackPattern(attackPatternComposer.forAttackPattern(attackPattern));
       }
 
-      InjectComposer.Composer injectWrapper = injectComposer
+      InjectComposer.Composer injectWrapper =
+          injectComposer
               .forInject(InjectFixture.getDefaultInject())
               .withEndpoint(endpointWrapper)
               .withInjectorContract(injectorContract);
@@ -773,24 +773,29 @@ class DashboardApiTest extends IntegrationTest {
     @DisplayName(
         "Given Structural Endpoint Histogram breakdown by platform, should return list of windows endpoint")
     void given_structuralEndpointHistogram_should_returnListOfWindowsEndpoint() throws Exception {
-      createEndpoint(EndpointFixture.createEndpointWithPlatform("Endpoint A", Endpoint.PLATFORM_TYPE.Windows));
-      createEndpoint(EndpointFixture.createEndpointWithPlatform("Endpoint B", Endpoint.PLATFORM_TYPE.Windows));
-      createEndpoint(EndpointFixture.createEndpointWithPlatform("Endpoint C", Endpoint.PLATFORM_TYPE.Linux));
-      createEndpoint(EndpointFixture.createEndpointWithPlatform("Endpoint D", Endpoint.PLATFORM_TYPE.MacOS));
+      createEndpoint(
+          EndpointFixture.createEndpointWithPlatform("Endpoint A", Endpoint.PLATFORM_TYPE.Windows));
+      createEndpoint(
+          EndpointFixture.createEndpointWithPlatform("Endpoint B", Endpoint.PLATFORM_TYPE.Windows));
+      createEndpoint(
+          EndpointFixture.createEndpointWithPlatform("Endpoint C", Endpoint.PLATFORM_TYPE.Linux));
+      createEndpoint(
+          EndpointFixture.createEndpointWithPlatform("Endpoint D", Endpoint.PLATFORM_TYPE.MacOS));
 
-      Widget widget = createWidgetWithDashboard(
+      Widget widget =
+          createWidgetWithDashboard(
               WidgetFixture.createStructuralWidgetWithTimeRange(
-                      LAST_QUARTER, "base_created_at", "endpoint_platform", "endpoint"));
+                  LAST_QUARTER, "base_created_at", "endpoint_platform", "endpoint"));
 
       flushAndProcessElastic();
 
       // Build request
       List<CustomDashboardParameters> parameters = widget.getCustomDashboard().getParameters();
-      String timeRangeParameterId = parameters.stream()
-              .filter(param -> param.getType() == timeRange)
-              .toString();
+      String timeRangeParameterId =
+          parameters.stream().filter(param -> param.getType() == timeRange).toString();
 
-      WidgetToEntitiesInput input = createWidgetInput(
+      WidgetToEntitiesInput input =
+          createWidgetInput(
               Map.of("endpoint_platform", List.of(Endpoint.PLATFORM_TYPE.Windows.name())),
               0,
               Map.of(timeRangeParameterId, String.valueOf(ALL_TIME)));
@@ -827,32 +832,63 @@ class DashboardApiTest extends IntegrationTest {
           attackPatternRepository.save(AttackPatternFixture.createDefaultAttackPattern());
       AttackPattern attackPattern3 =
           attackPatternRepository.save(AttackPatternFixture.createDefaultAttackPattern());
-      Inject inject1 =  createTechnicalInject(null, attackPattern1, List.of(
-              createExpectationComposer(InjectExpectation.EXPECTATION_TYPE.DETECTION, InjectExpectation.EXPECTATION_STATUS.SUCCESS),
-              createExpectationComposer(InjectExpectation.EXPECTATION_TYPE.DETECTION, InjectExpectation.EXPECTATION_STATUS.SUCCESS)
-              ));
-      Inject inject2 =  createTechnicalInject(null, attackPattern1, List.of(
-              createExpectationComposer(InjectExpectation.EXPECTATION_TYPE.DETECTION, InjectExpectation.EXPECTATION_STATUS.SUCCESS),
-              createExpectationComposer(InjectExpectation.EXPECTATION_TYPE.DETECTION, InjectExpectation.EXPECTATION_STATUS.SUCCESS)
-      ));
-      Inject inject3 = createTechnicalInject(null, attackPattern2, List.of(
-              createExpectationComposer(InjectExpectation.EXPECTATION_TYPE.DETECTION, InjectExpectation.EXPECTATION_STATUS.SUCCESS),
-              createExpectationComposer(InjectExpectation.EXPECTATION_TYPE.DETECTION, InjectExpectation.EXPECTATION_STATUS.SUCCESS)
-      ));
-      createTechnicalInject(null, attackPattern3, List.of(
-              createExpectationComposer(InjectExpectation.EXPECTATION_TYPE.DETECTION, InjectExpectation.EXPECTATION_STATUS.SUCCESS),
-              createExpectationComposer(InjectExpectation.EXPECTATION_TYPE.DETECTION, InjectExpectation.EXPECTATION_STATUS.SUCCESS)
-      ));
+      Inject inject1 =
+          createTechnicalInject(
+              null,
+              attackPattern1,
+              List.of(
+                  createExpectationComposer(
+                      InjectExpectation.EXPECTATION_TYPE.DETECTION,
+                      InjectExpectation.EXPECTATION_STATUS.SUCCESS),
+                  createExpectationComposer(
+                      InjectExpectation.EXPECTATION_TYPE.DETECTION,
+                      InjectExpectation.EXPECTATION_STATUS.SUCCESS)));
+      Inject inject2 =
+          createTechnicalInject(
+              null,
+              attackPattern1,
+              List.of(
+                  createExpectationComposer(
+                      InjectExpectation.EXPECTATION_TYPE.DETECTION,
+                      InjectExpectation.EXPECTATION_STATUS.SUCCESS),
+                  createExpectationComposer(
+                      InjectExpectation.EXPECTATION_TYPE.DETECTION,
+                      InjectExpectation.EXPECTATION_STATUS.SUCCESS)));
+      Inject inject3 =
+          createTechnicalInject(
+              null,
+              attackPattern2,
+              List.of(
+                  createExpectationComposer(
+                      InjectExpectation.EXPECTATION_TYPE.DETECTION,
+                      InjectExpectation.EXPECTATION_STATUS.SUCCESS),
+                  createExpectationComposer(
+                      InjectExpectation.EXPECTATION_TYPE.DETECTION,
+                      InjectExpectation.EXPECTATION_STATUS.SUCCESS)));
+      createTechnicalInject(
+          null,
+          attackPattern3,
+          List.of(
+              createExpectationComposer(
+                  InjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  InjectExpectation.EXPECTATION_STATUS.SUCCESS),
+              createExpectationComposer(
+                  InjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  InjectExpectation.EXPECTATION_STATUS.SUCCESS)));
 
-      Widget widget = createWidgetWithDashboard(
+      Widget widget =
+          createWidgetWithDashboard(
               WidgetFixture.createSecurityConverageWidget(
-                      ALL_TIME, "base_created_at", InjectExpectation.EXPECTATION_TYPE.DETECTION));
+                  ALL_TIME, "base_created_at", InjectExpectation.EXPECTATION_TYPE.DETECTION));
 
       flushAndProcessElastic();
 
       // Build request
-      WidgetToEntitiesInput input = createWidgetInput(
-              Map.of("base_attack_patterns_side", List.of(attackPattern1.getId(), attackPattern2.getId())),
+      WidgetToEntitiesInput input =
+          createWidgetInput(
+              Map.of(
+                  "base_attack_patterns_side",
+                  List.of(attackPattern1.getId(), attackPattern2.getId())),
               0,
               new HashMap<>());
 
@@ -886,19 +922,37 @@ class DashboardApiTest extends IntegrationTest {
       Domain networkDomain = createDomain("Network-test", "red");
       Domain endpointDomain = createDomain("Endpoint-test", "blue");
 
-      createTechnicalInject(networkDomain, null, List.of(
-              createExpectationComposer(InjectExpectation.EXPECTATION_TYPE.DETECTION, InjectExpectation.EXPECTATION_STATUS.FAILED),
-              createExpectationComposer(InjectExpectation.EXPECTATION_TYPE.DETECTION, InjectExpectation.EXPECTATION_STATUS.SUCCESS),
-              createExpectationComposer(InjectExpectation.EXPECTATION_TYPE.PREVENTION, InjectExpectation.EXPECTATION_STATUS.SUCCESS)
-      ));
-      createTechnicalInject(networkDomain, null, List.of(
-              createExpectationComposer(InjectExpectation.EXPECTATION_TYPE.DETECTION, InjectExpectation.EXPECTATION_STATUS.SUCCESS)
-      ));
-      createTechnicalInject(endpointDomain, null, List.of(
-              createExpectationComposer(InjectExpectation.EXPECTATION_TYPE.DETECTION, InjectExpectation.EXPECTATION_STATUS.SUCCESS)
-      ));
+      createTechnicalInject(
+          networkDomain,
+          null,
+          List.of(
+              createExpectationComposer(
+                  InjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  InjectExpectation.EXPECTATION_STATUS.FAILED),
+              createExpectationComposer(
+                  InjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  InjectExpectation.EXPECTATION_STATUS.SUCCESS),
+              createExpectationComposer(
+                  InjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                  InjectExpectation.EXPECTATION_STATUS.SUCCESS)));
+      createTechnicalInject(
+          networkDomain,
+          null,
+          List.of(
+              createExpectationComposer(
+                  InjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  InjectExpectation.EXPECTATION_STATUS.SUCCESS)));
+      createTechnicalInject(
+          endpointDomain,
+          null,
+          List.of(
+              createExpectationComposer(
+                  InjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  InjectExpectation.EXPECTATION_STATUS.SUCCESS)));
 
-      Widget widget = createWidgetWithDashboard(WidgetFixture.createSecurityDomainWidget(DEFAULT, "base_created_at"));
+      Widget widget =
+          createWidgetWithDashboard(
+              WidgetFixture.createSecurityDomainWidget(DEFAULT, "base_created_at"));
 
       flushAndProcessElastic();
 
@@ -906,10 +960,7 @@ class DashboardApiTest extends IntegrationTest {
       filterValuesMap.put("base_security_domains_side", List.of(networkDomain.getId()));
       filterValuesMap.put("inject_expectation_status", List.of("SUCCESS"));
       filterValuesMap.put("inject_expectation_type", List.of("DETECTION"));
-      WidgetToEntitiesInput input = createWidgetInput(
-              filterValuesMap,
-              0,
-              new HashMap<>());
+      WidgetToEntitiesInput input = createWidgetInput(filterValuesMap, 0, new HashMap<>());
 
       // Execute & Assert
       String response = performWidgetEntitiesRuntimeRequest(widget, input);
