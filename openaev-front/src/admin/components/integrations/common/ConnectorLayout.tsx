@@ -1,5 +1,5 @@
 import { capitalize } from '@mui/material';
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useState } from 'react';
 import { Outlet, useParams } from 'react-router';
 
 import { fetchConnector, isXtmComposerIsReachable } from '../../../../actions/catalog/catalog-actions';
@@ -68,7 +68,7 @@ const ConnectorLayout = () => {
     }
     setLoading(true);
     apiRequest.getRelatedIds(connectorId).then(({ data }: { data: ConnectorIds }) => {
-      if(!data) {
+      if (!data) {
         setLoading(false);
       } else {
         setRelatedIds(data);
@@ -83,7 +83,7 @@ const ConnectorLayout = () => {
         }
         Promise.all(promises).finally(() => setLoading(false));
       }
-    }).catch(() => setLoading(false))
+    }).catch(() => setLoading(false));
   }, [connectorId, apiRequest, dispatch]);
 
   const breadcrumbElements = connectorId
