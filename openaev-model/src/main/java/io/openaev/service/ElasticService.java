@@ -27,7 +27,7 @@ import io.openaev.engine.EngineService;
 import io.openaev.engine.EsModel;
 import io.openaev.engine.Handler;
 import io.openaev.engine.api.*;
-import io.openaev.engine.api.WidgetConfiguration.Series;
+import io.openaev.engine.api.WidgetConfigurationWithSeries.Series;
 import io.openaev.engine.model.EsBase;
 import io.openaev.engine.model.EsSearch;
 import io.openaev.engine.query.*;

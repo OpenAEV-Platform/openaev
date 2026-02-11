@@ -8,7 +8,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class AverageConfiguration extends WidgetConfiguration {
+public class AverageConfiguration extends WidgetConfigurationWithSeries {
 
   @NotBlank @JsonIgnore private Map<String, String> field;
 

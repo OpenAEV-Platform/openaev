@@ -105,7 +105,11 @@ public class WidgetService {
       Widget widget, Integer seriesIndex, List<String> filterValues) {
 
     WidgetConfiguration widgetConfig = widget.getWidgetConfiguration();
-    WidgetConfiguration.Series series = widgetConfig.getSeries().get(seriesIndex);
+    WidgetConfigurationWithSeries.Series series =
+        widgetConfig instanceof WidgetConfigurationWithSeries config
+            ? config.getSeries().get(seriesIndex)
+            : new WidgetConfigurationWithSeries.Series();
+
     String baseEntity = WidgetUtils.getBaseEntityFilterValue(series.getFilter());
 
     ListConfiguration listConfig = new ListConfiguration();

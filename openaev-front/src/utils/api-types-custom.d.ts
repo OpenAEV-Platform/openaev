@@ -123,7 +123,7 @@ export type WidgetInput = Omit<ApiTypes.WidgetInput, 'widget_config'> & {
       widget_configuration_type: 'temporal-histogram';
     }
     | ApiTypes.FlatConfiguration & { widget_configuration_type: 'flat' }
-    | Omit<ApiTypes.ListConfiguration, 'series'> & { widget_configuration_type: 'list' }
+    | ApiTypes.ListConfiguration & { widget_configuration_type: 'list' }
     | ApiTypes.StructuralHistogramWidget & {
       mode: 'structural';
       widget_configuration_type: 'structural-histogram';

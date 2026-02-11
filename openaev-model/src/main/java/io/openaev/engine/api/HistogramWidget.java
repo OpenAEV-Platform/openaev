@@ -9,7 +9,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public abstract class HistogramWidget extends WidgetConfiguration {
+public abstract class HistogramWidget extends WidgetConfigurationWithSeries {
 
   @Setter(NONE)
   @NotNull
