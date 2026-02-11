@@ -544,7 +544,6 @@ interface BasePayload {
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
-  payload_detection_remediations?: DetectionRemediation[];
   /**
    * @minItems 1
    * @uniqueItems true
@@ -1076,7 +1075,6 @@ export interface Command {
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
-  payload_detection_remediations?: DetectionRemediation[];
   /**
    * @minItems 1
    * @uniqueItems true
@@ -1642,20 +1640,6 @@ export type DateHistogramWidget = UtilRequiredKeys<
   stacked?: boolean;
 };
 
-export interface DetectionRemediation {
-  author_rule: "HUMAN" | "AI" | "AI_OUTDATED";
-  detection_remediation_collector_type: string;
-  /** @format date-time */
-  detection_remediation_created_at?: string;
-  /** @minLength 1 */
-  detection_remediation_id: string;
-  detection_remediation_payload_id: string;
-  /** @format date-time */
-  detection_remediation_updated_at?: string;
-  detection_remediation_values: string;
-  listened?: boolean;
-}
-
 export interface DetectionRemediationAIOutput {
   rules?: string;
 }
@@ -1731,7 +1715,6 @@ export interface DnsResolution {
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
-  payload_detection_remediations?: DetectionRemediation[];
   /**
    * @minItems 1
    * @uniqueItems true
@@ -2534,7 +2517,6 @@ export interface Executable {
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
-  payload_detection_remediations?: DetectionRemediation[];
   /**
    * @minItems 1
    * @uniqueItems true
@@ -2936,7 +2918,6 @@ export interface FileDrop {
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
-  payload_detection_remediations?: DetectionRemediation[];
   /**
    * @minItems 1
    * @uniqueItems true
@@ -4666,7 +4647,6 @@ export interface NetworkTraffic {
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
-  payload_detection_remediations?: DetectionRemediation[];
   /**
    * @minItems 1
    * @uniqueItems true

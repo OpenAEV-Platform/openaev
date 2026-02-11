@@ -21,8 +21,6 @@ import io.openaev.jsonapi.IncludeOption;
 import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -31,7 +29,10 @@ import java.util.*;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.annotations.Type;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Data
 @Entity
@@ -200,6 +201,10 @@ public class Payload implements GrantableBase {
   @Schema(implementation = String.class)
   private Collector collector;
 
+  // Before upgrading spring, this field was not present in the swagger doc and therefore not in the
+  // api contract for the frontend.
+  // So we are hiding it to keep consistent with the old contract
+  @Schema(hidden = true)
   @OneToMany(
       mappedBy = "payload",
       cascade = CascadeType.ALL,
