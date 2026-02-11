@@ -6,7 +6,7 @@ import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCorte
 
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorHelper;
 import io.openaev.executors.ExecutorService;
@@ -35,7 +35,7 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
 
   private final PaloAltoCortexExecutorConfig config;
   private final PaloAltoCortexExecutorClient client;
-  private final Ee enterpriseEditionService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final ExecutorService executorService;
 
@@ -137,11 +137,7 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
       // x86_64 by default in the register because CS API doesn't provide the platform architecture
       // (we update this when the download implant script is launched on the endpoint)
       String executorCommandKey =
-          PALOALTOCORTEX_EXECUTOR_NAME
-              + "."
-              + Endpoint.PLATFORM_TYPE.Windows.name()
-              + "."
-              + Endpoint.PLATFORM_ARCH.x86_64.name();
+          Endpoint.PLATFORM_TYPE.Windows.name() + "." + Endpoint.PLATFORM_ARCH.x86_64.name();
       String command = injector.getExecutorCommands().get(executorCommandKey);
       // The default command to download the openaev implant and execute the attack is modified for
       // Cortex

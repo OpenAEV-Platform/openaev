@@ -5,10 +5,9 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.database.model.CatalogConnector;
-import io.openaev.database.model.ConnectorInstanceInMemory;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.CatalogConnectorRepository;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.paloaltocortex.client.PaloAltoCortexExecutorClient;
 import io.openaev.integration.ComponentRequestEngine;
@@ -42,7 +41,7 @@ public class PaloAltoCortexExecutorIntegrationTest {
   @Autowired private AgentService agentService;
   @Autowired private AssetGroupService assetGroupService;
   @Autowired private ExecutorService executorService;
-  @Autowired private Ee enterpriseEditionService;
+  @Autowired private EnterpriseEditionService enterpriseEditionService;
   @Autowired private LicenseCacheManager licenseCacheManager;
   @Autowired private ComponentRequestEngine componentRequestEngine;
   @Autowired private ThreadPoolTaskScheduler taskScheduler;
@@ -65,6 +64,7 @@ public class PaloAltoCortexExecutorIntegrationTest {
         endpointService,
         assetGroupService,
         enterpriseEditionService,
+        previewFeatureService,
         licenseCacheManager,
         taskScheduler,
         fileService,

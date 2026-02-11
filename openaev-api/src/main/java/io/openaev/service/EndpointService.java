@@ -550,7 +550,9 @@ public class EndpointService {
     // and arch is hard coded for Crowdstrike and Palo Alto Cortex
     if (!CROWDSTRIKE_EXECUTOR_TYPE.equals(input.getExecutor().getType())) {
       endpoint.setHostname(input.getHostname());
-      endpoint.setArch(input.getArch());
+      if (!PALOALTOCORTEX_EXECUTOR_TYPE.equals(input.getExecutor().getType())) {
+        endpoint.setArch(input.getArch());
+      }
     }
     if (!PALOALTOCORTEX_EXECUTOR_TYPE.equals(input.getExecutor().getType())) {
       endpoint.setArch(input.getArch());

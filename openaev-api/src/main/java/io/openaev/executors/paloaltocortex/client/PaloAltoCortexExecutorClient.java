@@ -13,10 +13,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.ClientProtocolException;
@@ -174,17 +171,7 @@ public class PaloAltoCortexExecutorClient {
       // Body
       StringEntity entity = new StringEntity(this.objectMapper.writeValueAsString(body));
       httpPost.setEntity(entity);
-      return httpClient.execute(
-          httpPost,
-          response -> {
-            if (response.getCode() >= 400) {
-              log.warn(
-                  "Unexpected response for HTTP POST Palo Alto Cortex: {} {}",
-                  response.getCode(),
-                  response.getReasonPhrase());
-            }
-            return EntityUtils.toString(response.getEntity());
-          });
+      return httpClient.execute(httpPost, response -> EntityUtils.toString(response.getEntity()));
     } catch (IOException e) {
       throw new ClientProtocolException("Unexpected response for HTTP POST Palo Alto Cortex", e);
     }

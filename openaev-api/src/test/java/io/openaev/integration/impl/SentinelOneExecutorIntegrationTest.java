@@ -21,10 +21,7 @@ import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration;
 import io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegrationFactory;
 import io.openaev.integration.migration.SentinelOneExecutorConfigurationMigration;
-import io.openaev.service.AgentService;
-import io.openaev.service.AssetGroupService;
-import io.openaev.service.EndpointService;
-import io.openaev.service.FileService;
+import io.openaev.service.*;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.EncryptionFactory;
@@ -63,6 +60,7 @@ public class SentinelOneExecutorIntegrationTest {
   @Autowired private EncryptionFactory encryptionFactory;
   @Autowired private HttpClientFactory httpClientFactory;
   @Autowired private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
+  @Autowired private PreviewFeatureService previewFeatureService;
 
   @Autowired
   private SentinelOneExecutorConfigurationMigration sentinelOneExecutorConfigurationMigration;
@@ -80,6 +78,7 @@ public class SentinelOneExecutorIntegrationTest {
         endpointService,
         assetGroupService,
         enterpriseEditionService,
+        previewFeatureService,
         licenseCacheManager,
         taskScheduler,
         fileService,

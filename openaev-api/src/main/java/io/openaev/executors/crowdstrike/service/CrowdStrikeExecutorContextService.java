@@ -1,6 +1,6 @@
 package io.openaev.executors.crowdstrike.service;
 
-import static io.openaev.executors.ExecutorHelper.replaceArgs;
+import static io.openaev.executors.ExecutorHelper.*;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
 
@@ -23,14 +23,15 @@ import java.util.regex.Matcher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
+import org.springframework.stereotype.Service;
 
 @Slf4j
+@Service(CrowdStrikeExecutorContextService.SERVICE_NAME)
 @RequiredArgsConstructor
 public class CrowdStrikeExecutorContextService extends ExecutorContextService {
   public static final String SERVICE_NAME = CROWDSTRIKE_EXECUTOR_NAME;
 
   private static final String AGENT_ID_VARIABLE = "$agentID";
-  private static final String ARCH_VARIABLE = "$architecture";
 
   private static final String WINDOWS_EXTERNAL_REFERENCE =
       "$agentID=[System.BitConverter]::ToString(((Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\CSAgent\\Sim').AG)).ToLower() -replace '-','';";
@@ -38,9 +39,6 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
       "agentID=$(sudo /opt/CrowdStrike/falconctl -g --aid | sed 's/aid=\"//g' | sed 's/\".//g');";
   private static final String MAC_EXTERNAL_REFERENCE =
       "agentID=$(sudo /Applications/Falcon.app/Contents/Resources/falconctl stats | grep agentID | sed 's/agentID: //g' | tr '[:upper:]' '[:lower:]' | sed 's/-//g');";
-  private static final String WINDOWS_ARCH =
-      "switch ($env:PROCESSOR_ARCHITECTURE) { \"AMD64\" {$architecture = \"x86_64\"; Break} \"ARM64\" {$architecture = \"arm64\"; Break} \"x86\" { switch ($env:PROCESSOR_ARCHITEW6432) { \"AMD64\" {$architecture = \"x86_64\"; Break} \"ARM64\" {$architecture = \"arm64\"; Break} } } };";
-  private static final String UNIX_ARCH = "architecture=$(uname -m);";
 
   private final CrowdStrikeExecutorConfig crowdStrikeExecutorConfig;
   private final CrowdStrikeExecutorClient crowdStrikeExecutorClient;
