@@ -1820,140 +1820,95 @@
             "container_type": "INJECTOR",
             "logo": "data:image/png;base64,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",
             "config_schema": {
-                "$defs": {
-                    "_BaseInjectorConfig": {
-                        "additionalProperties": true,
-                        "description": "Base class for connector configuration.",
-                        "properties": {
-                            "id": {
-                                "default": "shodan--a87488ad-2c72-4592-b429-69259d7bcef1",
-                                "description": "A unique UUIDv4 identifier for this injector instance.",
-                                "title": "Id",
-                                "type": "string"
-                            },
-                            "name": {
-                                "default": "Shodan",
-                                "description": "Name of the injector.",
-                                "title": "Name",
-                                "type": "string"
-                            },
-                            "type": {
-                                "default": "openaev_shodan",
-                                "description": "Identifies the functional type of the injector in OpenAEV",
-                                "title": "Type",
-                                "type": "string"
-                            },
-                            "log_level": {
-                                "default": "error",
-                                "description": "The minimum level of logs to display.",
-                                "enum": [
-                                    "debug",
-                                    "info",
-                                    "warning",
-                                    "error"
-                                ],
-                                "title": "Log Level",
-                                "type": "string"
-                            }
-                        },
-                        "title": "_BaseInjectorConfig",
-                        "type": "object"
-                    },
-                    "_BaseOpenAEVConfig": {
-                        "additionalProperties": true,
-                        "properties": {
-                            "url": {
-                                "description": "The base URL of the OpenAEV instance.",
-                                "format": "uri",
-                                "maxLength": 2083,
-                                "minLength": 1,
-                                "title": "Url",
-                                "type": "string"
-                            },
-                            "token": {
-                                "description": "The API token to connect to OpenAEV.",
-                                "title": "Token",
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "url",
-                            "token"
-                        ],
-                        "title": "_BaseOpenAEVConfig",
-                        "type": "object"
-                    },
-                    "_ConfigLoaderShodan": {
-                        "additionalProperties": true,
-                        "description": "Shodan API configuration settings.",
-                        "properties": {
-                            "base_url": {
-                                "default": "https://api.shodan.io",
-                                "description": "This is the base URL for the Shodan API.",
-                                "title": "Base Url",
-                                "type": "string"
-                            },
-                            "api_key": {
-                                "description": "This is the API key for the Shodan API.",
-                                "format": "password",
-                                "title": "Api Key",
-                                "type": "string",
-                                "writeOnly": true
-                            },
-                            "api_leaky_bucket_rate": {
-                                "default": 10,
-                                "description": "Bucket refill rate (in tokens per second). Controls the rate at which API calls are allowed. For example, a rate of 10 means that 10 calls can be made per second, if the bucket is not empty.",
-                                "exclusiveMinimum": 0,
-                                "title": "Api Leaky Bucket Rate",
-                                "type": "integer"
-                            },
-                            "api_leaky_bucket_capacity": {
-                                "default": 10,
-                                "description": "Maximum bucket capacity (in tokens). Defines the number of calls that can be made immediately in a burst. Once the bucket is empty, it refills at the rate defined by 'api_leaky_bucket_rate'.",
-                                "exclusiveMinimum": 0,
-                                "title": "Api Leaky Bucket Capacity",
-                                "type": "integer"
-                            },
-                            "api_retry": {
-                                "default": 5,
-                                "description": "Maximum number of attempts (including the initial request) in case of API failure.",
-                                "exclusiveMinimum": 0,
-                                "title": "Api Retry",
-                                "type": "integer"
-                            },
-                            "api_backoff": {
-                                "default": "PT30S",
-                                "description": "Maximum exponential backoff delay between retry attempts (ISO 8601 duration format).",
-                                "format": "duration",
-                                "title": "Api Backoff",
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "api_key"
-                        ],
-                        "title": "_ConfigLoaderShodan",
-                        "type": "object"
-                    }
-                },
-                "additionalProperties": true,
-                "description": "Configuration loader for the injector.",
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "$id": "config.schema.json",
+                "type": "object",
                 "properties": {
-                    "openaev": {
-                        "$ref": "#/$defs/_BaseOpenAEVConfig",
-                        "description": "Base OpenAEV configurations."
+                    "OPENAEV_URL": {
+                        "description": "The OpenAEV platform URL.",
+                        "format": "uri",
+                        "maxLength": 2083,
+                        "minLength": 1,
+                        "type": "string"
                     },
-                    "injector": {
-                        "$ref": "#/$defs/_BaseInjectorConfig",
-                        "description": "Base Injector configurations."
+                    "OPENAEV_TOKEN": {
+                        "description": "The token for the OpenAEV platform.",
+                        "type": "string"
                     },
-                    "shodan": {
-                        "$ref": "#/$defs/_ConfigLoaderShodan",
-                        "description": "Shodan configurations."
+                    "INJECTOR_ID": {
+                        "description": "A unique UUIDv4 identifier for this injector instance.",
+                        "type": "string"
+                    },
+                    "INJECTOR_NAME": {
+                        "default": "Shodan",
+                        "description": "Name of the injector.",
+                        "type": "string"
+                    },
+                    "INJECTOR_LOG_LEVEL": {
+                        "default": "error",
+                        "description": "Determines the verbosity of the logs.",
+                        "enum": [
+                            "debug",
+                            "info",
+                            "warn",
+                            "error"
+                        ],
+                        "type": "string"
+                    },
+                    "INJECTOR_PERIOD": {
+                        "default": "PT1M",
+                        "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
+                        "format": "duration",
+                        "type": "string"
+                    },
+                    "INJECTOR_ICON_FILEPATH": {
+                        "default": "shodan/img/icon-shodan.png",
+                        "description": "Path to the icon file",
+                        "type": "string"
+                    },
+                    "SHODAN_BASE_URL": {
+                        "default": "https://api.shodan.io",
+                        "description": "This is the base URL for the Shodan API.",
+                        "type": "string"
+                    },
+                    "SHODAN_API_KEY": {
+                        "description": "This is the API key for the Shodan API.",
+                        "format": "password",
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "SHODAN_API_LEAKY_BUCKET_RATE": {
+                        "default": 10,
+                        "description": "Bucket refill rate (in tokens per second). Controls the rate at which API calls are allowed. For example, a rate of 10 means that 10 calls can be made per second, if the bucket is not empty.",
+                        "exclusiveMinimum": 0,
+                        "type": "integer"
+                    },
+                    "SHODAN_API_LEAKY_BUCKET_CAPACITY": {
+                        "default": 10,
+                        "description": "Maximum bucket capacity (in tokens). Defines the number of calls that can be made immediately in a burst. Once the bucket is empty, it refills at the rate defined by 'api_leaky_bucket_rate'.",
+                        "exclusiveMinimum": 0,
+                        "type": "integer"
+                    },
+                    "SHODAN_API_RETRY": {
+                        "default": 5,
+                        "description": "Maximum number of attempts (including the initial request) in case of API failure.",
+                        "exclusiveMinimum": 0,
+                        "type": "integer"
+                    },
+                    "SHODAN_API_BACKOFF": {
+                        "default": "PT30S",
+                        "description": "Maximum exponential backoff delay between retry attempts (ISO 8601 duration format).",
+                        "format": "duration",
+                        "type": "string"
                     }
                 },
-                "title": "ConfigLoader",
-                "type": "object"
+                "required": [
+                    "OPENAEV_URL",
+                    "OPENAEV_TOKEN",
+                    "INJECTOR_ID",
+                    "SHODAN_API_KEY"
+                ],
+                "additionalProperties": true
             }
         },
         {
