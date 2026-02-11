@@ -1,0 +1,446 @@
+{
+  "export_version" : 1,
+  "scenario_information" : {
+    "scenario_id" : "3a8de2b1-0f16-4f5b-81fd-e7f90049e07c",
+    "scenario_name" : "SMB Lateral Movement - Enumeration Shares",
+    "scenario_description" : "Shares are a gold mine for bad guys, this scenario will help you tu a better understanding of what shares and which permissions are exposed into your shares depending the user provide. You can do as guest account, provide any kind of user like finance team, others by updating the user, password, IP and domain variable into the inject. \nWhen the simulation is done you'll see into the findings tabb all the shares with rights associated. Thanks  to that you'll got a clear view of what shares and permissions are exposed.",
+    "scenario_subtitle" : "",
+    "scenario_category" : "attack-scenario",
+    "scenario_main_focus" : "incident-response",
+    "scenario_severity" : "high",
+    "scenario_message_header" : "SIMULATION HEADER",
+    "scenario_message_footer" : "SIMULATION FOOTER",
+    "scenario_mail_from" : "no-reply@openbas.io",
+    "scenario_tags" : [ ],
+    "scenario_documents" : [ ]
+  },
+  "scenario_teams" : [ ],
+  "scenario_objectives" : null,
+  "scenario_users" : [ ],
+  "scenario_organizations" : [ ],
+  "scenario_injects" : [ {
+    "inject_id" : "08c1f7ef-87b3-42b8-8479-411a7c4c53fd",
+    "inject_title" : "SMB Lateral Movement - Enumeration Shares - Windows",
+    "inject_description" : "",
+    "inject_country" : null,
+    "inject_city" : null,
+    "inject_enabled" : true,
+    "inject_content" : {
+      "expectations" : [ {
+        "expectation_type" : "PREVENTION",
+        "expectation_name" : "Prevention",
+        "expectation_description" : null,
+        "expectation_score" : 100,
+        "expectation_expectation_group" : false,
+        "expectation_expiration_time" : 21600
+      }, {
+        "expectation_type" : "DETECTION",
+        "expectation_name" : "Detection",
+        "expectation_description" : null,
+        "expectation_score" : 100,
+        "expectation_expectation_group" : false,
+        "expectation_expiration_time" : 21600
+      } ],
+      "obfuscator" : "plain-text",
+      "IP" : "192.168.56.0/24",
+      "user" : "vagrant",
+      "password" : "vagrant",
+      "domain" : "workgroup"
+    },
+    "inject_all_teams" : false,
+    "inject_depends_on" : [ ],
+    "inject_depends_duration" : 0,
+    "inject_injector_contract" : {
+      "convertedContent" : {
+        "config" : {
+          "type" : "openbas_implant",
+          "expose" : true,
+          "label" : {
+            "fr" : "OpenBAS Implant",
+            "en" : "OpenBAS Implant"
+          },
+          "color_dark" : "#000000",
+          "color_light" : "#000000"
+        },
+        "label" : {
+          "fr" : "SMB Lateral Movement - Enumeration Shares - Windows",
+          "en" : "SMB Lateral Movement - Enumeration Shares - Windows"
+        },
+        "manual" : false,
+        "fields" : [ {
+          "key" : "assets",
+          "label" : "Assets",
+          "mandatory" : false,
+          "readOnly" : false,
+          "mandatoryGroups" : [ "assets", "assetgroups" ],
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "cardinality" : "n",
+          "defaultValue" : [ ],
+          "type" : "asset"
+        }, {
+          "key" : "assetgroups",
+          "label" : "Asset groups",
+          "mandatory" : false,
+          "readOnly" : false,
+          "mandatoryGroups" : [ "assets", "assetgroups" ],
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "cardinality" : "n",
+          "defaultValue" : [ ],
+          "type" : "asset-group"
+        }, {
+          "key" : "obfuscator",
+          "label" : "Obfuscators",
+          "mandatory" : false,
+          "readOnly" : false,
+          "mandatoryGroups" : null,
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "cardinality" : "1",
+          "defaultValue" : [ "plain-text" ],
+          "choices" : [ {
+            "label" : "plain-text",
+            "value" : "plain-text",
+            "information" : ""
+          }, {
+            "label" : "base64",
+            "value" : "base64",
+            "information" : "CMD does not support base64 obfuscation"
+          } ],
+          "type" : "choice"
+        }, {
+          "key" : "expectations",
+          "label" : "Expectations",
+          "mandatory" : false,
+          "readOnly" : false,
+          "mandatoryGroups" : null,
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "cardinality" : "n",
+          "defaultValue" : [ ],
+          "predefinedExpectations" : [ {
+            "expectation_type" : "PREVENTION",
+            "expectation_name" : "Prevention",
+            "expectation_description" : null,
+            "expectation_score" : 100.0,
+            "expectation_expectation_group" : false,
+            "expectation_expiration_time" : 21600
+          }, {
+            "expectation_type" : "DETECTION",
+            "expectation_name" : "Detection",
+            "expectation_description" : null,
+            "expectation_score" : 100.0,
+            "expectation_expectation_group" : false,
+            "expectation_expiration_time" : 21600
+          }, {
+            "expectation_type" : "VULNERABILITY",
+            "expectation_name" : "Not vulnerable",
+            "expectation_description" : "",
+            "expectation_score" : 100.0,
+            "expectation_expectation_group" : false,
+            "expectation_expiration_time" : 21600
+          } ],
+          "type" : "expectation"
+        }, {
+          "key" : "IP",
+          "label" : "IP",
+          "mandatory" : true,
+          "readOnly" : false,
+          "mandatoryGroups" : null,
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "defaultValue" : "192.168.56.0/24",
+          "type" : "text"
+        }, {
+          "key" : "user",
+          "label" : "user",
+          "mandatory" : true,
+          "readOnly" : false,
+          "mandatoryGroups" : null,
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "defaultValue" : "vagrant",
+          "type" : "text"
+        }, {
+          "key" : "password",
+          "label" : "password",
+          "mandatory" : true,
+          "readOnly" : false,
+          "mandatoryGroups" : null,
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "defaultValue" : "vagrant",
+          "type" : "text"
+        }, {
+          "key" : "domain",
+          "label" : "domain",
+          "mandatory" : true,
+          "readOnly" : false,
+          "mandatoryGroups" : null,
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "defaultValue" : "workgroup",
+          "type" : "text"
+        } ],
+        "variables" : [ {
+          "key" : "user",
+          "label" : "User that will receive the injection",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ {
+            "key" : "user.id",
+            "label" : "Id of the user in the platform",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "user.email",
+            "label" : "Email of the user",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "user.firstname",
+            "label" : "First name of the user",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "user.lastname",
+            "label" : "Last name of the user",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "user.lang",
+            "label" : "Language of the user",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          } ]
+        }, {
+          "key" : "exercise",
+          "label" : "Exercise of the current injection",
+          "type" : "Object",
+          "cardinality" : "1",
+          "children" : [ {
+            "key" : "exercise.id",
+            "label" : "Id of the user in the platform",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "exercise.name",
+            "label" : "Name of the exercise",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "exercise.description",
+            "label" : "Description of the exercise",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          } ]
+        }, {
+          "key" : "teams",
+          "label" : "List of team name for the injection",
+          "type" : "String",
+          "cardinality" : "n",
+          "children" : [ ]
+        }, {
+          "key" : "player_uri",
+          "label" : "Player interface platform link",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ ]
+        }, {
+          "key" : "challenges_uri",
+          "label" : "Challenges interface platform link",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ ]
+        }, {
+          "key" : "scoreboard_uri",
+          "label" : "Scoreboard interface platform link",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ ]
+        }, {
+          "key" : "lessons_uri",
+          "label" : "Lessons learned interface platform link",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ ]
+        } ],
+        "context" : { },
+        "contract_id" : "205d1672-9108-4cd0-afc3-c37159cdaf0a",
+        "contract_attack_patterns_external_ids" : [ ],
+        "is_atomic_testing" : true,
+        "needs_executor" : true,
+        "platforms" : [ "Windows" ]
+      },
+      "listened" : true,
+      "injector_contract_id" : "205d1672-9108-4cd0-afc3-c37159cdaf0a",
+      "injector_contract_labels" : {
+        "en" : "SMB Lateral Movement - Enumeration Shares - Windows",
+        "fr" : "SMB Lateral Movement - Enumeration Shares - Windows"
+      },
+      "injector_contract_manual" : false,
+      "injector_contract_content" : "{\"config\":{\"type\":\"openbas_implant\",\"expose\":true,\"label\":{\"fr\":\"OpenBAS Implant\",\"en\":\"OpenBAS Implant\"},\"color_dark\":\"#000000\",\"color_light\":\"#000000\"},\"label\":{\"fr\":\"SMB Lateral Movement - Enumeration Shares - Windows\",\"en\":\"SMB Lateral Movement - Enumeration Shares - Windows\"},\"manual\":false,\"fields\":[{\"key\":\"assets\",\"label\":\"Assets\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":[\"assets\",\"assetgroups\"],\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"type\":\"asset\"},{\"key\":\"assetgroups\",\"label\":\"Asset groups\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":[\"assets\",\"assetgroups\"],\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"type\":\"asset-group\"},{\"key\":\"obfuscator\",\"label\":\"Obfuscators\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"1\",\"defaultValue\":[\"plain-text\"],\"choices\":[{\"label\":\"plain-text\",\"value\":\"plain-text\",\"information\":\"\"},{\"label\":\"base64\",\"value\":\"base64\",\"information\":\"CMD does not support base64 obfuscation\"}],\"type\":\"choice\"},{\"key\":\"expectations\",\"label\":\"Expectations\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"predefinedExpectations\":[{\"expectation_type\":\"PREVENTION\",\"expectation_name\":\"Prevention\",\"expectation_description\":null,\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600},{\"expectation_type\":\"DETECTION\",\"expectation_name\":\"Detection\",\"expectation_description\":null,\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600},{\"expectation_type\":\"VULNERABILITY\",\"expectation_name\":\"Not vulnerable\",\"expectation_description\":\"\",\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600}],\"type\":\"expectation\"},{\"key\":\"IP\",\"label\":\"IP\",\"mandatory\":true,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"defaultValue\":\"192.168.56.0/24\",\"type\":\"text\"},{\"key\":\"user\",\"label\":\"user\",\"mandatory\":true,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"defaultValue\":\"vagrant\",\"type\":\"text\"},{\"key\":\"password\",\"label\":\"password\",\"mandatory\":true,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"defaultValue\":\"vagrant\",\"type\":\"text\"},{\"key\":\"domain\",\"label\":\"domain\",\"mandatory\":true,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"defaultValue\":\"workgroup\",\"type\":\"text\"}],\"variables\":[{\"key\":\"user\",\"label\":\"User that will receive the injection\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[{\"key\":\"user.id\",\"label\":\"Id of the user in the platform\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.email\",\"label\":\"Email of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.firstname\",\"label\":\"First name of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.lastname\",\"label\":\"Last name of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.lang\",\"label\":\"Language of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}]},{\"key\":\"exercise\",\"label\":\"Exercise of the current injection\",\"type\":\"Object\",\"cardinality\":\"1\",\"children\":[{\"key\":\"exercise.id\",\"label\":\"Id of the user in the platform\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"exercise.name\",\"label\":\"Name of the exercise\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"exercise.description\",\"label\":\"Description of the exercise\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}]},{\"key\":\"teams\",\"label\":\"List of team name for the injection\",\"type\":\"String\",\"cardinality\":\"n\",\"children\":[]},{\"key\":\"player_uri\",\"label\":\"Player interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"challenges_uri\",\"label\":\"Challenges interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"scoreboard_uri\",\"label\":\"Scoreboard interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"lessons_uri\",\"label\":\"Lessons learned interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}],\"context\":{},\"contract_id\":\"205d1672-9108-4cd0-afc3-c37159cdaf0a\",\"contract_attack_patterns_external_ids\":[],\"is_atomic_testing\":true,\"needs_executor\":true,\"platforms\":[\"Windows\"]}",
+      "injector_contract_custom" : false,
+      "injector_contract_needs_executor" : true,
+      "injector_contract_platforms" : [ "Windows" ],
+      "injector_contract_payload" : {
+        "listened" : true,
+        "payload_id" : "5dc4ea7a-ffc9-4ace-b19a-eb645e26dfbd",
+        "payload_type" : "Command",
+        "payload_name" : "SMB Lateral Movement - Enumeration Shares - Windows",
+        "payload_description" : "Shares are a gold mine for bad guys, this scenario will help you tu a better understanding of what shares and which permissions are exposed into your shares depending the user provide. You can do as guest account, provide any kind of user like finance team, others by updating the user, password, IP and domain variable into the inject. When the simulation is done you'll see into the findings tabb all the shares with rights associated. Thanks to that you'll got a clear view of what shares and permissions are exposed.",
+        "payload_platforms" : [ "Windows" ],
+        "payload_attack_patterns" : [ {
+          "attack_pattern_id" : "c0ce4192-7224-42ec-b640-bec6a9501890",
+          "attack_pattern_name" : "SMB/Windows Admin Shares",
+          "attack_pattern_description" : "Adversaries may use [Valid Accounts](https://attack.mitre.org/techniques/T1078) to interact with a remote network share using Server Message Block (SMB). The adversary may then perform actions as the logged-on user.\n\nSMB is a file, printer, and serial port sharing protocol for Windows machines on the same network or domain. Adversaries may use SMB to interact with file shares, allowing them to move laterally throughout a network. Linux and macOS implementations of SMB typically use Samba.\n\nWindows systems have hidden network shares that are accessible only to administrators and provide the ability for remote file copy and other administrative functions. Example network shares include `C$`, `ADMIN$`, and `IPC$`. Adversaries may use this technique in conjunction with administrator-level [Valid Accounts](https://attack.mitre.org/techniques/T1078) to remotely access a networked system over SMB,(Citation: Wikipedia Server Message Block) to interact with systems using remote procedure calls (RPCs),(Citation: TechNet RPC) transfer files, and run transferred binaries through remote Execution. Example execution techniques that rely on authenticated sessions over SMB/RPC are [Scheduled Task/Job](https://attack.mitre.org/techniques/T1053), [Service Execution](https://attack.mitre.org/techniques/T1569/002), and [Windows Management Instrumentation](https://attack.mitre.org/techniques/T1047). Adversaries can also use NTLM hashes to access administrator shares on systems with [Pass the Hash](https://attack.mitre.org/techniques/T1550/002) and certain configuration and patch levels.(Citation: Microsoft Admin Shares)",
+          "attack_pattern_external_id" : "T1021.002",
+          "attack_pattern_kill_chain_phases" : [ {
+            "phase_id" : "e03bd741-2536-48d6-8fd5-a36e0d2a3f2a",
+            "phase_external_id" : "TA0008",
+            "phase_stix_id" : "x-mitre-tactic--7141578b-e50b-4dcc-bfa4-08a8dd689e9e",
+            "phase_name" : "Lateral Movement",
+            "phase_shortname" : "lateral-movement",
+            "phase_kill_chain_name" : "mitre-attack",
+            "phase_description" : "The adversary is trying to move through your environment.\n\nLateral Movement consists of techniques that adversaries use to enter and control remote systems on a network. Following through on their primary objective often requires exploring the network to find their target and subsequently gaining access to it. Reaching their objective often involves pivoting through multiple systems and accounts to gain. Adversaries might install their own remote access tools to accomplish Lateral Movement or use legitimate credentials with native network and operating system tools, which may be stealthier. ",
+            "phase_order" : 9
+          } ]
+        } ],
+        "payload_cleanup_executor" : "psh",
+        "payload_cleanup_command" : "remove-item \"C:\\users\\public\\nxc-windows-latest\" -Recurse -Force",
+        "payload_elevation_required" : false,
+        "payload_arguments" : [ {
+          "type" : "text",
+          "key" : "IP",
+          "default_value" : "192.168.56.0/24",
+          "description" : null,
+          "separator" : null
+        }, {
+          "type" : "text",
+          "key" : "user",
+          "default_value" : "vagrant",
+          "description" : null,
+          "separator" : null
+        }, {
+          "type" : "text",
+          "key" : "password",
+          "default_value" : "vagrant",
+          "description" : null,
+          "separator" : null
+        }, {
+          "type" : "text",
+          "key" : "domain",
+          "default_value" : "workgroup",
+          "description" : null,
+          "separator" : null
+        } ],
+        "payload_prerequisites" : [ {
+          "executor" : "psh",
+          "get_command" : "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12;$zipUrl = \"https://github.com/Pennyw0rth/NetExec/releases/download/v1.4.0/nxc-windows-latest.zip\"; $tempZip = \"c:\\users\\public\\nxc-windows-latest.zip\"; $tempDir = \"c:\\users\\public\\nxc-windows-latest\"; $destPath = \"c:\\users\\public\\nxc-windows-latest\\nxc.exe\" ; Invoke-WebRequest -Uri $zipUrl -OutFile $tempZip; Expand-Archive -Path $tempZip -DestinationPath $tempDir -Force; Remove-Item -Path $tempZip -Force",
+          "check_command" : "if (Test-Path 'c:\\users\\public\\nxc-windows-latest\\nxc.exe') {exit 0} else {exit 1}",
+          "description" : null
+        } ],
+        "payload_external_id" : null,
+        "payload_source" : "MANUAL",
+        "payload_status" : "UNVERIFIED",
+        "payload_execution_arch" : "ALL_ARCHITECTURES",
+        "payload_collector" : null,
+        "payload_detection_remediations" : [ ],
+        "payload_tags" : [ ],
+        "payload_output_parsers" : [ {
+          "listened" : true,
+          "output_parser_id" : "fb63d0a9-ae13-4627-89d3-df6a85ee1c9a",
+          "output_parser_mode" : "STDOUT",
+          "output_parser_type" : "REGEX",
+          "output_parser_contract_output_elements" : [ {
+            "listened" : true,
+            "contract_output_element_id" : "1a27e60e-893a-431e-bc13-634a22fffe97",
+            "contract_output_element_is_finding" : true,
+            "contract_output_element_rule" : "^\\s*SMB\\s+(\\d{1,3}(?:\\.\\d{1,3}){3})\\s+\\d+\\s+\\S+\\s+(?!\\S+\\$)(\\S+)\\s+(READ(?:,WRITE)?|WRITE(?:,READ)?)",
+            "contract_output_element_name" : "Shares_Permissions",
+            "contract_output_element_regex_groups" : [ {
+              "listened" : true,
+              "regex_group_id" : "fbc80ab4-c1ba-4ac0-8c4e-0a175c1494c7",
+              "regex_group_field" : "text",
+              "regex_group_index_values" : "$0",
+              "regex_group_created_at" : "2025-06-26T15:49:20.387188Z",
+              "regex_group_updated_at" : "2025-06-26T15:49:20.387188Z"
+            } ],
+            "contract_output_element_key" : "Shares_Permissions",
+            "contract_output_element_type" : "text",
+            "contract_output_element_tags" : [ ],
+            "contract_output_element_created_at" : "2025-06-26T15:49:20.382553Z",
+            "contract_output_element_updated_at" : "2025-06-26T15:49:20.382553Z"
+          } ],
+          "output_parser_created_at" : "2025-06-26T15:49:20.378790Z",
+          "output_parser_updated_at" : "2025-06-26T15:49:20.378790Z"
+        } ],
+        "payload_created_at" : "2025-06-26T15:49:20.375451Z",
+        "payload_updated_at" : "2025-06-26T15:49:20.375452Z",
+        "command_executor" : "psh",
+        "command_content" : "C:\\Users\\Public\\nxc-windows-latest\\nxc.exe smb #{IP} -u #{user} -p #{password} -d #{domain} --shares\n",
+        "payload_collector_type" : null
+      },
+      "injector_contract_created_at" : "2025-06-26T15:49:20.404237Z",
+      "injector_contract_updated_at" : "2025-06-26T15:49:20.404238Z",
+      "injector_contract_injector" : "49229430-b5b5-431f-ba5b-f36f599b0144",
+      "injector_contract_attack_patterns" : [ {
+        "attack_pattern_id" : "c0ce4192-7224-42ec-b640-bec6a9501890",
+        "attack_pattern_name" : "SMB/Windows Admin Shares",
+        "attack_pattern_description" : "Adversaries may use [Valid Accounts](https://attack.mitre.org/techniques/T1078) to interact with a remote network share using Server Message Block (SMB). The adversary may then perform actions as the logged-on user.\n\nSMB is a file, printer, and serial port sharing protocol for Windows machines on the same network or domain. Adversaries may use SMB to interact with file shares, allowing them to move laterally throughout a network. Linux and macOS implementations of SMB typically use Samba.\n\nWindows systems have hidden network shares that are accessible only to administrators and provide the ability for remote file copy and other administrative functions. Example network shares include `C$`, `ADMIN$`, and `IPC$`. Adversaries may use this technique in conjunction with administrator-level [Valid Accounts](https://attack.mitre.org/techniques/T1078) to remotely access a networked system over SMB,(Citation: Wikipedia Server Message Block) to interact with systems using remote procedure calls (RPCs),(Citation: TechNet RPC) transfer files, and run transferred binaries through remote Execution. Example execution techniques that rely on authenticated sessions over SMB/RPC are [Scheduled Task/Job](https://attack.mitre.org/techniques/T1053), [Service Execution](https://attack.mitre.org/techniques/T1569/002), and [Windows Management Instrumentation](https://attack.mitre.org/techniques/T1047). Adversaries can also use NTLM hashes to access administrator shares on systems with [Pass the Hash](https://attack.mitre.org/techniques/T1550/002) and certain configuration and patch levels.(Citation: Microsoft Admin Shares)",
+        "attack_pattern_external_id" : "T1021.002",
+        "attack_pattern_kill_chain_phases" : [ {
+          "phase_id" : "e03bd741-2536-48d6-8fd5-a36e0d2a3f2a",
+          "phase_external_id" : "TA0008",
+          "phase_stix_id" : "x-mitre-tactic--7141578b-e50b-4dcc-bfa4-08a8dd689e9e",
+          "phase_name" : "Lateral Movement",
+          "phase_shortname" : "lateral-movement",
+          "phase_kill_chain_name" : "mitre-attack",
+          "phase_description" : "The adversary is trying to move through your environment.\n\nLateral Movement consists of techniques that adversaries use to enter and control remote systems on a network. Following through on their primary objective often requires exploring the network to find their target and subsequently gaining access to it. Reaching their objective often involves pivoting through multiple systems and accounts to gain. Adversaries might install their own remote access tools to accomplish Lateral Movement or use legitimate credentials with native network and operating system tools, which may be stealthier. ",
+          "phase_order" : 9
+        } ]
+      } ],
+      "injector_contract_atomic_testing" : true,
+      "injector_contract_import_available" : false,
+      "injector_contract_arch" : "ALL_ARCHITECTURES",
+      "injector_contract_injector_type" : "openbas_implant",
+      "injector_contract_injector_type_name" : "OpenBAS Implant"
+    },
+    "inject_tags" : [ ],
+    "inject_teams" : [ ],
+    "inject_documents" : [ ]
+  } ],
+  "scenario_tags" : [ ],
+  "scenario_documents" : [ ],
+  "scenario_channels" : [ ],
+  "scenario_articles" : [ ],
+  "scenario_challenges" : [ ],
+  "scenario_lessons_categories" : [ ],
+  "scenario_lessons_questions" : [ ],
+  "scenario_variables" : [ ]
+}

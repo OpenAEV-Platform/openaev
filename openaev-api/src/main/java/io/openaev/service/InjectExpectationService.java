@@ -737,8 +737,6 @@ public class InjectExpectationService {
 
     List<InjectExpectation> injectExpectations = new ArrayList<>();
     if (!teams.isEmpty()) {
-      final String exerciseId = executableInject.getInjection().getExercise().getId();
-
       List<InjectExpectation> injectExpectationsByUserAndTeam;
       // If atomicTesting, We create expectation for every player and every team
       if (isAtomicTesting) {
@@ -774,6 +772,7 @@ public class InjectExpectationService {
                                                     expectationPropertiesConfig))))
                 .toList();
       } else {
+        final String exerciseId = executableInject.getInjection().getExercise().getId();
         // Create expectations for every enabled player in every team
         injectExpectationsByUserAndTeam =
             teams.stream()

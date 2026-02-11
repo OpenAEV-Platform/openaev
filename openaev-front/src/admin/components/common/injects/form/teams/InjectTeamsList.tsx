@@ -119,7 +119,7 @@ const InjectTeamsList: FunctionComponent<Props> = ({ readOnly = false, hideEnabl
       </List>
       {!allTeams
         && (
-          <Can I={ACTIONS.ACCESS} a={SUBJECTS.TEAMS_AND_PLAYERS}>
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.TEAMS_AND_PLAYERS}>
             <InjectAddTeams disabled={readOnly} handleModifyTeams={onTeamsChange} injectTeamsIds={injectTeamIds} error={error} />
           </Can>
         )}

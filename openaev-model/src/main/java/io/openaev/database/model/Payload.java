@@ -201,10 +201,6 @@ public class Payload implements GrantableBase {
   @Schema(implementation = String.class)
   private Collector collector;
 
-  // Before upgrading spring, this field was not present in the swagger doc and therefore not in the
-  // api contract for the frontend.
-  // So we are hiding it to keep consistent with the old contract
-  @Schema(hidden = true)
   @OneToMany(
       mappedBy = "payload",
       cascade = CascadeType.ALL,
