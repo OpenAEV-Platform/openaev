@@ -20,10 +20,10 @@ public class PayloadArgument {
   private String defaultValue;
 
   @JsonProperty("description")
-  @Schema(nullable = true)
+  @Schema(types = {"string", "null"})
   private String description;
 
   @JsonProperty("separator")
-  @Schema(nullable = true)
+  @Schema(types = {"string", "null"})
   private String separator;
 }

@@ -3,7 +3,6 @@ package io.openaev;
 import static io.openaev.database.model.SettingKeys.PLATFORM_INSTANCE;
 import static io.openaev.database.model.SettingKeys.PLATFORM_INSTANCE_CREATION;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
 
 import io.openaev.config.OpenAEVConfig;
@@ -11,7 +10,8 @@ import io.openaev.database.model.Setting;
 import io.openaev.database.repository.SettingRepository;
 import java.util.Optional;
 import java.util.UUID;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 

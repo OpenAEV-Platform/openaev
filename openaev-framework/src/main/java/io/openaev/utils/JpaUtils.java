@@ -4,12 +4,12 @@ import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.database.model.Base;
 import io.openaev.schema.PropertySchema;
+import jakarta.annotation.Nullable;
 import jakarta.persistence.criteria.*;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Map;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
-import org.jetbrains.annotations.Nullable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.CollectionUtils;
 
@@ -159,7 +159,7 @@ public final class JpaUtils {
   public static <T> Specification<T> computeIn(
       @Nullable final String fieldName, @Nullable final List<String> inValues) {
     if (!hasText(fieldName) || CollectionUtils.isEmpty(inValues)) {
-      return Specification.where(null);
+      return Specification.unrestricted();
     }
     return (root, query, cb) -> root.get(fieldName).in(inValues);
   }

@@ -23,7 +23,7 @@ public class InjectExpectationResultsByAttackPattern {
 
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("inject_attack_pattern")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private AttackPattern attackPattern;
 
   @Builder

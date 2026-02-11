@@ -80,14 +80,14 @@ public class Channel implements Base {
   @JoinColumn(name = "channel_logo_dark")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("channel_logo_dark")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Document logoDark;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "channel_logo_light")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("channel_logo_light")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Document logoLight;
 
   @Getter(onMethod_ = @JsonIgnore)

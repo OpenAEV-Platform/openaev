@@ -8,13 +8,12 @@ import static org.springframework.security.saml2.provider.service.authentication
 import io.openaev.config.OpenAEVSaml2User;
 import io.openaev.database.model.User;
 import io.openaev.security.SsoRefererAuthenticationSuccessHandler;
-import io.openaev.service.UserMappingService;
-import io.openaev.service.user_events.UserEventService;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;

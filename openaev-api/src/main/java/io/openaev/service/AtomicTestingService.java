@@ -27,11 +27,11 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import jakarta.persistence.criteria.Join;
 import jakarta.transaction.Transactional;
+import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -256,7 +256,8 @@ public class AtomicTestingService {
     User currentUser = userService.currentUser();
 
     Specification<Inject> customSpec =
-        Specification.where(InjectSpecification.isAtomicTesting())
+        Specification.<Inject>unrestricted()
+            .and(InjectSpecification.isAtomicTesting())
             .and(
                 SpecificationUtils.hasGrantAccess(
                     currentUser.getId(),

@@ -31,7 +31,7 @@ public class AssetAgentJob implements Base {
   @JoinColumn(name = "asset_agent_inject")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("asset_agent_inject")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Inject inject;
 
   @Getter
@@ -39,7 +39,7 @@ public class AssetAgentJob implements Base {
   @JoinColumn(name = "asset_agent_agent")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("asset_agent_agent")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Agent agent;
 
   @Getter

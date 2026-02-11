@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -40,14 +39,14 @@ public class Objective implements Base {
   @JoinColumn(name = "objective_exercise")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("objective_exercise")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Exercise exercise;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "objective_scenario")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("objective_scenario")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Scenario scenario;
 
   @Column(name = "objective_title")
@@ -72,7 +71,7 @@ public class Objective implements Base {
   @NotNull
   private Instant updatedAt = now();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @OneToMany(mappedBy = "objective", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("objective_evaluations")

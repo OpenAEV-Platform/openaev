@@ -55,7 +55,7 @@ public class Agent implements Base {
   @JoinColumn(name = "agent_asset")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("agent_asset")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   @NotNull
   private Asset asset;
 
@@ -84,7 +84,7 @@ public class Agent implements Base {
   @JoinColumn(name = "agent_executor")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("agent_executor")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Executor executor;
 
   @Queryable(filterable = true, sortable = true)
@@ -97,7 +97,7 @@ public class Agent implements Base {
   @JsonSerialize(using = MonoIdSerializer.class)
   @JoinColumn(name = "agent_parent")
   @JsonProperty("agent_parent")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Agent parent;
 
   /** Used for Caldera only */
@@ -105,7 +105,7 @@ public class Agent implements Base {
   @JsonSerialize(using = MonoIdSerializer.class)
   @JoinColumn(name = "agent_inject")
   @JsonProperty("agent_inject")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Inject inject;
 
   @JsonProperty("agent_active")

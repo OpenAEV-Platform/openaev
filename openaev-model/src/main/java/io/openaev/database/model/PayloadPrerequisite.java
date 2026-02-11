@@ -20,6 +20,6 @@ public class PayloadPrerequisite {
   private String checkCommand;
 
   @JsonProperty("description")
-  @Schema(nullable = true)
+  @Schema(types = {"string", "null"})
   private String description;
 }

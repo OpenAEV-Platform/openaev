@@ -20,7 +20,7 @@ public class ScenarioTeamUser {
   @JoinColumn(name = "scenario_id")
   @JsonProperty("scenario_id")
   @JsonSerialize(using = MonoIdSerializer.class)
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Scenario scenario;
 
   @ManyToOne(fetch = FetchType.LAZY)
@@ -28,7 +28,7 @@ public class ScenarioTeamUser {
   @JoinColumn(name = "team_id")
   @JsonProperty("team_id")
   @JsonSerialize(using = MonoIdSerializer.class)
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Team team;
 
   @ManyToOne(fetch = FetchType.LAZY)
@@ -36,6 +36,6 @@ public class ScenarioTeamUser {
   @JoinColumn(name = "user_id")
   @JsonProperty("user_id")
   @JsonSerialize(using = MonoIdSerializer.class)
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private User user;
 }

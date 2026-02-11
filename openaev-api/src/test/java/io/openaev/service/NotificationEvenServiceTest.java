@@ -1,6 +1,5 @@
 package io.openaev.service;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.verify;
 
 import io.openaev.IntegrationTest;

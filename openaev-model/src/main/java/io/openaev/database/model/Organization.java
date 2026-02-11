@@ -10,7 +10,6 @@ import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -66,7 +65,7 @@ public class Organization implements Base {
   @Transient
   private final ResourceType resourceType = ResourceType.ORGANIZATION;
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "organizations_tags",
@@ -95,7 +94,7 @@ public class Organization implements Base {
             .collect(Collectors.toList());
   }
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @JsonProperty("organization_injects")
   @JsonSerialize(using = MultiIdListSerializer.class)
   public List<Inject> getOrganizationInject() {

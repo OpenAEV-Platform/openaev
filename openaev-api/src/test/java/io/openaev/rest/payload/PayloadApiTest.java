@@ -42,9 +42,9 @@ import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @TestInstance(PER_CLASS)
@@ -65,7 +65,7 @@ class PayloadApiTest extends IntegrationTest {
 
   @Resource private ObjectMapper objectMapper;
 
-  @MockBean private EnterpriseEditionService enterpriseEditionService;
+  @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 
   @BeforeAll
   void beforeAll() {
@@ -78,8 +78,10 @@ class PayloadApiTest extends IntegrationTest {
 
   @AfterAll
   void afterAll() {
-    this.documentRepository.deleteAll(List.of(EXECUTABLE_FILE));
     this.payloadRepository.deleteAll();
+    if (EXECUTABLE_FILE != null) {
+      this.documentRepository.deleteById(EXECUTABLE_FILE.getId());
+    }
     this.collectorRepository.deleteAll();
   }
 

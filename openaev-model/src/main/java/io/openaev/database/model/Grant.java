@@ -99,12 +99,12 @@ public class Grant implements Base {
   @JoinColumn(name = "grant_group")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("grant_group")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Group group;
 
   @Column(name = "grant_resource")
   @JsonProperty("grant_resource")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private String resourceId;
 
   @Enumerated(EnumType.STRING)

@@ -1,8 +1,8 @@
 package io.openaev.utils.fixtures;
 
 import io.openaev.database.model.Asset;
+import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import org.jetbrains.annotations.NotNull;
 
 public class AssetFixture {
 

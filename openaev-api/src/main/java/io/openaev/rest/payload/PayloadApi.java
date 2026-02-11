@@ -121,7 +121,8 @@ public class PayloadApi extends RestBehavior {
 
     List<Payload> payloads =
         payloadRepository.findAll(
-            Specification.where(SpecificationUtils.<Payload>hasIdIn(targetIds))
+            Specification.<Payload>unrestricted()
+                .and(SpecificationUtils.hasIdIn(targetIds))
                 .and(
                     SpecificationUtils.hasGrantAccess(
                         currentUser.getId(),

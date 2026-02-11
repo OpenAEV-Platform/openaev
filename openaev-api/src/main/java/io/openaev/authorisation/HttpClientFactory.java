@@ -9,8 +9,8 @@ import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.client5.http.io.HttpClientConnectionManager;
-import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
-import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactoryBuilder;
+import org.apache.hc.client5.http.ssl.ClientTlsStrategyBuilder;
+import org.apache.hc.client5.http.ssl.TlsSocketStrategy;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -25,11 +25,11 @@ public class HttpClientFactory {
     try {
       SSLContext sslContext = SSLContext.getInstance("TLS");
       sslContext.init(null, new TrustManager[] {trustManager}, null);
-      SSLConnectionSocketFactory sslConFactory =
-          SSLConnectionSocketFactoryBuilder.create().setSslContext(sslContext).build();
+      TlsSocketStrategy tlsStrategy =
+          ClientTlsStrategyBuilder.create().setSslContext(sslContext).buildClassic();
       HttpClientConnectionManager cm =
           PoolingHttpClientConnectionManagerBuilder.create()
-              .setSSLSocketFactory(sslConFactory)
+              .setTlsSocketStrategy(tlsStrategy)
               .build();
       return HttpClients.custom().setConnectionManager(cm).build();
     } catch (Exception e) {

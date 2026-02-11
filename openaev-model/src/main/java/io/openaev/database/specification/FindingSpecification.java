@@ -4,8 +4,8 @@ import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.ExerciseStatus;
 import io.openaev.database.model.Finding;
 import jakarta.persistence.criteria.*;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.data.jpa.domain.Specification;
 
 public class FindingSpecification {
@@ -92,7 +92,8 @@ public class FindingSpecification {
 
   public static Specification<Finding> findAllWithAssetsByTypeValueIn(
       List<ContractOutputType> types, List<String> values, Specification<Finding> specification) {
-    return Specification.where(specification)
+    return Specification.<Finding>unrestricted()
+        .and(specification)
         .and(withAssets())
         .and(
             (root, query, cb) -> {

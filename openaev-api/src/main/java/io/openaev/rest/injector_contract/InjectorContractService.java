@@ -33,6 +33,7 @@ import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.UserService;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -41,6 +42,7 @@ import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -49,8 +51,6 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -615,7 +615,8 @@ public class InjectorContractService {
 
     Specification<InjectorContract> filterSpec = computeFilterGroupJpa(input.getFilterGroup());
     Specification<InjectorContract> searchSpec = computeSearchJpa(input.getTextSearch());
-    Specification<InjectorContract> baseSpec = Specification.where(filterSpec).and(searchSpec);
+    Specification<InjectorContract> baseSpec =
+        Specification.<InjectorContract>unrestricted().and(filterSpec).and(searchSpec);
 
     CriteriaQuery<InjectorContractDomainCountOutput> qPayload =
         cb.createQuery(InjectorContractDomainCountOutput.class);

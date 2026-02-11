@@ -44,8 +44,6 @@ import io.openaev.utils.StringUtils;
 import io.openaev.utils.time.TimeUtils;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotNull;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -55,6 +53,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.coyote.BadRequestException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

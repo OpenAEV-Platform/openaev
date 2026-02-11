@@ -47,7 +47,9 @@ public class DetectionRemediation implements Base {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "detection_remediation_payload_id")
-  @JsonIgnore
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonProperty("detection_remediation_payload_id")
+  @Schema(implementation = String.class)
   @NotNull
   private Payload payload;
 
@@ -57,7 +59,7 @@ public class DetectionRemediation implements Base {
       referencedColumnName = "collector_type")
   @JsonSerialize(using = CollectorTypeSerializer.class)
   @JsonProperty("detection_remediation_collector_type")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   @NotNull
   private Collector collector;
 

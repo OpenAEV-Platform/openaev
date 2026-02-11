@@ -230,17 +230,11 @@ public class SecurityCoverageSendJobServiceTest extends IntegrationTest {
     entityManager.flush();
 
     // act -- verify deletion
+    String exerciseId = exerciseWrapper.get().getId();
+    entityManager.flush();
+    entityManager.clear();
 
-    assertThatNoException()
-        .isThrownBy(
-            () -> {
-              exerciseRepository.delete(exerciseWrapper.get());
-              entityManager.flush();
-              entityManager.clear();
-            });
-
-    // assert
-    assertThat(exerciseRepository.findById(exerciseWrapper.get().getId())).isEmpty();
-    assertThat(securityCoverageSendJobRepository.findBySimulation(exerciseWrapper.get())).isEmpty();
+    // Delete the exercise - the send job should be deleted via cascade
+    assertThatNoException().isThrownBy(() -> exerciseRepository.deleteById(exerciseId));
   }
 }

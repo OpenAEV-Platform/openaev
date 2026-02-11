@@ -1,6 +1,5 @@
 package io.openaev.service;
 
-import io.openaev.database.model.*;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE;
 import io.openaev.database.model.Grant.GRANT_TYPE;

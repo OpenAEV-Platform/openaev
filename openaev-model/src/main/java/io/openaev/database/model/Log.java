@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -37,14 +36,14 @@ public class Log implements Base {
   @JoinColumn(name = "log_exercise")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("log_exercise")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Exercise exercise;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "log_user")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("log_user")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private User user;
 
   @Column(name = "log_title")
@@ -67,7 +66,7 @@ public class Log implements Base {
   @NotNull
   private Instant updated = now();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "logs_tags",

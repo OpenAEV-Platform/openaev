@@ -741,7 +741,7 @@ class InjectServiceTest {
     expectationsArray.add(expectationPrevention);
 
     ObjectNode content = mapper.createObjectNode();
-    content.put("expectations", expectationsArray);
+    content.set("expectations", expectationsArray);
     inject.setContent(content);
 
     // MOCK

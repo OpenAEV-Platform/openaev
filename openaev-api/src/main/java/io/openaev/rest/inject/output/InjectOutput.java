@@ -45,12 +45,12 @@ public class InjectOutput {
 
   @JsonProperty("inject_exercise")
   @JsonSerialize(using = MonoIdSerializer.class)
-  @Schema(description = "Simulation ID of the inject", type = "string")
+  @Schema(description = "Simulation ID of the inject", implementation = String.class)
   private Exercise exercise;
 
   @JsonProperty("inject_scenario")
   @JsonSerialize(using = MonoIdSerializer.class)
-  @Schema(description = "Scenario ID of the inject", type = "string")
+  @Schema(description = "Scenario ID of the inject", implementation = String.class)
   private Scenario scenario;
 
   @JsonProperty("inject_depends_duration")
@@ -69,7 +69,7 @@ public class InjectOutput {
 
   @JsonProperty("inject_tags")
   @JsonSerialize(using = MultiIdSetSerializer.class)
-  @ArraySchema(schema = @Schema(description = "Tags of the inject", type = "string"))
+  @ArraySchema(schema = @Schema(description = "Tags of the inject", implementation = String.class))
   private Set<Tag> tags;
 
   @JsonProperty("inject_type")
@@ -78,17 +78,19 @@ public class InjectOutput {
 
   @JsonProperty("inject_teams")
   @JsonSerialize(using = MultiIdListSerializer.class)
-  @ArraySchema(schema = @Schema(description = "Teams of the inject", type = "string"))
+  @ArraySchema(schema = @Schema(description = "Teams of the inject", implementation = String.class))
   private List<Team> teams;
 
   @JsonProperty("inject_assets")
   @JsonSerialize(using = MultiIdListSerializer.class)
-  @ArraySchema(schema = @Schema(description = "Assets of the inject", type = "string"))
+  @ArraySchema(
+      schema = @Schema(description = "Assets of the inject", implementation = String.class))
   private List<Asset> assets;
 
   @JsonProperty("inject_asset_groups")
   @JsonSerialize(using = MultiIdListSerializer.class)
-  @ArraySchema(schema = @Schema(description = "Asset groups of the inject", type = "string"))
+  @ArraySchema(
+      schema = @Schema(description = "Asset groups of the inject", implementation = String.class))
   private List<AssetGroup> assetGroups;
 
   @JsonProperty("inject_content")
@@ -97,17 +99,20 @@ public class InjectOutput {
 
   @JsonProperty("inject_documents")
   @JsonSerialize(using = MultiModelSerializer.class)
-  @ArraySchema(schema = @Schema(type = "string", description = "Document of the inject"))
+  @ArraySchema(
+      schema = @Schema(implementation = String.class, description = "Document of the inject"))
   private List<InjectDocument> documents = new ArrayList<>();
 
   @JsonProperty("inject_communications")
   @JsonSerialize(using = MultiModelSerializer.class)
-  @ArraySchema(schema = @Schema(type = "string", description = "Communication of the inject"))
+  @ArraySchema(
+      schema = @Schema(implementation = String.class, description = "Communication of the inject"))
   private List<Communication> communications = new ArrayList<>();
 
   @JsonProperty("inject_expectations")
   @JsonSerialize(using = MultiModelSerializer.class)
-  @ArraySchema(schema = @Schema(type = "string", description = "Expectation of the inject"))
+  @ArraySchema(
+      schema = @Schema(implementation = String.class, description = "Expectation of the inject"))
   private List<InjectExpectation> expectations = new ArrayList<>();
 
   @JsonProperty("listened")

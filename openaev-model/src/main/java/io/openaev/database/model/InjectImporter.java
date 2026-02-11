@@ -42,7 +42,7 @@ public class InjectImporter implements Base {
   @JsonProperty("inject_importer_injector_contract")
   @JsonSerialize(using = MonoIdSerializer.class)
   @NotNull
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private InjectorContract injectorContract;
 
   @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)

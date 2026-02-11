@@ -36,14 +36,14 @@ public class LessonsAnswer implements Base {
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("lessons_answer_question")
   @NotNull
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private LessonsQuestion question;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "lessons_answer_user")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("lessons_answer_user")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private User user;
 
   @Column(name = "lessons_answer_created_at")

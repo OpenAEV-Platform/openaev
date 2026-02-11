@@ -18,12 +18,9 @@ import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
 import io.openaev.jsonapi.IncludeOption;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -32,7 +29,10 @@ import java.util.*;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.annotations.Type;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Data
 @Entity
@@ -113,7 +113,7 @@ public class Payload implements GrantableBase {
   @NotEmpty
   private PLATFORM_TYPE[] platforms = new PLATFORM_TYPE[0];
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @Setter
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
@@ -198,7 +198,7 @@ public class Payload implements GrantableBase {
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("payload_collector")
   @IncludeOption(key = "exclude from payload export")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Collector collector;
 
   @OneToMany(
@@ -211,7 +211,7 @@ public class Payload implements GrantableBase {
 
   // -- TAG --
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @Queryable(filterable = true, dynamicValues = true)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(

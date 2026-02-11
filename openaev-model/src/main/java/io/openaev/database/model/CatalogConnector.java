@@ -65,6 +65,9 @@ public class CatalogConnector implements Base {
   @Schema(description = "Connector use cases")
   private Set<String> useCases = new HashSet<>();
 
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("catalog_connector_verified"))
   @Column(name = "catalog_connector_verified")
   @JsonProperty("catalog_connector_verified")
   @Schema(description = "Connector verified")
@@ -75,6 +78,9 @@ public class CatalogConnector implements Base {
   @Schema(description = "Connector last verified date")
   private Instant lastVerifiedDate;
 
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("catalog_connector_playbook_supported"))
   @Column(name = "catalog_connector_playbook_supported")
   @JsonProperty("catalog_connector_playbook_supported")
   @Schema(description = "Connector playbook supported")
@@ -100,6 +106,9 @@ public class CatalogConnector implements Base {
   @Schema(description = "Connector source code")
   private String sourceCode;
 
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("catalog_connector_manager_supported"))
   @Column(name = "catalog_connector_manager_supported")
   @JsonProperty("catalog_connector_manager_supported")
   @Schema(description = "Connector manager supported")

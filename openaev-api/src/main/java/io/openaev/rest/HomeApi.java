@@ -31,10 +31,18 @@ public class HomeApi {
   @Value("${server.servlet.context-path}")
   private String contextPath;
 
+  // SPA catch-all: serves index.html for all paths except those handled by dedicated controllers.
+  // The negative lookahead excludes specific path prefixes from matching.
+  // "api" and "swagger-ui" use prefix matching (no $) to also exclude paths like
+  // "/api-docs" and "/swagger-ui.html" registered by springdoc-openapi.
+  // The other terms (login, logout, etc.) use exact matching ($) since they have no sibling paths.
+  // Note: prefix matching is required since Spring Framework 6.2 (Spring Boot 3.5) changed
+  // route resolution, causing the catch-all (produces=TEXT_HTML) to take precedence over
+  // JSON-producing controllers for browser requests (Accept: text/html).
   @GetMapping(
       path = {
         "/",
-        "/{path:^(?!api$|login$|logout$|oauth2$|saml2$|assets$|static$|swagger-ui$).*$}/**"
+        "/{path:^(?!api|login$|logout$|oauth2$|saml2$|assets$|static$|swagger-ui).*$}/**"
       },
       produces = MediaType.TEXT_HTML_VALUE)
   @AccessControl(skipRBAC = true) // No RBAC check for home endpoint

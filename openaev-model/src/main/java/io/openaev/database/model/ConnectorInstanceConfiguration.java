@@ -50,6 +50,9 @@ public class ConnectorInstanceConfiguration implements Base {
   @JsonSerialize(using = MonoIdSerializer.class)
   private ConnectorInstancePersisted connectorInstance;
 
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("connector_instance_configuration_is_encrypted"))
   @Column(name = "connector_instance_configuration_is_encrypted")
   @JsonProperty("connector_instance_configuration_is_encrypted")
   private boolean isEncrypted = false;
