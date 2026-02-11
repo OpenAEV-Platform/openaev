@@ -15,20 +15,17 @@ import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.integration.migration.SentinelOneExecutorConfigurationMigration;
-import io.openaev.service.AgentService;
-import io.openaev.service.AssetGroupService;
-import io.openaev.service.EndpointService;
-import io.openaev.service.FileService;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.*;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.stereotype.Service;
 
-// FIXME: this disables the executor altogether, but is not a feature flag. Revert right after
-// release
-// @Service
+@Service
 @Profile("!test")
 @Slf4j
 public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
@@ -47,6 +44,8 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
   private final FileService fileService;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
+  private final PreviewFeatureService previewFeatureService;
+
   public SentinelOneExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
       CatalogConnectorService catalogConnectorService,
@@ -57,6 +56,7 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
       EndpointService endpointService,
       AssetGroupService assetGroupService,
       EnterpriseEditionService enterpriseEditionService,
+      PreviewFeatureService previewFeatureService,
       LicenseCacheManager licenseCacheManager,
       ThreadPoolTaskScheduler taskScheduler,
       FileService fileService,
@@ -72,6 +72,7 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
     this.endpointService = endpointService;
     this.assetGroupService = assetGroupService;
     this.enterpriseEditionService = enterpriseEditionService;
+    this.previewFeatureService = previewFeatureService;
     this.licenseCacheManager = licenseCacheManager;
     this.taskScheduler = taskScheduler;
     this.fileService = fileService;
@@ -90,27 +91,29 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
 
   @Override
   protected void insertCatalogEntry() throws Exception {
-    String logoFilename = "%s-logo.png".formatted(SENTINELONE_EXECUTOR_TYPE);
-    fileService.uploadStream(
-        FileService.CONNECTORS_LOGO_PATH,
-        logoFilename,
-        getClass().getResourceAsStream("/img/icon-sentinelone.png"));
-    CatalogConnector connector = new CatalogConnector();
-    connector.setTitle("SentinelOne Executor");
-    connector.setSlug(SENTINELONE_EXECUTOR_TYPE);
-    connector.setLogoUrl(logoFilename);
-    connector.setDescription(
-        """
-                With SentinelOne executor register your asset in OpenAEV and enable execution of OpenAEV scenarios through your SentinelOne instance.
-                """);
-    connector.setShortDescription(
-        "Enable execution of OpenAEV scenarios through your SentinelOne instance.");
-    connector.setClassName(getClassName());
-    connector.setSubscriptionLink("https://www.sentinelone.com");
-    connector.setContainerType(ConnectorType.EXECUTOR);
-    connector.setCatalogConnectorConfigurations(
-        new SentinelOneExecutorConfig().toCatalogConfigurationSet(connector));
-    catalogConnectorService.saveAll(List.of(connector));
+    if (previewFeatureService.isFeatureEnabled(PreviewFeature.SENTINEL_ONE_EXECUTOR)) {
+      String logoFilename = "%s-logo.png".formatted(SENTINELONE_EXECUTOR_TYPE);
+      fileService.uploadStream(
+          FileService.CONNECTORS_LOGO_PATH,
+          logoFilename,
+          getClass().getResourceAsStream("/img/icon-sentinelone.png"));
+      CatalogConnector connector = new CatalogConnector();
+      connector.setTitle("SentinelOne Executor");
+      connector.setSlug(SENTINELONE_EXECUTOR_TYPE);
+      connector.setLogoUrl(logoFilename);
+      connector.setDescription(
+          """
+                      With SentinelOne executor register your asset in OpenAEV and enable execution of OpenAEV scenarios through your SentinelOne instance.
+                      """);
+      connector.setShortDescription(
+          "Enable execution of OpenAEV scenarios through your SentinelOne instance.");
+      connector.setClassName(getClassName());
+      connector.setSubscriptionLink("https://www.sentinelone.com");
+      connector.setContainerType(ConnectorType.EXECUTOR);
+      connector.setCatalogConnectorConfigurations(
+          new SentinelOneExecutorConfig().toCatalogConfigurationSet(connector));
+      catalogConnectorService.saveAll(List.of(connector));
+    }
   }
 
   @Override

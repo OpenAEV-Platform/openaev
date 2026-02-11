@@ -15,10 +15,7 @@ import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegrationFactory;
-import io.openaev.service.AgentService;
-import io.openaev.service.AssetGroupService;
-import io.openaev.service.EndpointService;
-import io.openaev.service.FileService;
+import io.openaev.service.*;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.utils.reflection.FieldUtils;
@@ -53,6 +50,7 @@ public class PaloAltoCortexExecutorIntegrationTest {
   @Autowired private ConnectorInstanceService connectorInstanceService;
   @Autowired private HttpClientFactory httpClientFactory;
   @Autowired private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
+  @Autowired private PreviewFeatureService previewFeatureService;
 
   @Autowired private FileService fileService;
 
@@ -66,6 +64,7 @@ public class PaloAltoCortexExecutorIntegrationTest {
         endpointService,
         assetGroupService,
         enterpriseEditionService,
+        previewFeatureService,
         licenseCacheManager,
         taskScheduler,
         fileService,
