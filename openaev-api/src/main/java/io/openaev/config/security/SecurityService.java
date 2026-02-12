@@ -23,6 +23,8 @@ public class SecurityService {
   public static final String OPENAEV_PROVIDER_PATH_PREFIX = "openaev.provider.";
   public static final String ROLES_ADMIN_PATH_SUFFIX = ".roles_admin";
   public static final String ALL_ADMIN_PATH_SUFFIX = ".all_admin";
+  public static final String AUDIENCE_PATH = ".audience";
+  public static final String REGISTRATION_ID = "registration_id";
 
   private final UserRepository userRepository;
   private final UserService userService;
@@ -67,6 +69,13 @@ public class SecurityService {
       }
     }
     return null;
+  }
+
+  // -- UTILS --
+
+  public String getAudience(@NotBlank final String registrationId) {
+    String rolesPathConfig = OPENAEV_PROVIDER_PATH_PREFIX + registrationId + AUDIENCE_PATH;
+    return env.getProperty(rolesPathConfig, String.class, "");
   }
 
   // -- PRIVATE --

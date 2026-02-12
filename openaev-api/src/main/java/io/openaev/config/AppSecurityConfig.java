@@ -1,7 +1,9 @@
 package io.openaev.config;
 
 import static io.openaev.config.security.SecurityService.OPENAEV_PROVIDER_PATH_PREFIX;
+import static io.openaev.config.security.SecurityService.REGISTRATION_ID;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -15,6 +17,7 @@ import io.openaev.security.SsoRefererAuthenticationSuccessHandler;
 import io.openaev.security.TokenAuthenticationFilter;
 import io.openaev.service.user_events.UserEventService;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -33,12 +36,16 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
+import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.SecurityFilterChain;
@@ -103,6 +110,11 @@ public class AppSecurityConfig {
       http.oauth2Login(
           login ->
               login
+                  .authorizationEndpoint(
+                      auth ->
+                          auth.authorizationRequestResolver(
+                              authorizationRequestResolver(
+                                  http.getSharedObject(ClientRegistrationRepository.class))))
                   .successHandler(new SsoRefererAuthenticationSuccessHandler())
                   .failureHandler(
                       new SsoRefererAuthenticationFailureHandler(this.userEventService)));
@@ -214,5 +226,47 @@ public class AppSecurityConfig {
     return request ->
         oAuth2UserManagement(
             request.getAccessToken(), request.getClientRegistration(), delegate.loadUser(request));
+  }
+
+  @Bean
+  public OAuth2AuthorizationRequestResolver authorizationRequestResolver(
+      ClientRegistrationRepository clientRegistrationRepository) {
+
+    DefaultOAuth2AuthorizationRequestResolver defaultResolver =
+        new DefaultOAuth2AuthorizationRequestResolver(
+            clientRegistrationRepository, DEFAULT_AUTHORIZATION_REQUEST_BASE_URI);
+
+    return new OAuth2AuthorizationRequestResolver() {
+
+      @Override
+      public OAuth2AuthorizationRequest resolve(HttpServletRequest request) {
+        return customize(defaultResolver.resolve(request));
+      }
+
+      @Override
+      public OAuth2AuthorizationRequest resolve(HttpServletRequest request, String registrationId) {
+        return customize(defaultResolver.resolve(request, registrationId));
+      }
+
+      private OAuth2AuthorizationRequest customize(
+          OAuth2AuthorizationRequest authorizationRequest) {
+
+        if (authorizationRequest == null) {
+          return null;
+        }
+
+        String registrationId = (String) authorizationRequest.getAttributes().get(REGISTRATION_ID);
+
+        String audience = securityService.getAudience(registrationId);
+
+        if (isBlank(audience)) {
+          return authorizationRequest;
+        }
+
+        return OAuth2AuthorizationRequest.from(authorizationRequest)
+            .additionalParameters(params -> params.put("audience", audience))
+            .build();
+      }
+    };
   }
 }
