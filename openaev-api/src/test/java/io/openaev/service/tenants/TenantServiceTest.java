@@ -41,6 +41,23 @@ class TenantServiceTest extends IntegrationTest {
   }
 
   @Test
+  void should_fail_when_updating_tenant_with_existing_name() {
+    // -- ARRANGE --
+    Tenant tenantA = getTenant("Tenant A");
+    Tenant tenantB = getTenant("Tenant B");
+
+    tenantComposer.forTenant(tenantA).persist();
+    tenantComposer.forTenant(tenantB).persist();
+
+    // On tente de renommer B en A
+    Tenant update = getTenant("Tenant A");
+
+    // -- ACT & ASSERT --
+    assertThatThrownBy(() -> tenantService.update(tenantB.getId(), update))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
   void should_find_all_tenants() {
     // -- ARRANGE --
     String tenantNameA = "Tenant A";

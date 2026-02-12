@@ -7,6 +7,9 @@ import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.service.tenants.TenantService;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.*;
+import io.swagger.v3.oas.annotations.responses.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -22,6 +25,9 @@ public class TenantApi {
 
   // -- CREATE --
 
+  @Operation(
+      summary = "Create a tenant",
+      description = "Creates a new tenant (Enterprise edition only)")
   @AccessControl(
       actionPerformed = Action.CREATE,
       resourceType = ResourceType.TENANT,
@@ -34,6 +40,9 @@ public class TenantApi {
 
   // -- READ --
 
+  @Operation(
+      summary = "Get tenant by ID",
+      description = "Retrieves a tenant by its unique identifier")
   @AccessControl(
       resourceId = "#tenantId",
       actionPerformed = Action.READ,
@@ -46,6 +55,9 @@ public class TenantApi {
 
   // -- SEARCH --
 
+  @Operation(
+      summary = "Search tenants",
+      description = "Search tenants with pagination and filtering")
   @AccessControl(
       actionPerformed = Action.READ,
       resourceType = ResourceType.TENANT,
@@ -58,6 +70,7 @@ public class TenantApi {
 
   // -- UPDATE --
 
+  @Operation(summary = "Update a tenant", description = "Updates an existing tenant")
   @AccessControl(
       resourceId = "#tenantId",
       actionPerformed = Action.WRITE,
@@ -71,6 +84,7 @@ public class TenantApi {
 
   // -- DELETE --
 
+  @Operation(summary = "Delete a tenant", description = "Deletes a tenant by its ID")
   @AccessControl(
       resourceId = "#tenantId",
       actionPerformed = Action.DELETE,

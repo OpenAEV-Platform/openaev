@@ -30,7 +30,7 @@ public class Tenant implements Base {
   @Schema(description = "Tenant ID")
   private String id;
 
-  @Column(name = "tenant_name", nullable = false)
+  @Column(name = "tenant_name", nullable = false, unique = true)
   @NotBlank
   @JsonProperty("tenant_name")
   @Schema(description = "Tenant name")

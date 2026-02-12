@@ -51,14 +51,6 @@ public class TenantService {
 
   public Tenant update(String tenantId, Tenant updated) {
     Tenant existing = findById(tenantId);
-
-    if (updated.getName() != null
-        && !updated.getName().equals(existing.getName())
-        && tenantRepository.existsByName(updated.getName())) {
-      throw new IllegalArgumentException(
-          "Tenant with name '" + updated.getName() + "' already exists");
-    }
-
     existing.setUpdateAttributes(updated);
     return tenantRepository.save(existing);
   }
@@ -69,6 +61,6 @@ public class TenantService {
     if (!tenantRepository.existsById(tenantId)) {
       throw new EntityNotFoundException("Tenant not found: " + tenantId);
     }
-    tenantRepository.deleteById(tenantId);
+    tenantRepository.deleteByIdNative(tenantId);
   }
 }
