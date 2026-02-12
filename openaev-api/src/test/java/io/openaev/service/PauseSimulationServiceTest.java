@@ -1,4 +1,4 @@
-package io.openaev.rest.exercise.service;
+package io.openaev.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;

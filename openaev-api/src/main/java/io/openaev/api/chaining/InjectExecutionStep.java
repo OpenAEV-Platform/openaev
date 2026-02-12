@@ -436,23 +436,24 @@ public class InjectExecutionStep implements ActionStep {
       ObjectMapper mapper = new ObjectMapper();
       JsonNode root = mapper.readTree(step.getData());
 
-      Optional<InjectorContract> injectorContractOpt = inject.getInjectorContract();
-      if (injectorContractOpt.isEmpty()) {
+      if (inject.getInjectorContract().isEmpty()) {
         log.info("Injector contract not found for step (READY) id {}", step.getId());
         return null;
       }
 
+      InjectorContract injectorContract = inject.getInjectorContract().get();
       JsonNode injectorNode =
           root.path("inject_injector_contract").path("injector_contract_injector");
 
       if (injectorNode.isMissingNode() && injectorNode.isEmpty()) {
         log.info(
             "Injector not found for injectorContractId {} & step (READY) id {}",
-            injectorContractOpt.get().getId(),
+            injectorContract.getId(),
             step.getId());
         return null;
       }
-      if (injectorContractOpt.get().getInjector() == null) {
+
+      if (injectorContract.getInjector() == null) {
         String injectorId = injectorNode.asText();
         Injector injector = em.find(Injector.class, injectorId);
 
@@ -464,7 +465,7 @@ public class InjectExecutionStep implements ActionStep {
           return null;
         }
 
-        injectorContractOpt.get().setInjector(injector);
+        injectorContract.setInjector(injector);
       }
       return inject;
     } catch (IllegalArgumentException | JsonProcessingException e) {
