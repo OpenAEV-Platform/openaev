@@ -233,4 +233,43 @@ class InjectsExecutionJobTest extends IntegrationTest {
           .isEqualTo("There was an error during the evaluation of the condition of the inject");
     }
   }
+
+  @Test
+  @DisplayName("When expectation results are empty, collect status is set to COMPLETED")
+  void whenExpectationResultsEmpty_shouldSetCollectStatusToCompleted()
+      throws JobExecutionException {
+
+    // -- PREPARE --
+    Exercise exercise = ExerciseFixture.createDefaultExercise();
+    exercise.setStart(Instant.now().minus(1, ChronoUnit.MINUTES));
+    exercise.setStatus(ExerciseStatus.RUNNING);
+    exerciseComposer.forExercise(exercise).persist().get();
+    entityManager.flush();
+
+    // Create inject with expectation but NO results
+    Inject injectWithManualExpectation =
+        InjectFixture.createInjectWithManualExpectation(
+            InjectorContractFixture.createDefaultInjectorContract(), "test", "true");
+    injectWithManualExpectation.setExercise(exercise);
+    injectWithManualExpectation.setCollectExecutionStatus(CollectExecutionStatus.COLLECTING);
+
+    Inject inject =
+        injectComposer
+            .forInject(injectWithManualExpectation)
+            .withInjectStatus(
+                injectStatusComposer.forInjectStatus(InjectStatusFixture.createSuccessStatus()))
+            .persist()
+            .get();
+
+    entityManager.flush();
+    entityManager.clear();
+
+    // -- EXECUTE --
+    job.execute(null);
+
+    // -- ASSERT --
+    Inject savedInject = injectRepository.findById(inject.getId()).orElseThrow();
+
+    assertThat(savedInject.getCollectExecutionStatus()).isEqualTo(CollectExecutionStatus.COMPLETED);
+  }
 }
