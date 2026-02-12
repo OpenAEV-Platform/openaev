@@ -82,4 +82,16 @@ public class XtmHubApi extends RestBehavior {
   public void autoRegister(@Valid @RequestBody XtmHubRegisterInput input) {
     this.xtmHubService.autoRegister(input.getToken());
   }
+
+  @PostMapping(
+      value = XTMHUB_URI + "/contact-us",
+      consumes = MediaType.APPLICATION_JSON_VALUE,
+      produces = MediaType.APPLICATION_JSON_VALUE)
+  @Operation(summary = "Contact Sales", description = "Contact the sales team throught XTM Hub")
+  @ApiResponses({@ApiResponse(responseCode = "200", description = "Successful contact")})
+  @RBAC(skipRBAC = true)
+  @Transactional(rollbackFor = Exception.class)
+  public Boolean contactUs(@Valid @RequestBody XtmHubContactUsInput request) {
+    return this.xtmHubService.contactUs(request.getMessage());
+  }
 }

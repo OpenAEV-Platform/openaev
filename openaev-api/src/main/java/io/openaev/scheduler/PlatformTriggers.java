@@ -1,5 +1,6 @@
 package io.openaev.scheduler;
 
+import static io.openaev.scheduler.jobs.user_event.UserEventRetentionJob.USER_EVENT_RETENTION_TRIGGER;
 import static org.quartz.CronScheduleBuilder.cronSchedule;
 import static org.quartz.SimpleScheduleBuilder.repeatMinutelyForever;
 import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
@@ -91,6 +92,15 @@ public class PlatformTriggers {
         .forJob(this.platformJobs.getConnectorPingJob())
         .withIdentity("connectorPingJob")
         .withSchedule(_40_seconds)
+        .build();
+  }
+
+  @Bean
+  public Trigger userEventRetentionTrigger() {
+    return newTrigger()
+        .forJob(this.platformJobs.userEventRetentionJobDetail())
+        .withIdentity(USER_EVENT_RETENTION_TRIGGER)
+        .withSchedule(cronSchedule("0 0 0 * * ?"))
         .build();
   }
 }

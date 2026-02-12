@@ -7119,6 +7119,11 @@ export interface XtmComposerUpdateStatusInput {
   connector_instance_current_status: "started" | "stopped";
 }
 
+export interface XtmHubContactUsInput {
+  /** The message sent */
+  message: string;
+}
+
 export interface XtmHubRegisterInput {
   /** The registration token */
   token: string;

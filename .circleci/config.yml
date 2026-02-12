@@ -99,7 +99,7 @@ jobs:
   build_platform_musl:
     working_directory: ~/openaev_musl
     docker:
-      - image: maven:3.9.11-eclipse-temurin-21-alpine
+      - image: maven:3.9.12-eclipse-temurin-21-alpine
     resource_class: large
     steps:
       - attach_workspace:

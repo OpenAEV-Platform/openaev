@@ -1,6 +1,8 @@
 package io.openaev.config;
 
 import io.openaev.database.model.User;
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
 import org.jetbrains.annotations.NotNull;
@@ -8,7 +10,10 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.saml2.provider.service.authentication.Saml2AuthenticatedPrincipal;
 
-public class OpenAEVSaml2User implements OpenAEVPrincipal, Saml2AuthenticatedPrincipal {
+public class OpenAEVSaml2User
+    implements OpenAEVPrincipal, Saml2AuthenticatedPrincipal, Serializable {
+
+  @Serial private static final long serialVersionUID = 1L;
 
   private final User user;
   private final List<SimpleGrantedAuthority> roles;

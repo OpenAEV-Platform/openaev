@@ -32,7 +32,13 @@ public enum SettingKeys {
   XTM_COMPOSER_LAST_CONNECTIVITY_CHECK("xtm_composer_last_connectivity_check", ""),
 
   SMTP_SERVICE_AVAILABLE("smtp_service_available", "false"),
-  IMAP_SERVICE_AVAILABLE("imap_service_available", "false");
+  IMAP_SERVICE_AVAILABLE("imap_service_available", "false"),
+
+  USER_EVENTS_RETENTION_ENABLED("user-events.retention.enabled", "true"),
+  USER_EVENTS_RETENTION_DEFAULT_DAYS("user-events.retention.default-days", "90"),
+  USER_EVENTS_RETENTION_LOGIN_SUCCESS_DAYS("user-events.retention.login-success.days", "90"),
+  USER_EVENTS_RETENTION_LOGIN_FAILED_DAYS("user-events.retention.login-failed.days", "90"),
+  USER_EVENTS_RETENTION_USER_CREATED_DAYS("user-events.retention.user-created.days", "90");
 
   private final String key;
   private final String defaultValue;

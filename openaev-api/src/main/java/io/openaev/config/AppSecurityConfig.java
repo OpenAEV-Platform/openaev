@@ -13,6 +13,7 @@ import io.openaev.database.model.User;
 import io.openaev.security.SsoRefererAuthenticationFailureHandler;
 import io.openaev.security.SsoRefererAuthenticationSuccessHandler;
 import io.openaev.security.TokenAuthenticationFilter;
+import io.openaev.service.user_events.UserEventService;
 import jakarta.annotation.Resource;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -54,6 +55,7 @@ public class AppSecurityConfig {
   private final OpenAEVConfig openAEVConfig;
   private final OpenSamlConfig openSamlConfig;
   private final SecurityService securityService;
+  private final UserEventService userEventService;
 
   @Resource protected ObjectMapper mapper;
 
@@ -61,10 +63,10 @@ public class AppSecurityConfig {
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     http.addFilterBefore(tokenAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
         .requestCache(Customizer.withDefaults())
-        /**/ .requestCache((cache) -> cache.requestCache(new HttpSessionRequestCache()))
+        .requestCache(cache -> cache.requestCache(new HttpSessionRequestCache()))
         .csrf(AbstractHttpConfigurer::disable)
         .formLogin(AbstractHttpConfigurer::disable)
-        .securityContext((securityContext) -> securityContext.requireExplicitSave(false))
+        .securityContext(securityContext -> securityContext.requireExplicitSave(false))
         .authorizeHttpRequests(
             rq ->
                 rq.requestMatchers("/api/health")
@@ -102,7 +104,8 @@ public class AppSecurityConfig {
           login ->
               login
                   .successHandler(new SsoRefererAuthenticationSuccessHandler())
-                  .failureHandler(new SsoRefererAuthenticationFailureHandler()));
+                  .failureHandler(
+                      new SsoRefererAuthenticationFailureHandler(this.userEventService)));
     }
 
     if (openAEVConfig.isAuthSaml2Enable()) {

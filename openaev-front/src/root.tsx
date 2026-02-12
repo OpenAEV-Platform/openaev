@@ -14,6 +14,7 @@ import Loader from './components/Loader';
 import Message from './components/Message';
 import NotFound from './components/NotFound';
 import SystemBanners from './public/components/systembanners/SystemBanners';
+import LicenseBanner from './public/components/trialbanners/LicenseBanner';
 import { useHelper } from './store';
 import ErrorHandler from './utils/error/ErrorHandler';
 import { useAppDispatch } from './utils/hooks';
@@ -77,6 +78,7 @@ const Root = () => {
                 <ErrorHandler />
                 <EnterpriseEditionAgreementDialog />
                 <SystemBanners settings={settings} />
+                <LicenseBanner settings={settings} />
                 <Suspense fallback={<Loader />}>
                   <Routes>
                     <Route

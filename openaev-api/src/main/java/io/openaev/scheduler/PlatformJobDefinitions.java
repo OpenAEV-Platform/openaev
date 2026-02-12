@@ -1,8 +1,10 @@
 package io.openaev.scheduler;
 
+import static io.openaev.scheduler.jobs.user_event.UserEventRetentionJob.USER_EVENT_RETENTION_JOB;
 import static org.quartz.JobKey.jobKey;
 
 import io.openaev.scheduler.jobs.*;
+import io.openaev.scheduler.jobs.user_event.UserEventRetentionJob;
 import org.quartz.JobBuilder;
 import org.quartz.JobDetail;
 import org.springframework.context.annotation.Bean;
@@ -64,6 +66,14 @@ public class PlatformJobDefinitions {
     return JobBuilder.newJob(OpenCTIConnectorRegisterPingJob.class)
         .storeDurably()
         .withIdentity(jobKey("ConnectorPingJob"))
+        .build();
+  }
+
+  @Bean
+  public JobDetail userEventRetentionJobDetail() {
+    return JobBuilder.newJob(UserEventRetentionJob.class)
+        .withIdentity(USER_EVENT_RETENTION_JOB)
+        .storeDurably()
         .build();
   }
 }
