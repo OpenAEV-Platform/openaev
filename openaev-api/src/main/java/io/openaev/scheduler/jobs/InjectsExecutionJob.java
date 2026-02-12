@@ -441,7 +441,7 @@ public class InjectsExecutionJob implements Job {
       } else {
         List<InjectExpectationResult> results =
             inject.getExpectations().stream().flatMap(ie -> ie.getResults().stream()).toList();
-        if (results.isEmpty() || hasValidResults(results)) {
+        if (hasValidResults(results)) {
           inject.setCollectExecutionStatus(COMPLETED);
           fulfilled.add(inject);
         }

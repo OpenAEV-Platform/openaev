@@ -270,7 +270,7 @@ public final class ExpectationResultBuilder {
   }
 
   public static boolean hasValidResults(@NotNull final List<InjectExpectationResult> results) {
-    return !results.isEmpty() && results.stream().allMatch(r -> hasText(r.getResult()));
+    return results.stream().allMatch(r -> hasText(r.getResult()));
   }
 
   public static boolean hasValidResultFromSource(
