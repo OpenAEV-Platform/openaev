@@ -14,6 +14,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.ClientProtocolException;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
@@ -27,6 +28,7 @@ import org.apache.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 
 @Component
+@Slf4j
 @RequiredArgsConstructor
 public class OpenCTIClient {
   private final HttpClientFactory httpClientFactory;
@@ -61,8 +63,8 @@ public class OpenCTIClient {
 
         int statusCode = res.getCode();
         if (statusCode != 200) {
-          throw new IOException(
-              String.format("Error downloading file from %s with status code %s", url, statusCode));
+            log.error(String.format("Error downloading file from %s with status code %s", url, statusCode));
+            return null;
         }
 
         HttpEntity entity = res.getEntity();

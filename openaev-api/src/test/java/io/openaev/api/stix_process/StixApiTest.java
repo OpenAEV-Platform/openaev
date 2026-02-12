@@ -51,7 +51,9 @@ import org.mockserver.configuration.Configuration;
 import org.mockserver.integration.ClientAndServer;
 import org.mockserver.socket.PortFactory;
 import org.mockserver.client.MockServerClient;
+import org.mockserver.configuration.Configuration;
 import org.mockserver.integration.ClientAndServer;
+import org.mockserver.socket.PortFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -59,6 +61,8 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -66,7 +70,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(withCapabilities = {Capability.MANAGE_STIX_BUNDLE})
 @DisplayName("STIX API Integration Tests")
-@TestPropertySource(properties = {"openaev.xtm.opencti.enable=true"})
 class StixApiTest extends IntegrationTest {
 
   public static final String T_1531 = "T1531";
@@ -109,6 +112,7 @@ class StixApiTest extends IntegrationTest {
   private JsonNode stixSecurityCoverageOnlyVulns;
   private JsonNode stixSecurityCoverageWithDomainName;
   private JsonNode stixSecurityCoverageWithArtifact;
+  private JsonNode stixSecurityCoverageWithFailingArtifact;
 
   private static ClientAndServer mockServer;
 
@@ -176,6 +180,10 @@ class StixApiTest extends IntegrationTest {
     stixSecurityCoverageWithArtifact =
         loadJsonWithStixObjects(
             "src/test/resources/stix-bundles/security-coverage-with-artifact.json");
+
+    stixSecurityCoverageWithFailingArtifact =
+        loadJsonWithStixObjects(
+            "src/test/resources/stix-bundles/security-coverage-with-failing-artifact.json");
 
     attackPatternComposer
         .forAttackPattern(AttackPatternFixture.createAttackPatternsWithExternalId(T_1003))
@@ -1011,47 +1019,82 @@ class StixApiTest extends IntegrationTest {
                       && inject.getPayload().get() instanceof DnsResolution);
     }
 
-      @Test
-      @DisplayName("Should create scenario with drop file injects")
-      void shouldCreateScenarioWithDropFileInjects() throws Exception {
-          ClientAndServer mockServer = ClientAndServer.startClientAndServer(10800);
-          byte[] fileContent = getClass()
-                  .getResourceAsStream("/stix-bundles/artifact-file-to-return.txt")
-                  .readAllBytes();
+    @Test
+    @DisplayName("Should create scenario with drop file injects")
+    void shouldCreateScenarioWithDropFileInjects() throws Exception {
+      // PREPARE
+      byte[] fileContent =
+          getClass().getResourceAsStream("/stix-bundles/artifact-file-test.txt").readAllBytes();
 
-          new MockServerClient("localhost", 10800)
-                  .when(request()
-                          .withMethod("GET")
-                          .withPath("/storage/get/import/Artifact/c0cbb7ff-5a68-47cb-8db6-3da247d8d6cf/test.exe")
-                          .withHeader("Authorization", "Bearer .*"))
-                  .respond(response()
-                          .withStatusCode(200)
-                          .withBody(fileContent));
+      mockServer
+          .when(
+              request()
+                  .withMethod("GET")
+                  .withPath(
+                      "/%2Fstorage%2Fget%2Fimport%2FArtifact%2Fc0cbb7ff-5a68-47cb-8db6-3da247d8d6cf%2Fartifact-file-test.txt")
+                  .withHeader("Authorization", "Bearer .*"))
+          .respond(response().withStatusCode(200).withBody(fileContent));
 
-          String createdResponse =
-                  mvc.perform(
-                                  post(STIX_URI + "/process-bundle")
-                                          .contentType(MediaType.APPLICATION_JSON)
-                                          .content(mapper.writeValueAsString(stixSecurityCoverageWithArtifact)))
-                          .andExpect(status().isOk())
-                          .andReturn()
-                          .getResponse()
-                          .getContentAsString();
+      // EXECUTE
+      String createdResponse =
+          mvc.perform(
+                  post(STIX_URI + "/process-bundle")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(mapper.writeValueAsString(stixSecurityCoverageWithArtifact)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
 
-          mockServer.stop();
+      // VERIFY
+      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      assertThat(createdScenario.getName()).isEqualTo("test artifacts");
 
-          String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
-          Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
-          assertThat(createdScenario.getName()).isEqualTo("test domain name");
+      Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
+      assertThat(injects).hasSize(1);
+      assertThat(injects)
+          .anyMatch(
+              inject ->
+                  inject.getPayload().isPresent()
+                      && inject.getPayload().get() instanceof FileDrop
+                      && "artifact-file-test.txt"
+                          .equals(
+                              ((FileDrop) inject.getPayload().get()).getFileDropFile().getName()));
+    }
 
-          Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
-          assertThat(injects).hasSize(7);
-          assertThat(injects)
-                  .anyMatch(
-                          inject ->
-                                  inject.getPayload().isPresent()
-                                          && inject.getPayload().get() instanceof DnsResolution);
-      }
+    @Test
+    @DisplayName("Should not create scenario with drop file injects")
+    void shouldNotCreateScenarioWithDropFileInjects() throws Exception {
+      // PREPARE
+      mockServer
+          .when(
+              request()
+                  .withMethod("GET")
+                  .withPath(
+                      "/%2Fstorage%2Fget%2Fimport%2FArtifact%2Fc0cbb7ff-5a68-47cb-8db6-3da247d8d6cf%2Fartifact-file-test2.txt")
+                  .withHeader("Authorization", "Bearer .*"))
+          .respond(response().withStatusCode(404));
+
+      // EXECUTE
+      String createdResponse =
+          mvc.perform(
+                  post(STIX_URI + "/process-bundle")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(mapper.writeValueAsString(stixSecurityCoverageWithFailingArtifact)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // VERIFY
+      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      assertThat(createdScenario.getName()).isEqualTo("test failing artifacts");
+
+      Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
+      assertThat(injects).hasSize(0);
+    }
   }
 
   private String getScenarioIdResponse(String content) throws Exception {

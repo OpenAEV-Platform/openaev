@@ -256,11 +256,19 @@ public class OpenCTIService {
     }
   }
 
+  /**
+   * Download and save file from OpenCTI
+   *
+   * @param uri of the file
+   * @param name of the file to download
+   * @param mimeType of the file to download
+   * @return the document created from downloaded file
+   */
   public Document downloadAndSaveFile(String uri, String name, String mimeType) {
     File octiFile = downloadFile(uri);
 
     if (octiFile != null) {
-      Tag openCtiTag = getTag();
+      Tag openCtiTag = getOpenCTITag();
       DocumentCreateInput documentCreateInput = new DocumentCreateInput();
       documentCreateInput.setDescription(name);
       documentCreateInput.setTagIds(new ArrayList<>(Set.of(openCtiTag.getId())));
@@ -275,10 +283,10 @@ public class OpenCTIService {
     return null;
   }
 
-  public File downloadFile(String uri) {
+  private File downloadFile(String uri) {
     try {
       return openCTIClient.download(
-          classicOpenCTIConfig.getUrl() + URLEncoder.encode(uri, StandardCharsets.UTF_8),
+          classicOpenCTIConfig.getFormattedUrl() + URLEncoder.encode(uri, StandardCharsets.UTF_8),
           classicOpenCTIConfig.getToken());
     } catch (IOException e) {
       log.error(String.format("Error while downloading file from %s", uri), e);
@@ -286,7 +294,7 @@ public class OpenCTIService {
     }
   }
 
-  public Tag getTag() {
+  private Tag getOpenCTITag() {
     TagCreateInput tagCreateInput = new TagCreateInput();
     tagCreateInput.setName(Tag.OPENCTI_TAG_NAME);
     return tagService.upsertTag(tagCreateInput);

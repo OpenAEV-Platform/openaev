@@ -108,8 +108,8 @@ public class SecurityCoverageUtils {
               stixToRef,
               obj,
               new ArrayList<>(Collections.singleton(getDomainNameValue(observables))));
-          continue;
         }
+        continue;
       }
 
       if (ObjectTypes.ARTIFACT.toString().equals(stixType)
@@ -121,8 +121,8 @@ public class SecurityCoverageUtils {
               getAllDocumentIdsFromFiles(
                   (io.openaev.stix.types.List<Dictionary>) extensionObj.get(StixConstants.FILES));
           manageAndAddStixRefToExternalRefs(stixToRef, obj, documentIds);
-          continue;
         }
+        continue;
       }
 
       manageAndAddStixRefToExternalRefs(stixToRef, obj, null);
@@ -206,6 +206,7 @@ public class SecurityCoverageUtils {
                       (String) file.get(CommonProperties.MIME_TYPE.toString()).getValue());
               return document != null ? document.getId() : null;
             })
+        .filter(Objects::nonNull)
         .toList();
   }
 }

@@ -489,14 +489,14 @@ public class SecurityCoverageService {
 
     if (simulation.getSecurityCoverage().getArtifactsRefs() != null
         && !simulation.getSecurityCoverage().getArtifactsRefs().isEmpty()) {
-        processCoverageRefs(
-                simulation.getSecurityCoverage().getArtifactsRefs(),
-                simulation,
-                this::getArtifactCoverage,
-                coverage.getId(),
-                sroStartTime,
-                sroStopTime,
-                objects);
+      processCoverageRefs(
+          simulation.getSecurityCoverage().getArtifactsRefs(),
+          simulation,
+          this::getArtifactCoverage,
+          coverage.getId(),
+          sroStartTime,
+          sroStopTime,
+          objects);
     }
 
     for (SecurityPlatform securityPlatform : assetService.securityPlatforms()) {
@@ -614,25 +614,25 @@ public class SecurityCoverageService {
   }
 
   private BaseType<?> getDnsIndicatorCoverage(List<String> externalRefs, Exercise simulation) {
-      return getCoverage(
-              externalRefs,
-              simulation,
-              hostnames ->
-                      simulation.getInjects().stream()
-                              .filter(
-                                      inject ->
-                                              inject.getContent().has(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY)
-                                                      && hostnames.contains((
-                                                      inject
-                                                              .getContent()
-                                                              .get(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY)
-                                                              .textValue())))
-                              .toList(),
-              inject ->
-                      Optional.ofNullable(inject)
-                              .map(Collections::singletonList)
-                              .orElse(Collections.emptyList()),
-              Inject::getId);
+    return getCoverage(
+        externalRefs,
+        simulation,
+        hostnames ->
+            simulation.getInjects().stream()
+                .filter(
+                    inject ->
+                        inject.getContent().has(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY)
+                            && hostnames.contains(
+                                (inject
+                                    .getContent()
+                                    .get(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY)
+                                    .textValue())))
+                .toList(),
+        inject ->
+            Optional.ofNullable(inject)
+                .map(Collections::singletonList)
+                .orElse(Collections.emptyList()),
+        Inject::getId);
   }
 
   private BaseType<?> getArtifactCoverage(List<String> externalRefs, Exercise simulation) {
@@ -644,7 +644,8 @@ public class SecurityCoverageService {
                 .filter(
                     inject ->
                         inject.getPayload().isPresent()
-                            && documentIds.contains(((FileDrop) inject.getPayload().get()).getFileDropFile().getId()))
+                            && documentIds.contains(
+                                ((FileDrop) inject.getPayload().get()).getFileDropFile().getId()))
                 .toList(),
         inject ->
             Optional.ofNullable(inject)

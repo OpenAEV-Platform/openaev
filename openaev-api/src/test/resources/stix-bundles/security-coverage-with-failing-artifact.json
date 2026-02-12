@@ -30,7 +30,7 @@
           "revoked": false,
           "confidence": 100,
           "lang": "en",
-          "name": "test artifacts",
+          "name": "test failing artifacts",
           "covered": false,
           "periodicity": "P1D",
           "type_affinity": "ENDPOINT",
@@ -65,7 +65,7 @@
           "revoked": false,
           "confidence": 100,
           "lang": "en",
-          "name": "test artifacts",
+          "name": "test failing artifacts",
           "published": "2026-01-12T16:53:52.000Z",
           "object_refs": [
             "artifact--02fff920-f614-527c-81d1-6353633a6d21"
@@ -84,8 +84,8 @@
               "updated_at": "2026-01-12T16:48:44.180Z",
               "files": [
                 {
-                  "name": "artifact-file-test.txt",
-                  "uri": "/storage/get/import/Artifact/c0cbb7ff-5a68-47cb-8db6-3da247d8d6cf/artifact-file-test.txt",
+                  "name": "artifact-file-test2.txt",
+                  "uri": "/storage/get/import/Artifact/c0cbb7ff-5a68-47cb-8db6-3da247d8d6cf/artifact-file-test2.txt",
                   "version": "2026-01-12T16:48:44.123Z",
                   "mime_type": "application/x-msdownload",
                   "object_marking_refs": [ ]
