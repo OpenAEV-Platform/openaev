@@ -273,9 +273,7 @@ export const determinePercentage = (esAvgs: EsAvgs, theme: Theme): EsAvgsExtende
   // Manage Security Domain Average, represent the list of available average to display on the widget
   const calculatedAveragesBySecurityDomain = esAvgs.security_domain_average
     .filter(domainAvgs => domainAvgs.label !== TO_CLASSIFY)
-    .map((domainAvgs) => {
-      return manageDomainAverage(domainAvgs, theme);
-    });
+    .map((domainAvgs) => manageDomainAverage(domainAvgs, theme));
 
   return { security_domain_average: calculatedAveragesBySecurityDomain };
 };
