@@ -41,6 +41,7 @@ import io.openaev.model.inject.form.Expectation;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
+import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.UserService;
@@ -358,7 +359,7 @@ public class PayloadService {
     fileDrop.setType(FileDrop.FILE_DROP_TYPE);
     fileDrop.setPlatforms(ALL_PLATFORMS);
     fileDrop.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
-    fileDrop.setDomains(domainService.upserts(Set.of(PresetDomain.ENDPOINT)));
+    fileDrop.setDomains(domainService.upserts(Set.of(InjectorContractDomainDTO.fromDomain(PresetDomain.ENDPOINT))));
 
     fileDrop.setExpectations(
         new InjectExpectation.EXPECTATION_TYPE[] {
