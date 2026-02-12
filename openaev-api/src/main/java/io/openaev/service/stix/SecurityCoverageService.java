@@ -487,6 +487,18 @@ public class SecurityCoverageService {
           objects);
     }
 
+    if (simulation.getSecurityCoverage().getArtifactsRefs() != null
+        && !simulation.getSecurityCoverage().getArtifactsRefs().isEmpty()) {
+        processCoverageRefs(
+                simulation.getSecurityCoverage().getArtifactsRefs(),
+                simulation,
+                this::getArtifactCoverage,
+                coverage.getId(),
+                sroStartTime,
+                sroStopTime,
+                objects);
+    }
+
     for (SecurityPlatform securityPlatform : assetService.securityPlatforms()) {
       DomainObject platformIdentity = securityPlatform.toStixDomainObject();
       objects.add(platformIdentity);
@@ -575,9 +587,9 @@ public class SecurityCoverageService {
 
   private BaseType<?> getVulnerabilityCoverage(List<String> externalRefs, Exercise simulation) {
     return getCoverage(
-        externalRefs.getFirst(),
+        externalRefs,
         simulation,
-        id -> vulnerabilityService.getVulnerabilitiesByExternalIds(Set.of(id)),
+        ids -> vulnerabilityService.getVulnerabilitiesByExternalIds(new HashSet<>(ids)),
         inject -> {
           if (inject.getInjectorContract().isPresent()) {
             return inject.getInjectorContract().get().getVulnerabilities();
@@ -589,9 +601,9 @@ public class SecurityCoverageService {
 
   private BaseType<?> getAttackPatternCoverage(List<String> externalRefs, Exercise simulation) {
     return getCoverage(
-        externalRefs.getFirst(),
+        externalRefs,
         simulation,
-        id -> attackPatternService.getAttackPatternsByExternalIds(Set.of(id)),
+        ids -> attackPatternService.getAttackPatternsByExternalIds(new HashSet<>(ids)),
         inject -> {
           if (inject.getInjectorContract().isPresent()) {
             return inject.getInjectorContract().get().getAttackPatterns();
@@ -602,20 +614,38 @@ public class SecurityCoverageService {
   }
 
   private BaseType<?> getDnsIndicatorCoverage(List<String> externalRefs, Exercise simulation) {
+      return getCoverage(
+              externalRefs,
+              simulation,
+              hostnames ->
+                      simulation.getInjects().stream()
+                              .filter(
+                                      inject ->
+                                              inject.getContent().has(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY)
+                                                      && hostnames.contains((
+                                                      inject
+                                                              .getContent()
+                                                              .get(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY)
+                                                              .textValue())))
+                              .toList(),
+              inject ->
+                      Optional.ofNullable(inject)
+                              .map(Collections::singletonList)
+                              .orElse(Collections.emptyList()),
+              Inject::getId);
+  }
+
+  private BaseType<?> getArtifactCoverage(List<String> externalRefs, Exercise simulation) {
     return getCoverage(
-        externalRefs.getFirst(),
+        externalRefs,
         simulation,
-        hostname ->
+        documentIds ->
             simulation.getInjects().stream()
                 .filter(
                     inject ->
-                        inject.getContent().has(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY)
-                            && hostname.equals(
-                                inject
-                                    .getContent()
-                                    .get(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY)
-                                    .textValue()))
-                .collect(Collectors.toList()),
+                        inject.getPayload().isPresent()
+                            && documentIds.contains(((FileDrop) inject.getPayload().get()).getFileDropFile().getId()))
+                .toList(),
         inject ->
             Optional.ofNullable(inject)
                 .map(Collections::singletonList)
@@ -624,13 +654,13 @@ public class SecurityCoverageService {
   }
 
   private <T> BaseType<?> getCoverage(
-      String externalRef,
+      List<String> externalRefs,
       Exercise simulation,
-      Function<String, Collection<T>> entityFetcher,
+      Function<List<String>, Collection<T>> entityFetcher,
       Function<Inject, Collection<T>> contractExtractor,
       Function<T, String> idExtractor) {
     // fetch entity
-    Optional<T> entity = entityFetcher.apply(externalRef).stream().findFirst();
+    Optional<T> entity = entityFetcher.apply(externalRefs).stream().findFirst();
     if (entity.isEmpty()) {
       return uncovered();
     }

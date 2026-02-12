@@ -21,6 +21,8 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.rest.tag.form.TagCreateInput;
 import io.openaev.stix.objects.Bundle;
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -276,7 +278,8 @@ public class OpenCTIService {
   public File downloadFile(String uri) {
     try {
       return openCTIClient.download(
-          classicOpenCTIConfig.getApiUrl() + uri, classicOpenCTIConfig.getToken());
+          classicOpenCTIConfig.getUrl() + URLEncoder.encode(uri, StandardCharsets.UTF_8),
+          classicOpenCTIConfig.getToken());
     } catch (IOException e) {
       log.error(String.format("Error while downloading file from %s", uri), e);
       return null;

@@ -12,10 +12,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
-import static org.mockserver.model.HttpRequest.request;
-import static org.mockserver.model.HttpResponse.response;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -54,12 +50,15 @@ import org.junit.jupiter.api.*;
 import org.mockserver.configuration.Configuration;
 import org.mockserver.integration.ClientAndServer;
 import org.mockserver.socket.PortFactory;
+import org.mockserver.client.MockServerClient;
+import org.mockserver.integration.ClientAndServer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -109,6 +108,7 @@ class StixApiTest extends IntegrationTest {
   private JsonNode stixSecurityCoverageWithoutObjects;
   private JsonNode stixSecurityCoverageOnlyVulns;
   private JsonNode stixSecurityCoverageWithDomainName;
+  private JsonNode stixSecurityCoverageWithArtifact;
 
   private static ClientAndServer mockServer;
 
@@ -173,6 +173,10 @@ class StixApiTest extends IntegrationTest {
         loadJsonWithStixObjects(
             "src/test/resources/stix-bundles/security-coverage-with-domain-name.json");
 
+    stixSecurityCoverageWithArtifact =
+        loadJsonWithStixObjects(
+            "src/test/resources/stix-bundles/security-coverage-with-artifact.json");
+
     attackPatternComposer
         .forAttackPattern(AttackPatternFixture.createAttackPatternsWithExternalId(T_1003))
         .persist();
@@ -220,29 +224,6 @@ class StixApiTest extends IntegrationTest {
             vulnerabilityComposer.forVulnerability(
                 VulnerabilityFixture.createVulnerabilityInput("CVE-2025-56786")))
         .persist();
-
-    injectorContractComposer
-        .forInjectorContract(injectorContractFixture.getWellKnownSingleManualContract())
-        .persist();
-
-    // need to mock unregistered connector to be use in process
-    mockServer
-        .when(request().withMethod("POST").withPath(""))
-        .respond(
-            response()
-                .withStatusCode(200)
-                .withHeader("Content-Type", "application/json")
-                .withBody(
-                    """
-                {
-                  "data": {}
-                }
-            """));
-    openCTIConnectorService.registerOrPingAllConnectors();
-
-    mockServer
-        .when(request().withMethod("POST").withPath("graphql"))
-        .respond(response().withStatusCode(200));
   }
 
   @Nested
@@ -264,7 +245,7 @@ class StixApiTest extends IntegrationTest {
               .andReturn()
               .getResponse()
               .getContentAsString();
-      verify(securityCoverageService).pushSecurityCoverageBundleWithExternalURI(any());
+
       assertThat(response).isNotBlank();
       String scenarioId = JsonPath.read(response, "$.scenarioId");
       Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
@@ -422,7 +403,6 @@ class StixApiTest extends IntegrationTest {
     @DisplayName(
         "Should create the scenario from stix bundle and not set recurrence end if not specified")
     void shouldCreateScenarioNoEnd() throws Exception {
-
       String response =
           mvc.perform(
                   post(STIX_URI + "/process-bundle")
@@ -982,12 +962,9 @@ class StixApiTest extends IntegrationTest {
     @DisplayName("Should not remove security coverage even if scenario is deleted")
     void shouldExistSecurityCoverage() throws Exception {
       String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(stixSecurityCoverage));
-      entityManager.clear();
       Scenario scenario = scenarioRepository.findById(scenarioId).orElseThrow();
       String securityCoverageId = scenario.getSecurityCoverage().getId();
-      entityManager.clear();
       scenarioRepository.deleteById(scenarioId);
-      entityManager.clear();
       assertThat(securityCoverageRepository.findByExternalId(securityCoverageId)).isNotNull();
     }
 
@@ -1033,6 +1010,48 @@ class StixApiTest extends IntegrationTest {
                   inject.getPayload().isPresent()
                       && inject.getPayload().get() instanceof DnsResolution);
     }
+
+      @Test
+      @DisplayName("Should create scenario with drop file injects")
+      void shouldCreateScenarioWithDropFileInjects() throws Exception {
+          ClientAndServer mockServer = ClientAndServer.startClientAndServer(10800);
+          byte[] fileContent = getClass()
+                  .getResourceAsStream("/stix-bundles/artifact-file-to-return.txt")
+                  .readAllBytes();
+
+          new MockServerClient("localhost", 10800)
+                  .when(request()
+                          .withMethod("GET")
+                          .withPath("/storage/get/import/Artifact/c0cbb7ff-5a68-47cb-8db6-3da247d8d6cf/test.exe")
+                          .withHeader("Authorization", "Bearer .*"))
+                  .respond(response()
+                          .withStatusCode(200)
+                          .withBody(fileContent));
+
+          String createdResponse =
+                  mvc.perform(
+                                  post(STIX_URI + "/process-bundle")
+                                          .contentType(MediaType.APPLICATION_JSON)
+                                          .content(mapper.writeValueAsString(stixSecurityCoverageWithArtifact)))
+                          .andExpect(status().isOk())
+                          .andReturn()
+                          .getResponse()
+                          .getContentAsString();
+
+          mockServer.stop();
+
+          String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+          Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+          assertThat(createdScenario.getName()).isEqualTo("test domain name");
+
+          Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
+          assertThat(injects).hasSize(7);
+          assertThat(injects)
+                  .anyMatch(
+                          inject ->
+                                  inject.getPayload().isPresent()
+                                          && inject.getPayload().get() instanceof DnsResolution);
+      }
   }
 
   private String getScenarioIdResponse(String content) throws Exception {

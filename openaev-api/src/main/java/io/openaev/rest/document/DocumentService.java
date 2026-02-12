@@ -242,4 +242,8 @@ public class DocumentService {
   public List<RawDocument> documentsForPayload(@NotBlank String payloadId) {
     return this.documentRepository.rawAllDocumentsByPayloadId(payloadId);
   }
+
+  public Document save(Document document) {
+    return documentRepository.save(document);
+  }
 }
