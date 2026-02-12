@@ -209,7 +209,7 @@ public class ConditionService {
               .stream()
               .filter(step -> step.getOutput() != null)
               .toList();
-      // Count of current step template already run (status != END) into this workflow run
+      // Count of current step template already run into this workflow run
       int stepExecutedCount =
           stepService.countExecutedStep(workflowRun.getId(), nextStepTemplateToExecute.getId());
 

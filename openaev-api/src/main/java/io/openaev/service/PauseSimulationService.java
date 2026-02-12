@@ -1,4 +1,4 @@
-package io.openaev.rest.exercise.service;
+package io.openaev.service;
 
 import static java.time.Duration.between;
 import static java.time.Instant.now;
