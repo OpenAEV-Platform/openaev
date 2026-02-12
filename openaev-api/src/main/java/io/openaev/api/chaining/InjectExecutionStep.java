@@ -130,79 +130,33 @@ public class InjectExecutionStep implements ActionStep {
   @Override
   public Step run(Step readyStep) {
     // CALL BY QUEUE READY
-    ObjectMapper om =
-        new ObjectMapper()
-            .findAndRegisterModules()
-            .setInjectableValues(new InjectableValues.Std().addValue(EntityManager.class, em))
-            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    Inject inject = getInjectFromDataStep(readyStep);
+    if (inject == null) return null;
+    // CREATE & SAVE INJECT
+    inject = injectService.createInject(inject);
+    String data = setInjectId(inject.getId(), readyStep.getData());
+    readyStep.setData(data);
+
+    // EXECUTE INJECT
+    ExecutableInject executableInject =
+        new ExecutableInject(
+            true,
+            true,
+            inject,
+            inject.getTeams(),
+            inject.getAssets(),
+            inject.getAssetGroups(),
+            List.of()); // TODO Check users?
+
+    // TODO Check add documents? Executable Payloads
+    // executableInject.addDirectAttachment(inject.getDocuments());
 
     try {
-      // GET INJECT FROM JSON
-      Inject inject = om.readValue(readyStep.getData(), Inject.class);
-
-      ObjectMapper mapper = new ObjectMapper();
-      JsonNode root = mapper.readTree(readyStep.getData());
-
-      Optional<InjectorContract> injectorContractOpt = inject.getInjectorContract();
-      if (injectorContractOpt.isEmpty()) {
-        log.info("Injector contract not found for step (READY) id {}", readyStep.getId());
-        return null;
-      }
-
-      JsonNode injectorNode =
-          root.path("inject_injector_contract").path("injector_contract_injector");
-
-      if (injectorNode.isMissingNode() && injectorNode.isEmpty()) {
-        log.info(
-            "Injector not found for injectorContractId {} & step (READY) id {}",
-            injectorContractOpt.get().getId(),
-            readyStep.getId());
-        return null;
-      }
-      if (injectorContractOpt.get().getInjector() == null) {
-        String injectorId = injectorNode.asText();
-        Injector injector = em.find(Injector.class, injectorId);
-
-        if (injector == null) {
-          log.info(
-              "Injector not found for injectorId {} & step (READY) id {}",
-              injectorId,
-              readyStep.getId());
-          return null;
-        }
-
-        injectorContractOpt.get().setInjector(injector);
-      }
-
-      // CREATE & SAVE INJECT
-      inject = injectService.createInject(inject);
-
-      // EXECUTE INJECT
-      ExecutableInject executableInject =
-          new ExecutableInject(
-              true,
-              true,
-              inject,
-              inject.getTeams(),
-              inject.getAssets(),
-              inject.getAssetGroups(),
-              List.of()); // TODO Check users?
-
-      // TODO Check add documents? Executable Payloads
-      // executableInject.addDirectAttachment(inject.getDocuments());
-
-      try {
-        executor.directExecute(executableInject);
-        String data = setInjectId(inject.getId(), readyStep.getData());
-        readyStep.setData(data);
-        return readyStep;
-      } catch (Exception e) {
-        log.warn(e.getMessage(), e);
-        injectStatusService.failInjectStatus(inject.getId(), e.getMessage());
-      }
-    } catch (IllegalArgumentException | JsonProcessingException e) {
+      executor.directExecute(executableInject);
+      return readyStep;
+    } catch (Exception e) {
       log.warn(e.getMessage(), e);
-      return null;
+      injectStatusService.failInjectStatus(inject.getId(), e.getMessage());
     }
     return null;
   }
@@ -438,6 +392,79 @@ public class InjectExecutionStep implements ActionStep {
     }
 
     return stepCreateInput;
+  }
+    /**
+     * Extracts an {@link Inject} object from the JSON data stored in a {@link Step}.
+     *
+     * <p>This method performs the following steps:
+     * <ol>
+     *   <li>Deserializes the step's JSON data into an {@link Inject} object using {@link ObjectMapper}.</li>
+     *   <li>Parses the JSON to locate the associated {@link InjectorContract} and its {@link Injector}.</li>
+     *   <li>If the {@link Injector} is missing in the contract, it attempts to fetch it from the database using
+     *       the {@link EntityManager}.</li>
+     *   <li>Logs warnings or info messages when required entities are not found.</li>
+     * </ol>
+     *
+     * <p>Notes:
+     * <ul>
+     *   <li>If the step JSON does not contain a valid injector contract or injector, the method returns {@code null}.</li>
+     *   <li>If any {@link JsonProcessingException} or {@link IllegalArgumentException} occurs during parsing, the
+     *       exception is logged and {@code null} is returned.</li>
+     * </ul>
+     *
+     * @param step the {@link Step} containing the JSON data for the inject
+     * @return the deserialized {@link Inject} object with its injector set if found; {@code null} if the injector
+     *         or contract is missing or if an exception occurs during deserialization
+     */
+  private Inject getInjectFromDataStep(Step step) {
+    ObjectMapper om =
+        new ObjectMapper()
+            .findAndRegisterModules()
+            .setInjectableValues(new InjectableValues.Std().addValue(EntityManager.class, em))
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+    try {
+      // GET INJECT FROM JSON
+      Inject inject = om.readValue(step.getData(), Inject.class);
+
+      ObjectMapper mapper = new ObjectMapper();
+      JsonNode root = mapper.readTree(step.getData());
+
+      Optional<InjectorContract> injectorContractOpt = inject.getInjectorContract();
+      if (injectorContractOpt.isEmpty()) {
+        log.info("Injector contract not found for step (READY) id {}", step.getId());
+        return null;
+      }
+
+      JsonNode injectorNode =
+          root.path("inject_injector_contract").path("injector_contract_injector");
+
+      if (injectorNode.isMissingNode() && injectorNode.isEmpty()) {
+        log.info(
+            "Injector not found for injectorContractId {} & step (READY) id {}",
+            injectorContractOpt.get().getId(),
+            step.getId());
+        return null;
+      }
+      if (injectorContractOpt.get().getInjector() == null) {
+        String injectorId = injectorNode.asText();
+        Injector injector = em.find(Injector.class, injectorId);
+
+        if (injector == null) {
+          log.info(
+              "Injector not found for injectorId {} & step (READY) id {}",
+              injectorId,
+              step.getId());
+          return null;
+        }
+
+        injectorContractOpt.get().setInjector(injector);
+      }
+      return inject;
+    } catch (IllegalArgumentException | JsonProcessingException e) {
+      log.warn(e.getMessage(), e);
+      return null;
+    }
   }
 
   /**

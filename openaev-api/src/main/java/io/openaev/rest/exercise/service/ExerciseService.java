@@ -150,7 +150,7 @@ public class ExerciseService {
   }
 
   /**
-   * Create a simulation with bthe chaining enabled OR a normal one
+   * Create a simulation with the chaining enabled OR a normal one
    *
    * @param simulation the simulation to create
    * @param isChaining uses the chaining engine or not
