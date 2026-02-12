@@ -130,7 +130,7 @@ public class WidgetFixture {
     widget.setType(AVERAGE);
     // series
     AverageConfiguration widgetConfig = new AverageConfiguration();
-    WidgetConfiguration.Series serie = new WidgetConfiguration.Series();
+    WidgetConfigurationWithSeries.Series serie = new WidgetConfigurationWithSeries.Series();
     Filters.FilterGroup filterGroup = new Filters.FilterGroup();
     filterGroup.setMode(Filters.FilterMode.and);
     Filters.Filter filterBaseEntity =
