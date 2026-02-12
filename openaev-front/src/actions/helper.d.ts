@@ -1,7 +1,6 @@
 import {
   type Challenge,
   type Document,
-  type Domain,
   type Exercise,
   type Organization,
   type PlatformSettings,
@@ -29,8 +28,6 @@ export interface TagHelper {
   getTags: () => Tag[];
   getTagsMap: () => Record<string, Tag>;
 }
-
-export interface DomainHelper { getDomains: () => Domain[] }
 
 export interface LoggedHelper {
   // TODO type logged object

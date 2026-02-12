@@ -150,11 +150,11 @@ public class DashboardService {
     if (isSecurityCoverageWidget(widgetContext.widget)) {
       listConfig =
           widgetService.convertSecurityCoverageWidgetToListConfiguration(
-              widgetContext.widget, input.getFilterValues());
+              widgetContext.widget, input.getFilterValuesMap());
     } else {
       listConfig =
           widgetService.convertWidgetToListConfiguration(
-              widgetContext.widget, input.getSeriesIndex(), input.getFilterValues());
+              widgetContext.widget, input.getSeriesIndex(), input.getFilterValuesMap());
     }
 
     datas = executeListQuery(widgetContext, listConfig);

@@ -1,4 +1,4 @@
-import type { DomainHelper } from '../../../../actions/helper';
+import { type DomainHelper } from '../../../../actions/domains/domain-helper';
 import AttackPatternFieldController from '../../../../components/fields/AttackPatternFieldController';
 import DomainFieldController from '../../../../components/fields/DomainFieldController';
 import SelectFieldController from '../../../../components/fields/SelectFieldController';

@@ -4,6 +4,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import { type EsSeries, type ListConfiguration, type StructuralHistogramWidget, type Widget } from '../../../../../utils/api-types';
 import AttackPathContextLayer from './viz/attack_paths/AttackPathContextLayer';
 import SecurityDomainsWidget from './viz/domains/SecurityDomainsWidget';
+import type { EsAvgsExtended } from './viz/domains/SecurityDomainsWidgetUtils';
 import DonutChart from './viz/DonutChart';
 import HorizontalBarChart from './viz/HorizontalBarChart';
 import LineChart from './viz/LineChart';
@@ -75,6 +76,7 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen, vizData, errorMessage }:
         <SecurityCoverage
           widgetId={widget.widget_id}
           widgetTitle={widgetTitle}
+          widgetConfig={widget.widget_config as StructuralHistogramWidget}
           fullscreen={fullscreen}
           setFullscreen={setFullscreen}
           data={vizData.data}
@@ -99,7 +101,7 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen, vizData, errorMessage }:
       return (
         <HorizontalBarChart
           widgetId={widget.widget_id}
-          widgetConfig={widget.widget_config}
+          widgetConfig={widget.widget_config as StructuralHistogramWidget}
           series={seriesData}
         />
       );
@@ -141,7 +143,7 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen, vizData, errorMessage }:
       if (vizData.type !== WidgetVizDataType.AVERAGE) {
         return 'Not implemented yet';
       }
-      return (<SecurityDomainsWidget data={vizData.data} />);
+      return <SecurityDomainsWidget widgetId={widget.widget_id} data={vizData.data as EsAvgsExtended} />;
     default:
       return 'Not implemented yet';
   }

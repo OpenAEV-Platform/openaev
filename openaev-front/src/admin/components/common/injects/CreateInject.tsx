@@ -14,7 +14,7 @@ import {
 import { makeStyles } from 'tss-react/mui';
 
 import { type AttackPatternHelper } from '../../../../actions/attack_patterns/attackpattern-helper';
-import type { DomainHelper } from '../../../../actions/helper';
+import { type DomainHelper } from '../../../../actions/domains/domain-helper';
 import { fetchDomainCounts, searchInjectorContracts } from '../../../../actions/InjectorContracts';
 import { type InjectorHelper } from '../../../../actions/injectors/injector-helper';
 import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';

@@ -2258,8 +2258,9 @@ export interface EsCountInterval {
 }
 
 export interface EsDomainsAvgData {
-  data?: EsSeries[];
-  label?: string;
+  data: EsSeries[];
+  /** @minLength 1 */
+  label: string;
 }
 
 export interface EsEndpoint {
@@ -7827,8 +7828,8 @@ export interface WidgetLayout {
 }
 
 export interface WidgetToEntitiesInput {
-  /** The values to filter the entities by */
-  filter_values?: string[];
+  /** Key-value pairs for filtering entities, where the key is the field name and the value is the filter criterion */
+  filter_values_map?: Record<string, string[]>;
   /** Additional parameters for the widget */
   parameters?: Record<string, string>;
   /**

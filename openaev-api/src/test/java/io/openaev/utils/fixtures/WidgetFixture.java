@@ -44,11 +44,9 @@ public class WidgetFixture {
     WidgetConfigurationWithSeries.Series series = new WidgetConfigurationWithSeries.Series();
     Filters.FilterGroup filterGroup = new Filters.FilterGroup();
     filterGroup.setMode(Filters.FilterMode.and);
-    Filters.Filter filter = new Filters.Filter();
-    filter.setKey("base_entity");
-    filter.setMode(Filters.FilterMode.or);
-    filter.setOperator(Filters.FilterOperator.eq);
-    filter.setValues(List.of(entityName));
+    Filters.Filter filter =
+        createFilter(
+            "base_entity", Filters.FilterMode.or, Filters.FilterOperator.eq, List.of(entityName));
     filterGroup.setFilters(List.of(filter));
     series.setFilter(filterGroup);
     // basic configuration
@@ -66,10 +64,10 @@ public class WidgetFixture {
   private static Filters.Filter createFilter(
       String key, Filters.FilterMode mode, Filters.FilterOperator operator, List<String> value) {
     Filters.Filter filter = new Filters.Filter();
-    filter.setKey("base_entity");
-    filter.setMode(Filters.FilterMode.and);
-    filter.setOperator(Filters.FilterOperator.eq);
-    filter.setValues(List.of("expectation-inject"));
+    filter.setKey(key);
+    filter.setMode(mode);
+    filter.setOperator(operator);
+    filter.setValues(value);
     return filter;
   }
 
@@ -117,6 +115,37 @@ public class WidgetFixture {
     widgetConfig.setSeries(List.of(successSeries, failedSeries));
     widgetConfig.setTitle("Security coverage");
     widgetConfig.setField("base_attack_patterns_side");
+    widgetConfig.setDateAttribute(dateAttribute);
+    widgetConfig.setTimeRange(timeRange);
+    // widgetConfig.se
+    widget.setWidgetConfiguration(widgetConfig);
+    WidgetLayout widgetLayout = new WidgetLayout();
+    widget.setLayout(widgetLayout);
+    return widget;
+  }
+
+  public static Widget createSecurityDomainWidget(
+      CustomDashboardTimeRange timeRange, String dateAttribute) {
+    Widget widget = new Widget();
+    widget.setType(AVERAGE);
+    // series
+    AverageConfiguration widgetConfig = new AverageConfiguration();
+    WidgetConfigurationWithSeries.Series serie = new WidgetConfigurationWithSeries.Series();
+    Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+    filterGroup.setMode(Filters.FilterMode.and);
+    Filters.Filter filterBaseEntity =
+        createFilter(
+            "base_entity",
+            Filters.FilterMode.or,
+            Filters.FilterOperator.eq,
+            List.of("expectation-inject"));
+
+    filterGroup.setFilters(List.of(filterBaseEntity));
+    serie.setFilter(filterGroup);
+    serie.setName("");
+    widgetConfig.setSeries(List.of(serie));
+    // basic configuration
+    widgetConfig.setTitle("Security domains");
     widgetConfig.setDateAttribute(dateAttribute);
     widgetConfig.setTimeRange(timeRange);
     // widgetConfig.se
