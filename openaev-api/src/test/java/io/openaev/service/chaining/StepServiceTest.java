@@ -25,7 +25,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.TestExecutionListeners;
 
 @SpringBootTest
@@ -33,8 +32,6 @@ import org.springframework.test.context.TestExecutionListeners;
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 public class StepServiceTest extends IntegrationTest {
-
-  @Mock private ApplicationContext applicationContext;
 
   @Mock private StepRepository stepRepository;
   @Mock private InjectExecutionStep injectExecutionStep;
@@ -763,19 +760,11 @@ public class StepServiceTest extends IntegrationTest {
 
     @Test
     void shouldReturnInjectExecutionStep_whenActionIsInjectExecution() {
-      // -------- Prepare --------
-      InjectExecutionStep injectExecutionStep = mock(InjectExecutionStep.class);
-
-      when(applicationContext.getBean(InjectExecutionStep.class)).thenReturn(injectExecutionStep);
-
       // -------- Act --------
       ActionStep result = stepService.factoryAction(StepActionClass.INJECT_EXECUTION);
 
       // -------- Assert --------
       assertSame(injectExecutionStep, result);
-
-      verify(applicationContext).getBean(InjectExecutionStep.class);
-      verifyNoMoreInteractions(applicationContext);
     }
   }
 

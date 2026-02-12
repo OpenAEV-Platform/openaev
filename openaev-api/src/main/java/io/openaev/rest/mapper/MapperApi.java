@@ -3,8 +3,8 @@ package io.openaev.rest.mapper;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ImportMapper;
 import io.openaev.database.model.ResourceType;
@@ -63,7 +63,7 @@ public class MapperApi extends RestBehavior {
   private static final List<String> ACCEPTED_FILE_TYPES = List.of("xls", "xlsx");
 
   @PostMapping("/api/mappers/search")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.MAPPER)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.MAPPER)
   public Page<RawPaginationImportMapper> getImportMapper(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return buildPaginationJPA(
@@ -72,7 +72,10 @@ public class MapperApi extends RestBehavior {
   }
 
   @GetMapping("/api/mappers/{mapperId}")
-  @RBAC(resourceId = "#mapperId", actionPerformed = Action.READ, resourceType = ResourceType.MAPPER)
+  @AccessControl(
+      resourceId = "#mapperId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.MAPPER)
   public ImportMapper getImportMapperById(@PathVariable String mapperId) {
     return importMapperRepository
         .findById(UUID.fromString(mapperId))
@@ -80,14 +83,14 @@ public class MapperApi extends RestBehavior {
   }
 
   @PostMapping("/api/mappers")
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.MAPPER)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.MAPPER)
   public ImportMapper createImportMapper(
       @RequestBody @Valid final ImportMapperAddInput importMapperAddInput) {
     return mapperService.createAndSaveImportMapper(importMapperAddInput);
   }
 
   @PostMapping(value = "/api/mappers/export")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.MAPPER)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.MAPPER)
   public void exportMappers(
       @RequestBody @Valid final ExportMapperInput exportMapperInput, HttpServletResponse response) {
     try {
@@ -116,7 +119,7 @@ public class MapperApi extends RestBehavior {
 
   @Operation(description = "Export all datas from a specific target (endpoint,...)")
   @PostMapping(value = "/api/mappers/export/csv")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.MAPPER)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.MAPPER)
   @LogExecutionTime
   public void exportMappersCsv(
       @RequestParam TargetType targetType,
@@ -126,7 +129,7 @@ public class MapperApi extends RestBehavior {
   }
 
   @PostMapping("/api/mappers/import")
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.MAPPER)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.MAPPER)
   public void importMappers(@RequestPart("file") @NotNull MultipartFile file)
       throws ImportException {
     try {
@@ -139,7 +142,7 @@ public class MapperApi extends RestBehavior {
   }
 
   @PostMapping("/api/mappers/{mapperId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#mapperId",
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.MAPPER)
@@ -149,7 +152,7 @@ public class MapperApi extends RestBehavior {
   }
 
   @PutMapping("/api/mappers/{mapperId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#mapperId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.MAPPER)
@@ -160,7 +163,7 @@ public class MapperApi extends RestBehavior {
   }
 
   @DeleteMapping("/api/mappers/{mapperId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#mapperId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.MAPPER)
@@ -169,7 +172,7 @@ public class MapperApi extends RestBehavior {
   }
 
   @PostMapping("/api/mappers/store")
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.MAPPER)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.MAPPER)
   @Transactional(rollbackOn = Exception.class)
   @Operation(summary = "Import injects into an xls file")
   public ImportPostSummary importXLSFile(@RequestPart("file") @NotNull MultipartFile file) {
@@ -178,7 +181,7 @@ public class MapperApi extends RestBehavior {
   }
 
   @PostMapping("/api/mappers/store/{importId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#importId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.MAPPER)
@@ -206,7 +209,7 @@ public class MapperApi extends RestBehavior {
   // -- IMPORT --
   @Operation(
       description = "Import all datas from a specific target (endpoint,...) through a csv file")
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.MAPPER)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.MAPPER)
   @PostMapping("/api/mappers/import/csv")
   @LogExecutionTime
   @Transactional(rollbackOn = Exception.class)

@@ -12,8 +12,8 @@ import static java.time.Instant.now;
 import static java.time.temporal.ChronoUnit.MINUTES;
 import static org.springframework.util.StringUtils.hasText;
 
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RBAC;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.*;
 import io.openaev.database.repository.*;
@@ -117,7 +117,7 @@ public class ExerciseApi extends RestBehavior {
 
   // region logs
   @GetMapping(EXERCISE_URI + "/{exercise}/logs")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exercise",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -126,7 +126,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @PostMapping(EXERCISE_URI + "/{exerciseId}/logs")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -146,7 +146,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @PutMapping(EXERCISE_URI + "/{exerciseId}/logs/{logId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -162,7 +162,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @DeleteMapping(EXERCISE_URI + "/{exerciseId}/logs/{logId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SIMULATION)
@@ -175,7 +175,7 @@ public class ExerciseApi extends RestBehavior {
 
   // region comchecks
   @GetMapping(EXERCISE_URI + "/{exercise}/comchecks")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exercise",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -184,7 +184,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @GetMapping(EXERCISE_URI + "/{exercise}/comchecks/{comcheck}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exercise",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -195,7 +195,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @GetMapping(EXERCISE_URI + "/{exercise}/comchecks/{comcheck}/statuses")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exercise",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -209,7 +209,7 @@ public class ExerciseApi extends RestBehavior {
   // region teams
   @LogExecutionTime
   @GetMapping(EXERCISE_URI + "/{exerciseId}/teams")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -219,7 +219,7 @@ public class ExerciseApi extends RestBehavior {
 
   @Transactional(rollbackFor = Exception.class)
   @PutMapping(EXERCISE_URI + "/{exerciseId}/teams/remove")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -230,7 +230,7 @@ public class ExerciseApi extends RestBehavior {
 
   @Transactional(rollbackFor = Exception.class)
   @PutMapping(EXERCISE_URI + "/{exerciseId}/teams/replace")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -240,7 +240,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @GetMapping(EXERCISE_URI + "/{exerciseId}/players")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -250,7 +250,7 @@ public class ExerciseApi extends RestBehavior {
 
   @Transactional(rollbackFor = Exception.class)
   @PutMapping(EXERCISE_URI + "/{exerciseId}/teams/{teamId}/players/enable")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -277,7 +277,7 @@ public class ExerciseApi extends RestBehavior {
 
   @Transactional(rollbackFor = Exception.class)
   @PutMapping(EXERCISE_URI + "/{exerciseId}/teams/{teamId}/players/disable")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -300,7 +300,7 @@ public class ExerciseApi extends RestBehavior {
 
   @Transactional(rollbackFor = Exception.class)
   @PutMapping(EXERCISE_URI + "/{exerciseId}/teams/{teamId}/players/add")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -329,7 +329,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @PutMapping(EXERCISE_URI + "/{exerciseId}/teams/{teamId}/players/remove")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -359,7 +359,7 @@ public class ExerciseApi extends RestBehavior {
 
   // region exercises
   @PostMapping(EXERCISE_URI)
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.SIMULATION)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SIMULATION)
   public Exercise createExercise(@Valid @RequestBody CreateExerciseInput input) {
     if (input == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Exercise input cannot be null");
@@ -383,7 +383,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @PostMapping(EXERCISE_URI + "/{exerciseId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.SIMULATION)
@@ -393,7 +393,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @PutMapping(EXERCISE_URI + "/{exerciseId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -415,7 +415,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @PutMapping(EXERCISE_URI + "/{exerciseId}/start_date")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -428,7 +428,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @PutMapping(EXERCISE_URI + "/{exerciseId}/start-date")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -448,7 +448,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @PutMapping(EXERCISE_URI + "/{exerciseId}/tags")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -463,7 +463,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @PutMapping(EXERCISE_URI + "/{exerciseId}/logos")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -480,7 +480,7 @@ public class ExerciseApi extends RestBehavior {
   // -- OPTION --
   @LogExecutionTime
   @GetMapping(EXERCISE_URI + "/findings/options")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
   public List<FilterUtilsJpa.Option> optionsByNameLinkedToFindings(
       @RequestParam(required = false) final String searchText,
       @RequestParam(required = false) final String scenarioId) {
@@ -490,7 +490,7 @@ public class ExerciseApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping(EXERCISE_URI + "/options")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.exerciseRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
@@ -498,7 +498,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @PutMapping(EXERCISE_URI + "/{exerciseId}/lessons")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -512,7 +512,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @DeleteMapping(EXERCISE_URI + "/{exerciseId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SIMULATION)
@@ -522,7 +522,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @GetMapping(EXERCISE_URI + "/{exerciseId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -615,7 +615,7 @@ public class ExerciseApi extends RestBehavior {
 
   @LogExecutionTime
   @GetMapping(EXERCISE_URI + "/{exerciseId}/results")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -625,7 +625,7 @@ public class ExerciseApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping(EXERCISE_URI + "/global-scores")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
   public ExercisesGlobalScoresOutput getExercisesGlobalScores(
       @Valid @RequestBody ExercisesGlobalScoresInput input) {
     return exerciseService.getExercisesGlobalScores(input);
@@ -633,7 +633,7 @@ public class ExerciseApi extends RestBehavior {
 
   @LogExecutionTime
   @GetMapping(EXERCISE_URI + "/{exerciseId}/injects/results-by-attack-patterns")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -643,7 +643,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @DeleteMapping(EXERCISE_URI + "/{exerciseId}/{documentId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SIMULATION)
@@ -673,7 +673,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @PutMapping(EXERCISE_URI + "/{exerciseId}/status")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SIMULATION)
@@ -768,14 +768,14 @@ public class ExerciseApi extends RestBehavior {
 
   @LogExecutionTime
   @GetMapping(EXERCISE_URI)
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
   public List<ExerciseSimple> exercises() {
     return exerciseService.exercises();
   }
 
   @LogExecutionTime
   @PostMapping(EXERCISE_URI + "/search-by-id")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
   @Operation(
       summary = "Get simulations by their id",
       description = "Get the simulations with the specified ids if you have the right to see them")
@@ -786,7 +786,7 @@ public class ExerciseApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping(EXERCISE_URI + "/search")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
   public Page<ExerciseSimple> exercises(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     Map<String, Join<Base, Base>> joinMap = new HashMap<>();
@@ -822,7 +822,7 @@ public class ExerciseApi extends RestBehavior {
 
   // region communication
   @GetMapping(EXERCISE_URI + "/{exerciseId}/communications")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -837,7 +837,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @GetMapping("/api/communications/attachment")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   //
   public void downloadAttachment(@RequestParam String file, HttpServletResponse response)
       throws IOException {
@@ -854,7 +854,7 @@ public class ExerciseApi extends RestBehavior {
 
   // region import/export
   @GetMapping(EXERCISE_URI + "/{exerciseId}/export")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -881,13 +881,13 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @PostMapping(EXERCISE_URI + "/import")
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.SIMULATION)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SIMULATION)
   public void exerciseImport(@RequestPart("file") MultipartFile file) throws Exception {
     importService.handleFileImport(file, null, null);
   }
 
   @PostMapping(EXERCISE_URI + "/{exerciseId}/check-rules")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -911,7 +911,7 @@ public class ExerciseApi extends RestBehavior {
 
   // region asset groups, endpoints, documents and channels
   @GetMapping(EXERCISE_URI + "/{exerciseId}/asset-groups")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -924,7 +924,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @PostMapping(EXERCISE_URI + "/{exerciseId}/asset-groups/find")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -939,7 +939,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @GetMapping(EXERCISE_URI + "/{exerciseId}/channels")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -951,7 +951,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @GetMapping(EXERCISE_URI + "/{exerciseId}/endpoints")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -963,7 +963,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @PostMapping(EXERCISE_URI + "/{exerciseId}/endpoints/find")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -978,7 +978,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @GetMapping(EXERCISE_URI + "/{exerciseId}/documents")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -990,7 +990,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @GetMapping(EXERCISE_URI + "/{simulationId}/scenario")
-  @RBAC(
+  @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)

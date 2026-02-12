@@ -9,7 +9,7 @@ import static org.mockito.Mockito.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
@@ -40,7 +40,7 @@ public class CrowdstrikeExecutorServiceTest {
   @Mock private CrowdStrikeExecutorConfig config;
   @Mock private LicenseCacheManager licenseCacheManager;
   @Mock private AssetGroupService assetGroupService;
-  @Mock private Ee eeService;
+  @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private EndpointService endpointService;
   @Mock private AgentService agentService;
   @Mock private ExecutorService executorService;
@@ -95,7 +95,7 @@ public class CrowdstrikeExecutorServiceTest {
       throws JsonProcessingException, InterruptedException {
     // Init datas
     when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(null);
-    doNothing().when(eeService).throwEEExecutorService(any(), any(), any());
+    doNothing().when(enterpriseEditionService).throwEEExecutorService(any(), any(), any());
     when(config.getApiBatchExecutionActionPagination()).thenReturn(1);
     when(config.getWindowsScriptName()).thenReturn("MyScript");
     Command payloadCommand =

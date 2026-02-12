@@ -9,7 +9,7 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
@@ -32,7 +32,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class ScenarioServiceUnitTest {
 
-  @Mock private Ee eeService;
+  @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private VariableService variableService;
   @Mock private ChallengeService challengeService;
   @Mock private TeamService teamService;
@@ -326,7 +326,7 @@ class ScenarioServiceUnitTest {
     @Test
     void shouldNotThrow_whenLicenseActive() {
       // -------- Prepare --------
-      when(eeService.isLicenseActive(any())).thenReturn(true);
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
       Scenario scenario = new Scenario();
       scenario.setInjects(new HashSet<>());
 
@@ -337,7 +337,7 @@ class ScenarioServiceUnitTest {
     @Test
     void shouldDelegateToInjectService_whenLicenseNotActive() {
       // -------- Prepare --------
-      when(eeService.isLicenseActive(any())).thenReturn(false);
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(false);
       Inject inject = new Inject();
       Scenario scenario = new Scenario();
       scenario.setInjects(new HashSet<>(List.of(inject)));

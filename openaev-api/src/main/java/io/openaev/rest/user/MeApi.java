@@ -4,7 +4,7 @@ import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.specification.TokenSpecification.fromUser;
 import static io.openaev.helper.DatabaseHelper.updateRelation;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.config.SessionManager;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
@@ -62,13 +62,13 @@ public class MeApi extends RestBehavior {
   }
 
   @GetMapping("/api/logout")
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public ResponseEntity<Object> logout() {
     return ResponseEntity.ok().build();
   }
 
   @GetMapping("/api/me")
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public User me() {
     return userRepository
         .findById(currentUser().getId())
@@ -76,7 +76,7 @@ public class MeApi extends RestBehavior {
   }
 
   @PutMapping("/api/me/profile")
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public User updateProfile(@Valid @RequestBody UpdateProfileInput input) {
     User user =
         userRepository
@@ -91,7 +91,7 @@ public class MeApi extends RestBehavior {
   }
 
   @PutMapping("/api/me/information")
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public User updateInformation(@Valid @RequestBody UpdateUserInfoInput input) {
     User user =
         userRepository
@@ -104,7 +104,7 @@ public class MeApi extends RestBehavior {
   }
 
   @PutMapping("/api/me/password")
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public User updatePassword(@Valid @RequestBody UpdateMePasswordInput input)
       throws InputValidationException {
     User user =
@@ -120,7 +120,7 @@ public class MeApi extends RestBehavior {
   }
 
   @PostMapping("/api/me/token/refresh")
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   @Transactional(rollbackOn = Exception.class)
   public Token renewToken(@Valid @RequestBody RenewTokenInput input)
       throws InputValidationException {
@@ -138,7 +138,7 @@ public class MeApi extends RestBehavior {
   }
 
   @GetMapping("/api/me/tokens")
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public List<Token> tokens() {
     return tokenRepository.findAll(fromUser(currentUser().getId()));
   }

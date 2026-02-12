@@ -7,7 +7,7 @@ import static org.mockito.Mockito.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.executors.tanium.client.TaniumExecutorClient;
@@ -39,7 +39,7 @@ public class TaniumExecutorServiceTest {
   @Mock private TaniumExecutorConfig config;
   @Mock private LicenseCacheManager licenseCacheManager;
   @Mock private AssetGroupService assetGroupService;
-  @Mock private Ee eeService;
+  @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private EndpointService endpointService;
   @Mock private AgentService agentService;
   @Mock private ExecutorService executorService;
@@ -94,7 +94,7 @@ public class TaniumExecutorServiceTest {
       throws JsonProcessingException, InterruptedException {
     // Init datas
     when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(null);
-    doNothing().when(eeService).throwEEExecutorService(any(), any(), any());
+    doNothing().when(enterpriseEditionService).throwEEExecutorService(any(), any(), any());
     when(config.isEnable()).thenReturn(true);
     when(config.getApiBatchExecutionActionPagination()).thenReturn(1);
     when(config.getWindowsPackageId()).thenReturn(112200);

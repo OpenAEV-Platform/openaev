@@ -6,7 +6,7 @@ import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegra
 
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorHelper;
 import io.openaev.executors.ExecutorService;
@@ -30,7 +30,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class TaniumExecutorContextService extends ExecutorContextService {
 
-  private final Ee eeService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final TaniumExecutorConfig taniumExecutorConfig;
   private final TaniumExecutorClient taniumExecutorClient;
@@ -49,7 +49,7 @@ public class TaniumExecutorContextService extends ExecutorContextService {
   public List<Agent> launchBatchExecutorSubprocess(
       Inject inject, Set<Agent> agents, InjectStatus injectStatus) {
 
-    eeService.throwEEExecutorService(
+    enterpriseEditionService.throwEEExecutorService(
         licenseCacheManager.getEnterpriseEditionInfo(), SERVICE_NAME, injectStatus);
 
     if (!this.taniumExecutorConfig.isEnable()) {

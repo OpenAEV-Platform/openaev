@@ -14,7 +14,7 @@ import io.openaev.api.detection_remediation.dto.PayloadInput;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.collectors.utils.CollectorsUtils;
 import io.openaev.database.model.*;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.injector_contract.fields.ContractFieldType;
 import io.openaev.rest.payload.form.DetectionRemediationInput;
 import io.openaev.utils.fixtures.*;
@@ -45,7 +45,7 @@ import org.springframework.transaction.annotation.Transactional;
 @DisplayName("Get detection and remediation rule using AI")
 public class DetectionRemediationApiTest extends IntegrationTest {
 
-  @MockBean private Ee enterpriseEdition;
+  @MockBean private EnterpriseEditionService enterpriseEdition;
 
   @MockBean private CloseableHttpClient httpClient;
 

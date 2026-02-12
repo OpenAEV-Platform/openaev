@@ -8,16 +8,14 @@ import static org.mockito.Mockito.*;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.form.ExercisesGlobalScoresInput;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.*;
-import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.period.CronService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
@@ -31,7 +29,6 @@ import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.InjectExpectationMapper;
 import io.openaev.utils.mapper.InjectMapper;
-import java.time.Instant;
 import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -48,7 +45,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class ExerciseServiceUnitTest {
 
-  @Mock private Ee eeService;
+  @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private InjectDuplicateService injectDuplicateService;
   @Mock private TeamService teamService;
   @Mock private VariableService variableService;
@@ -77,11 +74,7 @@ class ExerciseServiceUnitTest {
   @Mock private InjectExpectationMapper injectExpectationMapper;
 
   @Mock private WorkflowService workflowService;
-  @Mock private PauseSimulationService pauseSimulationService;
-  @Mock private FileService fileService;
   @Mock private LessonsService lessonsService;
-  @Mock private InjectStatusService injectStatusService;
-  @Mock private StepService stepService;
 
   @Spy @InjectMocks private ExerciseService mockedExerciseService;
 
@@ -421,153 +414,6 @@ class ExerciseServiceUnitTest {
   }
 
   /* ============================================================
-   * changeSimulationStatus for chaining
-   * ============================================================ */
-  @Nested
-  class ChangeSimulationStatusForChaining {
-
-    private Exercise exercise;
-
-    @BeforeEach
-    void setup() {
-      exercise = mock(Exercise.class);
-      when(exercise.getId()).thenReturn("exercise-id");
-    }
-
-    /** Sets up mocks for tests where status change completes successfully (no exception thrown) */
-    private void setupForSuccessfulStatusChange() {
-      when(exerciseRepository.save(any())).thenAnswer(i -> i.getArgument(0));
-      when(workflowService.isSimulationChaining("exercise-id")).thenReturn(false);
-    }
-
-    /* -------------------------------
-     * SCHEDULED -> RUNNING
-     * ------------------------------- */
-    @Test
-    void scheduledToRunning_manualStart() {
-      setupForSuccessfulStatusChange();
-      when(exercise.getStatus()).thenReturn(ExerciseStatus.SCHEDULED);
-
-      Exercise result =
-          mockedExerciseService.changeSimulationStatus(ExerciseStatus.RUNNING, exercise);
-
-      verify(mockedExerciseService).throwIfExerciseNotLaunchable(exercise);
-      verify(actionMetricCollector).addSimulationPlayedCount();
-      verify(exercise).setStart(any());
-      verify(exerciseRepository).save(exercise);
-
-      assertEquals(exercise, result);
-    }
-
-    /* -------------------------------
-     * SCHEDULED -> RUNNING (chaining)
-     * ------------------------------- */
-    @Test
-    void scheduledToRunning_withChaining() {
-      when(exerciseRepository.save(any())).thenAnswer(i -> i.getArgument(0));
-      when(workflowService.isSimulationChaining("exercise-id")).thenReturn(true);
-      when(exercise.getStatus()).thenReturn(ExerciseStatus.SCHEDULED);
-
-      mockedExerciseService.changeSimulationStatus(ExerciseStatus.RUNNING, exercise);
-
-      verify(stepService).startWorkflow("exercise-id");
-    }
-
-    /* -------------------------------
-     * CLOSED -> SCHEDULED (reschedule)
-     * ------------------------------- */
-    @ParameterizedTest(name = "from={0}")
-    @ValueSource(strings = {"CANCELED", "FINISHED"})
-    void reschedule_shouldResetExercise(String status) {
-      setupForSuccessfulStatusChange();
-      when(exercise.getStatus()).thenReturn(ExerciseStatus.valueOf(status));
-      when(exercise.getInjects()).thenReturn(List.of());
-
-      mockedExerciseService.changeSimulationStatus(ExerciseStatus.SCHEDULED, exercise);
-
-      verify(exercise).setStart(null);
-      verify(exercise).setEnd(null);
-      verify(exercise).setCurrentPause(null);
-
-      verify(pauseSimulationService).deleteAll(any());
-
-      verify(injectStatusService).deleteAllInjectStatusByInjects(any());
-
-      verify(lessonsService).resetLessonsAnswer("exercise-id");
-
-      verify(fileService).deleteDirectory("exercise-id");
-    }
-
-    /* -------------------------------
-     * PAUSED -> RUNNING
-     * ------------------------------- */
-    @Test
-    void pausedToRunning_shouldEndPause() {
-      setupForSuccessfulStatusChange();
-      Instant pauseInstant = Instant.now();
-      when(exercise.getStatus()).thenReturn(ExerciseStatus.PAUSED);
-      when(exercise.getCurrentPause()).thenReturn(Optional.of(pauseInstant));
-
-      mockedExerciseService.changeSimulationStatus(ExerciseStatus.RUNNING, exercise);
-
-      verify(pauseSimulationService).endPauseBySimulation(pauseInstant, exercise);
-      verify(exercise).setCurrentPause(null);
-    }
-
-    @Test
-    void pausedToRunning_shouldThrowWhenNoPauseDate() {
-      // No setupForSuccessfulStatusChange() - exception thrown before save/chaining check
-      when(exercise.getStatus()).thenReturn(ExerciseStatus.PAUSED);
-      when(exercise.getCurrentPause()).thenReturn(Optional.empty());
-
-      assertThrows(
-          ElementNotFoundException.class,
-          () -> mockedExerciseService.changeSimulationStatus(ExerciseStatus.RUNNING, exercise));
-    }
-
-    /* -------------------------------
-     * RUNNING -> PAUSED
-     * ------------------------------- */
-    @Test
-    void runningToPaused_shouldSetPauseDate() {
-      setupForSuccessfulStatusChange();
-      when(exercise.getStatus()).thenReturn(ExerciseStatus.RUNNING);
-
-      mockedExerciseService.changeSimulationStatus(ExerciseStatus.PAUSED, exercise);
-
-      verify(exercise).setCurrentPause(any());
-    }
-
-    /* -------------------------------
-     * RUNNING -> CANCELED
-     * ------------------------------- */
-    @Test
-    void runningToCanceled_shouldSetEndDate() {
-      setupForSuccessfulStatusChange();
-      when(exercise.getStatus()).thenReturn(ExerciseStatus.RUNNING);
-
-      mockedExerciseService.changeSimulationStatus(ExerciseStatus.CANCELED, exercise);
-
-      verify(exercise).setEnd(any());
-    }
-
-    /* -------------------------------
-     * Common assertions
-     * ------------------------------- */
-    @Test
-    void shouldAlwaysUpdateStatusAndTimestamp() {
-      setupForSuccessfulStatusChange();
-      when(exercise.getStatus()).thenReturn(ExerciseStatus.SCHEDULED);
-
-      mockedExerciseService.changeSimulationStatus(ExerciseStatus.RUNNING, exercise);
-
-      verify(exercise).setUpdatedAt(any());
-      verify(exercise).setStatus(ExerciseStatus.RUNNING);
-      verify(exerciseRepository).save(exercise);
-    }
-  }
-
-  /* ============================================================
    * removeTeams
    * ============================================================ */
   @Nested
@@ -597,11 +443,11 @@ class ExerciseServiceUnitTest {
     @Test
     void shouldSkipValidationWhenLicenseIsActive() {
       Exercise exercise = mock(Exercise.class);
-      when(eeService.isLicenseActive(any())).thenReturn(true);
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
 
       mockedExerciseService.throwIfExerciseNotLaunchable(exercise);
 
-      verify(eeService).isLicenseActive(any());
+      verify(enterpriseEditionService).isLicenseActive(any());
       verify(exercise, never()).getInjects();
       verify(injectService, never()).throwIfInjectNotLaunchable(any());
     }
@@ -612,11 +458,11 @@ class ExerciseServiceUnitTest {
       Inject inject1 = mock(Inject.class);
       Inject inject2 = mock(Inject.class);
       when(exercise.getInjects()).thenReturn(List.of(inject1, inject2));
-      when(eeService.isLicenseActive(any())).thenReturn(false);
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(false);
 
       mockedExerciseService.throwIfExerciseNotLaunchable(exercise);
 
-      verify(eeService).isLicenseActive(any());
+      verify(enterpriseEditionService).isLicenseActive(any());
       verify(injectService).throwIfInjectNotLaunchable(inject1);
       verify(injectService).throwIfInjectNotLaunchable(inject2);
     }

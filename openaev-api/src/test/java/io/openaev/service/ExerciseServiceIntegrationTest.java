@@ -12,14 +12,11 @@ import io.openaev.IntegrationTest;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exercise.service.ExerciseService;
-import io.openaev.rest.exercise.service.PauseSimulationService;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.inject.service.InjectStatusService;
-import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.period.CronService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
@@ -48,7 +45,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ExerciseServiceIntegrationTest extends IntegrationTest {
 
-  @Mock Ee eeService;
+  @Mock EnterpriseEditionService enterpriseEditionService;
   @Mock InjectDuplicateService injectDuplicateService;
   @Mock VariableService variableService;
 
@@ -81,11 +78,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private InjectorContractFixture injectorContractFixture;
 
   @Autowired private LessonsService lessonsService;
-  @Autowired private FileService fileService;
   @Autowired private WorkflowService workflowService;
-  @Autowired private StepService stepService;
-  @Autowired private PauseSimulationService pauseSimulationService;
-  @Autowired private InjectStatusService injectStatusService;
 
   private static String USER_ID;
   private static String TEAM_ID;
@@ -97,7 +90,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   void setUp() {
     exerciseService =
         new ExerciseService(
-            eeService,
+            enterpriseEditionService,
             injectDuplicateService,
             teamService,
             variableService,
@@ -119,13 +112,9 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             userRepository,
             exerciseTeamUserRepository,
             lessonsService,
-            fileService,
             injectExpectationMapper,
             scenarioRecurrenceService,
-            workflowService,
-            stepService,
-            pauseSimulationService,
-            injectStatusService);
+            workflowService);
   }
 
   @AfterAll

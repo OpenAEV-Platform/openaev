@@ -2,7 +2,7 @@ package io.openaev.rest.scenario;
 
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
@@ -23,7 +23,7 @@ public class ScenarioStatisticApi extends RestBehavior {
   private final ScenarioStatisticService scenarioStatisticService;
 
   @GetMapping(SCENARIO_URI + "/{scenarioId}/statistics")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)

@@ -7,8 +7,8 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.mapper.DocumentMapper.toDocumentRelationsOutput;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RBAC;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.raw.RawPaginationDocument;
@@ -71,7 +71,7 @@ public class DocumentApi extends RestBehavior {
   private final ChannelService channelService;
 
   @PostMapping(DOCUMENT_API)
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.DOCUMENT)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.DOCUMENT)
   @Transactional(rollbackOn = Exception.class)
   public Document uploadDocument(
       @Valid @RequestPart("input") DocumentCreateInput input,
@@ -125,7 +125,7 @@ public class DocumentApi extends RestBehavior {
   }
 
   @PostMapping(DOCUMENT_API + "/upsert")
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.DOCUMENT)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.DOCUMENT)
   @Transactional(rollbackOn = Exception.class)
   public Document upsertDocument(
       @Valid @RequestPart("input") DocumentCreateInput input,
@@ -212,13 +212,13 @@ public class DocumentApi extends RestBehavior {
   }
 
   @GetMapping("/api/documents")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOCUMENT)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOCUMENT)
   public List<RawDocument> documents() {
     return documentRepository.rawAllDocuments();
   }
 
   @PostMapping(DOCUMENT_API + "/search")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOCUMENT)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOCUMENT)
   public Page<RawPaginationDocument> searchDocuments(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     List<Document> securityPlatformLogos = securityPlatformRepository.securityPlatformLogo();
@@ -237,7 +237,7 @@ public class DocumentApi extends RestBehavior {
   }
 
   @GetMapping(DOCUMENT_API + "/{documentId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#documentId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
@@ -248,7 +248,7 @@ public class DocumentApi extends RestBehavior {
   }
 
   @GetMapping(DOCUMENT_API + "/{documentId}/tags")
-  @RBAC(
+  @AccessControl(
       resourceId = "#documentId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
@@ -261,7 +261,7 @@ public class DocumentApi extends RestBehavior {
   }
 
   @PutMapping(DOCUMENT_API + "/{documentId}/tags")
-  @RBAC(
+  @AccessControl(
       resourceId = "#documentId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.DOCUMENT)
@@ -277,7 +277,7 @@ public class DocumentApi extends RestBehavior {
 
   @Transactional(rollbackOn = Exception.class)
   @PutMapping(DOCUMENT_API + "/{documentId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#documentId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.DOCUMENT)
@@ -339,7 +339,7 @@ public class DocumentApi extends RestBehavior {
   }
 
   @GetMapping(DOCUMENT_API + "/{documentId}/file")
-  @RBAC(
+  @AccessControl(
       resourceId = "#documentId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
@@ -361,7 +361,7 @@ public class DocumentApi extends RestBehavior {
   }
 
   @GetMapping(value = "/api/images/injectors/{injectorType}", produces = MediaType.IMAGE_PNG_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getInjectorImage(@PathVariable String injectorType)
       throws IOException {
     Optional<InputStream> fileStream = fileService.getInjectorImage(injectorType);
@@ -374,7 +374,7 @@ public class DocumentApi extends RestBehavior {
   }
 
   @GetMapping(value = "/api/images/injectors/id/{injectorId}", produces = MediaType.IMAGE_PNG_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getInjectorImageFromId(
       @PathVariable String injectorId) throws IOException {
     Injector injector =
@@ -393,7 +393,7 @@ public class DocumentApi extends RestBehavior {
   @GetMapping(
       value = "/api/images/collectors/{collectorType}",
       produces = MediaType.IMAGE_PNG_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getCollectorImage(@PathVariable String collectorType)
       throws IOException {
     Optional<InputStream> fileStream = fileService.getCollectorImage(collectorType);
@@ -422,7 +422,7 @@ public class DocumentApi extends RestBehavior {
   @GetMapping(
       value = "/api/images/collectors/id/{collectorId}",
       produces = MediaType.IMAGE_PNG_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getCollectorImageFromId(
       @PathVariable String collectorId) throws IOException {
     Collector collector =
@@ -439,7 +439,7 @@ public class DocumentApi extends RestBehavior {
   }
 
   @GetMapping(value = "/api/images/security_platforms/id/{assetId}/{theme}")
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public void getSecurityPlatformImageFromId(
       @PathVariable String assetId, @PathVariable String theme, HttpServletResponse response)
       throws IOException {
@@ -457,7 +457,7 @@ public class DocumentApi extends RestBehavior {
   }
 
   @GetMapping(value = "/api/images/channels/id/{channelId}/{theme}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#channelId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.CHANNEL)
@@ -484,7 +484,7 @@ public class DocumentApi extends RestBehavior {
   @GetMapping(
       value = "/api/images/executors/icons/{executorId}",
       produces = MediaType.IMAGE_PNG_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getExecutorIconImage(@PathVariable String executorId)
       throws IOException {
     Optional<InputStream> fileStream = fileService.getExecutorIconImage(executorId);
@@ -499,7 +499,7 @@ public class DocumentApi extends RestBehavior {
   @GetMapping(
       value = "/api/images/executors/banners/{executorId}",
       produces = MediaType.IMAGE_PNG_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getExecutorBannerImage(
       @PathVariable String executorId) throws IOException {
     Optional<InputStream> fileStream = fileService.getExecutorBannerImage(executorId);
@@ -526,7 +526,7 @@ public class DocumentApi extends RestBehavior {
   @LogExecutionTime
   @Operation(summary = "Fetch the entities related to this document id")
   @GetMapping(DOCUMENT_API + "/{documentId}/relations")
-  @RBAC(
+  @AccessControl(
       resourceId = "#documentId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
@@ -536,7 +536,7 @@ public class DocumentApi extends RestBehavior {
 
   @Transactional(rollbackOn = Exception.class)
   @DeleteMapping(DOCUMENT_API + "/{documentId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#documentId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.DOCUMENT)
@@ -546,7 +546,7 @@ public class DocumentApi extends RestBehavior {
 
   // -- EXERCISE & SENARIO--
   @GetMapping("/api/player/{exerciseOrScenarioId}/documents")
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public List<Document> playerDocuments(
       @PathVariable String exerciseOrScenarioId, @RequestParam Optional<String> userId) {
     Optional<Exercise> exerciseOpt = this.exerciseRepository.findById(exerciseOrScenarioId);
@@ -575,7 +575,7 @@ public class DocumentApi extends RestBehavior {
   }
 
   @GetMapping("/api/player/{exerciseOrScenarioId}/documents/{documentId}/file")
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public void downloadPlayerDocument(
       @PathVariable String exerciseOrScenarioId,
       @PathVariable String documentId,

@@ -1,7 +1,7 @@
 package io.openaev.rest.domain;
 
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Domain;
 import io.openaev.database.model.ResourceType;
@@ -29,14 +29,14 @@ public class DomainApi extends RestBehavior {
   @LogExecutionTime
   @Operation(summary = "Search Domains")
   @GetMapping(DOMAIN_URI)
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PAYLOAD)
   public List<Domain> domains() {
     return domainService.searchDomains();
   }
 
   @Operation(summary = "Get a Domain by ID", description = "Fetches detailed Domain info by ID")
   @GetMapping(DOMAIN_URI + "/{domainId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#domainId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.PAYLOAD)
@@ -45,7 +45,7 @@ public class DomainApi extends RestBehavior {
   }
 
   @PostMapping(DOMAIN_URI + "/{domainId}/upsert")
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackOn = Exception.class)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The upserted domain")})
   @Operation(description = "Upsert a domain", summary = "Upsert domain")
@@ -56,14 +56,14 @@ public class DomainApi extends RestBehavior {
   // -- OPTION --
 
   @GetMapping(DOMAIN_URI + "/options")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOMAIN)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOMAIN)
   public List<FilterUtilsJpa.Option> findAllAsOptionsByName(
       @RequestParam(required = false) final String searchText) {
     return domainService.findAllAsOptionsByName(searchText);
   }
 
   @PostMapping(DOMAIN_URI + "/options")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOMAIN)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOMAIN)
   public List<FilterUtilsJpa.Option> findAllAsOptionsById(@RequestBody final List<String> ids) {
     return domainService.findAllAsOptionsById(ids);
   }

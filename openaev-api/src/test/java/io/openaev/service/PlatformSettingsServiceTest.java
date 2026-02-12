@@ -8,7 +8,7 @@ import io.openaev.database.model.BannerMessage;
 import io.openaev.database.model.Setting;
 import io.openaev.database.model.SettingKeys;
 import io.openaev.database.repository.SettingRepository;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.ee.License;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.settings.form.PolicyInput;
@@ -25,7 +25,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class PlatformSettingsServiceTest {
 
   @Mock private SettingRepository settingRepository;
-  @Mock private Ee eeService;
+  @Mock private EnterpriseEditionService enterpriseEditionService;
 
   @InjectMocks private PlatformSettingsService platformSettingsService;
 
@@ -312,7 +312,7 @@ class PlatformSettingsServiceTest {
       when(settingRepository.findAll()).thenReturn(Collections.emptyList());
       License invalidLicense = mock(License.class);
       when(invalidLicense.isLicenseValidated()).thenReturn(false);
-      when(eeService.verifyCertificate("bad-cert")).thenReturn(invalidLicense);
+      when(enterpriseEditionService.verifyCertificate("bad-cert")).thenReturn(invalidLicense);
 
       SettingsEnterpriseEditionUpdateInput input = new SettingsEnterpriseEditionUpdateInput();
       input.setEnterpriseEdition("bad-cert");

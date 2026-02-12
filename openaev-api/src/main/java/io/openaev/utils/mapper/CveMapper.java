@@ -4,7 +4,7 @@ import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.Cve;
 import io.openaev.database.model.Cwe;
 import io.openaev.database.model.Vulnerability;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.cve.form.CveOutput;
 import io.openaev.rest.cve.form.CveSimple;
 import io.openaev.rest.vulnerability.form.CweOutput;
@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class CveMapper {
 
-  private final Ee eeService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
 
   private Cve.VulnerabilityStatus mapVulnerabilityStatus(Vulnerability.VulnerabilityStatus status) {
@@ -80,7 +80,7 @@ public class CveMapper {
   }
 
   private String getRemediationIfLicensed(final Vulnerability vulnerability) {
-    if (eeService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
+    if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return vulnerability.getRemediation();
     } else {
       log.debug("Enterprise Edition license inactive - omitting remediation field");

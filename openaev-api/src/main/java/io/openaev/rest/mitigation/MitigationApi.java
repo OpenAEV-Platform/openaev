@@ -3,7 +3,7 @@ package io.openaev.rest.mitigation;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.Mitigation;
 import io.openaev.database.repository.AttackPatternRepository;
@@ -46,7 +46,7 @@ public class MitigationApi extends RestBehavior {
   }
 
   @GetMapping("/api/mitigations")
-  @RBAC(
+  @AccessControl(
       skipRBAC =
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC
   // yet
@@ -55,7 +55,7 @@ public class MitigationApi extends RestBehavior {
   }
 
   @PostMapping("/api/mitigations/search")
-  @RBAC(
+  @AccessControl(
       skipRBAC =
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC
   // yet
@@ -69,7 +69,7 @@ public class MitigationApi extends RestBehavior {
   }
 
   @GetMapping("/api/mitigations/{mitigationId}")
-  @RBAC(
+  @AccessControl(
       skipRBAC =
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC
   // yet
@@ -78,7 +78,7 @@ public class MitigationApi extends RestBehavior {
   }
 
   @PostMapping("/api/mitigations")
-  @RBAC(
+  @AccessControl(
       skipRBAC =
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC
   // yet
@@ -92,7 +92,7 @@ public class MitigationApi extends RestBehavior {
   }
 
   @GetMapping("/api/mitigations/{mitigationId}/attack_patterns")
-  @RBAC(
+  @AccessControl(
       skipRBAC =
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC
   // yet
@@ -103,7 +103,7 @@ public class MitigationApi extends RestBehavior {
   }
 
   @PutMapping("/api/mitigations/{mitigationId}")
-  @RBAC(
+  @AccessControl(
       skipRBAC =
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC
   // yet
@@ -156,7 +156,7 @@ public class MitigationApi extends RestBehavior {
   }
 
   @PostMapping("/api/mitigations/upsert")
-  @RBAC(
+  @AccessControl(
       skipRBAC =
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC
   // yet
@@ -167,7 +167,7 @@ public class MitigationApi extends RestBehavior {
   }
 
   @DeleteMapping("/api/mitigations/{mitigationId}")
-  @RBAC(
+  @AccessControl(
       skipRBAC =
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC
   // yet

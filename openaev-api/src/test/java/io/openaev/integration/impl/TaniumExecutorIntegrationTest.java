@@ -8,7 +8,7 @@ import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CatalogConnectorRepository;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.tanium.client.TaniumExecutorClient;
@@ -52,7 +52,7 @@ public class TaniumExecutorIntegrationTest {
   @Autowired private AgentService agentService;
   @Autowired private AssetGroupService assetGroupService;
   @Autowired private ExecutorService executorService;
-  @Autowired private Ee eeService;
+  @Autowired private EnterpriseEditionService enterpriseEditionService;
   @Autowired private LicenseCacheManager licenseCacheManager;
   @Autowired private ComponentRequestEngine componentRequestEngine;
   @Autowired private ThreadPoolTaskScheduler taskScheduler;
@@ -78,7 +78,7 @@ public class TaniumExecutorIntegrationTest {
         agentService,
         endpointService,
         assetGroupService,
-        eeService,
+        enterpriseEditionService,
         licenseCacheManager,
         taskScheduler,
         fileService,

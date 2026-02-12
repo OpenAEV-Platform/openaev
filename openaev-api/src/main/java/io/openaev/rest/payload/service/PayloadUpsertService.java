@@ -6,7 +6,7 @@ import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.PayloadRepository;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
@@ -30,7 +30,7 @@ public class PayloadUpsertService {
   private final PayloadUtils payloadUtils;
 
   private final PayloadService payloadService;
-  private final Ee eeService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
 
   private final TagService tagService;
@@ -43,7 +43,8 @@ public class PayloadUpsertService {
   @Transactional(rollbackOn = Exception.class)
   public Payload upsertPayload(PayloadUpsertInput input) {
     Optional<Payload> payload = payloadRepository.findByExternalId(input.getExternalId());
-    if (eeService.isEnterpriseLicenseInactive(licenseCacheManager.getEnterpriseEditionInfo())) {
+    if (enterpriseEditionService.isEnterpriseLicenseInactive(
+        licenseCacheManager.getEnterpriseEditionInfo())) {
       input.setDetectionRemediations(null);
     }
 
