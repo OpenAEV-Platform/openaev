@@ -4053,7 +4053,6 @@ export interface InjectorContract {
 }
 
 export interface InjectorContractAddInput {
-  atomicTesting?: boolean;
   contract_attack_patterns_external_ids?: string[];
   contract_attack_patterns_ids?: string[];
   /** @minLength 1 */
