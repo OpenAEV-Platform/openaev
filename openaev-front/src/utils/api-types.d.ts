@@ -448,8 +448,10 @@ export interface AttackPatternUpsertInput {
 
 export type AverageConfiguration = UtilRequiredKeys<
   WidgetConfiguration,
-  "series" | "widget_configuration_type" | "time_range" | "date_attribute"
->;
+  "widget_configuration_type" | "time_range" | "date_attribute"
+> & {
+  series: Series[];
+};
 
 interface BaseEsBase {
   /** @format date-time */
@@ -1675,11 +1677,12 @@ export interface CweOutput {
 
 export type DateHistogramWidget = UtilRequiredKeys<
   WidgetConfiguration,
-  "series" | "widget_configuration_type" | "time_range" | "date_attribute"
+  "widget_configuration_type" | "time_range" | "date_attribute"
 > & {
   display_legend?: boolean;
   interval: "year" | "month" | "week" | "day" | "hour" | "quarter";
   mode: string;
+  series: Series[];
   stacked?: boolean;
 };
 
@@ -3142,8 +3145,10 @@ export interface FlagInput {
 
 export type FlatConfiguration = UtilRequiredKeys<
   WidgetConfiguration,
-  "series" | "widget_configuration_type" | "time_range" | "date_attribute"
->;
+  "widget_configuration_type" | "time_range" | "date_attribute"
+> & {
+  series: Series[];
+};
 
 export interface FullTextSearchCountResult {
   /** @minLength 1 */
@@ -4625,7 +4630,7 @@ export interface License {
 
 export type ListConfiguration = UtilRequiredKeys<
   WidgetConfiguration,
-  "series" | "widget_configuration_type" | "time_range" | "date_attribute"
+  "widget_configuration_type" | "time_range" | "date_attribute"
 > & {
   columns?: string[];
   /**
@@ -6904,7 +6909,7 @@ export interface StatusPayloadOutput {
 
 export type StructuralHistogramWidget = UtilRequiredKeys<
   WidgetConfiguration,
-  "series" | "widget_configuration_type" | "time_range" | "date_attribute"
+  "widget_configuration_type" | "time_range" | "date_attribute"
 > & {
   display_legend?: boolean;
   /** @minLength 1 */
@@ -6915,6 +6920,7 @@ export type StructuralHistogramWidget = UtilRequiredKeys<
    */
   limit?: number;
   mode: string;
+  series: Series[];
   stacked?: boolean;
 };
 
@@ -7769,7 +7775,6 @@ export interface WidgetConfiguration {
   /** @minLength 1 */
   date_attribute: string;
   end?: string;
-  series: Series[];
   start?: string;
   time_range:
     | "DEFAULT"

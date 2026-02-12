@@ -144,10 +144,6 @@ const WidgetForm: FunctionComponent<Props> = ({
           name: z.string().optional(),
           filter: z.any().optional().refine(val => val !== undefined, { error: 'Filter cannot be undefined' }),
         }),
-        series: z.array(z.object({
-          name: z.string().optional(),
-          filter: z.any().optional().refine(val => val !== undefined, { error: 'Filter cannot be undefined' }),
-        })),
       }),
     ]);
 
@@ -210,7 +206,7 @@ const WidgetForm: FunctionComponent<Props> = ({
     onClose();
   };
 
-  const handleSubmitWithoutPropagation = async () => {
+  const handleSubmitWithoutPropagation = () => {
     handleSubmit((values) => {
       onSubmit(values);
       onClose();
@@ -256,7 +252,6 @@ const WidgetForm: FunctionComponent<Props> = ({
                 onChange={onChange}
                 onSubmit={nextStep}
               />
-
             )}
           />
         );
