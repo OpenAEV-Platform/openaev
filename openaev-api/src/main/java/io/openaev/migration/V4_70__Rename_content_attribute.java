@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_69__Rename_content_attribute extends BaseJavaMigration {
+public class V4_70__Rename_content_attribute extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
