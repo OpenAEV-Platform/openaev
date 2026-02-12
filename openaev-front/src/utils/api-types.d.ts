@@ -7675,8 +7675,8 @@ export interface Widget {
 export interface WidgetConfiguration {
   /** @minLength 1 */
   date_attribute: string;
-  end?: string;
-  start?: string;
+  end?: string | null;
+  start?: string | null;
   time_range:
     | "DEFAULT"
     | "ALL_TIME"

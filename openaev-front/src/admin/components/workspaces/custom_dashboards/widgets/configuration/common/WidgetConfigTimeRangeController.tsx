@@ -57,7 +57,7 @@ const WidgetConfigTimeRangeController = () => {
                   label={t('Start date')}
                   sx={{ mt: 2 }}
                   value={field.value ? new Date(field.value) : null}
-                  onChange={date => field.onChange(date?.toISOString() ?? '')}
+                  onChange={date => field.onChange(date?.toISOString() ?? undefined)}
                   slotProps={{
                     textField: {
                       required: widgetTimeRange === CUSTOM_TIME_RANGE,
@@ -78,7 +78,7 @@ const WidgetConfigTimeRangeController = () => {
                   label={t('End date')}
                   sx={{ mt: 2 }}
                   value={field.value ? new Date(field.value) : null}
-                  onChange={date => field.onChange(date?.toISOString() ?? '')}
+                  onChange={date => field.onChange(date?.toISOString() ?? undefined)}
                   slotProps={{
                     textField: {
                       required: widgetTimeRange === CUSTOM_TIME_RANGE,

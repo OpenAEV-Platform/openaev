@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.openaev.jsonapi.CanRemapWeakRelationships;
 import io.openaev.utils.CustomDashboardTimeRange;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -61,9 +62,13 @@ public abstract class WidgetConfiguration implements CanRemapWeakRelationships {
   @JsonProperty("title")
   private String title;
 
-  @Nullable private String start; // Date or $custom_dashboard_start
+  @Nullable
+  @Schema(types = {"string", "null"})
+  private String start; // Date or $custom_dashboard_start
 
-  @Nullable private String end; // Date or $custom_dashboard_end
+  @Nullable
+  @Schema(types = {"string", "null"})
+  private String end; // Date or $custom_dashboard_end
 
   @NotNull
   @JsonProperty("time_range")
