@@ -40,7 +40,7 @@ export type TopBannerColor = keyof typeof TOPBANNER_COLORS;
 interface TopBannerProps {
   bannerText: React.ReactNode;
   bannerColor?: TopBannerColor;
-  buttonText: React.ReactNode;
+  buttonText?: React.ReactNode;
   buttonStyle?: SxProps<Theme>;
   onButtonClick?: () => void;
 }
