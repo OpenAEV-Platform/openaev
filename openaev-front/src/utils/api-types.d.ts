@@ -7129,16 +7129,18 @@ export interface TeamUpdateInput {
 
 export interface TenantInput {
   tenant_description?: string;
+  /** @minLength 1 */
   tenant_name: string;
 }
 
 export interface TenantOutput {
   tenant_description?: string;
+  /** @minLength 1 */
   tenant_id: string;
+  /** @minLength 1 */
   tenant_name: string;
 }
 
-/** Definition of the dark theme */
 export interface ThemeInput {
   /** Accent color of the theme */
   accent_color?: string;
