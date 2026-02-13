@@ -78,7 +78,6 @@ public class SentinelOneExecutorIntegrationTest {
         endpointService,
         assetGroupService,
         enterpriseEditionService,
-        previewFeatureService,
         licenseCacheManager,
         taskScheduler,
         fileService,

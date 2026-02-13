@@ -78,7 +78,7 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
 
   @Override
   protected final String getClassName() {
-    return this.getClass().getCanonicalName();
+    return CrowdStrikeExecutorIntegrationFactory.class.getCanonicalName();
   }
 
   @Override

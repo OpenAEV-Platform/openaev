@@ -14,7 +14,6 @@ import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.*;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -42,8 +41,6 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
   private final CatalogConnectorService catalogConnectorService;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
-  private final PreviewFeatureService previewFeatureService;
-
   public PaloAltoCortexExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
       CatalogConnectorService catalogConnectorService,
@@ -53,7 +50,6 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
       EndpointService endpointService,
       AssetGroupService assetGroupService,
       EnterpriseEditionService enterpriseEditionService,
-      PreviewFeatureService previewFeatureService,
       LicenseCacheManager licenseCacheManager,
       ThreadPoolTaskScheduler taskScheduler,
       FileService fileService,
@@ -68,7 +64,6 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
     this.endpointService = endpointService;
     this.assetGroupService = assetGroupService;
     this.enterpriseEditionService = enterpriseEditionService;
-    this.previewFeatureService = previewFeatureService;
     this.licenseCacheManager = licenseCacheManager;
     this.taskScheduler = taskScheduler;
     this.fileService = fileService;
@@ -77,7 +72,7 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
 
   @Override
   protected final String getClassName() {
-    return this.getClass().getCanonicalName();
+    return PaloAltoCortexExecutorIntegrationFactory.class.getCanonicalName();
   }
 
   @Override
@@ -87,29 +82,27 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
 
   @Override
   protected void insertCatalogEntry() throws Exception {
-    if (previewFeatureService.isFeatureEnabled(PreviewFeature.PALO_ALTO_CORTEX_EXECUTOR)) {
-      String logoFilename = "%s-logo.png".formatted(PALOALTOCORTEX_EXECUTOR_TYPE);
-      fileService.uploadStream(
-          FileService.CONNECTORS_LOGO_PATH,
-          logoFilename,
-          getClass().getResourceAsStream("/img/icon-paloaltocortex.png"));
-      CatalogConnector connector = new CatalogConnector();
-      connector.setTitle("Palo Alto Cortex Executor");
-      connector.setSlug(PALOALTOCORTEX_EXECUTOR_TYPE);
-      connector.setLogoUrl(logoFilename);
-      connector.setDescription(
-          """
-                      With Palo Alto Cortex executor register your asset in OpenAEV and enable execution of OpenAEV scenarios through your Palo Alto Cortex instance.
-                      """);
-      connector.setShortDescription(
-          "Enable execution of OpenAEV scenarios through your Palo Alto Cortex instance.");
-      connector.setClassName(getClassName());
-      connector.setSubscriptionLink("https://www.paloaltonetworks.com/cortex/cortex-xdr");
-      connector.setContainerType(ConnectorType.EXECUTOR);
-      connector.setCatalogConnectorConfigurations(
-          new PaloAltoCortexExecutorConfig().toCatalogConfigurationSet(connector));
-      catalogConnectorService.saveAll(List.of(connector));
-    }
+    String logoFilename = "%s-logo.png".formatted(PALOALTOCORTEX_EXECUTOR_TYPE);
+    fileService.uploadStream(
+        FileService.CONNECTORS_LOGO_PATH,
+        logoFilename,
+        getClass().getResourceAsStream("/img/icon-paloaltocortex.png"));
+    CatalogConnector connector = new CatalogConnector();
+    connector.setTitle("Palo Alto Cortex Executor");
+    connector.setSlug(PALOALTOCORTEX_EXECUTOR_TYPE);
+    connector.setLogoUrl(logoFilename);
+    connector.setDescription(
+        """
+                    With Palo Alto Cortex executor register your asset in OpenAEV and enable execution of OpenAEV scenarios through your Palo Alto Cortex instance.
+                    """);
+    connector.setShortDescription(
+        "Enable execution of OpenAEV scenarios through your Palo Alto Cortex instance.");
+    connector.setClassName(getClassName());
+    connector.setSubscriptionLink("https://www.paloaltonetworks.com/cortex/cortex-xdr");
+    connector.setContainerType(ConnectorType.EXECUTOR);
+    connector.setCatalogConnectorConfigurations(
+        new PaloAltoCortexExecutorConfig().toCatalogConfigurationSet(connector));
+    catalogConnectorService.saveAll(List.of(connector));
   }
 
   @Override

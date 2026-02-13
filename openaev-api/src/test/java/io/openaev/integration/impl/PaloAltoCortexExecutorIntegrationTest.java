@@ -64,7 +64,6 @@ public class PaloAltoCortexExecutorIntegrationTest {
         endpointService,
         assetGroupService,
         enterpriseEditionService,
-        previewFeatureService,
         licenseCacheManager,
         taskScheduler,
         fileService,
