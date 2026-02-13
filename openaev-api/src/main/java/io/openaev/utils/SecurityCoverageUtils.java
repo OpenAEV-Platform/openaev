@@ -5,7 +5,6 @@ import static io.openaev.utils.constants.StixConstants.*;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.StixRefToExternalRef;
 import io.openaev.opencti.service.OpenCTIService;
-import io.openaev.rest.document.DocumentService;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.objects.ObjectBase;
 import io.openaev.stix.objects.constants.CommonProperties;
@@ -39,14 +38,6 @@ public class SecurityCoverageUtils {
 
   private static final String DOMAIN_NAME = "Domain-Name";
   private final OpenCTIService openCtiService;
-
-  /** Connection timeout in milliseconds for file downloads (10 seconds). */
-  private static final int CONNECTION_TIMEOUT_MS = 10000;
-
-  /** Read timeout in milliseconds for file downloads (30 seconds). */
-  private static final int READ_TIMEOUT_MS = 30000;
-
-  private final DocumentService documentService;
 
   /**
    * Extracts and validates the {@code x-security-coverage} object from a STIX bundle.

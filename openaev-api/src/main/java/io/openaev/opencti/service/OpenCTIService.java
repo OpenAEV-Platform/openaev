@@ -271,7 +271,9 @@ public class OpenCTIService {
       Tag openCtiTag = getOpenCTITag();
       DocumentCreateInput documentCreateInput = new DocumentCreateInput();
       documentCreateInput.setDescription(name);
-      documentCreateInput.setTagIds(new ArrayList<>(Set.of(openCtiTag.getId())));
+      if (openCtiTag != null) {
+        documentCreateInput.setTagIds(new ArrayList<>(Set.of(openCtiTag.getId())));
+      }
 
       try {
         return documentService.upsert(

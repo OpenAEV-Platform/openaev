@@ -60,7 +60,6 @@ public class OpenCTIClient {
       req.addHeader(HttpHeaders.AUTHORIZATION, "Bearer %s".formatted(authToken));
 
       try (CloseableHttpResponse res = client.execute(req)) {
-
         int statusCode = res.getCode();
         if (statusCode != 200) {
           log.error(
