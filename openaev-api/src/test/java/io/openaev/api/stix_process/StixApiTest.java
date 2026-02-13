@@ -970,9 +970,12 @@ class StixApiTest extends IntegrationTest {
     @DisplayName("Should not remove security coverage even if scenario is deleted")
     void shouldExistSecurityCoverage() throws Exception {
       String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(stixSecurityCoverage));
+      entityManager.clear();
       Scenario scenario = scenarioRepository.findById(scenarioId).orElseThrow();
       String securityCoverageId = scenario.getSecurityCoverage().getId();
+      entityManager.clear();
       scenarioRepository.deleteById(scenarioId);
+      entityManager.clear();
       assertThat(securityCoverageRepository.findByExternalId(securityCoverageId)).isNotNull();
     }
 
