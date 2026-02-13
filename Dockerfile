@@ -8,7 +8,7 @@ RUN yarn install
 COPY openaev-front /opt/openaev-build/openaev-front
 RUN yarn build
 
-FROM maven:3.9.11-eclipse-temurin-21 AS api-builder
+FROM maven:3.9.12-eclipse-temurin-21 AS api-builder
 
 WORKDIR /opt/openaev-build/openaev
 COPY openaev-model ./openaev-model
