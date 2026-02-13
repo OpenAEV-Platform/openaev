@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
@@ -229,6 +230,7 @@ public class AppSecurityConfig {
   }
 
   @Bean
+  @ConditionalOnProperty(name = "openaev.auth-openid-enable", havingValue = "true")
   public OAuth2AuthorizationRequestResolver authorizationRequestResolver(
       ClientRegistrationRepository clientRegistrationRepository) {
 
