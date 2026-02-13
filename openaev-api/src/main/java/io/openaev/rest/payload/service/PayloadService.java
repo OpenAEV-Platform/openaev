@@ -359,7 +359,8 @@ public class PayloadService {
     fileDrop.setType(FileDrop.FILE_DROP_TYPE);
     fileDrop.setPlatforms(ALL_PLATFORMS);
     fileDrop.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
-    fileDrop.setDomains(domainService.upserts(Set.of(InjectorContractDomainDTO.fromDomain(PresetDomain.ENDPOINT))));
+    fileDrop.setDomains(
+        domainService.upserts(Set.of(InjectorContractDomainDTO.fromDomain(PresetDomain.ENDPOINT))));
 
     fileDrop.setExpectations(
         new InjectExpectation.EXPECTATION_TYPE[] {

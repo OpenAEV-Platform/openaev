@@ -63,8 +63,9 @@ public class OpenCTIClient {
 
         int statusCode = res.getCode();
         if (statusCode != 200) {
-            log.error(String.format("Error downloading file from %s with status code %s", url, statusCode));
-            return null;
+          log.error(
+              String.format("Error downloading file from %s with status code %s", url, statusCode));
+          return null;
         }
 
         HttpEntity entity = res.getEntity();

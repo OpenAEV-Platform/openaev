@@ -243,6 +243,10 @@ public class DocumentService {
     return this.documentRepository.rawAllDocumentsByPayloadId(payloadId);
   }
 
+  public List<Document> findAllDistinctOnInjectsByScenarioId(@NotBlank String scenarioId) {
+    return this.documentRepository.findAllDistinctOnInjectsByScenarioId(scenarioId);
+  }
+
   public Document save(Document document) {
     return documentRepository.save(document);
   }
