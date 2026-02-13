@@ -23,6 +23,7 @@ export const SUBJECTS = {
   SECURITY_PLATFORMS: 'SECURITY_PLATFORMS',
   PLATFORM_SETTINGS: 'PLATFORM_SETTINGS',
   RESOURCE: 'RESOURCE',
+  TENANTS: 'TENANTS',
 } as const;
 
 export type Subjects = typeof SUBJECTS[keyof typeof SUBJECTS];

@@ -6,7 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
-import io.openaev.aop.RBACAspect;
+import io.openaev.aop.AccessControlAspect;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.EvaluationRepository;
 import io.openaev.database.repository.ObjectiveRepository;
@@ -303,8 +303,8 @@ public class PermissionServiceTest extends IntegrationTest {
 
     User user = getUser(USER_ID, false);
     when(grantService.hasWriteGrant(RESOURCE_ID, user)).thenReturn(true);
-    RBACAspect.HttpMappingInfo mappingInfo =
-        new RBACAspect.HttpMappingInfo(
+    AccessControlAspect.HttpMappingInfo mappingInfo =
+        new AccessControlAspect.HttpMappingInfo(
             RequestMethod.GET, new String[] {"api/injector/options"}, Map.of("sourceId", injectId));
     assertTrue(
         permissionService.hasPermission(
@@ -337,8 +337,8 @@ public class PermissionServiceTest extends IntegrationTest {
 
     User user = getUser(USER_ID, false);
     when(grantService.hasWriteGrant(RESOURCE_ID, user)).thenReturn(true);
-    RBACAspect.HttpMappingInfo mappingInfo =
-        new RBACAspect.HttpMappingInfo(
+    AccessControlAspect.HttpMappingInfo mappingInfo =
+        new AccessControlAspect.HttpMappingInfo(
             RequestMethod.GET, new String[] {"api/injector/options"}, Map.of());
     assertFalse(
         permissionService.hasPermission(

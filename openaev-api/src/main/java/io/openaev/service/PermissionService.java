@@ -1,6 +1,6 @@
 package io.openaev.service;
 
-import io.openaev.aop.RBACAspect;
+import io.openaev.aop.AccessControlAspect;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.EvaluationRepository;
 import io.openaev.database.repository.ObjectiveRepository;
@@ -65,7 +65,7 @@ public class PermissionService {
   @Transactional
   public boolean hasPermission(
       @NotNull final User user,
-      Optional<RBACAspect.HttpMappingInfo> httpMappingInfo,
+      Optional<AccessControlAspect.HttpMappingInfo> httpMappingInfo,
       String resourceId,
       ResourceType resourceType,
       Action action) {
@@ -120,7 +120,7 @@ public class PermissionService {
     if (httpMappingInfo.isEmpty()) {
       return false;
     }
-    RBACAspect.HttpMappingInfo mappingInfo = httpMappingInfo.get();
+    AccessControlAspect.HttpMappingInfo mappingInfo = httpMappingInfo.get();
     boolean endsWithOptions =
         Arrays.stream(mappingInfo.paths()).anyMatch(path -> path.endsWith("/options"));
     if (endsWithOptions) {
