@@ -79,7 +79,7 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
 
   @Override
   protected final String getClassName() {
-    return this.getClass().getCanonicalName();
+    return TaniumExecutorIntegrationFactory.class.getCanonicalName();
   }
 
   @Override
