@@ -44,7 +44,7 @@ public class UserMappingServiceTest extends IntegrationTest {
   public void whenTheSpecificGroupAlreadyExistsAndTheAutocreateIsFalse_addItToTheUser(){
 
     // -- ARRANGE ---
-    String object = "[{\"IDPRole\": \"observer\",\"OAEVGroup\": \"observer\",\"autoCreate\": \"false\"}]";
+    String object = "[{\"idpGroup\": \"observer\",\"userGroup\": \"observer\",\"autoCreate\": \"false\"}]";
     Group specificGroup = GroupFixture.createGroupWithName("observer");
     specificGroup.setId(Constants.PROCESS_STIX_GROUP_ID);
     specificGroup.setDescription("a description");
@@ -71,7 +71,7 @@ public class UserMappingServiceTest extends IntegrationTest {
   public void whenTheSpecificGroupDoesNotExistAndTheAutocreateIsTrue_createItAndAddItToTheUser(){
 
     // -- ARRANGE ---
-    String object = "[{\"IDPRole\": \"observer\",\"OAEVGroup\": \"admin\",\"autoCreate\": \"true\"}]";
+    String object = "[{\"idpGroup\": \"observer\",\"userGroup\": \"admin\",\"autoCreate\": \"true\"}]";
     Group specificGroup = GroupFixture.createGroupWithName("observer");
     specificGroup.setId(Constants.PROCESS_STIX_GROUP_ID);
     specificGroup.setDescription("a description");
@@ -99,7 +99,7 @@ public class UserMappingServiceTest extends IntegrationTest {
   public void whenTheSpecificGroupDoesNotExistAndTheAutocreateIsFalse_doNothing(){
 
     // -- ARRANGE ---
-    String object = "[{\"IDPRole\": \"observer\",\"OAEVGroup\": \"admin\",\"autoCreate\": \"false\"}]";
+    String object = "[{\"idpGroup\": \"observer\",\"userGroup\": \"admin\",\"autoCreate\": \"false\"}]";
     Group specificGroup = GroupFixture.createGroupWithName("observer");
     specificGroup.setId(Constants.PROCESS_STIX_GROUP_ID);
     specificGroup.setDescription("a description");
@@ -122,11 +122,11 @@ public class UserMappingServiceTest extends IntegrationTest {
 
   @Test
   @DisplayName(
-      "When group from idp and roles from oaev do not match, do nothing")
+      "When group from idp and group from oaev do not match, do nothing")
   public void whenGroupFromIdpAndRolesFromOaevDoNotMatch_doNothing(){
 
     // -- ARRANGE ---
-    String object = "[{\"IDPRole\": \"observer\",\"OAEVGroup\": \"admin\",\"autoCreate\": \"false\"}]";
+    String object = "[{\"idpGroup\": \"observer\",\"userGroup\": \"admin\",\"autoCreate\": \"false\"}]";
     Group specificGroup = GroupFixture.createGroupWithName("admin");
     specificGroup.setId(Constants.PROCESS_STIX_GROUP_ID);
     specificGroup.setDescription("a description");
@@ -145,6 +145,33 @@ public class UserMappingServiceTest extends IntegrationTest {
 
     //-- ASSERT --
     assertThat(user.getGroups().size()).isEqualTo(0);
+  }
+
+  @Test
+  @DisplayName(
+      "When multiple config is set, act accordingly")
+  public void whenMultipleConfigIsSet_actAccordingly(){
+
+    // -- ARRANGE ---
+    String object = "[{\"idpGroup\": \"observer\",\"userGroup\": \"admin\",\"autoCreate\": \"false\"},{\"idpGroup\": \"observer\",\"userGroup\": \"admin\",\"autoCreate\": \"true\"}]";
+    Group specificGroup = GroupFixture.createGroupWithName("observer");
+    specificGroup.setId(Constants.PROCESS_STIX_GROUP_ID);
+    specificGroup.setDescription("a description");
+    specificGroup.setRoles(new ArrayList<>());
+    groupComposer.forGroup(specificGroup).persist();
+    entityManager.flush();
+    entityManager.clear();
+    User user = UserFixture.getUser();
+    userComposer.forUser(user).persist();
+    entityManager.flush();
+    entityManager.clear();
+    List<String> roles = List.of("observer");
+
+    // ---- ACT ----
+    userMappingService.mapCurrentUserWithGroup(object, user, roles);
+
+    //-- ASSERT --
+    assertThat(user.getGroups().size()).isEqualTo(1);
   }
 
 }
