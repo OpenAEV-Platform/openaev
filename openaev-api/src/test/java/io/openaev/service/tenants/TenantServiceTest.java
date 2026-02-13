@@ -9,7 +9,9 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
+import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +25,7 @@ class TenantServiceTest extends IntegrationTest {
   @Autowired private TenantService tenantService;
 
   @Autowired private TenantComposer tenantComposer;
+  @Autowired protected EntityManager entityManager;
 
   @Test
   void should_create_and_find_tenant() {
@@ -49,12 +52,15 @@ class TenantServiceTest extends IntegrationTest {
     tenantComposer.forTenant(tenantA).persist();
     tenantComposer.forTenant(tenantB).persist();
 
-    // On tente de renommer B en A
-    Tenant update = getTenant("Tenant A");
+    tenantB.setName("Tenant A");
 
     // -- ACT & ASSERT --
-    assertThatThrownBy(() -> tenantService.update(tenantB.getId(), update))
-        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(
+            () -> {
+              tenantService.update(tenantB.getId(), tenantB);
+              entityManager.flush();
+            })
+        .isInstanceOf(ConstraintViolationException.class);
   }
 
   @Test
@@ -102,6 +108,8 @@ class TenantServiceTest extends IntegrationTest {
 
     // -- ACT --
     tenantService.delete(tenant.getId());
+    entityManager.flush();
+    entityManager.clear();
 
     // -- ASSERT --
     assertThatThrownBy(() -> tenantService.findById(tenant.getId()))
