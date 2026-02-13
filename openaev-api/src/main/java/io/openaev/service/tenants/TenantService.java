@@ -25,11 +25,6 @@ public class TenantService {
     Objects.requireNonNull(tenant, "tenant must not be null");
     Objects.requireNonNull(tenant.getName(), "tenant name must not be null");
 
-    if (tenantRepository.existsByName(tenant.getName())) {
-      throw new IllegalArgumentException(
-          "Tenant with name '" + tenant.getName() + "' already exists");
-    }
-
     return tenantRepository.save(tenant);
   }
 

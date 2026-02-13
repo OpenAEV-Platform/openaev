@@ -130,7 +130,11 @@ class TenantServiceTest extends IntegrationTest {
     Tenant tenant2 = getTenant("Tenant A");
 
     // -- ACT & ASSERT --
-    assertThatThrownBy(() -> tenantService.create(tenant2))
-        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(
+            () -> {
+              tenantService.create(tenant2);
+              entityManager.flush();
+            })
+        .isInstanceOf(ConstraintViolationException.class);
   }
 }
