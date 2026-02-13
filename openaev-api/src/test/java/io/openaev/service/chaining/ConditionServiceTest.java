@@ -133,8 +133,6 @@ public class ConditionServiceTest extends IntegrationTest {
       Condition template = mock(Condition.class);
       when(template.getType()).thenReturn(type);
 
-      Workflow workflowRun = mock(Workflow.class); // currently unused by method, but required param
-
       Instant now = Instant.parse("2026-02-04T10:15:30Z");
       Instant goal =
           switch (relation) {
@@ -144,16 +142,13 @@ public class ConditionServiceTest extends IntegrationTest {
           };
 
       // -------- Act --------
-      Condition result = conditionService.isTimeConditionValid(template, workflowRun, now, goal);
+      boolean result = conditionService.isTimeConditionValid(template, now, goal);
 
       // -------- Assert --------
       if (shouldCreate) {
-        assertNotNull(result);
-        assertEquals(now.toString(), result.getKey());
-        assertEquals(type, result.getType());
-        assertEquals(goal.toString(), result.getValue());
+        assertTrue(result);
       } else {
-        assertNull(result);
+        assertFalse(result);
       }
     }
 
@@ -165,9 +160,9 @@ public class ConditionServiceTest extends IntegrationTest {
           Arguments.of(ConditionType.AFTER, NowGoalRelation.NOW_EQUAL_GOAL, false),
 
           // BEFORE: always returns a Condition
-          Arguments.of(ConditionType.BEFORE, NowGoalRelation.NOW_AFTER_GOAL, true),
+          Arguments.of(ConditionType.BEFORE, NowGoalRelation.NOW_AFTER_GOAL, false),
           Arguments.of(ConditionType.BEFORE, NowGoalRelation.NOW_BEFORE_GOAL, true),
-          Arguments.of(ConditionType.BEFORE, NowGoalRelation.NOW_EQUAL_GOAL, true),
+          Arguments.of(ConditionType.BEFORE, NowGoalRelation.NOW_EQUAL_GOAL, false),
 
           // Other types: returns null
           Arguments.of(ConditionType.MAPPER, NowGoalRelation.NOW_AFTER_GOAL, false),
@@ -327,12 +322,11 @@ public class ConditionServiceTest extends IntegrationTest {
 
       // We stub isTimeConditionValid to return a concrete Condition (so we don't depend on
       // builder/getters)
-      Condition timeExecution = mock(Condition.class);
-      doReturn(timeExecution)
-          .when(conditionService)
-          .isTimeConditionValid(
-              eq(timeTemplate), eq(workflowRun), any(Instant.class), any(Instant.class));
 
+      doReturn(true)
+          .when(conditionService)
+          .isTimeConditionValid(eq(timeTemplate), any(Instant.class), any(Instant.class));
+      Condition timeExecution = mock(Condition.class);
       // -------- Act --------
       List<Condition> result =
           conditionService.checkCondition(
@@ -345,8 +339,7 @@ public class ConditionServiceTest extends IntegrationTest {
 
       verify(conditionRepository).findAllByStep_Id(stepId);
       verify(conditionService)
-          .isTimeConditionValid(
-              eq(timeTemplate), eq(workflowRun), any(Instant.class), any(Instant.class));
+          .isTimeConditionValid(eq(timeTemplate), any(Instant.class), any(Instant.class));
       verifyNoInteractions(queueChainingService);
       verifyNoInteractions(stepService);
     }
@@ -372,10 +365,9 @@ public class ConditionServiceTest extends IntegrationTest {
       when(workflowRun.getWorkflowCreatedAt()).thenReturn(futureStart);
 
       // Force helper to return null => triggers delay branch
-      doReturn(null)
+      doReturn(false)
           .when(conditionService)
-          .isTimeConditionValid(
-              eq(timeTemplate), eq(workflowRun), any(Instant.class), any(Instant.class));
+          .isTimeConditionValid(eq(timeTemplate), any(Instant.class), any(Instant.class));
 
       // -------- Act --------
       List<Condition> result =
@@ -409,10 +401,9 @@ public class ConditionServiceTest extends IntegrationTest {
       when(workflowRun.getWorkflowCreatedAt())
           .thenReturn(Instant.now().plus(2, ChronoUnit.MINUTES));
 
-      doReturn(null)
+      doReturn(false)
           .when(conditionService)
-          .isTimeConditionValid(
-              eq(timeTemplate), eq(workflowRun), any(Instant.class), any(Instant.class));
+          .isTimeConditionValid(eq(timeTemplate), any(Instant.class), any(Instant.class));
 
       IOException io = new IOException("boom");
       doThrow(io)

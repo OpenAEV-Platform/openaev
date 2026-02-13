@@ -74,32 +74,18 @@ public class ConditionService {
    * Evaluates a time condition against the current time.
    *
    * @param conditionTemplate condition template to evaluate
-   * @param workflowRun running workflow
-   * @param now current time
-   * @param goal target time
    * @return a validated condition if applicable, or {@code null} otherwise
    */
   // TODO: this is for legacy behavior only (compare from start of workflow instead of previous
   // step)
-  public Condition isTimeConditionValid(
-      Condition conditionTemplate, Workflow workflowRun, Instant now, Instant goal) {
+  public Boolean isTimeConditionValid(Condition conditionTemplate, Instant now, Instant goal) {
     if (conditionTemplate.getType().equals(ConditionType.AFTER)) {
-      if (now.isAfter(goal)) {
-        return Condition.builder()
-            .key(now.toString())
-            .type(conditionTemplate.getType())
-            .value(goal.toString())
-            .build();
-      }
+      return now.isAfter(goal);
     } else if (conditionTemplate.getType().equals(ConditionType.BEFORE)) {
-      // todo check witch case with before?
-      return Condition.builder()
-          .key(now.toString())
-          .type(conditionTemplate.getType())
-          .value(goal.toString())
-          .build();
+      // Case BEFORE: an output should append before a date;
+      return now.isBefore(goal);
     }
-    return null;
+    return false;
   }
 
   /**
@@ -139,12 +125,13 @@ public class ConditionService {
       Workflow workflowRun,
       StepService stepService) {
     List<Condition> conditionTemplate = findAllByStepId(nextStepTemplateToExecute.getId());
-    List<Condition> conditionExecution = new ArrayList<>();
+    List<Condition> conditionsExecution = new ArrayList<>();
     // No condition means direct execution:
     if (conditionTemplate == null || conditionTemplate.isEmpty()) return new ArrayList<>();
     List<Condition> timeConditions =
         conditionTemplate.stream().filter(this::isTimeCondition).toList();
 
+    // TODO manage multi time condition (AND, OR: g C1 BEFORE OR C2 AFTER)
     for (Condition condition : timeConditions) {
       // Compute expected start time for the condition to be considered as valid
       Instant now = Instant.now();
@@ -156,8 +143,20 @@ public class ConditionService {
       long value = Long.parseLong(condition.getValue());
       Instant goal = start.plus(value, ChronoUnit.MILLIS);
 
-      Condition timeConditionValid = isTimeConditionValid(condition, workflowRun, now, goal);
-      if (timeConditionValid == null) {
+      boolean timeConditionValid = isTimeConditionValid(condition, now, goal);
+
+      if (timeConditionValid) {
+        Condition conditionExecution =
+            Condition.builder()
+                .key(now.toString())
+                .type(condition.getType())
+                .value(goal.toString())
+                .build();
+        conditionsExecution.add(conditionExecution);
+        continue;
+      }
+
+      if (condition.getType().equals(ConditionType.AFTER)) {
         long delay = ChronoUnit.MILLIS.between(now, goal);
         try {
           queueChainingService.delayStep(nextStepTemplateToExecute, workflowRun, delay);
@@ -165,10 +164,8 @@ public class ConditionService {
           // TODO: better exception management
           throw new RuntimeException(e);
         }
-        return null;
-      } else {
-        conditionExecution.add(timeConditionValid);
       }
+      return null;
     }
 
     // Filter conditions
@@ -180,7 +177,7 @@ public class ConditionService {
       if (filterConditionValid == null) {
         // todo condition not valid break analyse
       } else {
-        conditionExecution.add(filterConditionValid);
+        conditionsExecution.add(filterConditionValid);
       }
     }
 
@@ -193,7 +190,7 @@ public class ConditionService {
       if (mapperConditionValid == null) {
         // todo condition not valid break analyse
       } else {
-        conditionExecution.add(mapperConditionValid);
+        conditionsExecution.add(mapperConditionValid);
       }
     }
 
@@ -224,7 +221,7 @@ public class ConditionService {
       // - the previews one has been executed and contain output
       // - and the next one not reach his limit of execution
       if (hasDependencyOutput && underExecutionLimit) {
-        conditionExecution.add(isDependOn(condition.getStepFrom().getId()));
+        conditionsExecution.add(isDependOn(condition.getStepFrom().getId()));
       } else {
         // Todo : condition not valid break analyse
         return null;
@@ -232,7 +229,7 @@ public class ConditionService {
     }
 
     // todo Mapped input-data step
-    return conditionExecution;
+    return conditionsExecution;
   }
 
   /**
