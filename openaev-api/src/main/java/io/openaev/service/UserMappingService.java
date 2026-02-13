@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
-import io.openaev.sso.GroupRoleMap;
+import io.openaev.sso.GroupMapping;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,13 +23,13 @@ public class UserMappingService {
 
   public void mapCurrentUserWithGroup(String property, User user, List<String> rolesFromToken) {
 
-    for (GroupRoleMap mapping : safeParseMappings(property)) {
-      String idpRole = mapping.getIDPRole();
-      String oaevGroup = mapping.getOAEVGroup();
+    for (GroupMapping mapping : safeParseMappings(property)) {
+      String idpGroup = mapping.getIdpGroup();
+      String userGroup = mapping.getUserGroup();
       boolean autoCreate = mapping.isAutoCreate();
       for (String role : rolesFromToken) {
-        if (idpRole.equals(role)) {
-          Optional<Group> groupOptional = groupRepository.findByName(oaevGroup);
+        if (idpGroup.equals(role)) {
+          Optional<Group> groupOptional = groupRepository.findByName(userGroup);
           if (groupOptional.isPresent()) {
             List<Group> userGroups = user.getGroups();
             List<Group> existing = userGroups.stream().filter(userG -> userG.getName().equals(groupOptional.get().getName())).toList();
@@ -40,7 +40,7 @@ public class UserMappingService {
           } else {
             if (autoCreate) {
               Group newGroup = new Group();
-              newGroup.setName(idpRole);
+              newGroup.setName(idpGroup);
               groupRepository.save(newGroup);
               List<Group> userGroups = user.getGroups();
               userGroups.add(newGroup);
@@ -56,10 +56,10 @@ public class UserMappingService {
     }
   }
 
-  private static List<GroupRoleMap> safeParseMappings(String json) {
+  private static List<GroupMapping> safeParseMappings(String json) {
     ObjectMapper mapper = new ObjectMapper();
     try {
-      return mapper.readValue(json, new TypeReference<List<GroupRoleMap>>() {});
+      return mapper.readValue(json, new TypeReference<List<GroupMapping>>() {});
     } catch (IOException e) {
       // Log and return empty list instead of throwing
       System.err.println("Failed to parse mappings: " + e.getMessage());

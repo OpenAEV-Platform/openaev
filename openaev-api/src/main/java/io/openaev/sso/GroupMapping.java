@@ -4,12 +4,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 @Data
-public class GroupRoleMap {
+public class GroupMapping {
 
-  @JsonProperty("IDPRole")
-  private String IDPRole;
-  @JsonProperty("OAEVGroup")
-  private String OAEVGroup;
+  @JsonProperty("idpGroup")
+  private String idpGroup;
+  @JsonProperty("userGroup")
+  private String userGroup;
   @JsonProperty("autoCreate")
   private boolean autoCreate;
 }
