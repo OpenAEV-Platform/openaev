@@ -35,7 +35,7 @@ jobs:
   build_platform:
     working_directory: ~/openaev
     docker:
-      - image: maven:3.9.11-eclipse-temurin-21
+      - image: maven:3.9.12-eclipse-temurin-21
     steps:
       - attach_workspace:
           at: ~/
@@ -164,7 +164,7 @@ jobs:
   package_rolling:
     working_directory: ~/openaev
     docker:
-      - image: maven:3.9.11-eclipse-temurin-21
+      - image: maven:3.9.12-eclipse-temurin-21
     steps:
       - attach_workspace:
           at: ~/
@@ -183,7 +183,7 @@ jobs:
   package_rolling_musl:
     working_directory: ~/openaev_musl
     docker:
-      - image: maven:3.9.11-eclipse-temurin-21
+      - image: maven:3.9.12-eclipse-temurin-21
     steps:
       - attach_workspace:
           at: ~/
