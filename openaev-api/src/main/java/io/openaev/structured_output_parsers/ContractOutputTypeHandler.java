@@ -1,6 +1,9 @@
 package io.openaev.structured_output_parsers;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.openaev.database.model.ContractOutputField;
+import io.openaev.database.model.ContractOutputTechnicalType;
+import io.openaev.database.model.ContractOutputType;
 import java.util.Set;
 
 /**
@@ -9,8 +12,17 @@ import java.util.Set;
  */
 public interface ContractOutputTypeHandler {
 
-  /** Get the type label (matches ContractOutputType enum label) */
-  String getLabel();
+  /** Get the type (matches ContractOutputType enum) */
+  ContractOutputType getType();
+
+  /** Get the technical type (matches ContractOutputTechnicalType enum) */
+  ContractOutputTechnicalType getTechnicalType();
+
+  /** Get fields */
+  Set<ContractOutputField> getFields();
+
+  /** Is finding compatible */
+  boolean isFindingCompatible();
 
   /** Get the supported processing contexts for this handler */
   Set<ProcessingContext> getSupportedContexts();

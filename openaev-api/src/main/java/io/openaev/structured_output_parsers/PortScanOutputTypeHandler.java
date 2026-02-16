@@ -1,18 +1,29 @@
 package io.openaev.structured_output_parsers;
 
+import static org.springframework.util.StringUtils.hasText;
+
 import com.fasterxml.jackson.databind.JsonNode;
-import java.util.Collections;
-import java.util.List;
+import io.openaev.database.model.ContractOutputField;
+import io.openaev.database.model.ContractOutputTechnicalType;
+import io.openaev.database.model.ContractOutputType;
 import java.util.Set;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 
 @Component
 public class PortScanOutputTypeHandler extends AbstractContractOutputTypeHandler
     implements FindingCapable {
 
-  public PortsScanOutputTypeHandler() {
-    super("portscan", Set.of(ProcessingContext.FINDING));
+  public PortScanOutputTypeHandler() {
+    super(
+        ContractOutputType.PortsScan,
+        ContractOutputTechnicalType.Object,
+        Set.of(
+            new ContractOutputField("asset_id", ContractOutputTechnicalType.Text, false),
+            new ContractOutputField("host", ContractOutputTechnicalType.Text, true),
+            new ContractOutputField("port", ContractOutputTechnicalType.Number, true),
+            new ContractOutputField("service", ContractOutputTechnicalType.Text, true)),
+        true,
+        Set.of(ProcessingContext.FINDING));
   }
 
   @Override
@@ -27,14 +38,15 @@ public class PortScanOutputTypeHandler extends AbstractContractOutputTypeHandler
     String host = buildString(jsonNode, "host");
     String port = buildString(jsonNode, "port");
     String service = buildString(jsonNode, "service");
-    return host + ":" + port + (StringUtils.hasText(service) ? " (" + service + ")" : "");
+    return host + ":" + port + (hasText(service) ? " (" + service + ")" : "");
   }
 
   @Override
-  public List<String> toFindingAssets(JsonNode jsonNode) {
-    if (jsonNode.get("asset_id") != null) {
-      return List.of(jsonNode.get("asset_id").asText());
+  public Set<String> toFindingAssets(JsonNode jsonNode) {
+    JsonNode assetIdNode = jsonNode.get("asset_id");
+    if (assetIdNode != null) {
+      return Set.of(assetIdNode.asText());
     }
-    return Collections.emptyList();
+    return Set.of();
   }
 }

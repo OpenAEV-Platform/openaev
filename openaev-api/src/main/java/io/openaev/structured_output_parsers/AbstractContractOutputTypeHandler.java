@@ -1,6 +1,9 @@
 package io.openaev.structured_output_parsers;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.openaev.database.model.ContractOutputField;
+import io.openaev.database.model.ContractOutputTechnicalType;
+import io.openaev.database.model.ContractOutputType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
@@ -11,18 +14,43 @@ import java.util.Set;
 /** Abstract base class providing common functionality for contract output type handlers. */
 public abstract class AbstractContractOutputTypeHandler implements ContractOutputTypeHandler {
 
-  protected final String label;
+  protected final ContractOutputType type;
+  protected final ContractOutputTechnicalType technicalType;
+  protected final Set<ContractOutputField> fields;
+  protected final boolean isFindingCompatible;
   protected final Set<ProcessingContext> supportedContexts;
 
   protected AbstractContractOutputTypeHandler(
-      String label, Set<ProcessingContext> supportedContexts) {
-    this.label = label;
+      ContractOutputType type,
+      ContractOutputTechnicalType technicalType,
+      Set<ContractOutputField> fields,
+      boolean isFindingCompatible,
+      Set<ProcessingContext> supportedContexts) {
+    this.type = type;
+    this.technicalType = technicalType;
+    this.fields = fields;
+    this.isFindingCompatible = isFindingCompatible;
     this.supportedContexts = Collections.unmodifiableSet(supportedContexts);
   }
 
   @Override
-  public String getLabel() {
-    return label;
+  public ContractOutputType getType() {
+    return type;
+  }
+
+  @Override
+  public ContractOutputTechnicalType getTechnicalType() {
+    return technicalType;
+  }
+
+  @Override
+  public Set<ContractOutputField> getFields() {
+    return fields;
+  }
+
+  @Override
+  public boolean isFindingCompatible() {
+    return isFindingCompatible;
   }
 
   @Override

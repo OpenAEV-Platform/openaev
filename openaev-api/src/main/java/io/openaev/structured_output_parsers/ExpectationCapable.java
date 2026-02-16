@@ -16,12 +16,4 @@ public interface ExpectationCapable {
    * @return true if expectation is met, false otherwise
    */
   boolean matchesExpectation(JsonNode jsonNode, JsonNode expectation);
-
-  /**
-   * Get human-readable description of what the expectation requires
-   *
-   * @param expectation the expectation definition
-   * @return description string for error messages or documentation
-   */
-  String getExpectationDescription(JsonNode expectation);
 }
