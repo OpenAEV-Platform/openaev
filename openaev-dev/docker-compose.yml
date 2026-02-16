@@ -244,13 +244,14 @@ services:
   xtm-composer:
     image: filigran/xtm-composer:latest
     platform: linux/amd64
+    network_mode: host # allow connecting to non docker local instance
     environment:
       - MANAGER__ID=${XTM_COMPOSER_ID}
       - "MANAGER__NAME=XTM Integrations Manager"
       - MANAGER__CREDENTIALS_KEY_FILEPATH=/keys/private_key.pem
       - OPENAEV__ENABLE=true
       - OPENCTI__ENABLE=false
-      - OPENAEV__URL=http://192.168.56.1:8080
+      - OPENAEV__URL=http://localhost:8080
       - OPENAEV__TOKEN=${OPENAEV_ADMIN_TOKEN}
       - OPENAEV__DAEMON__SELECTOR=docker
       # Workaround: pending https://github.com/FiligranHQ/xtm-composer/issues/64,
