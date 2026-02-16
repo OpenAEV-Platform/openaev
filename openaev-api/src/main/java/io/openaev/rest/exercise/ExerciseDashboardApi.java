@@ -103,7 +103,7 @@ public class ExerciseDashboardApi {
   public WidgetToEntitiesOutput widgetToEntitiesRuntime(
       @PathVariable final String simulationId,
       @PathVariable final String widgetId,
-      @Valid @RequestBody WidgetToEntitiesInput input) {
+      @Valid @RequestBody(required = false) WidgetToEntitiesInput input) {
     return this.customDashboardService.widgetToEntitiesRuntimeOnResourceId(
         simulationId, widgetId, input);
   }

@@ -5,7 +5,6 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
@@ -18,12 +17,10 @@ public class Pagination {
   @Schema(description = "Page number to get")
   @NotNull
   @Min(0)
-  @Builder.Default
   int page = 0;
 
   @Schema(description = "Element number by page")
   @NotNull
   @Max(1000)
-  @Builder.Default
   int size = 20;
 }

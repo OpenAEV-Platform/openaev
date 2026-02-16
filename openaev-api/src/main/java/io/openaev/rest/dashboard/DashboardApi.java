@@ -10,6 +10,7 @@ import io.openaev.utils.es.EntitiesPaginationInput;
 import io.openaev.utils.es.WidgetToEntitiesInput;
 import io.openaev.utils.es.WidgetToEntitiesOutput;
 import jakarta.validation.Valid;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -63,8 +64,12 @@ public class DashboardApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
   public EsEntities entities(
-      @PathVariable final String widgetId, @RequestBody EntitiesPaginationInput input) {
-    return this.dashboardService.entities(widgetId, input.getParameters(), input.getPagination());
+      @PathVariable final String widgetId,
+      @RequestBody(required = false) EntitiesPaginationInput input) {
+    return this.dashboardService.entities(
+        widgetId,
+        input == null ? new HashMap<>() : input.getParameters(),
+        input == null ? null : input.getPagination());
   }
 
   @PostMapping(DASHBOARD_URI + "/entities-runtime/{widgetId}")

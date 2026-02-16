@@ -2,6 +2,7 @@ package io.openaev.engine.api;
 
 import io.openaev.database.model.CustomDashboardParameters;
 import io.openaev.utils.pagination.Pagination;
+import jakarta.annotation.Nullable;
 import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
@@ -17,7 +18,7 @@ public class ListRuntime extends Runtime {
       ListConfiguration widget,
       Map<String, String> parameters,
       Map<String, CustomDashboardParameters> definitionParameters,
-      Pagination pagination) {
+      @Nullable Pagination pagination) {
     this.widget = widget;
     this.parameters = parameters;
     this.definitionParameters = definitionParameters;

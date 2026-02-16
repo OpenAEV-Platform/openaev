@@ -22,10 +22,12 @@ import io.openaev.utils.es.WidgetToEntitiesInput;
 import io.openaev.utils.es.WidgetToEntitiesOutput;
 import io.openaev.utils.mapper.CustomDashboardMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -290,12 +292,15 @@ public class CustomDashboardService {
   public EsEntities dashboardEntitiesOnResourceId(
       @NotBlank final String resourceId,
       @NotBlank final String widgetId,
-      final EntitiesPaginationInput input) {
+      @Nullable final EntitiesPaginationInput input) {
     // verify that the widget is in the resource dashboard
     if (!isWidgetInResourceDashboard(resourceId, widgetId)) {
       throw new AccessDeniedException("Access denied");
     }
-    return this.dashboardService.entities(widgetId, input.getParameters(), input.getPagination());
+    return this.dashboardService.entities(
+        widgetId,
+        input == null ? new HashMap<>() : input.getParameters(),
+        input == null ? null : input.getPagination());
   }
 
   public WidgetToEntitiesOutput widgetToEntitiesRuntimeOnResourceId(
@@ -351,12 +356,15 @@ public class CustomDashboardService {
   }
 
   public EsEntities homeDashboardEntities(
-      @NotBlank final String widgetId, final EntitiesPaginationInput input) {
+      @NotBlank final String widgetId, @Nullable final EntitiesPaginationInput input) {
     // verify that the widget is in the home  dashboard
     if (!isWidgetInHomeDashboard(widgetId)) {
       throw new AccessDeniedException("Access denied");
     }
-    return dashboardService.entities(widgetId, input.getParameters(), input.getPagination());
+    return dashboardService.entities(
+        widgetId,
+        input == null ? new HashMap<>() : input.getParameters(),
+        input == null ? null : input.getPagination());
   }
 
   public WidgetToEntitiesOutput homeWidgetToEntitiesRuntimeOnResourceId(

@@ -104,7 +104,7 @@ public class DashboardService {
    * @return a list of entities retrieved from the engine service
    */
   private EsEntities executeListQuery(
-      WidgetContext widgetContext, ListConfiguration config, Pagination pagination) {
+      WidgetContext widgetContext, ListConfiguration config, @Nullable Pagination pagination) {
     ListRuntime runtime =
         new ListRuntime(
             config, widgetContext.parameters(), widgetContext.definitionParameters(), pagination);

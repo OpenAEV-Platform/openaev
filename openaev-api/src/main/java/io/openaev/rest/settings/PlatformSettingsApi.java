@@ -165,7 +165,8 @@ public class PlatformSettingsApi extends RestBehavior {
   @PostMapping("/home-dashboard/entities/{widgetId}")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
   public EsEntities homeDashboardEntities(
-      @PathVariable final String widgetId, @RequestBody EntitiesPaginationInput input) {
+      @PathVariable final String widgetId,
+      @RequestBody(required = false) EntitiesPaginationInput input) {
     return customDashboardService.homeDashboardEntities(widgetId, input);
   }
 
