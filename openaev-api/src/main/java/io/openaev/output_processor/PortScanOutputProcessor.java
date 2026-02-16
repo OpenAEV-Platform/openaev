@@ -7,21 +7,17 @@ import io.openaev.database.model.ContractOutputField;
 import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.rest.finding.FindingService;
-import io.openaev.rest.inject.service.ContractOutputContext;
-import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import java.util.Collections;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
-public class PortScanOutputProcessor extends AbstractOutputProcessor {
+public class PortScanOutputProcessor extends FindingCapableOutputProcessor {
 
   private static final String ASSET_ID = "asset_id";
   private static final String HOST = "host";
   private static final String PORT = "port";
   private static final String SERVICE = "service";
-
-  private final FindingService findingService;
 
   public PortScanOutputProcessor(FindingService findingService) {
     super(
@@ -32,29 +28,12 @@ public class PortScanOutputProcessor extends AbstractOutputProcessor {
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(PORT, ContractOutputTechnicalType.Number, true),
             new ContractOutputField(SERVICE, ContractOutputTechnicalType.Text, true)),
-        true);
-    this.findingService = findingService;
+        findingService);
   }
 
   @Override
   public boolean validate(JsonNode jsonNode) {
     return jsonNode.hasNonNull(HOST) && jsonNode.hasNonNull(PORT) && jsonNode.hasNonNull(SERVICE);
-  }
-
-  @Override
-  public void process(
-      ExecutionProcessingContext executionContext,
-      ContractOutputContext contractOutputContext,
-      JsonNode structuredOutputNode) {
-    findingService.generateFindings(
-        executionContext,
-        contractOutputContext,
-        structuredOutputNode,
-        this::validate,
-        this::toFindingValue,
-        this::toFindingAssets,
-        this::toFindingTeams,
-        this::toFindingUsers);
   }
 
   @Override

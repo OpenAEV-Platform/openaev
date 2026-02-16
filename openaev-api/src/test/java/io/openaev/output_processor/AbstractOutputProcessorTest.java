@@ -16,7 +16,15 @@ class AbstractOutputProcessorTest {
   private static class TestOutputProcessor extends AbstractOutputProcessor {
 
     TestOutputProcessor() {
-      super(null, null, Collections.emptyList(), false);
+      super(null, null, Collections.emptyList());
+    }
+
+    @Override
+    public void process(
+        ExecutionProcessingContext ctx,
+        ContractOutputContext contractOutputContext,
+        JsonNode structuredOutputNode) {
+      // No-op for testing purposes
     }
 
     @Override

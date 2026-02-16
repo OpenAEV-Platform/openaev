@@ -1,7 +1,6 @@
 package io.openaev.rest.inject.service;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -92,6 +91,20 @@ class AgentExecutionProcessingHandlerTest {
   }
 
   @Test
+  @DisplayName("Should return empty and skip dispatch when output parsers are empty")
+  void shouldReturnEmptyWhenOutputParsersAreEmpty() throws Exception {
+    ExecutionProcessingContext ctx = createValidCtx();
+    when(structuredOutputUtils.extractOutputParsers(any())).thenReturn(Set.of());
+    when(structuredOutputUtils.computeStructuredOutputFromOutputParsers(any(), anyString()))
+        .thenReturn(Optional.empty());
+
+    Optional<ObjectNode> result = handler.processContext(ctx);
+
+    assertTrue(result.isEmpty());
+    verifyNoInteractions(outputProcessorFactory);
+  }
+
+  @Test
   @DisplayName("Should skip processor when contract element key is missing in produced JSON")
   void shouldSkipProcessorWhenKeyInContractIsMissingInProducedJson() throws Exception {
     ExecutionProcessingContext ctx = createValidCtx();
@@ -117,7 +130,28 @@ class AgentExecutionProcessingHandlerTest {
 
     handler.processContext(ctx);
 
-    // Should NOT be called for missing key
+    verify(mockProcessor, never()).process(any(), any(), any());
+  }
+
+  @Test
+  @DisplayName("Should skip processor when no processor is registered for the output type")
+  void shouldSkipWhenNoProcessorRegisteredForType() throws Exception {
+    ExecutionProcessingContext ctx = createValidCtx();
+
+    ContractOutputElement element =
+        OutputParserFixture.getContractOutputElement(ContractOutputType.CVE, "cve", Set.of(), true);
+    OutputParser parser = OutputParserFixture.getOutputParser(Set.of(element));
+    when(structuredOutputUtils.extractOutputParsers(any())).thenReturn(Set.of(parser));
+
+    ObjectNode json = mapper.createObjectNode();
+    json.put("cve-key", "some-value");
+    when(structuredOutputUtils.computeStructuredOutputFromOutputParsers(any(), anyString()))
+        .thenReturn(Optional.of(json));
+    when(outputProcessorFactory.getProcessor(ContractOutputType.CVE)).thenReturn(Optional.empty());
+
+    Optional<ObjectNode> result = handler.processContext(ctx);
+
+    assertTrue(result.isPresent());
     verify(mockProcessor, never()).process(any(), any(), any());
   }
 
@@ -140,8 +174,34 @@ class AgentExecutionProcessingHandlerTest {
 
     handler.processContext(ctx);
 
-    // Should be called once for the matching element
     verify(mockProcessor, times(1)).process(eq(ctx), any(), any(JsonNode.class));
+  }
+
+  @Test
+  @DisplayName(
+      "Should dispatch to processor with the correct node value from the structured output")
+  void shouldDispatchToProcessorWithCorrectNodeValue() throws Exception {
+    ExecutionProcessingContext ctx = createValidCtx();
+
+    ContractOutputElement element =
+        OutputParserFixture.getContractOutputElement(ContractOutputType.CVE, "cve", Set.of(), true);
+    OutputParser parser = OutputParserFixture.getOutputParser(Set.of(element));
+    when(structuredOutputUtils.extractOutputParsers(any())).thenReturn(Set.of(parser));
+
+    ObjectNode json = mapper.createObjectNode();
+    json.put("cve-key", "expected-value");
+    when(structuredOutputUtils.computeStructuredOutputFromOutputParsers(any(), anyString()))
+        .thenReturn(Optional.of(json));
+    when(outputProcessorFactory.getProcessor(ContractOutputType.CVE))
+        .thenReturn(Optional.of(mockProcessor));
+
+    handler.processContext(ctx);
+
+    verify(mockProcessor, times(1))
+        .process(
+            eq(ctx),
+            argThat(c -> "cve-key".equals(c.key()) && ContractOutputType.CVE.equals(c.type())),
+            argThat(node -> "expected-value".equals(node.asText())));
   }
 
   private ExecutionProcessingContext createValidCtx() {
