@@ -1,0 +1,55 @@
+package io.openaev.structured_output_parsers;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+
+/** Abstract base class providing common functionality for contract output type handlers. */
+public abstract class AbstractContractOutputTypeHandler implements ContractOutputTypeHandler {
+
+  protected final String label;
+  protected final Set<ProcessingContext> supportedContexts;
+
+  protected AbstractContractOutputTypeHandler(
+      String label, Set<ProcessingContext> supportedContexts) {
+    this.label = label;
+    this.supportedContexts = Collections.unmodifiableSet(supportedContexts);
+  }
+
+  @Override
+  public String getLabel() {
+    return label;
+  }
+
+  @Override
+  public Set<ProcessingContext> getSupportedContexts() {
+    return supportedContexts;
+  }
+
+  protected String buildString(@NotNull final JsonNode jsonNode) {
+    if (jsonNode.isArray()) {
+      List<String> values = new ArrayList<>();
+      for (JsonNode element : jsonNode) {
+        values.add(trimQuotes(element.asText()));
+      }
+      return String.join(" ", values);
+    }
+    return trimQuotes(jsonNode.asText());
+  }
+
+  protected String buildString(@NotNull final JsonNode jsonNode, @NotBlank final String key) {
+    JsonNode valueNode = jsonNode.get(key);
+    if (valueNode == null || valueNode.isNull()) {
+      return "";
+    }
+    return buildString(valueNode);
+  }
+
+  protected String trimQuotes(@NotBlank final String value) {
+    return value.replaceAll("^\"|\"$", "");
+  }
+}
