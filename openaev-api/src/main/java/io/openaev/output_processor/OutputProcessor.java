@@ -24,9 +24,6 @@ public interface OutputProcessor {
   /** Get fields */
   List<ContractOutputField> getFields();
 
-  /** Is finding compatible */
-  boolean isFindingCompatible();
-
   /** Validate that the JSON node is correctly formatted for this type */
   boolean validate(JsonNode jsonNode);
 

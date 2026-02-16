@@ -1,7 +1,6 @@
 package io.openaev.rest.inject.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.ExecutionTraceAction;
@@ -12,7 +11,6 @@ import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import jakarta.annotation.Resource;
 import java.util.List;
 import java.util.Optional;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -24,12 +22,17 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
-public class InjectorExecutionProcessingHandler implements ExecutionProcessingHandler {
+public class InjectorExecutionProcessingHandler extends AbstractExecutionProcessingHandler {
 
   @Resource protected ObjectMapper mapper;
-  private final OutputProcessorFactory outputProcessorFactory;
   private final InjectorContractContentUtils injectorContractContentUtils;
+
+  public InjectorExecutionProcessingHandler(
+      OutputProcessorFactory outputProcessorFactory,
+      InjectorContractContentUtils injectorContractContentUtils) {
+    super(outputProcessorFactory);
+    this.injectorContractContentUtils = injectorContractContentUtils;
+  }
 
   /**
    * Determines if this handler supports the given execution context (injector execution).
@@ -79,40 +82,25 @@ public class InjectorExecutionProcessingHandler implements ExecutionProcessingHa
 
     InjectorContract injectorContract =
         executionContext.inject().getInjectorContract().orElseThrow();
-    List<InjectorContractContentOutputElement> contractOutputElements =
-        getAllIsFindingCompatibleContractOutputs(injectorContract);
 
-    contractOutputElements.stream()
-        .map(ContractOutputContext::from)
-        .forEach(
-            contractOutputCtx -> {
-              outputProcessorFactory
-                  .getProcessor(contractOutputCtx.type())
-                  .ifPresent(
-                      processor -> {
-                        JsonNode node = structuredOutput.path(contractOutputCtx.key());
-                        if (!node.isMissingNode()) {
-                          processor.process(executionContext, contractOutputCtx, node);
-                        }
-                      });
-            });
+    List<ContractOutputContext> contractOutputContexts =
+        getAllContractOutputs(injectorContract).stream().map(ContractOutputContext::from).toList();
+    dispatchToProcessors(executionContext, contractOutputContexts, structuredOutput);
 
     return Optional.of(structuredOutput);
   }
 
   /**
-   * Retrieves all contract output elements from the injector contract that are compatible with
-   * findings.
+   * Retrieves all contract output elements from the injector contract.
    *
    * @param injectorContract the injector contract to inspect
-   * @return list of finding-compatible contract output elements
+   * @return list of contract output elements
    */
-  private List<InjectorContractContentOutputElement> getAllIsFindingCompatibleContractOutputs(
+  private List<InjectorContractContentOutputElement> getAllContractOutputs(
       InjectorContract injectorContract) {
     return injectorContractContentUtils
         .getContractOutputs(injectorContract.getConvertedContent(), mapper)
         .stream()
-        .filter(InjectorContractContentOutputElement::isFindingCompatible)
         .toList();
   }
 }
