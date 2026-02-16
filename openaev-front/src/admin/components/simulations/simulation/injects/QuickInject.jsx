@@ -1172,7 +1172,7 @@ class QuickInjectComponent extends Component {
                         // Filter display if visible
                         for (
                           let index = 0;
-                          index < f.visibleConditionFields.length;
+                          index < f.visibleConditionFields?.length;
                           index += 1
                         ) {
                           const visibleConditionField = injectorContract.fields.find(g => g.key === f.visibleConditionFields[index]);
