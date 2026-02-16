@@ -1308,7 +1308,7 @@ public class V1_DataImporter implements Importer {
 
   public static ContractOutputType formatStringToContractOutputType(String value) {
     for (ContractOutputType type : ContractOutputType.values()) {
-      if (type.label.equalsIgnoreCase(value)) {
+      if (type.getLabel().equalsIgnoreCase(value)) {
         return type;
       }
     }
