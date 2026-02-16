@@ -47,7 +47,7 @@ public class EmailContent {
     }
     data.append(START_DIV).append(body).append(END_DIV);
     // If imap is enable we need to inject the id marker
-    if (injection.isRuntime() && imapEnabled) {
+    if (injection.isRuntime()) {
       data.append(START_DIV)
           .append("<br/><br/><br/><br/>")
           .append(
