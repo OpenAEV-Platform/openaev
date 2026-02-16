@@ -3,15 +3,12 @@ package io.openaev.rest.dashboard;
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
-import io.openaev.engine.model.EsBase;
 import io.openaev.engine.model.EsSearch;
-import io.openaev.engine.query.EsAttackPath;
-import io.openaev.engine.query.EsAvgs;
-import io.openaev.engine.query.EsCountInterval;
-import io.openaev.engine.query.EsSeries;
-import io.openaev.rest.dashboard.model.WidgetToEntitiesInput;
-import io.openaev.rest.dashboard.model.WidgetToEntitiesOutput;
+import io.openaev.engine.query.*;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.utils.es.EntitiesPaginationInput;
+import io.openaev.utils.es.WidgetToEntitiesInput;
+import io.openaev.utils.es.WidgetToEntitiesOutput;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
@@ -65,10 +62,9 @@ public class DashboardApi extends RestBehavior {
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
-  public List<EsBase> entities(
-      @PathVariable final String widgetId,
-      @RequestBody(required = false) Map<String, String> parameters) {
-    return this.dashboardService.entities(widgetId, parameters);
+  public EsEntities entities(
+      @PathVariable final String widgetId, @RequestBody EntitiesPaginationInput input) {
+    return this.dashboardService.entities(widgetId, input.getParameters(), input.getPagination());
   }
 
   @PostMapping(DASHBOARD_URI + "/entities-runtime/{widgetId}")

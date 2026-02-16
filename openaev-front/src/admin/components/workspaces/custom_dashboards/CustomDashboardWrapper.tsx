@@ -7,8 +7,8 @@ import Loader from '../../../../components/Loader';
 import type {
   CustomDashboard,
   EsAttackPath, EsAvgs,
-  EsBase, EsCountInterval,
-  EsSeries,
+  EsCountInterval, EsEntities,
+  EsSeries, Pagination,
   WidgetToEntitiesInput,
   WidgetToEntitiesOutput,
 } from '../../../../utils/api-types';
@@ -30,7 +30,7 @@ interface CustomDashboardConfiguration {
   fetchCount: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsCountInterval>>;
   fetchAverage: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsAvgs>>;
   fetchSeries: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsSeries[]>>;
-  fetchEntities: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsBase[]>>;
+  fetchEntities: (widgetId: string, params: Record<string, string | undefined>, pagination?: Pagination) => Promise<AxiosResponse<EsEntities>>;
   fetchEntitiesRuntime: (widgetId: string, input: WidgetToEntitiesInput) => Promise<AxiosResponse<WidgetToEntitiesOutput>>;
   fetchAttackPaths: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsAttackPath[]>>;
 }

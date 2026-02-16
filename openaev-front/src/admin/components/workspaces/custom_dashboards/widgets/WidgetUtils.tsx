@@ -4,8 +4,8 @@ import { AlignHorizontalLeft, ChartBar, ChartDonut, ChartLine, Counter } from 'm
 import {
   type CustomDashboardParameters,
   type EsAttackPath,
-  type EsAvgs, type EsBase,
-  type EsCountInterval,
+  type EsAvgs,
+  type EsCountInterval, type EsEntities,
   type EsSeries,
   type Exercise,
   type Filter,
@@ -71,6 +71,7 @@ export const widgetVisualizationTypes: {
   {
     category: 'list',
     seriesLimit: 1,
+    limit: false,
   },
   {
     category: 'number',
@@ -286,7 +287,7 @@ export type WidgetVizData
   }
   | {
     type: WidgetVizDataType.ENTITIES;
-    data: EsBase[];
+    data: EsEntities;
   }
   | {
     type: WidgetVizDataType.ATTACK_PATHS;
