@@ -12,8 +12,8 @@ import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
-import io.openaev.output_processor.OutputProcessor;
 import io.openaev.output_processor.OutputProcessorFactory;
+import io.openaev.output_processor.OutputProcessorHandler;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import jakarta.annotation.Resource;
@@ -151,7 +151,8 @@ public class FindingService {
           if (!contractOutput.isFindingCompatible()) {
             return;
           }
-          OutputProcessor handler = outputProcessorFactory.getHandler(contractOutput.getType());
+          OutputProcessorHandler handler =
+              outputProcessorFactory.getHandler(contractOutput.getType());
 
           if (contractOutput.isMultiple()) {
             JsonNode jsonNodes = structuredOutput.get(contractOutput.getField());
@@ -181,7 +182,7 @@ public class FindingService {
     return findings;
   }
 
-  private Finding linkFindings(JsonNode jsonNode, Finding finding, OutputProcessor handler) {
+  private Finding linkFindings(JsonNode jsonNode, Finding finding, OutputProcessorHandler handler) {
     // Create links with assets
     List<String> assetsIds = handler.toFindingAssets(jsonNode);
     List<Optional<Asset>> assets = assetsIds.stream().map(this.assetRepository::findById).toList();
@@ -255,7 +256,7 @@ public class FindingService {
 
     contractOutputElements.forEach(
         contractOutputElement -> {
-          OutputProcessor handler =
+          OutputProcessorHandler handler =
               outputProcessorFactory.getHandler(contractOutputElement.getType());
 
           JsonNode jsonNodes = structuredOutput.get(contractOutputElement.getKey());
