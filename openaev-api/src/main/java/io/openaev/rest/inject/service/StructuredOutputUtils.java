@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.*;
 import io.openaev.database.model.*;
+import io.openaev.output_processor.OutputProcessor;
+import io.openaev.output_processor.OutputProcessorFactory;
 import jakarta.annotation.Resource;
 import java.util.*;
 import java.util.logging.Level;
@@ -20,6 +22,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class StructuredOutputUtils {
 
+  private final OutputProcessorFactory outputProcessorFactory;
   @Resource private final ObjectMapper mapper;
 
   Set<OutputParser> extractOutputParsers(Inject inject) {
@@ -127,9 +130,12 @@ public class StructuredOutputUtils {
       Matcher matcher = pattern.matcher(cleanOutput);
       ArrayNode matchesArray = mapper.createArrayNode();
 
+      // Get handler once per contract output type
+      OutputProcessor handler = outputProcessorFactory.getHandler(contractOutputElement.getType());
+
       while (matcher.find()) {
-        buildStructuredJsonNode(contractOutputElement, matcher)
-            .filter(structured -> contractOutputElement.getType().validate.apply(structured))
+        buildStructuredJsonNode(contractOutputElement, matcher, handler)
+            .filter(handler::validate)
             .ifPresent(matchesArray::add);
       }
       resultRoot.set(contractOutputElement.getKey(), matchesArray);
@@ -139,18 +145,21 @@ public class StructuredOutputUtils {
   }
 
   public Optional<JsonNode> buildStructuredJsonNode(
-      ContractOutputElement element, Matcher matcher) {
-    ContractOutputType type = element.getType();
+      ContractOutputElement element, Matcher matcher, OutputProcessor handler) {
+
+    // Get metadata from handler instead of enum
+    ContractOutputTechnicalType technicalType = handler.getTechnicalType();
+    List<ContractOutputField> fields = handler.getFields();
 
     // Case: primitive types like Text, Number, IPv4, IPv6
-    if (type.fields == null || type.technicalType != ContractOutputTechnicalType.Object) {
+    if (fields == null || technicalType != ContractOutputTechnicalType.Object) {
       String extracted = extractValues(element.getRegexGroups(), matcher);
 
       if (extracted == null) {
         return Optional.empty();
       }
 
-      return type.technicalType == ContractOutputTechnicalType.Number
+      return technicalType == ContractOutputTechnicalType.Number
           ? Optional.of(toNumericValue(extracted))
           : Optional.of(mapper.valueToTree(extracted));
     }
@@ -158,7 +167,7 @@ public class StructuredOutputUtils {
     // Case: complex types like portscan, credentials, CVE
     ObjectNode objectNode = mapper.createObjectNode();
 
-    for (ContractOutputField field : type.fields) {
+    for (ContractOutputField field : fields) {
       Set<RegexGroup> matchingGroups =
           element.getRegexGroups().stream()
               .filter(rg -> rg.getField().equals(field.getKey()))

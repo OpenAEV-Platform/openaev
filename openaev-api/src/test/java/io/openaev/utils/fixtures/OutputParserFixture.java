@@ -35,8 +35,8 @@ public class OutputParserFixture {
     contractOutputElement.setType(type);
     contractOutputElement.setRule(rule);
     contractOutputElement.setRegexGroups(regexGroup);
-    contractOutputElement.setKey(type.label + "-key");
-    contractOutputElement.setName(type.label + " Name");
+    contractOutputElement.setKey(type.getLabel() + "-key");
+    contractOutputElement.setName(type.getLabel() + " Name");
     contractOutputElement.setFinding(isFinding);
     return contractOutputElement;
   }
