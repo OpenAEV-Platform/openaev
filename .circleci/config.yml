@@ -220,7 +220,7 @@ jobs:
       - image: cimg/base:stable
     steps:
       - checkout
-      - kubernetes/install-kubectl
+      - kubernetes/install_kubectl
       - add_ssh_keys:
           fingerprints:
             - "SHA256:c0OR4Li435CmcyxxauoU5/F6SS8d2OSx+uTmbBYILvU"
