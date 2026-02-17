@@ -8,6 +8,7 @@ import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.ElementNotFoundException;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
@@ -74,7 +75,8 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     }
 
     // IF NONE STEP TEMPLATE WITH CONDITION VALID update WORKFLOW with status END
-    // todo manage steptemplate with time condition in queue
+    // todo manage steptemplate with time condition in queue delay : can be done after new
+    // implémentation of the queue delay (in db)
     /*if (stepWithValidCondition.isEmpty()) {
         workflowRun.setStatus(WorkflowStatus.END);
     }*/
@@ -136,13 +138,13 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
       stepReady.setStatus(StepStatus.END);
       this.saveStep(stepReady);
       // Check all executed steps, if all ended, end workflow run
-      int runningStep = stepRepository.countRunningStep(stepReady.getWorkflow().getId());
+      /* int runningStep = stepRepository.countRunningStep(stepReady.getWorkflow().getId());
       if (runningStep == 0) {
         // TODO manage steptemplate with time delay
         Workflow run = stepReady.getWorkflow();
         run.setStatus(WorkflowStatus.END);
         workflowService.saveWorkflowRun(run);
-      }
+      }*/
     } else {
       stepRun.setStatus(StepStatus.RUN);
       this.saveStep(stepRun);
@@ -207,7 +209,9 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
 
     Step stepFrom =
         firstCondition.getStepFrom() != null
-            ? stepRepository.findById(firstCondition.getStepFrom()).orElse(null)
+            ? stepRepository
+                .findById(firstCondition.getStepFrom())
+                .orElseThrow(ElementNotFoundException::new)
             : null;
 
     Condition first =

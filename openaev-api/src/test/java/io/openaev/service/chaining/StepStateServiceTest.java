@@ -59,22 +59,30 @@ class StepStateServiceTest {
     }
 
     @Test
-    @DisplayName("should create state with empty execution keys")
-    void shouldCreateStateWithEmptyExecutionKeys() {
+    @DisplayName("should throw exception with empty execution keys")
+    void shouldNotCreateStateWithEmptyExecutionKeys_Throw() {
       // Prepare
       Set<String> executionKeys = Collections.emptySet();
       Step stepTemplate = mock(Step.class);
       Workflow workflowExecution = mock(Workflow.class);
 
-      // Act
-      stepStateService.createState(executionKeys, stepTemplate, workflowExecution);
+      // Act + Assert
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> stepStateService.createState(executionKeys, stepTemplate, workflowExecution));
+    }
 
-      // Assert
-      verify(stepStateRepository).save(stepStateCaptor.capture());
-      StepState savedState = stepStateCaptor.getValue();
+    @Test
+    @DisplayName("should throw exception with null execution keys")
+    void shouldNotCreateStateWithNullExecutionKeys_Throw() {
+      // Prepare
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowExecution = mock(Workflow.class);
 
-      assertNotNull(savedState);
-      assertNotNull(savedState.getEntries());
+      // Act + Assert
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> stepStateService.createState(null, stepTemplate, workflowExecution));
     }
 
     @Test

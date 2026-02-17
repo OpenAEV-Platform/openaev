@@ -31,6 +31,9 @@ public class StepStateService {
    */
   public void createState(
       Set<String> executionKeys, Step stepTemplate, Workflow workflowExecution) {
+    if (executionKeys == null || executionKeys.isEmpty()) {
+      throw new IllegalArgumentException("executionKeys is null");
+    }
     StepStateEntries stateEntries =
         new StepStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>(), executionKeys);
     String stateAsJson = gson.toJson(stateEntries, StepStateEntries.class);

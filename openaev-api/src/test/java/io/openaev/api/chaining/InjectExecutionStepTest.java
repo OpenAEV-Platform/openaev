@@ -14,7 +14,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
-import io.openaev.api.detection_remediation.dto.PayloadInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -29,13 +28,11 @@ import io.openaev.service.AssetService;
 import io.openaev.service.TeamService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.StepService;
-import io.openaev.utils.fixtures.*;
-import io.openaev.utils.fixtures.composers.DomainComposer;
-import io.openaev.utils.fixtures.composers.ExerciseComposer;
-import io.openaev.utils.fixtures.composers.PayloadComposer;
-import io.openaev.utils.fixtures.composers.WorkflowComposer;
+import io.openaev.utils.fixtures.AgentFixture;
+import io.openaev.utils.fixtures.AssetFixture;
+import io.openaev.utils.fixtures.InjectorFixture;
+import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.helpers.InjectTestHelper;
-import java.time.Instant;
 import java.util.*;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -62,16 +59,10 @@ public class InjectExecutionStepTest {
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private InjectRepository injectRepository;
-  @Autowired private WorkflowComposer workflowComposer;
-  @Autowired private ExerciseComposer exerciseComposer;
   @Autowired InjectExecutionStep injectExecutionStep;
   ObjectMapper mapper = new ObjectMapper();
   @Autowired private InjectTestHelper injectTestHelper;
   String injectInputJson;
-
-  @Autowired private DomainComposer domainComposer;
-
-  @Autowired private PayloadComposer payloadComposer;
 
   private ListAppender<ILoggingEvent> logAppender;
   private Logger logger;
@@ -211,35 +202,16 @@ public class InjectExecutionStepTest {
 
   @Test
   void run_shouldReturnNull_whenInjectHasNoInjectorContract() {
+    // PREPARE
     Step step = new Step();
     step.setId("step-ID");
-    step.setData(getInjectAsJson());
-
+    step.setData("{}");
+    // ACT
     Step result = injectExecutionStep.run(step);
-
+    // ASSERT
     assertNull(result);
     assertThat(logAppender.list)
         .anyMatch(event -> event.getMessage().contains("Injector contract not found for step"));
-  }
-
-  private static String getInjectAsJson() {
-    return """
-                {                                   "inject_id":"inject-ID",
-                                                    "inject_title": "whoami",
-                                                    "inject_content": {},
-                                                    "inject_depends_on": [],
-                                                    "inject_depends_duration": 100,
-                                                    "inject_teams": [],
-                                                    "inject_assets": [],
-                                                    "inject_asset_groups": [],
-                                                    "inject_documents": [],
-                                                    "inject_all_teams": false,
-                                                    "inject_country": null,
-                                                    "inject_city": null,
-                                                    "inject_tags": [],
-                                                    "inject_enabled": true
-                }
-                """;
   }
 
   /**
@@ -262,8 +234,8 @@ public class InjectExecutionStepTest {
    */
   @Test
   public void createTest() throws JsonProcessingException {
+    // PREPARE
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-    Exercise simulation = new Exercise();
     StepsCreateInput.StepCreateInput step =
         InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
 
@@ -276,18 +248,12 @@ public class InjectExecutionStepTest {
             .build();
     step.setConditions(Collections.singletonList(conditionMapper));
 
-    Workflow workflowTemplate =
-        Workflow.builder()
-            .status(WorkflowStatus.TEMPLATE)
-            .version(0)
-            .isEdited(false)
-            .simulation(simulation)
-            .workflowCreatedAt(Instant.now())
-            .workflowUpdatedAt(Instant.now())
-            .build();
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
 
+    // ACT
     Step stepTemplate = injectExecutionStep.create(step, workflowTemplate);
 
+    // ASSERT
     assertEquals(StepActionClass.INJECT_EXECUTION, stepTemplate.getStepAction());
     assertEquals(StepStatus.TEMPLATE, stepTemplate.getStatus());
     assertFalse(stepTemplate.getData().isEmpty());
@@ -317,10 +283,10 @@ public class InjectExecutionStepTest {
    */
   @Test
   public void readyTest() throws JsonProcessingException {
-
+    // PREPARE
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-    Exercise simulation = new Exercise();
+
     StepsCreateInput.StepCreateInput step =
         InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
 
@@ -333,30 +299,16 @@ public class InjectExecutionStepTest {
             .build();
     step.setConditions(Collections.singletonList(conditionMapper));
 
-    Workflow workflowTemplate =
-        Workflow.builder()
-            .status(WorkflowStatus.TEMPLATE)
-            .version(0)
-            .isEdited(false)
-            .simulation(simulation)
-            .workflowCreatedAt(Instant.now())
-            .workflowUpdatedAt(Instant.now())
-            .build();
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
 
+    // ACT
     Step stepTemplate = injectExecutionStep.create(step, workflowTemplate);
 
-    Workflow workflowRun =
-        Workflow.builder()
-            .status(WorkflowStatus.RUN)
-            .version(0)
-            .isEdited(false)
-            .simulation(simulation)
-            .workflowCreatedAt(Instant.now())
-            .workflowUpdatedAt(Instant.now())
-            .build();
+    Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
 
     Step stepReady =
         injectExecutionStep.ready(stepTemplate, "{\"input\" : \"do defined\"}", workflowRun);
+    // ASSERT
     assertEquals("do defined", StepService.getField(stepReady.getInput(), "input"));
   }
 
@@ -376,21 +328,9 @@ public class InjectExecutionStepTest {
    */
   @Test
   public void runTest() throws JsonProcessingException {
-
+    // PREPARE
     Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
-    Workflow savedWorkflowTemplate =
-        workflowComposer
-            .forWorkflow(workflowTemplate)
-            .withWorkflowTemplate(
-                workflowComposer
-                    .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
-                    .withSimulation(
-                        exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise())))
-            .withSimulation(exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
-            .persist()
-            .get();
 
-    Exercise simulation = savedWorkflowTemplate.getSimulation();
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
     StepsCreateInput.StepCreateInput step =
@@ -404,43 +344,24 @@ public class InjectExecutionStepTest {
             .type(ConditionType.MAPPER)
             .build();
     step.setConditions(Collections.singletonList(conditionMapper));
+    // ACT
+
     Step stepTemplate = injectExecutionStep.create(step, workflowTemplate);
 
-    Workflow workflowRun =
-        Workflow.builder()
-            .status(WorkflowStatus.RUN)
-            .version(0)
-            .isEdited(false)
-            .simulation(simulation)
-            .workflowCreatedAt(Instant.now())
-            .workflowUpdatedAt(Instant.now())
-            .build();
-
-    Workflow savedWorkflowRun = workflowComposer.forWorkflow(workflowRun).persist().get();
+    Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
     Step stepReady =
-        injectExecutionStep.ready(stepTemplate, "{\"input\" : \"do defined\"}", savedWorkflowRun);
+        injectExecutionStep.ready(stepTemplate, "{\"input\" : \"do defined\"}", workflowRun);
     stepReady = injectExecutionStep.run(stepReady);
+    // ASSERT
     assertNotNull(StepService.getField(stepReady.getData(), "inject_id"));
   }
 
   @Test
   public void run_shouldReturnNull_whenInjectorIsNotFoundInDatabase()
       throws JsonProcessingException {
+    // PREPARE
 
-    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
-    Workflow savedWorkflowTemplate =
-        workflowComposer
-            .forWorkflow(workflowTemplate)
-            .withWorkflowTemplate(
-                workflowComposer
-                    .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
-                    .withSimulation(
-                        exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise())))
-            .withSimulation(exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
-            .persist()
-            .get();
-
-    Exercise simulation = savedWorkflowTemplate.getSimulation();
+    // New StepsCreateInput & ConditionCreateInput
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
     StepsCreateInput.StepCreateInput step =
@@ -454,27 +375,25 @@ public class InjectExecutionStepTest {
             .type(ConditionType.MAPPER)
             .build();
     step.setConditions(Collections.singletonList(conditionMapper));
-    Step stepTemplate = injectExecutionStep.create(step, workflowTemplate);
+    // ACT CREATE + READY + RUN
 
-    Workflow workflowRun =
-        Workflow.builder()
-            .status(WorkflowStatus.RUN)
-            .version(0)
-            .isEdited(false)
-            .simulation(simulation)
-            .workflowCreatedAt(Instant.now())
-            .workflowUpdatedAt(Instant.now())
-            .build();
+    // PERSIST STEP TEMPLATE
+    Step stepTemplate =
+        injectExecutionStep.create(step, WorkflowFixture.getDefaultWorkflowTemplate());
 
-    Workflow savedWorkflowRun = workflowComposer.forWorkflow(workflowRun).persist().get();
+    // SIMUL LAUNCH WORKFLOW
+    Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+
     Step stepReady =
-        injectExecutionStep.ready(stepTemplate, "{\"input\" : \"do defined\"}", savedWorkflowRun);
+        injectExecutionStep.ready(stepTemplate, "{\"input\" : \"do defined\"}", workflowRun);
     String injectorId =
         StepService.getField(
             stepReady.getData(), "inject_injector_contract.injector_contract_injector");
     assertNotNull(injectorId);
     injectorRepository.deleteById(injectorId);
     Step result = injectExecutionStep.run(stepReady);
+
+    // ASSERT
     assertNull(result);
     assertThat(logAppender.list)
         .anyMatch(
@@ -487,21 +406,9 @@ public class InjectExecutionStepTest {
   @Test
   public void run_shouldReturnNull_whenInjectorIsNotFoundInDatabase2()
       throws JsonProcessingException {
-
+    // PREPARE
     Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
-    Workflow savedWorkflowTemplate =
-        workflowComposer
-            .forWorkflow(workflowTemplate)
-            .withWorkflowTemplate(
-                workflowComposer
-                    .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
-                    .withSimulation(
-                        exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise())))
-            .withSimulation(exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
-            .persist()
-            .get();
 
-    Exercise simulation = savedWorkflowTemplate.getSimulation();
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
     StepsCreateInput.StepCreateInput step =
@@ -515,21 +422,13 @@ public class InjectExecutionStepTest {
             .type(ConditionType.MAPPER)
             .build();
     step.setConditions(Collections.singletonList(conditionMapper));
+    // ACT
     Step stepTemplate = injectExecutionStep.create(step, workflowTemplate);
 
-    Workflow workflowRun =
-        Workflow.builder()
-            .status(WorkflowStatus.RUN)
-            .version(0)
-            .isEdited(false)
-            .simulation(simulation)
-            .workflowCreatedAt(Instant.now())
-            .workflowUpdatedAt(Instant.now())
-            .build();
+    Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
 
-    Workflow savedWorkflowRun = workflowComposer.forWorkflow(workflowRun).persist().get();
     Step stepReady =
-        injectExecutionStep.ready(stepTemplate, "{\"input\" : \"do defined\"}", savedWorkflowRun);
+        injectExecutionStep.ready(stepTemplate, "{\"input\" : \"do defined\"}", workflowRun);
     String injectorId =
         StepService.getField(
             stepReady.getData(), "inject_injector_contract.injector_contract_injector");
@@ -538,30 +437,21 @@ public class InjectExecutionStepTest {
         StepService.setField(
             stepReady.getData(), "inject_injector_contract.injector_contract_injector", ""));
     injectExecutionStep.run(stepReady);
+
+    // ASSERT
     assertThat(logAppender.list)
         .anyMatch(event -> event.getMessage().contains("Injector not found for injectorId "));
   }
 
   @Test
   public void shouldFailInjectStatusAndReturnNull_whenExecutorThrowsException() throws Exception {
+    // PREPARE
     RuntimeException exception = new RuntimeException("direct execute throw an exception");
 
     doThrow(exception).when(executor).directExecute(any());
 
     Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
-    Workflow savedWorkflowTemplate =
-        workflowComposer
-            .forWorkflow(workflowTemplate)
-            .withWorkflowTemplate(
-                workflowComposer
-                    .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
-                    .withSimulation(
-                        exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise())))
-            .withSimulation(exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
-            .persist()
-            .get();
 
-    Exercise simulation = savedWorkflowTemplate.getSimulation();
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
     StepsCreateInput.StepCreateInput step =
@@ -575,23 +465,17 @@ public class InjectExecutionStepTest {
             .type(ConditionType.MAPPER)
             .build();
     step.setConditions(Collections.singletonList(conditionMapper));
+
+    // ACT
     Step stepTemplate = injectExecutionStep.create(step, workflowTemplate);
 
-    Workflow workflowRun =
-        Workflow.builder()
-            .status(WorkflowStatus.RUN)
-            .version(0)
-            .isEdited(false)
-            .simulation(simulation)
-            .workflowCreatedAt(Instant.now())
-            .workflowUpdatedAt(Instant.now())
-            .build();
-
-    Workflow savedWorkflowRun = workflowComposer.forWorkflow(workflowRun).persist().get();
+    Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+    workflowRun.setSimulation(workflowTemplate.getSimulation());
     Step stepReady =
-        injectExecutionStep.ready(stepTemplate, "{\"input\" : \"do defined\"}", savedWorkflowRun);
+        injectExecutionStep.ready(stepTemplate, "{\"input\" : \"do defined\"}", workflowRun);
     Step stepRun = injectExecutionStep.run(stepReady);
 
+    // ASSERT
     assertNull(stepRun);
 
     verify(executor).directExecute(any());
@@ -615,21 +499,8 @@ public class InjectExecutionStepTest {
    */
   @Test
   public void updateTest() throws JsonProcessingException {
-
+    // PREPARE
     Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
-    Workflow savedWorkflowTemplate =
-        workflowComposer
-            .forWorkflow(workflowTemplate)
-            .withWorkflowTemplate(
-                workflowComposer
-                    .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
-                    .withSimulation(
-                        exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise())))
-            .withSimulation(exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
-            .persist()
-            .get();
-
-    Exercise simulation = savedWorkflowTemplate.getSimulation();
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
     StepsCreateInput.StepCreateInput step =
@@ -643,41 +514,19 @@ public class InjectExecutionStepTest {
             .type(ConditionType.MAPPER)
             .build();
     step.setConditions(Collections.singletonList(conditionMapper));
+    // ACT
     Step stepTemplate = injectExecutionStep.create(step, workflowTemplate);
 
-    Workflow workflowRun =
-        Workflow.builder()
-            .status(WorkflowStatus.RUN)
-            .version(0)
-            .isEdited(false)
-            .simulation(simulation)
-            .workflowCreatedAt(Instant.now())
-            .workflowUpdatedAt(Instant.now())
-            .build();
-
-    Workflow savedWorkflowRun = workflowComposer.forWorkflow(workflowRun).persist().get();
+    Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
     Step stepReady =
-        injectExecutionStep.ready(stepTemplate, "{\"input\" : \"do defined\"}", savedWorkflowRun);
+        injectExecutionStep.ready(stepTemplate, "{\"input\" : \"do defined\"}", workflowRun);
     stepReady = injectExecutionStep.run(stepReady);
     stepReady.setStatus(StepStatus.RUN);
     Step stepRun = stepReady;
     Step runUpdated = injectExecutionStep.update(stepRun);
+    // ASSERT
     assertNotNull(StepService.getField(runUpdated.getOutput(), "outputs.agent_id"));
     assertEquals("testValue", StepService.getField(runUpdated.getOutput(), "outputs.message.test"));
-  }
-
-  @Test
-  public void injectPayloadCommand() {
-    // -- PREPARE -
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-
-    Command payload =
-        (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains)).get();
-
-    List<String> attackPatternsIds =
-        payload.getAttackPatterns().stream().map(AttackPattern::getId).toList();
-    PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
   }
 
   public static InjectorContract getInjectorContract() throws JsonProcessingException {

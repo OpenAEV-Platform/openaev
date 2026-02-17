@@ -3,10 +3,8 @@ package io.openaev.service.chaining;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.QueueConfig;
-import io.openaev.config.RabbitmqConfig;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
 import io.openaev.rest.helper.queue.BatchQueueService;
@@ -31,11 +29,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @DisplayName("QueueChainingService Tests")
 class QueueChainingServiceTest {
 
-  @Mock private RabbitmqConfig rabbitmqConfig;
-
   @Mock private OpenAEVConfig openAEVConfig;
-
-  @Mock private ObjectMapper objectMapper;
 
   @Mock private BatchQueueService<StepEvent> delayQueueService;
 

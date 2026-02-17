@@ -2,15 +2,10 @@ package io.openaev.service.chaining;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.google.common.hash.Hashing;
 import com.google.gson.Gson;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import io.openaev.database.model.StepStateEntries;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -88,7 +83,7 @@ public class StepServiceParserTest {
   }
 
   @Test
-  public void getField() {
+  public void getFieldFrom_ObjectAndArray() {
 
     String jsonString =
         """
@@ -116,7 +111,7 @@ public class StepServiceParserTest {
   }
 
   @Test
-  public void getFieldOutput() {
+  public void shouldIgnoreOutputsWithoutRequestedField() {
 
     String jsonString =
         """
@@ -151,7 +146,7 @@ public class StepServiceParserTest {
   }
 
   @Test
-  public void getFieldsOutput() {
+  public void shouldGetLastOutputsFind() {
 
     String jsonString =
         """
@@ -164,7 +159,7 @@ public class StepServiceParserTest {
             {
               "message": {
                 "stderr": "",
-                "stdout": "filigran\\n",
+                "stdout": "filigran1\\n",
                 "exit_code": 0
               },
               "agent_id": "ba727180-73db-4c37-940b-c4eb279a23a8"
@@ -172,48 +167,64 @@ public class StepServiceParserTest {
             {
               "message": {
                 "stderr": "",
-                "stdout": "filigran\\n",
+                "stdout": "filigran2\\n",
                 "exit_code": 0
               },
+              "agent_id": "ba727180-73db-4c37-940b-c4eb279a23a8"
+            },
+            {
+              "message": "Payload completed",
               "agent_id": "ba727180-73db-4c37-940b-c4eb279a23a8"
             }
           ]
         }
         """;
 
-    Map<String, Object> fields = StepService.getFields(jsonString, "outputs.message.stdout");
-    Map<String, Object> inputs = new HashMap<>();
-
-    for (Map.Entry<String, Object> entry : fields.entrySet()) {
-      String key = entry.getKey();
-
-      if (!key.equals("outputs.message.stdout")) {
-        Pattern p = Pattern.compile("^(outputs\\.\\d+)");
-        Matcher m = p.matcher(key);
-        if (m.find()) {
-          String keyOutputs = m.group(1);
-          String outputUsed = StepService.getField(jsonString, keyOutputs);
-          JsonElement elements = gson.toJsonTree(outputUsed);
-          JsonObject jsonObject = new JsonObject();
-          jsonObject.add("outputs", elements);
-
-          inputs.put(key, jsonObject.toString());
-        }
-      }
-    }
-    System.out.println(inputs);
-    long hash = hashExecution("user" + "192.168.123.131");
-    long hash1 = hashExecution("filigran" + "192.168.123.132");
-    long hash2 = hashExecution("user" + "192.168.123.131");
-    long hash3 = hashExecution("filigran" + "192.168.123.132");
-    System.out.println(hash);
-    System.out.println(hash1);
-    System.out.println(hash2);
-    System.out.println(hash3);
+    String value = StepService.getField(jsonString, "outputs.message.stdout");
+    String result =
+        """
+        filigran2
+        """;
+    assertEquals(result, value, "Get last field value find");
   }
 
-  private long hashExecution(String value) {
-    return Hashing.murmur3_128().hashString(value, StandardCharsets.UTF_8).asLong();
+  @Test
+  public void shouldGetAllOutputsPathFind() {
+
+    String jsonString =
+        """
+        {
+          "outputs": [
+            {
+              "message": "Implant is up and starting execution",
+              "agent_id": "ba727180-73db-4c37-940b-c4eb279a23a8"
+            },
+            {
+              "message": {
+                "stderr": "",
+                "stdout": "filigran1\\n",
+                "exit_code": 0
+              },
+              "agent_id": "ba727180-73db-4c37-940b-c4eb279a23a8"
+            },
+            {
+              "message": {
+                "stderr": "",
+                "stdout": "filigran2\\n",
+                "exit_code": 0
+              },
+              "agent_id": "ba727180-73db-4c37-940b-c4eb279a23a8"
+            },
+            {
+              "message": "Payload completed",
+              "agent_id": "ba727180-73db-4c37-940b-c4eb279a23a8"
+            }
+          ]
+        }
+        """;
+
+    Map<String, Object> values = StepService.getFields(jsonString, "outputs.message.stdout");
+    assertEquals(3, values.size(), "Get all path for requested field");
   }
 
   @Test
@@ -227,7 +238,6 @@ public class StepServiceParserTest {
     StepStateEntries stateEntries =
         new StepStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>(), executionKeys);
 
-    System.out.println("output1");
     stepStateService.newOutput(
         stateEntries,
         "{\"outputs\": {\"message\": {\"stdout\": \"filigran\"}}}",
@@ -237,7 +247,6 @@ public class StepServiceParserTest {
     assertEquals(1, stateEntries.getInputs().size());
     assertTrue(stateEntries.getInputs().get(0).getValues().contains("filigran"));
 
-    System.out.println("output2");
     stepStateService.newOutput(
         stateEntries,
         "{\"outputs\": {\"message\": {\"exit\": \"0\"}}}",
@@ -247,7 +256,6 @@ public class StepServiceParserTest {
     assertEquals(2, stateEntries.getInputs().size());
     assertTrue(stateEntries.getInputByKey("exit").getValues().contains("0"));
 
-    System.out.println("output3");
     stepStateService.newOutput(
         stateEntries,
         "{\"outputs\": {\"message\": {\"port\": \"445\", \"ip\": \"192.168.123.131\"}}}",
@@ -259,7 +267,6 @@ public class StepServiceParserTest {
     assertTrue(c1.getValues().contains(new StepStateEntries.Pair("port", "445")));
     assertTrue(c1.getValues().contains(new StepStateEntries.Pair("ip", "192.168.123.131")));
 
-    System.out.println("output4");
     stepStateService.newOutput(
         stateEntries,
         "{\"outputs\": {\"message\": {\"port\": \"445\", \"ip\": \"192.168.123.131\"}}}",
@@ -269,7 +276,6 @@ public class StepServiceParserTest {
     assertEquals(
         1, stateEntries.getCorrelated().size(), "Computed identique ne doit pas être dupliqué");
 
-    System.out.println("output5");
     stepStateService.newOutput(
         stateEntries,
         "{\"outputs\": {\"message\": {\"port\": \"135\", \"ip\": \"192.168.123.132\"}}}",

@@ -125,9 +125,10 @@ public class ConditionService {
       Workflow workflowRun,
       StepService stepService) {
     List<Condition> conditionTemplate = findAllByStepId(nextStepTemplateToExecute.getId());
-    List<Condition> conditionsExecution = new ArrayList<>();
     // No condition means direct execution:
     if (conditionTemplate == null || conditionTemplate.isEmpty()) return new ArrayList<>();
+
+    List<Condition> conditionsExecution = new ArrayList<>();
     List<Condition> timeConditions =
         conditionTemplate.stream().filter(this::isTimeCondition).toList();
 
