@@ -215,6 +215,22 @@ jobs:
       - kubernetes/install_kubectl
       - run: kubectl --server=https://api.staging.eu-west.filigran.io --token=$K8S_TOKEN_PRE_RELEASE -n customer-prerelease-oaev rollout restart deployment -l app=openaev
 
+  deploy_dev_aws:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - kubernetes/install-kubectl
+      - add_ssh_keys:
+          fingerprints:
+            - "SHA256:c0OR4Li435CmcyxxauoU5/F6SS8d2OSx+uTmbBYILvU"
+      - run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan -H bastion.dev-oaev-aws.filigran.io >> ~/.ssh/known_hosts
+          cat ~/.ssh/known_hosts
+          ssh admin@bastion.dev-oaev-aws.filigran.io "kubectl -n customer-dev-oaev-aws rollout restart deployment -l app=openaev"
+
   docker_build_platform:
     working_directory: ~/openaev_docker
     machine:
@@ -546,6 +562,9 @@ workflows:
           requires:
             - docker_build_platform_rolling
       - deploy_prerelease:
+          requires:
+            - docker_build_platform_prerelease
+      - deploy_dev_aws:
           requires:
             - docker_build_platform_prerelease
       - notify_rolling:
