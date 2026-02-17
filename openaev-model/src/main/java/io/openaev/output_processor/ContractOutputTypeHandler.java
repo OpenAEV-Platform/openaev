@@ -1,4 +1,4 @@
-package io.openaev.structured_output_parsers;
+package io.openaev.output_processor;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.ContractOutputField;
@@ -11,6 +11,9 @@ import java.util.Set;
  * separates the processing logic from the enum definition.
  */
 public interface ContractOutputTypeHandler {
+
+  /** Get the label (matches ContractOutputType enum) */
+  String getLabel();
 
   /** Get the type (matches ContractOutputType enum) */
   ContractOutputType getType();

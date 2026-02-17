@@ -1,4 +1,4 @@
-package io.openaev.structured_output_parsers;
+package io.openaev.output_processor;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.ContractOutputTechnicalType;
@@ -8,14 +8,15 @@ import org.apache.commons.validator.routines.InetAddressValidator;
 import org.springframework.stereotype.Component;
 
 @Component
-public class IPv6OutputTypeHandler extends AbstractContractOutputTypeHandler
+public class IPv4OutputTypeHandler extends AbstractContractOutputTypeHandler
     implements FindingCapable {
 
   private static final InetAddressValidator VALIDATOR = InetAddressValidator.getInstance();
 
-  public IPv6OutputTypeHandler() {
+  public IPv4OutputTypeHandler() {
     super(
-        ContractOutputType.IPv6,
+        "ipv4",
+        ContractOutputType.IPv4,
         ContractOutputTechnicalType.Text,
         Set.of(),
         true,
@@ -24,7 +25,7 @@ public class IPv6OutputTypeHandler extends AbstractContractOutputTypeHandler
 
   @Override
   public boolean validate(JsonNode jsonNode) {
-    return VALIDATOR.isValidInet6Address(jsonNode.asText());
+    return VALIDATOR.isValidInet4Address(jsonNode.asText());
   }
 
   @Override

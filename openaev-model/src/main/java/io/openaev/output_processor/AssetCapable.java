@@ -1,4 +1,4 @@
-package io.openaev.structured_output_parsers;
+package io.openaev.output_processor;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.Asset;
@@ -9,6 +9,6 @@ import io.openaev.database.model.Asset;
  */
 public interface AssetCapable {
 
-  /** Convert JSON node to asset */
+  /** Find or Create Asset from jsonNode */
   Asset toAsset(JsonNode jsonNode);
 }

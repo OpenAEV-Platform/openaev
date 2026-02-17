@@ -1,4 +1,4 @@
-package io.openaev.structured_output_parsers;
+package io.openaev.output_processor;
 
 /**
  * Defines the different processing contexts for contract output types. Each context represents a

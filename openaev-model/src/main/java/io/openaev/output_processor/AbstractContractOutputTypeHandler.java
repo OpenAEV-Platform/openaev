@@ -1,4 +1,4 @@
-package io.openaev.structured_output_parsers;
+package io.openaev.output_processor;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.ContractOutputField;
@@ -14,6 +14,7 @@ import java.util.Set;
 /** Abstract base class providing common functionality for contract output type handlers. */
 public abstract class AbstractContractOutputTypeHandler implements ContractOutputTypeHandler {
 
+  protected final String label;
   protected final ContractOutputType type;
   protected final ContractOutputTechnicalType technicalType;
   protected final Set<ContractOutputField> fields;
@@ -21,16 +22,23 @@ public abstract class AbstractContractOutputTypeHandler implements ContractOutpu
   protected final Set<ProcessingContext> supportedContexts;
 
   protected AbstractContractOutputTypeHandler(
+      String label,
       ContractOutputType type,
       ContractOutputTechnicalType technicalType,
       Set<ContractOutputField> fields,
       boolean isFindingCompatible,
       Set<ProcessingContext> supportedContexts) {
+    this.label = label;
     this.type = type;
     this.technicalType = technicalType;
     this.fields = fields;
     this.isFindingCompatible = isFindingCompatible;
     this.supportedContexts = Collections.unmodifiableSet(supportedContexts);
+  }
+
+  @Override
+  public String getLabel() {
+    return label;
   }
 
   @Override

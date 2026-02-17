@@ -1,4 +1,4 @@
-package io.openaev.structured_output_parsers;
+package io.openaev.output_processor;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.Asset;
@@ -13,6 +13,7 @@ public class AssetOutputTypeHandler extends AbstractContractOutputTypeHandler
 
   public AssetOutputTypeHandler() {
     super(
+        "asset",
         ContractOutputType.Asset,
         ContractOutputTechnicalType.Object,
         Set.of(),

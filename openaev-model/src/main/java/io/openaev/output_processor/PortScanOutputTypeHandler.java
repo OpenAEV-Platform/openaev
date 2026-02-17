@@ -1,4 +1,4 @@
-package io.openaev.structured_output_parsers;
+package io.openaev.output_processor;
 
 import static org.springframework.util.StringUtils.hasText;
 
@@ -15,6 +15,7 @@ public class PortScanOutputTypeHandler extends AbstractContractOutputTypeHandler
 
   public PortScanOutputTypeHandler() {
     super(
+        "portscan",
         ContractOutputType.PortsScan,
         ContractOutputTechnicalType.Object,
         Set.of(

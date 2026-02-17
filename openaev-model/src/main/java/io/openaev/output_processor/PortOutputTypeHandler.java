@@ -1,4 +1,4 @@
-package io.openaev.structured_output_parsers;
+package io.openaev.output_processor;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.ContractOutputTechnicalType;
@@ -12,6 +12,7 @@ public class PortOutputTypeHandler extends AbstractContractOutputTypeHandler
 
   public PortOutputTypeHandler() {
     super(
+        "port",
         ContractOutputType.Port,
         ContractOutputTechnicalType.Number,
         Set.of(),
