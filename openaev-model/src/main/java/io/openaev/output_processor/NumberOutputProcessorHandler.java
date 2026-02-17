@@ -7,12 +7,11 @@ import java.util.Set;
 import org.springframework.stereotype.Component;
 
 @Component
-public class NumberOutputProcessorHandler extends AbstractStructuredOutputProcessorHandler
+public class NumberOutputProcessorHandler extends AbstractOutputProcessorHandler
     implements FindingCapable {
 
   public NumberOutputProcessorHandler() {
     super(
-        "number",
         ContractOutputType.Number,
         ContractOutputTechnicalType.Number,
         Set.of(),

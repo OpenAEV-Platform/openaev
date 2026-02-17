@@ -10,12 +10,11 @@ import java.util.Set;
 import org.springframework.stereotype.Component;
 
 @Component
-public class CVEOutputProcessorHandler extends AbstractStructuredOutputProcessorHandler
+public class CVEOutputProcessorHandler extends AbstractOutputProcessorHandler
     implements FindingCapable, ExpectationCapable {
 
   public CVEOutputProcessorHandler() {
     super(
-        "cve",
         ContractOutputType.CVE,
         ContractOutputTechnicalType.Object,
         Set.of(

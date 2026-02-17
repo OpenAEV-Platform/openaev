@@ -8,12 +8,11 @@ import java.util.Set;
 import org.springframework.stereotype.Component;
 
 @Component
-public class AssetOutputProcessorHandler extends AbstractStructuredOutputProcessorHandler
+public class AssetOutputProcessorHandler extends AbstractOutputProcessorHandler
     implements AssetCapable {
 
   public AssetOutputProcessorHandler() {
     super(
-        "asset",
         ContractOutputType.Asset,
         ContractOutputTechnicalType.Object,
         Set.of(),

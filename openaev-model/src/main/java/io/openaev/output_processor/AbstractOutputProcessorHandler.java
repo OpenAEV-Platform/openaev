@@ -12,34 +12,25 @@ import java.util.List;
 import java.util.Set;
 
 /** Abstract base class providing common functionality for structured output processor handlers. */
-public abstract class AbstractStructuredOutputProcessorHandler
-    implements StructuredOutputProcessorHandler {
+public abstract class AbstractOutputProcessorHandler implements OutputProcessorHandler {
 
-  protected final String label;
   protected final ContractOutputType type;
   protected final ContractOutputTechnicalType technicalType;
   protected final Set<ContractOutputField> fields;
   protected final boolean isFindingCompatible;
   protected final Set<ProcessingContext> supportedContexts;
 
-  protected AbstractStructuredOutputProcessorHandler(
-      String label,
+  protected AbstractOutputProcessorHandler(
       ContractOutputType type,
       ContractOutputTechnicalType technicalType,
       Set<ContractOutputField> fields,
       boolean isFindingCompatible,
       Set<ProcessingContext> supportedContexts) {
-    this.label = label;
     this.type = type;
     this.technicalType = technicalType;
     this.fields = fields;
     this.isFindingCompatible = isFindingCompatible;
     this.supportedContexts = Collections.unmodifiableSet(supportedContexts);
-  }
-
-  @Override
-  public String getLabel() {
-    return label;
   }
 
   @Override

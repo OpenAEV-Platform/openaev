@@ -6,28 +6,46 @@ import io.swagger.v3.oas.annotations.Hidden;
 
 public enum ContractOutputType {
   @JsonProperty("text")
-  Text(TextOutputProcessorHandler.class),
+  Text("text", TextOutputProcessorHandler.class),
+
   @JsonProperty("number")
-  Number(NumberOutputProcessorHandler.class),
+  Number("number", NumberOutputProcessorHandler.class),
+
   @JsonProperty("port")
-  Port(PortOutputProcessorHandler.class),
+  Port("port", PortOutputProcessorHandler.class),
+
   @JsonProperty("portscan")
-  PortsScan(PortScanOutputProcessorHandler.class),
+  PortsScan("portscan", PortScanOutputProcessorHandler.class),
+
   @JsonProperty("ipv4")
-  IPv4(IPv4OutputProcessorHandler.class),
+  IPv4("ipv4", IPv4OutputProcessorHandler.class),
+
   @JsonProperty("ipv6")
-  IPv6(IPv6OutputProcessorHandler.class),
+  IPv6("ipv6", IPv6OutputProcessorHandler.class),
+
   @JsonProperty("credentials")
-  Credentials(CredentialsOutputProcessorHandler.class),
+  Credentials("credentials", CredentialsOutputProcessorHandler.class),
+
   @JsonProperty("cve")
-  CVE(CVEOutputProcessorHandler.class),
+  CVE("cve", CVEOutputProcessorHandler.class),
+
   @Hidden
   @JsonProperty("asset")
-  Asset(AssetOutputProcessorHandler.class);
+  Asset("asset", AssetOutputProcessorHandler.class);
 
-  public final Class<? extends StructuredOutputProcessorHandler> handlerClass;
+  private final String label;
+  private final Class<? extends OutputProcessorHandler> handlerClass;
 
-  ContractOutputType(Class<? extends StructuredOutputProcessorHandler> handlerClass) {
+  ContractOutputType(String label, Class<? extends OutputProcessorHandler> handlerClass) {
+    this.label = label;
     this.handlerClass = handlerClass;
+  }
+
+  public String getLabel() {
+    return label;
+  }
+
+  public Class<? extends OutputProcessorHandler> getHandlerClass() {
+    return handlerClass;
   }
 }

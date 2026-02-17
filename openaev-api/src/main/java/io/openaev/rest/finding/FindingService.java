@@ -12,14 +12,16 @@ import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
-import io.openaev.output_processor.OutputProcessor;
-import io.openaev.output_processor.OutputProcessorFactory;
+import io.openaev.output_processor.FindingCapable;
+import io.openaev.output_processor.OutputProcessorHandler;
+import io.openaev.output_processor.OutputProcessorHandlerRegistry;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
 import java.util.*;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
@@ -43,7 +45,7 @@ public class FindingService {
 
   @Resource private ObjectMapper mapper;
 
-  private final OutputProcessorFactory outputProcessorFactory;
+  private final OutputProcessorHandlerRegistry outputProcessorHandlerRegistry;
 
   // -- CRUD --
 
@@ -151,7 +153,13 @@ public class FindingService {
           if (!contractOutput.isFindingCompatible()) {
             return;
           }
-          OutputProcessor handler = outputProcessorFactory.getHandler(contractOutput.getType());
+          OutputProcessorHandler handler =
+              outputProcessorHandlerRegistry.getHandler(contractOutput.getType());
+
+          // Check if handler supports FINDING context
+          if (!(handler instanceof FindingCapable findingHandler)) {
+            return;
+          }
 
           if (contractOutput.isMultiple()) {
             JsonNode jsonNodes = structuredOutput.get(contractOutput.getField());
@@ -161,8 +169,9 @@ public class FindingService {
                   throw new IllegalArgumentException("Finding not correctly formatted");
                 }
                 Finding finding = FindingUtils.createFinding(contractOutput);
-                finding.setValue(handler.toFindingValue(jsonNode));
-                Finding linkedFinding = linkFindings(jsonNode, finding, handler);
+                finding.setValue(findingHandler.toFindingValue(jsonNode));
+                Finding linkedFinding =
+                    linkFindings(contractOutput, jsonNode, finding, findingHandler);
                 findings.add(linkedFinding);
               }
             }
@@ -172,8 +181,8 @@ public class FindingService {
               throw new IllegalArgumentException("Finding not correctly formatted");
             }
             Finding finding = FindingUtils.createFinding(contractOutput);
-            finding.setValue(handler.toFindingValue(jsonNode));
-            Finding linkedFinding = linkFindings(jsonNode, finding, handler);
+            finding.setValue(findingHandler.toFindingValue(jsonNode));
+            Finding linkedFinding = linkFindings(contractOutput, jsonNode, finding, findingHandler);
             findings.add(linkedFinding);
           }
         });
@@ -181,22 +190,29 @@ public class FindingService {
     return findings;
   }
 
-  private Finding linkFindings(JsonNode jsonNode, Finding finding, OutputProcessor handler) {
+  private Finding linkFindings(
+      InjectorContractContentOutputElement contractOutput,
+      JsonNode jsonNode,
+      Finding finding,
+      FindingCapable handler) {
     // Create links with assets
-    List<String> assetsIds = handler.toFindingAssets(jsonNode);
-    List<Optional<Asset>> assets = assetsIds.stream().map(this.assetRepository::findById).toList();
+    Set<String> assetsIds = handler.toFindingAssets(jsonNode);
+    Set<Optional<Asset>> assets =
+        assetsIds.stream().map(this.assetRepository::findById).collect(Collectors.toSet());
     if (!assets.isEmpty()) {
       finding.setAssets(assets.stream().filter(Optional::isPresent).map(Optional::get).toList());
     }
     // Create links with teams
-    List<String> teamsIds = handler.toFindingTeams(jsonNode);
-    List<Optional<Team>> teams = teamsIds.stream().map(this.teamRepository::findById).toList();
+    Set<String> teamsIds = handler.toFindingTeams(jsonNode);
+    Set<Optional<Team>> teams =
+        teamsIds.stream().map(this.teamRepository::findById).collect(Collectors.toSet());
     if (!teams.isEmpty()) {
       finding.setTeams(teams.stream().filter(Optional::isPresent).map(Optional::get).toList());
     }
     // Create links with users
-    List<String> usersIds = handler.toFindingUsers(jsonNode);
-    List<Optional<User>> users = usersIds.stream().map(this.userRepository::findById).toList();
+    Set<String> usersIds = handler.toFindingUsers(jsonNode);
+    Set<Optional<User>> users =
+        usersIds.stream().map(this.userRepository::findById).collect(Collectors.toSet());
     if (!users.isEmpty()) {
       finding.setUsers(users.stream().filter(Optional::isPresent).map(Optional::get).toList());
     }
@@ -255,8 +271,11 @@ public class FindingService {
 
     contractOutputElements.forEach(
         contractOutputElement -> {
-          OutputProcessor handler =
-              outputProcessorFactory.getHandler(contractOutputElement.getType());
+          OutputProcessorHandler handler =
+              outputProcessorHandlerRegistry.getHandler(contractOutputElement.getType());
+          if (!(handler instanceof FindingCapable findingHandler)) {
+            return;
+          }
 
           JsonNode jsonNodes = structuredOutput.get(contractOutputElement.getKey());
           if (jsonNodes == null || !jsonNodes.isArray()) {
@@ -274,7 +293,7 @@ public class FindingService {
                 inject,
                 getAssetLinkedToStructuredOutput(jsonNode, valueTargetedAssetsMap, agent),
                 contractOutputElement,
-                handler.toFindingValue(jsonNode));
+                findingHandler.toFindingValue(jsonNode));
           }
         });
   }
