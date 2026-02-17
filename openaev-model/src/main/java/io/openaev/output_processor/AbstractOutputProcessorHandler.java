@@ -30,6 +30,8 @@ public abstract class AbstractOutputProcessorHandler implements OutputProcessorH
     this.fields = fields;
     this.isFindingCompatible = isFindingCompatible;
     this.supportedContexts = Collections.unmodifiableList(supportedContexts);
+
+    validateContextInterfaces();
   }
 
   @Override
@@ -57,6 +59,29 @@ public abstract class AbstractOutputProcessorHandler implements OutputProcessorH
     return supportedContexts;
   }
 
+  private void validateContextInterfaces() {
+    if (supportedContexts.contains(ProcessingContext.FINDING)) {
+      if (!(this instanceof FindingCapable)) {
+        throw new IllegalStateException(
+            type.getLabel() + " declares FINDING context but does not implement FindingCapable");
+      }
+    }
+    if (supportedContexts.contains(ProcessingContext.ASSET)) {
+      if (!(this instanceof AssetCapable)) {
+        throw new IllegalStateException(
+            type.getLabel() + " declares ASSET context but does not implement AssetCapable");
+      }
+    }
+    if (supportedContexts.contains(ProcessingContext.EXPECTATION)) {
+      if (!(this instanceof ExpectationCapable)) {
+        throw new IllegalStateException(
+            type.getLabel()
+                + " declares EXPECTATION context but does not implement ExpectationCapable");
+      }
+    }
+  }
+
+  // Utility methods
   protected String buildString(@NotNull final JsonNode jsonNode) {
     if (jsonNode.isArray()) {
       List<String> values = new ArrayList<>();
