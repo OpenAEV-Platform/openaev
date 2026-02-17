@@ -138,7 +138,13 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
       // (we update this when the download implant script is launched on the endpoint)
       String executorCommandKey =
           Endpoint.PLATFORM_TYPE.Windows.name() + "." + Endpoint.PLATFORM_ARCH.x86_64.name();
-      String command = injector.getExecutorCommands().get(executorCommandKey);
+      String originalCommand = injector.getExecutorCommands().get(executorCommandKey);
+      // TODO : following 2 lines of code will have to be modified later. It's a quick fix to test
+      // in prerelease
+      String newCommand =
+          "$wc=New-Object System.Net.WebClient;$data=$wc.DownloadData($url);[io.file]::WriteAllBytes($filename,$data) | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\" -Direction Inbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\" -Direction Outbound -Program \"$location\\$filename\" -Action Allow | Out-Null;$psi = New-Object System.Diagnostics.ProcessStartInfo;$psi.FileName = \"$location\\$filename\";$psi.Arguments = \"--uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject}\";$psi.UseShellExecute = $false;$psi.RedirectStandardError = $true;$psi.RedirectStandardOutput = $true;$psi.RedirectStandardInput = $true;$proc = [System.Diagnostics.Process]::Start($psi);$stdout = $proc.StandardOutput.ReadToEndAsync();$stderr = $proc.StandardError.ReadToEndAsync();$proc.WaitForExit();exit $proc.ExitCode;";
+      String command =
+          originalCommand.substring(0, originalCommand.indexOf("$wc=New-Object")) + newCommand;
       // The default command to download the openaev implant and execute the attack is modified for
       // Cortex
       // - WINDOWS_ARCH: Cortex doesn't know the endpoint architecture so we include it to get the
