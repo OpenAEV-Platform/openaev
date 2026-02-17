@@ -15,6 +15,7 @@ class PayloadFormComponent {
   readonly attackPatternsField: Locator;
   readonly tagsField: Locator;
   readonly expectationsField: Locator;
+  readonly domainsField: Locator;
 
   // Commands tab fields
   readonly typeField: Locator;
@@ -42,6 +43,7 @@ class PayloadFormComponent {
     this.descriptionField = page.getByRole('textbox', { name: 'Description' });
     this.attackPatternsField = page.getByRole('combobox', { name: 'Attack patterns' });
     this.tagsField = page.getByRole('combobox', { name: 'Tags' });
+    this.domainsField = page.getByRole('combobox', { name: 'Domains' });
     this.expectationsField = page.getByRole('combobox', { name: 'Expectations *' });
 
     // Commands fields
@@ -72,6 +74,24 @@ class PayloadFormComponent {
   async switchToCommandsTab() {
     await this.commandsTab.click();
   };
+
+  async selectDomain(domains: string | string[]) {
+    const values = Array.isArray(domains) ? domains : [domains];
+
+    await Promise.all(
+      values.map(async (value) => {
+        await this.domainsField.click();
+        await this.domainsField.fill(value);
+
+        const option = this.page.getByRole('option', { name: value });
+
+        const selected = await option.getAttribute('aria-selected');
+        if (selected !== 'true') {
+          await option.click();
+        }
+      }),
+    );
+  }
 
   async selectCommandType(type: string) {
     await MuiFormHelpers.selectSingleOption(this.page, this.typeField, type);

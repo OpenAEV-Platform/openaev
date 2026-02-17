@@ -87,9 +87,9 @@ test.describe('Scenario - Teams management', () => {
   test.describe('Teams in Injects', () => {
     test('should only show scenario teams in inject form', async ({ page, createTeam }) => {
       const [team1, team2, team3] = await Promise.all([
-        createTeam('Team 1'),
-        createTeam('Team 2'),
-        createTeam('Team 3'),
+        createTeam(`Team 1 ${Date.now()}`),
+        createTeam(`Team 2 ${Date.now()}`),
+        createTeam(`Team 3 ${Date.now()}`),
       ]);
 
       // Add team1 and team2 to scenario context
@@ -141,7 +141,8 @@ test.describe('Scenario - Teams management', () => {
         createPlayer('lena@test.io'),
         createPlayer('anna@test.io'),
       ]);
-      const team = await createTeamWithMultiplePlayers('Team1', [player1.user_id, player2.user_id, player3.user_id]);
+      const nameTeam = `Team ${Date.now()}`;
+      const team = await createTeamWithMultiplePlayers(nameTeam, [player1.user_id, player2.user_id, player3.user_id]);
       // Add team to scenario
       await expect(scenarioPage.teamAddBtn).toBeVisible();
       await scenarioPage.addExistingTeam(team.team_name);
@@ -181,8 +182,8 @@ test.describe('Scenario - Teams management', () => {
         createPlayer('jade@test.io'),
         createPlayer('anna@test.io'),
       ]);
-      const team1 = await createTeamWithMultiplePlayers('Team1', [player1.user_id, player2.user_id, player3.user_id]);
-      const team2 = await createTeamWithMultiplePlayers('Team2', [player4.user_id, player5.user_id]);
+      const team1 = await createTeamWithMultiplePlayers(`Team1 ${Date.now()}`, [player1.user_id, player2.user_id, player3.user_id]);
+      const team2 = await createTeamWithMultiplePlayers(`Team2 ${Date.now()}`, [player4.user_id, player5.user_id]);
       // Add team to scenario
       await expect(scenarioPage.teamAddBtn).toBeVisible();
       await scenarioPage.addExistingTeam(team1.team_name);

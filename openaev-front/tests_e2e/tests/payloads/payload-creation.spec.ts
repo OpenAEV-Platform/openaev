@@ -131,8 +131,8 @@ test.describe('Payload form', () => {
       test(`${commandTypeLabel} - should validate required fields`, async () => {
         await payloadForm.switchToCommandsTab();
         await payloadForm.selectCommandType(commandTypeLabel);
-
         await payloadForm.save();
+        await payloadForm.switchToCommandsTab();
 
         await Promise.all([
           expect(MuiFormHelpers.getFieldError(payloadForm.platformsField)).toHaveText('Should not be empty'),
@@ -153,6 +153,7 @@ test.describe('Payload form', () => {
 
       await payloadForm.addArgument();
       await payloadForm.save();
+      await payloadForm.switchToCommandsTab();
 
       await expect(MuiFormHelpers.getFieldError(payloadForm.page.locator(`[name="payload_arguments.0.key"]`))).toHaveText('Should not be empty');
       await expect(MuiFormHelpers.getFieldError(payloadForm.page.locator(`[name="payload_arguments.0.default_value"]`))).toHaveText('Should not be empty');
@@ -168,6 +169,7 @@ test.describe('Payload form', () => {
 
       // Try to save (General tab is empty)
       await payloadForm.save();
+      await payloadForm.switchToCommandsTab();
 
       await expect(MuiFormHelpers.getFieldError(payloadForm.executorField)).toHaveText('Should not be empty');
       await payloadForm.selectExecutor('PowerShell');
@@ -182,6 +184,7 @@ test.describe('Payload form', () => {
   test('Complete Workflows - should create Command Line payload successfully', async ({ page }) => {
     const payloadName = `Test Payload ${Date.now()}`;
     await payloadForm.nameField.fill(payloadName);
+    await payloadForm.selectDomain('Cloud');
     await payloadForm.switchToCommandsTab();
     await payloadForm.selectCommandType('Command Line');
     await payloadForm.selectPlatform('Windows');

@@ -11,7 +11,7 @@ class InjectFormComponent {
     this.page = page;
     this.updateTargetTeamButton = this.page.getByRole('button', { name: 'Modify target teams' });
     this.saveButton = this.page.getByRole('button', { name: 'Update' });
-    this.allTeamButton = this.page.getByRole('checkbox', { name: 'All teams' });
+    this.allTeamButton = this.page.locator('input[name="inject_all_teams"]');
   }
 
   async save() {
@@ -19,7 +19,7 @@ class InjectFormComponent {
   }
 
   async switchAllTeamsCheckbox() {
-    await this.allTeamButton.click();
+    await this.allTeamButton.check();
   }
 }
 
