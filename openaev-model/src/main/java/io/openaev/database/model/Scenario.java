@@ -99,7 +99,7 @@ public class Scenario implements GrantableBase {
     /** High severity scenario. */
     @JsonProperty("high")
     high,
-    /** Critical severity scenario. */
+    /** Critical sevxerity scenario. */
     @JsonProperty("critical")
     critical,
   }
@@ -257,7 +257,11 @@ public class Scenario implements GrantableBase {
   private List<Grant> grants = new ArrayList<>();
 
   @Schema(implementation = String[].class)
-  @OneToMany(mappedBy = "scenario", fetch = FetchType.LAZY)
+  @OneToMany(
+      mappedBy = "scenario",
+      cascade = CascadeType.REMOVE,
+      orphanRemoval = true,
+      fetch = FetchType.LAZY)
   @JsonProperty("scenario_injects")
   @JsonSerialize(using = MultiIdListSerializer.class)
   @Getter(NONE)

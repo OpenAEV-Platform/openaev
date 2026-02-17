@@ -226,7 +226,11 @@ public class Exercise implements GrantableBase {
   private List<Grant> grants = new ArrayList<>();
 
   @Schema(implementation = String[].class)
-  @OneToMany(mappedBy = "exercise", fetch = FetchType.LAZY)
+  @OneToMany(
+      mappedBy = "exercise",
+      cascade = CascadeType.REMOVE,
+      orphanRemoval = true,
+      fetch = FetchType.LAZY)
   @JsonProperty("exercise_injects")
   @JsonSerialize(using = MultiIdListSerializer.class)
   private List<Inject> injects = new ArrayList<>();
