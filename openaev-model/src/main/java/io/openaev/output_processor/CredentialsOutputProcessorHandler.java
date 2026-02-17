@@ -8,10 +8,10 @@ import java.util.Set;
 import org.springframework.stereotype.Component;
 
 @Component
-public class CredentialsOutputTypeHandler extends AbstractContractOutputTypeHandler
+public class CredentialsOutputProcessorHandler extends AbstractStructuredOutputProcessorHandler
     implements FindingCapable {
 
-  public CredentialsOutputTypeHandler() {
+  public CredentialsOutputProcessorHandler() {
     super(
         "credentials",
         ContractOutputType.Credentials,

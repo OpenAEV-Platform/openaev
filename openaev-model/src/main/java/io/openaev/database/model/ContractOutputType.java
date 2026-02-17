@@ -6,28 +6,28 @@ import io.swagger.v3.oas.annotations.Hidden;
 
 public enum ContractOutputType {
   @JsonProperty("text")
-  Text(TextOutputTypeHandler.class),
+  Text(TextOutputProcessorHandler.class),
   @JsonProperty("number")
-  Number(NumberOutputTypeHandler.class),
+  Number(NumberOutputProcessorHandler.class),
   @JsonProperty("port")
-  Port(PortOutputTypeHandler.class),
+  Port(PortOutputProcessorHandler.class),
   @JsonProperty("portscan")
-  PortsScan(PortScanOutputTypeHandler.class),
+  PortsScan(PortScanOutputProcessorHandler.class),
   @JsonProperty("ipv4")
-  IPv4(IPv4OutputTypeHandler.class),
+  IPv4(IPv4OutputProcessorHandler.class),
   @JsonProperty("ipv6")
-  IPv6(IPv6OutputTypeHandler.class),
+  IPv6(IPv6OutputProcessorHandler.class),
   @JsonProperty("credentials")
-  Credentials(CredentialsOutputTypeHandler.class),
+  Credentials(CredentialsOutputProcessorHandler.class),
   @JsonProperty("cve")
-  CVE(CVEOutputTypeHandler.class),
+  CVE(CVEOutputProcessorHandler.class),
   @Hidden
   @JsonProperty("asset")
-  Asset(AssetOutputTypeHandler.class);
+  Asset(AssetOutputProcessorHandler.class);
 
-  public final Class<? extends ContractOutputTypeHandler> handlerClass;
+  public final Class<? extends StructuredOutputProcessorHandler> handlerClass;
 
-  ContractOutputType(Class<? extends ContractOutputTypeHandler> handlerClass) {
+  ContractOutputType(Class<? extends StructuredOutputProcessorHandler> handlerClass) {
     this.handlerClass = handlerClass;
   }
 }

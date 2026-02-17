@@ -7,10 +7,10 @@ import io.openaev.database.model.ContractOutputType;
 import java.util.Set;
 
 /**
- * Handler interface for processing contract output types in different contexts. This interface
+ * Handler interface for processing structured outputs in different contexts. This interface
  * separates the processing logic from the enum definition.
  */
-public interface ContractOutputTypeHandler {
+public interface StructuredOutputProcessorHandler {
 
   /** Get the label (matches ContractOutputType enum) */
   String getLabel();

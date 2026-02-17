@@ -11,8 +11,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-/** Abstract base class providing common functionality for contract output type handlers. */
-public abstract class AbstractContractOutputTypeHandler implements ContractOutputTypeHandler {
+/** Abstract base class providing common functionality for structured output processor handlers. */
+public abstract class AbstractStructuredOutputProcessorHandler
+    implements StructuredOutputProcessorHandler {
 
   protected final String label;
   protected final ContractOutputType type;
@@ -21,7 +22,7 @@ public abstract class AbstractContractOutputTypeHandler implements ContractOutpu
   protected final boolean isFindingCompatible;
   protected final Set<ProcessingContext> supportedContexts;
 
-  protected AbstractContractOutputTypeHandler(
+  protected AbstractStructuredOutputProcessorHandler(
       String label,
       ContractOutputType type,
       ContractOutputTechnicalType technicalType,

@@ -4,17 +4,20 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
 import java.util.Set;
+import org.apache.commons.validator.routines.InetAddressValidator;
 import org.springframework.stereotype.Component;
 
 @Component
-public class PortOutputTypeHandler extends AbstractContractOutputTypeHandler
+public class IPv6OutputProcessorHandler extends AbstractStructuredOutputProcessorHandler
     implements FindingCapable {
 
-  public PortOutputTypeHandler() {
+  private static final InetAddressValidator VALIDATOR = InetAddressValidator.getInstance();
+
+  public IPv6OutputProcessorHandler() {
     super(
-        "port",
-        ContractOutputType.Port,
-        ContractOutputTechnicalType.Number,
+        "ipv6",
+        ContractOutputType.IPv6,
+        ContractOutputTechnicalType.Text,
         Set.of(),
         true,
         Set.of(ProcessingContext.FINDING));
@@ -22,7 +25,7 @@ public class PortOutputTypeHandler extends AbstractContractOutputTypeHandler
 
   @Override
   public boolean validate(JsonNode jsonNode) {
-    return jsonNode != null;
+    return VALIDATOR.isValidInet6Address(jsonNode.asText());
   }
 
   @Override

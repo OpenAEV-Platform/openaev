@@ -7,10 +7,10 @@ import java.util.Set;
 import org.springframework.stereotype.Component;
 
 @Component
-public class NumberOutputTypeHandler extends AbstractContractOutputTypeHandler
+public class NumberOutputProcessorHandler extends AbstractStructuredOutputProcessorHandler
     implements FindingCapable {
 
-  public NumberOutputTypeHandler() {
+  public NumberOutputProcessorHandler() {
     super(
         "number",
         ContractOutputType.Number,

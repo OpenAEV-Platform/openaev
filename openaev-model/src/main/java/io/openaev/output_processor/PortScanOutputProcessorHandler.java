@@ -10,10 +10,10 @@ import java.util.Set;
 import org.springframework.stereotype.Component;
 
 @Component
-public class PortScanOutputTypeHandler extends AbstractContractOutputTypeHandler
+public class PortScanOutputProcessorHandler extends AbstractStructuredOutputProcessorHandler
     implements FindingCapable {
 
-  public PortScanOutputTypeHandler() {
+  public PortScanOutputProcessorHandler() {
     super(
         "portscan",
         ContractOutputType.PortsScan,
