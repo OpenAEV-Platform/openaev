@@ -69,27 +69,28 @@ public class ScenarioApiTest extends IntegrationTest {
     injectStatusComposer.reset();
     scenarioComposer.reset();
   }
-    private Scenario getScenario(@Nullable Scenario scenario, @Nullable Executor executor) {
-        Executor executorToRun = (executor == null) ? executorFixture.getDefaultExecutor() : executor;
-        Scenario scenarioToSet = (scenario == null) ? ScenarioFixture.getScenario() : scenario;
-        ScenarioComposer.Composer newScenarioComposer =
-                scenarioComposer
-                        .forScenario(scenarioToSet)
-                        .withInject(
-                                injectComposer
-                                        .forInject(InjectFixture.getDefaultInject())
-                                        .withEndpoint(
-                                                endpointComposer
-                                                        .forEndpoint(EndpointFixture.createEndpoint())
-                                                        .withAgent(
-                                                                agentComposer.forAgent(
-                                                                        AgentFixture.createDefaultAgentSession(executorToRun))))
-                                        .withInjectStatus(
-                                                injectStatusComposer.forInjectStatus(
-                                                        InjectStatusFixture.createDraftInjectStatus())))
-                        .persist();
-        return newScenarioComposer.get();
-    }
+
+  private Scenario getScenario(@Nullable Scenario scenario, @Nullable Executor executor) {
+    Executor executorToRun = (executor == null) ? executorFixture.getDefaultExecutor() : executor;
+    Scenario scenarioToSet = (scenario == null) ? ScenarioFixture.getScenario() : scenario;
+    ScenarioComposer.Composer newScenarioComposer =
+        scenarioComposer
+            .forScenario(scenarioToSet)
+            .withInject(
+                injectComposer
+                    .forInject(InjectFixture.getDefaultInject())
+                    .withEndpoint(
+                        endpointComposer
+                            .forEndpoint(EndpointFixture.createEndpoint())
+                            .withAgent(
+                                agentComposer.forAgent(
+                                    AgentFixture.createDefaultAgentSession(executorToRun))))
+                    .withInjectStatus(
+                        injectStatusComposer.forInjectStatus(
+                            InjectStatusFixture.createDraftInjectStatus())))
+            .persist();
+    return newScenarioComposer.get();
+  }
 
   @DisplayName("Create scenario succeed")
   @Test
@@ -278,16 +279,16 @@ public class ScenarioApiTest extends IntegrationTest {
         .andExpect(status().is2xxSuccessful());
   }
 
-    @DisplayName("Delete scenario with inject")
-    @Test
-    @WithMockUser(withCapabilities = {Capability.DELETE_ASSESSMENT})
-    void deleteScenarioWithInjectTest() throws Exception {
-        Scenario testScenario = getScenario(ScenarioFixture.getScheduledScenario(), null);
-        // -- EXECUTE 1 ASSERT --
-        this.mvc
-                .perform(delete(SCENARIO_URI + "/" + testScenario.getId()))
-                .andExpect(status().is2xxSuccessful());
-    }
+  @DisplayName("Delete scenario with inject")
+  @Test
+  @WithMockUser(withCapabilities = {Capability.DELETE_ASSESSMENT})
+  void deleteScenarioWithInjectTest() throws Exception {
+    Scenario testScenario = getScenario(ScenarioFixture.getScheduledScenario(), null);
+    // -- EXECUTE 1 ASSERT --
+    this.mvc
+        .perform(delete(SCENARIO_URI + "/" + testScenario.getId()))
+        .andExpect(status().is2xxSuccessful());
+  }
 
   @DisplayName("Check if a rule applies when a rule is found")
   @Test
