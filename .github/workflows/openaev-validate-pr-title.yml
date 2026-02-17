@@ -5,6 +5,8 @@ on:
     types: [opened, edited, reopened, ready_for_review, synchronize]
 jobs:
   validate-pr-title:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: "Generate a token"
