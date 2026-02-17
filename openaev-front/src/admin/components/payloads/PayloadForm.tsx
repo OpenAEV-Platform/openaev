@@ -52,6 +52,7 @@ const PayloadForm = ({
     payload_output_parsers: [],
     payload_execution_arch: 'ALL_ARCHITECTURES',
     remediations: new Map<string, DetectionRemediationInput>(),
+    payload_domains: [],
   },
 }: Props) => {
   const { t } = useFormatter();
@@ -107,11 +108,18 @@ const PayloadForm = ({
     },
   );
 
+  const payloadDomainZodObject = z.object({
+    domain_id: z.string(),
+    domain_name: z.string(),
+    domain_color: z.string(),
+  });
+
   const baseSchema = {
     payload_name: z.string().min(1, { message: t('Should not be empty') }).describe('General-tab'),
     payload_description: z.string().optional().describe('General-tab'),
     payload_attack_patterns: z.string().array().optional(),
     payload_tags: z.string().array().optional(),
+    payload_domains: z.array(payloadDomainZodObject).refine(arr => arr.length > 0, t('Should not be empty')).describe('General-tab'),
     payload_expectations: z.enum(['PREVENTION', 'DETECTION', 'VULNERABILITY', 'MANUAL', 'TEXT', 'CHALLENGE', 'DOCUMENT', 'ARTICLE']).array().optional(),
     payload_platforms: z.enum(['Linux', 'Windows', 'MacOS', 'Container', 'Service', 'Generic', 'Internal', 'Unknown']).array().min(1, { message: t('Should not be empty') }).describe('Commands-tab'),
     payload_execution_arch: z.enum(['x86_64', 'arm64', 'ALL_ARCHITECTURES'], { message: t('Should not be empty') }).describe('Commands-tab'),
@@ -159,7 +167,7 @@ const PayloadForm = ({
   const {
     handleSubmit,
     control,
-    formState: { errors, isDirty, isSubmitting, defaultValues, dirtyFields },
+    formState: { isDirty, isSubmitting, defaultValues, dirtyFields },
   } = methods;
 
   const getTabForField = (fieldName: string): string | undefined => {
@@ -198,17 +206,34 @@ const PayloadForm = ({
   }];
   const { currentTab, handleChangeTab } = useTabs(tabEntries[0].key);
 
+  const focusFirstErrorTab = () => {
+    const fields = Object.keys(
+      methods.getValues(),
+    ) as (keyof PayloadCreateInput)[];
+
+    const firstErrorField = fields.find(
+      field => methods.getFieldState(field).error,
+    );
+    if (!firstErrorField) return;
+
+    const rootField = String(firstErrorField).split('.')[0];
+    const tabName = getTabForField(rootField);
+    if (!tabName) return;
+
+    handleChangeTab(tabName);
+  };
+
   const handleSubmitWithoutDefault = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const isValid = await methods.trigger();
     if (!isValid) {
-      const firstErrorField = Object.keys(errors)[0];
-      const tabName = getTabForField(firstErrorField);
-      if (tabName) handleChangeTab(tabName);
-    } else {
-      handleSubmit(onSubmit)(e);
+      focusFirstErrorTab();
+      return;
     }
+
+    await handleSubmit(onSubmit)(e);
   };
+
   const trackedUseWatch = useWatch({
     control,
     name: trackedFields as unknown as keyof PayloadCreateInput,

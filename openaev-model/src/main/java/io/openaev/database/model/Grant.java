@@ -2,7 +2,7 @@ package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import io.openaev.helper.MonoIdDeserializer;
+import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -27,7 +27,6 @@ public class Grant implements Base {
     ATOMIC_TESTING,
     PAYLOAD,
     UNKNOWN;
-    ;
 
     public static GRANT_RESOURCE_TYPE fromRbacResourceType(ResourceType resourceType) {
       return switch (resourceType) {
@@ -98,7 +97,7 @@ public class Grant implements Base {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "grant_group")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("grant_group")
   @Schema(type = "string")
   private Group group;

@@ -25,6 +25,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class InjectorContractComposer extends ComposerBase<InjectorContract> {
+
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private EntityManager entityManager;
   @Autowired private InjectorRepository injectorRepository;

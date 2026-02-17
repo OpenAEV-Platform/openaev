@@ -2,12 +2,16 @@ package io.openaev.scheduler.jobs;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.InjectDependenciesRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.SecurityCoverageSendJobRepository;
 import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.scheduler.jobs.exception.ErrorMessagesPreExecutionException;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import jakarta.persistence.EntityManager;
@@ -16,9 +20,13 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.*;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.quartz.JobExecutionException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
@@ -38,6 +46,13 @@ class InjectsExecutionJobTest extends IntegrationTest {
   @Autowired private EntityManager entityManager;
   @Autowired private SecurityCoverageSendJobRepository securityCoverageSendJobRepository;
   @Autowired private SecurityCoverageComposer securityCoverageComposer;
+
+  @Mock private InjectDependenciesRepository injectDependenciesRepository;
+
+  @BeforeAll
+  public void init() {
+    MockitoAnnotations.openMocks(this);
+  }
 
   @DisplayName("Not start children injects at the same time as parent injects")
   @Test
@@ -183,5 +198,39 @@ class InjectsExecutionJobTest extends IntegrationTest {
     Optional<SecurityCoverageSendJob> job =
         securityCoverageSendJobRepository.findBySimulation(exerciseWrapper.get());
     assertThat(job).isEmpty();
+  }
+
+  @Test
+  @DisplayName(
+      "When auto closing of NON stix-created simulation, DOES NOT trigger stix coverage job")
+  public void shouldRaiseExceptionIfExpectationMalicious() {
+    ReflectionTestUtils.setField(job, "injectDependenciesRepository", injectDependenciesRepository);
+    Inject inject = injectComposer.forInject(InjectFixture.getDefaultInject()).get();
+    inject.setId(UUID.randomUUID().toString());
+    InjectDependency injectDependency = new InjectDependency();
+    injectDependency
+        .getCompositeId()
+        .setInjectParent(
+            InjectFixture.createInjectWithManualExpectation(
+                InjectorContractFixture.createDefaultInjectorContract(),
+                "parent",
+                "T(java.lang.Runtime).getRuntime().exec('gedit');"));
+    injectDependency.getCompositeId().setInjectChildren(InjectFixture.getDefaultInject());
+    injectDependency.setInjectDependencyCondition(
+        new InjectDependencyConditions.InjectDependencyCondition());
+    InjectDependencyConditions.Condition condition = new InjectDependencyConditions.Condition();
+    condition.setOperator(InjectDependencyConditions.DependencyOperator.eq);
+    condition.setValue(true);
+    condition.setKey("T(java.lang.Runtime).getRuntime().exec('gedit');");
+    injectDependency.getInjectDependencyCondition().setConditions(List.of(condition));
+    when(injectDependenciesRepository.findParents(any())).thenReturn(List.of(injectDependency));
+    try {
+      this.job.checkErrorMessagesPreExecution(UUID.randomUUID().toString(), inject);
+      fail("Should have raised an exception");
+    } catch (Exception e) {
+      assertThat(e).isInstanceOf(ErrorMessagesPreExecutionException.class);
+      assertThat(e.getMessage())
+          .isEqualTo("There was an error during the evaluation of the condition of the inject");
+    }
   }
 }

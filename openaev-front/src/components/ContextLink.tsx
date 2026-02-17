@@ -1,4 +1,4 @@
-import { Link as MUILink, Tooltip, Typography } from '@mui/material';
+import { Link as MUILink, Tooltip } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { Link } from 'react-router';
 
@@ -19,13 +19,15 @@ const ContextLink: FunctionComponent<Props> = ({
         component={Link}
         to={url}
         underline="none"
+        sx={{
+          color: 'primary.main',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          display: 'inline-block',
+          whiteSpace: 'nowrap',
+        }}
       >
-        <Typography
-          overflow="hidden"
-          textOverflow="ellipsis"
-        >
-          {truncate(title, 30)}
-        </Typography>
+        {truncate(title, 30)}
       </MUILink>
     </Tooltip>
   );

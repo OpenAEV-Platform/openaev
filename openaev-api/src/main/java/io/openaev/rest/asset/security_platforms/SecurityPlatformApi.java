@@ -17,7 +17,6 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
@@ -26,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RequiredArgsConstructor
@@ -50,7 +50,7 @@ public class SecurityPlatformApi {
 
   @PostMapping(SECURITY_PLATFORM_URI)
   @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.SECURITY_PLATFORM)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public SecurityPlatform createSecurityPlatform(
       @Valid @RequestBody final SecurityPlatformInput input) {
     SecurityPlatform securityPlatform = new SecurityPlatform();
@@ -72,7 +72,7 @@ public class SecurityPlatformApi {
 
   @PostMapping(SECURITY_PLATFORM_URI + "/upsert")
   @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.SECURITY_PLATFORM)
-  @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public SecurityPlatform upsertSecurityPlatform(
       @Valid @RequestBody SecurityPlatformUpsertInput input) {
     Optional<SecurityPlatform> securityPlatform =
@@ -142,7 +142,7 @@ public class SecurityPlatformApi {
       resourceId = "#securityPlatformId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SECURITY_PLATFORM)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public SecurityPlatform updateSecurityPlatform(
       @PathVariable @NotBlank final String securityPlatformId,
       @Valid @RequestBody final SecurityPlatformInput input) {
@@ -168,7 +168,7 @@ public class SecurityPlatformApi {
       resourceId = "#securityPlatformId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SECURITY_PLATFORM)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public void deleteSecurityPlatform(@PathVariable @NotBlank final String securityPlatformId) {
     this.securityPlatformRepository.deleteById(securityPlatformId);
   }

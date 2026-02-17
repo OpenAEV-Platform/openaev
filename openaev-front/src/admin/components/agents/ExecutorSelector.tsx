@@ -4,7 +4,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../components/i18n';
 import PlatformIcon from '../../../components/PlatformIcon';
-import { type Executor } from '../../../utils/api-types';
+import { type ExecutorOutput } from '../../../utils/api-types';
 import EEChip from '../common/entreprise_edition/EEChip';
 import ExecutorBanner from './ExecutorBanner';
 
@@ -26,8 +26,8 @@ const useStyles = makeStyles()(theme => ({
 }));
 
 interface ExecutorSelectorProps {
-  executor: Executor;
-  setSelectedExecutor: (executor: Executor) => void;
+  executor: ExecutorOutput;
+  setSelectedExecutor: (executor: ExecutorOutput) => void;
   showEEChip?: boolean;
 }
 

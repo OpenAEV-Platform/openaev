@@ -14,7 +14,7 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.ChannelService;
-import io.openaev.service.ScenarioService;
+import io.openaev.service.scenario.ScenarioService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;

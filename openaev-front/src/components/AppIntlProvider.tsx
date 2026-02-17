@@ -4,6 +4,7 @@ import 'cronstrue/locales/es';
 import 'cronstrue/locales/de';
 import 'cronstrue/locales/it';
 import 'cronstrue/locales/ja';
+import 'cronstrue/locales/ko';
 import 'cronstrue/locales/ru';
 import 'cronstrue/locales/zh_CN';
 

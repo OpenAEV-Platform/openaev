@@ -29,6 +29,8 @@ import io.openaev.injector_contract.fields.*;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractSelect;
 import io.openaev.injector_contract.fields.ContractTargetedAsset;
+import io.openaev.integration.Manager;
+import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -42,13 +44,35 @@ import org.springframework.util.CollectionUtils;
 public class InjectorContractFixture {
 
   @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
 
   public InjectorContract getWellKnownSingleEmailContract() {
-    return injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow();
+    Optional<InjectorContract> injectorContract =
+        injectorContractRepository.findById(EMAIL_DEFAULT);
+    if (injectorContract.isPresent()) {
+      return injectorContract.get();
+    }
+    try {
+      Manager manager = new Manager(List.of(emailInjectorIntegrationFactory));
+      manager.monitorIntegrations();
+      return injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   public InjectorContract getWellKnownGlobalEmailContract() {
-    return injectorContractRepository.findById(EMAIL_GLOBAL).orElseThrow();
+    Optional<InjectorContract> injectorContract = injectorContractRepository.findById(EMAIL_GLOBAL);
+    if (injectorContract.isPresent()) {
+      return injectorContract.get();
+    }
+    try {
+      Manager manager = new Manager(List.of(emailInjectorIntegrationFactory));
+      manager.monitorIntegrations();
+      return injectorContractRepository.findById(EMAIL_GLOBAL).orElseThrow();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private static ObjectNode createDefaultContent(ObjectMapper objectMapper) {
@@ -58,13 +82,8 @@ public class InjectorContractFixture {
   }
 
   public static InjectorContract createPayloadInjectorContractWithFieldsContent(
-      Injector injector,
-      Payload payloadCommand,
-      List<ContractCardinalityElement> customFieldsContent)
-      throws JsonProcessingException {
+      List<ContractCardinalityElement> customFieldsContent) throws JsonProcessingException {
     InjectorContract injectorContract = new InjectorContract();
-    injectorContract.setInjector(injector);
-    injectorContract.setPayload(payloadCommand);
     injectorContract.setId(UUID.randomUUID().toString());
 
     ObjectMapper objectMapper = new ObjectMapper();
@@ -74,6 +93,18 @@ public class InjectorContractFixture {
     injectorContract.setContent(objectMapper.writeValueAsString(content));
     injectorContract.setConvertedContent(content);
 
+    return injectorContract;
+  }
+
+  public static InjectorContract createPayloadInjectorContractWithFieldsContent(
+      Injector injector,
+      Payload payloadCommand,
+      List<ContractCardinalityElement> customFieldsContent)
+      throws JsonProcessingException {
+    InjectorContract injectorContract =
+        createPayloadInjectorContractWithFieldsContent(customFieldsContent);
+    injectorContract.setInjector(injector);
+    injectorContract.setPayload(payloadCommand);
     return injectorContract;
   }
 
@@ -87,6 +118,7 @@ public class InjectorContractFixture {
     ObjectNode content = createDefaultContent(objectMapper);
     injectorContract.setContent(objectMapper.writeValueAsString(content));
     injectorContract.setConvertedContent(content);
+    injectorContract.setDomains(new HashSet<>());
     return injectorContract;
   }
 
@@ -110,6 +142,15 @@ public class InjectorContractFixture {
   public static InjectorContract createPayloadInjectorContract(
       Injector injector, Payload payloadCommand) throws JsonProcessingException {
     return createPayloadInjectorContractWithFieldsContent(injector, payloadCommand, List.of());
+  }
+
+  public static InjectorContract createPayloadInjectorContractWithObfuscator()
+      throws JsonProcessingException {
+    ContractSelect obfuscatorSelect =
+        new ContractSelect("obfuscator", "Obfuscators", ContractCardinality.One);
+    obfuscatorSelect.setChoices(Map.of("plain-text", "plain-text", "base64", "base64"));
+
+    return createPayloadInjectorContractWithFieldsContent(List.of(obfuscatorSelect));
   }
 
   public static InjectorContract createPayloadInjectorContractWithObfuscator(

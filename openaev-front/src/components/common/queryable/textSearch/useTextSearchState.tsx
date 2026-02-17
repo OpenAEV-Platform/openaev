@@ -1,13 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { type TextSearchHelpers } from './TextSearchHelpers';
 
 const useTextSearchState = (initTextSearch: string = '', onChange?: (textSearch: string, page: number) => void): TextSearchHelpers => {
   const [textSearch, setTextSearch] = useState<string>(initTextSearch);
-  const helpers: TextSearchHelpers = { handleTextSearch: (value?: string) => setTextSearch(value ?? '') };
+
+  // Use ref to store onChange to avoid triggering useEffect when callback reference changes
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  const helpers: TextSearchHelpers = { handleTextSearch: useCallback((value?: string) => setTextSearch(value ?? ''), []) };
 
   useEffect(() => {
-    onChange?.(textSearch, 0);
+    onChangeRef.current?.(textSearch, 0);
   }, [textSearch]);
 
   return helpers;

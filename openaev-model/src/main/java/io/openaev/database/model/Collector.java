@@ -21,7 +21,7 @@ import org.hibernate.annotations.Type;
 @Entity
 @Table(name = "collectors")
 @EntityListeners(ModelBaseListener.class)
-public class Collector implements Base {
+public class Collector extends BaseConnectorEntity {
 
   @Id
   @Column(name = "collector_id")

@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import io.openaev.ee.License;
+import io.openaev.ee.LicenseTypeEnum;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.xtmhub.config.XtmHubConfig;
@@ -15,6 +17,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 class XtmHubServiceTest {
@@ -386,5 +390,152 @@ class XtmHubServiceTest {
             eq(new XtmHubRegistererRecord("user-123", "John Doe")),
             eq(lastCheck),
             eq(false));
+  }
+
+  @Test
+  @DisplayName("Should compute contract level as CE for non-enterprise license")
+  void autoRegister_WithNonEnterpriseLicense_ShouldUseCEContract() {
+    // Given
+    String token = "valid-token";
+    License license = new License();
+    license.setLicenseEnterprise(false);
+    mockSettings.setPlatformLicense(license);
+    mockSettings.setPlatformId("platform-123");
+    mockSettings.setPlatformName("Test Platform");
+    mockSettings.setPlatformBaseUrl("http://localhost");
+    mockSettings.setPlatformVersion("1.0.0");
+    when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+    when(xtmHubClient.autoRegister(
+            anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
+        .thenReturn(true);
+
+    // When
+    xtmHubService.autoRegister(token);
+
+    // Then
+    verify(xtmHubClient)
+        .autoRegister(eq(token), eq("CE"), anyString(), anyString(), anyString(), anyString());
+  }
+
+  @Test
+  @DisplayName("Should compute contract level as trial for enterprise trial license")
+  void autoRegister_WithEnterpriseTrialLicense_ShouldUseTrialContract() {
+    // Given
+    String token = "valid-token";
+    License license = new License();
+    license.setLicenseEnterprise(true);
+    license.setType(LicenseTypeEnum.trial);
+    mockSettings.setPlatformLicense(license);
+    mockSettings.setPlatformId("platform-123");
+    mockSettings.setPlatformName("Test Platform");
+    mockSettings.setPlatformBaseUrl("http://localhost");
+    mockSettings.setPlatformVersion("1.0.0");
+    when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+    when(xtmHubClient.autoRegister(
+            anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
+        .thenReturn(true);
+
+    // When
+    xtmHubService.autoRegister(token);
+
+    // Then
+    verify(xtmHubClient)
+        .autoRegister(eq(token), eq("trial"), anyString(), anyString(), anyString(), anyString());
+  }
+
+  @Test
+  @DisplayName("Should compute contract level as EE for enterprise license")
+  void autoRegister_WithEnterpriseStandardLicense_ShouldUseEEContract() {
+    // Given
+    String token = "valid-token";
+    License license = new License();
+    license.setLicenseEnterprise(true);
+    license.setType(LicenseTypeEnum.standard);
+    mockSettings.setPlatformLicense(license);
+    mockSettings.setPlatformId("platform-123");
+    mockSettings.setPlatformName("Test Platform");
+    mockSettings.setPlatformBaseUrl("http://localhost");
+    mockSettings.setPlatformVersion("1.0.0");
+    when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+    when(xtmHubClient.autoRegister(
+            anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
+        .thenReturn(true);
+
+    // When
+    xtmHubService.autoRegister(token);
+
+    // Then
+    verify(xtmHubClient)
+        .autoRegister(eq(token), eq("EE"), anyString(), anyString(), anyString(), anyString());
+  }
+
+  @Test
+  @DisplayName("Should update registration status when auto-register succeeds")
+  void autoRegister_WhenSuccessful_ShouldUpdateRegistrationStatus() {
+    // Given
+    String token = "valid-token";
+    License license = new License();
+    license.setLicenseEnterprise(true);
+    license.setType(LicenseTypeEnum.trial);
+    mockSettings.setPlatformLicense(license);
+    mockSettings.setPlatformId("platform-123");
+    mockSettings.setPlatformName("Test Platform");
+    mockSettings.setPlatformBaseUrl("http://localhost");
+    mockSettings.setPlatformVersion("1.0.0");
+    when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+    when(xtmHubClient.autoRegister(
+            anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
+        .thenReturn(true);
+
+    // When
+    xtmHubService.autoRegister(token);
+
+    // Then
+    verify(xtmHubClient)
+        .autoRegister(
+            eq(token),
+            eq("trial"),
+            eq("platform-123"),
+            eq("Test Platform"),
+            eq("http://localhost"),
+            eq("1.0.0"));
+    verify(platformSettingsService)
+        .updateXTMHubRegistration(
+            eq(token),
+            any(LocalDateTime.class),
+            eq(XtmHubRegistrationStatus.REGISTERED),
+            isNull(),
+            isNull(),
+            eq(false));
+  }
+
+  @Test
+  @DisplayName("Should throw BAD_GATEWAY when XtmHub client returns false")
+  void autoRegister_WhenClientReturnsFalse_ShouldThrowBadGateway() {
+    // Given
+    String token = "valid-token";
+    License license = new License();
+    license.setLicenseEnterprise(false);
+    mockSettings.setPlatformLicense(license);
+    mockSettings.setPlatformId("platform-123");
+    mockSettings.setPlatformName("Test Platform");
+    mockSettings.setPlatformBaseUrl("http://localhost");
+    mockSettings.setPlatformVersion("1.0.0");
+    when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+    when(xtmHubClient.autoRegister(
+            anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
+        .thenReturn(false);
+
+    // When
+    ResponseStatusException exception =
+        assertThrows(ResponseStatusException.class, () -> xtmHubService.autoRegister(token));
+
+    // Then
+    assertEquals(HttpStatus.BAD_GATEWAY, exception.getStatusCode());
+    assertNotNull(exception.getReason());
+    assertTrue(exception.getReason().contains("Failed to register"));
+
+    verify(platformSettingsService, never())
+        .updateXTMHubRegistration(any(), any(), any(), any(), any(), anyBoolean());
   }
 }

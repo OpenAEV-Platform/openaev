@@ -2,7 +2,7 @@ import { type AxiosResponse } from 'axios';
 import { createContext } from 'react';
 
 import {
-  attackPaths,
+  attackPaths, average,
   count,
   entities,
   series,
@@ -11,7 +11,7 @@ import {
 import { type SearchOptionsConfig } from '../../../../components/common/queryable/filter/useSearchOptions';
 import {
   type CustomDashboard,
-  type EsAttackPath,
+  type EsAttackPath, type EsAvgs,
   type EsBase, type EsCountInterval,
   type EsSeries,
   type WidgetToEntitiesInput, type WidgetToEntitiesOutput,
@@ -29,6 +29,7 @@ export interface CustomDashboardContextType {
   setCustomDashboard: React.Dispatch<React.SetStateAction<CustomDashboard | undefined>>;
   customDashboardParameters: Record<string, ParameterOption>;
   setCustomDashboardParameters: React.Dispatch<React.SetStateAction<Record<string, ParameterOption>>>;
+  fetchAverage: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsAvgs>>;
   fetchCount: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsCountInterval>>;
   fetchSeries: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsSeries[]>>;
   fetchEntities: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsBase[]>>;
@@ -41,6 +42,9 @@ export interface CustomDashboardContextType {
   // handle widget data drawer
   openWidgetDataDrawer: (conf: WidgetDataDrawerConf) => void;
   closeWidgetDataDrawer: () => void;
+
+  // Grid ready state for loader coordination
+  setGridReady: (ready: boolean) => void;
 }
 
 export const CustomDashboardContext = createContext<CustomDashboardContextType>({
@@ -48,6 +52,7 @@ export const CustomDashboardContext = createContext<CustomDashboardContextType>(
   setCustomDashboard: () => {},
   customDashboardParameters: {},
   setCustomDashboardParameters: () => {},
+  fetchAverage: average,
   fetchCount: count,
   fetchSeries: series,
   fetchEntities: entities,
@@ -60,4 +65,7 @@ export const CustomDashboardContext = createContext<CustomDashboardContextType>(
   // handle widget data drawer
   openWidgetDataDrawer: () => {},
   closeWidgetDataDrawer: () => {},
+
+  // Grid ready state for loader coordination
+  setGridReady: () => {},
 });

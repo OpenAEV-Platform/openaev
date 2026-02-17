@@ -25,6 +25,16 @@ import org.hibernate.Hibernate;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
+/**
+ * Mapper component for converting Payload entities to output DTOs.
+ *
+ * <p>Handles complex payload mapping including different payload types (Command, Executable,
+ * FileDrop, DnsResolution), status output generation, and detection remediation mapping. Some
+ * features are gated by Enterprise Edition licensing.
+ *
+ * @see io.openaev.database.model.Payload
+ * @see io.openaev.rest.atomic_testing.form.StatusPayloadOutput
+ */
 @RequiredArgsConstructor
 @Component
 @Slf4j
@@ -34,6 +44,16 @@ public class PayloadMapper {
   private final LicenseCacheManager licenseCacheManager;
   private final ApplicationContext context;
 
+  /**
+   * Extracts payload output information from an inject.
+   *
+   * <p>Determines the appropriate payload representation based on whether the inject has been
+   * executed. For executed injects, returns the saved status payload. For pending injects,
+   * constructs the payload output from the injector contract configuration.
+   *
+   * @param inject the optional inject to extract payload from
+   * @return the status payload output DTO, or null if no payload available
+   */
   public StatusPayloadOutput getStatusPayloadOutputFromInject(Optional<Inject> inject) {
 
     if (inject.isEmpty()) {
@@ -223,6 +243,12 @@ public class PayloadMapper {
     return builder.build();
   }
 
+  /**
+   * Converts a list of attack patterns to simplified DTOs.
+   *
+   * @param attackPatterns the attack patterns to convert
+   * @return list of simplified attack pattern DTOs
+   */
   public List<AttackPatternSimple> toAttackPatternSimples(List<AttackPattern> attackPatterns) {
     return attackPatterns.stream()
         .filter(Objects::nonNull)
@@ -238,6 +264,15 @@ public class PayloadMapper {
         .build();
   }
 
+  /**
+   * Converts detection remediations to output DTOs.
+   *
+   * <p>This feature requires an active Enterprise Edition license. Returns an empty list if the
+   * license is inactive.
+   *
+   * @param detectionRemediations the detection remediations to convert
+   * @return list of detection remediation output DTOs, or empty list if EE inactive
+   */
   public List<DetectionRemediationOutput> toDetectionRemediationOutputs(
       List<DetectionRemediation> detectionRemediations) {
     if (eeService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
@@ -261,6 +296,12 @@ public class PayloadMapper {
         .build();
   }
 
+  /**
+   * Converts a set of payloads to related entity outputs.
+   *
+   * @param payloads the payloads to convert
+   * @return set of related entity output DTOs
+   */
   public static Set<RelatedEntityOutput> toRelatedEntityOutputs(Set<Payload> payloads) {
     return payloads.stream().map(PayloadMapper::toRelatedEntityOutput).collect(Collectors.toSet());
   }

@@ -37,7 +37,11 @@ const AtomicTestingResult: FunctionComponent<Props> = ({ expectations, injectId 
   };
 
   if (!expectations || expectations.length === 0) {
-    return <div className={classes.inline} id={`inject_expectations_${injectId}`}><p>&nbsp;</p></div>;
+    return (
+      <div className={classes.inline} id={`inject_expectations_${injectId}`}>
+        -
+      </div>
+    );
   }
 
   return (

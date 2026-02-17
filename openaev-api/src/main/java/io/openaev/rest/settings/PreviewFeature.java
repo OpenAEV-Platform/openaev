@@ -12,7 +12,9 @@ package io.openaev.rest.settings;
 public enum PreviewFeature {
   // Reserved for internal use.
   _RESERVED,
-  STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES;
+  STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES,
+  LEGACY_INGESTION_EXECUTION_TRACE,
+  OPENAEV_TRIALS_XTMHUB;
 
   public static PreviewFeature fromStringIgnoreCase(String str) {
     for (PreviewFeature feature : PreviewFeature.values()) {

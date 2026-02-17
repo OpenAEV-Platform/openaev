@@ -1,9 +1,9 @@
 package io.openaev.executors.utils;
 
-import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_TYPE;
-
 import io.openaev.database.model.Agent;
+import io.openaev.database.model.Endpoint;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
@@ -19,7 +19,7 @@ public class ExecutorUtils {
    */
   public Set<Agent> removeInactiveAgentsFromAgents(Set<Agent> agents) {
     Set<Agent> agentsToFilter = new HashSet<>(agents);
-    Set<Agent> inactiveAgents = foundInactiveAgents(agents);
+    Set<Agent> inactiveAgents = findInactiveAgents(agents);
     agentsToFilter.removeAll(inactiveAgents);
     return agentsToFilter;
   }
@@ -32,40 +32,73 @@ public class ExecutorUtils {
    */
   public Set<Agent> removeAgentsWithoutExecutorFromAgents(Set<Agent> agents) {
     Set<Agent> agentsToFilter = new HashSet<>(agents);
-    Set<Agent> inactiveAgents = foundAgentsWithoutExecutor(agents);
+    Set<Agent> inactiveAgents = findAgentsWithoutExecutor(agents);
     agentsToFilter.removeAll(inactiveAgents);
     return agentsToFilter;
   }
 
   /**
-   * Found all inactive agents from a list of agents
+   * Find all inactive agents from a list of agents
    *
    * @param agents to filter
-   * @return inactives agents
+   * @return inactive agents
    */
-  public Set<Agent> foundInactiveAgents(Set<Agent> agents) {
+  public Set<Agent> findInactiveAgents(Set<Agent> agents) {
     return agents.stream().filter(agent -> !agent.isActive()).collect(Collectors.toSet());
   }
 
   /**
-   * Found all agents whitout executor from a list of agents
+   * Find all agents without executor from a list of agents
    *
    * @param agents to filter
    * @return agents without executor
    */
-  public Set<Agent> foundAgentsWithoutExecutor(Set<Agent> agents) {
+  public Set<Agent> findAgentsWithoutExecutor(Set<Agent> agents) {
     return agents.stream().filter(agent -> agent.getExecutor() == null).collect(Collectors.toSet());
   }
 
   /**
-   * Found all CrowdStrike agents from a list of agents
+   * Find all agents from a list of agents and an executor type
    *
    * @param agents to filter
-   * @return founded crowdstrike agents
+   * @param executorType to filter
+   * @return agents matching the given executor type
    */
-  public Set<Agent> foundCrowdstrikeAgents(Set<Agent> agents) {
+  public Set<Agent> findAgentsByExecutorType(Set<Agent> agents, String executorType) {
     return agents.stream()
-        .filter(agent -> CROWDSTRIKE_EXECUTOR_TYPE.equals(agent.getExecutor().getType()))
+        .filter(agent -> executorType.equals(agent.getExecutor().getType()))
         .collect(Collectors.toSet());
+  }
+
+  /**
+   * Find all agents from the given OS
+   *
+   * @param agents to filter
+   * @param platform to filter
+   * @return agents matching the given OS
+   */
+  public static List<Agent> getAgentsFromOS(List<Agent> agents, Endpoint.PLATFORM_TYPE platform) {
+    return agents.stream()
+        .filter(agent -> ((Endpoint) agent.getAsset()).getPlatform().equals(platform))
+        .toList();
+  }
+
+  /**
+   * Find all agents from the given OS and arch
+   *
+   * @param agents to filter
+   * @param platform to filter
+   * @param arch to filter
+   * @return agents matching the given OS and arch
+   */
+  public static List<Agent> getAgentsFromOSAndArch(
+      List<Agent> agents, Endpoint.PLATFORM_TYPE platform, Endpoint.PLATFORM_ARCH arch) {
+    return agents.stream()
+        .filter(
+            agent -> {
+              Endpoint endpoint = (Endpoint) agent.getAsset();
+              return endpoint.getPlatform().equals(platform) && endpoint.getArch().equals(arch);
+            })
+        .toList();
   }
 }

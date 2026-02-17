@@ -6,9 +6,9 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MultiIdListDeserializer;
-import io.openaev.helper.MultiIdSetDeserializer;
-import io.openaev.helper.MultiModelDeserializer;
+import io.openaev.helper.MultiIdListSerializer;
+import io.openaev.helper.MultiIdSetSerializer;
+import io.openaev.helper.MultiModelSerializer;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -74,7 +74,7 @@ public class Challenge implements Base {
   // CascadeType.ALL is required here because Flags are embedded
   @OneToMany(mappedBy = "challenge", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
   @JsonProperty("challenge_flags")
-  @JsonSerialize(using = MultiModelDeserializer.class)
+  @JsonSerialize(using = MultiModelSerializer.class)
   @NotEmpty
   private List<ChallengeFlag> flags = new ArrayList<>();
 
@@ -84,7 +84,7 @@ public class Challenge implements Base {
       name = "challenges_tags",
       joinColumns = @JoinColumn(name = "challenge_id"),
       inverseJoinColumns = @JoinColumn(name = "tag_id"))
-  @JsonSerialize(using = MultiIdSetDeserializer.class)
+  @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonProperty("challenge_tags")
   private Set<Tag> tags = new HashSet<>();
 
@@ -94,7 +94,7 @@ public class Challenge implements Base {
       name = "challenges_documents",
       joinColumns = @JoinColumn(name = "challenge_id"),
       inverseJoinColumns = @JoinColumn(name = "document_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("challenge_documents")
   private List<Document> documents = new ArrayList<>();
 

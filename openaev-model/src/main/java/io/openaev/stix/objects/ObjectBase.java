@@ -12,9 +12,7 @@ import io.openaev.stix.types.Dictionary;
 import io.openaev.stix.types.Identifier;
 import io.openaev.stix.types.StixString;
 import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -70,6 +68,21 @@ public abstract class ObjectBase implements StixSerialisable {
     return getExtension(extendedPropertySpec.toString());
   }
 
+  public List<Dictionary> getExtensionObservables(ExtendedProperties extendedPropertySpec) {
+    Dictionary extension = (Dictionary) getExtension(extendedPropertySpec);
+    if (extension == null) {
+      return new ArrayList<>();
+    }
+
+    io.openaev.stix.types.List<Dictionary> stixObservables =
+        (io.openaev.stix.types.List<Dictionary>)
+            extension.getValue().get(CommonProperties.OBSERVABLE_VALUES.toString());
+    if (stixObservables != null) {
+      return stixObservables.getValue();
+    }
+    return new ArrayList<>();
+  }
+
   @Override
   public JsonNode toStix(ObjectMapper mapper) {
     ObjectNode node = mapper.createObjectNode();
@@ -121,7 +134,7 @@ public abstract class ObjectBase implements StixSerialisable {
     }
   }
 
-  public void setInstantIfPresent(String propName, Consumer<Instant> setter) {
+  public void setInstantIfPresent(CommonProperties propName, Consumer<Instant> setter) {
     if (this.hasProperty(propName) && this.getProperty(propName).getValue() != null) {
       setter.accept(Instant.parse(this.getProperty(propName).getValue().toString()));
     }

@@ -6,6 +6,7 @@ import io.openaev.database.model.ResourceType;
 import io.openaev.engine.model.EsBase;
 import io.openaev.engine.model.EsSearch;
 import io.openaev.engine.query.EsAttackPath;
+import io.openaev.engine.query.EsAvgs;
 import io.openaev.engine.query.EsCountInterval;
 import io.openaev.engine.query.EsSeries;
 import io.openaev.rest.dashboard.model.WidgetToEntitiesInput;
@@ -35,6 +36,17 @@ public class DashboardApi extends RestBehavior {
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
     return this.dashboardService.count(widgetId, parameters);
+  }
+
+  @PostMapping(DASHBOARD_URI + "/average/{widgetId}")
+  @RBAC(
+      resourceId = "#widgetId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.DASHBOARD)
+  public EsAvgs average(
+      @PathVariable final String widgetId,
+      @RequestBody(required = false) Map<String, String> parameters) {
+    return this.dashboardService.average(widgetId, parameters);
   }
 
   @PostMapping(DASHBOARD_URI + "/series/{widgetId}")

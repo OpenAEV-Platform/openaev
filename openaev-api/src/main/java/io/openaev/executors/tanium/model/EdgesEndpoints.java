@@ -9,4 +9,5 @@ import lombok.Data;
 public class EdgesEndpoints {
 
   private List<NodeEndpoint> edges;
+  private PageInfo pageInfo;
 }

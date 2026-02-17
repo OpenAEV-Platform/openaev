@@ -13,10 +13,18 @@ import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+/**
+ * Mapper component for converting Inject entities to various output DTOs.
+ *
+ * <p>Provides comprehensive mapping methods for transforming inject domain objects into API
+ * response objects, including result overviews, simple representations, and target mappings.
+ *
+ * @see io.openaev.database.model.Inject
+ * @see io.openaev.rest.inject.output.InjectOutput
+ */
 @Component
 @RequiredArgsConstructor
 public class InjectMapper {
@@ -25,6 +33,15 @@ public class InjectMapper {
   private final InjectExpectationMapper injectExpectationMapper;
   private final InjectUtils injectUtils;
 
+  /**
+   * Converts an inject to a result overview output containing full execution details.
+   *
+   * <p>Includes inject metadata, status, expectations, kill chain phases, and aggregated
+   * expectation results by type.
+   *
+   * @param inject the inject to convert
+   * @return the inject result overview output DTO
+   */
   public InjectResultOverviewOutput toInjectResultOverviewOutput(Inject inject) {
     // --
     Optional<InjectorContract> injectorContract = inject.getInjectorContract();
@@ -59,6 +76,14 @@ public class InjectMapper {
   }
 
   // -- OBJECT[] to TARGETSIMPLE --
+
+  /**
+   * Converts raw database result arrays to target simple DTOs.
+   *
+   * @param targets the raw query results containing target data
+   * @param type the type of targets being converted
+   * @return list of target simple DTOs
+   */
   public List<TargetSimple> toTargetSimple(List<Object[]> targets, TargetType type) {
     return targets.stream()
         .filter(Objects::nonNull)
@@ -66,6 +91,13 @@ public class InjectMapper {
         .toList();
   }
 
+  /**
+   * Converts a single raw database result array to a target simple DTO.
+   *
+   * @param target array containing [exerciseId, targetId, targetName]
+   * @param type the type of target
+   * @return the target simple DTO
+   */
   public TargetSimple toTargetSimple(Object[] target, TargetType type) {
     return TargetSimple.builder()
         .id((String) target[1])
@@ -75,6 +107,13 @@ public class InjectMapper {
   }
 
   // -- INJECTORCONTRACT to INJECTORCONTRACT SIMPLE --
+
+  /**
+   * Converts an optional injector contract to its output representation.
+   *
+   * @param injectorContract the optional injector contract
+   * @return the injector contract output DTO, or null if not present
+   */
   public AtomicInjectorContractOutput toInjectorContractOutput(
       Optional<InjectorContract> injectorContract) {
     return injectorContract
@@ -99,11 +138,22 @@ public class InjectMapper {
                     .id(payloadToSimple.getId())
                     .type(payloadToSimple.getType())
                     .collectorType(payloadToSimple.getCollectorType())
+                    .domains(
+                        payloadToSimple.getDomains().stream()
+                            .map(Domain::getId)
+                            .toArray(String[]::new))
                     .build())
         .orElse(null);
   }
 
   // -- EXPECTATIONS to EXPECTATIONSIMPLE
+
+  /**
+   * Converts a list of inject expectations to simplified DTOs.
+   *
+   * @param expectations the expectations to convert
+   * @return list of simplified expectation DTOs
+   */
   public List<InjectExpectationSimple> toInjectExpectationSimples(
       List<InjectExpectation> expectations) {
     return expectations.stream().filter(Objects::nonNull).map(this::toExpectationSimple).toList();
@@ -117,6 +167,13 @@ public class InjectMapper {
   }
 
   // -- KILLCHAINPHASES to KILLCHAINPHASESSIMPLE
+
+  /**
+   * Converts a list of kill chain phases to simplified DTOs.
+   *
+   * @param killChainPhases the kill chain phases to convert
+   * @return list of simplified kill chain phase DTOs
+   */
   public List<KillChainPhaseSimple> toKillChainPhasesSimples(List<KillChainPhase> killChainPhases) {
     return killChainPhases.stream()
         .filter(Objects::nonNull)
@@ -131,10 +188,24 @@ public class InjectMapper {
         .build();
   }
 
+  /**
+   * Converts an inject to a simplified representation.
+   *
+   * @param inject the inject to convert
+   * @return the simplified inject DTO
+   */
   public InjectSimple toInjectSimple(Inject inject) {
     return InjectSimple.builder().id(inject.getId()).title(inject.getTitle()).build();
   }
 
+  /**
+   * Converts a set of injects to related entity outputs.
+   *
+   * <p>Used for showing inject references in document or other entity contexts.
+   *
+   * @param injects the injects to convert
+   * @return set of related entity output DTOs
+   */
   public static Set<RelatedEntityOutput> toRelatedEntityOutputs(Set<Inject> injects) {
     return injects.stream()
         .map(inject -> toRelatedEntityOutput(inject))
@@ -145,6 +216,29 @@ public class InjectMapper {
     return RelatedEntityOutput.builder().id(inject.getId()).name(inject.getTitle()).build();
   }
 
+  /**
+   * Creates an inject output DTO from individual components.
+   *
+   * <p>Assembles an inject output from raw data components, typically from database query results.
+   * Calculates readiness based on contract requirements and target assignments.
+   *
+   * @param id the inject ID
+   * @param title the inject title
+   * @param enabled whether the inject is enabled
+   * @param content the inject content as JSON
+   * @param allTeams whether all teams are targeted
+   * @param exerciseId the parent exercise ID
+   * @param scenarioId the parent scenario ID
+   * @param dependsDuration the duration dependency
+   * @param injectorContract the injector contract
+   * @param tags array of tag IDs
+   * @param teams array of team IDs
+   * @param assets array of asset IDs
+   * @param assetGroups array of asset group IDs
+   * @param injectType the inject type identifier
+   * @param injectDependency the inject dependency if any
+   * @return the assembled inject output DTO
+   */
   public InjectOutput toInjectOutput(
       String id,
       String title,
@@ -185,63 +279,10 @@ public class InjectMapper {
             injectOutput.getAssets(),
             injectOutput.getAssetGroups()));
     injectOutput.setInjectType(injectType);
-    injectOutput.setTeams(
-        teams != null ? new ArrayList<>(Arrays.asList(teams)) : new ArrayList<>());
     injectOutput.setContent(content);
     if (injectDependency != null) {
       injectOutput.setDependsOn(List.of(injectDependency));
     }
-    return injectOutput;
-  }
-
-  public InjectOutput toInjectOuput(Inject inject) {
-    InjectOutput injectOutput = new InjectOutput();
-    injectOutput.setId(inject.getId());
-    injectOutput.setTitle(inject.getTitle());
-    injectOutput.setEnabled(inject.isEnabled());
-    injectOutput.setExercise(
-        Optional.ofNullable(inject.getExercise()).map(Exercise::getId).orElse(null));
-    injectOutput.setScenario(
-        Optional.ofNullable(inject.getScenario()).map(Scenario::getId).orElse(null));
-    injectOutput.setDependsDuration(inject.getDependsDuration());
-    injectOutput.setInjectorContract(inject.getInjectorContract().orElse(null));
-    injectOutput.setTags(
-        inject.getTags() != null
-            ? new HashSet<>(inject.getTags().stream().map(Tag::getId).toList())
-            : new HashSet<>());
-    injectOutput.setTeams(
-        inject.getTeams() != null
-            ? inject.getTeams().stream().map(Team::getId).toList()
-            : new ArrayList<>());
-    injectOutput.setAssets(
-        inject.getAssets() != null
-            ? inject.getAssets().stream().map(Asset::getId).toList()
-            : new ArrayList<>());
-    injectOutput.setAssetGroups(
-        inject.getAssetGroups() != null
-            ? new ArrayList<>(inject.getAssetGroups().stream().map(AssetGroup::getId).toList())
-            : new ArrayList<>());
-    injectOutput.setContent(inject.getContent());
-    injectOutput.setReady(
-        InjectModelHelper.isReady(
-            injectOutput.getInjectorContract(),
-            injectOutput.getContent(),
-            inject.isAllTeams(),
-            injectOutput.getTeams(),
-            injectOutput.getAssets(),
-            injectOutput.getAssetGroups()));
-    injectOutput.setInjectType(
-        inject
-            .getInjectorContract()
-            .map(InjectorContract::getInjector)
-            .map(Injector::getType)
-            .orElse(null));
-    injectOutput.setDependsOn(
-        Optional.ofNullable(inject.getDependsOn())
-            .map(List::stream)
-            .flatMap(Stream::findAny)
-            .stream()
-            .toList());
     return injectOutput;
   }
 }

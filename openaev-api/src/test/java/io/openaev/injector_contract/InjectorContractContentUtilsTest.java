@@ -23,17 +23,25 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utilstest.RabbitMQTestListener;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestExecutionListeners;
 
 @SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 public class InjectorContractContentUtilsTest {
 
   public static final String EXPECTATION_NAME = "expectation_name";
@@ -157,5 +165,38 @@ public class InjectorContractContentUtilsTest {
     ObjectNode expectation = mapper.createObjectNode();
     expectation.put(EXPECTATION_NAME, name);
     return expectation;
+  }
+
+  @Test
+  void shouldDeserializeAssetTypeFromContract() throws Exception {
+
+    String contractJson =
+        """
+    {
+      "outputs": [
+        {
+          "field": "found_assets",
+          "isFindingCompatible": false,
+          "isMultiple": true,
+          "labels": ["shodan"],
+          "type": "asset"
+        }
+      ]
+    }
+    """;
+
+    ObjectNode content = (ObjectNode) mapper.readTree(contractJson);
+
+    List<InjectorContractContentOutputElement> outputs =
+        injectorContractContentUtils.getContractOutputs(content, mapper);
+
+    assertEquals(1, outputs.size());
+
+    InjectorContractContentOutputElement output = outputs.get(0);
+
+    assertEquals("found_assets", output.getField());
+    assertEquals(ContractOutputType.Asset, output.getType());
+    assertFalse(output.isFindingCompatible());
+    assertTrue(output.isMultiple());
   }
 }

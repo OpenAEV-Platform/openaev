@@ -66,4 +66,32 @@ public class XtmHubApi extends RestBehavior {
   public PlatformSettings refreshConnectivity() {
     return this.xtmHubService.refreshConnectivity();
   }
+
+  @PutMapping(value = XTMHUB_URI + "/auto-register", consumes = MediaType.APPLICATION_JSON_VALUE)
+  @Operation(
+      summary = "Autoregister OpenAEV into XTM Hub",
+      description =
+          "Register platform on xtmhub and Save registration data into settings from XTM Hub registration")
+  @ApiResponses({
+    @ApiResponse(responseCode = "204", description = "Successful registration"),
+    @ApiResponse(responseCode = "502", description = "Registration failed on XTM Hub call"),
+    @ApiResponse(responseCode = "500", description = "Internal error")
+  })
+  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @Transactional(rollbackFor = Exception.class)
+  public void autoRegister(@Valid @RequestBody XtmHubRegisterInput input) {
+    this.xtmHubService.autoRegister(input.getToken());
+  }
+
+  @PostMapping(
+      value = XTMHUB_URI + "/contact-us",
+      consumes = MediaType.APPLICATION_JSON_VALUE,
+      produces = MediaType.APPLICATION_JSON_VALUE)
+  @Operation(summary = "Contact Sales", description = "Contact the sales team throught XTM Hub")
+  @ApiResponses({@ApiResponse(responseCode = "200", description = "Successful contact")})
+  @RBAC(skipRBAC = true)
+  @Transactional(rollbackFor = Exception.class)
+  public Boolean contactUs(@Valid @RequestBody XtmHubContactUsInput request) {
+    return this.xtmHubService.contactUs(request.getMessage());
+  }
 }

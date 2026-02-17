@@ -8,7 +8,7 @@ import { type UserHelper } from '../../../../../../actions/helper';
 import { fetchPlayers } from '../../../../../../actions/users/User';
 import colorStyles from '../../../../../../components/Color';
 import Drawer from '../../../../../../components/common/Drawer';
-import ExpandableText from '../../../../../../components/common/ExpendableText';
+import ExpandableText from '../../../../../../components/common/ExpandableText';
 import Paper from '../../../../../../components/common/Paper';
 import { useFormatter } from '../../../../../../components/i18n';
 import { useHelper } from '../../../../../../store';

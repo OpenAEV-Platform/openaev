@@ -1,7 +1,7 @@
 package io.openaev.rest.asset_group;
 
 import static io.openaev.rest.asset_group.AssetGroupApi.ASSET_GROUP_URI;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.AssetGroupFixture.*;
 import static io.openaev.utils.fixtures.InjectFixture.getDefaultInject;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;

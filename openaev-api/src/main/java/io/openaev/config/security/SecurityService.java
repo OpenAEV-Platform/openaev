@@ -7,6 +7,7 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.user.form.user.CreateUserInput;
 import io.openaev.service.UserService;
+import io.openaev.service.user_events.UserEventService;
 import jakarta.validation.constraints.NotBlank;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,10 +23,13 @@ public class SecurityService {
   public static final String OPENAEV_PROVIDER_PATH_PREFIX = "openaev.provider.";
   public static final String ROLES_ADMIN_PATH_SUFFIX = ".roles_admin";
   public static final String ALL_ADMIN_PATH_SUFFIX = ".all_admin";
+  public static final String AUDIENCE_PATH = ".audience";
+  public static final String REGISTRATION_ID = "registration_id";
 
   private final UserRepository userRepository;
   private final UserService userService;
   private final Environment env;
+  private final UserEventService userEventService;
 
   public User userManagement(
       String emailAttribute,
@@ -48,7 +52,10 @@ public class SecurityService {
         if (allAdmin || !adminRoles.isEmpty()) {
           createUserInput.setAdmin(isAdmin);
         }
-        return this.userService.createUser(createUserInput, 0);
+        User user = this.userService.createUser(createUserInput, 0);
+        this.userEventService.createUserCreatedEvent(user, registrationId);
+        userEventService.createLoginSuccessEvent(user);
+        return user;
       } else {
         // If user exists, update it
         User currentUser = optionalUser.get();
@@ -57,10 +64,18 @@ public class SecurityService {
         if (allAdmin || !adminRoles.isEmpty()) {
           currentUser.setAdmin(isAdmin);
         }
+        userEventService.createLoginSuccessEvent(currentUser);
         return this.userService.updateUser(currentUser);
       }
     }
     return null;
+  }
+
+  // -- UTILS --
+
+  public String getAudience(@NotBlank final String registrationId) {
+    String rolesPathConfig = OPENAEV_PROVIDER_PATH_PREFIX + registrationId + AUDIENCE_PATH;
+    return env.getProperty(rolesPathConfig, String.class, "");
   }
 
   // -- PRIVATE --

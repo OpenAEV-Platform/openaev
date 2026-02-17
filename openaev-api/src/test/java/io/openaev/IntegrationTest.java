@@ -7,6 +7,7 @@ import io.openaev.utils.fixtures.GrantFixture;
 import io.openaev.utils.fixtures.composers.GrantComposer;
 import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUserTestExecutionListener;
+import io.openaev.utilstest.RabbitMQTestListener;
 import io.openaev.utilstest.StartupSnapshotTestListener;
 import jakarta.persistence.EntityManager;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +19,11 @@ import org.springframework.test.context.TestExecutionListeners;
 @AutoConfigureMockMvc(print = MockMvcPrint.SYSTEM_ERR)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestExecutionListeners(
-    value = {StartupSnapshotTestListener.class, WithMockUserTestExecutionListener.class},
+    value = {
+      StartupSnapshotTestListener.class,
+      WithMockUserTestExecutionListener.class,
+      RabbitMQTestListener.class
+    },
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 public abstract class IntegrationTest {
 

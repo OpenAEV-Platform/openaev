@@ -11,8 +11,8 @@ import { useHelper } from '../../../../store';
 import { type ChangePasswordInput, type UpdateUserInput, type User, type UserOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { type Option, organizationOption, tagOptions } from '../../../../utils/Option';
-import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider.js';
-import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types.js';
+import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import UserForm from './UserForm';
 import UserPasswordForm from './UserPasswordForm';
 
@@ -105,17 +105,17 @@ const UserPopover = ({ user, onUpdate, onDelete }: UserPopoverProps) => {
   // Button Popover
   const entries = [];
   entries.push({
-    label: t('Update'),
+    label: 'Update',
     action: () => handleOpenEdit(),
     userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS),
   });
   entries.push({
-    label: t('Update password'),
+    label: 'Update password',
     action: () => handleOpenEditPassword(),
     userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS),
   });
   if (user.user_email !== 'admin@openaev.io') entries.push({
-    label: t('Delete'),
+    label: 'Delete',
     action: () => handleOpenDelete(),
     userRight: ability.can(ACTIONS.DELETE, SUBJECTS.PLATFORM_SETTINGS),
   });
@@ -136,7 +136,7 @@ const UserPopover = ({ user, onUpdate, onDelete }: UserPopoverProps) => {
       >
         <UserForm
           initialValues={initialValues}
-          editing={true}
+          editing
           onSubmit={onSubmitEdit}
           handleClose={handleCloseEdit}
         />

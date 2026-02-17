@@ -30,12 +30,12 @@ export const deleteDocument = (documentId: string) => (dispatch: Dispatch) => {
   return delReferential(uri, 'documents', documentId)(dispatch);
 };
 
-export const fetchSimulationPlayerDocuments = (simulationId: string, userId = null) => (dispatch: Dispatch) => getReferential(
+export const fetchSimulationPlayerDocuments = (simulationId: string, userId: string | null = null) => (dispatch: Dispatch) => getReferential(
   schema.arrayOfDocuments,
   `/api/player/simulations/${simulationId}/documents${userId ? `?userId=${userId}` : ''}`,
 )(dispatch);
 
-export const fetchScenarioPlayerDocuments = (scenarioId: string, userId = null) => (dispatch: Dispatch) => getReferential(
+export const fetchScenarioPlayerDocuments = (scenarioId: string, userId: string | null = null) => (dispatch: Dispatch) => getReferential(
   schema.arrayOfDocuments,
   `/api/player/scenarios/${scenarioId}/documents${userId ? `?userId=${userId}` : ''}`,
 )(dispatch);

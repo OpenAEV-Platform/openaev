@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 
 import { type EndpointHelper } from '../../../../../../actions/assets/asset-helper';
@@ -25,10 +25,14 @@ const InjectEndpointsList = ({ name, platforms = [], architectures, disabled = f
   const [endpoints, setEndpoints] = useState<EndpointOutput[]>([]);
   const { endpointsMap } = useHelper((helper: EndpointHelper) => ({ endpointsMap: helper.getEndpointsMap() }));
 
-  const endpointIds = useWatch({
+  const endpointIdsWatched = useWatch({
     control,
     name,
   }) as string[];
+
+  const endpointIds = useMemo(() => {
+    return Array.isArray(endpointIdsWatched) ? endpointIdsWatched : [];
+  }, [endpointIdsWatched]);
 
   useEffect(() => {
     const endpoints = endpointIds.map(id => endpointsMap[id]).filter(e => e !== undefined) as EndpointOutput[];

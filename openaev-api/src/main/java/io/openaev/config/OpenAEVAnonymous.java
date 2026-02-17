@@ -1,9 +1,13 @@
 package io.openaev.config;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.Collection;
 import org.springframework.security.core.GrantedAuthority;
 
-public class OpenAEVAnonymous implements OpenAEVPrincipal {
+public class OpenAEVAnonymous implements OpenAEVPrincipal, Serializable {
+
+  @Serial private static final long serialVersionUID = 1L;
 
   public static final String ANONYMOUS = "anonymous";
   public static final String LANG_AUTO = "auto";

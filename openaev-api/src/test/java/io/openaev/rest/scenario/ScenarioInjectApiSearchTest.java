@@ -1,9 +1,8 @@
 package io.openaev.rest.scenario;
 
 import static io.openaev.database.model.Filters.FilterOperator.contains;
-import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
 import static io.openaev.utils.fixtures.ScenarioFixture.createDefaultCrisisScenario;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -16,8 +15,8 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.InjectRepository;
-import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.ScenarioRepository;
+import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -35,8 +34,8 @@ public class ScenarioInjectApiSearchTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
 
   @Autowired private InjectRepository injectRepository;
-  @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private ScenarioRepository scenarioRepository;
+  @Autowired private InjectorContractFixture injectorContractFixture;
 
   private static final List<String> INJECT_IDS = new ArrayList<>();
   private static String SCENARIO_ID;
@@ -44,8 +43,7 @@ public class ScenarioInjectApiSearchTest extends IntegrationTest {
 
   @BeforeAll
   void beforeAll() {
-    InjectorContract injectorContract =
-        this.injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow();
+    InjectorContract injectorContract = injectorContractFixture.getWellKnownSingleEmailContract();
     EMAIL_INJECTOR_CONTRACT_ID = injectorContract.getInjector().getId();
 
     Scenario scenario = createDefaultCrisisScenario();

@@ -55,6 +55,9 @@ export const entitiesInitializer = Map({
     executors: Map({}),
     mitigations: Map({}),
     agents: Map({}),
+    domains: Map({}),
+    catalog_connectors: Map({}),
+    connector_instances: Map({}),
   }),
 });
 

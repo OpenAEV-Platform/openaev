@@ -4,7 +4,10 @@ import static io.openaev.database.model.User.ROLE_ADMIN;
 import static io.openaev.database.model.User.ROLE_USER;
 
 import io.openaev.database.model.User;
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.*;
+import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -12,7 +15,9 @@ import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 
-public class OpenAEVOidcUser implements OpenAEVPrincipal, OidcUser {
+@Getter
+public class OpenAEVOidcUser implements OpenAEVPrincipal, OidcUser, Serializable {
+  @Serial private static final long serialVersionUID = 1L;
 
   private final User user;
 

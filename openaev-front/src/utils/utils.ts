@@ -33,13 +33,13 @@ export function arrayToRecord<T, K extends keyof T>(
   }, {} as Record<string, T>);
 }
 
-export const copyToClipboard = (t: (text: string) => string, text: string) => {
-  if ('clipboard' in navigator) {
-    navigator.clipboard.writeText(text);
-  } else {
-    document.execCommand('copy', true, text);
+export const copyToClipboard = async (t: (text: string) => string, text: string) => {
+  try {
+    await navigator.clipboard.writeText(text);
+    MESSAGING$.notifySuccess(t('Copied to clipboard'));
+  } catch (_error) {
+    MESSAGING$.notifyError(t('Failed to copy to clipboard'));
   }
-  MESSAGING$.notifySuccess(t('Copied to clipboard'));
 };
 
 export const download = (content: string | Blob, filename: string, contentType: string | undefined) => {
@@ -100,24 +100,31 @@ export const readFileContent = (file: File): Promise<unknown> => {
   });
 };
 
-export const randomElements = (elements: never[], number: number) => {
-  const shuffled = elements.sort(() => 0.5 - Math.random());
+export const randomElements = <T>(elements: T[], number: number): T[] => {
+  // Use Fisher-Yates shuffle for unbiased randomization
+  const shuffled = [...elements];
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
   return shuffled.slice(0, number);
 };
 
 export const debounce = <T>(func: (...param: T[]) => void, timeout = 500) => {
-  let timer: number;
+  let timer: ReturnType<typeof setTimeout> | undefined;
 
   return (...args: T[]) => {
-    window.clearTimeout(timer);
-    timer = window.setTimeout(func, timeout, ...args);
+    if (timer !== undefined) {
+      clearTimeout(timer);
+    }
+    timer = setTimeout(() => func(...args), timeout);
   };
 };
 
 // the argument type here is an exported enum type from Java; it's supposed to be a union of enum strings
 // see api-types.d.ts
 // currently we copy/paste the generated enum types here since they don't exist as a standalone type in TS
-export const isFeatureEnabled = (feature: '_RESERVED' | 'STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES') => {
+export const isFeatureEnabled = (feature: '_RESERVED' | 'STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES' | 'OPENAEV_TRIALS_XTMHUB') => {
   const { settings } = useHelper((helper: LoggedHelper) => {
     return { settings: helper.getPlatformSettings() };
   });

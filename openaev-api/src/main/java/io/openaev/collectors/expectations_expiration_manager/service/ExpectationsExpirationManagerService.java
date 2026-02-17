@@ -3,7 +3,7 @@ package io.openaev.collectors.expectations_expiration_manager.service;
 import static io.openaev.collectors.expectations_expiration_manager.utils.ExpectationUtils.*;
 import static io.openaev.service.InjectExpectationUtils.FAILED_SCORE_VALUE;
 import static io.openaev.utils.ExpectationUtils.HUMAN_EXPECTATION;
-import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.expireEmptyResults;
+import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.expireEmptyResults;
 
 import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
 import io.openaev.database.model.Collector;

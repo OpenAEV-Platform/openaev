@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MonoIdDeserializer;
+import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -19,6 +19,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.UuidGenerator;
 
+@Getter
 @Setter
 @Entity
 @Table(name = "channels")
@@ -77,14 +78,14 @@ public class Channel implements Base {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "channel_logo_dark")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("channel_logo_dark")
   @Schema(type = "string")
   private Document logoDark;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "channel_logo_light")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("channel_logo_light")
   @Schema(type = "string")
   private Document logoLight;
@@ -100,61 +101,8 @@ public class Channel implements Base {
   private List<Article> articles;
 
   @Override
-  public String getId() {
-    return id;
-  }
-
-  @Override
   public boolean isUserHasAccess(User user) {
     return user.isAdmin();
-  }
-
-  public String getType() {
-    return type;
-  }
-
-  public String getName() {
-    return name;
-  }
-
-  public String getDescription() {
-    return description;
-  }
-
-  public String getMode() {
-    return mode;
-  }
-
-  public String getPrimaryColorDark() {
-    return primaryColorDark;
-  }
-
-  public String getPrimaryColorLight() {
-    return primaryColorLight;
-  }
-
-  public String getSecondaryColorDark() {
-    return secondaryColorDark;
-  }
-
-  public String getSecondaryColorLight() {
-    return secondaryColorLight;
-  }
-
-  public Document getLogoDark() {
-    return logoDark;
-  }
-
-  public Document getLogoLight() {
-    return logoLight;
-  }
-
-  public Instant getCreatedAt() {
-    return createdAt;
-  }
-
-  public Instant getUpdatedAt() {
-    return updatedAt;
   }
 
   public List<Document> getLogos() {

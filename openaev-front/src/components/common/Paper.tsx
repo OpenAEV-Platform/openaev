@@ -10,7 +10,7 @@ interface PaperProps {
 const useStyles = makeStyles()(theme => ({
   paper: {
     padding: theme.spacing(2),
-    borderRadius: 6,
+    borderRadius: theme.borderRadius,
   },
 }));
 
@@ -18,7 +18,7 @@ const Paper: FunctionComponent<PaperProps> = ({ children, className = '' }) => {
   const { classes } = useStyles();
 
   return (
-    <PaperMui variant="outlined" className={classes.paper + ' ' + className}>
+    <PaperMui variant="outlined" className={`${classes.paper} ${className}`.trim()}>
       {children}
     </PaperMui>
   );

@@ -23,6 +23,7 @@ public class SecurityCoverageFixture {
             .formatted(securityCoverage.getExternalId()));
     securityCoverage.setAttackPatternRefs(new HashSet<>());
     securityCoverage.setVulnerabilitiesRefs(new HashSet<>());
+    securityCoverage.setIndicatorsRefs(new HashSet<>());
     securityCoverage.setBundleHashMd5(md5Hex(securityCoverage.getContent()));
     return securityCoverage;
   }

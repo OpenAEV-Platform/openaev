@@ -6,8 +6,8 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MultiIdListDeserializer;
-import io.openaev.helper.MultiModelDeserializer;
+import io.openaev.helper.MultiIdListSerializer;
+import io.openaev.helper.MultiModelSerializer;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -53,7 +53,7 @@ public class Group implements Base {
       cascade = CascadeType.ALL,
       orphanRemoval = true)
   @JsonProperty("group_grants")
-  @JsonSerialize(using = MultiModelDeserializer.class)
+  @JsonSerialize(using = MultiModelSerializer.class)
   @Fetch(value = FetchMode.SUBSELECT)
   private List<Grant> grants = new ArrayList<>();
 
@@ -63,7 +63,7 @@ public class Group implements Base {
       name = "users_groups",
       joinColumns = @JoinColumn(name = "group_id"),
       inverseJoinColumns = @JoinColumn(name = "user_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("group_users")
   @Fetch(value = FetchMode.SUBSELECT)
   private List<User> users = new ArrayList<>();
@@ -74,7 +74,7 @@ public class Group implements Base {
       name = "groups_roles",
       joinColumns = @JoinColumn(name = "group_id"),
       inverseJoinColumns = @JoinColumn(name = "role_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("group_roles")
   private List<Role> roles = new ArrayList<>();
 
@@ -86,7 +86,7 @@ public class Group implements Base {
 
   @Override
   public boolean isUserHasAccess(User user) {
-    return users.contains(user);
+    return user.isAdmin() || users.contains(user);
   }
 
   @Override

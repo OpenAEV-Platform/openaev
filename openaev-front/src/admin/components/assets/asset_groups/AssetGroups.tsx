@@ -70,7 +70,7 @@ const computeRuleValues = (assetGroup: AssetGroupOutput, t: (value: string) => s
         </>
       );
     }
-    return (<></>);
+    return (<>-</>);
   };
 
   const computeStatic = () => {
@@ -83,7 +83,7 @@ const computeRuleValues = (assetGroup: AssetGroupOutput, t: (value: string) => s
         </div>
       );
     }
-    return (<></>);
+    return null;
   };
 
   const andWord = () => {
@@ -91,7 +91,7 @@ const computeRuleValues = (assetGroup: AssetGroupOutput, t: (value: string) => s
       && assetGroup.asset_group_assets && assetGroup.asset_group_assets?.length > 0) {
       return (<div style={{ alignContent: 'center' }}>{t('and')}</div>);
     }
-    return (<></>);
+    return null;
   };
 
   return (
@@ -146,9 +146,8 @@ const AssetGroups = () => {
       field: 'asset_group_assets',
       label: 'Rules',
       isSortable: false,
-      value: (assetGroup: AssetGroupOutput) => {
-        return computeRuleValues(assetGroup, t);
-      },
+      value: (assetGroup: AssetGroupOutput) =>
+        computeRuleValues(assetGroup, t),
     },
     {
       field: 'asset_group_tags',

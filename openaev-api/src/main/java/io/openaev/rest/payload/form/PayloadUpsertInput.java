@@ -4,6 +4,7 @@ import static io.openaev.config.AppConfig.MANDATORY_MESSAGE;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.*;
+import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
 import io.openaev.rest.payload.output_parser.OutputParserInput;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -103,4 +104,9 @@ public class PayloadUpsertInput {
   @JsonProperty("payload_output_parsers")
   @Schema(description = "Set of output parsers")
   private Set<OutputParserInput> outputParsers = new HashSet<>();
+
+  @NotNull(message = MANDATORY_MESSAGE)
+  @JsonProperty("payload_domains")
+  @Schema(description = "Update list of domains")
+  private Set<InjectorContractDomainDTO> domains = new HashSet<>();
 }

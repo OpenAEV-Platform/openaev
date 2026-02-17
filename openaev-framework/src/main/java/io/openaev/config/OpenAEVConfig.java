@@ -4,13 +4,32 @@ import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import jakarta.validation.constraints.NotBlank;
+import java.util.Map;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+/**
+ * Main configuration class for the OpenAEV platform.
+ *
+ * <p>This component holds the core application configuration including:
+ *
+ * <ul>
+ *   <li>Application identity (name, version, instance ID)
+ *   <li>URLs (base URL, frontend URL, agent URL)
+ *   <li>Authentication settings (local, OpenID, SAML2, Kerberos)
+ *   <li>Security settings (cookies, certificates)
+ *   <li>Map tile server configuration
+ *   <li>Queue configuration for background processing
+ * </ul>
+ *
+ * <p>Configuration can be provided via properties with either {@code openbas.*} or {@code
+ * openaev.*} prefixes for backward compatibility.
+ */
 @Component
 @Data
+@ConfigurationProperties(prefix = "openaev")
 public class OpenAEVConfig {
 
   @JsonProperty("parameters_id")
@@ -101,9 +120,17 @@ public class OpenAEVConfig {
   @Value("${openbas.with-proxy:${openaev.with-proxy:false}}")
   private boolean withProxy;
 
+  @JsonProperty("max_size")
+  @Value("${openaev.implant-logs-max-size:1000000}")
+  private int logsMaxSize;
+
   @JsonProperty("extra_trusted_certs_dir")
   @Value("${openbas.extra-trusted-certs-dir:${openaev.extra-trusted-certs-dir:#{null}}}")
   private String extraTrustedCertsDir;
+
+  @JsonProperty("queue-config")
+  @Value("${openbas.queue-config:${openaev.queue-config:#{null}}}")
+  private Map<String, QueueConfig> queueConfig;
 
   @JsonProperty("logout_success_url")
   @Value("${openbas.logout-success-url:${openaev.logout-success-url:/}}")
@@ -113,17 +140,42 @@ public class OpenAEVConfig {
   @Value("${openbas.frontend-url:${openaev.frontend-url:}}")
   private String frontendUrl;
 
+  /**
+   * Returns the normalized base URL for the platform.
+   *
+   * <p>The URL is normalized by removing any trailing slash.
+   *
+   * @return the base URL without trailing slash, or null if not configured
+   */
   public String getBaseUrl() {
-    return url(baseUrl);
+    return normalizeUrl(baseUrl);
   }
 
+  /**
+   * Returns the URL that agents should use to connect to the platform.
+   *
+   * <p>If an explicit agent URL is configured, it will be used. Otherwise, falls back to the base
+   * URL. This allows configuring a different endpoint for agent communication (e.g., for network
+   * segregation or load balancing).
+   *
+   * @return the agent URL without trailing slash, or the base URL if agent URL is not configured
+   */
   public String getBaseUrlForAgent() {
-    return hasText(agentUrl) ? url(agentUrl) : url(baseUrl);
+    return hasText(agentUrl) ? normalizeUrl(agentUrl) : normalizeUrl(baseUrl);
   }
 
   // -- PRIVATE --
 
-  private String url(@NotBlank final String url) {
+  /**
+   * Normalizes a URL by removing trailing slashes.
+   *
+   * @param url the URL to normalize
+   * @return the normalized URL without trailing slash, or null if input is null/empty
+   */
+  private String normalizeUrl(final String url) {
+    if (!hasText(url)) {
+      return null;
+    }
     return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
   }
 }

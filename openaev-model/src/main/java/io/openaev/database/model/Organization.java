@@ -8,8 +8,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MultiIdListDeserializer;
-import io.openaev.helper.MultiIdSetDeserializer;
+import io.openaev.helper.MultiIdListSerializer;
+import io.openaev.helper.MultiIdSetSerializer;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -22,6 +22,8 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.UuidGenerator;
 
+@Getter
+@Setter
 @Entity
 @Table(name = "organizations")
 @EntityListeners(ModelBaseListener.class)
@@ -65,14 +67,12 @@ public class Organization implements Base {
   private final ResourceType resourceType = ResourceType.ORGANIZATION;
 
   @ArraySchema(schema = @Schema(type = "string"))
-  @Setter
-  @Getter
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "organizations_tags",
       joinColumns = @JoinColumn(name = "organization_id"),
       inverseJoinColumns = @JoinColumn(name = "tag_id"))
-  @JsonSerialize(using = MultiIdSetDeserializer.class)
+  @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonProperty("organization_tags")
   private Set<Tag> tags = new HashSet<>();
 
@@ -97,7 +97,7 @@ public class Organization implements Base {
 
   @ArraySchema(schema = @Schema(type = "string"))
   @JsonProperty("organization_injects")
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   public List<Inject> getOrganizationInject() {
     return injects;
   }
@@ -109,57 +109,9 @@ public class Organization implements Base {
 
   // endregion
 
-  public String getId() {
-    return id;
-  }
-
   @Override
   public boolean isUserHasAccess(User user) {
     return user.isAdmin();
-  }
-
-  public void setId(String id) {
-    this.id = id;
-  }
-
-  public String getName() {
-    return name;
-  }
-
-  public void setName(String name) {
-    this.name = name;
-  }
-
-  public String getDescription() {
-    return description;
-  }
-
-  public void setDescription(String description) {
-    this.description = description;
-  }
-
-  public Instant getCreatedAt() {
-    return createdAt;
-  }
-
-  public void setCreatedAt(Instant createdAt) {
-    this.createdAt = createdAt;
-  }
-
-  public Instant getUpdatedAt() {
-    return updatedAt;
-  }
-
-  public void setUpdatedAt(Instant updatedAt) {
-    this.updatedAt = updatedAt;
-  }
-
-  public List<User> getUsers() {
-    return users;
-  }
-
-  public void setUsers(List<User> users) {
-    this.users = users;
   }
 
   @Override

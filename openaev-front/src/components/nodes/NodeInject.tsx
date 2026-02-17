@@ -27,7 +27,7 @@ const useStyles = makeStyles()(theme => ({
   },
   icon: {
     textAlign: 'left',
-    margin: '10px 0 0px 5px',
+    margin: '10px 0 0 5px',
   },
   popover: {
     textAlign: 'right',
@@ -35,26 +35,24 @@ const useStyles = makeStyles()(theme => ({
   },
   triggerTime: {
     textAlign: 'right',
-    margin: '10px 0 0px 5px',
+    margin: '10px 0 0 5px',
     position: 'absolute',
-    top: '10px',
-    right: '10px',
-    color: '#7d8188',
+    top: 10,
+    right: 10,
+    color: theme.palette.text.secondary,
   },
   label: {
     margin: '0 0 0 5px',
     textAlign: 'left',
     fontSize: 15,
-    whiteSpace: 'auto',
+    whiteSpace: 'normal',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     display: '-webkit-box',
     WebkitLineClamp: 2,
     WebkitBoxOrient: 'vertical',
-    height: '40px',
-    color: theme.palette.mode === 'dark'
-      ? 'white'
-      : 'black',
+    height: 40,
+    color: theme.palette.text.primary,
   },
   targets: {
     display: 'flex',
@@ -63,7 +61,7 @@ const useStyles = makeStyles()(theme => ({
     margin: '0 0 0 5px',
     textAlign: 'left',
     fontSize: 12,
-    whiteSpace: 'auto',
+    whiteSpace: 'normal',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
   },
@@ -160,9 +158,7 @@ const NodeInjectComponent = ({ data }: NodeProps<NodeInject>) => {
     if (data.inject) data.onSelectedInject(data.inject);
   };
 
-  const isDisabled = !data.inject?.inject_injector_contract?.convertedContent?.config.expose;
-
-  const dimNode = !data.inject?.inject_enabled || !data.inject?.inject_injector_contract?.convertedContent?.config.expose;
+  const dimNode = !data.inject?.inject_enabled;
 
   let borderLeftColor = theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)';
   if (!data.inject?.inject_enabled) {
@@ -222,7 +218,6 @@ const NodeInjectComponent = ({ data }: NodeProps<NodeInject>) => {
               inject={data.inject!}
               setSelectedInjectId={selectedInject}
               canBeTested={data.inject?.inject_testable}
-              isDisabled={isDisabled}
               onDelete={data.onDelete}
               onUpdate={data.onUpdate}
               onCreate={data.onCreate}

@@ -1,4 +1,4 @@
-import { type MutableRefObject, useRef, useState } from 'react';
+import { type MutableRefObject, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { MESSAGING$ } from '../../../../utils/Environment';
@@ -28,22 +28,28 @@ const useLeftMenu = (entries: LeftMenuEntries[]): {
   const [navOpen, setNavOpen] = useState(localStorage.getItem('navOpen') === 'true');
   const [selectedMenu, setSelectedMenu] = useState<string | null>(null);
 
-  const anchors = entries.reduce(
-    (acc, entry) =>
-      entry.items.reduce((subAcc, item) => {
-        if (hasHref(item)) {
-          subAcc[item.href] = useRef<HTMLLIElement | null>(null);
-        }
-        return subAcc;
-      }, acc),
-    {} as Record<string, MutableRefObject<HTMLLIElement | null>>,
-  );
+  // Store all anchor refs in a single ref object to comply with rules of hooks
+  const anchorsRef = useRef<Record<string, MutableRefObject<HTMLLIElement | null>>>({});
+
+  // Compute the list of hrefs that need refs and initialize them only once
+  const anchors = useMemo(() => {
+    const hrefs = entries.flatMap(entry =>
+      entry.items.filter(hasHref).map(item => item.href),
+    );
+    // Initialize refs for any new hrefs
+    hrefs.forEach((href) => {
+      if (!anchorsRef.current[href]) {
+        anchorsRef.current[href] = { current: null };
+      }
+    });
+    return anchorsRef.current;
+  }, [entries]);
 
   const handleToggleDrawer = () => {
     setSelectedMenu(null);
     localStorage.setItem('navOpen', String(!navOpen));
     setNavOpen(!navOpen);
-    MESSAGING$.toggleNav.next('toggle');
+    MESSAGING$.toggleNav.next();
   };
 
   const handleSelectedMenuOpen = (menu: string) => setSelectedMenu(menu);

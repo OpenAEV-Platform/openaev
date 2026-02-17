@@ -11,9 +11,30 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
+/**
+ * Utility class providing reusable Spring Data JPA Specification builders.
+ *
+ * <p>This class contains static methods for constructing JPA Specifications used in dynamic
+ * queries. It provides:
+ *
+ * <ul>
+ *   <li>Full-text search capabilities using PostgreSQL text search functions
+ *   <li>Grant-based access control filtering for RBAC
+ *   <li>Subquery builders for complex authorization checks
+ *   <li>Common filtering patterns (e.g., ID in list)
+ * </ul>
+ *
+ * <p>The specifications can be composed using {@code .and()} and {@code .or()} operators to build
+ * complex query conditions.
+ *
+ * @see Specification
+ * @see GrantableBase
+ */
 public class SpecificationUtils {
 
-  private SpecificationUtils() {}
+  private SpecificationUtils() {
+    // Utility class - prevent instantiation
+  }
 
   /**
    * Full Text Search with several properties instead of just one

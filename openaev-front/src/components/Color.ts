@@ -30,14 +30,14 @@ const colorStyles = {
   blueGrey: {
     backgroundColor: 'rgba(96, 125, 139, 0.08)',
     color: '#607d8b',
-    fontStyle: 'italic',
+    fontStyle: 'italic' as const,
   },
   grey: {
     backgroundColor: 'rgba(96, 125, 139, 0.08)',
     color: '#607d8b',
   },
-  white: {
-    backgroundColor: 'rgb(231, 133, 109, 0.08)',
+  canceled: {
+    backgroundColor: 'rgba(231, 133, 109, 0.08)',
     color: '#8d4e41',
   },
 };

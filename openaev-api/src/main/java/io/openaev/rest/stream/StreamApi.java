@@ -70,7 +70,7 @@ public class StreamApi extends RestBehavior {
   private static final EnumSet<ResourceType> RESOURCES_STREAM_BLACKLIST =
       EnumSet.of(ResourceType.VULNERABILITY, ResourceType.PAYLOAD);
 
-  @Async
+  @Async("streamExecutor")
   @Transactional
   @TransactionalEventListener
   public void listenDatabaseUpdate(BaseEvent event) {
@@ -123,7 +123,7 @@ public class StreamApi extends RestBehavior {
               sendStreamEvent(fluxSink, userEvent);
             } catch (Exception e) {
               String simpleName = event.getInstance().getClass().getSimpleName();
-              log.warn(String.format("Class %s cant be streamed", simpleName), e);
+              log.warn(String.format("Class %s can't be streamed", simpleName), e);
             }
           } else {
             sendStreamEvent(fluxSink, event);

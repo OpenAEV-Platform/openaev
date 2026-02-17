@@ -11,7 +11,7 @@
         </JSCodeStyleSettings>
         <TypeScriptCodeStyleSettings version="0">
             <option name="USE_DOUBLE_QUOTES" value="false" />
-            <option name="FORCE_QUOTE_STYlE" value="true" />
+            <option name="FORCE_QUOTE_STYLE" value="true" />
             <option name="IMPORTS_WRAP" value="0" />
             <option name="UNION_TYPES_WRAP" value="0" />
             <option name="SPACES_WITHIN_OBJECT_LITERAL_BRACES" value="true" />

@@ -17,11 +17,22 @@ import SortHeadersComponentV2 from '../../../../components/common/queryable/sort
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../components/i18n';
 import ItemBoolean from '../../../../components/ItemBoolean';
+import ItemDomains from '../../../../components/ItemDomains';
 import ItemTags from '../../../../components/ItemTags';
 import Loader from '../../../../components/Loader';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import PlatformIcon from '../../../../components/PlatformIcon';
-import { type Article, type Inject, type InjectBulkUpdateOperation, type InjectExportFromSearchRequestInput, type InjectInput, type InjectTestStatusOutput, type SearchPaginationInput, type Team, type Variable } from '../../../../utils/api-types';
+import {
+  type Article,
+  type Inject,
+  type InjectBulkUpdateOperation,
+  type InjectExportFromSearchRequestInput,
+  type InjectInput,
+  type InjectTestStatusOutput,
+  type SearchPaginationInput,
+  type Team,
+  type Variable,
+} from '../../../../utils/api-types';
 import { type InjectorContractConverted } from '../../../../utils/api-types-custom';
 import { MESSAGING$ } from '../../../../utils/Environment';
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
@@ -68,11 +79,12 @@ const useStyles = makeStyles()(() => ({
 
 const inlineStyles: Record<string, CSSProperties> = {
   inject_type: { width: '15%' },
-  inject_title: { width: '25%' },
+  inject_title: { width: '20%' },
+  inject_contract_domains: { width: '15%' },
   inject_depends_duration: { width: '18%' },
   inject_platforms: { width: '10%' },
   inject_enabled: { width: '12%' },
-  inject_tags: { width: '20%' },
+  inject_tags: { width: '10%' },
 };
 
 interface Props {
@@ -126,6 +138,18 @@ const Injects: FunctionComponent<Props> = ({
       label: 'Title',
       isSortable: true,
       value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => <>{inject.inject_title}</>,
+    },
+    {
+      field: 'inject_contract_domains',
+      label: t('Domains'),
+      isSortable: true,
+      value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => {
+        return inject.inject_contract_domains?.length
+          ? (
+              <ItemDomains domains={inject.inject_contract_domains} variant="reduced-view" />
+            )
+          : <></>;
+      },
     },
     {
       field: 'inject_depends_duration',
@@ -193,7 +217,12 @@ const Injects: FunctionComponent<Props> = ({
       field: 'inject_tags',
       label: 'Tags',
       isSortable: false,
-      value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => <ItemTags variant="list" tags={inject.inject_tags} />,
+      value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => (
+        <ItemTags
+          variant="list"
+          tags={inject.inject_tags}
+        />
+      ),
     },
   ], []);
 
@@ -208,9 +237,13 @@ const Injects: FunctionComponent<Props> = ({
     'inject_asset_groups',
     'inject_teams',
     'inject_tags',
+    'inject_contract_domains',
   ];
 
-  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(`${contextId}-injects`, buildSearchPagination({
+  const {
+    queryableHelpers,
+    searchPaginationInput,
+  } = useQueryableWithLocalStorage(`${contextId}-injects`, buildSearchPagination({
     sorts: initSorting('inject_depends_duration', 'ASC'),
     size: 20,
   }));
@@ -270,6 +303,11 @@ const Injects: FunctionComponent<Props> = ({
     }) => {
       onCreate(result);
     });
+  };
+
+  const onCreateInjects = (created: InjectOutputType[]) => {
+    setInjects([...created, ...injects]);
+    queryableHelpers.paginationHelpers.handleChangeTotalElements(queryableHelpers.paginationHelpers.getTotalElements() + created.length);
   };
 
   const onUpdateInject = async (data: Inject) => {
@@ -444,7 +482,15 @@ const Injects: FunctionComponent<Props> = ({
       data: InjectTestStatusOutput[];
     }) => {
       if (numberOfSelectedElements === 1) {
-        MESSAGING$.notifySuccess(t('Inject test has been sent, you can view test logs details on {itsDedicatedPage}.', { itsDedicatedPage: <Link to={`${result.uri}/${result.data[0].status_id}`}>{t('its dedicated page')}</Link> }));
+        MESSAGING$.notifySuccess(t('Inject test has been sent, you can view test logs details on {itsDedicatedPage}.', {
+          itsDedicatedPage: (
+            <Link
+              to={`${result.uri}/${result.data[0].status_id}`}
+            >
+              {t('its dedicated page')}
+            </Link>
+          ),
+        }));
       } else {
         MESSAGING$.notifySuccess(t('Inject test has been sent, you can view test logs details on {itsDedicatedPage}.', { itsDedicatedPage: <Link to={`${result.uri}`}>{t('its dedicated page')}</Link> }));
       }
@@ -508,8 +554,7 @@ const Injects: FunctionComponent<Props> = ({
             onTimelineClick={openCreateInjectDrawer}
             onSelectedInject={(inject) => {
               const injectContract = inject?.inject_injector_contract.convertedContent;
-              const isContractExposed = injectContract?.config.expose;
-              if (injectContract && isContractExposed) {
+              if (injectContract) {
                 setSelectedInjectId(inject?.inject_id);
               }
             }}
@@ -553,7 +598,6 @@ const Injects: FunctionComponent<Props> = ({
             ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
             : injects.map((inject: InjectOutputType, index) => {
                 const injectContract = inject.inject_injector_contract?.convertedContent;
-                const isContractExposed = injectContract?.config.expose;
                 return (
                   <ListItem
                     key={inject.inject_id}
@@ -563,7 +607,7 @@ const Injects: FunctionComponent<Props> = ({
                         inject={inject}
                         canBeTested
                         setSelectedInjectId={setSelectedInjectId}
-                        isDisabled={!injectContract || !isContractExposed}
+                        isDisabled={!injectContract}
                         onCreate={onCreate}
                         onUpdate={onUpdate}
                         onDelete={onDelete}
@@ -573,7 +617,7 @@ const Injects: FunctionComponent<Props> = ({
                   >
                     <ListItemButton
                       onClick={() => {
-                        if (injectContract && isContractExposed) {
+                        if (injectContract) {
                           setSelectedInjectId(inject.inject_id);
                         }
                       }}
@@ -604,12 +648,12 @@ const Injects: FunctionComponent<Props> = ({
                               || inject.inject_injector_contract?.injector_contract_payload?.payload_type
                               : inject.inject_type
                           }
-                          disabled={!injectContract || !isContractExposed || !inject.inject_enabled}
+                          disabled={!injectContract || !inject.inject_enabled}
                         />
                       </ListItemIcon>
                       <ListItemText
                         primary={(
-                          <div className={(!injectContract || !isContractExposed
+                          <div className={(!injectContract
                             || !inject.inject_enabled) ? classes.disabled : ''}
                           >
                             <div className={classes.bodyItems}>
@@ -682,6 +726,7 @@ const Injects: FunctionComponent<Props> = ({
                 open
                 handleClose={() => setOpenCreateDrawer(false)}
                 onCreateInject={onCreateInject}
+                onCreateInjects={onCreateInjects}
                 presetInjectDuration={presetInjectDuration}
                 articlesFromExerciseOrScenario={articles}
                 uriVariable={uriVariable}

@@ -247,13 +247,13 @@ export const areaChartOptions = (
 });
 
 export interface CustomTooltipOptions {
-  _: unknown[];
+  series: (number | null)[][];
   seriesIndex: number;
   dataPointIndex: number;
   w: { globals: { initialSeries: Array<{ data: object[] }> } };
 }
 
-export type CustomTooltipFunction = (options: CustomTooltipOptions) => unknown | undefined;
+export type CustomTooltipFunction = (options: CustomTooltipOptions) => string | undefined;
 
 function getColors(theme: Theme, isResult: boolean, distributed: boolean) {
   if (isResult) {

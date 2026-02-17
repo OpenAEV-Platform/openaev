@@ -1,18 +1,15 @@
 package io.openaev.service;
 
 import static io.openaev.database.model.ExerciseStatus.SCHEDULED;
-import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import io.openaev.IntegrationTest;
-import io.openaev.database.model.Exercise;
-import io.openaev.database.model.Inject;
-import io.openaev.database.model.InjectExpectation;
-import io.openaev.database.model.Team;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.utils.fixtures.InjectExpectationFixture;
+import io.openaev.utils.fixtures.InjectorContractFixture;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.*;
@@ -26,17 +23,12 @@ public class ExerciseExpectationServiceTest extends IntegrationTest {
   public static final String EXPECTATION_NAME =
       "The animation team can validate the audience reaction";
   @Autowired private ExerciseExpectationService exerciseExpectationService;
-
   @Autowired private InjectExpectationService injectExpectationService;
-
   @Autowired private ExerciseRepository exerciseRepository;
-
   @Autowired private InjectRepository injectRepository;
-
   @Autowired private TeamRepository teamRepository;
-
   @Autowired private InjectExpectationRepository injectExpectationRepository;
-
+  @Autowired private InjectorContractFixture injectorContractFixture;
   @Autowired private InjectorContractRepository injectorContractRepository;
 
   static String EXERCISE_ID;
@@ -98,8 +90,7 @@ public class ExerciseExpectationServiceTest extends IntegrationTest {
   private Inject getInject(Exercise exerciseCreated) {
     Inject inject = new Inject();
     inject.setTitle("test");
-    inject.setInjectorContract(
-        this.injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow());
+    inject.setInjectorContract(injectorContractFixture.getWellKnownSingleEmailContract());
     inject.setExercise(exerciseCreated);
     inject.setDependsDuration(0L);
     return this.injectRepository.save(inject);

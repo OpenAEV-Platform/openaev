@@ -54,7 +54,7 @@ export const fetchSimulationPlayerChallenges = (simulationId: string, userId: st
   return getReferential(simulationChallengesReaders, uri)(dispatch);
 };
 
-export const fetchSimulationObserverChallenges = (simulationId: string, userId: string) => (dispatch: Dispatch) => {
+export const fetchSimulationObserverChallenges = (simulationId: string, userId: string | null) => (dispatch: Dispatch) => {
   const uri = `/api/observer/simulations/${simulationId}/challenges?userId=${userId}`;
   return getReferential(simulationChallengesReaders, uri)(dispatch);
 };
@@ -66,7 +66,7 @@ export const fetchScenarioChallenges = (scenarioId: string) => (dispatch: Dispat
   return getReferential(arrayOfChallenges, uri)(dispatch);
 };
 
-export const fetchScenarioObserverChallenges = (scenarioId: string, userId: string) => (dispatch: Dispatch) => {
+export const fetchScenarioObserverChallenges = (scenarioId: string, userId: string | null) => (dispatch: Dispatch) => {
   const uri = `/api/observer/scenarios/${scenarioId}/challenges?userId=${userId}`;
   return getReferential(scenarioChallengesReaders, uri)(dispatch);
 };

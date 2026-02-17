@@ -190,7 +190,7 @@ describe('exportData tests', () => {
         objtype,
         keys,
         [obj],
-        null, // tagMap
+        undefined, // tagMap
         orgMap,
       );
 
@@ -221,7 +221,7 @@ describe('exportData tests', () => {
         objtype,
         keys,
         [obj],
-        null, // tagMap
+        undefined, // tagMap
         orgMap,
       );
 
@@ -274,8 +274,8 @@ describe('exportData tests', () => {
         objtype,
         keys,
         [obj],
-        null, // tagMap
-        null, // orgMap
+        undefined, // tagMap
+        undefined, // orgMap
         exerciseMap,
       );
 
@@ -306,8 +306,8 @@ describe('exportData tests', () => {
         objtype,
         keys,
         [obj],
-        null, // tagMap
-        null, // orgMap
+        undefined, // tagMap
+        undefined, // orgMap
         exerciseMap,
       );
 
@@ -361,9 +361,9 @@ describe('exportData tests', () => {
         objtype,
         keys,
         [obj],
-        null, // tagMap
-        null, // orgMap
-        null, // exerciseMap
+        undefined, // tagMap
+        undefined, // orgMap
+        undefined, // exerciseMap
         scenarioMap,
       );
 
@@ -395,9 +395,9 @@ describe('exportData tests', () => {
         objtype,
         keys,
         [obj],
-        null, // tagMap
-        null, // orgMap
-        null, // exerciseMap
+        undefined, // tagMap
+        undefined, // orgMap
+        undefined, // exerciseMap
         scenarioMap,
       );
 

@@ -5,8 +5,8 @@ import static java.time.Instant.now;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MonoIdDeserializer;
-import io.openaev.helper.MultiIdListDeserializer;
+import io.openaev.helper.MonoIdSerializer;
+import io.openaev.helper.MultiIdListSerializer;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -38,7 +38,7 @@ public class LessonsQuestion implements Base {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "lessons_question_category")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("lessons_question_category")
   @NotNull
   @Schema(type = "string")
@@ -69,18 +69,24 @@ public class LessonsQuestion implements Base {
 
   @OneToMany(mappedBy = "question", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
   @JsonProperty("lessons_question_answers")
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @ArraySchema(schema = @Schema(type = "string"))
   private List<LessonsAnswer> answers = new ArrayList<>();
 
   // region transient
   @JsonProperty("lessons_question_exercise")
   public String getExercise() {
+    if (getCategory() == null) {
+      return null;
+    }
     return Optional.ofNullable(getCategory().getExercise()).map(Exercise::getId).orElse(null);
   }
 
   @JsonProperty("lessons_question_scenario")
   public String getScenario() {
+    if (getCategory() == null) {
+      return null;
+    }
     return Optional.ofNullable(getCategory().getScenario()).map(Scenario::getId).orElse(null);
   }
 
@@ -88,7 +94,10 @@ public class LessonsQuestion implements Base {
 
   @Override
   public boolean isUserHasAccess(User user) {
-    return getCategory().getExercise().isUserHasAccess(user);
+    if (getCategory() == null) {
+      return user.isAdmin();
+    }
+    return getCategory().isUserHasAccess(user);
   }
 
   @Override

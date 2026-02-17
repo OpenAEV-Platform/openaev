@@ -6,6 +6,7 @@ import { searchEndpointAsOption, searchEndpointLinkedToFindingsAsOption } from '
 import { searchSecurityPlatformAsOption } from '../../../../actions/assets/securityPlatform-actions';
 import { searchAttackPatternsByNameAsOption } from '../../../../actions/AttackPattern';
 import { searchCustomDashboardAsOptions } from '../../../../actions/custom_dashboards/customdashboard-action';
+import { searchDomainsByNameAsOption } from '../../../../actions/domains/domain-actions';
 import { searchExerciseLinkedToFindingsAsOption } from '../../../../actions/exercises/exercise-action';
 import { searchInjectorsByNameAsOption } from '../../../../actions/injectors/injector-action';
 import { searchInjectLinkedToFindingsAsOption, searchTargetOptions } from '../../../../actions/injects/inject-action';
@@ -70,6 +71,13 @@ const useSearchOptions = () => {
       case 'base_attack_patterns_side':
       case 'inject_attack_patterns':
         searchAttackPatternsByNameAsOption(search).then((response) => {
+          setOptions(response.data);
+        });
+        break;
+      case 'payload_domains':
+      case 'injector_contract_domains':
+      case 'inject_contract_domains':
+        searchDomainsByNameAsOption(search).then((response) => {
           setOptions(response.data);
         });
         break;

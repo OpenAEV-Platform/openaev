@@ -4,11 +4,12 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MonoIdDeserializer;
+import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.UuidGenerator;
@@ -36,6 +37,11 @@ public class ConnectorInstanceLog implements Base {
   @JoinColumn(name = "connector_instance_id", nullable = false)
   @JsonIgnore
   @NotNull
-  @JsonSerialize(using = MonoIdDeserializer.class)
-  private ConnectorInstance connectorInstance;
+  @JsonSerialize(using = MonoIdSerializer.class)
+  private ConnectorInstancePersisted connectorInstance;
+
+  @Column(name = "connector_instance_log_created_at")
+  @JsonProperty("connector_instance_log_created_at")
+  @Schema(description = "Connector instance log created at")
+  private Instant connector_instance_log_created_at = Instant.now();
 }

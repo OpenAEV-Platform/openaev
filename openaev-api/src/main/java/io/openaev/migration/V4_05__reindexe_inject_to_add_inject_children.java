@@ -18,7 +18,7 @@ public class V4_05__reindexe_inject_to_add_inject_children extends BaseJavaMigra
             CREATE OR REPLACE FUNCTION update_injector_contract_updated_at()
                 RETURNS TRIGGER AS $$
             BEGIN
-                UPDATE public.injectors_contracts
+                UPDATE injectors_contracts
                 SET injector_contract_updated_at = now()
                 WHERE injector_contract_id = OLD.injector_contract_id;  -- Use NEW. if it is AFTER INSERT
 
@@ -28,13 +28,13 @@ public class V4_05__reindexe_inject_to_add_inject_children extends BaseJavaMigra
 
             -- Trigger for AFTER DELETE
             CREATE TRIGGER after_delete_update_injector_contract_updated_at
-                AFTER DELETE ON public.injectors_contracts_attack_patterns
+                AFTER DELETE ON injectors_contracts_attack_patterns
                 FOR EACH ROW
             EXECUTE FUNCTION update_injector_contract_updated_at();
 
             -- Trigger for AFTER INSERT
             CREATE TRIGGER after_insert_update_injector_contract_updated_at
-                AFTER INSERT ON public.injectors_contracts_attack_patterns
+                AFTER INSERT ON injectors_contracts_attack_patterns
                 FOR EACH ROW
             EXECUTE FUNCTION update_injector_contract_updated_at();
 
@@ -42,7 +42,7 @@ public class V4_05__reindexe_inject_to_add_inject_children extends BaseJavaMigra
             CREATE OR REPLACE FUNCTION update_inject_updated_at_after_delete_inject_child()
                 RETURNS TRIGGER AS $$
             BEGIN
-                UPDATE public.injects
+                UPDATE injects
                 SET inject_updated_at = now()
                 WHERE inject_id = OLD.inject_parent_id;
                 RETURN OLD;
@@ -51,7 +51,7 @@ public class V4_05__reindexe_inject_to_add_inject_children extends BaseJavaMigra
 
             -- Trigger for AFTER DELETE
             CREATE TRIGGER after_delete_update_inject_updated_at
-                AFTER DELETE ON public.injects_dependencies
+                AFTER DELETE ON injects_dependencies
                 FOR EACH ROW EXECUTE FUNCTION update_inject_updated_at_after_delete_inject_child();
             """;
 

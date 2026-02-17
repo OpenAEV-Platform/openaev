@@ -1,6 +1,6 @@
 import * as qs from 'qs';
 import * as R from 'ramda';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { z } from 'zod';
 
@@ -18,8 +18,7 @@ export const retrieveFromUri = (localStorageKey: string, searchParams: URLSearch
       return buildSearchPagination(parse);
     } catch (err) {
       if (err instanceof z.ZodError) {
-        // eslint-disable-next-line no-console
-        console.log(`Validation error: the uri has not a valid format ${err.issues}`);
+        // URI validation failed - return null to use default pagination
         return null;
       }
     }
@@ -31,6 +30,10 @@ const useUriState = (localStorageKey: string, initSearchPaginationInput: SearchP
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [input, setInput] = useState<SearchPaginationInput>(initSearchPaginationInput);
+
+  // Use ref to store onChange to avoid triggering useEffect when callback reference changes
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
   const helpers: UriHelpers = {
     retrieveFromUri: () => {
@@ -53,7 +56,7 @@ const useUriState = (localStorageKey: string, initSearchPaginationInput: SearchP
   };
 
   useEffect(() => {
-    onChange(input);
+    onChangeRef.current(input);
   }, [input]);
 
   return helpers;

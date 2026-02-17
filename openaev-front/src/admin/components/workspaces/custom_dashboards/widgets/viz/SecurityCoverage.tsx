@@ -1,6 +1,6 @@
 import { Close } from '@mui/icons-material';
 import { Box, Dialog, DialogContent, DialogTitle, IconButton } from '@mui/material';
-import { type FunctionComponent } from 'react';
+import { type FunctionComponent, memo, useCallback } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import Transition from '../../../../../../components/common/Transition';
@@ -29,7 +29,7 @@ const SecurityCoverage: FunctionComponent<Props> = ({ widgetId, widgetTitle, dat
   // Standard hooks
   const { classes } = useStyles();
 
-  const handleClose = () => setFullscreen(false);
+  const handleClose = useCallback(() => setFullscreen(false), [setFullscreen]);
 
   if (fullscreen) {
     return (
@@ -63,4 +63,4 @@ const SecurityCoverage: FunctionComponent<Props> = ({ widgetId, widgetTitle, dat
   return <SecurityCoverageContent widgetId={widgetId} data={data} />;
 };
 
-export default SecurityCoverage;
+export default memo(SecurityCoverage);

@@ -21,9 +21,11 @@ import io.openaev.injector_contract.Contractor;
 import io.openaev.injector_contract.ContractorIcon;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractExpectations;
+import io.openaev.rest.domain.enums.PresetDomain;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -38,11 +40,6 @@ public class ChallengeContract extends Contractor {
   public static final String TYPE = "openaev_challenge";
 
   @Override
-  public boolean isExpose() {
-    return true;
-  }
-
-  @Override
   public String getType() {
     return TYPE;
   }
@@ -50,12 +47,7 @@ public class ChallengeContract extends Contractor {
   @Override
   public ContractConfig getConfig() {
     return new ContractConfig(
-        TYPE,
-        Map.of(en, "Challenge", fr, "Challenge"),
-        "#e91e63",
-        "#e91e63",
-        "/img/challenge.png",
-        isExpose());
+        TYPE, Map.of(en, "Challenge", fr, "Challenge"), "#e91e63", "#e91e63", "/img/challenge.png");
   }
 
   @Override
@@ -96,7 +88,8 @@ public class ChallengeContract extends Contractor {
             Map.of(en, "Publish challenges", fr, "Publier des challenges"),
             publishInstance,
             List.of(Endpoint.PLATFORM_TYPE.Internal),
-            false);
+            false,
+            Set.of(PresetDomain.EMAIL_INFILTRATION, PresetDomain.TABLETOP));
     publishChallenge.setAtomicTesting(false);
     return List.of(publishChallenge);
   }

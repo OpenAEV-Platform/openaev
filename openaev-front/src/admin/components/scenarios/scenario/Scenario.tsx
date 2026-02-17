@@ -32,6 +32,7 @@ import ItemMainFocus from '../../../../components/ItemMainFocus';
 import ItemSeverity from '../../../../components/ItemSeverity';
 import ItemTags from '../../../../components/ItemTags';
 import PlatformIcon from '../../../../components/PlatformIcon';
+import TypeAffinityChip from '../../../../components/TypeAffinityChip';
 import octiDark from '../../../../static/images/xtm/octi_dark.png';
 import octiLight from '../../../../static/images/xtm/octi_light.png';
 import { useHelper } from '../../../../store';
@@ -86,7 +87,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
     scenario: helper.getScenario(scenarioId),
     settings: helper.getPlatformSettings(),
     injects: helper.getScenarioInjects(scenarioId),
-    collectors: helper.getCollectors(),
+    collectors: helper.getExistingCollectors(),
     agents: helper.getAgents(),
   }));
   const areAnyExercisesInScenario = scenario.scenario_exercises?.length > 0;
@@ -265,6 +266,16 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
                   />
                 ),
               )}
+            </GridLegacy>
+            <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
+              <Typography
+                variant="h3"
+                gutterBottom
+                style={{ marginTop: 20 }}
+              >
+                {t('Type Affinity')}
+              </Typography>
+              <TypeAffinityChip affinity_text={scenario?.scenario_type_affinity} />
             </GridLegacy>
             <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
               <Typography

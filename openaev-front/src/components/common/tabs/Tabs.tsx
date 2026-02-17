@@ -1,5 +1,5 @@
 import { Box, Tab, Tabs as MUITabs } from '@mui/material';
-import { type FunctionComponent, type ReactNode, useCallback } from 'react';
+import { type FunctionComponent, type ReactNode, type SyntheticEvent, useCallback } from 'react';
 
 export interface TabsEntry {
   key: string;
@@ -11,7 +11,7 @@ const Tabs: FunctionComponent<{
   currentTab: string;
   onChange: (newValue: string) => void;
 }> = ({ entries = [], currentTab, onChange }) => {
-  const handleChange = useCallback((_e: unknown, newValue: string) => {
+  const handleChange = useCallback((_e: SyntheticEvent, newValue: string) => {
     onChange(newValue);
   }, [onChange]);
 

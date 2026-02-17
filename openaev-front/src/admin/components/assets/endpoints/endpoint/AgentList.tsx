@@ -4,7 +4,7 @@ import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { fetchExecutors } from '../../../../../actions/Executor';
+import { fetchExecutors } from '../../../../../actions/executors/executor-action';
 import { type ExecutorHelper } from '../../../../../actions/executors/executor-helper';
 import type { LoggedHelper } from '../../../../../actions/helper';
 import useBodyItemsStyles from '../../../../../components/common/queryable/style/style';
@@ -83,7 +83,7 @@ const AgentList: FunctionComponent<Props> = ({ agents }) => {
         }
 
         const { executor_type, executor_name } = executor;
-        const showEEChip = !settings.platform_license?.license_is_validated && (executor_type === 'openaev_tanium' || executor_type === 'openaev_crowdstrike');
+        const showEEChip = !settings.platform_license?.license_is_validated && (executor_type === 'openaev_tanium' || executor_type === 'openaev_crowdstrike_executor' || executor_type === 'openaev_sentinelone_executor');
 
         return (
           <>

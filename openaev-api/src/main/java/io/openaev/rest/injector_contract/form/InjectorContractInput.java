@@ -5,9 +5,7 @@ import static io.openaev.config.AppConfig.MANDATORY_MESSAGE;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import jakarta.validation.constraints.NotBlank;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -37,4 +35,7 @@ public class InjectorContractInput {
 
   @JsonProperty("contract_platforms")
   private PLATFORM_TYPE[] platforms = new PLATFORM_TYPE[0];
+
+  @JsonProperty("contract_domains")
+  private Set<InjectorContractDomainDTO> domains = new HashSet<>();
 }

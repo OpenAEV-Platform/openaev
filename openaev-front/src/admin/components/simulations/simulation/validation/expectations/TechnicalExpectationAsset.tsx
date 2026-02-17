@@ -12,6 +12,7 @@ import { truncate } from '../../../../../../utils/String';
 import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
 import { typeIcon } from '../../../../common/injects/expectations/ExpectationUtils';
 import ExpectationLine from './ExpectationLine';
+import { getSourceLabel } from './ExpectationUtils';
 
 const useStyles = makeStyles()(theme => ({
   buttons: {
@@ -99,7 +100,7 @@ const TechnicalExpectationAsset: FunctionComponent<Props> = ({
                                   minWidth: '200px',
                                   maxWidth: '200px',
                                 }}
-                                primary={<span>{result.sourceName}</span>}
+                                primary={<span>{getSourceLabel(result)}</span>}
                               />
                               <ListItemText primary={<span>{truncate(result.result, 40)}</span>} />
                               <ListItemIcon>
