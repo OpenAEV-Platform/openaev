@@ -13,35 +13,38 @@ import org.springframework.stereotype.Component;
 public class CVEOutputProcessorHandler extends AbstractOutputProcessorHandler
     implements FindingCapable, ExpectationCapable {
 
+  private static final String ASSET_ID = "asset_id";
+  private static final String ID = "id";
+  private static final String HOST = "host";
+  private static final String SEVERITY = "severity";
+
   public CVEOutputProcessorHandler() {
     super(
         ContractOutputType.CVE,
         ContractOutputTechnicalType.Object,
         Set.of(
-            new ContractOutputField("asset_id", ContractOutputTechnicalType.Text, false),
-            new ContractOutputField("id", ContractOutputTechnicalType.Text, true),
-            new ContractOutputField("host", ContractOutputTechnicalType.Text, true),
-            new ContractOutputField("severity", ContractOutputTechnicalType.Text, true)),
+            new ContractOutputField(ASSET_ID, ContractOutputTechnicalType.Text, false),
+            new ContractOutputField(ID, ContractOutputTechnicalType.Text, true),
+            new ContractOutputField(HOST, ContractOutputTechnicalType.Text, true),
+            new ContractOutputField(SEVERITY, ContractOutputTechnicalType.Text, true)),
         true,
         Set.of(ProcessingContext.FINDING, ProcessingContext.EXPECTATION));
   }
 
   @Override
   public boolean validate(JsonNode jsonNode) {
-    return jsonNode.hasNonNull("id")
-        && jsonNode.hasNonNull("host")
-        && jsonNode.hasNonNull("severity");
+    return jsonNode.hasNonNull(ID) && jsonNode.hasNonNull(HOST) && jsonNode.hasNonNull(SEVERITY);
   }
 
   // Findings
   @Override
   public String toFindingValue(JsonNode jsonNode) {
-    return buildString(jsonNode, "id");
+    return buildString(jsonNode, ID);
   }
 
   @Override
   public Set<String> toFindingAssets(JsonNode jsonNode) {
-    JsonNode assetIdNode = jsonNode.get("asset_id");
+    JsonNode assetIdNode = jsonNode.get(ASSET_ID);
     if (assetIdNode == null) {
       return Collections.emptySet();
     }

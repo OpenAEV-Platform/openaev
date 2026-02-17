@@ -13,37 +13,40 @@ import org.springframework.stereotype.Component;
 public class PortScanOutputProcessorHandler extends AbstractOutputProcessorHandler
     implements FindingCapable {
 
+  private static final String ASSET_ID = "asset_id";
+  private static final String HOST = "host";
+  private static final String PORT = "port";
+  private static final String SERVICE = "service";
+
   public PortScanOutputProcessorHandler() {
     super(
         ContractOutputType.PortsScan,
         ContractOutputTechnicalType.Object,
         Set.of(
-            new ContractOutputField("asset_id", ContractOutputTechnicalType.Text, false),
-            new ContractOutputField("host", ContractOutputTechnicalType.Text, true),
-            new ContractOutputField("port", ContractOutputTechnicalType.Number, true),
-            new ContractOutputField("service", ContractOutputTechnicalType.Text, true)),
+            new ContractOutputField(ASSET_ID, ContractOutputTechnicalType.Text, false),
+            new ContractOutputField(HOST, ContractOutputTechnicalType.Text, true),
+            new ContractOutputField(PORT, ContractOutputTechnicalType.Number, true),
+            new ContractOutputField(SERVICE, ContractOutputTechnicalType.Text, true)),
         true,
         Set.of(ProcessingContext.FINDING));
   }
 
   @Override
   public boolean validate(JsonNode jsonNode) {
-    return jsonNode.hasNonNull("host")
-        && jsonNode.hasNonNull("port")
-        && jsonNode.hasNonNull("service");
+    return jsonNode.hasNonNull(HOST) && jsonNode.hasNonNull(PORT) && jsonNode.hasNonNull(SERVICE);
   }
 
   @Override
   public String toFindingValue(JsonNode jsonNode) {
-    String host = buildString(jsonNode, "host");
-    String port = buildString(jsonNode, "port");
-    String service = buildString(jsonNode, "service");
+    String host = buildString(jsonNode, HOST);
+    String port = buildString(jsonNode, PORT);
+    String service = buildString(jsonNode, SERVICE);
     return host + ":" + port + (hasText(service) ? " (" + service + ")" : "");
   }
 
   @Override
   public Set<String> toFindingAssets(JsonNode jsonNode) {
-    JsonNode assetIdNode = jsonNode.get("asset_id");
+    JsonNode assetIdNode = jsonNode.get(ASSET_ID);
     if (assetIdNode != null) {
       return Set.of(assetIdNode.asText());
     }
