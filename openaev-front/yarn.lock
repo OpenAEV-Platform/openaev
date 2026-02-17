@@ -3662,12 +3662,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/react-grid-layout@npm:^1":
-  version: 1.3.5
-  resolution: "@types/react-grid-layout@npm:1.3.5"
+"@types/react-grid-layout@npm:^2.0.0":
+  version: 2.1.0
+  resolution: "@types/react-grid-layout@npm:2.1.0"
   dependencies:
-    "@types/react": "npm:*"
-  checksum: 10c0/abd2a1dda9625c753ff2571a10b69740b2fb9ed1d3141755d54d5814cc12a9701c7c5cd78e8797e945486b441303b82543be71043a32d6a988b57a14237f93c6
+    react-grid-layout: "npm:*"
+  checksum: 10c0/1e21a924afba01efce825bb6050e5e9302994bcb643db7a3882854f57c810c5063bd54e78768c8772b589572388d0c8c2f4a99ddf4c5fb2468009bb10b60def7
   languageName: node
   linkType: hard
 
@@ -10214,7 +10214,7 @@ __metadata:
     "@types/react": "npm:19.2.7"
     "@types/react-csv": "npm:1.1.10"
     "@types/react-dom": "npm:19.2.3"
-    "@types/react-grid-layout": "npm:^1"
+    "@types/react-grid-layout": "npm:^2.0.0"
     "@types/react-syntax-highlighter": "npm:15"
     "@typescript-eslint/utils": "npm:8.48.0"
     "@uiw/react-md-editor": "npm:4.0.11"
@@ -10271,7 +10271,7 @@ __metadata:
     react-dom: "npm:19.2.4"
     react-final-form: "npm:6.5.9"
     react-final-form-arrays: "npm:3.1.4"
-    react-grid-layout: "npm:1.5.3"
+    react-grid-layout: "npm:2.2.2"
     react-hook-form: "npm:7.68.0"
     react-intl: "npm:8.0.10"
     react-markdown: "npm:10.1.0"
@@ -10891,9 +10891,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-grid-layout@npm:1.5.3":
-  version: 1.5.3
-  resolution: "react-grid-layout@npm:1.5.3"
+"react-grid-layout@npm:*, react-grid-layout@npm:2.2.2":
+  version: 2.2.2
+  resolution: "react-grid-layout@npm:2.2.2"
   dependencies:
     clsx: "npm:^2.1.1"
     fast-equals: "npm:^4.0.3"
@@ -10904,7 +10904,7 @@ __metadata:
   peerDependencies:
     react: ">= 16.3.0"
     react-dom: ">= 16.3.0"
-  checksum: 10c0/e7ddacff138e7e83121b7356411a38056fa628dcd77ee8dfa5d5290fda76c2bafdc757578ed5cf4617731696e959ba8570f391b509e597f6563158ed2dd8dbb9
+  checksum: 10c0/4b38496948136b3d63689c141bcdfaece5e6ce9d228bffad89f751d3b510f6ab1589609982c6fa340a805bda7e0533b212bdff0185b8a52293e031a2e57ebdb9
   languageName: node
   linkType: hard
 
