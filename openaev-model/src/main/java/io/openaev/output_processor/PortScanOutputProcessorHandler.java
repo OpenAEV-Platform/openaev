@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.ContractOutputField;
 import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
-import java.util.Set;
+import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -22,13 +22,13 @@ public class PortScanOutputProcessorHandler extends AbstractOutputProcessorHandl
     super(
         ContractOutputType.PortsScan,
         ContractOutputTechnicalType.Object,
-        Set.of(
+        List.of(
             new ContractOutputField(ASSET_ID, ContractOutputTechnicalType.Text, false),
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(PORT, ContractOutputTechnicalType.Number, true),
             new ContractOutputField(SERVICE, ContractOutputTechnicalType.Text, true)),
         true,
-        Set.of(ProcessingContext.FINDING));
+        List.of(ProcessingContext.FINDING));
   }
 
   @Override
@@ -45,11 +45,11 @@ public class PortScanOutputProcessorHandler extends AbstractOutputProcessorHandl
   }
 
   @Override
-  public Set<String> toFindingAssets(JsonNode jsonNode) {
+  public List<String> toFindingAssets(JsonNode jsonNode) {
     JsonNode assetIdNode = jsonNode.get(ASSET_ID);
     if (assetIdNode != null) {
-      return Set.of(assetIdNode.asText());
+      return List.of(assetIdNode.asText());
     }
-    return Set.of();
+    return List.of();
   }
 }

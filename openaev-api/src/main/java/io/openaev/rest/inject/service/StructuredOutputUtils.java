@@ -150,7 +150,7 @@ public class StructuredOutputUtils {
 
     // Get metadata from handler instead of enum
     ContractOutputTechnicalType technicalType = handler.getTechnicalType();
-    Set<ContractOutputField> fields = handler.getFields();
+    List<ContractOutputField> fields = handler.getFields();
 
     // Case: primitive types like Text, Number, IPv4, IPv6
     if (fields == null || technicalType != ContractOutputTechnicalType.Object) {

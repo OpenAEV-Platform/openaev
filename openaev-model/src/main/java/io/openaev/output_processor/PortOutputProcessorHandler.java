@@ -3,7 +3,7 @@ package io.openaev.output_processor;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
-import java.util.Set;
+import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -14,9 +14,9 @@ public class PortOutputProcessorHandler extends AbstractOutputProcessorHandler
     super(
         ContractOutputType.Port,
         ContractOutputTechnicalType.Number,
-        Set.of(),
+        List.of(),
         true,
-        Set.of(ProcessingContext.FINDING));
+        List.of(ProcessingContext.FINDING));
   }
 
   @Override

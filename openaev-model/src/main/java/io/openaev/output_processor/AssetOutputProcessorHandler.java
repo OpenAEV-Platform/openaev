@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
-import java.util.Set;
+import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -15,9 +15,9 @@ public class AssetOutputProcessorHandler extends AbstractOutputProcessorHandler
     super(
         ContractOutputType.Asset,
         ContractOutputTechnicalType.Object,
-        Set.of(),
+        List.of(),
         false,
-        Set.of(ProcessingContext.ASSET));
+        List.of(ProcessingContext.ASSET));
   }
 
   @Override

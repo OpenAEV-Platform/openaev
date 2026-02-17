@@ -21,7 +21,6 @@ import jakarta.annotation.Resource;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
 import java.util.*;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
@@ -196,23 +195,20 @@ public class FindingService {
       Finding finding,
       FindingCapable handler) {
     // Create links with assets
-    Set<String> assetsIds = handler.toFindingAssets(jsonNode);
-    Set<Optional<Asset>> assets =
-        assetsIds.stream().map(this.assetRepository::findById).collect(Collectors.toSet());
+    List<String> assetsIds = handler.toFindingAssets(jsonNode);
+    List<Optional<Asset>> assets = assetsIds.stream().map(this.assetRepository::findById).toList();
     if (!assets.isEmpty()) {
       finding.setAssets(assets.stream().filter(Optional::isPresent).map(Optional::get).toList());
     }
     // Create links with teams
-    Set<String> teamsIds = handler.toFindingTeams(jsonNode);
-    Set<Optional<Team>> teams =
-        teamsIds.stream().map(this.teamRepository::findById).collect(Collectors.toSet());
+    List<String> teamsIds = handler.toFindingTeams(jsonNode);
+    List<Optional<Team>> teams = teamsIds.stream().map(this.teamRepository::findById).toList();
     if (!teams.isEmpty()) {
       finding.setTeams(teams.stream().filter(Optional::isPresent).map(Optional::get).toList());
     }
     // Create links with users
-    Set<String> usersIds = handler.toFindingUsers(jsonNode);
-    Set<Optional<User>> users =
-        usersIds.stream().map(this.userRepository::findById).collect(Collectors.toSet());
+    List<String> usersIds = handler.toFindingUsers(jsonNode);
+    List<Optional<User>> users = usersIds.stream().map(this.userRepository::findById).toList();
     if (!users.isEmpty()) {
       finding.setUsers(users.stream().filter(Optional::isPresent).map(Optional::get).toList());
     }

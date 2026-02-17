@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.ContractOutputField;
 import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
-import java.util.Set;
+import java.util.List;
 
 /**
  * Handler interface for processing structured outputs in different contexts. Implementations of
@@ -20,13 +20,13 @@ public interface OutputProcessorHandler {
   ContractOutputTechnicalType getTechnicalType();
 
   /** Get fields */
-  Set<ContractOutputField> getFields();
+  List<ContractOutputField> getFields();
 
   /** Is finding compatible */
   boolean isFindingCompatible();
 
   /** Get the supported processing contexts for this handler */
-  Set<ProcessingContext> getSupportedContexts();
+  List<ProcessingContext> getSupportedContexts();
 
   /** Check if this handler supports a specific context */
   default boolean supportsContext(ProcessingContext context) {

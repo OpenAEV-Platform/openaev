@@ -9,28 +9,27 @@ import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
 /** Abstract base class providing common functionality for structured output processor handlers. */
 public abstract class AbstractOutputProcessorHandler implements OutputProcessorHandler {
 
   protected final ContractOutputType type;
   protected final ContractOutputTechnicalType technicalType;
-  protected final Set<ContractOutputField> fields;
+  protected final List<ContractOutputField> fields;
   protected final boolean isFindingCompatible;
-  protected final Set<ProcessingContext> supportedContexts;
+  protected final List<ProcessingContext> supportedContexts;
 
   protected AbstractOutputProcessorHandler(
       ContractOutputType type,
       ContractOutputTechnicalType technicalType,
-      Set<ContractOutputField> fields,
+      List<ContractOutputField> fields,
       boolean isFindingCompatible,
-      Set<ProcessingContext> supportedContexts) {
+      List<ProcessingContext> supportedContexts) {
     this.type = type;
     this.technicalType = technicalType;
     this.fields = fields;
     this.isFindingCompatible = isFindingCompatible;
-    this.supportedContexts = Collections.unmodifiableSet(supportedContexts);
+    this.supportedContexts = Collections.unmodifiableList(supportedContexts);
   }
 
   @Override
@@ -44,7 +43,7 @@ public abstract class AbstractOutputProcessorHandler implements OutputProcessorH
   }
 
   @Override
-  public Set<ContractOutputField> getFields() {
+  public List<ContractOutputField> getFields() {
     return fields;
   }
 
@@ -54,7 +53,7 @@ public abstract class AbstractOutputProcessorHandler implements OutputProcessorH
   }
 
   @Override
-  public Set<ProcessingContext> getSupportedContexts() {
+  public List<ProcessingContext> getSupportedContexts() {
     return supportedContexts;
   }
 

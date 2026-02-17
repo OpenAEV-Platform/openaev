@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.ContractOutputField;
 import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
-import java.util.Set;
+import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -18,11 +18,11 @@ public class CredentialsOutputProcessorHandler extends AbstractOutputProcessorHa
     super(
         ContractOutputType.Credentials,
         ContractOutputTechnicalType.Object,
-        Set.of(
+        List.of(
             new ContractOutputField(USERNAME, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(PASSWORD, ContractOutputTechnicalType.Text, true)),
         true,
-        Set.of(ProcessingContext.FINDING));
+        List.of(ProcessingContext.FINDING));
   }
 
   @Override

@@ -4,9 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.ContractOutputField;
 import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -22,13 +22,13 @@ public class CVEOutputProcessorHandler extends AbstractOutputProcessorHandler
     super(
         ContractOutputType.CVE,
         ContractOutputTechnicalType.Object,
-        Set.of(
+        List.of(
             new ContractOutputField(ASSET_ID, ContractOutputTechnicalType.Text, false),
             new ContractOutputField(ID, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(SEVERITY, ContractOutputTechnicalType.Text, true)),
         true,
-        Set.of(ProcessingContext.FINDING, ProcessingContext.EXPECTATION));
+        List.of(ProcessingContext.FINDING, ProcessingContext.EXPECTATION));
   }
 
   @Override
@@ -43,19 +43,19 @@ public class CVEOutputProcessorHandler extends AbstractOutputProcessorHandler
   }
 
   @Override
-  public Set<String> toFindingAssets(JsonNode jsonNode) {
+  public List<String> toFindingAssets(JsonNode jsonNode) {
     JsonNode assetIdNode = jsonNode.get(ASSET_ID);
     if (assetIdNode == null) {
-      return Collections.emptySet();
+      return Collections.emptyList();
     }
     if (assetIdNode.isArray()) {
-      Set<String> result = new HashSet<>();
+      List<String> result = new ArrayList<>();
       for (JsonNode idNode : assetIdNode) {
         result.add(idNode.asText());
       }
       return result;
     }
-    return Set.of(assetIdNode.asText());
+    return List.of(assetIdNode.asText());
   }
 
   // Expectations

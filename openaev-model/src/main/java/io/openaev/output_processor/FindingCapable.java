@@ -2,7 +2,7 @@ package io.openaev.output_processor;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Collections;
-import java.util.Set;
+import java.util.List;
 
 /**
  * Interface for handlers that can process findings. Only handlers that support
@@ -17,21 +17,21 @@ public interface FindingCapable {
    * Extract asset IDs from JSON node for finding linking. Default implementation returns empty
    * list.
    */
-  default Set<String> toFindingAssets(JsonNode jsonNode) {
-    return Collections.emptySet();
+  default List<String> toFindingAssets(JsonNode jsonNode) {
+    return Collections.emptyList();
   }
 
   /**
    * Extract user IDs from JSON node for finding linking. Default implementation returns empty list.
    */
-  default Set<String> toFindingUsers(JsonNode jsonNode) {
-    return Collections.emptySet();
+  default List<String> toFindingUsers(JsonNode jsonNode) {
+    return Collections.emptyList();
   }
 
   /**
    * Extract team IDs from JSON node for finding linking. Default implementation returns empty list.
    */
-  default Set<String> toFindingTeams(JsonNode jsonNode) {
-    return Collections.emptySet();
+  default List<String> toFindingTeams(JsonNode jsonNode) {
+    return Collections.emptyList();
   }
 }
