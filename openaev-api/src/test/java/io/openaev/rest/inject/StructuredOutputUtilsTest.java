@@ -2,24 +2,22 @@ package io.openaev.rest.inject;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.Mockito.mock;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
+import io.openaev.output_processor.OutputProcessorHandlerRegistry;
 import io.openaev.rest.inject.service.StructuredOutputUtils;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.transaction.annotation.Transactional;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-@Transactional
-@TestInstance(PER_CLASS)
-@DisplayName("Process OutputParsers to extract structured data")
-class StructuredOutputUtilsTest extends IntegrationTest {
+@ExtendWith(MockitoExtension.class)
+class StructuredOutputUtilsTest {
 
   public static final String SIMPLE_RAW_OUTPUT_TASKLIST =
       "\r\nImage Name                 PID  Session Name        Session#    Mem Usage\r\n"
@@ -35,7 +33,16 @@ class StructuredOutputUtilsTest extends IntegrationTest {
           + "  TCP    176.125.125.10:445            0.0.0.0:0              LISTENING\n"
           + "  TCP    192.168.12.12:902            0.0.0.0:0              LISTENING\n";
 
-  @Autowired private StructuredOutputUtils structuredOutputUtils;
+  private final ObjectMapper mapper = new ObjectMapper();
+  private OutputProcessorHandlerRegistry outputProcessorHandlerRegistry;
+
+  private StructuredOutputUtils structuredOutputUtils;
+
+  @BeforeEach
+  void setup() {
+    outputProcessorHandlerRegistry = mock(OutputProcessorHandlerRegistry.class);
+    structuredOutputUtils = new StructuredOutputUtils(outputProcessorHandlerRegistry, mapper);
+  }
 
   @Test
   @DisplayName("Should return null string for a raw output empty")
