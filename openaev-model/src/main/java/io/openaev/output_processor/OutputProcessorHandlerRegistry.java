@@ -17,7 +17,7 @@ public class OutputProcessorHandlerRegistry {
         Arrays.stream(ContractOutputType.values())
             .collect(
                 Collectors.toUnmodifiableMap(
-                    type -> type, type -> applicationContext.getBean(type.handlerClass)));
+                    type -> type, type -> applicationContext.getBean(type.getHandlerClass())));
   }
 
   public OutputProcessorHandler getHandler(ContractOutputType type) {
