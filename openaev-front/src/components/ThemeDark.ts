@@ -5,6 +5,7 @@ import LogoText from '../static/images/logo_text_dark.png';
 import { hexToRGB } from '../utils/Colors';
 import { fileUri } from '../utils/Environment';
 import { FONT_FAMILY_CODE, type LabelColor, LabelColorDict } from './Theme';
+import { margin } from '@mui/system';
 
 const EE_COLOR = '#00f1bd';
 
@@ -171,6 +172,14 @@ const ThemeDark = (
       fontWeight: 400,
       fontSize: 18,
       color: text_color,
+      fontFamily: '"Geologica", sans-serif',
+    },
+    //Scenario configuration title
+    h7: {
+      margin: '0 0 0 0',
+      padding: 0,
+      fontWeight: 550,
+      fontSize: 16,
       fontFamily: '"Geologica", sans-serif',
     },
     subtitle2: {

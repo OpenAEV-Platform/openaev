@@ -70,7 +70,7 @@ const Healthchecks = ({ healthchecks, scenarioId }: Props) => {
     }}
     >
       <div style={{
-        backgroundColor: getPaperInformationBarColor(),
+        backgroundColor: '#ffa726',
         borderBottomLeftRadius: 5,
         borderTopLeftRadius: 5,
         height: 'auto',
@@ -85,11 +85,12 @@ const Healthchecks = ({ healthchecks, scenarioId }: Props) => {
         }}
       >
         <AccordionSummary expandIcon={<ExpandMore />}>
-          <Typography variant="h1" marginBottom={0}>{t('Scenario configuration')}</Typography>
+          <Typography variant="h7" sx={{ color: '#ffa726' }}>{t('Scenario configuration')}</Typography>
         </AccordionSummary>
         <AccordionDetails style={{
           display: 'flex',
           flexDirection: 'column',
+          paddingTop: 0,
         }}
         >
           {orderedHealthchecks.map((healthcheck: HealthCheck, index: number) => {
@@ -104,11 +105,11 @@ const Healthchecks = ({ healthchecks, scenarioId }: Props) => {
               >
                 <Circle
                   sx={{
-                    color: healthcheck.status === 'ERROR' ? theme.palette.error.main : theme.palette.warning.main,
+                    color: '#ffa726',
                     height: '10px',
                   }}
                 />
-                <Typography variant="h3" marginBottom={0}>
+                <Typography variant="h3" marginBottom={0} marginTop={0}>
                   {t(`healthcheck.type.${healthcheck.type}`)}
                   :
                 </Typography>

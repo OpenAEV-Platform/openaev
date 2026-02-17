@@ -174,6 +174,14 @@ const ThemeLight = (
       color: text_color,
       fontFamily: '"Geologica", sans-serif',
     },
+    //Scenario configuration title
+    h7: {
+      margin: '0 0 0 0',
+      padding: 0,
+      fontWeight: 550,
+      fontSize: 16,
+      fontFamily: '"Geologica", sans-serif',
+    },
     subtitle2: {
       fontWeight: 400,
       fontSize: 18,
