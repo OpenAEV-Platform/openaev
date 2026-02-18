@@ -3,6 +3,8 @@ on:
   pull_request:
     branches: [master, release/current]
     types: [opened, edited, reopened, ready_for_review, synchronize]
+permissions:
+  contents: read
 jobs:
   validate-pr-title:
     permissions:
