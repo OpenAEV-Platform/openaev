@@ -6,13 +6,12 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.sso.GroupMapping;
-import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 @Slf4j
 @AllArgsConstructor
@@ -32,7 +31,10 @@ public class UserMappingService {
           Optional<Group> groupOptional = groupRepository.findByName(userGroup);
           if (groupOptional.isPresent()) {
             List<Group> userGroups = user.getGroups();
-            List<Group> existing = userGroups.stream().filter(userG -> userG.getName().equals(groupOptional.get().getName())).toList();
+            List<Group> existing =
+                userGroups.stream()
+                    .filter(userG -> userG.getName().equals(groupOptional.get().getName()))
+                    .toList();
             if (existing.isEmpty()) {
               userGroups.add(groupOptional.get());
               user.setGroups(userGroups);
@@ -66,5 +68,4 @@ public class UserMappingService {
       return List.of();
     }
   }
-
 }
