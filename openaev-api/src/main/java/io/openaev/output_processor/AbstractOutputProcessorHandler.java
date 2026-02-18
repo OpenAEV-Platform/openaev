@@ -51,6 +51,11 @@ public abstract class AbstractOutputProcessorHandler implements OutputProcessorH
     return isFindingCompatible;
   }
 
+  @Override
+  public boolean validate(JsonNode jsonNode) {
+    return jsonNode != null;
+  }
+
   // FINDING METHODS
   // Override these in handlers that support findings
 

@@ -14,11 +14,6 @@ public class NumberOutputProcessorHandler extends AbstractOutputProcessorHandler
   }
 
   @Override
-  public boolean validate(JsonNode jsonNode) {
-    return jsonNode != null;
-  }
-
-  @Override
   public String toFindingValue(JsonNode jsonNode) {
     return buildString(jsonNode);
   }
