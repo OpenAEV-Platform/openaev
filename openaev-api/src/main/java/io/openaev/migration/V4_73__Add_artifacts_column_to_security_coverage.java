@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_71__Add_artifacts_column_to_security_coverage extends BaseJavaMigration {
+public class V4_73__Add_artifacts_column_to_security_coverage extends BaseJavaMigration {
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement stmt = context.getConnection().createStatement()) {
