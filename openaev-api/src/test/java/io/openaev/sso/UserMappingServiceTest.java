@@ -1,5 +1,8 @@
 package io.openaev.sso;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
@@ -11,25 +14,18 @@ import io.openaev.utils.fixtures.composers.GroupComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-
 @Transactional
 public class UserMappingServiceTest extends IntegrationTest {
 
-  @Autowired
-  private GroupComposer groupComposer;
-  @Autowired
-  UserComposer userComposer;
+  @Autowired private GroupComposer groupComposer;
+  @Autowired UserComposer userComposer;
   @Autowired private UserMappingService userMappingService;
   @Autowired protected EntityManager entityManager;
 
@@ -41,10 +37,11 @@ public class UserMappingServiceTest extends IntegrationTest {
   @Test
   @DisplayName(
       "When the specific group already exists and the autocreate is false, add it to the user")
-  public void whenTheSpecificGroupAlreadyExistsAndTheAutocreateIsFalse_addItToTheUser(){
+  public void whenTheSpecificGroupAlreadyExistsAndTheAutocreateIsFalse_addItToTheUser() {
 
     // -- ARRANGE ---
-    String object = "[{\"idpGroup\": \"observer\",\"userGroup\": \"observer\",\"autoCreate\": \"false\"}]";
+    String object =
+        "[{\"idpGroup\": \"observer\",\"userGroup\": \"observer\",\"autoCreate\": \"false\"}]";
     Group specificGroup = GroupFixture.createGroupWithName("observer");
     specificGroup.setId(Constants.PROCESS_STIX_GROUP_ID);
     specificGroup.setDescription("a description");
@@ -61,17 +58,18 @@ public class UserMappingServiceTest extends IntegrationTest {
     // ---- ACT ----
     userMappingService.mapCurrentUserWithGroup(object, user, roles);
 
-    //-- ASSERT --
+    // -- ASSERT --
     assertTrue(user.getGroups().contains(specificGroup));
   }
 
   @Test
   @DisplayName(
       "When the specific group does not exist and the autocreate is true, create it and add it to the user")
-  public void whenTheSpecificGroupDoesNotExistAndTheAutocreateIsTrue_createItAndAddItToTheUser(){
+  public void whenTheSpecificGroupDoesNotExistAndTheAutocreateIsTrue_createItAndAddItToTheUser() {
 
     // -- ARRANGE ---
-    String object = "[{\"idpGroup\": \"observer\",\"userGroup\": \"admin\",\"autoCreate\": \"true\"}]";
+    String object =
+        "[{\"idpGroup\": \"observer\",\"userGroup\": \"admin\",\"autoCreate\": \"true\"}]";
     Group specificGroup = GroupFixture.createGroupWithName("observer");
     specificGroup.setId(Constants.PROCESS_STIX_GROUP_ID);
     specificGroup.setDescription("a description");
@@ -88,18 +86,18 @@ public class UserMappingServiceTest extends IntegrationTest {
     // ---- ACT ----
     userMappingService.mapCurrentUserWithGroup(object, user, roles);
 
-    //-- ASSERT --
+    // -- ASSERT --
     Group userGroup = user.getGroups().get(0);
     assertTrue(userGroup.getName().equals(specificGroup.getName()));
   }
 
   @Test
-  @DisplayName(
-      "When the specific group does not exist and the autocreate is false, do nothing")
-  public void whenTheSpecificGroupDoesNotExistAndTheAutocreateIsFalse_doNothing(){
+  @DisplayName("When the specific group does not exist and the autocreate is false, do nothing")
+  public void whenTheSpecificGroupDoesNotExistAndTheAutocreateIsFalse_doNothing() {
 
     // -- ARRANGE ---
-    String object = "[{\"idpGroup\": \"observer\",\"userGroup\": \"admin\",\"autoCreate\": \"false\"}]";
+    String object =
+        "[{\"idpGroup\": \"observer\",\"userGroup\": \"admin\",\"autoCreate\": \"false\"}]";
     Group specificGroup = GroupFixture.createGroupWithName("observer");
     specificGroup.setId(Constants.PROCESS_STIX_GROUP_ID);
     specificGroup.setDescription("a description");
@@ -116,17 +114,17 @@ public class UserMappingServiceTest extends IntegrationTest {
     // ---- ACT ----
     userMappingService.mapCurrentUserWithGroup(object, user, roles);
 
-    //-- ASSERT --
+    // -- ASSERT --
     assertThat(user.getGroups().size()).isEqualTo(0);
   }
 
   @Test
-  @DisplayName(
-      "When group from idp and group from oaev do not match, do nothing")
-  public void whenGroupFromIdpAndRolesFromOaevDoNotMatch_doNothing(){
+  @DisplayName("When group from idp and group from oaev do not match, do nothing")
+  public void whenGroupFromIdpAndRolesFromOaevDoNotMatch_doNothing() {
 
     // -- ARRANGE ---
-    String object = "[{\"idpGroup\": \"observer\",\"userGroup\": \"admin\",\"autoCreate\": \"false\"}]";
+    String object =
+        "[{\"idpGroup\": \"observer\",\"userGroup\": \"admin\",\"autoCreate\": \"false\"}]";
     Group specificGroup = GroupFixture.createGroupWithName("admin");
     specificGroup.setId(Constants.PROCESS_STIX_GROUP_ID);
     specificGroup.setDescription("a description");
@@ -143,17 +141,17 @@ public class UserMappingServiceTest extends IntegrationTest {
     // ---- ACT ----
     userMappingService.mapCurrentUserWithGroup(object, user, roles);
 
-    //-- ASSERT --
+    // -- ASSERT --
     assertThat(user.getGroups().size()).isEqualTo(0);
   }
 
   @Test
-  @DisplayName(
-      "When multiple config is set, act accordingly")
-  public void whenMultipleConfigIsSet_actAccordingly(){
+  @DisplayName("When multiple config is set, act accordingly")
+  public void whenMultipleConfigIsSet_actAccordingly() {
 
     // -- ARRANGE ---
-    String object = "[{\"idpGroup\": \"observer\",\"userGroup\": \"admin\",\"autoCreate\": \"false\"},{\"idpGroup\": \"observer\",\"userGroup\": \"admin\",\"autoCreate\": \"true\"}]";
+    String object =
+        "[{\"idpGroup\": \"observer\",\"userGroup\": \"admin\",\"autoCreate\": \"false\"},{\"idpGroup\": \"observer\",\"userGroup\": \"admin\",\"autoCreate\": \"true\"}]";
     Group specificGroup = GroupFixture.createGroupWithName("observer");
     specificGroup.setId(Constants.PROCESS_STIX_GROUP_ID);
     specificGroup.setDescription("a description");
@@ -170,9 +168,7 @@ public class UserMappingServiceTest extends IntegrationTest {
     // ---- ACT ----
     userMappingService.mapCurrentUserWithGroup(object, user, roles);
 
-    //-- ASSERT --
+    // -- ASSERT --
     assertThat(user.getGroups().size()).isEqualTo(1);
   }
-
 }
-

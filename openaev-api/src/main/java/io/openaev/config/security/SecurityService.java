@@ -58,9 +58,12 @@ public class SecurityService {
         User user = this.userService.createUser(createUserInput, 0);
         this.userEventService.createUserCreatedEvent(user, registrationId);
         userEventService.createLoginSuccessEvent(user);
-        String groupsManagementObject = env.getProperty(OPENAEV_PROVIDER_PATH_PREFIX + registrationId + GROUPS_MANAGEMENT_SUFFIX,
-            String.class,"");
-        userMappingService.mapCurrentUserWithGroup(groupsManagementObject,user,rolesFromToken);
+        String groupsManagementObject =
+            env.getProperty(
+                OPENAEV_PROVIDER_PATH_PREFIX + registrationId + GROUPS_MANAGEMENT_SUFFIX,
+                String.class,
+                "");
+        userMappingService.mapCurrentUserWithGroup(groupsManagementObject, user, rolesFromToken);
         return user;
       } else {
         // If user exists, update it
@@ -71,9 +74,13 @@ public class SecurityService {
           currentUser.setAdmin(isAdmin);
         }
         userEventService.createLoginSuccessEvent(currentUser);
-        String groupsManagementObject = env.getProperty(OPENAEV_PROVIDER_PATH_PREFIX + registrationId + GROUPS_MANAGEMENT_SUFFIX,
-            String.class,"");
-        userMappingService.mapCurrentUserWithGroup(groupsManagementObject,currentUser,rolesFromToken);
+        String groupsManagementObject =
+            env.getProperty(
+                OPENAEV_PROVIDER_PATH_PREFIX + registrationId + GROUPS_MANAGEMENT_SUFFIX,
+                String.class,
+                "");
+        userMappingService.mapCurrentUserWithGroup(
+            groupsManagementObject, currentUser, rolesFromToken);
         return this.userService.updateUser(currentUser);
       }
     }
