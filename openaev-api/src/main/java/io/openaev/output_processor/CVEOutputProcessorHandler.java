@@ -55,10 +55,4 @@ public class CVEOutputProcessorHandler extends AbstractOutputProcessorHandler {
     }
     return List.of(assetIdNode.asText());
   }
-
-  // Expectations
-  @Override
-  public boolean matchesExpectation(JsonNode jsonNode, JsonNode expectation) {
-    return false;
-  }
 }

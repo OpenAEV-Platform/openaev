@@ -1,15 +1,20 @@
 package io.openaev.output_processor;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.openaev.database.model.Asset;
 import io.openaev.database.model.ContractOutputField;
 import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
 
 /** Abstract base class providing common functionality for structured output processor handlers. */
+@Slf4j
 public abstract class AbstractOutputProcessorHandler implements OutputProcessorHandler {
 
   protected final ContractOutputType type;
@@ -46,6 +51,55 @@ public abstract class AbstractOutputProcessorHandler implements OutputProcessorH
   @Override
   public boolean isFindingCompatible() {
     return isFindingCompatible;
+  }
+
+  // FINDING METHODS
+  // Override these in handlers that support findings
+
+  /**
+   * Convert JSON node to finding value string. Override this method if handler supports findings.
+   * Default returns empty string with warning log.
+   */
+  public String toFindingValue(JsonNode jsonNode) {
+    log.warn("Handler {} does not implement toFindingValue, returning empty string", type);
+    return "";
+  }
+
+  /**
+   * Extract asset IDs from JSON node for finding linking. Override to provide custom logic, default
+   * returns empty list.
+   */
+  public List<String> toFindingAssets(JsonNode jsonNode) {
+    return Collections.emptyList();
+  }
+
+  /**
+   * Extract user IDs from JSON node for finding linking. Override to provide custom logic, default
+   * returns empty list.
+   */
+  public List<String> toFindingUsers(JsonNode jsonNode) {
+    return Collections.emptyList();
+  }
+
+  /**
+   * Extract team IDs from JSON node for finding linking. Override to provide custom logic, default
+   * returns empty list.
+   */
+  public List<String> toFindingTeams(JsonNode jsonNode) {
+    return Collections.emptyList();
+  }
+
+  // ASSET METHODS
+  // Override these in handlers that support assets
+
+  /**
+   * Convert JSON node to Asset. Override this method if handler supports asset creation.
+   *
+   * @throws UnsupportedOperationException if not overridden
+   */
+  public Optional<Asset> toAsset(JsonNode jsonNode) {
+    log.warn("Handler {} does not implement toAsset, returning an optional empty", type);
+    return Optional.empty();
   }
 
   // Utility methods
