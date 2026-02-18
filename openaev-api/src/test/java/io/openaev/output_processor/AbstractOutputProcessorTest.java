@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.rest.inject.service.ContractOutputContext;
+import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import java.util.Collections;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -15,6 +17,14 @@ class AbstractOutputProcessorTest {
 
     TestOutputProcessor() {
       super(null, null, Collections.emptyList(), false);
+    }
+
+    @Override
+    public void process(
+        ExecutionProcessingContext ctx,
+        ContractOutputContext contractOutputContext,
+        JsonNode structuredOutputNode) {
+      // No-op for testing purposes
     }
   }
 
@@ -29,7 +39,7 @@ class AbstractOutputProcessorTest {
 
   @Test
   @DisplayName(
-      "should join array elements and trim quotes when buildString is called with an array node")
+      "Should join array elements and trim quotes when buildString is called with an array node")
   void shouldJoinArrayElementsAndTrimQuotesWhenBuildStringCalledWithArrayNode() throws Exception {
     JsonNode node = objectMapper.readTree("[\"foo\", \"bar\"]");
     String result = processor.buildString(node);
@@ -37,7 +47,7 @@ class AbstractOutputProcessorTest {
   }
 
   @Test
-  @DisplayName("should trim quotes when buildString is called with a string node")
+  @DisplayName("Should trim quotes when buildString is called with a string node")
   void shouldTrimQuotesWhenBuildStringCalledWithStringNode() throws Exception {
     JsonNode node = objectMapper.readTree("\"baz\"");
     String result = processor.buildString(node);
@@ -45,7 +55,7 @@ class AbstractOutputProcessorTest {
   }
 
   @Test
-  @DisplayName("should extract and process value when buildString is called with a key")
+  @DisplayName("Should extract and process value when buildString is called with a key")
   void shouldExtractAndProcessValueWhenBuildStringCalledWithKey() throws Exception {
     JsonNode node = objectMapper.readTree("{\"key\": [\"a\", \"b\"]}");
     String result = processor.buildString(node, "key");
@@ -53,7 +63,7 @@ class AbstractOutputProcessorTest {
   }
 
   @Test
-  @DisplayName("should return empty string when buildString is called with a missing or null key")
+  @DisplayName("Should return empty string when buildString is called with a missing or null key")
   void shouldReturnEmptyStringWhenBuildStringCalledWithMissingOrNullKey() throws Exception {
     JsonNode node = objectMapper.readTree("{}");
     assertEquals("", processor.buildString(node, "missing"));
@@ -62,7 +72,7 @@ class AbstractOutputProcessorTest {
   }
 
   @Test
-  @DisplayName("should remove leading and trailing quotes when trimQuotes is called")
+  @DisplayName("Should remove leading and trailing quotes when trimQuotes is called")
   void shouldRemoveLeadingAndTrailingQuotesWhenTrimQuotesCalled() {
     assertEquals("foo", processor.trimQuotes("\"foo\""));
     assertEquals("bar", processor.trimQuotes("bar"));
