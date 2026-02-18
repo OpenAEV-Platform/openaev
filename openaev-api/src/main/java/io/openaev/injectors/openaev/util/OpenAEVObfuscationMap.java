@@ -48,7 +48,8 @@ public class OpenAEVObfuscationMap {
   public Map<String, String> getAllObfuscationInfo() {
     Map<String, String> keyInfoMap = new HashMap<>();
     for (Map.Entry<String, OpenAEVObfuscation> entry : obfuscationMap.entrySet()) {
-      keyInfoMap.put(entry.getKey(), "");
+      // Key is used for both label and value (common use case where they're identical)
+      keyInfoMap.put(entry.getKey(), entry.getKey());
     }
     return keyInfoMap;
   }
