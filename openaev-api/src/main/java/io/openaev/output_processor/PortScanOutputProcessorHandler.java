@@ -10,8 +10,7 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
-public class PortScanOutputProcessorHandler extends AbstractOutputProcessorHandler
-    implements FindingCapable {
+public class PortScanOutputProcessorHandler extends AbstractOutputProcessorHandler {
 
   private static final String ASSET_ID = "asset_id";
   private static final String HOST = "host";
@@ -27,8 +26,7 @@ public class PortScanOutputProcessorHandler extends AbstractOutputProcessorHandl
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(PORT, ContractOutputTechnicalType.Number, true),
             new ContractOutputField(SERVICE, ContractOutputTechnicalType.Text, true)),
-        true,
-        List.of(ProcessingContext.FINDING));
+        true);
   }
 
   @Override

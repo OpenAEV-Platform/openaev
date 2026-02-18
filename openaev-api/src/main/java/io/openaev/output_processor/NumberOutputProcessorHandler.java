@@ -7,16 +7,10 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
-public class PortOutputProcessorHandler extends AbstractOutputProcessorHandler
-    implements FindingCapable {
+public class NumberOutputProcessorHandler extends AbstractOutputProcessorHandler {
 
-  public PortOutputProcessorHandler() {
-    super(
-        ContractOutputType.Port,
-        ContractOutputTechnicalType.Number,
-        List.of(),
-        true,
-        List.of(ProcessingContext.FINDING));
+  public NumberOutputProcessorHandler() {
+    super(ContractOutputType.Number, ContractOutputTechnicalType.Number, List.of(), true);
   }
 
   @Override

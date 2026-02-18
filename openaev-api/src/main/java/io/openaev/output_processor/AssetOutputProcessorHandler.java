@@ -8,16 +8,10 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
-public class AssetOutputProcessorHandler extends AbstractOutputProcessorHandler
-    implements AssetCapable {
+public class AssetOutputProcessorHandler extends AbstractOutputProcessorHandler {
 
   public AssetOutputProcessorHandler() {
-    super(
-        ContractOutputType.Asset,
-        ContractOutputTechnicalType.Object,
-        List.of(),
-        false,
-        List.of(ProcessingContext.ASSET));
+    super(ContractOutputType.Asset, ContractOutputTechnicalType.Object, List.of(), false);
   }
 
   @Override
@@ -27,6 +21,7 @@ public class AssetOutputProcessorHandler extends AbstractOutputProcessorHandler
 
   @Override
   public Asset toAsset(JsonNode jsonNode) {
+    // Creation asset
     return new Asset();
   }
 }

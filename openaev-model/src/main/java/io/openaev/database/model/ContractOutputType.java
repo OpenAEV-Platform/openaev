@@ -1,51 +1,44 @@
 package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.output_processor.*;
 import io.swagger.v3.oas.annotations.Hidden;
 
 public enum ContractOutputType {
   @JsonProperty("text")
-  Text("text", TextOutputProcessorHandler.class),
+  Text("text"),
 
   @JsonProperty("number")
-  Number("number", NumberOutputProcessorHandler.class),
+  Number("number"),
 
   @JsonProperty("port")
-  Port("port", PortOutputProcessorHandler.class),
+  Port("port"),
 
   @JsonProperty("portscan")
-  PortsScan("portscan", PortScanOutputProcessorHandler.class),
+  PortsScan("portscan"),
 
   @JsonProperty("ipv4")
-  IPv4("ipv4", IPv4OutputProcessorHandler.class),
+  IPv4("ipv4"),
 
   @JsonProperty("ipv6")
-  IPv6("ipv6", IPv6OutputProcessorHandler.class),
+  IPv6("ipv6"),
 
   @JsonProperty("credentials")
-  Credentials("credentials", CredentialsOutputProcessorHandler.class),
+  Credentials("credentials"),
 
   @JsonProperty("cve")
-  CVE("cve", CVEOutputProcessorHandler.class),
+  CVE("cve"),
 
   @Hidden
   @JsonProperty("asset")
-  Asset("asset", AssetOutputProcessorHandler.class);
+  Asset("asset");
 
   private final String label;
-  private final Class<? extends OutputProcessorHandler> handlerClass;
 
-  ContractOutputType(String label, Class<? extends OutputProcessorHandler> handlerClass) {
+  ContractOutputType(String label) {
     this.label = label;
-    this.handlerClass = handlerClass;
   }
 
   public String getLabel() {
     return label;
-  }
-
-  public Class<? extends OutputProcessorHandler> getHandlerClass() {
-    return handlerClass;
   }
 }

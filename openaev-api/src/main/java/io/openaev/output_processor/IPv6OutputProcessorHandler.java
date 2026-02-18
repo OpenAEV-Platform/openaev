@@ -8,18 +8,12 @@ import org.apache.commons.validator.routines.InetAddressValidator;
 import org.springframework.stereotype.Component;
 
 @Component
-public class IPv6OutputProcessorHandler extends AbstractOutputProcessorHandler
-    implements FindingCapable {
+public class IPv6OutputProcessorHandler extends AbstractOutputProcessorHandler {
 
   private static final InetAddressValidator VALIDATOR = InetAddressValidator.getInstance();
 
   public IPv6OutputProcessorHandler() {
-    super(
-        ContractOutputType.IPv6,
-        ContractOutputTechnicalType.Text,
-        List.of(),
-        true,
-        List.of(ProcessingContext.FINDING));
+    super(ContractOutputType.IPv6, ContractOutputTechnicalType.Text, List.of(), true);
   }
 
   @Override

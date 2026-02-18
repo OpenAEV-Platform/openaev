@@ -7,7 +7,6 @@ import io.openaev.database.model.ContractOutputType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /** Abstract base class providing common functionality for structured output processor handlers. */
@@ -17,21 +16,16 @@ public abstract class AbstractOutputProcessorHandler implements OutputProcessorH
   protected final ContractOutputTechnicalType technicalType;
   protected final List<ContractOutputField> fields;
   protected final boolean isFindingCompatible;
-  protected final List<ProcessingContext> supportedContexts;
 
   protected AbstractOutputProcessorHandler(
       ContractOutputType type,
       ContractOutputTechnicalType technicalType,
       List<ContractOutputField> fields,
-      boolean isFindingCompatible,
-      List<ProcessingContext> supportedContexts) {
+      boolean isFindingCompatible) {
     this.type = type;
     this.technicalType = technicalType;
     this.fields = fields;
     this.isFindingCompatible = isFindingCompatible;
-    this.supportedContexts = Collections.unmodifiableList(supportedContexts);
-
-    validateContextInterfaces();
   }
 
   @Override
@@ -52,33 +46,6 @@ public abstract class AbstractOutputProcessorHandler implements OutputProcessorH
   @Override
   public boolean isFindingCompatible() {
     return isFindingCompatible;
-  }
-
-  @Override
-  public List<ProcessingContext> getSupportedContexts() {
-    return supportedContexts;
-  }
-
-  private void validateContextInterfaces() {
-    if (supportedContexts.contains(ProcessingContext.FINDING)) {
-      if (!(this instanceof FindingCapable)) {
-        throw new IllegalStateException(
-            type.getLabel() + " declares FINDING context but does not implement FindingCapable");
-      }
-    }
-    if (supportedContexts.contains(ProcessingContext.ASSET)) {
-      if (!(this instanceof AssetCapable)) {
-        throw new IllegalStateException(
-            type.getLabel() + " declares ASSET context but does not implement AssetCapable");
-      }
-    }
-    if (supportedContexts.contains(ProcessingContext.EXPECTATION)) {
-      if (!(this instanceof ExpectationCapable)) {
-        throw new IllegalStateException(
-            type.getLabel()
-                + " declares EXPECTATION context but does not implement ExpectationCapable");
-      }
-    }
   }
 
   // Utility methods

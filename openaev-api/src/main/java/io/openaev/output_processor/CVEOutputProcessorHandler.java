@@ -10,8 +10,7 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
-public class CVEOutputProcessorHandler extends AbstractOutputProcessorHandler
-    implements FindingCapable, ExpectationCapable {
+public class CVEOutputProcessorHandler extends AbstractOutputProcessorHandler {
 
   private static final String ASSET_ID = "asset_id";
   private static final String ID = "id";
@@ -27,8 +26,7 @@ public class CVEOutputProcessorHandler extends AbstractOutputProcessorHandler
             new ContractOutputField(ID, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(SEVERITY, ContractOutputTechnicalType.Text, true)),
-        true,
-        List.of(ProcessingContext.FINDING, ProcessingContext.EXPECTATION));
+        true);
   }
 
   @Override

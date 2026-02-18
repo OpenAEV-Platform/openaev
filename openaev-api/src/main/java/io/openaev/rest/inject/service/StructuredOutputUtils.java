@@ -4,8 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.*;
 import io.openaev.database.model.*;
+import io.openaev.output_processor.OutputProcessorFactory;
 import io.openaev.output_processor.OutputProcessorHandler;
-import io.openaev.output_processor.OutputProcessorHandlerRegistry;
 import jakarta.annotation.Resource;
 import java.util.*;
 import java.util.logging.Level;
@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class StructuredOutputUtils {
 
-  private final OutputProcessorHandlerRegistry outputProcessorHandlerRegistry;
+  private final OutputProcessorFactory outputProcessorFactory;
   @Resource private final ObjectMapper mapper;
 
   Set<OutputParser> extractOutputParsers(Inject inject) {
@@ -132,7 +132,7 @@ public class StructuredOutputUtils {
 
       // Get handler once per contract output type
       OutputProcessorHandler handler =
-          outputProcessorHandlerRegistry.getHandler(contractOutputElement.getType());
+          outputProcessorFactory.getHandler(contractOutputElement.getType());
 
       while (matcher.find()) {
         buildStructuredJsonNode(contractOutputElement, matcher, handler)

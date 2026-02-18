@@ -8,8 +8,7 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
-public class CredentialsOutputProcessorHandler extends AbstractOutputProcessorHandler
-    implements FindingCapable {
+public class CredentialsOutputProcessorHandler extends AbstractOutputProcessorHandler {
 
   private static final String USERNAME = "username";
   private static final String PASSWORD = "password";
@@ -21,8 +20,7 @@ public class CredentialsOutputProcessorHandler extends AbstractOutputProcessorHa
         List.of(
             new ContractOutputField(USERNAME, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(PASSWORD, ContractOutputTechnicalType.Text, true)),
-        true,
-        List.of(ProcessingContext.FINDING));
+        true);
   }
 
   @Override

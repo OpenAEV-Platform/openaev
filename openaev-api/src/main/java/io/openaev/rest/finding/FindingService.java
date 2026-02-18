@@ -12,9 +12,8 @@ import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
-import io.openaev.output_processor.FindingCapable;
+import io.openaev.output_processor.OutputProcessorFactory;
 import io.openaev.output_processor.OutputProcessorHandler;
-import io.openaev.output_processor.OutputProcessorHandlerRegistry;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import jakarta.annotation.Resource;
@@ -44,7 +43,7 @@ public class FindingService {
 
   @Resource private ObjectMapper mapper;
 
-  private final OutputProcessorHandlerRegistry outputProcessorHandlerRegistry;
+  private final OutputProcessorFactory outputProcessorFactory;
 
   // -- CRUD --
 
@@ -153,12 +152,7 @@ public class FindingService {
             return;
           }
           OutputProcessorHandler handler =
-              outputProcessorHandlerRegistry.getHandler(contractOutput.getType());
-
-          // Check if handler supports FINDING context
-          if (!(handler instanceof FindingCapable findingHandler)) {
-            return;
-          }
+              outputProcessorFactory.getHandler(contractOutput.getType());
 
           if (contractOutput.isMultiple()) {
             JsonNode jsonNodes = structuredOutput.get(contractOutput.getField());
@@ -168,9 +162,8 @@ public class FindingService {
                   throw new IllegalArgumentException("Finding not correctly formatted");
                 }
                 Finding finding = FindingUtils.createFinding(contractOutput);
-                finding.setValue(findingHandler.toFindingValue(jsonNode));
-                Finding linkedFinding =
-                    linkFindings(contractOutput, jsonNode, finding, findingHandler);
+                finding.setValue(handler.toFindingValue(jsonNode));
+                Finding linkedFinding = linkFindings(jsonNode, finding, handler);
                 findings.add(linkedFinding);
               }
             }
@@ -180,8 +173,8 @@ public class FindingService {
               throw new IllegalArgumentException("Finding not correctly formatted");
             }
             Finding finding = FindingUtils.createFinding(contractOutput);
-            finding.setValue(findingHandler.toFindingValue(jsonNode));
-            Finding linkedFinding = linkFindings(contractOutput, jsonNode, finding, findingHandler);
+            finding.setValue(handler.toFindingValue(jsonNode));
+            Finding linkedFinding = linkFindings(jsonNode, finding, handler);
             findings.add(linkedFinding);
           }
         });
@@ -189,11 +182,7 @@ public class FindingService {
     return findings;
   }
 
-  private Finding linkFindings(
-      InjectorContractContentOutputElement contractOutput,
-      JsonNode jsonNode,
-      Finding finding,
-      FindingCapable handler) {
+  private Finding linkFindings(JsonNode jsonNode, Finding finding, OutputProcessorHandler handler) {
     // Create links with assets
     List<String> assetsIds = handler.toFindingAssets(jsonNode);
     List<Optional<Asset>> assets = assetsIds.stream().map(this.assetRepository::findById).toList();
@@ -268,10 +257,7 @@ public class FindingService {
     contractOutputElements.forEach(
         contractOutputElement -> {
           OutputProcessorHandler handler =
-              outputProcessorHandlerRegistry.getHandler(contractOutputElement.getType());
-          if (!(handler instanceof FindingCapable findingHandler)) {
-            return;
-          }
+              outputProcessorFactory.getHandler(contractOutputElement.getType());
 
           JsonNode jsonNodes = structuredOutput.get(contractOutputElement.getKey());
           if (jsonNodes == null || !jsonNodes.isArray()) {
@@ -289,7 +275,7 @@ public class FindingService {
                 inject,
                 getAssetLinkedToStructuredOutput(jsonNode, valueTargetedAssetsMap, agent),
                 contractOutputElement,
-                findingHandler.toFindingValue(jsonNode));
+                handler.toFindingValue(jsonNode));
           }
         });
   }
