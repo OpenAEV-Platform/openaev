@@ -27,4 +27,13 @@ public interface OutputProcessorHandler {
 
   /** Validate that the JSON node is correctly formatted for this type */
   boolean validate(JsonNode jsonNode);
+
+  // FINDING methods
+  String toFindingValue(JsonNode jsonNode);
+
+  List<String> toFindingAssets(JsonNode jsonNode);
+
+  List<String> toFindingUsers(JsonNode jsonNode);
+
+  List<String> toFindingTeams(JsonNode jsonNode);
 }
