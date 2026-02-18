@@ -66,11 +66,11 @@ After parsing and validating the **Security Coverage STIX** object, OpenAEV foll
 
 ![Scenario](assets/scenario-openaev.png)
 
-- **Extract all references** related to Attack Patterns.
+- **Extract all references** related to Attack Patterns, DNS or Artifact.
 
     - For each **Object Reference** identified:
 
-        - If the referenced **Attack Pattern** exists in OpenAEV  
+        - If the referenced **Attack Pattern**, **DNS** or **Artifact** exists in OpenAEV  
           (matched by **External ID** or **Name**) **and** a related [Payload](../payloads/payloads.md) exists that
           matches the **platforms and architectures** derived from the Asset groups resolved via **Custom Tag Rule
           labeled `opencti`**.   
