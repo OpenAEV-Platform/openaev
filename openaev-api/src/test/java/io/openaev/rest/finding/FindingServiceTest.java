@@ -8,10 +8,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
-import io.openaev.database.model.Asset;
-import io.openaev.database.model.ContractOutputElement;
-import io.openaev.database.model.Finding;
-import io.openaev.database.model.Inject;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
@@ -190,8 +187,8 @@ class FindingServiceTest extends IntegrationTest {
                 """
                     {
                       "cves": [
-                        { "name": "cve A" },
-                        { "name": "cve B" }
+                        { "id": "cve A", "host": "host A", "severity": "high" },
+                        { "id": "cve B", "host": "host B", "severity": "medium" }
                       ]
                     }
                     """);
@@ -201,7 +198,7 @@ class FindingServiceTest extends IntegrationTest {
         findingService.getFindingsFromInjectorContract(contractOutputs, structuredOutput);
     assertNotNull(findings);
     assertEquals(2, findings.size());
-    assertTrue(findings.stream().allMatch(f -> f.getType().equals("cve")));
+    assertTrue(findings.stream().allMatch(f -> f.getType().equals(ContractOutputType.CVE)));
   }
 
   @Test
@@ -213,11 +210,11 @@ class FindingServiceTest extends IntegrationTest {
             {
               "outputs": [
                 {
-                  "field": "postscans",
+                  "field": "port_scans",
                   "isFindingCompatible": true,
                   "isMultiple": true,
                   "labels": ["nuclei"],
-                  "type": "asset"
+                  "type": "portscan"
                 }
               ]
             }
@@ -228,7 +225,7 @@ class FindingServiceTest extends IntegrationTest {
             mapper.readTree(
                 """
                     {
-                      "portscans": [ null ]
+                      "port_scans": [ null ]
                     }
                     """);
     List<InjectorContractContentOutputElement> contractOutputs =
