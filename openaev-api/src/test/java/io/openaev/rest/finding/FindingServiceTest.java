@@ -8,7 +8,10 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
-import io.openaev.database.model.*;
+import io.openaev.database.model.Asset;
+import io.openaev.database.model.ContractOutputElement;
+import io.openaev.database.model.Finding;
+import io.openaev.database.model.Inject;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
@@ -20,10 +23,13 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
+@ExtendWith(MockitoExtension.class)
 class FindingServiceTest extends IntegrationTest {
 
   public static final String ASSET_1 = "asset1";
@@ -184,8 +190,8 @@ class FindingServiceTest extends IntegrationTest {
                 """
                     {
                       "cves": [
-                        { "id": "cve A", "host": "host A", "severity": "high" },
-                        { "id": "cve B", "host": "host B", "severity": "medium" }
+                        { "name": "cve A" },
+                        { "name": "cve B" }
                       ]
                     }
                     """);
@@ -195,7 +201,7 @@ class FindingServiceTest extends IntegrationTest {
         findingService.getFindingsFromInjectorContract(contractOutputs, structuredOutput);
     assertNotNull(findings);
     assertEquals(2, findings.size());
-    assertTrue(findings.stream().allMatch(f -> f.getType().equals(ContractOutputType.CVE)));
+    assertTrue(findings.stream().allMatch(f -> f.getType().equals("cve")));
   }
 
   @Test
@@ -207,11 +213,11 @@ class FindingServiceTest extends IntegrationTest {
             {
               "outputs": [
                 {
-                  "field": "port_scans",
+                  "field": "postscans",
                   "isFindingCompatible": true,
                   "isMultiple": true,
                   "labels": ["nuclei"],
-                  "type": "portscan"
+                  "type": "asset"
                 }
               ]
             }
@@ -222,7 +228,7 @@ class FindingServiceTest extends IntegrationTest {
             mapper.readTree(
                 """
                     {
-                      "port_scans": [ null ]
+                      "portscans": [ null ]
                     }
                     """);
     List<InjectorContractContentOutputElement> contractOutputs =
