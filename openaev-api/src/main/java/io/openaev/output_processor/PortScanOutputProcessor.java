@@ -6,6 +6,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.ContractOutputField;
 import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
+import io.openaev.rest.finding.FindingService;
+import io.openaev.rest.inject.service.ContractOutputContext;
+import io.openaev.rest.inject.service.ExecutionProcessingContext;
+import java.util.Collections;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -17,7 +21,9 @@ public class PortScanOutputProcessor extends AbstractOutputProcessor {
   private static final String PORT = "port";
   private static final String SERVICE = "service";
 
-  public PortScanOutputProcessor() {
+  private final FindingService findingService;
+
+  public PortScanOutputProcessor(FindingService findingService) {
     super(
         ContractOutputType.PortsScan,
         ContractOutputTechnicalType.Object,
@@ -27,11 +33,28 @@ public class PortScanOutputProcessor extends AbstractOutputProcessor {
             new ContractOutputField(PORT, ContractOutputTechnicalType.Number, true),
             new ContractOutputField(SERVICE, ContractOutputTechnicalType.Text, true)),
         true);
+    this.findingService = findingService;
   }
 
   @Override
   public boolean validate(JsonNode jsonNode) {
     return jsonNode.hasNonNull(HOST) && jsonNode.hasNonNull(PORT) && jsonNode.hasNonNull(SERVICE);
+  }
+
+  @Override
+  public void process(
+      ExecutionProcessingContext executionContext,
+      ContractOutputContext contractOutputContext,
+      JsonNode structuredOutputNode) {
+    findingService.generateFindings(
+        executionContext,
+        contractOutputContext,
+        structuredOutputNode,
+        this::validate,
+        this::toFindingValue,
+        this::toFindingAssets,
+        this::toFindingTeams,
+        this::toFindingUsers);
   }
 
   @Override
@@ -48,6 +71,6 @@ public class PortScanOutputProcessor extends AbstractOutputProcessor {
     if (assetIdNode != null) {
       return List.of(assetIdNode.asText());
     }
-    return List.of();
+    return Collections.emptyList();
   }
 }

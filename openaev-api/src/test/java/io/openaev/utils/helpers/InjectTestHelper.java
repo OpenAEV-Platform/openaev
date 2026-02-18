@@ -2,14 +2,8 @@ package io.openaev.utils.helpers;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
-import io.openaev.utils.fixtures.AgentFixture;
-import io.openaev.utils.fixtures.EndpointFixture;
-import io.openaev.utils.fixtures.InjectFixture;
-import io.openaev.utils.fixtures.InjectStatusFixture;
-import io.openaev.utils.fixtures.composers.AgentComposer;
-import io.openaev.utils.fixtures.composers.EndpointComposer;
-import io.openaev.utils.fixtures.composers.InjectComposer;
-import io.openaev.utils.fixtures.composers.InjectStatusComposer;
+import io.openaev.utils.fixtures.*;
+import io.openaev.utils.fixtures.composers.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -33,11 +27,16 @@ public class InjectTestHelper {
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public Inject getPendingInjectWithAssets(
       InjectComposer injectComposer,
+      InjectorContractComposer injectorContractComposer,
       EndpointComposer endpointComposer,
       AgentComposer agentComposer,
       InjectStatusComposer injectStatusComposer) {
     return injectComposer
         .forInject(InjectFixture.getDefaultInject())
+        .withInjectorContract(
+            injectorContractComposer
+                .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                .withInjector(InjectorFixture.createDefaultPayloadInjector()))
         .withEndpoint(
             endpointComposer
                 .forEndpoint(EndpointFixture.createEndpoint())

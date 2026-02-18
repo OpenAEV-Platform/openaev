@@ -63,9 +63,8 @@ public abstract class AbstractOutputProcessor implements OutputProcessor {
    * Convert JSON node to finding value string. Override this method if handler supports findings.
    * Default returns empty string with warning log.
    */
-  @Override
   public String toFindingValue(JsonNode jsonNode) {
-    log.warn("Handler {} does not implement toFindingValue, returning empty string", type);
+    log.debug("Handler {} does not implement toFindingValue, returning empty string", type);
     return "";
   }
 
@@ -74,7 +73,7 @@ public abstract class AbstractOutputProcessor implements OutputProcessor {
    * returns empty list.
    */
   public List<String> toFindingAssets(JsonNode jsonNode) {
-    log.warn("Handler {} does not implement toFindingAssets, returning an empty list", type);
+    log.debug("Handler {} does not implement toFindingAssets, returning an empty list", type);
     return Collections.emptyList();
   }
 
@@ -83,7 +82,7 @@ public abstract class AbstractOutputProcessor implements OutputProcessor {
    * returns empty list.
    */
   public List<String> toFindingUsers(JsonNode jsonNode) {
-    log.warn("Handler {} does not implement toFindingUsers, returning an empty list", type);
+    log.debug("Handler {} does not implement toFindingUsers, returning an empty list", type);
     return Collections.emptyList();
   }
 
@@ -92,11 +91,20 @@ public abstract class AbstractOutputProcessor implements OutputProcessor {
    * returns empty list.
    */
   public List<String> toFindingTeams(JsonNode jsonNode) {
-    log.warn("Handler {} does not implement toFindingTeams, returning an empty list", type);
+    log.debug("Handler {} does not implement toFindingTeams, returning an empty list", type);
     return Collections.emptyList();
   }
 
-  // Utility methods
+  // UTILITY methods
+  /**
+   * Builds a string representation from a JSON node.
+   *
+   * <p>If the node is an array, concatenates all elements (with quotes trimmed) separated by
+   * spaces. Otherwise, returns the node's text value with quotes trimmed.
+   *
+   * @param jsonNode the JSON node to process
+   * @return a string representation of the node's value(s)
+   */
   protected String buildString(@NotNull final JsonNode jsonNode) {
     if (jsonNode.isArray()) {
       List<String> values = new ArrayList<>();
@@ -108,6 +116,16 @@ public abstract class AbstractOutputProcessor implements OutputProcessor {
     return trimQuotes(jsonNode.asText());
   }
 
+  /**
+   * Builds a string representation from a specific key in a JSON node.
+   *
+   * <p>If the key is missing or null, returns an empty string. Otherwise, delegates to {@link
+   * #buildString(JsonNode)}.
+   *
+   * @param jsonNode the JSON node to process
+   * @param key the key to extract
+   * @return a string representation of the value at the given key, or empty string if not present
+   */
   protected String buildString(@NotNull final JsonNode jsonNode, @NotBlank final String key) {
     JsonNode valueNode = jsonNode.get(key);
     if (valueNode == null || valueNode.isNull()) {
@@ -116,6 +134,12 @@ public abstract class AbstractOutputProcessor implements OutputProcessor {
     return buildString(valueNode);
   }
 
+  /**
+   * Removes leading and trailing quotes from a string value.
+   *
+   * @param value the string to trim
+   * @return the string without leading/trailing quotes
+   */
   protected String trimQuotes(@NotBlank final String value) {
     return value.replaceAll("^\"|\"$", "");
   }
