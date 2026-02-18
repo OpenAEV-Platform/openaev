@@ -92,6 +92,7 @@ public class V4_70__Rename_content_attribute extends BaseJavaMigration {
           AND payloads.command_executor = 'cmd'
           AND inject_content IS NOT NULL
           AND inject_content != 'null'
+          AND jsonb_typeof(inject_content::jsonb) = 'object'
           AND (inject_content::jsonb) ? 'obfuscator';
       """);
     }
