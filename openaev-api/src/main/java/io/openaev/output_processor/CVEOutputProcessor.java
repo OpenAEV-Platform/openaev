@@ -4,6 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.ContractOutputField;
 import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
+import io.openaev.rest.finding.FindingService;
+import io.openaev.rest.inject.service.ContractOutputContext;
+import io.openaev.rest.inject.service.ExecutionProcessingContext;
+import io.openaev.service.InjectExpectationService;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -17,7 +21,11 @@ public class CVEOutputProcessor extends AbstractOutputProcessor {
   private static final String HOST = "host";
   private static final String SEVERITY = "severity";
 
-  public CVEOutputProcessor() {
+  private final FindingService findingService;
+  private final InjectExpectationService injectExpectationService;
+
+  public CVEOutputProcessor(
+      FindingService findingService, InjectExpectationService injectExpectationService) {
     super(
         ContractOutputType.CVE,
         ContractOutputTechnicalType.Object,
@@ -27,6 +35,8 @@ public class CVEOutputProcessor extends AbstractOutputProcessor {
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(SEVERITY, ContractOutputTechnicalType.Text, true)),
         true);
+    this.findingService = findingService;
+    this.injectExpectationService = injectExpectationService;
   }
 
   @Override
@@ -34,7 +44,24 @@ public class CVEOutputProcessor extends AbstractOutputProcessor {
     return jsonNode.hasNonNull(ID) && jsonNode.hasNonNull(HOST) && jsonNode.hasNonNull(SEVERITY);
   }
 
-  // Findings
+  @Override
+  public void process(
+      ExecutionProcessingContext executionContext,
+      ContractOutputContext contractOutputContext,
+      JsonNode structuredOutputNode) {
+    findingService.generateFindings(
+        executionContext,
+        contractOutputContext,
+        structuredOutputNode,
+        this::validate,
+        this::toFindingValue,
+        this::toFindingAssets,
+        this::toFindingTeams,
+        this::toFindingUsers);
+    injectExpectationService.matchesVulnerabilityExpectations(
+        executionContext, structuredOutputNode);
+  }
+
   @Override
   public String toFindingValue(JsonNode jsonNode) {
     return buildString(jsonNode, ID);

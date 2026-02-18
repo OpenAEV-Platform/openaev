@@ -1,17 +1,19 @@
 package io.openaev.output_processor;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.rest.finding.FindingService;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class PortScanOutputProcessorTest {
 
-  private final PortScanOutputProcessor processor = new PortScanOutputProcessor();
+  private final FindingService findingService = mock(FindingService.class);
+  private final PortScanOutputProcessor processor = new PortScanOutputProcessor(findingService);
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   @Test
@@ -56,5 +58,59 @@ class PortScanOutputProcessorTest {
             "{" + "\"host\": \"192.168.1.1\"," + "\"port\": \"22\"," + "\"service\": \"ssh\"}");
     List<String> result = processor.toFindingAssets(node);
     assertTrue(result.isEmpty());
+  }
+
+  @Test
+  @DisplayName("should return empty string when host is missing")
+  void shouldReturnEmptyStringWhenHostIsMissing() throws Exception {
+    JsonNode node = objectMapper.readTree("{\"port\": \"22\", \"service\": \"ssh\"}");
+    String result = processor.toFindingValue(node);
+    assertEquals(":22 (ssh)", result);
+  }
+
+  @Test
+  @DisplayName("should return empty string when port is missing")
+  void shouldReturnEmptyStringWhenPortIsMissing() throws Exception {
+    JsonNode node = objectMapper.readTree("{\"host\": \"192.168.1.1\", \"service\": \"ssh\"}");
+    String result = processor.toFindingValue(node);
+    assertEquals("192.168.1.1: (ssh)", result);
+  }
+
+  @Test
+  @DisplayName("should return empty string when service is missing")
+  void shouldReturnEmptyStringWhenServiceIsMissing() throws Exception {
+    JsonNode node = objectMapper.readTree("{\"host\": \"192.168.1.1\", \"port\": \"22\"}");
+    String result = processor.toFindingValue(node);
+    assertEquals("192.168.1.1:22", result);
+  }
+
+  @Test
+  @DisplayName("should return false for invalid node in validate (missing host)")
+  void shouldReturnFalseForInvalidNodeInValidateMissingHost() throws Exception {
+    JsonNode node = objectMapper.readTree("{\"port\": \"22\", \"service\": \"ssh\"}");
+    assertFalse(processor.validate(node));
+  }
+
+  @Test
+  @DisplayName("should return false for invalid node in validate (missing port)")
+  void shouldReturnFalseForInvalidNodeInValidateMissingPort() throws Exception {
+    JsonNode node = objectMapper.readTree("{\"host\": \"192.168.1.1\", \"service\": \"ssh\"}");
+    assertFalse(processor.validate(node));
+  }
+
+  @Test
+  @DisplayName("should return false for invalid node in validate (missing service)")
+  void shouldReturnFalseForInvalidNodeInValidateMissingService() throws Exception {
+    JsonNode node = objectMapper.readTree("{\"host\": \"192.168.1.1\", \"port\": \"22\"}");
+    assertFalse(processor.validate(node));
+  }
+
+  @Test
+  @DisplayName("should return true for valid node in validate")
+  void shouldReturnTrueForValidNodeInValidate() throws Exception {
+    JsonNode node =
+        objectMapper.readTree(
+            "{\"host\": \"192.168.1.1\", \"port\": \"22\", \"service\": \"ssh\"}");
+    assertTrue(processor.validate(node));
   }
 }

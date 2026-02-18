@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.ContractOutputField;
 import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
+import io.openaev.rest.finding.FindingService;
+import io.openaev.rest.inject.service.ContractOutputContext;
+import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -13,7 +16,9 @@ public class CredentialsOutputProcessor extends AbstractOutputProcessor {
   private static final String USERNAME = "username";
   private static final String PASSWORD = "password";
 
-  public CredentialsOutputProcessor() {
+  private final FindingService findingService;
+
+  public CredentialsOutputProcessor(FindingService findingService) {
     super(
         ContractOutputType.Credentials,
         ContractOutputTechnicalType.Object,
@@ -21,11 +26,28 @@ public class CredentialsOutputProcessor extends AbstractOutputProcessor {
             new ContractOutputField(USERNAME, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(PASSWORD, ContractOutputTechnicalType.Text, true)),
         true);
+    this.findingService = findingService;
   }
 
   @Override
   public boolean validate(JsonNode jsonNode) {
     return jsonNode.hasNonNull(USERNAME) && jsonNode.hasNonNull(PASSWORD);
+  }
+
+  @Override
+  public void process(
+      ExecutionProcessingContext executionContext,
+      ContractOutputContext contractOutputContext,
+      JsonNode structuredOutputNode) {
+    findingService.generateFindings(
+        executionContext,
+        contractOutputContext,
+        structuredOutputNode,
+        this::validate,
+        this::toFindingValue,
+        this::toFindingAssets,
+        this::toFindingTeams,
+        this::toFindingUsers);
   }
 
   @Override

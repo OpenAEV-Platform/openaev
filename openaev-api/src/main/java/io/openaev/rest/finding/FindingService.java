@@ -3,23 +3,22 @@ package io.openaev.rest.finding;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.google.common.annotations.VisibleForTesting;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
-import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
-import io.openaev.output_processor.OutputProcessor;
-import io.openaev.output_processor.OutputProcessorFactory;
+import io.openaev.rest.inject.service.ContractOutputContext;
+import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.injector_contract.InjectorContractContentUtils;
-import jakarta.annotation.Resource;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
@@ -32,18 +31,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class FindingService {
 
+  private static final String HOST = "host";
   private final InjectService injectService;
 
   private final FindingRepository findingRepository;
   private final AssetRepository assetRepository;
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
-
-  private final InjectorContractContentUtils injectorContractContentUtils;
-
-  @Resource private ObjectMapper mapper;
-
-  private final OutputProcessorFactory outputProcessorFactory;
 
   // -- CRUD --
 
@@ -63,13 +57,6 @@ public class FindingService {
     return this.findingRepository.save(finding);
   }
 
-  public Iterable<Finding> createFindings(
-      @NotNull final List<Finding> findings, @NotBlank final String injectId) {
-    Inject inject = this.injectService.inject(injectId);
-    findings.forEach(finding -> finding.setInject(inject));
-    return this.findingRepository.saveAll(findings);
-  }
-
   public Finding updateFinding(@NotNull final Finding finding, @NotNull final String injectId) {
     if (!finding.getInject().getId().equals(injectId)) {
       throw new IllegalArgumentException("Inject id cannot be changed: " + injectId);
@@ -85,197 +72,236 @@ public class FindingService {
   }
 
   /**
-   * Builds a Finding based on the provided parameters. If a Finding with the same inject ID, value,
-   * type, and key already exists, it will update the assets associated with it.
+   * Generates findings based on the provided JSON node and context. It determines whether the
+   * execution is agent-based or injector-based and processes the findings accordingly.
    *
-   * @param inject the Inject object associated with the Finding
-   * @param asset the Asset to be linked to the Finding
-   * @param contractOutputElement the ContractOutputElement defining the type and key of the Finding
-   * @param finalValue the value of the Finding to be stored
+   * @param executionContext The context of the execution, containing information about whether it's
+   *     an agent execution and relevant data for processing.
+   * @param contractOutputContext The context of the contract output, providing details about the
+   *     expected findings format and metadata.
+   * @param structuredOutputNode The JSON node containing the raw data from which findings will be
+   *     generated.
+   * @param validator A predicate function to validate the format of each finding in the JSON node.
+   * @param valueExtractor A function to extract the value for each finding from the JSON node.
+   * @param assetExtractor A function to extract associated asset IDs for each finding from the JSON
+   *     node (used for injector findings).
+   * @param userExtractor A function to extract associated user IDs for each finding from the JSON
+   *     node (used for injector findings).
+   * @param teamExtractor A function to extract associated team IDs for each finding from the JSON
+   *     node (used for injector findings).
    */
-  public void buildFinding(
-      Inject inject, Asset asset, ContractOutputElement contractOutputElement, String finalValue) {
-    String[] tagIds =
-        contractOutputElement.getTags().isEmpty()
-            ? new String[0]
-            : contractOutputElement.getTags().stream().map(Tag::getId).toArray(String[]::new);
+  public void generateFindings(
+      ExecutionProcessingContext executionContext,
+      ContractOutputContext contractOutputContext,
+      JsonNode structuredOutputNode,
+      Predicate<JsonNode> validator,
+      Function<JsonNode, String> valueExtractor,
+      Function<JsonNode, List<String>> assetExtractor,
+      Function<JsonNode, List<String>> userExtractor,
+      Function<JsonNode, List<String>> teamExtractor) {
 
-    // Save or update the finding and add or update the list of assets and/or tags
+    if (executionContext.isAgentExecution()) {
+      processAgentFindings(
+          structuredOutputNode,
+          executionContext.inject(),
+          executionContext.agent(),
+          contractOutputContext,
+          executionContext.valueTargetedAssetsMap(),
+          validator,
+          valueExtractor);
+    } else {
+      processInjectorFindings(
+          structuredOutputNode,
+          executionContext.inject(),
+          contractOutputContext,
+          validator,
+          valueExtractor,
+          assetExtractor,
+          userExtractor,
+          teamExtractor);
+    }
+  }
+
+  public void processAgentFindings(
+      JsonNode structuredOutputNode,
+      Inject inject,
+      Agent agent,
+      ContractOutputContext contractOutputContext,
+      Map<String, Endpoint> valueTargetedAssetsMap,
+      Predicate<JsonNode> validator,
+      Function<JsonNode, String> valueExtractor) {
+
+    if (structuredOutputNode == null) {
+      log.debug("Skipping agent findings: structuredOutputNode is null or not an array");
+      return;
+    }
+
+    log.debug("Processing {} nodes for agent finding", structuredOutputNode.size());
+    for (JsonNode jsonNode : structuredOutputNode) {
+      if (!validator.test(jsonNode)) {
+        log.error("Validation failed for node: {}", jsonNode);
+        continue;
+      }
+
+      resolveAssetFromStructuredOutput(jsonNode, valueTargetedAssetsMap, agent)
+          .ifPresentOrElse(
+              asset ->
+                  saveAgentFinding(
+                      inject, asset, contractOutputContext, valueExtractor.apply(jsonNode)),
+              () -> log.warn("Finding dropped: No asset match for host in {}", jsonNode));
+    }
+  }
+
+  public void saveAgentFinding(
+      Inject inject, Asset asset, ContractOutputContext contractOutputContext, String value) {
+
     findingRepository.saveCompleteFinding(
-        contractOutputElement.getKey(),
-        contractOutputElement.getType().name(),
-        finalValue,
+        contractOutputContext.key(),
+        contractOutputContext.type().name(),
+        value,
         new String[0],
         inject.getId(),
-        contractOutputElement.getName(),
+        contractOutputContext.name(),
         asset.getId(),
-        tagIds);
+        contractOutputContext.tagIds());
   }
 
-  // -- Extract findings from structured output : Here we compute the findings from structured
-  // output
-  // from ExecutionInjectInput sent by injectors
-  // This structured output is generated based on injectorcontract where we can find the node
-  // Outputs and with that the injector generate this structure output--
-  public void extractFindingsFromInjectorContract(Inject inject, ObjectNode structuredOutput) {
-    if (structuredOutput == null) {
-      return;
+  private Optional<Asset> resolveAssetFromStructuredOutput(
+      JsonNode structuredOutput, Map<String, Endpoint> valueTargetedAssetsMap, Agent sourceAgent) {
+    if (valueTargetedAssetsMap.isEmpty() || !structuredOutput.has(HOST)) {
+      return Optional.of(sourceAgent.getAsset());
     }
 
-    // Get the contract
-    InjectorContract injectorContract = inject.getInjectorContract().orElseThrow();
-    List<InjectorContractContentOutputElement> contractOutputs =
-        injectorContractContentUtils.getContractOutputs(
-            injectorContract.getConvertedContent(), mapper);
-
-    if (contractOutputs.isEmpty()) {
-      log.warn("No contract outputs found for inject: " + inject.getId());
-      return;
-    }
-
-    List<Finding> findings = getFindingsFromInjectorContract(contractOutputs, structuredOutput);
-    if (findings == null) {
-      return;
-    }
-
-    this.createFindings(findings, inject.getId());
-  }
-
-  @VisibleForTesting
-  List<Finding> getFindingsFromInjectorContract(
-      List<InjectorContractContentOutputElement> contractOutputs, ObjectNode structuredOutput) {
-
-    List<Finding> findings = new ArrayList<>();
-    contractOutputs.forEach(
-        contractOutput -> {
-          if (!contractOutput.isFindingCompatible()) {
-            return;
-          }
-          OutputProcessor handler = outputProcessorFactory.getHandler(contractOutput.getType());
-
-          if (contractOutput.isMultiple()) {
-            JsonNode jsonNodes = structuredOutput.get(contractOutput.getField());
-            if (jsonNodes != null && jsonNodes.isArray()) {
-              for (JsonNode jsonNode : jsonNodes) {
-                if (!handler.validate(jsonNode)) {
-                  throw new IllegalArgumentException("Finding not correctly formatted");
-                }
-                Finding finding = FindingUtils.createFinding(contractOutput);
-                finding.setValue(handler.toFindingValue(jsonNode));
-                Finding linkedFinding = linkFindings(jsonNode, finding, handler);
-                findings.add(linkedFinding);
-              }
-            }
-          } else {
-            JsonNode jsonNode = structuredOutput.get(contractOutput.getField());
-            if (!handler.validate(jsonNode)) {
-              throw new IllegalArgumentException("Finding not correctly formatted");
-            }
-            Finding finding = FindingUtils.createFinding(contractOutput);
-            finding.setValue(handler.toFindingValue(jsonNode));
-            Finding linkedFinding = linkFindings(jsonNode, finding, handler);
-            findings.add(linkedFinding);
-          }
-        });
-
-    return findings;
-  }
-
-  private Finding linkFindings(JsonNode jsonNode, Finding finding, OutputProcessor handler) {
-    // Create links with assets
-    List<String> assetsIds = handler.toFindingAssets(jsonNode);
-    List<Optional<Asset>> assets = assetsIds.stream().map(this.assetRepository::findById).toList();
-    if (!assets.isEmpty()) {
-      finding.setAssets(assets.stream().filter(Optional::isPresent).map(Optional::get).toList());
-    }
-    // Create links with teams
-    List<String> teamsIds = handler.toFindingTeams(jsonNode);
-    List<Optional<Team>> teams = teamsIds.stream().map(this.teamRepository::findById).toList();
-    if (!teams.isEmpty()) {
-      finding.setTeams(teams.stream().filter(Optional::isPresent).map(Optional::get).toList());
-    }
-    // Create links with users
-    List<String> usersIds = handler.toFindingUsers(jsonNode);
-    List<Optional<User>> users = usersIds.stream().map(this.userRepository::findById).toList();
-    if (!users.isEmpty()) {
-      finding.setUsers(users.stream().filter(Optional::isPresent).map(Optional::get).toList());
-    }
-    return finding;
-  }
-
-  /**
-   * Function used to get Finding Contract Output Element from OutputParser
-   *
-   * @param outputParsers OutputParser
-   * @return list of contractOutputElement of OutputParser
-   */
-  private List<ContractOutputElement> getAllIsFindingContractOutputElementsOfOutputParser(
-      Set<OutputParser> outputParsers) {
-    return outputParsers.stream()
-        .flatMap(outputParser -> outputParser.getContractOutputElements().stream())
-        .filter(io.openaev.database.model.ContractOutputElement::isFinding)
-        .toList();
-  }
-
-  /**
-   * Function used to get the asset associated with a given structured output.
-   *
-   * @param struturedOutput The structured output to analyze.
-   * @param valueTargetedAssetsMap a map where the key is the value of the targeted asset (e.g.,
-   *     hostname, seen_ip) and the value is the Endpoint object representing the targeted asset.
-   * @param sourceAgent The agent where the execution occurred.
-   * @return The linked Asset.
-   */
-  private Asset getAssetLinkedToStructuredOutput(
-      JsonNode struturedOutput, Map<String, Endpoint> valueTargetedAssetsMap, Agent sourceAgent) {
-    if (valueTargetedAssetsMap.isEmpty() || !struturedOutput.has("host")) {
-      return sourceAgent.getAsset();
-    }
-
-    String host = struturedOutput.get("host").asText();
+    String host = structuredOutput.get(HOST).asText();
     return valueTargetedAssetsMap.keySet().stream()
         .filter(host::contains)
         .findFirst()
-        .map(valueTargetedAssetsMap::get)
-        .orElse(null);
+        .map(valueTargetedAssetsMap::get);
   }
 
-  /** Extracts findings from structured output that was generated using output parsers. */
-  public void extractFindingsFromOutputParsers(
-      Inject inject, Agent agent, Set<OutputParser> outputParsers, JsonNode structuredOutput) {
+  public void processInjectorFindings(
+      JsonNode structuredOutputNode,
+      Inject inject,
+      ContractOutputContext contractOutputContext,
+      Predicate<JsonNode> validator,
+      Function<JsonNode, String> valueExtractor,
+      Function<JsonNode, List<String>> assetExtractor,
+      Function<JsonNode, List<String>> userExtractor,
+      Function<JsonNode, List<String>> teamExtractor) {
 
-    if (structuredOutput == null) {
+    if (structuredOutputNode == null) {
+      log.debug("Skipping injector findings: structuredOutputNode is null");
       return;
     }
 
-    List<ContractOutputElement> contractOutputElements =
-        this.getAllIsFindingContractOutputElementsOfOutputParser(outputParsers);
+    List<Finding> findings =
+        buildFindings(
+            structuredOutputNode,
+            contractOutputContext,
+            validator,
+            valueExtractor,
+            assetExtractor,
+            userExtractor,
+            teamExtractor);
 
-    Map<String, Endpoint> valueTargetedAssetsMap = injectService.getValueTargetedAssetMap(inject);
+    createFindings(findings, inject.getId());
+  }
 
-    contractOutputElements.forEach(
-        contractOutputElement -> {
-          OutputProcessor handler =
-              outputProcessorFactory.getHandler(contractOutputElement.getType());
+  /**
+   * Persists a list of findings in the database, associating them with a specific inject.
+   *
+   * @param findings The list of findings to be created and persisted.
+   * @param injectId The identifier of to inject to which the findings will be associated. Must not
+   *     be blank.
+   */
+  public void createFindings(
+      @NotNull final List<Finding> findings, @NotBlank final String injectId) {
+    Inject inject = injectService.inject(injectId);
+    findings.forEach(finding -> finding.setInject(inject));
+    findingRepository.saveAll(findings);
+  }
 
-          JsonNode jsonNodes = structuredOutput.get(contractOutputElement.getKey());
-          if (jsonNodes == null || !jsonNodes.isArray()) {
-            return;
-          }
+  public List<Finding> buildFindings(
+      JsonNode structuredOutputNode,
+      ContractOutputContext contractOutputContext,
+      Predicate<JsonNode> validator,
+      Function<JsonNode, String> valueExtractor,
+      Function<JsonNode, List<String>> assetExtractor,
+      Function<JsonNode, List<String>> userExtractor,
+      Function<JsonNode, List<String>> teamExtractor) {
 
-          for (JsonNode jsonNode : jsonNodes) {
-            // Validate finding format
-            if (!handler.validate(jsonNode)) {
-              throw new IllegalArgumentException("Finding not correctly formatted");
-            }
+    if (contractOutputContext.isMultiple() && structuredOutputNode.isArray()) {
+      List<Finding> findings = new ArrayList<>();
+      for (JsonNode node : structuredOutputNode) {
+        findings.add(
+            buildSingleFinding(
+                node,
+                contractOutputContext,
+                validator,
+                valueExtractor,
+                assetExtractor,
+                userExtractor,
+                teamExtractor));
+      }
+      return findings;
+    }
 
-            // Build and save the finding
-            this.buildFinding(
-                inject,
-                getAssetLinkedToStructuredOutput(jsonNode, valueTargetedAssetsMap, agent),
-                contractOutputElement,
-                handler.toFindingValue(jsonNode));
-          }
-        });
+    return List.of(
+        buildSingleFinding(
+            structuredOutputNode,
+            contractOutputContext,
+            validator,
+            valueExtractor,
+            assetExtractor,
+            userExtractor,
+            teamExtractor));
+  }
+
+  private Finding buildSingleFinding(
+      JsonNode structuredOutputNode,
+      ContractOutputContext contractOutputContext,
+      Predicate<JsonNode> validator,
+      Function<JsonNode, String> valueExtractor,
+      Function<JsonNode, List<String>> assetExtractor,
+      Function<JsonNode, List<String>> userExtractor,
+      Function<JsonNode, List<String>> teamExtractor) {
+
+    if (!validator.test(structuredOutputNode)) {
+      throw new IllegalArgumentException(
+          "Finding not correctly formatted: " + structuredOutputNode);
+    }
+
+    Finding finding = FindingUtils.createFinding(contractOutputContext);
+    finding.setValue(valueExtractor.apply(structuredOutputNode));
+    return linkFinding(structuredOutputNode, finding, assetExtractor, userExtractor, teamExtractor);
+  }
+
+  private Finding linkFinding(
+      JsonNode structuredOutputNode,
+      Finding finding,
+      Function<JsonNode, List<String>> assetExtractor,
+      Function<JsonNode, List<String>> userExtractor,
+      Function<JsonNode, List<String>> teamExtractor) {
+
+    List<String> assetIds = assetExtractor.apply(structuredOutputNode);
+    if (!assetIds.isEmpty()) {
+      finding.setAssets(fetchEntities(assetIds, assetRepository::findById));
+    }
+
+    List<String> teamIds = teamExtractor.apply(structuredOutputNode);
+    if (!teamIds.isEmpty()) {
+      finding.setTeams(fetchEntities(teamIds, teamRepository::findById));
+    }
+
+    List<String> userIds = userExtractor.apply(structuredOutputNode);
+    if (!userIds.isEmpty()) {
+      finding.setUsers(fetchEntities(userIds, userRepository::findById));
+    }
+
+    return finding;
+  }
+
+  private <T> List<T> fetchEntities(List<String> ids, Function<String, Optional<T>> finder) {
+    return ids.stream().map(finder).filter(Optional::isPresent).map(Optional::get).toList();
   }
 }

@@ -41,7 +41,6 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.service.InjectStatusService;
-import io.openaev.scheduler.jobs.InjectsExecutionJob;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.fixtures.*;
@@ -63,7 +62,10 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import net.javacrumbs.jsonunit.core.Option;
 import org.awaitility.Awaitility;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
@@ -97,8 +99,6 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private ExerciseService exerciseService;
   @SpyBean private InjectStatusService injectStatusService;
 
-  @Autowired private InjectsExecutionJob injectsExecutionJob;
-
   @Autowired private AgentComposer agentComposer;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private InjectComposer injectComposer;
@@ -123,10 +123,7 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private CommunicationRepository communicationRepository;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
   @Autowired private TeamRepository teamRepository;
-  @Autowired private PayloadRepository payloadRepository;
-  @Autowired private InjectorRepository injectorRepository;
   @Autowired private FindingRepository findingRepository;
-  @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private UserRepository userRepository;
   @Resource private ObjectMapper objectMapper;
   @MockBean private JavaMailSender javaMailSender;
@@ -134,7 +131,6 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private InjectTestHelper injectTestHelper;
   @Autowired private InjectExpectationComposer injectExpectationComposer;
   @Autowired private InjectorContractFixture injectorContractFixture;
-  @Autowired private InjectorFixture injectorFixture;
   @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
 
@@ -936,7 +932,11 @@ class InjectApiTest extends IntegrationTest {
 
     private Inject getPendingInjectWithAssets() {
       return injectTestHelper.getPendingInjectWithAssets(
-          injectComposer, endpointComposer, agentComposer, injectStatusComposer);
+          injectComposer,
+          injectorContractComposer,
+          endpointComposer,
+          agentComposer,
+          injectStatusComposer);
     }
 
     private void performAgentlessCallbackRequest(String injectId, InjectExecutionInput input)

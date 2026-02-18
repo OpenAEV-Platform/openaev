@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.ContractOutputField;
 import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
+import io.openaev.rest.inject.service.ContractOutputContext;
+import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import java.util.List;
 
 /**
@@ -28,12 +30,11 @@ public interface OutputProcessor {
   /** Validate that the JSON node is correctly formatted for this type */
   boolean validate(JsonNode jsonNode);
 
-  // FINDING methods
-  String toFindingValue(JsonNode jsonNode);
-
-  List<String> toFindingAssets(JsonNode jsonNode);
-
-  List<String> toFindingUsers(JsonNode jsonNode);
-
-  List<String> toFindingTeams(JsonNode jsonNode);
+  /**
+   * Process a set of operations like generating findings, matching expectations and process assets.
+   */
+  void process(
+      ExecutionProcessingContext ctx,
+      ContractOutputContext contractOutputContext,
+      JsonNode structuredOutputNode);
 }

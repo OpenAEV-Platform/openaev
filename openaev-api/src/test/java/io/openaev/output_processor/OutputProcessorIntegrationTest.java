@@ -19,7 +19,7 @@ class OutputProcessorIntegrationTest extends IntegrationTest {
   @Test
   void shouldLoadAllHandlersFromSpring() {
     for (ContractOutputType type : ContractOutputType.values()) {
-      OutputProcessor handler = registry.getHandler(type);
+      OutputProcessor handler = registry.getProcessor(type);
 
       assertThat(handler).withFailMessage("Handler not found for type: " + type).isNotNull();
     }
@@ -27,19 +27,20 @@ class OutputProcessorIntegrationTest extends IntegrationTest {
 
   @Test
   void shouldReturnCorrectHandlerForEachType() {
-    assertThat(registry.getHandler(ContractOutputType.Text))
+    assertThat(registry.getProcessor(ContractOutputType.Text))
         .isInstanceOf(TextOutputProcessor.class);
 
-    assertThat(registry.getHandler(ContractOutputType.PortsScan))
+    assertThat(registry.getProcessor(ContractOutputType.PortsScan))
         .isInstanceOf(PortScanOutputProcessor.class);
 
-    assertThat(registry.getHandler(ContractOutputType.CVE)).isInstanceOf(CVEOutputProcessor.class);
+    assertThat(registry.getProcessor(ContractOutputType.CVE))
+        .isInstanceOf(CVEOutputProcessor.class);
   }
 
   @Test
   void shouldReturnSameInstanceOnMultipleCalls() {
-    OutputProcessor handler1 = registry.getHandler(ContractOutputType.Text);
-    OutputProcessor handler2 = registry.getHandler(ContractOutputType.Text);
+    OutputProcessor handler1 = registry.getProcessor(ContractOutputType.Text);
+    OutputProcessor handler2 = registry.getProcessor(ContractOutputType.Text);
 
     assertThat(handler1).isSameAs(handler2);
   }
