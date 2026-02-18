@@ -85,11 +85,14 @@ public class V4_70__Rename_content_attribute extends BaseJavaMigration {
                 inject_content::jsonb,
                 '{obfuscator}',
                 '"plain-text"'::jsonb
-                             )
+        )::text
         FROM injectors_contracts
-                 LEFT JOIN payloads ON injectors_contracts.injector_contract_payload = payloads.payload_id
+        LEFT JOIN payloads ON injectors_contracts.injector_contract_payload = payloads.payload_id
         WHERE injects.inject_injector_contract = injectors_contracts.injector_contract_id
-          AND payloads.command_executor = 'cmd';
+          AND payloads.command_executor = 'cmd'
+          AND inject_content IS NOT NULL
+          AND inject_content != 'null'
+          AND (inject_content::jsonb) ? 'obfuscator';
       """);
     }
   }
