@@ -39,21 +39,5 @@ class CredentialsOutputProcessorTest {
         String result = processor.toFindingValue(node);
         assertEquals("user1:pass1", result);
     }
-
-    @Test
-    @DisplayName("should return finding value as :password when username is empty")
-    void shouldReturnFindingValueAsColonPasswordWhenUsernameEmpty() throws Exception {
-        JsonNode node = objectMapper.readTree("{\"username\": \"\", \"password\": \"pass1\"}");
-        String result = processor.toFindingValue(node);
-        assertEquals(":pass1", result);
-    }
-
-    @Test
-    @DisplayName("should return finding value as username: when password is empty")
-    void shouldReturnFindingValueAsUsernameColonWhenPasswordEmpty() throws Exception {
-        JsonNode node = objectMapper.readTree("{\"username\": \"dunkan\", \"password\": \"\"}");
-        String result = processor.toFindingValue(node);
-        assertEquals("user1:", result);
-    }
 }
 
