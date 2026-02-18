@@ -50,7 +50,7 @@ public class UserMappingService {
             }
           }
         } else {
-          log.error("No corresponding group role found");
+          log.error(String.format("No corresponding group found for group %s", role));
         }
       }
     }
