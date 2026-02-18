@@ -21,6 +21,8 @@ import io.openaev.model.expectation.ChannelExpectation;
 import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.service.InjectExpectationService;
 import jakarta.validation.constraints.NotNull;
+import org.springframework.beans.factory.annotation.Value;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -45,6 +47,9 @@ public class ChannelExecutor extends Injector {
     this.emailService = emailService;
     this.injectExpectationService = injectExpectationService;
   }
+
+  @Value("${openaev.mail.imap.enabled}")
+  private boolean imapEnabled;
 
   private String buildArticleUri(ExecutionContext executionContext, Article article) {
     String userId = executionContext.getUser().getId();
@@ -98,7 +103,7 @@ public class ChannelExecutor extends Injector {
                   .toList();
           List<DataAttachment> attachments = resolveAttachments(execution, injection, documents);
           String message =
-              content.buildMessage(injection, this.context.getOpenAEVConfig().getBaseUrl());
+              content.buildMessage(injection, imapEnabled);
           boolean encrypted = content.isEncrypted();
           users.forEach(
               userInjectContext -> {

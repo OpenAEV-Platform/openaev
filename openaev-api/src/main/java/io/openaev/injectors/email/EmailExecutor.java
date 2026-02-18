@@ -15,6 +15,8 @@ import io.openaev.model.Expectation;
 import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.service.InjectExpectationService;
 import jakarta.validation.constraints.NotNull;
+import org.springframework.beans.factory.annotation.Value;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
@@ -23,6 +25,9 @@ public class EmailExecutor extends Injector {
 
   private final EmailService emailService;
   private final InjectExpectationService injectExpectationService;
+
+  @Value("${openaev.mail.imap.enabled}")
+  private boolean imapEnabled;
 
   public EmailExecutor(
       InjectorContext injectorContext,
@@ -93,7 +98,7 @@ public class EmailExecutor extends Injector {
     List<DataAttachment> attachments = resolveAttachments(execution, injection, documents);
     String inReplyTo = content.getInReplyTo();
     String subject = content.getSubject();
-    String message = content.buildMessage(injection, this.context.getOpenAEVConfig().getBaseUrl());
+    String message = content.buildMessage(injection, this.imapEnabled);
     boolean mustBeEncrypted = content.isEncrypted();
     // Resolve the attachments only once
     List<ExecutionContext> users = injection.getUsers();
