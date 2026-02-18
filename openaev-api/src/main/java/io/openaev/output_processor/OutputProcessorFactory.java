@@ -11,15 +11,14 @@ import org.springframework.stereotype.Component;
 @Component
 public class OutputProcessorFactory {
 
-  private final Map<ContractOutputType, OutputProcessorHandler> outputProcessorHandlerMap;
+  private final Map<ContractOutputType, OutputProcessor> outputProcessorHandlerMap;
 
-  public OutputProcessorFactory(List<OutputProcessorHandler> handlers) {
+  public OutputProcessorFactory(List<OutputProcessor> handlers) {
     this.outputProcessorHandlerMap =
-        handlers.stream()
-            .collect(Collectors.toMap(OutputProcessorHandler::getType, Function.identity()));
+        handlers.stream().collect(Collectors.toMap(OutputProcessor::getType, Function.identity()));
   }
 
-  public OutputProcessorHandler getHandler(ContractOutputType type) {
+  public OutputProcessor getHandler(ContractOutputType type) {
     return Optional.ofNullable(outputProcessorHandlerMap.get(type))
         .orElseThrow(
             () ->
