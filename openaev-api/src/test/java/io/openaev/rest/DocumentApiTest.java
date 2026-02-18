@@ -23,10 +23,10 @@ import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.files.BinaryFile;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.io.ByteArrayInputStream;
+import java.util.*;
+import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.io.FilenameUtils;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -45,14 +45,13 @@ class DocumentApiTest extends IntegrationTest {
   @Autowired ChallengeComposer challengeComposer;
   @Autowired PayloadComposer payloadComposer;
   @Autowired DomainComposer domainComposer;
-    @Autowired ScenarioComposer scenarioComposer;
-    @Autowired ExerciseComposer exerciseComposer;
+  @Autowired ScenarioComposer scenarioComposer;
+  @Autowired ExerciseComposer exerciseComposer;
   @Autowired private MockMvc mvc;
   @Autowired private DocumentRepository documentRepository;
   @Autowired private ChallengeRepository challengeRepository;
 
-
-    @BeforeAll
+  @BeforeAll
   void beforeAll() {
     challengeComposer.reset();
     documentComposer.reset();
@@ -146,97 +145,166 @@ class DocumentApiTest extends IntegrationTest {
       assertThatJson(response).when(IGNORING_ARRAY_ORDER).isEqualTo(relationJson);
     }
 
-      @Test
-      @DisplayName("Should create a document when uploading a valid file and input")
-      void uploadDocumentShouldCreateDocument() throws Exception {
-          // -- PREPARE
-          Scenario scenario = scenarioComposer.forScenario(ScenarioFixture.getScenario()).persist().get();
-          Exercise exercise = exerciseComposer.forExercise(ExerciseFixture.getExercise()).persist().get();
+    @Test
+    @DisplayName("Should create a document when uploading a valid file and input")
+    void uploadDocumentShouldCreateDocument() throws Exception {
+      // -- PREPARE
+      Scenario scenario =
+          scenarioComposer.forScenario(ScenarioFixture.getScenario()).persist().get();
+      Exercise exercise =
+          exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()).persist().get();
 
-          DocumentCreateInput input = new DocumentCreateInput();
-          input.setDescription("My test document");
-          input.setScenarioIds(List.of(scenario.getId()));
-          input.setExerciseIds(List.of(exercise.getId()));
+      DocumentCreateInput input = new DocumentCreateInput();
+      input.setDescription("My test document");
+      input.setScenarioIds(List.of(scenario.getId()));
+      input.setExerciseIds(List.of(exercise.getId()));
 
-          MockPart inputPart = new MockPart(
-                  "input",
-                  mapper.writeValueAsBytes(input)
-          );
-          inputPart.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+      MockPart inputPart = new MockPart("input", mapper.writeValueAsBytes(input));
+      inputPart.getHeaders().setContentType(MediaType.APPLICATION_JSON);
 
-          MockMultipartFile filePart = new MockMultipartFile(
-                  "file",
-                  FileFixture.getPngSmileFileContent().getFileName(),
-                  MediaType.APPLICATION_XML.toString(),
-                  FileFixture.getPngSmileFileContent().getContentBytes()
-          );
+      MockMultipartFile filePart =
+          new MockMultipartFile(
+              "file",
+              FileFixture.getPngSmileFileContent().getFileName(),
+              MediaType.APPLICATION_XML.toString(),
+              FileFixture.getPngSmileFileContent().getContentBytes());
 
-          // -- EXECUTE
-          String response = mvc.perform(
-                          multipart(DOCUMENT_API + "/upsert")
-                                  .part(inputPart)
-                                  .file(filePart)
-                                  .accept(MediaType.APPLICATION_JSON)
-                  )
-                  .andExpect(status().isOk())
-                  .andReturn()
-                  .getResponse()
-                  .getContentAsString();
+      // -- EXECUTE
+      String response =
+          mvc.perform(
+                  multipart(DOCUMENT_API + "/upsert")
+                      .part(inputPart)
+                      .file(filePart)
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
 
-          // -- VERIFY
-          assertNotNull(response);
-          assertEquals(FileFixture.getPngSmileFileContent().getFileName(), JsonPath.read(response, "$.document_name"));
-          assertEquals("My test document", JsonPath.read(response, "$.document_description"));
-          assertEquals(scenario.getId(), JsonPath.read(response, "$.document_scenarios[0]"));
-          assertEquals(exercise.getId(), JsonPath.read(response, "$.document_exercises[0]"));
-      }
+      // -- VERIFY
+      assertNotNull(response);
+      assertEquals(
+          FileFixture.getPngSmileFileContent().getFileName(),
+          JsonPath.read(response, "$.document_name"));
+      assertEquals("My test document", JsonPath.read(response, "$.document_description"));
+      assertEquals(scenario.getId(), JsonPath.read(response, "$.document_scenarios[0]"));
+      assertEquals(exercise.getId(), JsonPath.read(response, "$.document_exercises[0]"));
+    }
 
-      @Test
-      @DisplayName("Should update a document when uploading a valid file and input")
-      void uploadDocumentShouldUpdateDocument() throws Exception {
-          // -- PREPARE
-          Scenario scenario = scenarioComposer.forScenario(ScenarioFixture.getScenario()).persist().get();
-          Exercise exercise = exerciseComposer.forExercise(ExerciseFixture.getExercise()).persist().get();
+    @Test
+    @DisplayName("Should update a document when uploading a valid file and input")
+    void uploadDocumentShouldUpdateDocument() throws Exception {
+      // -- PREPARE
+      Scenario scenario =
+          scenarioComposer.forScenario(ScenarioFixture.getScenario()).persist().get();
+      Exercise exercise =
+          exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()).persist().get();
 
-          Document document = documentComposer.forDocument(DocumentFixture.getDocument(FileFixture.getPlainTextFileContent())).persist().get();
+      Document document =
+          documentComposer
+              .forDocument(DocumentFixture.getDocument(FileFixture.getPlainTextFileContent()))
+              .persist()
+              .get();
+      document.setExercises(new HashSet<>(Set.of(exercise)));
+      document.setScenarios(new HashSet<>(Set.of(scenario)));
+      documentRepository.save(document);
 
-          DocumentCreateInput input = new DocumentCreateInput();
-          input.setDescription(document.getDescription());
-          input.setScenarioIds(List.of(scenario.getId()));
-          input.setExerciseIds(List.of(exercise.getId()));
+      DocumentCreateInput input = new DocumentCreateInput();
+      input.setDescription("My test document");
+      input.setScenarioIds(List.of(scenario.getId()));
+      input.setExerciseIds(List.of(exercise.getId()));
 
-          MockPart inputPart = new MockPart(
-                  "input",
-                  mapper.writeValueAsBytes(input)
-          );
-          inputPart.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+      MockPart inputPart = new MockPart("input", mapper.writeValueAsBytes(input));
+      inputPart.getHeaders().setContentType(MediaType.APPLICATION_JSON);
 
-          MockMultipartFile filePart = new MockMultipartFile(
-                  "file",
-                  FileFixture.getPlainTextFileContent().getFileName(),
-                  MediaType.APPLICATION_XML.toString(),
-                  FileFixture.getPlainTextFileContent().getContentBytes()
-          );
+      MockMultipartFile filePart =
+          new MockMultipartFile(
+              "file",
+              document.getName(),
+              MediaType.APPLICATION_XML.toString(),
+              FileFixture.getPlainTextFileContent().getContentBytes());
 
-          // -- EXECUTE
-          String response = mvc.perform(
-                          multipart(DOCUMENT_API + "/upsert")
-                                  .part(inputPart)
-                                  .file(filePart)
-                                  .accept(MediaType.APPLICATION_JSON)
-                  )
-                  .andExpect(status().isOk())
-                  .andReturn()
-                  .getResponse()
-                  .getContentAsString();
+      // -- EXECUTE
+      String response =
+          mvc.perform(
+                  multipart(DOCUMENT_API + "/upsert")
+                      .part(inputPart)
+                      .file(filePart)
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
 
-          // -- VERIFY
-          assertNotNull(response);
-          assertEquals(FileFixture.getPngSmileFileContent().getFileName(), JsonPath.read(response, "$.document_name"));
-          assertEquals("My test document", JsonPath.read(response, "$.document_description"));
-          assertEquals(scenario.getId(), JsonPath.read(response, "$.document_scenarios[0]"));
-          assertEquals(exercise.getId(), JsonPath.read(response, "$.document_exercises[0]"));
-      }
+      // -- VERIFY
+      assertNotNull(response);
+      assertEquals(document.getName(), JsonPath.read(response, "$.document_name"));
+      assertEquals("My test document", JsonPath.read(response, "$.document_description"));
+      assertEquals(scenario.getId(), JsonPath.read(response, "$.document_scenarios[0]"));
+      assertEquals(exercise.getId(), JsonPath.read(response, "$.document_exercises[0]"));
+    }
+
+    @Test
+    @DisplayName("Should update a document by target id when uploading a valid file and input")
+    void uploadDocumentShouldUpdateDocumentByTargetId() throws Exception {
+      // -- PREPARE
+      Scenario scenario =
+          scenarioComposer.forScenario(ScenarioFixture.getScenario()).persist().get();
+      Exercise exercise =
+          exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()).persist().get();
+
+      Document document =
+          documentComposer
+              .forDocument(DocumentFixture.getDocument(FileFixture.getPlainTextFileContent()))
+              .persist()
+              .get();
+      document.setExercises(new HashSet<>(Set.of(exercise)));
+      document.setScenarios(new HashSet<>(Set.of(scenario)));
+
+      String extension = FilenameUtils.getExtension(document.getName());
+      String fileTarget =
+          DigestUtils.md5Hex(
+                  new ByteArrayInputStream(FileFixture.getPlainTextFileContent().getContentBytes()))
+              + "."
+              + extension;
+      document.setDescription("My test document");
+      document.setTarget(fileTarget);
+      documentRepository.save(document);
+
+      DocumentCreateInput input = new DocumentCreateInput();
+      input.setDescription("Should not have this description");
+      input.setScenarioIds(List.of(scenario.getId()));
+      input.setExerciseIds(List.of(exercise.getId()));
+
+      MockPart inputPart = new MockPart("input", mapper.writeValueAsBytes(input));
+      inputPart.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+
+      MockMultipartFile filePart =
+          new MockMultipartFile(
+              "file",
+              document.getName(),
+              MediaType.APPLICATION_XML.toString(),
+              FileFixture.getPlainTextFileContent().getContentBytes());
+
+      // -- EXECUTE
+      String response =
+          mvc.perform(
+                  multipart(DOCUMENT_API + "/upsert")
+                      .part(inputPart)
+                      .file(filePart)
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- VERIFY
+      assertNotNull(response);
+      assertEquals(document.getName(), JsonPath.read(response, "$.document_name"));
+      assertEquals("My test document", JsonPath.read(response, "$.document_description"));
+      assertEquals(scenario.getId(), JsonPath.read(response, "$.document_scenarios[0]"));
+      assertEquals(exercise.getId(), JsonPath.read(response, "$.document_exercises[0]"));
+    }
   }
 
   @Test
