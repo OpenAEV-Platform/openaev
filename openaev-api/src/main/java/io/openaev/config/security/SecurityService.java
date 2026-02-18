@@ -23,7 +23,7 @@ public class SecurityService {
 
   public static final String OPENAEV_PROVIDER_PATH_PREFIX = "openaev.provider.";
   public static final String ROLES_ADMIN_PATH_SUFFIX = ".roles_admin";
-  public static final String GROUPS_MANAGEMENT_SUFFIX = ".groups-management";
+  public static final String GROUPS_MANAGEMENT_SUFFIX = ".groups_management";
   public static final String ALL_ADMIN_PATH_SUFFIX = ".all_admin";
   public static final String AUDIENCE_PATH = ".audience";
   public static final String REGISTRATION_ID = "registration_id";
