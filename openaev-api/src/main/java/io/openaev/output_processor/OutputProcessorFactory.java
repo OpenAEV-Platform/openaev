@@ -3,6 +3,7 @@ package io.openaev.output_processor;
 import io.openaev.database.model.ContractOutputType;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
@@ -19,6 +20,13 @@ public class OutputProcessorFactory {
   }
 
   public OutputProcessorHandler getHandler(ContractOutputType type) {
-    return outputProcessorHandlerMap.get(type);
+    return Optional.ofNullable(outputProcessorHandlerMap.get(type))
+        .orElseThrow(
+            () ->
+                new IllegalArgumentException(
+                    "No handler found for type: "
+                        + type
+                        + ". Available types: "
+                        + outputProcessorHandlerMap.keySet()));
   }
 }
