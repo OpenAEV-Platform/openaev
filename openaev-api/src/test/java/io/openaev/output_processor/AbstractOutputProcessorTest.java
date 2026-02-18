@@ -1,14 +1,13 @@
 package io.openaev.output_processor;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Collections;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
-import java.util.Collections;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class AbstractOutputProcessorTest {
 
@@ -29,7 +28,8 @@ class AbstractOutputProcessorTest {
   }
 
   @Test
-  @DisplayName("should join array elements and trim quotes when buildString is called with an array node")
+  @DisplayName(
+      "should join array elements and trim quotes when buildString is called with an array node")
   void shouldJoinArrayElementsAndTrimQuotesWhenBuildStringCalledWithArrayNode() throws Exception {
     JsonNode node = objectMapper.readTree("[\"foo\", \"bar\"]");
     String result = processor.buildString(node);
