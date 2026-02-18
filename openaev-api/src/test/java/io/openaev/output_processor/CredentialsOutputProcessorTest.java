@@ -38,6 +38,6 @@ class CredentialsOutputProcessorTest {
   void shouldReturnFindingValueAsUsernamePassword() throws Exception {
     JsonNode node = objectMapper.readTree("{\"username\": \"charles\", \"password\": \"pass1\"}");
     String result = processor.toFindingValue(node);
-    assertEquals("user1:pass1", result);
+    assertEquals("charles:pass1", result);
   }
 }
