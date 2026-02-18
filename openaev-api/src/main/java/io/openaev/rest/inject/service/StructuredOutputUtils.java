@@ -4,8 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.*;
 import io.openaev.database.model.*;
+import io.openaev.output_processor.OutputProcessor;
 import io.openaev.output_processor.OutputProcessorFactory;
-import io.openaev.output_processor.OutputProcessorHandler;
 import jakarta.annotation.Resource;
 import java.util.*;
 import java.util.logging.Level;
@@ -131,8 +131,7 @@ public class StructuredOutputUtils {
       ArrayNode matchesArray = mapper.createArrayNode();
 
       // Get handler once per contract output type
-      OutputProcessorHandler handler =
-          outputProcessorFactory.getHandler(contractOutputElement.getType());
+      OutputProcessor handler = outputProcessorFactory.getHandler(contractOutputElement.getType());
 
       while (matcher.find()) {
         buildStructuredJsonNode(contractOutputElement, matcher, handler)
@@ -146,7 +145,7 @@ public class StructuredOutputUtils {
   }
 
   public Optional<JsonNode> buildStructuredJsonNode(
-      ContractOutputElement element, Matcher matcher, OutputProcessorHandler handler) {
+      ContractOutputElement element, Matcher matcher, OutputProcessor handler) {
 
     // Get metadata from handler instead of enum
     ContractOutputTechnicalType technicalType = handler.getTechnicalType();
