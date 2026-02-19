@@ -100,7 +100,8 @@ public class OpenCTIJwtAuthenticationFilter extends OncePerRequestFilter {
       validateOpenCTIJwt(token);
       this.userService.createAdminSession();
     } catch (Exception e) {
-      throw new RuntimeException(e);
+      response.sendError(HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
+      return;
     }
 
     filterChain.doFilter(request, response);

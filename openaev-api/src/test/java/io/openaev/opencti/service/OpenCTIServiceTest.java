@@ -116,6 +116,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
             "registerConnector": {
               "id": "%s",
               "connector_state": null,
+              "jwks": "{}",
               "config": {
                 "connection": {
                   "host": "some host",
@@ -190,6 +191,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
           {
             "pingConnector": {
               "id": "%s",
+              "jwks": "{}",
               "connector_state": null,
               "connector_info": {
                 "run_and_terminate": false,
