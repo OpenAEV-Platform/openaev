@@ -42,7 +42,7 @@ public class UserMappingService {
           } else {
             if (autoCreate) {
               Group newGroup = new Group();
-              newGroup.setName(idpGroup);
+              newGroup.setName(userGroup);
               groupRepository.save(newGroup);
               List<Group> userGroups = user.getGroups();
               userGroups.add(newGroup);
