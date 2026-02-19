@@ -37,13 +37,14 @@ public class SecurityService {
   public User userManagement(
       String emailAttribute,
       String registrationId,
-      List<String> rolesFromToken,
+      List<String> roles,
+      List<String> groups,
       String firstName,
       String lastName) {
     String email = ofNullable(emailAttribute).orElseThrow();
     List<String> adminRoles = getAdminRoles(registrationId);
     boolean allAdmin = isAllAdmin(registrationId);
-    boolean isAdmin = allAdmin || adminRoles.stream().anyMatch(rolesFromToken::contains);
+    boolean isAdmin = allAdmin || adminRoles.stream().anyMatch(roles::contains);
     if (hasLength(email)) {
       Optional<User> optionalUser = userRepository.findByEmailIgnoreCase(email);
       // If user not exists, create it
@@ -63,7 +64,7 @@ public class SecurityService {
                 OPENAEV_PROVIDER_PATH_PREFIX + registrationId + GROUPS_MANAGEMENT_SUFFIX,
                 String.class,
                 "");
-        userMappingService.mapCurrentUserWithGroup(groupsManagementObject, user, rolesFromToken);
+        userMappingService.mapCurrentUserWithGroup(groupsManagementObject, user, groups);
         return user;
       } else {
         // If user exists, update it
@@ -79,8 +80,7 @@ public class SecurityService {
                 OPENAEV_PROVIDER_PATH_PREFIX + registrationId + GROUPS_MANAGEMENT_SUFFIX,
                 String.class,
                 "");
-        userMappingService.mapCurrentUserWithGroup(
-            groupsManagementObject, currentUser, rolesFromToken);
+        userMappingService.mapCurrentUserWithGroup(groupsManagementObject, currentUser, groups);
         return this.userService.updateUser(currentUser);
       }
     }

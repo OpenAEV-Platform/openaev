@@ -38,6 +38,7 @@ import org.springframework.security.saml2.provider.service.web.authentication.Sa
 public class OpenSamlConfig {
 
   public static final String ROLES_PATH_SUFFIX = ".roles_path";
+  public static final String GROUPS_PATH_SUFFIX = ".groups_path";
   public static final String FIRSTNAME_ATTRIBUTE_PATH_SUFFIX = ".firstname_attribute_key";
   public static final String LASTNAME_ATTRIBUTE_PATH_SUFFIX = ".lastname_attribute_key";
 
@@ -102,6 +103,7 @@ public class OpenSamlConfig {
     String emailAttribute = user.getName();
     String registrationId = user.getRelyingPartyRegistrationId();
     List<String> rolesFromUser = extractRolesFromUser(user, registrationId);
+    List<String> groupsFromUser = extractGroupsFromUser(user, registrationId);
 
     String firstname =
         user.getFirstAttribute(
@@ -119,7 +121,7 @@ public class OpenSamlConfig {
     try {
       User userLogin =
           securityService.userManagement(
-              emailAttribute, registrationId, rolesFromUser, firstname, lastname);
+              emailAttribute, registrationId, rolesFromUser, groupsFromUser, firstname, lastname);
 
       if (userLogin != null) {
         return userLogin;
@@ -146,8 +148,28 @@ public class OpenSamlConfig {
     return extractedRoles;
   }
 
+  private List<String> extractGroupsFromUser(
+      @NotNull final Saml2AuthenticatedPrincipal user, @NotBlank final String registrationId) {
+    List<String> rolesPath = getGroups(registrationId);
+    List<String> extractedRoles = new ArrayList<>();
+
+    for (String path : rolesPath) {
+      List<String> roles = user.getAttribute(path);
+      if (roles != null) {
+        extractedRoles.addAll(roles);
+      }
+    }
+    return extractedRoles;
+  }
+
   private List<String> getRoles(@NotBlank final String registrationId) {
     String rolesPathConfig = OPENAEV_PROVIDER_PATH_PREFIX + registrationId + ROLES_PATH_SUFFIX;
+    //noinspection unchecked
+    return env.getProperty(rolesPathConfig, List.class, new ArrayList<String>());
+  }
+
+  private List<String> getGroups(@NotBlank final String registrationId) {
+    String rolesPathConfig = OPENAEV_PROVIDER_PATH_PREFIX + registrationId + GROUPS_PATH_SUFFIX;
     //noinspection unchecked
     return env.getProperty(rolesPathConfig, List.class, new ArrayList<String>());
   }

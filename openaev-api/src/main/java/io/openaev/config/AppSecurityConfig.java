@@ -5,10 +5,7 @@ import static io.openaev.config.security.SecurityService.REGISTRATION_ID;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectReader;
 import io.openaev.config.security.OpenSamlConfig;
 import io.openaev.config.security.SecurityService;
 import io.openaev.database.model.User;
@@ -18,13 +15,12 @@ import io.openaev.security.TokenAuthenticationFilter;
 import io.openaev.service.user_events.UserEventService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
-import java.io.IOException;
+import jakarta.validation.constraints.NotBlank;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
-import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -43,7 +39,6 @@ import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
-import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
@@ -64,6 +59,8 @@ public class AppSecurityConfig {
   private final OpenSamlConfig openSamlConfig;
   private final SecurityService securityService;
   private final UserEventService userEventService;
+  public static final String ROLES_PATH_SUFFIX = ".roles_path";
+  public static final String GROUPS_PATH_SUFFIX = ".groups_path";
 
   @Resource protected ObjectMapper mapper;
 
@@ -140,43 +137,11 @@ public class AppSecurityConfig {
     return new TokenAuthenticationFilter();
   }
 
-  private List<String> extractRolesFromToken(OAuth2AccessToken accessToken, String registrationId) {
-    ObjectReader listReader = mapper.readerFor(new TypeReference<List<String>>() {});
-    if (accessToken != null) {
-      String rolesPathConfig = OPENAEV_PROVIDER_PATH_PREFIX + registrationId + ".roles_path";
-      //noinspection unchecked
-      List<String> rolesPath =
-          env.getProperty(rolesPathConfig, List.class, new ArrayList<String>());
-      try {
-        String[] chunks = accessToken.getTokenValue().split("\\.");
-        Base64.Decoder decoder = Base64.getUrlDecoder();
-        String payload = new String(decoder.decode(chunks[1]));
-        JsonNode jsonNode = mapper.readTree(payload);
-        return rolesPath.stream()
-            .map(path -> "/" + path.replaceAll("\\.", "/"))
-            .flatMap(
-                path -> {
-                  JsonNode arrayRoles = jsonNode.at(path);
-                  try {
-                    List<String> roles = listReader.readValue(arrayRoles);
-                    return roles.stream();
-                  } catch (IOException e) {
-                    return Stream.empty();
-                  }
-                })
-            .toList();
-      } catch (Exception e) {
-        log.error(e.getMessage(), e);
-      }
-    }
-    return new ArrayList<>();
-  }
-
-  public User userOauth2Management(
-      OAuth2AccessToken accessToken, ClientRegistration clientRegistration, OAuth2User user) {
+  public User userOauth2Management(ClientRegistration clientRegistration, OAuth2User user) {
     String emailAttribute = user.getAttribute("email");
     String registrationId = clientRegistration.getRegistrationId();
-    List<String> rolesFromToken = extractRolesFromToken(accessToken, registrationId);
+    List<String> rolesFromUser = extractRolesFromUser(user, registrationId);
+    List<String> groupsFromUser = extractGroupsFromUser(user, registrationId);
     if (isBlank(emailAttribute)) {
       OAuth2Error authError =
           new OAuth2Error(
@@ -189,7 +154,8 @@ public class AppSecurityConfig {
         this.securityService.userManagement(
             emailAttribute,
             registrationId,
-            rolesFromToken,
+            rolesFromUser,
+            groupsFromUser,
             user.getAttribute("given_name"),
             user.getAttribute("family_name"));
 
@@ -201,15 +167,13 @@ public class AppSecurityConfig {
     throw new OAuth2AuthenticationException(authError);
   }
 
-  public OidcUser oidcUserManagement(
-      OAuth2AccessToken accessToken, ClientRegistration clientRegistration, OAuth2User user) {
-    User loginUser = userOauth2Management(accessToken, clientRegistration, user);
+  public OidcUser oidcUserManagement(ClientRegistration clientRegistration, OAuth2User user) {
+    User loginUser = userOauth2Management(clientRegistration, user);
     return new OpenAEVOidcUser(loginUser);
   }
 
-  public OAuth2User oAuth2UserManagement(
-      OAuth2AccessToken accessToken, ClientRegistration clientRegistration, OAuth2User user) {
-    User loginUser = userOauth2Management(accessToken, clientRegistration, user);
+  public OAuth2User oAuth2UserManagement(ClientRegistration clientRegistration, OAuth2User user) {
+    User loginUser = userOauth2Management(clientRegistration, user);
     return new OpenAEVOAuth2User(loginUser);
   }
 
@@ -217,16 +181,14 @@ public class AppSecurityConfig {
   public OAuth2UserService<OidcUserRequest, OidcUser> oidcUserService() {
     OidcUserService delegate = new OidcUserService();
     return request ->
-        oidcUserManagement(
-            request.getAccessToken(), request.getClientRegistration(), delegate.loadUser(request));
+        oidcUserManagement(request.getClientRegistration(), delegate.loadUser(request));
   }
 
   @Bean
   public OAuth2UserService<OAuth2UserRequest, OAuth2User> oauth2UserService() {
     DefaultOAuth2UserService delegate = new DefaultOAuth2UserService();
     return request ->
-        oAuth2UserManagement(
-            request.getAccessToken(), request.getClientRegistration(), delegate.loadUser(request));
+        oAuth2UserManagement(request.getClientRegistration(), delegate.loadUser(request));
   }
 
   @Bean
@@ -270,5 +232,45 @@ public class AppSecurityConfig {
             .build();
       }
     };
+  }
+
+  private List<String> extractRolesFromUser(
+      @NotNull final OAuth2User user, @NotBlank final String registrationId) {
+    List<String> rolesPath = getRoles(registrationId);
+    List<String> extractedRoles = new ArrayList<>();
+
+    for (String path : rolesPath) {
+      List<String> roles = user.getAttribute(path);
+      if (roles != null) {
+        extractedRoles.addAll(roles);
+      }
+    }
+    return extractedRoles;
+  }
+
+  private List<String> extractGroupsFromUser(
+      @NotNull final OAuth2User user, @NotBlank final String registrationId) {
+    List<String> rolesPath = getGroups(registrationId);
+    List<String> extractedRoles = new ArrayList<>();
+
+    for (String path : rolesPath) {
+      List<String> roles = user.getAttribute(path);
+      if (roles != null) {
+        extractedRoles.addAll(roles);
+      }
+    }
+    return extractedRoles;
+  }
+
+  private List<String> getRoles(@NotBlank final String registrationId) {
+    String rolesPathConfig = OPENAEV_PROVIDER_PATH_PREFIX + registrationId + ROLES_PATH_SUFFIX;
+    //noinspection unchecked
+    return env.getProperty(rolesPathConfig, List.class, new ArrayList<String>());
+  }
+
+  private List<String> getGroups(@NotBlank final String registrationId) {
+    String rolesPathConfig = OPENAEV_PROVIDER_PATH_PREFIX + registrationId + GROUPS_PATH_SUFFIX;
+    //noinspection unchecked
+    return env.getProperty(rolesPathConfig, List.class, new ArrayList<String>());
   }
 }
