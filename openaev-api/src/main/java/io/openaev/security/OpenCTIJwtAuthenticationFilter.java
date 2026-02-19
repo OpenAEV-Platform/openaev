@@ -44,7 +44,7 @@ public class OpenCTIJwtAuthenticationFilter extends OncePerRequestFilter {
    * Function used to validate JWT token with OpenCTI jwks
    *
    * @param jwt JWT token to validate
-   * @throws Exception
+   * @throws Exception if token not valid
    */
   public void validateOpenCTIJwt(String jwt) throws Exception {
     Optional<ConnectorBase> openCTIConnector = openCTIConnectorService.getConnectorBase();
