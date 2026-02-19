@@ -9,7 +9,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_72__Create_default_tenant extends BaseJavaMigration {
+public class V4_73__Create_default_tenant extends BaseJavaMigration {
 
   // Strings to replace in the SQL statement
   private static String DEFAULT_TENANT_ID = "[DEFAULT_TENANT_ID]";
