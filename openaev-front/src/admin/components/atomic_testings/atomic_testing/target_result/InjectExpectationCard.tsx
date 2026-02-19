@@ -8,7 +8,7 @@ import Paper from '../../../../../components/common/Paper';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemStatus from '../../../../../components/ItemStatus';
 import type { InjectResultOverviewOutput, InjectTarget } from '../../../../../utils/api-types';
-import { AbilityContext } from '../../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, INHERITED_CONTEXT, SUBJECTS } from '../../../../../utils/permissions/types';
 import { computeInjectExpectationLabel } from '../../../../../utils/statusUtils';
 import { emptyFilled } from '../../../../../utils/String';
