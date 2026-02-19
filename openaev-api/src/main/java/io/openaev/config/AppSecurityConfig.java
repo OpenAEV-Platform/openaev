@@ -71,7 +71,8 @@ public class AppSecurityConfig {
   @Bean
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     http.addFilterBefore(tokenAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
-        .addFilterBefore(openCTIJwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
+        .addFilterBefore(
+            openCTIJwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
         .requestCache(Customizer.withDefaults())
         .requestCache(cache -> cache.requestCache(new HttpSessionRequestCache()))
         .csrf(AbstractHttpConfigurer::disable)

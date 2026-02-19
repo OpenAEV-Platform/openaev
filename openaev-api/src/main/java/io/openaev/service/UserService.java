@@ -133,10 +133,10 @@ public class UserService {
     SecurityContextHolder.setContext(context);
   }
 
-  // TODo if adminEmail in null you have nullPointer exception
+  /** Creates admin security session */
   public void createAdminSession() {
-    Optional<User> adminUser = this.userRepository.findByEmailIgnoreCase(this.adminEmail);
-    adminUser.ifPresent(this::createUserSession);
+    User adminUser = this.userRepository.findByEmailIgnoreCase(this.adminEmail).orElseThrow();
+    this.createUserSession(adminUser);
   }
 
   /**

@@ -47,11 +47,11 @@ public class OpenCTIConnectorService {
     for (ConnectorBase c : enabledConnectors) {
       try {
         if (!c.isRegistered()) {
-          RegisterConnector.ResponsePayload  payload = openCTIService.registerConnector(c);
-          ((SecurityCoverageConnector)c).setJwks(payload.getRegisterConnectorContent().getJwks());
+          RegisterConnector.ResponsePayload payload = openCTIService.registerConnector(c);
+          ((SecurityCoverageConnector) c).setJwks(payload.getRegisterConnectorContent().getJwks());
         } else {
           Ping.ResponsePayload payload = openCTIService.pingConnector(c);
-          ((SecurityCoverageConnector)c).setJwks(payload.getPingConnectorContent().getJwks());
+          ((SecurityCoverageConnector) c).setJwks(payload.getPingConnectorContent().getJwks());
         }
       } catch (Exception e) {
         log.error("Error at OpenCTI connector registration or ping", e);
