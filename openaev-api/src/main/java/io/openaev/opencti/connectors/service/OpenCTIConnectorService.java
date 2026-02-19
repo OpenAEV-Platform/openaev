@@ -1,5 +1,7 @@
 package io.openaev.opencti.connectors.service;
 
+import io.openaev.opencti.client.mutations.Ping;
+import io.openaev.opencti.client.mutations.RegisterConnector;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.errors.ConnectorError;
@@ -22,7 +24,7 @@ public class OpenCTIConnectorService {
   private final OpenCTIService openCTIService;
 
   @NotNull
-  private Optional<ConnectorBase> getConnectorBase() {
+  public Optional<ConnectorBase> getConnectorBase() {
     // don't examine the bundle
     // pick the first occurrence of the correct connector type
     // it's not supported yet to have more than one active connector of each type
@@ -45,9 +47,11 @@ public class OpenCTIConnectorService {
     for (ConnectorBase c : enabledConnectors) {
       try {
         if (!c.isRegistered()) {
-          openCTIService.registerConnector(c);
+          RegisterConnector.ResponsePayload  payload = openCTIService.registerConnector(c);
+          ((SecurityCoverageConnector)c).setJwks(payload.getRegisterConnectorContent().getJwks());
         } else {
-          openCTIService.pingConnector(c);
+          Ping.ResponsePayload payload = openCTIService.pingConnector(c);
+          ((SecurityCoverageConnector)c).setJwks(payload.getPingConnectorContent().getJwks());
         }
       } catch (Exception e) {
         log.error("Error at OpenCTI connector registration or ping", e);
