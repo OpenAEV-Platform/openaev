@@ -1,5 +1,6 @@
 package io.openaev.database.model;
 
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static jakarta.persistence.DiscriminatorType.STRING;
 import static java.time.Instant.now;
 import static lombok.AccessLevel.NONE;
@@ -190,6 +191,12 @@ public class Payload implements GrantableBase {
   @Enumerated(EnumType.STRING)
   @NotNull
   private PAYLOAD_EXECUTION_ARCH executionArch = Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES;
+
+  @ManyToOne
+  @JoinColumn(name = "tenant_id")
+  @JsonIgnore
+  @NotNull
+  private Tenant tenant = new Tenant(DEFAULT_TENANT_UUID);
 
   // -- COLLECTOR --
 

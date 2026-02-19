@@ -1,5 +1,6 @@
 package io.openaev.database.model;
 
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
 import static lombok.AccessLevel.NONE;
@@ -183,6 +184,12 @@ public class InjectorContract implements Base {
   @Column(name = "injector_contract_import_available")
   @Queryable(filterable = true)
   private boolean isImportAvailable;
+
+  @ManyToOne
+  @JoinColumn(name = "tenant_id")
+  @JsonIgnore
+  @NotNull
+  private Tenant tenant = new Tenant(DEFAULT_TENANT_UUID);
 
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
