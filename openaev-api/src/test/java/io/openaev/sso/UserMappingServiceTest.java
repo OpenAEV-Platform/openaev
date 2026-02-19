@@ -70,13 +70,6 @@ public class UserMappingServiceTest extends IntegrationTest {
     // -- ARRANGE ---
     String object =
         "[{\"idpGroup\": \"observer\",\"userGroup\": \"admin\",\"autoCreate\": \"true\"}]";
-    Group specificGroup = GroupFixture.createGroupWithName("observer");
-    specificGroup.setId(Constants.PROCESS_STIX_GROUP_ID);
-    specificGroup.setDescription("a description");
-    specificGroup.setRoles(new ArrayList<>());
-    groupComposer.forGroup(specificGroup).persist();
-    entityManager.flush();
-    entityManager.clear();
     User user = UserFixture.getUser();
     userComposer.forUser(user).persist();
     entityManager.flush();
@@ -88,7 +81,7 @@ public class UserMappingServiceTest extends IntegrationTest {
 
     // -- ASSERT --
     Group userGroup = user.getGroups().get(0);
-    assertTrue(userGroup.getName().equals(specificGroup.getName()));
+    assertTrue(userGroup.getName().equals("admin"));
   }
 
   @Test
