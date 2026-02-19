@@ -8,7 +8,7 @@ import { withStyles } from 'tss-react/mui';
 import { addKillChainPhase } from '../actions/KillChainPhase';
 import { storeHelper } from '../actions/Schema';
 import KillChainPhaseForm from '../admin/components/settings/kill_chain_phases/KillChainPhaseForm';
-import { Can } from '../utils/permissions/PermissionsProvider';
+import { Can } from '../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../utils/permissions/types';
 import Autocomplete from './Autocomplete';
 import inject18n from './i18n';
