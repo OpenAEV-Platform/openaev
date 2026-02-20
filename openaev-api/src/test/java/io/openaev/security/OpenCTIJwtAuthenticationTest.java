@@ -7,6 +7,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
 import io.jsonwebtoken.Jwts;
@@ -35,9 +36,9 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,7 +46,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_CLASS)
 @WithMockOpenCTIConfig(url = "public_url", token = "auth token")
 public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
-  @SpyBean private OpenCTIConnectorService openCTIConnectorService;
+  @MockitoSpyBean private OpenCTIConnectorService openCTIConnectorService;
 
   @Value("${openbas.admin.token:${openaev.admin.token:#{null}}}")
   private String adminToken;
@@ -82,7 +83,10 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
             .signWith(pair.getPrivate(), Jwts.SIG.EdDSA)
             .compact();
 
-    JWK jwk = JWK.parse(Jwks.builder().id("test-123").key(pair.getPublic()).build().toString());
+    JWK jwk =
+        JWK.parse(
+            new ObjectMapper()
+                .writeValueAsString(Jwks.builder().id("test-123").key(pair.getPublic()).build()));
     String jwksJson = new JWKSet(jwk).toString();
     return new JwtFixture(jwt, jwksJson);
   }
