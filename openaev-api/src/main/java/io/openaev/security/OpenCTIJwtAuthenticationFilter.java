@@ -6,7 +6,6 @@ import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.OctetKeyPair;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
-import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.service.UserService;
@@ -17,9 +16,11 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+@Slf4j
 public class OpenCTIJwtAuthenticationFilter extends OncePerRequestFilter {
   private UserService userService;
   private OpenCTIConnectorService openCTIConnectorService;
@@ -40,6 +41,22 @@ public class OpenCTIJwtAuthenticationFilter extends OncePerRequestFilter {
     return !request.getRequestURI().startsWith("/api/stix/");
   }
 
+
+//  public void validateOpenCTIJwt(String jwt) throws ParseException, BadJOSEException, JOSEException, ServletException {
+//    SecurityCoverageConnector connector = openCTIConnectorService
+//            .getConnectorBase()
+//            .orElseThrow(() -> new ServletException("Connector not found"));
+//
+//    JWKSet jwkSet = JWKSet.parse(connector.getJwks());
+//    JWKSource<SecurityContext> jwkSource = new ImmutableJWKSet<>(jwkSet);
+//
+//    DefaultJWTProcessor<SecurityContext> jwtProcessor = new DefaultJWTProcessor<>();
+//    jwtProcessor.setJWSKeySelector(new JWSVerificationKeySelector<>(JWSAlgorithm.EdDSA, jwkSource));
+//
+//    // validates signature + exp + nbf + iat in one call
+//    jwtProcessor.process(jwt, null);
+//  }
+
   /**
    * Function used to validate JWT token with OpenCTI jwks
    *
@@ -47,7 +64,8 @@ public class OpenCTIJwtAuthenticationFilter extends OncePerRequestFilter {
    * @throws Exception if token not valid
    */
   public void validateOpenCTIJwt(String jwt) throws Exception {
-    Optional<ConnectorBase> openCTIConnector = openCTIConnectorService.getConnectorBase();
+    Optional<SecurityCoverageConnector> openCTIConnector =
+        openCTIConnectorService.getConnectorBase();
     if (openCTIConnector.isEmpty()) {
       throw new ServletException("Connector not found");
     }
@@ -60,7 +78,7 @@ public class OpenCTIJwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     // Parse JWKS and get jwk key by kid
-    String jwksJson = ((SecurityCoverageConnector) openCTIConnector.get()).getJwks();
+    String jwksJson = openCTIConnector.get().getJwks();
     JWKSet jwkSet = JWKSet.parse(jwksJson);
     JWK jwk = jwkSet.getKeyByKeyId(kid);
     if (jwk == null) {

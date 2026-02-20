@@ -1,7 +1,5 @@
 package io.openaev.opencti.connectors.service;
 
-import io.openaev.opencti.client.mutations.Ping;
-import io.openaev.opencti.client.mutations.RegisterConnector;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.errors.ConnectorError;
@@ -24,12 +22,13 @@ public class OpenCTIConnectorService {
   private final OpenCTIService openCTIService;
 
   @NotNull
-  public Optional<ConnectorBase> getConnectorBase() {
+  public Optional<SecurityCoverageConnector> getConnectorBase() {
     // don't examine the bundle
     // pick the first occurrence of the correct connector type
     // it's not supported yet to have more than one active connector of each type
     return connectors.stream()
         .filter(c -> c instanceof SecurityCoverageConnector && c.shouldRegister())
+        .map(c -> (SecurityCoverageConnector) c)
         .findFirst();
   }
 
@@ -47,11 +46,9 @@ public class OpenCTIConnectorService {
     for (ConnectorBase c : enabledConnectors) {
       try {
         if (!c.isRegistered()) {
-          RegisterConnector.ResponsePayload payload = openCTIService.registerConnector(c);
-          ((SecurityCoverageConnector) c).setJwks(payload.getRegisterConnectorContent().getJwks());
+          openCTIService.registerConnector(c);
         } else {
-          Ping.ResponsePayload payload = openCTIService.pingConnector(c);
-          ((SecurityCoverageConnector) c).setJwks(payload.getPingConnectorContent().getJwks());
+          openCTIService.pingConnector(c);
         }
       } catch (Exception e) {
         log.error("Error at OpenCTI connector registration or ping", e);
@@ -60,7 +57,7 @@ public class OpenCTIConnectorService {
   }
 
   public void pushSecurityCoverageStixBundle(Bundle bundle) throws ConnectorError, IOException {
-    Optional<ConnectorBase> connector = getConnectorBase();
+    Optional<SecurityCoverageConnector> connector = getConnectorBase();
 
     if (connector.isEmpty()) {
       throw new ConnectorError(
@@ -71,7 +68,7 @@ public class OpenCTIConnectorService {
   }
 
   public void acknowledgeReceivedOfCoverage(String workId, String message) {
-    Optional<ConnectorBase> connector = getConnectorBase();
+    Optional<SecurityCoverageConnector> connector = getConnectorBase();
 
     if (connector.isPresent()) {
       try {
@@ -83,7 +80,7 @@ public class OpenCTIConnectorService {
   }
 
   public void acknowledgeProcessedOfCoverage(String workId, String message, Boolean inError) {
-    Optional<ConnectorBase> connector = getConnectorBase();
+    Optional<SecurityCoverageConnector> connector = getConnectorBase();
 
     if (connector.isPresent()) {
       try {
