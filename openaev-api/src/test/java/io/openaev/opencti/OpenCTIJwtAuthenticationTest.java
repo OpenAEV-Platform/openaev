@@ -28,16 +28,16 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 @TestInstance(PER_CLASS)
 public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
-  @SpyBean private OpenCTIConnectorService openCTIConnectorService;
+  @MockitoSpyBean private OpenCTIConnectorService openCTIConnectorService;
 
   @Value("${openbas.admin.token:${openaev.admin.token:#{null}}}")
   private String adminToken;
