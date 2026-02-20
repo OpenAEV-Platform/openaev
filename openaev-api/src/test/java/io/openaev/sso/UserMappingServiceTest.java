@@ -17,7 +17,6 @@ import io.openaev.utils.fixtures.composers.UserComposer;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.util.*;
-
 import org.apache.commons.lang3.NotImplementedException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -327,22 +326,24 @@ public class UserMappingServiceTest extends IntegrationTest {
       ReflectionTestUtils.setField(userMappingService, "env", env);
       when(env.getProperty(
               "openaev.provider.oidc.groups_path", List.class, new ArrayList<String>()))
-              .thenReturn(List.of("groups"));
+          .thenReturn(List.of("groups"));
 
       String group = "Filigran";
 
       AuthenticatedPrincipal user =
-              new AuthenticatedPrincipal() {
-                @Override
-                public String getName() {
-                  return "";
-                }
-              };
+          new AuthenticatedPrincipal() {
+            @Override
+            public String getName() {
+              return "";
+            }
+          };
 
       // ---- ACT ----
 
       // -- ASSERT --
-      assertThrows(NotImplementedException.class, () -> userMappingService.extractGroupsFromUser(user, "oidc"));
+      assertThrows(
+          NotImplementedException.class,
+          () -> userMappingService.extractGroupsFromUser(user, "oidc"));
     }
   }
 }
