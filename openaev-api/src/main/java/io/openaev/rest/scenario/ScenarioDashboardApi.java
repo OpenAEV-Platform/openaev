@@ -6,14 +6,11 @@ import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.ResourceType;
-import io.openaev.engine.model.EsBase;
-import io.openaev.engine.query.EsAttackPath;
-import io.openaev.engine.query.EsAvgs;
-import io.openaev.engine.query.EsCountInterval;
-import io.openaev.engine.query.EsSeries;
+import io.openaev.engine.query.*;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
-import io.openaev.rest.dashboard.model.WidgetToEntitiesInput;
-import io.openaev.rest.dashboard.model.WidgetToEntitiesOutput;
+import io.openaev.utils.es.EntitiesPaginationInput;
+import io.openaev.utils.es.WidgetToEntitiesInput;
+import io.openaev.utils.es.WidgetToEntitiesOutput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -90,12 +87,11 @@ public class ScenarioDashboardApi {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public List<EsBase> dashboardEntities(
+  public EsEntities dashboardEntities(
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
-      @RequestBody(required = false) Map<String, String> parameters) {
-    return this.customDashboardService.dashboardEntitiesOnResourceId(
-        scenarioId, widgetId, parameters);
+      @RequestBody EntitiesPaginationInput input) {
+    return this.customDashboardService.dashboardEntitiesOnResourceId(scenarioId, widgetId, input);
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/dashboard/entities-runtime/{widgetId}")
@@ -106,7 +102,7 @@ public class ScenarioDashboardApi {
   public WidgetToEntitiesOutput widgetToEntitiesRuntime(
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
-      @Valid @RequestBody WidgetToEntitiesInput input) {
+      @Valid @RequestBody(required = false) WidgetToEntitiesInput input) {
     return this.customDashboardService.widgetToEntitiesRuntimeOnResourceId(
         scenarioId, widgetId, input);
   }

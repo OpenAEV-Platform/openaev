@@ -73,6 +73,10 @@ public class EndpointFixture {
     return baseEndpoint("Endpoint test", Endpoint.PLATFORM_TYPE.Windows);
   }
 
+  public static Endpoint createEndpoint(String name) {
+    return baseEndpoint(name, Endpoint.PLATFORM_TYPE.Windows);
+  }
+
   public static Endpoint createEndpointWithPlatform(String name, Endpoint.PLATFORM_TYPE platform) {
     return baseEndpoint(name, platform);
   }

@@ -11,24 +11,23 @@ import io.openaev.database.model.SettingKeys;
 import io.openaev.database.model.Widget;
 import io.openaev.database.raw.RawCustomDashboard;
 import io.openaev.database.repository.CustomDashboardRepository;
-import io.openaev.engine.model.EsBase;
-import io.openaev.engine.query.EsAttackPath;
-import io.openaev.engine.query.EsAvgs;
-import io.openaev.engine.query.EsCountInterval;
-import io.openaev.engine.query.EsSeries;
+import io.openaev.engine.query.*;
 import io.openaev.rest.custom_dashboard.form.CustomDashboardOutput;
 import io.openaev.rest.dashboard.DashboardService;
-import io.openaev.rest.dashboard.model.WidgetToEntitiesInput;
-import io.openaev.rest.dashboard.model.WidgetToEntitiesOutput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.utils.FilterUtilsJpa;
+import io.openaev.utils.es.EntitiesPaginationInput;
+import io.openaev.utils.es.WidgetToEntitiesInput;
+import io.openaev.utils.es.WidgetToEntitiesOutput;
 import io.openaev.utils.mapper.CustomDashboardMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -290,15 +289,18 @@ public class CustomDashboardService {
     return this.dashboardService.series(widgetId, parameters);
   }
 
-  public List<EsBase> dashboardEntitiesOnResourceId(
+  public EsEntities dashboardEntitiesOnResourceId(
       @NotBlank final String resourceId,
       @NotBlank final String widgetId,
-      final Map<String, String> parameters) {
+      @Nullable final EntitiesPaginationInput input) {
     // verify that the widget is in the resource dashboard
     if (!isWidgetInResourceDashboard(resourceId, widgetId)) {
       throw new AccessDeniedException("Access denied");
     }
-    return this.dashboardService.entities(widgetId, parameters);
+    return this.dashboardService.entities(
+        widgetId,
+        input == null ? new HashMap<>() : input.getParameters(),
+        input == null ? null : input.getPagination());
   }
 
   public WidgetToEntitiesOutput widgetToEntitiesRuntimeOnResourceId(
@@ -353,13 +355,16 @@ public class CustomDashboardService {
     return dashboardService.series(widgetId, parameters);
   }
 
-  public List<EsBase> homeDashboardEntities(
-      @NotBlank final String widgetId, final Map<String, String> parameters) {
+  public EsEntities homeDashboardEntities(
+      @NotBlank final String widgetId, @Nullable final EntitiesPaginationInput input) {
     // verify that the widget is in the home  dashboard
     if (!isWidgetInHomeDashboard(widgetId)) {
       throw new AccessDeniedException("Access denied");
     }
-    return dashboardService.entities(widgetId, parameters);
+    return dashboardService.entities(
+        widgetId,
+        input == null ? new HashMap<>() : input.getParameters(),
+        input == null ? null : input.getPagination());
   }
 
   public WidgetToEntitiesOutput homeWidgetToEntitiesRuntimeOnResourceId(

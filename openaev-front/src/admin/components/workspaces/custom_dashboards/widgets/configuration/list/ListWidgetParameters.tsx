@@ -137,25 +137,6 @@ const ListWidgetParameters = (props: Props) => {
           </TextField>
         )}
       />
-      <Controller
-        control={props.control}
-        name="widget_config.limit"
-        render={({ field, fieldState }) => (
-          <TextField
-            {...field}
-            variant="standard"
-            fullWidth
-            type="number"
-            label={t('Number of results')}
-            sx={{ mt: 2 }}
-            value={field.value ?? 100}
-            onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
-            error={!!fieldState.error}
-            helperText={fieldState.error?.message}
-            required
-          />
-        )}
-      />
 
       <WidgetConfigDateAttributeController widgetType={props.widgetType} series={[perspective]} />
       <WidgetConfigTimeRangeController />

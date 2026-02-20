@@ -13,7 +13,7 @@ import type { ScenariosHelper } from '../../../../../actions/scenarios/scenario-
 import { SCENARIO_SIMULATIONS } from '../../../../../components/common/queryable/filter/constants';
 import { useHelper } from '../../../../../store';
 import {
-  type CustomDashboard,
+  type CustomDashboard, type Pagination,
   type Scenario,
   type SortField,
   type WidgetToEntitiesInput,
@@ -104,7 +104,7 @@ const ScenarioAnalysis = () => {
     fetchCount: (widgetId: string, params: Record<string, string | undefined>) => countByScenario(scenarioId, widgetId, params),
     fetchAverage: (widgetId: string, params: Record<string, string | undefined>) => averageByScenario(scenarioId, widgetId, params),
     fetchSeries: (widgetId: string, params: Record<string, string | undefined>) => seriesByScenario(scenarioId, widgetId, params),
-    fetchEntities: (widgetId: string, params: Record<string, string | undefined>) => entitiesByScenario(scenarioId, widgetId, params),
+    fetchEntities: (widgetId: string, params: Record<string, string | undefined>, pagination?: Pagination) => entitiesByScenario(scenarioId, widgetId, params, pagination),
     fetchEntitiesRuntime: (widgetId: string, input: WidgetToEntitiesInput) => widgetToEntitiesByByScenario(scenarioId, widgetId, input),
     fetchAttackPaths: (widgetId: string, params: Record<string, string | undefined>) => attackPathsByScenario(scenarioId, widgetId, params),
   };

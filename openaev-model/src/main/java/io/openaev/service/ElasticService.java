@@ -842,7 +842,7 @@ public class ElasticService implements EngineService {
         .toList();
   }
 
-  public List<EsBase> entities(RawUserAuth user, ListRuntime runtime) {
+  public EsEntities entities(RawUserAuth user, ListRuntime runtime) {
     Filters.FilterGroup searchFilters = runtime.getWidget().getPerspective().getFilter();
     String entityName =
         searchFilters.getFilters().stream()
@@ -899,18 +899,26 @@ public class ElasticService implements EngineService {
           elasticClient.search(
               b ->
                   b.index(engineConfig.getIndexPrefix() + "*")
-                      .size(runtime.getWidget().getLimit())
+                      .size(runtime.getPagination().getSize())
+                      .from(runtime.getPagination().getPage() * runtime.getPagination().getSize())
                       .query(finalQuery)
                       .sort(engineSorts),
               getClassForEntity(entityName));
-      return response.hits().hits().stream()
-          .filter(hit -> hit.source() != null)
-          .map(hit -> (EsBase) hit.source())
-          .toList();
+      long total = response.hits().total() != null ? response.hits().total().value() : 0;
+      return new EsEntities(
+          response.hits().hits().stream()
+              .filter(hit -> hit.source() != null)
+              .map(hit -> (EsBase) hit.source())
+              .toList(),
+          total,
+          runtime.getPagination().getSize(),
+          runtime.getPagination().getPage(),
+          Math.ceilDiv(total, runtime.getPagination().getSize()));
+
     } catch (IOException e) {
       log.error("query exception: {}", e.getMessage(), e);
     }
-    return List.of();
+    return new EsEntities(new ArrayList<>(), 0, 0, 0, 0);
   }
 
   private Class<?> getClassForEntity(String entity_name) {

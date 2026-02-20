@@ -1,10 +1,9 @@
-package io.openaev.rest.dashboard.model;
+package io.openaev.utils.es;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.engine.api.ListConfiguration;
-import io.openaev.engine.model.EsBase;
+import io.openaev.engine.query.EsEntities;
 import io.swagger.v3.oas.annotations.media.Schema;
-import java.util.List;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -13,7 +12,6 @@ import lombok.Setter;
 @Setter
 @Builder
 public class WidgetToEntitiesOutput {
-
   @Schema(
       description = "List configuration generated based on the input widget id and filter value")
   @JsonProperty("list_configuration")
@@ -21,5 +19,5 @@ public class WidgetToEntitiesOutput {
 
   @Schema(description = "List of entities")
   @JsonProperty("es_entities")
-  private List<EsBase> esEntities;
+  private EsEntities esEntities;
 }
