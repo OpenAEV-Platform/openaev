@@ -51,8 +51,8 @@ public class UserMappingServiceTest extends IntegrationTest {
 
     // -- ARRANGE ---
     String object =
-        "[{\"idpGroup\": \"observer\",\"userGroup\": \"observer\",\"autoCreate\": \"false\"}]";
-    Group specificGroup = GroupFixture.createGroupWithName("observer");
+        "[{\"idpGroup\": \"observer\",\"userGroup\": \"observerUserGroup\",\"autoCreate\": \"false\"}]";
+    Group specificGroup = GroupFixture.createGroupWithName("observerUserGroup");
     specificGroup.setId(Constants.PROCESS_STIX_GROUP_ID);
     specificGroup.setDescription("a description");
     specificGroup.setRoles(new ArrayList<>());
@@ -101,13 +101,6 @@ public class UserMappingServiceTest extends IntegrationTest {
     // -- ARRANGE ---
     String object =
         "[{\"idpGroup\": \"observer\",\"userGroup\": \"admin\",\"autoCreate\": \"false\"}]";
-    Group specificGroup = GroupFixture.createGroupWithName("observer");
-    specificGroup.setId(Constants.PROCESS_STIX_GROUP_ID);
-    specificGroup.setDescription("a description");
-    specificGroup.setRoles(new ArrayList<>());
-    groupComposer.forGroup(specificGroup).persist();
-    entityManager.flush();
-    entityManager.clear();
     User user = UserFixture.getUser();
     userComposer.forUser(user).persist();
     entityManager.flush();
@@ -154,7 +147,7 @@ public class UserMappingServiceTest extends IntegrationTest {
 
     // -- ARRANGE ---
     String object =
-        "[{\"idpGroup\": \"observer\",\"userGroup\": \"admin\",\"autoCreate\": \"false\"},{\"idpGroup\": \"observer\",\"userGroup\": \"admin\",\"autoCreate\": \"true\"}]";
+        "[{\"idpGroup\": \"observer\",\"userGroup\": \"admin1\",\"autoCreate\": \"false\"},{\"idpGroup\": \"observer\",\"userGroup\": \"admin2\",\"autoCreate\": \"true\"}]";
     Group specificGroup = GroupFixture.createGroupWithName("observer");
     specificGroup.setId(Constants.PROCESS_STIX_GROUP_ID);
     specificGroup.setDescription("a description");
@@ -173,6 +166,7 @@ public class UserMappingServiceTest extends IntegrationTest {
 
     // -- ASSERT --
     assertThat(user.getGroups().size()).isEqualTo(1);
+    assertThat(user.getGroups().getFirst().getName()).isEqualTo("admin2");
   }
 
   @Nested
