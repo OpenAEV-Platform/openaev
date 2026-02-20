@@ -6,20 +6,16 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.nimbusds.jose.JWSAlgorithm;
-import com.nimbusds.jose.JWSHeader;
-import com.nimbusds.jose.crypto.Ed25519Signer;
-import com.nimbusds.jose.jwk.Curve;
+import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
-import com.nimbusds.jose.jwk.OctetKeyPair;
-import com.nimbusds.jose.jwk.gen.OctetKeyPairGenerator;
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.SignedJWT;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.*;
 import io.openaev.IntegrationTest;
 import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
+import java.security.KeyPair;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -57,23 +53,25 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
   record JwtFixture(String jwtToken, String jwks) {}
 
   private JwtFixture generateJwtJwk(boolean expired) throws Exception {
-    OctetKeyPair jwk = new OctetKeyPairGenerator(Curve.Ed25519).keyID("test-123").generate();
+    Curve curve = Jwks.CRV.Ed25519;
+    KeyPair pair = curve.keyPair().build();
 
     long offset = expired ? -60 * 1000L : 60 * 1000L;
-    JWTClaimsSet claimsSet =
-        new JWTClaimsSet.Builder()
-            .subject("connector")
+
+    String jwt =
+        Jwts.builder()
             .issuer("opencti")
-            .issueTime(new Date(new Date().getTime()))
-            .expirationTime(new Date(new Date().getTime() + offset))
-            .build();
+            .subject("connector")
+            .header()
+            .keyId("test-123")
+            .and()
+            .expiration(new Date(new Date().getTime() + offset))
+            .signWith(pair.getPrivate(), Jwts.SIG.EdDSA)
+            .compact();
 
-    SignedJWT signedJWT =
-        new SignedJWT(
-            new JWSHeader.Builder(JWSAlgorithm.EdDSA).keyID(jwk.getKeyID()).build(), claimsSet);
-    signedJWT.sign(new Ed25519Signer(jwk));
-
-    return new JwtFixture(signedJWT.serialize(), new JWKSet(jwk.toPublicJWK()).toString(false));
+    JWK jwk = JWK.parse(Jwks.builder().id("test-123").key(pair.getPublic()).build().toString());
+    String jwksJson = new JWKSet(jwk).toString();
+    return new JwtFixture(jwt, jwksJson);
   }
 
   private Stream<Arguments> authorizationOpenCTI() throws Exception {

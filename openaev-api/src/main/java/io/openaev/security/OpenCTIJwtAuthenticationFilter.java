@@ -1,13 +1,7 @@
 package io.openaev.security;
 
-import com.nimbusds.jose.crypto.Ed25519Verifier;
-import com.nimbusds.jose.jwk.JWK;
-import com.nimbusds.jose.jwk.JWKSet;
-import com.nimbusds.jose.jwk.OctetKeyPair;
-import com.nimbusds.jose.proc.SecurityContext;
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.SignedJWT;
-import com.nimbusds.jwt.proc.DefaultJWTClaimsVerifier;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Jwks;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.service.UserService;
@@ -17,7 +11,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Optional;
-import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -56,36 +49,24 @@ public class OpenCTIJwtAuthenticationFilter extends OncePerRequestFilter {
       throw new ServletException("Connector not found");
     }
 
-    // Parse JWT first to extract the kid from header
-    SignedJWT signedJWT = SignedJWT.parse(jwt);
-    String kid = signedJWT.getHeader().getKeyID();
-    if (kid == null) {
-      throw new Exception("JWT header does not contain a kid");
-    }
-
-    // Parse JWKS and get jwk key by kid
-    String jwksJson = openCTIConnector.get().getJwks();
-    JWKSet jwkSet = JWKSet.parse(jwksJson);
-    JWK jwk = jwkSet.getKeyByKeyId(kid);
-    if (jwk == null) {
-      throw new Exception("No key found in JWKS for kid: " + kid);
-    }
-    if (!(jwk instanceof OctetKeyPair okpKey)) {
-      throw new Exception("Key with kid " + kid + " is not an OKP key");
-    }
-
-    // Verify signature
-    Ed25519Verifier verifier = new Ed25519Verifier(okpKey.toPublicJWK());
-    if (!signedJWT.verify(verifier)) {
-      throw new Exception("JWT signature verification failed");
-    }
-
-    // Verify JWT claims
-    JWTClaimsSet expectedClaims =
-        new JWTClaimsSet.Builder().issuer("opencti").subject("connector").build();
-    DefaultJWTClaimsVerifier<SecurityContext> claimsVerifier =
-        new DefaultJWTClaimsVerifier<>(expectedClaims, Set.of("iss", "sub", "iat", "exp"));
-    claimsVerifier.verify(signedJWT.getJWTClaimsSet(), null);
+    Jwts.parser()
+        .requireIssuer("opencti")
+        .requireSubject("connector")
+        .keyLocator(
+            header -> {
+              String kid = (String) header.get("kid");
+              return Jwks.setParser()
+                  .build()
+                  .parse(openCTIConnector.get().getJwks())
+                  .getKeys()
+                  .stream()
+                  .filter(k -> kid.equals(k.getId()))
+                  .findFirst()
+                  .orElseThrow()
+                  .toKey();
+            })
+        .build()
+        .parseSignedClaims(jwt);
   }
 
   @Override
