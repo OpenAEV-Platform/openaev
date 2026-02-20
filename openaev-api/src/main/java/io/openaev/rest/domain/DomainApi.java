@@ -36,10 +36,7 @@ public class DomainApi extends RestBehavior {
 
   @Operation(summary = "Get a Domain by ID", description = "Fetches detailed Domain info by ID")
   @GetMapping(DOMAIN_URI + "/{domainId}")
-  @RBAC(
-      resourceId = "#domainId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.DOMAIN)
+  @RBAC(resourceId = "#domainId", actionPerformed = Action.READ, resourceType = ResourceType.DOMAIN)
   public Domain getDomain(@PathVariable String domainId) {
     return domainService.findById(domainId);
   }
