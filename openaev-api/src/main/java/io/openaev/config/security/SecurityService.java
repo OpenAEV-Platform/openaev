@@ -65,7 +65,7 @@ public class SecurityService {
                 String.class,
                 "");
         userMappingService.mapCurrentUserWithGroup(groupsManagementObject, user, groups);
-        return user;
+        return this.userService.updateUser(user);
       } else {
         // If user exists, update it
         User currentUser = optionalUser.get();

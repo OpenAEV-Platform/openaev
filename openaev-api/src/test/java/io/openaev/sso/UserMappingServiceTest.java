@@ -328,8 +328,6 @@ public class UserMappingServiceTest extends IntegrationTest {
               "openaev.provider.oidc.groups_path", List.class, new ArrayList<String>()))
           .thenReturn(List.of("groups"));
 
-      String group = "Filigran";
-
       AuthenticatedPrincipal user =
           new AuthenticatedPrincipal() {
             @Override
