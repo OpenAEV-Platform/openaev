@@ -67,7 +67,9 @@ public class OpenCTIService {
           "Registered connector {} with OpenCTI at {}", connector.getName(), connector.getApiUrl());
       // side effect on transient state
       connector.setRegistered(true);
-      applyJwksIfApplicable(connector, payload.getRegisterConnectorContent().getJwks());
+      if(payload.getRegisterConnectorContent() != null) {
+        applyJwksIfApplicable(connector, payload.getRegisterConnectorContent().getJwks());
+      }
       return payload;
     }
   }
@@ -99,7 +101,9 @@ public class OpenCTIService {
       Ping.ResponsePayload payload = mapper.convertValue(r.getData(), Ping.ResponsePayload.class);
       log.info(
           "Pinged connector {} with OpenCTI at {}", connector.getName(), connector.getApiUrl());
-      applyJwksIfApplicable(connector, payload.getPingConnectorContent().getJwks());
+      if (payload.getPingConnectorContent() != null){
+        applyJwksIfApplicable(connector, payload.getPingConnectorContent().getJwks());
+      }
       return payload;
     }
   }
