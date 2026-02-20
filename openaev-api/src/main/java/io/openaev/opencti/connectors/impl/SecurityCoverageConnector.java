@@ -26,7 +26,7 @@ public class SecurityCoverageConnector extends ConnectorBase {
 
   private final ConnectorType type = ConnectorType.INTERNAL_ENRICHMENT;
   private final String name = "OpenAEV Coverage";
-  @Setter private String jwks;
+  @Setter private volatile String jwks;
 
   public SecurityCoverageConnector() {
     this.setScope(new ArrayList<>(List.of("security-coverage")));
