@@ -1,7 +1,9 @@
 package io.openaev.sso;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Group;
@@ -14,12 +16,21 @@ import io.openaev.utils.fixtures.composers.GroupComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+
+import org.apache.commons.lang3.NotImplementedException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
+import org.springframework.security.core.AuthenticatedPrincipal;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.security.saml2.provider.service.authentication.Saml2AuthenticatedPrincipal;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @Transactional
 public class UserMappingServiceTest extends IntegrationTest {
@@ -163,5 +174,175 @@ public class UserMappingServiceTest extends IntegrationTest {
 
     // -- ASSERT --
     assertThat(user.getGroups().size()).isEqualTo(1);
+  }
+
+  @Nested
+  class TestRolesAndGroupsExtraction {
+    @Test
+    @DisplayName("When oidc user, extract roles accordingly")
+    public void whenOidcUser_extractRoles() {
+      // -- ARRANGE ---
+      Environment env = Mockito.mock(Environment.class);
+
+      ReflectionTestUtils.setField(userMappingService, "env", env);
+      when(env.getProperty("openaev.provider.oidc.roles_path", List.class, new ArrayList<String>()))
+          .thenReturn(List.of("roles"));
+
+      String role = "Administrator";
+
+      OAuth2User user =
+          new OAuth2User() {
+            @Override
+            public Map<String, Object> getAttributes() {
+              return Map.of("roles", List.of(role));
+            }
+
+            @Override
+            public Collection<? extends GrantedAuthority> getAuthorities() {
+              return List.of();
+            }
+
+            @Override
+            public String getName() {
+              return "";
+            }
+          };
+
+      // ---- ACT ----
+      List<String> roles = userMappingService.extractRolesFromUser(user, "oidc");
+
+      // -- ASSERT --
+      assertThat(roles).isEqualTo(List.of(role));
+    }
+
+    @Test
+    @DisplayName("When oidc user, extract groups accordingly")
+    public void whenOidcUser_extractGroups() {
+      // -- ARRANGE ---
+      Environment env = Mockito.mock(Environment.class);
+
+      ReflectionTestUtils.setField(userMappingService, "env", env);
+      when(env.getProperty(
+              "openaev.provider.oidc.groups_path", List.class, new ArrayList<String>()))
+          .thenReturn(List.of("groups"));
+
+      String group = "Filigran";
+
+      OAuth2User user =
+          new OAuth2User() {
+            @Override
+            public Map<String, Object> getAttributes() {
+              return Map.of("groups", List.of(group));
+            }
+
+            @Override
+            public Collection<? extends GrantedAuthority> getAuthorities() {
+              return List.of();
+            }
+
+            @Override
+            public String getName() {
+              return "";
+            }
+          };
+
+      // ---- ACT ----
+      List<String> roles = userMappingService.extractGroupsFromUser(user, "oidc");
+
+      // -- ASSERT --
+      assertThat(roles).isEqualTo(List.of(group));
+    }
+
+    @Test
+    @DisplayName("When saml user, extract roles accordingly")
+    public void whenSamlUser_extractRoles() {
+      // -- ARRANGE ---
+      Environment env = Mockito.mock(Environment.class);
+
+      ReflectionTestUtils.setField(userMappingService, "env", env);
+      when(env.getProperty("openaev.provider.saml.roles_path", List.class, new ArrayList<String>()))
+          .thenReturn(List.of("roles"));
+
+      String role = "Administrator";
+
+      Saml2AuthenticatedPrincipal user =
+          new Saml2AuthenticatedPrincipal() {
+            @Override
+            public String getName() {
+              return "";
+            }
+
+            @Override
+            public Map<String, List<Object>> getAttributes() {
+              return Map.of("roles", List.of(role));
+            }
+          };
+
+      // ---- ACT ----
+      List<String> roles = userMappingService.extractRolesFromUser(user, "saml");
+
+      // -- ASSERT --
+      assertThat(roles).isEqualTo(List.of(role));
+    }
+
+    @Test
+    @DisplayName("When saml user, extract groups accordingly")
+    public void whenSamlUser_extractGroups() {
+      // -- ARRANGE ---
+      Environment env = Mockito.mock(Environment.class);
+
+      ReflectionTestUtils.setField(userMappingService, "env", env);
+      when(env.getProperty(
+              "openaev.provider.saml.groups_path", List.class, new ArrayList<String>()))
+          .thenReturn(List.of("groups"));
+
+      String group = "Filigran";
+
+      Saml2AuthenticatedPrincipal user =
+          new Saml2AuthenticatedPrincipal() {
+            @Override
+            public String getName() {
+              return "";
+            }
+
+            @Override
+            public Map<String, List<Object>> getAttributes() {
+              return Map.of("groups", List.of(group));
+            }
+          };
+
+      // ---- ACT ----
+      List<String> roles = userMappingService.extractGroupsFromUser(user, "saml");
+
+      // -- ASSERT --
+      assertThat(roles).isEqualTo(List.of(group));
+    }
+
+    @Test
+    @DisplayName("When not implemented user, throw exception")
+    public void whenNotImplementedUser_throwException() {
+      // -- ARRANGE ---
+      Environment env = Mockito.mock(Environment.class);
+
+      ReflectionTestUtils.setField(userMappingService, "env", env);
+      when(env.getProperty(
+              "openaev.provider.oidc.groups_path", List.class, new ArrayList<String>()))
+              .thenReturn(List.of("groups"));
+
+      String group = "Filigran";
+
+      AuthenticatedPrincipal user =
+              new AuthenticatedPrincipal() {
+                @Override
+                public String getName() {
+                  return "";
+                }
+              };
+
+      // ---- ACT ----
+
+      // -- ASSERT --
+      assertThrows(NotImplementedException.class, () -> userMappingService.extractGroupsFromUser(user, "oidc"));
+    }
   }
 }

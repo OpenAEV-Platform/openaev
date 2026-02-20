@@ -37,8 +37,6 @@ import org.springframework.security.saml2.provider.service.web.authentication.Sa
 @RequiredArgsConstructor
 public class OpenSamlConfig {
 
-  public static final String ROLES_PATH_SUFFIX = ".roles_path";
-  public static final String GROUPS_PATH_SUFFIX = ".groups_path";
   public static final String FIRSTNAME_ATTRIBUTE_PATH_SUFFIX = ".firstname_attribute_key";
   public static final String LASTNAME_ATTRIBUTE_PATH_SUFFIX = ".lastname_attribute_key";
 
