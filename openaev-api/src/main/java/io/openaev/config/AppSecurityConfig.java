@@ -1,6 +1,5 @@
 package io.openaev.config;
 
-import static io.openaev.config.security.SecurityService.OPENAEV_PROVIDER_PATH_PREFIX;
 import static io.openaev.config.security.SecurityService.REGISTRATION_ID;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI;
@@ -12,19 +11,16 @@ import io.openaev.database.model.User;
 import io.openaev.security.SsoRefererAuthenticationFailureHandler;
 import io.openaev.security.SsoRefererAuthenticationSuccessHandler;
 import io.openaev.security.TokenAuthenticationFilter;
+import io.openaev.service.UserMappingService;
 import io.openaev.service.user_events.UserEventService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.constraints.NotBlank;
-import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -54,13 +50,11 @@ import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
 @Slf4j
 public class AppSecurityConfig {
 
-  private final Environment env;
   private final OpenAEVConfig openAEVConfig;
   private final OpenSamlConfig openSamlConfig;
   private final SecurityService securityService;
   private final UserEventService userEventService;
-  public static final String ROLES_PATH_SUFFIX = ".roles_path";
-  public static final String GROUPS_PATH_SUFFIX = ".groups_path";
+  private final UserMappingService userMappingService;
 
   @Resource protected ObjectMapper mapper;
 
@@ -140,8 +134,8 @@ public class AppSecurityConfig {
   public User userOauth2Management(ClientRegistration clientRegistration, OAuth2User user) {
     String emailAttribute = user.getAttribute("email");
     String registrationId = clientRegistration.getRegistrationId();
-    List<String> rolesFromUser = extractRolesFromUser(user, registrationId);
-    List<String> groupsFromUser = extractGroupsFromUser(user, registrationId);
+    List<String> rolesFromUser = userMappingService.extractRolesFromUser(user, registrationId);
+    List<String> groupsFromUser = userMappingService.extractGroupsFromUser(user, registrationId);
     if (isBlank(emailAttribute)) {
       OAuth2Error authError =
           new OAuth2Error(
@@ -232,45 +226,5 @@ public class AppSecurityConfig {
             .build();
       }
     };
-  }
-
-  private List<String> extractRolesFromUser(
-      @NotNull final OAuth2User user, @NotBlank final String registrationId) {
-    List<String> rolesPath = getRoles(registrationId);
-    List<String> extractedRoles = new ArrayList<>();
-
-    for (String path : rolesPath) {
-      List<String> roles = user.getAttribute(path);
-      if (roles != null) {
-        extractedRoles.addAll(roles);
-      }
-    }
-    return extractedRoles;
-  }
-
-  private List<String> extractGroupsFromUser(
-      @NotNull final OAuth2User user, @NotBlank final String registrationId) {
-    List<String> rolesPath = getGroups(registrationId);
-    List<String> extractedRoles = new ArrayList<>();
-
-    for (String path : rolesPath) {
-      List<String> roles = user.getAttribute(path);
-      if (roles != null) {
-        extractedRoles.addAll(roles);
-      }
-    }
-    return extractedRoles;
-  }
-
-  private List<String> getRoles(@NotBlank final String registrationId) {
-    String rolesPathConfig = OPENAEV_PROVIDER_PATH_PREFIX + registrationId + ROLES_PATH_SUFFIX;
-    //noinspection unchecked
-    return env.getProperty(rolesPathConfig, List.class, new ArrayList<String>());
-  }
-
-  private List<String> getGroups(@NotBlank final String registrationId) {
-    String rolesPathConfig = OPENAEV_PROVIDER_PATH_PREFIX + registrationId + GROUPS_PATH_SUFFIX;
-    //noinspection unchecked
-    return env.getProperty(rolesPathConfig, List.class, new ArrayList<String>());
   }
 }
