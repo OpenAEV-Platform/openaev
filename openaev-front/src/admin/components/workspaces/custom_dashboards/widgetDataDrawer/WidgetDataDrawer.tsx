@@ -55,7 +55,7 @@ const WidgetDataDrawer = () => {
   }, [widgetId, filterValues]);
 
   useEffect(() => {
-    if (!customDashboard || !widgetId || filterValues == null || !seriesIndex) {
+    if (!customDashboard || !widgetId || filterValues == null) {
       setOpen(false);
       return;
     }
