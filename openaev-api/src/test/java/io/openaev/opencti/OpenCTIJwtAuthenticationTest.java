@@ -64,6 +64,7 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
         new JWTClaimsSet.Builder()
             .subject("connector")
             .issuer("opencti")
+            .issueTime(new Date(new Date().getTime()))
             .expirationTime(new Date(new Date().getTime() + offset))
             .build();
 

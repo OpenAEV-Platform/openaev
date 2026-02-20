@@ -4,8 +4,10 @@ import com.nimbusds.jose.crypto.Ed25519Verifier;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.OctetKeyPair;
+import com.nimbusds.jose.proc.SecurityContext;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
+import com.nimbusds.jwt.proc.DefaultJWTClaimsVerifier;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.service.UserService;
@@ -14,8 +16,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.time.Instant;
 import java.util.Optional;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -40,22 +42,6 @@ public class OpenCTIJwtAuthenticationFilter extends OncePerRequestFilter {
     // only runs for /api/stix/** — skipped for everything else
     return !request.getRequestURI().startsWith("/api/stix/");
   }
-
-
-//  public void validateOpenCTIJwt(String jwt) throws ParseException, BadJOSEException, JOSEException, ServletException {
-//    SecurityCoverageConnector connector = openCTIConnectorService
-//            .getConnectorBase()
-//            .orElseThrow(() -> new ServletException("Connector not found"));
-//
-//    JWKSet jwkSet = JWKSet.parse(connector.getJwks());
-//    JWKSource<SecurityContext> jwkSource = new ImmutableJWKSet<>(jwkSet);
-//
-//    DefaultJWTProcessor<SecurityContext> jwtProcessor = new DefaultJWTProcessor<>();
-//    jwtProcessor.setJWSKeySelector(new JWSVerificationKeySelector<>(JWSAlgorithm.EdDSA, jwkSource));
-//
-//    // validates signature + exp + nbf + iat in one call
-//    jwtProcessor.process(jwt, null);
-//  }
 
   /**
    * Function used to validate JWT token with OpenCTI jwks
@@ -94,12 +80,12 @@ public class OpenCTIJwtAuthenticationFilter extends OncePerRequestFilter {
       throw new Exception("JWT signature verification failed");
     }
 
-    // Validate Expiration date
-    JWTClaimsSet claims = signedJWT.getJWTClaimsSet();
-    if (claims.getExpirationTime() != null
-        && claims.getExpirationTime().toInstant().isBefore(Instant.now())) {
-      throw new Exception("JWT token has expired");
-    }
+    // Verify JWT claims
+    JWTClaimsSet expectedClaims =
+        new JWTClaimsSet.Builder().issuer("opencti").subject("connector").build();
+    DefaultJWTClaimsVerifier<SecurityContext> claimsVerifier =
+        new DefaultJWTClaimsVerifier<>(expectedClaims, Set.of("iss", "sub", "iat", "exp"));
+    claimsVerifier.verify(signedJWT.getJWTClaimsSet(), null);
   }
 
   @Override
