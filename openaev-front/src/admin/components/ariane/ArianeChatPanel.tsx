@@ -890,7 +890,12 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
                   window.open(`${xtmOneUrl}/agents`, '_blank');
                 }}
               >
-                <ListItemAvatar sx={{ minWidth: 36, display: 'flex', alignItems: 'center' }}>
+                <ListItemAvatar sx={{
+                  minWidth: 36,
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                >
                   <LaunchOutlined sx={{
                     fontSize: 18,
                     color: theme.palette.text?.secondary,
@@ -909,7 +914,12 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
                   window.open(`${xtmOneUrl}/agents/new`, '_blank');
                 }}
               >
-                <ListItemAvatar sx={{ minWidth: 36, display: 'flex', alignItems: 'center' }}>
+                <ListItemAvatar sx={{
+                  minWidth: 36,
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                >
                   <PersonAddOutlined sx={{
                     fontSize: 18,
                     color: theme.palette.text?.secondary,

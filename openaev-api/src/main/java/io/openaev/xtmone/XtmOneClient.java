@@ -34,6 +34,7 @@ public class XtmOneClient {
       String platformVersion,
       String platformId,
       String enterpriseLicensePem,
+      String licenseType,
       String adminApiKey,
       List<Map<String, String>> users) {
     if (!config.isConfigured()) {
@@ -47,6 +48,7 @@ public class XtmOneClient {
       body.put("platform_version", platformVersion);
       body.put("platform_id", platformId != null ? platformId : "");
       body.put("enterprise_license_pem", enterpriseLicensePem != null ? enterpriseLicensePem : "");
+      body.put("license_type", licenseType != null ? licenseType : "");
       body.put("admin_api_key", adminApiKey != null ? adminApiKey : "");
       body.put("users", users != null ? users : List.of());
       String json = objectMapper.writeValueAsString(body);
