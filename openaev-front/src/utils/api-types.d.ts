@@ -5823,12 +5823,6 @@ export interface PlatformSettings {
   map_tile_server_light?: string;
   /** Agent URL of the platform */
   platform_agent_url?: string;
-  /** True if XTM One is configured (url and token set) */
-  platform_xtm_one_configured?: boolean;
-  /** XTM One platform URL */
-  platform_xtm_one_url?: string;
-  /** XTM One public chat web token for the embedded agent */
-  platform_xtm_one_web_token?: string;
   /** True if AI is enabled for the platform */
   platform_ai_enabled?: boolean;
   /** True if we have an AI token */
@@ -5878,6 +5872,12 @@ export interface PlatformSettings {
   platform_version?: string;
   /** 'true' if the platform has the whitemark activated */
   platform_whitemark?: string;
+  /** True if XTM One is configured (url and token set) */
+  platform_xtm_one_configured?: boolean;
+  /** XTM One platform URL */
+  platform_xtm_one_url?: string;
+  /** XTM One public chat web token for the embedded agent */
+  platform_xtm_one_web_token?: string;
   /** Current version of the PostgreSQL */
   postgre_version?: string;
   /** Current version of RabbitMQ */
@@ -6879,6 +6879,8 @@ export interface StatusPayloadOutput {
   payload_tags?: string[];
   payload_type?: string;
 }
+
+export type StreamingResponseBody = any;
 
 export type StructuralHistogramWidget = UtilRequiredKeys<
   WidgetConfiguration,
