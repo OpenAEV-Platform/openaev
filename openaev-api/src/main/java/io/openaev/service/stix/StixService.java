@@ -1,15 +1,9 @@
 package io.openaev.service.stix;
 
-import static io.openaev.utils.SecurityCoverageUtils.extractAndValidateCoverage;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.Scenario;
+import io.openaev.database.model.SecurityCoverage;
 import io.openaev.opencti.errors.ConnectorError;
-import io.openaev.service.stix.error.BundleValidationError;
-import io.openaev.stix.objects.Bundle;
-import io.openaev.stix.objects.ObjectBase;
-import io.openaev.stix.objects.constants.CommonProperties;
-import io.openaev.stix.parsing.Parser;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.stix.parsing.ParsingException;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
@@ -20,8 +14,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Service
 public class StixService {
-  private final Parser stixParser;
-  private final ObjectMapper objectMapper;
+
   private final SecurityCoverageService securityCoverageService;
 
   /**
@@ -30,21 +23,21 @@ public class StixService {
    * @param stixJson string form of the provided stix bundle
    * @return Scenario
    */
+  @Transactional(rollbackFor = Exception.class)
   public Scenario processBundle(String stixJson)
-      throws IOException, ParsingException, ConnectorError, BundleValidationError {
-    Bundle bundle = stixParser.parseBundle(stixJson);
+      throws IOException, ParsingException, ConnectorError {
 
     return processSecurityCoverage(bundle);
   }
 
-  private Scenario processSecurityCoverage(Bundle bundle)
-      throws BundleValidationError, ParsingException, ConnectorError, IOException {
-    ObjectBase securityCoverageObj = extractAndValidateCoverage(bundle);
-    String securityCoverageStixId =
-        securityCoverageObj.getRequiredProperty(CommonProperties.ID.toString());
-
-    return securityCoverageService.handleSecurityCoverageProcessing(
-        securityCoverageStixId, securityCoverageObj, bundle);
+      // Update Scenario using the last SecurityCoverage
+      Scenario scenario =
+          securityCoverageService.buildScenarioFromSecurityCoverage(securityCoverage);
+      securityCoverageService.pushSecurityCoverageBundleWithExternalURI(scenario);
+      return scenario;
+    } catch (BadRequestException | ParsingException e) {
+      throw e;
+    }
   }
 
   /**

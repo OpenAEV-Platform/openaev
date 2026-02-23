@@ -14,7 +14,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.mockserver.model.HttpRequest.request;
+import static org.mockserver.model.HttpResponse.response;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -50,9 +51,16 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.*;
+import org.mockserver.configuration.Configuration;
+import org.mockserver.integration.ClientAndServer;
+import org.mockserver.socket.PortFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -60,6 +68,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(withCapabilities = {Capability.MANAGE_STIX_BUNDLE})
 @DisplayName("STIX API Integration Tests")
+@TestPropertySource(properties = {"openaev.xtm.opencti.enable=true"})
 class StixApiTest extends IntegrationTest {
 
   public static final String T_1531 = "T1531";
@@ -90,7 +99,7 @@ class StixApiTest extends IntegrationTest {
 
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private InjectorContractFixture injectorContractFixture;
-  @SpyBean private SecurityCoverageService securityCoverageService;
+  @MockitoSpyBean private SecurityCoverageService securityCoverageService;
   @Autowired private OpenCTIConnectorService openCTIConnectorService;
 
   private JsonNode stixSecurityCoverage;
@@ -102,6 +111,26 @@ class StixApiTest extends IntegrationTest {
   private JsonNode stixSecurityCoverageWithoutObjects;
   private JsonNode stixSecurityCoverageOnlyVulns;
   private JsonNode stixSecurityCoverageWithDomainName;
+
+  private static ClientAndServer mockServer;
+
+  @DynamicPropertySource
+  static void registerProperties(DynamicPropertyRegistry registry) {
+    mockServer = new ClientAndServer(Configuration.configuration(), PortFactory.findFreePort());
+    registry.add(
+        "openaev.xtm.opencti.url",
+        () -> String.format("http://localhost:%d/", mockServer.getLocalPort()));
+    registry.add(
+        "openaev.test.connector.url",
+        () -> String.format("http://localhost:%d/", mockServer.getLocalPort()));
+  }
+
+  @AfterAll
+  void after() {
+    if (mockServer != null) {
+      mockServer.stop();
+    }
+  }
 
   @BeforeEach
   void setUp() throws Exception {
@@ -201,6 +230,25 @@ class StixApiTest extends IntegrationTest {
     injectorContractComposer
         .forInjectorContract(injectorContractFixture.getWellKnownSingleManualContract())
         .persist();
+
+    // need to mock unregistered connector to be use in process
+    mockServer
+        .when(request().withMethod("POST").withPath(""))
+        .respond(
+            response()
+                .withStatusCode(200)
+                .withHeader("Content-Type", "application/json")
+                .withBody(
+                    """
+                {
+                  "data": {}
+                }
+            """));
+    openCTIConnectorService.registerOrPingAllConnectors();
+
+    mockServer
+        .when(request().withMethod("POST").withPath("graphql"))
+        .respond(response().withStatusCode(200));
   }
 
   @Nested

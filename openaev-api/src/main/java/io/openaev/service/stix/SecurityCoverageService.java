@@ -44,6 +44,7 @@ import io.openaev.utils.StringUtils;
 import io.openaev.utils.time.TimeUtils;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotNull;
+import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -322,10 +323,6 @@ public class SecurityCoverageService {
    */
   public void pushSecurityCoverageBundleWithExternalURI(Scenario scenario)
       throws ParsingException, ConnectorError, IOException {
-    if (openCTIConnectorService.getConnectorBase().isEmpty()) {
-      return;
-    }
-
     SecurityCoverage coverage = scenario.getSecurityCoverage();
     String externalLink = openAEVConfig.getBaseUrl() + "/admin/scenarios/" + scenario.getId();
 
