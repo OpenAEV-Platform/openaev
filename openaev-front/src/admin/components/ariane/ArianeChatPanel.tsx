@@ -810,22 +810,17 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
                     <Avatar sx={{
                       width: 28,
                       height: 28,
-                      fontSize: '0.85rem',
-                      bgcolor: theme.palette.ai.dark,
+                      background: `linear-gradient(135deg, ${theme.palette.ai.main}30, ${theme.palette.ai.main}10)`,
                     }}
                     >
-                      {agent.icon
-                        ? <Typography sx={{ fontSize: '0.85rem' }}>{agent.icon}</Typography>
-                        : (
-                            <SvgIcon
-                              component={LogoXtmOneIcon}
-                              inheritViewBox
-                              sx={{
-                                fontSize: 16,
-                                color: theme.palette.ai.light,
-                              }}
-                            />
-                          )}
+                      <SvgIcon
+                        component={LogoXtmOneIcon}
+                        inheritViewBox
+                        sx={{
+                          fontSize: 16,
+                          color: theme.palette.ai.main,
+                        }}
+                      />
                     </Avatar>
                   </ListItemAvatar>
                   <ListItemText

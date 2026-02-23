@@ -78,7 +78,7 @@ public class XtmOneClient {
     try {
       HttpRequest request =
           HttpRequest.newBuilder()
-              .uri(URI.create(config.getUrl() + "/api/v1/platform/chat/agents"))
+              .uri(URI.create(config.getUrl() + "/api/v1/platform/chat/agents?tag=openaev"))
               .header("Authorization", "Bearer " + config.getToken())
               .GET()
               .timeout(Duration.ofSeconds(10))
