@@ -157,7 +157,10 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
       .then((data) => {
         if (!data?.messages?.length) return;
         const restored: ChatMessage[] = data.messages.map(
-          (m: { role: string; content: string }, i: number) => ({
+          (m: {
+            role: string;
+            content: string;
+          }, i: number) => ({
             id: `restored-${i}`,
             role: m.role as 'user' | 'assistant',
             content: m.content,
