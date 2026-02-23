@@ -13,6 +13,7 @@ import {
   PictureInPictureAltOutlined,
   PsychologyOutlined,
   SendOutlined,
+  StopCircleOutlined,
   ViewSidebarOutlined,
 } from '@mui/icons-material';
 import {
@@ -123,6 +124,7 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const historyLoadedRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -228,6 +230,8 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
     }]);
 
     try {
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
       const res = await fetch('/api/xtmone/chat/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -236,6 +240,7 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
           conversation_id: conversationId,
           agent_slug: selectedAgent?.slug,
         }),
+        signal: controller.signal,
       });
 
       if (!res.ok || !res.body) {
@@ -296,7 +301,8 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
             }
           : m)));
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       setMessages(prev => prev.map(m => (m.id === assistantId
         ? {
             ...m,
@@ -304,6 +310,7 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
           }
         : m)));
     } finally {
+      abortControllerRef.current = null;
       setIsLoading(false);
     }
   };
@@ -318,16 +325,41 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
   const handlePromptClick = (prompt: string) => setInputValue(prompt);
 
   const handleNewChat = () => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
     setMessages([]);
     setInputValue('');
     setConversationId(null);
     setAttachedFiles([]);
+    setIsLoading(false);
     localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(STORAGE_AGENT_KEY);
     historyLoadedRef.current = false;
-    if (agents.length > 0) {
-      setSelectedAgent(agents[0]);
+  };
+
+  const handleSwitchAgent = (agent: XtmAgent) => {
+    if (agent.id === selectedAgent?.id) {
+      setAgentMenuOpen(false);
+      return;
     }
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    setSelectedAgent(agent);
+    if (agent.slug) localStorage.setItem(STORAGE_AGENT_KEY, agent.slug);
+    setAgentMenuOpen(false);
+    setMessages([]);
+    setInputValue('');
+    setConversationId(null);
+    setAttachedFiles([]);
+    setIsLoading(false);
+    localStorage.removeItem(STORAGE_KEY);
+    historyLoadedRef.current = false;
+  };
+
+  const handleStopGenerating = () => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    setIsLoading(false);
+    setMessages(prev => prev.filter(m => !(m.role === 'assistant' && !m.content)));
   };
 
   const handleCopyCode = (code: string) => {
@@ -841,12 +873,7 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
                 <ListItemButton
                   key={agent.id}
                   selected={agent.id === selectedAgent?.id}
-                  onClick={() => {
-                    setSelectedAgent(agent);
-                    if (agent.slug) localStorage.setItem(STORAGE_AGENT_KEY, agent.slug);
-                    setAgentMenuOpen(false);
-                    handleNewChat();
-                  }}
+                  onClick={() => handleSwitchAgent(agent)}
                   sx={{
                     'px': 2,
                     'py': 0.75,
@@ -1301,20 +1328,32 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
           multiline
           maxRows={4}
         />
-        <IconButton
-          size="small"
-          onClick={handleSendMessage}
-          disabled={(!inputValue.trim() && attachedFiles.length === 0) || isLoading}
-          sx={{
-            color: inputValue.trim() && !isLoading ? theme.palette.ai.main : theme.palette.action.disabled,
-            bgcolor: inputValue.trim() && !isLoading ? theme.palette.ai.main + '1A' : 'transparent',
-            borderRadius: '8px',
-            width: 32,
-            height: 32,
-          }}
-        >
-          {isLoading ? <CircularProgress size={16} sx={{ color: theme.palette.ai.main }} /> : <SendOutlined sx={{ fontSize: 18 }} />}
-        </IconButton>
+        <Tooltip title={isLoading ? t('Stop generating') : ''}>
+          <IconButton
+            size="small"
+            onClick={isLoading ? handleStopGenerating : handleSendMessage}
+            disabled={!isLoading && !inputValue.trim() && attachedFiles.length === 0}
+            sx={{
+              'color': (() => {
+                if (isLoading) return theme.palette.error.main;
+                if (inputValue.trim() || attachedFiles.length > 0) return theme.palette.ai.main;
+                return theme.palette.action.disabled;
+              })(),
+              'bgcolor': (() => {
+                if (isLoading) return theme.palette.error.main + '1A';
+                if (inputValue.trim() || attachedFiles.length > 0) return theme.palette.ai.main + '1A';
+                return 'transparent';
+              })(),
+              'borderRadius': '8px',
+              'width': 32,
+              'height': 32,
+              'transition': 'all 0.15s ease',
+              '&:hover': isLoading ? { bgcolor: theme.palette.error.main + '30' } : {},
+            }}
+          >
+            {isLoading ? <StopCircleOutlined sx={{ fontSize: 18 }} /> : <SendOutlined sx={{ fontSize: 18 }} />}
+          </IconButton>
+        </Tooltip>
       </Box>
       <Typography
         variant="body2"
