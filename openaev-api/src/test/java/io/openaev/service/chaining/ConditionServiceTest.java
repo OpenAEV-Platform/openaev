@@ -178,7 +178,7 @@ public class ConditionServiceTest extends IntegrationTest {
   }
 
   /* ============================================================
-   * saveCondition / saveAllConditions / findAllByStepId
+   * saveCondition / saveAllConditions / findAllConditionsByStepId
    * ============================================================ */
   @Nested
   class RepositoryDelegation {
@@ -232,7 +232,7 @@ public class ConditionServiceTest extends IntegrationTest {
       when(conditionRepository.findAllByStep_Id(stepId)).thenReturn(expected);
 
       // -------- Act --------
-      List<Condition> result = conditionService.findAllByStepId(stepId);
+      List<Condition> result = conditionService.findAllConditionsByStepId(stepId);
 
       // -------- Assert --------
       assertSame(expected, result);
@@ -285,8 +285,7 @@ public class ConditionServiceTest extends IntegrationTest {
 
       // -------- Act --------
       List<Condition> result =
-          conditionService.checkCondition(
-              stepTemplate, "{\"in\":1}", "{\"data\":1}", workflowRun, stepService);
+          conditionService.checkCondition(stepTemplate, "{\"in\":1}", workflowRun, stepService);
 
       // -------- Assert --------
       assertNotNull(result);
@@ -326,16 +325,13 @@ public class ConditionServiceTest extends IntegrationTest {
       doReturn(true)
           .when(conditionService)
           .isTimeConditionValid(eq(timeTemplate), any(Instant.class), any(Instant.class));
-      Condition timeExecution = mock(Condition.class);
       // -------- Act --------
       List<Condition> result =
-          conditionService.checkCondition(
-              stepTemplate, "{\"in\":1}", "{\"data\":1}", workflowRun, stepService);
+          conditionService.checkCondition(stepTemplate, "{\"in\":1}", workflowRun, stepService);
 
       // -------- Assert --------
       assertNotNull(result);
       assertEquals(1, result.size());
-      assertSame(timeExecution, result.get(0));
 
       verify(conditionRepository).findAllByStep_Id(stepId);
       verify(conditionService)
@@ -371,8 +367,7 @@ public class ConditionServiceTest extends IntegrationTest {
 
       // -------- Act --------
       List<Condition> result =
-          conditionService.checkCondition(
-              stepTemplate, "{\"in\":1}", "{\"data\":1}", workflowRun, stepService);
+          conditionService.checkCondition(stepTemplate, "{\"in\":1}", workflowRun, stepService);
 
       // -------- Assert --------
       assertNull(result);
@@ -411,20 +406,17 @@ public class ConditionServiceTest extends IntegrationTest {
           .delayStep(any(Step.class), any(Workflow.class), anyLong());
 
       // -------- Act --------
-      RuntimeException ex =
-          assertThrows(
-              RuntimeException.class,
-              () ->
-                  conditionService.checkCondition(
-                      stepTemplate, "{\"in\":1}", "{\"data\":1}", workflowRun, stepService));
+      assertDoesNotThrow(
+          () ->
+              conditionService.checkCondition(
+                  stepTemplate, "{\"in\":1}", workflowRun, stepService));
 
       // -------- Assert --------
-      assertSame(io, ex.getCause());
       verify(queueChainingService).delayStep(eq(stepTemplate), eq(workflowRun), anyLong());
     }
 
     @Test
-    void shouldCollectFilterAndMapperValidConditions_andSkipInvalidOnes() {
+    void shouldReturnEmptyList_whenAtLeastOneConditionsInvalid() {
       // -------- Prepare --------
       Step stepTemplate = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
@@ -452,18 +444,14 @@ public class ConditionServiceTest extends IntegrationTest {
 
       // -------- Act --------
       List<Condition> result =
-          conditionService.checkCondition(
-              stepTemplate, "{\"in\":1}", "{\"data\":1}", workflowRun, stepService);
+          conditionService.checkCondition(stepTemplate, "{\"in\":1}", workflowRun, stepService);
 
       // -------- Assert --------
       assertNotNull(result);
-      assertEquals(1, result.size());
-      assertSame(filterExec, result.get(0));
+      assertEquals(0, result.size());
 
-      verify(conditionService)
-          .isFilterConditionValid(eq(filterTemplate), eq("{\"in\":1}"), eq("{\"data\":1}"));
-      verify(conditionService)
-          .isMapperConditionValid(eq(mapperTemplate), eq("{\"in\":1}"), eq("{\"data\":1}"));
+      verify(conditionService).isFilterConditionValid(eq(filterTemplate), eq("{\"in\":1}"), any());
+      verify(conditionService).isMapperConditionValid(eq(mapperTemplate), eq("{\"in\":1}"), any());
       verifyNoInteractions(queueChainingService);
       verifyNoInteractions(stepService);
     }
@@ -511,7 +499,7 @@ public class ConditionServiceTest extends IntegrationTest {
         // -------- Act --------
         List<Condition> result =
             conditionService.checkCondition(
-                nextStepTemplateToExecute, "{\"in\":1}", "{\"data\":1}", workflowRun, stepService);
+                nextStepTemplateToExecute, "{\"in\":1}", workflowRun, stepService);
 
         // -------- Assert --------
         if (expectedNull) {

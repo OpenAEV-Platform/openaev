@@ -7,6 +7,7 @@ import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -24,10 +25,17 @@ public class WorkflowService {
    * @return the found workflow
    * @throws ElementNotFoundException if no workflow is found with the given ID
    */
-  public Workflow getWorkflowById(@NotBlank final String workflowId) {
+  public Workflow getWorkflowByIdAndStatus(
+      @NotBlank final String workflowId, WorkflowStatus status) {
     return this.workflowRepository
-        .findById(workflowId)
-        .orElseThrow(() -> new ElementNotFoundException("Workflow not found"));
+        .findByIdAndStatus(workflowId, status)
+        .orElseThrow(
+            () ->
+                new ElementNotFoundException(
+                    "Workflow "
+                        + (status != null ? status.name() : null)
+                        + " not found. Workflow ID : "
+                        + workflowId));
   }
 
   /**
@@ -72,14 +80,10 @@ public class WorkflowService {
    * <p>If the template has been edited, its version is incremented before creating the run. A new
    * workflow run is created as a copy of the template with RUN status.
    *
-   * @param simulationId the ID of the simulation to launch the workflow for
+   * @param workflowTemplate workflow to launch
    * @return the created workflow run, or null if no template exists
    */
-  public Workflow launchWorkflow(String simulationId) {
-    // 1 WORKFLOW TEMPLATE / SIMULATION
-    Workflow workflowTemplate =
-        workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE);
-    if (workflowTemplate == null) return null;
+  public Workflow launchWorkflow(Workflow workflowTemplate) {
 
     if (workflowTemplate.isEdited()) {
       workflowTemplate.setEdited(false);
@@ -118,9 +122,10 @@ public class WorkflowService {
    * @param simulationId the ID of the simulation
    * @return the workflow template, or null if not found
    */
-  public Workflow findWorkflowTemplateBySimulationId(String simulationId) {
-    return this.workflowRepository.findBySimulation_IdAndStatus(
-        simulationId, WorkflowStatus.TEMPLATE);
+  public Optional<Workflow> findWorkflowTemplateBySimulationId(String simulationId) {
+    return Optional.ofNullable(
+        this.workflowRepository.findBySimulation_IdAndStatus(
+            simulationId, WorkflowStatus.TEMPLATE));
   }
 
   /**

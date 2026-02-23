@@ -31,7 +31,7 @@ public interface StepRepository extends JpaRepository<Step, String> {
    * @param status the status of the step
    * @return the matching step, or null if not found
    */
-  Step findByStepTemplateIdIsNullAndIdAndStatus(String stepId, StepStatus status);
+  Optional<Step> findByStepTemplateIdIsNullAndIdAndStatus(String stepId, StepStatus status);
 
   /**
    * Retrieves a {@link Step} entity by its ID and status, ensuring it is based on a step template.
@@ -41,6 +41,8 @@ public interface StepRepository extends JpaRepository<Step, String> {
    * @return the matching step, or null if not found
    */
   Step findByStepTemplateIdIsNotNullAndIdAndStatus(String stepId, StepStatus status);
+
+  Optional<Step> findByIdAndStatus(String stepId, StepStatus status);
 
   /**
    * Counts the number of running steps in a workflow run (steps not in 'END' status).
@@ -67,14 +69,6 @@ public interface StepRepository extends JpaRepository<Step, String> {
       nativeQuery = true)
   int countStepExecutedByStepTemplateIdAndWorkflowRunId(
       @Param("idWorkflowRun") String idWorkflowRun, @Param("stepTemplateId") String stepTemplateId);
-
-  /**
-   * Retrieves all {@link Step} entities with the specified status.
-   *
-   * @param status the status to filter steps by
-   * @return a list of steps with the given status
-   */
-  List<Step> findAllByStatus(StepStatus status);
 
   // STEP EXECUTED
 

@@ -29,19 +29,6 @@ class StepRepositoryTest extends IntegrationTest {
   @Autowired private EndpointComposer endpointComposer;
 
   @Test
-  void whenFindAllByStatus_thenReturnsStepsWithGivenStatus() {
-    workflowComposer
-        .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
-        .withSimulation(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
-        .withStep(stepComposer.forStep(StepFixture.getDefaultStepTemplate()))
-        .persist();
-
-    List<Step> steps = stepRepository.findAllByStatus(StepStatus.TEMPLATE);
-    Assertions.assertFalse(steps.isEmpty());
-    Assertions.assertEquals(StepStatus.TEMPLATE, steps.getFirst().getStatus());
-  }
-
-  @Test
   void whenFindAllByStepTemplateIdIsNullAndWorkflowId_thenReturnsStepsTemplateForWorkflow() {
     // GIVEN
     Workflow workflow =

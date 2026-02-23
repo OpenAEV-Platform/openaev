@@ -1,9 +1,6 @@
 package io.openaev.service.chaining;
 
-import io.openaev.database.model.Condition;
-import io.openaev.database.model.ConditionType;
-import io.openaev.database.model.Step;
-import io.openaev.database.model.Workflow;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
 import java.io.IOException;
 import java.time.Instant;
@@ -11,10 +8,12 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @Service
 @AllArgsConstructor
+@Slf4j
 public class ConditionService {
   private final ConditionRepository conditionRepository;
   private final QueueChainingService queueChainingService;
@@ -114,17 +113,31 @@ public class ConditionService {
    * @param stepId step identifier
    * @return list of conditions linked to the step
    */
-  public List<Condition> findAllByStepId(String stepId) {
+  public List<Condition> findAllConditionsByStepId(String stepId) {
     return conditionRepository.findAllByStep_Id(stepId);
   }
 
+  /**
+   * Evaluates the conditions associated with a given step and determines if required conditions are
+   * valid for execution.
+   *
+   * <p>This method retrieves all conditions for the specified step, filters time-based conditions,
+   * and checks if each condition is valid based on the workflow start time and the current time. If
+   * a time-based "AFTER" condition is not yet valid, it schedules the step to be executed after the
+   * delay.
+   *
+   * @param nextStepTemplateToExecute the step template to be evaluated
+   * @param input the input data for the step execution
+   * @param workflowRun the workflow instance in which the step is being executed
+   * @param stepService the service used to interact with steps and related logic
+   * @return a list of conditions that are valid and ready for execution, or {@code null} if a
+   *     delayed "AFTER" condition has been scheduled
+   * @throws RuntimeException if scheduling a delayed step fails due to an {@link IOException}
+   */
   public List<Condition> checkCondition(
-      Step nextStepTemplateToExecute,
-      String input,
-      String data,
-      Workflow workflowRun,
-      StepService stepService) {
-    List<Condition> conditionTemplate = findAllByStepId(nextStepTemplateToExecute.getId());
+      Step nextStepTemplateToExecute, String input, Workflow workflowRun, StepService stepService) {
+    List<Condition> conditionTemplate =
+        findAllConditionsByStepId(nextStepTemplateToExecute.getId());
     // No condition means direct execution:
     if (conditionTemplate == null || conditionTemplate.isEmpty()) return new ArrayList<>();
 
@@ -138,9 +151,8 @@ public class ConditionService {
       Instant now = Instant.now();
       Instant start = workflowRun.getWorkflowCreatedAt();
       // TODO: can this happen ? Shouldn't it throw an exception instead?
-      if (start == null) {
-        start = now;
-      }
+      if (start == null) start = now;
+
       long value = Long.parseLong(condition.getValue());
       Instant goal = start.plus(value, ChronoUnit.MILLIS);
 
@@ -162,11 +174,14 @@ public class ConditionService {
         try {
           queueChainingService.delayStep(nextStepTemplateToExecute, workflowRun, delay);
         } catch (IOException e) {
-          // TODO: better exception management
-          throw new RuntimeException(e);
+          // Todo: system notif queue fail + system log for step + status FAIL
+          log.error(
+              "Failed to push step (TEMPLATE) into delay queue. Step ID: {}",
+              nextStepTemplateToExecute.getId(),
+              e);
         }
+        return null;
       }
-      return null;
     }
 
     // Filter conditions
@@ -174,7 +189,8 @@ public class ConditionService {
         conditionTemplate.stream().filter(this::isFilterCondition).toList();
 
     for (Condition condition : filterConditions) {
-      Condition filterConditionValid = isFilterConditionValid(condition, input, data);
+      Condition filterConditionValid =
+          isFilterConditionValid(condition, input, nextStepTemplateToExecute.getData());
       if (filterConditionValid == null) {
         // todo condition not valid break analyse
       } else {
@@ -187,7 +203,8 @@ public class ConditionService {
         conditionTemplate.stream().filter(this::isMapperCondition).toList();
 
     for (Condition condition : mapperConditions) {
-      Condition mapperConditionValid = isMapperConditionValid(condition, input, data);
+      Condition mapperConditionValid =
+          isMapperConditionValid(condition, input, nextStepTemplateToExecute.getData());
       if (mapperConditionValid == null) {
         // todo condition not valid break analyse
       } else {

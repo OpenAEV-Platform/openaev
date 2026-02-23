@@ -14,6 +14,8 @@ import io.openaev.database.model.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Executor;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.exception.ChainingException;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
@@ -73,23 +75,24 @@ public class InjectExecutionStep implements ActionStep {
    * @return a step in TEMPLATE status
    */
   @Override
-  public Step create(StepsCreateInput.StepCreateInput newStep, Workflow workflow) {
-    String data = this.stepData(newStep, workflow.getSimulation());
-
-    if (data == null) throw new IllegalArgumentException("Data step is null");
+  public Optional<Step> create(StepsCreateInput.StepCreateInput newStep, Workflow workflow)
+      throws ChainingException {
+    String data = stepData(newStep, workflow.getSimulation());
 
     String input = stepInputFromConditionMapper(newStep.getConditions());
     // TODO: get outputParser
     String outputParser = this.stepOutputParser("");
-    return Step.builder()
-        .data(data)
-        .input(input)
-        .output_parser(outputParser)
-        .status(StepStatus.TEMPLATE)
-        .stepAction(StepActionClass.INJECT_EXECUTION)
-        .limitExecution(newStep.getLimitExecution())
-        .workflow(workflow)
-        .build();
+    Step stepTemplate =
+        Step.builder()
+            .data(data)
+            .input(input)
+            .output_parser(outputParser)
+            .status(StepStatus.TEMPLATE)
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .limitExecution(newStep.getLimitExecution())
+            .workflow(workflow)
+            .build();
+    return Optional.of(stepTemplate);
   }
 
   /**
@@ -103,7 +106,8 @@ public class InjectExecutionStep implements ActionStep {
    * @return a step in READY status ready to be executed
    */
   @Override
-  public Step ready(Step stepTemplate, String input, Workflow workflowRun) {
+  public Optional<Step> ready(Step stepTemplate, String input, Workflow workflowRun)
+      throws ChainingException {
     // CALL BY when new input or start simulation
     Step readyStep = new Step();
     readyStep.setWorkflow(workflowRun);
@@ -115,7 +119,7 @@ public class InjectExecutionStep implements ActionStep {
     readyStep.setStepAction(StepActionClass.INJECT_EXECUTION);
     readyStep.setLimitExecution(stepTemplate.getLimitExecution());
 
-    return readyStep;
+    return Optional.of(readyStep);
   }
 
   /**
@@ -128,37 +132,36 @@ public class InjectExecutionStep implements ActionStep {
    * @return the updated step with execution info, or null if execution fails
    */
   @Override
-  public Step run(Step readyStep) {
+  public Optional<Step> run(Step readyStep) throws ChainingException {
     // CALL BY QUEUE READY
     Inject inject = getInjectFromDataStep(readyStep);
-    if (inject == null) return null;
     // CREATE & SAVE INJECT
     inject = injectService.createInject(inject);
-    String data = setInjectId(inject.getId(), readyStep.getData());
-    readyStep.setData(data);
-
-    // EXECUTE INJECT
-    ExecutableInject executableInject =
-        new ExecutableInject(
-            true,
-            true,
-            inject,
-            inject.getTeams(),
-            inject.getAssets(),
-            inject.getAssetGroups(),
-            List.of()); // TODO Check users?
-
-    // TODO Check add documents? Executable Payloads
-    // executableInject.addDirectAttachment(inject.getDocuments());
 
     try {
+      String data = setInjectId(inject.getId(), readyStep.getData());
+      readyStep.setData(data);
+
+      // EXECUTE INJECT
+      ExecutableInject executableInject =
+          new ExecutableInject(
+              true,
+              true,
+              inject,
+              inject.getTeams(),
+              inject.getAssets(),
+              inject.getAssetGroups(),
+              List.of()); // TODO Check users?
+
+      // TODO Check add documents? Executable Payloads
+      // executableInject.addDirectAttachment(inject.getDocuments());
+
       executor.directExecute(executableInject);
-      return readyStep;
+      return Optional.of(readyStep);
     } catch (Exception e) {
-      log.warn(e.getMessage(), e);
       injectStatusService.failInjectStatus(inject.getId(), e.getMessage());
+      throw new ChainingException("Inject execution failed. Inject ID: " + inject.getId(), e);
     }
-    return null;
   }
 
   /**
@@ -170,15 +173,15 @@ public class InjectExecutionStep implements ActionStep {
    * @return the step with updated output, or null if inject not found
    */
   @Override
-  public Step update(Step stepRun) {
+  public Optional<Step> update(Step stepRun) throws ChainingException {
     // GET INJECT
     String data = stepRun.getData();
     String injectId = StepService.getField(data, "inject_id");
     Inject inject = injectService.findInjectOrNull(injectId);
-    if (inject == null) {
-      log.warn("inject not found for injectId {}", injectId);
-      return null;
-    }
+    if (inject == null)
+      throw new ChainingException(
+          "Inject not found. ID: " + injectId,
+          new ElementNotFoundException("Inject not found. ID: " + injectId));
 
     // GET INJECT STATUS
     InjectStatus injectStatus = inject.getStatus().orElse(null);
@@ -205,11 +208,11 @@ public class InjectExecutionStep implements ActionStep {
       jsonObject.add("outputs", elements);
 
       stepRun.setOutput(jsonObject.toString());
-      return stepRun;
+      return Optional.of(stepRun);
     }
 
-    log.warn("inject status not found for injectId {}", injectId);
-    return null;
+    log.info("Inject output not found. ID:  {}", injectId);
+    return Optional.empty();
   }
 
   /**
@@ -243,14 +246,17 @@ public class InjectExecutionStep implements ActionStep {
    * @return a JSON string representing the serialized inject, or {@code null} if the injector
    *     contract is missing
    */
-  private String stepData(StepsCreateInput.StepCreateInput step, Exercise simulation) {
+  private String stepData(StepsCreateInput.StepCreateInput step, Exercise simulation)
+      throws ChainingException {
 
     InjectInput data = (InjectInput) step.getDataStep();
 
-    if (data == null || data.getInjectorContract() == null) {
-      log.warn("injector contract not found for step create input {}", step);
-      return null;
-    }
+    if (data == null)
+      throw new IllegalArgumentException("Data step of new step (TEMPLATE) is null");
+
+    if (data.getInjectorContract() == null)
+      throw new IllegalArgumentException(
+          "Data step of new step (TEMPLATE) do not contain injector contract");
 
     InjectorContract injectorContract =
         this.injectorContractService.injectorContract(data.getInjectorContract());
@@ -304,7 +310,7 @@ public class InjectExecutionStep implements ActionStep {
     try {
       return om.writeValueAsString(inject);
     } catch (JsonProcessingException e) {
-      throw new IllegalArgumentException("Error processing Inject to JSON");
+      throw new ChainingException("New step (TEMPLATE): Error processing Inject to JSON", e);
     }
   }
 
@@ -423,7 +429,7 @@ public class InjectExecutionStep implements ActionStep {
    * @return the deserialized {@link Inject} object with its injector set if found; {@code null} if
    *     the injector or contract is missing or if an exception occurs during deserialization
    */
-  private Inject getInjectFromDataStep(Step step) {
+  private Inject getInjectFromDataStep(Step step) throws ChainingException {
     ObjectMapper om =
         new ObjectMapper()
             .findAndRegisterModules()
@@ -437,41 +443,37 @@ public class InjectExecutionStep implements ActionStep {
       ObjectMapper mapper = new ObjectMapper();
       JsonNode root = mapper.readTree(step.getData());
 
-      if (inject.getInjectorContract().isEmpty()) {
-        log.info("Injector contract not found for step (READY) id {}", step.getId());
-        return null;
-      }
+      if (inject.getInjectorContract().isEmpty())
+        throw new ChainingException(
+            "Injector contract not found for step (READY) ID: " + step.getId());
 
       InjectorContract injectorContract = inject.getInjectorContract().get();
       JsonNode injectorNode =
           root.path("inject_injector_contract").path("injector_contract_injector");
 
-      if (injectorNode.isMissingNode() && injectorNode.isEmpty()) {
-        log.info(
-            "Injector not found for injectorContractId {} & step (READY) id {}",
-            injectorContract.getId(),
-            step.getId());
-        return null;
-      }
+      if (injectorNode.isMissingNode() && injectorNode.isEmpty())
+        throw new ChainingException(
+            "Injector not found for injectorContractId "
+                + injectorContract.getId()
+                + " and step (READY) ID "
+                + step.getId());
 
       if (injectorContract.getInjector() == null) {
         String injectorId = injectorNode.asText();
         Injector injector = em.find(Injector.class, injectorId);
 
-        if (injector == null) {
-          log.info(
-              "Injector not found for injectorId {} & step (READY) id {}",
-              injectorId,
-              step.getId());
-          return null;
-        }
+        if (injector == null)
+          throw new ChainingException(
+              "Injector not found for injectorId "
+                  + injectorId
+                  + " and step (READY) ID "
+                  + step.getId());
 
         injectorContract.setInjector(injector);
       }
       return inject;
-    } catch (IllegalArgumentException | JsonProcessingException e) {
-      log.warn(e.getMessage(), e);
-      return null;
+    } catch (JsonProcessingException e) {
+      throw new ChainingException("Step (READY) : Error processing JSON to Inject ", e);
     }
   }
 

@@ -46,13 +46,17 @@ class WorkflowServiceTest {
       // Prepare
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow = mock(Workflow.class);
-      when(workflowRepository.findById(workflowId)).thenReturn(Optional.of(workflow));
+      workflow.setStatus(WorkflowStatus.TEMPLATE);
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
 
       // Act
-      Workflow result = workflowService.getWorkflowById(workflowId);
+      Workflow result =
+          workflowService.getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
 
       // Assert
-      verify(workflowRepository).findById(workflowIdCaptor.capture());
+      verify(workflowRepository)
+          .findByIdAndStatus(workflowIdCaptor.capture(), eq(WorkflowStatus.TEMPLATE));
       assertEquals(workflowId, workflowIdCaptor.getValue());
       assertNotNull(result);
       assertEquals(workflow, result);
@@ -63,14 +67,17 @@ class WorkflowServiceTest {
     void shouldThrowExceptionWhenNotFound() {
       // Prepare
       String workflowId = UUID.randomUUID().toString();
-      when(workflowRepository.findById(workflowId)).thenReturn(Optional.empty());
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.empty());
 
       // Act & Assert
       ElementNotFoundException exception =
           assertThrows(
-              ElementNotFoundException.class, () -> workflowService.getWorkflowById(workflowId));
-      assertEquals("Workflow not found", exception.getMessage());
-      verify(workflowRepository).findById(workflowId);
+              ElementNotFoundException.class,
+              () -> workflowService.getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE));
+      assertEquals(
+          "Workflow TEMPLATE not found. Workflow ID : " + workflowId, exception.getMessage());
+      verify(workflowRepository).findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
     }
   }
 
@@ -177,28 +184,9 @@ class WorkflowServiceTest {
     @Captor private ArgumentCaptor<Workflow> workflowCaptor;
 
     @Test
-    @DisplayName("should return null when no template exists")
-    void shouldReturnNullWhenNoTemplate() {
-      // Prepare
-      String simulationId = UUID.randomUUID().toString();
-      when(workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE))
-          .thenReturn(null);
-
-      // Act
-      Workflow result = workflowService.launchWorkflow(simulationId);
-
-      // Assert
-      assertNull(result);
-      verify(workflowRepository)
-          .findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE);
-      verify(workflowRepository, never()).save(any());
-    }
-
-    @Test
     @DisplayName("should increment version when template is edited")
     void shouldIncrementVersionWhenEdited() {
       // Prepare
-      String simulationId = UUID.randomUUID().toString();
       Exercise simulation = mock(Exercise.class);
 
       Workflow workflowTemplate = mock(Workflow.class);
@@ -206,12 +194,10 @@ class WorkflowServiceTest {
       when(workflowTemplate.getVersion()).thenReturn(1);
       when(workflowTemplate.getSimulation()).thenReturn(simulation);
 
-      when(workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE))
-          .thenReturn(workflowTemplate);
       when(workflowRepository.save(any(Workflow.class))).thenReturn(workflowTemplate);
 
       // Act
-      workflowService.launchWorkflow(simulationId);
+      workflowService.launchWorkflow(workflowTemplate);
 
       // Assert
       verify(workflowTemplate).setEdited(false);
@@ -223,7 +209,6 @@ class WorkflowServiceTest {
     @DisplayName("should not increment version when template is not edited")
     void shouldNotIncrementVersionWhenNotEdited() {
       // Prepare
-      String simulationId = UUID.randomUUID().toString();
       Exercise simulation = mock(Exercise.class);
 
       Workflow workflowTemplate = mock(Workflow.class);
@@ -231,12 +216,10 @@ class WorkflowServiceTest {
       when(workflowTemplate.getVersion()).thenReturn(1);
       when(workflowTemplate.getSimulation()).thenReturn(simulation);
 
-      when(workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE))
-          .thenReturn(workflowTemplate);
       when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
 
       // Act
-      workflowService.launchWorkflow(simulationId);
+      workflowService.launchWorkflow(workflowTemplate);
 
       // Assert
       verify(workflowTemplate, never()).setEdited(anyBoolean());
@@ -248,7 +231,6 @@ class WorkflowServiceTest {
     @DisplayName("should create workflow run with correct properties")
     void shouldCreateWorkflowRunWithCorrectProperties() {
       // Prepare
-      String simulationId = UUID.randomUUID().toString();
       Exercise simulation = mock(Exercise.class);
       int version = 3;
 
@@ -257,12 +239,10 @@ class WorkflowServiceTest {
       when(workflowTemplate.getVersion()).thenReturn(version);
       when(workflowTemplate.getSimulation()).thenReturn(simulation);
 
-      when(workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE))
-          .thenReturn(workflowTemplate);
       when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
 
       // Act
-      Workflow result = workflowService.launchWorkflow(simulationId);
+      Workflow result = workflowService.launchWorkflow(workflowTemplate);
 
       // Assert
       verify(workflowRepository).save(workflowCaptor.capture());
@@ -332,7 +312,8 @@ class WorkflowServiceTest {
           .thenReturn(workflowTemplate);
 
       // Act
-      Workflow result = workflowService.findWorkflowTemplateBySimulationId(simulationId);
+      Workflow result =
+          workflowService.findWorkflowTemplateBySimulationId(simulationId).orElse(null);
 
       // Assert
       verify(workflowRepository)
@@ -351,7 +332,8 @@ class WorkflowServiceTest {
           .thenReturn(null);
 
       // Act
-      Workflow result = workflowService.findWorkflowTemplateBySimulationId(simulationId);
+      Workflow result =
+          workflowService.findWorkflowTemplateBySimulationId(simulationId).orElse(null);
 
       // Assert
       assertNull(result);
