@@ -9,7 +9,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_73__Create_default_tenant extends BaseJavaMigration {
+public class V4_74__Create_default_tenant extends BaseJavaMigration {
 
   // Strings to replace in the SQL statement
   private static String DEFAULT_TENANT_ID = "[DEFAULT_TENANT_ID]";
@@ -52,14 +52,7 @@ public class V4_73__Create_default_tenant extends BaseJavaMigration {
 
     // SQL statements to execute with Strings to replace
     String addDefaultTenant =
-        """
-          DO $$
-          BEGIN
-            IF NOT EXISTS (SELECT 1 FROM tenants) THEN
-              INSERT INTO tenants(tenant_id, tenant_name, tenant_description) VALUES ('[DEFAULT_TENANT_ID]', 'First default tenant auto created to rename', 'First default tenant auto created to rename');
-            END IF;
-          END $$;
-      """;
+        "INSERT INTO tenants(tenant_id, tenant_name, tenant_description) VALUES ('[DEFAULT_TENANT_ID]', 'First default tenant auto created to rename', 'First default tenant auto created to rename');";
     String addForeignKeyTenant =
         """
                       ALTER TABLE [TABLE_FK_TENANT]
