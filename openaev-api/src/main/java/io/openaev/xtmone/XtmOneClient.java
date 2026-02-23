@@ -71,14 +71,20 @@ public class XtmOneClient {
     return null;
   }
 
-  public List<Map<String, Object>> listChatAgents() {
+  public List<Map<String, Object>> listChatAgents(String userEmail) {
     if (!config.isConfigured()) {
       return List.of();
     }
     try {
+      String query = "tag=openaev";
+      if (userEmail != null && !userEmail.isBlank()) {
+        query +=
+            "&user_email="
+                + java.net.URLEncoder.encode(userEmail, java.nio.charset.StandardCharsets.UTF_8);
+      }
       HttpRequest request =
           HttpRequest.newBuilder()
-              .uri(URI.create(config.getUrl() + "/api/v1/platform/chat/agents?tag=openaev"))
+              .uri(URI.create(config.getUrl() + "/api/v1/platform/chat/agents?" + query))
               .header("Authorization", "Bearer " + config.getToken())
               .GET()
               .timeout(Duration.ofSeconds(10))

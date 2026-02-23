@@ -41,7 +41,7 @@ public class XtmOneChatApi extends RestBehavior {
     if (!config.isConfigured()) {
       return List.of();
     }
-    return client.listChatAgents();
+    return client.listChatAgents(currentUserEmail());
   }
 
   @PostMapping("/api/xtmone/chat/sessions")
