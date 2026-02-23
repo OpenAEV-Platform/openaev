@@ -45,8 +45,7 @@ class BatchQueueServiceDeliveryCallbackTest {
   @Mock private Channel consumerChannel;
   @Mock private RabbitMQSslConfiguration rabbitMQSslConfiguration;
 
-
-    private ObjectMapper mapper;
+  private ObjectMapper mapper;
   private BatchQueueService<SerializableQueueable> service;
   private MockedConstruction<ConnectionFactory> mockedFactory;
   private DeliverCallback deliverCallback;
@@ -85,7 +84,12 @@ class BatchQueueServiceDeliveryCallbackTest {
 
     service =
         new BatchQueueService<>(
-            SerializableQueueable.class, queueExecution, rabbitmqConfig, mapper, queueConfig, rabbitMQSslConfiguration);
+            SerializableQueueable.class,
+            queueExecution,
+            rabbitmqConfig,
+            mapper,
+            queueConfig,
+            rabbitMQSslConfiguration);
 
     // Capture the DeliverCallback registered with the consumer channel
     ArgumentCaptor<DeliverCallback> captor = ArgumentCaptor.forClass(DeliverCallback.class);

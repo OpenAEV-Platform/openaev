@@ -100,7 +100,8 @@ class BatchQueueServiceConcurrencyTest {
             null, // queueExecution set later per test
             rabbitmqConfig,
             mapper,
-            queueConfig, rabbitMQSslConfiguration);
+            queueConfig,
+            rabbitMQSslConfiguration);
   }
 
   // ========================================================================
@@ -234,7 +235,8 @@ class BatchQueueServiceConcurrencyTest {
               blockingExecution,
               rabbitmqConfig,
               mapper,
-              multiWorkerConfig, rabbitMQSslConfiguration);
+              multiWorkerConfig,
+              rabbitMQSslConfiguration);
 
       Map<Integer, BlockingQueue<BatchQueueServiceTest.TestQueueable>> internalQueue =
           getInternalQueue();

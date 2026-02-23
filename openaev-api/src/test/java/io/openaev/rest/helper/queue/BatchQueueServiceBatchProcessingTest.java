@@ -129,7 +129,8 @@ class BatchQueueServiceBatchProcessingTest {
             queueExecution,
             rabbitmqConfig,
             mapper,
-            config, rabbitMQSslConfiguration);
+            config,
+            rabbitMQSslConfiguration);
   }
 
   // ========================================================================
@@ -646,7 +647,8 @@ class BatchQueueServiceBatchProcessingTest {
               queueExecution,
               rabbitmqConfig,
               mapper,
-              multiPubConfig, rabbitMQSslConfiguration);
+              multiPubConfig,
+              rabbitMQSslConfiguration);
 
       // -3 % 2 = -1 in Java, so publisherChannels.get(-1) throws
       NegativeHashQueueable negativeHashElem = new NegativeHashQueueable("key");

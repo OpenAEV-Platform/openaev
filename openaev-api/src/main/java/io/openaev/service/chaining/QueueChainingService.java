@@ -27,7 +27,7 @@ public class QueueChainingService {
   private final RabbitmqConfig rabbitmqConfig;
   private final OpenAEVConfig openAEVConfig;
   private final ObjectMapper objectMapper;
-    private final RabbitMQSslConfiguration rabbitMQSslConfiguration;
+  private final RabbitMQSslConfiguration rabbitMQSslConfiguration;
 
   @Setter private BatchQueueService<StepEvent> delayQueueService; // TODO switch to DB queue
   @Setter private BatchQueueService<StepEvent> readyQueueService;
@@ -74,7 +74,7 @@ public class QueueChainingService {
             rabbitmqConfig,
             objectMapper,
             openAEVConfig.getQueueConfig().get("workflows-delay"),
-                rabbitMQSslConfiguration);
+            rabbitMQSslConfiguration);
 
     // Initializing the queue to manage update event from external sources
     updateQueueService =
@@ -84,7 +84,7 @@ public class QueueChainingService {
             rabbitmqConfig,
             objectMapper,
             openAEVConfig.getQueueConfig().get("workflows-update"),
-                rabbitMQSslConfiguration);
+            rabbitMQSslConfiguration);
   }
 
   @PreDestroy

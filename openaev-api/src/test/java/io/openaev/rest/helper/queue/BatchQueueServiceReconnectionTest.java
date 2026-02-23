@@ -75,7 +75,7 @@ class BatchQueueServiceReconnectionTest {
             rabbitmqConfig,
             new ObjectMapper(),
             queueConfig,
-                rabbitMQSslConfiguration);
+            rabbitMQSslConfiguration);
 
     // Capture the ShutdownListener registered on the connection
     ArgumentCaptor<ShutdownListener> captor = ArgumentCaptor.forClass(ShutdownListener.class);
