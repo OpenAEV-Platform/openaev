@@ -313,14 +313,14 @@ public class SecurityCoverageService {
   }
 
   /**
-   * Pushes the security coverage to OpenCTI. This injects the OpenAEV scenario external URL into
-   * the STIX object.
+   * Enrich and push the security coverage to OpenCTI. This injects the OpenAEV scenario external
+   * URL into the STIX object.
    *
    * @param scenario The scenario containing the security coverage.
    * @throws ParsingException If STIX parsing fails.
    * @throws ConnectorError If the OpenCTI push fails.
    */
-  public void pushCoverageToOpenCTI(Scenario scenario)
+  public void pushSecurityCoverageBundleWithExternalURI(Scenario scenario)
       throws ParsingException, ConnectorError, IOException {
     SecurityCoverage coverage = scenario.getSecurityCoverage();
     String externalLink = openAEVConfig.getBaseUrl() + "/admin/scenarios/" + scenario.getId();

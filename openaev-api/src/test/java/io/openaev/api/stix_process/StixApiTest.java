@@ -264,7 +264,7 @@ class StixApiTest extends IntegrationTest {
               .andReturn()
               .getResponse()
               .getContentAsString();
-      verify(securityCoverageService).pushCoverageToOpenCTI(any());
+      verify(securityCoverageService).pushSecurityCoverageBundleWithExternalURI(any());
       assertThat(response).isNotBlank();
       String scenarioId = JsonPath.read(response, "$.scenarioId");
       Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
