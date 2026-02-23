@@ -14,6 +14,18 @@ public class XtmOneConfig {
   @Value("${openbas.xtm.one.token:${openaev.xtm.one.token:#{null}}}")
   private String token;
 
+  @Value("${openbas.xtm.one.web-token:${openaev.xtm.one.web-token:#{null}}}")
+  private String webToken;
+
+  private volatile String discoveredWebToken;
+
+  public String getEffectiveWebToken() {
+    if (webToken != null && !webToken.isBlank()) {
+      return webToken;
+    }
+    return discoveredWebToken;
+  }
+
   public boolean isConfigured() {
     return url != null && !url.isBlank() && token != null && !token.isBlank();
   }

@@ -3,9 +3,9 @@ package io.openaev.xtmone;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.UserService;
-import io.openaev.rest.settings.response.PlatformSettings;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -25,11 +25,14 @@ public class XtmOneService {
   private final EnterpriseEditionService eeService;
   private final UserService userService;
 
+  @org.springframework.beans.factory.annotation.Value(
+      "${openbas.admin.token:${openaev.admin.token:#{null}}}")
+  private String adminToken;
+
   /**
-   * Register this platform with XTM One. Called on every connectivity tick
-   * (the /register endpoint is an upsert, so repeated calls are safe).
-   * Sends the current license state and all users with their API tokens
-   * so XTM One creates one integration per matched user.
+   * Register this platform with XTM One. Called on every connectivity tick (the /register endpoint
+   * is an upsert, so repeated calls are safe). Sends the current license state and all users with
+   * their API tokens so XTM One creates one integration per matched user.
    */
   @Transactional(readOnly = true)
   public void autoRegister() {
@@ -57,8 +60,14 @@ public class XtmOneService {
               version != null ? version : "",
               settings.getPlatformId() != null ? settings.getPlatformId() : "",
               licensePem,
+              adminToken,
               userEntries);
       if (result != null) {
+        Object chatToken = result.get("chat_web_token");
+        if (chatToken instanceof String s && !s.isBlank()) {
+          config.setDiscoveredWebToken(s);
+          log.info("[XTM One] Chat web token discovered from registration");
+        }
         log.info(
             "[XTM One] Registration successful (ee_enabled="
                 + result.getOrDefault("ee_enabled", false)
@@ -83,9 +92,12 @@ public class XtmOneService {
       if (tokenValue == null || tokenValue.isBlank()) continue;
       entries.add(
           Map.of(
-              "email", user.getEmail(),
-              "display_name", user.getName() != null ? user.getName() : user.getEmail(),
-              "api_key", tokenValue));
+              "email",
+              user.getEmail(),
+              "display_name",
+              user.getName() != null ? user.getName() : user.getEmail(),
+              "api_key",
+              tokenValue));
     }
     return entries;
   }

@@ -5776,6 +5776,12 @@ export interface PlatformSettings {
   map_tile_server_light?: string;
   /** Agent URL of the platform */
   platform_agent_url?: string;
+  /** True if XTM One is configured (url and token set) */
+  platform_xtm_one_configured?: boolean;
+  /** XTM One platform URL */
+  platform_xtm_one_url?: string;
+  /** XTM One public chat web token for the embedded agent */
+  platform_xtm_one_web_token?: string;
   /** True if AI is enabled for the platform */
   platform_ai_enabled?: boolean;
   /** True if we have an AI token */
