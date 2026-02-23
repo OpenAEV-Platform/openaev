@@ -10,6 +10,8 @@ import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openaev.rest.atomic_testing.AtomicTestingApi.ATOMIC_TESTING_URI;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.inject.InjectApi.INJECT_URI;
+import static io.openaev.rest.inject.service.ExecutableInjectService.formatMultilineCommand;
+import static io.openaev.rest.inject.service.ExecutableInjectService.replaceCmdVariables;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
@@ -51,6 +53,7 @@ import jakarta.annotation.Resource;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.persistence.EntityManager;
+import jakarta.servlet.ServletException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -795,7 +798,8 @@ class InjectApiTest extends IntegrationTest {
               .withInjectorContract(
                   injectorContractComposer
                       .forInjectorContract(
-                          InjectorContractFixture.createPayloadInjectorContractWithObfuscator())
+                          InjectorContractFixture.createPayloadInjectorContractWithObfuscator(
+                              payloadCommand.getExecutor()))
                       .withInjector(InjectorFixture.createDefaultPayloadInjector())
                       .withPayload(
                           payloadComposer
@@ -828,6 +832,98 @@ class InjectApiTest extends IntegrationTest {
 
       String expectedCmdEncoded = Base64.getEncoder().encodeToString(cmdToExecute.getBytes());
       assertEquals(expectedCmdEncoded, JsonPath.read(response, "$.command_content"));
+    }
+
+    @DisplayName("Get plain text command for cmd")
+    @Test
+    void getExecutableCmdPayloadInject() throws Exception {
+      // -- PREPARE --
+      Command payloadCommand =
+          PayloadFixture.createCommand("cmd", "echo Hello World", List.of(), "echo cleanup cmd");
+
+      Map<String, Object> payloadArguments = new HashMap<>();
+      payloadArguments.put("obfuscator", "plain-text");
+
+      Inject injectSaved =
+          injectComposer
+              .forInject(InjectFixture.createInjectWithPayloadArg(payloadArguments))
+              .withInjectorContract(
+                  injectorContractComposer
+                      .forInjectorContract(
+                          InjectorContractFixture.createPayloadInjectorContractWithObfuscator(
+                              payloadCommand.getExecutor()))
+                      .withInjector(InjectorFixture.createDefaultPayloadInjector())
+                      .withPayload(
+                          payloadComposer
+                              .forPayload(payloadCommand)
+                              .withDomain(
+                                  domainComposer.forDomain(DomainFixture.getRandomDomain()))))
+              .persist()
+              .get();
+      doNothing()
+          .when(injectStatusService)
+          .addStartImplantExecutionTraceByInject(any(), any(), any(), any());
+
+      // -- EXECUTE --
+      String response =
+          mvc.perform(
+                  get(INJECT_URI + "/" + injectSaved.getId() + "/fakeagentID/executable-payload")
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT --
+      assertNotNull(response);
+
+      // Verify command
+      // We still need to encode in base64, because the command is encoded to be sent to the implant
+      // But the content is not encoded at execution, it's only for data transfer
+      String computedCommand = replaceCmdVariables(payloadCommand.getContent());
+      computedCommand = formatMultilineCommand(computedCommand);
+      String expectedCmdEncoded = Base64.getEncoder().encodeToString(computedCommand.getBytes());
+      assertEquals(expectedCmdEncoded, JsonPath.read(response, "$.command_content"));
+    }
+
+    @DisplayName("Should not get base64 command for cmd")
+    @Test
+    void shouldNotGetExecutableCmdPayloadInject() throws Exception {
+      // -- PREPARE --
+      Command payloadCommand =
+          PayloadFixture.createCommand("cmd", "echo Hello World", List.of(), "echo cleanup cmd");
+
+      Map<String, Object> payloadArguments = new HashMap<>();
+      payloadArguments.put("obfuscator", "base64");
+
+      Inject injectSaved =
+          injectComposer
+              .forInject(InjectFixture.createInjectWithPayloadArg(payloadArguments))
+              .withInjectorContract(
+                  injectorContractComposer
+                      .forInjectorContract(
+                          InjectorContractFixture.createPayloadInjectorContractWithObfuscator(
+                              payloadCommand.getExecutor()))
+                      .withInjector(InjectorFixture.createDefaultPayloadInjector())
+                      .withPayload(
+                          payloadComposer
+                              .forPayload(payloadCommand)
+                              .withDomain(
+                                  domainComposer.forDomain(DomainFixture.getRandomDomain()))))
+              .persist()
+              .get();
+      doNothing()
+          .when(injectStatusService)
+          .addStartImplantExecutionTraceByInject(any(), any(), any(), any());
+
+      // -- EXECUTE --
+      assertThrows(
+          ServletException.class,
+          () -> {
+            mvc.perform(
+                get(INJECT_URI + "/" + injectSaved.getId() + "/fakeagentID/executable-payload")
+                    .accept(MediaType.APPLICATION_JSON));
+          });
     }
   }
 

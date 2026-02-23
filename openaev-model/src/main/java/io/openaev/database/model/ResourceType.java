@@ -42,6 +42,7 @@ public enum ResourceType {
   OBJECTIVE,
   EVALUATION,
   CATALOG,
+  CONNECTOR_INSTANCE_LOG,
   TENANT,
   // Special resource types
   UNKNOWN,

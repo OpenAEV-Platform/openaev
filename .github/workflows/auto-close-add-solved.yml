@@ -2,7 +2,7 @@ name: Auto Close and Solve Issues
 on:
   pull_request:
     branches:
-      - release/*
+      - release/current
       - master
     types:
       - closed
@@ -28,20 +28,20 @@ jobs:
           script: |
             const prTitle = context.payload.pull_request.title;
             core.info(`PR Title: ${prTitle}`);
-            
+
             // Match only issue-containing groups at the end
             const endPattern = /(?:\((?:[^)]*#\d+[^)]*)\)|#\d+)(?:\s+(?:\((?:[^)]*#\d+[^)]*)\)|#\d+))*\s*$/;
             const endMatch = prTitle.match(endPattern);
-            
+
             let issueNumbers = [];
-            
+
             if (endMatch) {
               // Extract all #number patterns from the matched section
               const allMatches = endMatch[0].matchAll(/#(\d+)/g);
               issueNumbers = [...allMatches]
                 .map(match => match[1])
                 .filter((value, index, self) => self.indexOf(value) === index); // Remove duplicates
-            
+
               if (issueNumbers.length > 0) {
                 core.info(`Found ${issueNumbers.length} issue number(s): ${issueNumbers.join(', ')}`);
                 core.setOutput('issue_numbers', issueNumbers.join(' '));
@@ -70,17 +70,17 @@ jobs:
             const issueNumbers = "${{ needs.extract_issue_number.outputs.issue_numbers }}"
               .split(' ')
               .filter(num => num.trim() !== '');
-            
+
             core.info(`Processing ${issueNumbers.length} issue(s): ${issueNumbers.join(', ')}`);
             core.startGroup('Processing Issues');
-            
+
             let successCount = 0;
             let failureCount = 0;
-            
+
             for (const issueNumber of issueNumbers) {
               try {
                 core.startGroup(`Issue #${issueNumber}`);
-            
+
                 // Add "solved" label
                 await github.rest.issues.addLabels({
                   owner: context.repo.owner,
@@ -89,7 +89,7 @@ jobs:
                   labels: ["solved"]
                 });
                 core.info(`✓ Added "solved" label`);
-            
+
                 // Close the issue
                 await github.rest.issues.update({
                   owner: context.repo.owner,
@@ -98,19 +98,19 @@ jobs:
                   state: "closed"
                 });
                 core.info(`✓ Closed issue`);
-            
+
                 successCount++;
                 core.endGroup();
-            
+
               } catch (error) {
                 core.error(`✗ Failed to process issue #${issueNumber}: ${error.message}`);
                 failureCount++;
                 core.endGroup();
               }
             }
-            
+
             core.endGroup();
-            
+
             // Summary
             core.notice(`Successfully processed ${successCount} issue(s)`);
             if (failureCount > 0) {

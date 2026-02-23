@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_71__Clean_list_configuration_data extends BaseJavaMigration {
+public class V4_72__Clean_list_configuration_data extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

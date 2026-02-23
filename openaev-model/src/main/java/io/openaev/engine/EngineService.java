@@ -8,6 +8,7 @@ import io.openaev.engine.model.EsBase;
 import io.openaev.engine.model.EsSearch;
 import io.openaev.engine.query.EsAvgs;
 import io.openaev.engine.query.EsCountInterval;
+import io.openaev.engine.query.EsEntities;
 import io.openaev.engine.query.EsSeries;
 import java.io.IOException;
 import java.util.List;
@@ -117,9 +118,9 @@ public interface EngineService {
    *
    * @param user the user to use
    * @param runtime the list runtime to use
-   * @return a list of series
+   * @return entities result containing data and total count
    */
-  List<EsBase> entities(RawUserAuth user, ListRuntime runtime);
+  EsEntities entities(RawUserAuth user, ListRuntime runtime);
 
   /**
    * Create the list configuration using entities and filters

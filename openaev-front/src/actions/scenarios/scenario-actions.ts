@@ -16,7 +16,7 @@ import {
   type LessonsCategoryUpdateInput,
   type LessonsInput,
   type LessonsQuestionCreateInput,
-  type LessonsQuestionUpdateInput,
+  type LessonsQuestionUpdateInput, type Pagination,
   type Scenario,
   type ScenarioInput,
   type ScenarioRecurrenceInput,
@@ -282,8 +282,11 @@ export const seriesByScenario = (scenarioId: string, widgetId: string, parameter
   return simplePostCall(`/api/scenarios/${scenarioId}/dashboard/series/${widgetId}`, parameters);
 };
 
-export const entitiesByScenario = (scenarioId: string, widgetId: string, parameters: Record<string, string | undefined>) => {
-  return simplePostCall(`/api/scenarios/${scenarioId}/dashboard/entities/${widgetId}`, parameters);
+export const entitiesByScenario = (scenarioId: string, widgetId: string, parameters: Record<string, string | undefined>, pagination?: Pagination) => {
+  return simplePostCall(`/api/scenarios/${scenarioId}/dashboard/entities/${widgetId}`, {
+    parameters,
+    pagination,
+  });
 };
 
 export const widgetToEntitiesByByScenario = (scenarioId: string, widgetId: string, input: WidgetToEntitiesInput) => {

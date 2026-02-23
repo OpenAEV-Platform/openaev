@@ -1,7 +1,13 @@
 import { memo } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
-import { type EsSeries, type ListConfiguration, type StructuralHistogramWidget, type Widget } from '../../../../../utils/api-types';
+import {
+  type EsSeries,
+  type ListConfiguration,
+  type Pagination,
+  type StructuralHistogramWidget,
+  type Widget,
+} from '../../../../../utils/api-types';
 import AttackPathContextLayer from './viz/attack_paths/AttackPathContextLayer';
 import SecurityDomainsWidget from './viz/domains/SecurityDomainsWidget';
 import type { EsAvgsExtended } from './viz/domains/SecurityDomainsWidgetUtils';
@@ -20,6 +26,8 @@ interface WidgetTemporalVizProps {
   setFullscreen: (fullscreen: boolean) => void;
   errorMessage: string;
   vizData: WidgetVizData;
+  onPaginationChange: (paginationInput: Pagination) => void;
+  contentLoading?: boolean;
 }
 
 export type SerieData = {
@@ -47,7 +55,7 @@ const computeSeriesData = (esSeries: EsSeries[]) => {
   });
 };
 
-const WidgetViz = ({ widget, fullscreen, setFullscreen, vizData, errorMessage }: WidgetTemporalVizProps) => {
+const WidgetViz = ({ widget, fullscreen, setFullscreen, vizData, errorMessage, onPaginationChange, contentLoading = false }: WidgetTemporalVizProps) => {
   const { t } = useFormatter();
 
   const seriesData = vizData.type === WidgetVizDataType.SERIES
@@ -128,7 +136,17 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen, vizData, errorMessage }:
       if (vizData.type !== WidgetVizDataType.ENTITIES) {
         return 'Not implemented yet';
       }
-      return (<ListWidget elements={vizData.data} widgetConfig={widget.widget_config as ListConfiguration} />);
+      return (
+        <ListWidget
+          elements={vizData.data.es_datas}
+          currentPageNumber={vizData.data.page_number}
+          elementsPerPage={vizData.data.page_size}
+          totalElements={vizData.data.total}
+          widgetConfig={widget.widget_config as ListConfiguration}
+          onPaginationChange={onPaginationChange}
+          contentLoading={contentLoading}
+        />
+      );
     case 'number':
       if (vizData.type !== WidgetVizDataType.NUMBER) {
         return 'Not implemented yet';

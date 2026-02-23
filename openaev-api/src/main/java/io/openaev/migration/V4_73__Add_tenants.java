@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_72__Add_tenants extends BaseJavaMigration {
+public class V4_73__Add_tenants extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

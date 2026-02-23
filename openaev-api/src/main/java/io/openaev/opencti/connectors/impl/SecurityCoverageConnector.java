@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
+import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
@@ -26,6 +27,7 @@ public class SecurityCoverageConnector extends ConnectorBase {
 
   private final ConnectorType type = ConnectorType.INTERNAL_ENRICHMENT;
   private final String name = "OpenAEV Coverage";
+  @Setter private volatile String jwks;
 
   public SecurityCoverageConnector() {
     this.setScope(new ArrayList<>(List.of("security-coverage")));

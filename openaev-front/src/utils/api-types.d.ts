@@ -2137,6 +2137,13 @@ export interface EngineSortField {
   fieldName: string;
 }
 
+export interface EntitiesPaginationInput {
+  /** Pagination to set (optional) */
+  pagination?: Pagination;
+  /** Parameters to set */
+  parameters?: Record<string, string>;
+}
+
 export interface EsAssetGroup {
   /** @format date-time */
   base_created_at?: string;
@@ -2252,6 +2259,31 @@ export interface EsEndpoint {
   endpoint_name?: string;
   endpoint_platform?: string;
   endpoint_seen_ip?: string;
+}
+
+export interface EsEntities {
+  /** List of data from elasticSearch */
+  es_datas: EsBase[];
+  /**
+   * Current page number
+   * @format int64
+   */
+  page_number: number;
+  /**
+   * Total datas per pages
+   * @format int64
+   */
+  page_size: number;
+  /**
+   * Total datas
+   * @format int64
+   */
+  total: number;
+  /**
+   * Current page number
+   * @format int64
+   */
+  total_pages: number;
 }
 
 export interface EsFinding {
@@ -5484,6 +5516,21 @@ export interface PageableObject {
   unpaged?: boolean;
 }
 
+export interface Pagination {
+  /**
+   * Page number to get
+   * @format int32
+   * @min 0
+   */
+  page: number;
+  /**
+   * Element number by page
+   * @format int32
+   * @max 1000
+   */
+  size: number;
+}
+
 export type Payload = BasePayload &
   (
     | BasePayloadPayloadTypeMapping<"Command", Command>
@@ -7769,6 +7816,8 @@ export interface WidgetLayout {
 export interface WidgetToEntitiesInput {
   /** Key-value pairs for filtering entities, where the key is the field name and the value is the filter criterion */
   filter_values_map?: Record<string, string[]>;
+  /** Pagination for the widget */
+  pagination?: Pagination;
   /** Additional parameters for the widget */
   parameters?: Record<string, string>;
   /**
@@ -7780,7 +7829,7 @@ export interface WidgetToEntitiesInput {
 
 export interface WidgetToEntitiesOutput {
   /** List of entities */
-  es_entities?: EsBase[];
+  es_entities?: EsEntities;
   /** List configuration generated based on the input widget id and filter value */
   list_configuration?: ListConfiguration;
 }

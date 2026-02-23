@@ -21,12 +21,14 @@ import io.openaev.engine.api.EngineSortField;
 import io.openaev.engine.api.HistogramInterval;
 import io.openaev.engine.api.ListConfiguration;
 import io.openaev.engine.api.SortDirection;
-import io.openaev.rest.dashboard.model.WidgetToEntitiesInput;
 import io.openaev.utils.CustomDashboardTimeRange;
+import io.openaev.utils.es.EntitiesPaginationInput;
+import io.openaev.utils.es.WidgetToEntitiesInput;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.pagination.Pagination;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.io.IOException;
@@ -109,7 +111,8 @@ class DashboardApiTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
 
-      assertThatJson(response).node("[0].base_id").isEqualTo(ep.getId());
+      assertThatJson(response).node("es_datas[0].base_id").isEqualTo(ep.getId());
+      assertThatJson(response).node("total").isEqualTo(1);
     }
 
     @Test
@@ -160,9 +163,10 @@ class DashboardApiTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
 
-      assertThatJson(response).node("[0].base_id").isEqualTo(epWrapper1.get().getId());
-      assertThatJson(response).node("[1].base_id").isEqualTo(epWrapper2.get().getId());
-      assertThatJson(response).node("[2].base_id").isEqualTo(epWrapper3.get().getId());
+      assertThatJson(response).node("total").isEqualTo(3);
+      assertThatJson(response).node("es_datas[0].base_id").isEqualTo(epWrapper1.get().getId());
+      assertThatJson(response).node("es_datas[1].base_id").isEqualTo(epWrapper2.get().getId());
+      assertThatJson(response).node("es_datas[2].base_id").isEqualTo(epWrapper3.get().getId());
     }
 
     @Test
@@ -253,26 +257,85 @@ class DashboardApiTest extends IntegrationTest {
       // completes before the data is available in the system
       Thread.sleep(1000);
 
+      EntitiesPaginationInput input = new EntitiesPaginationInput();
+      Map<String, String> params = new HashMap<>();
+      params.put(paramWrapper.get().getId(), exerciseWrapper1.get().getId());
+      input.setParameters(params);
       String response =
           mvc.perform(
                   post(DASHBOARD_URI + "/entities/" + widget.getId())
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(
-                          "{\"%s\":\"%s\"}"
-                              .formatted(
-                                  paramWrapper.get().getId(), exerciseWrapper1.get().getId())))
+                      .content(asJsonString(input)))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
               .getContentAsString();
 
       assertThatJson(response)
-          .node("[0].vulnerable_endpoint_id")
+          .node("es_datas[0].vulnerable_endpoint_id")
           .isEqualTo(epWrapper2.get().getId());
       assertThatJson(response)
-          .node("[1].vulnerable_endpoint_id")
+          .node("es_datas[1].vulnerable_endpoint_id")
           .isEqualTo(epWrapper1.get().getId());
-      assertThatJson(response).isArray().size().isEqualTo(2);
+      assertThatJson(response).node("es_datas").isArray().size().isEqualTo(2);
+      assertThatJson(response).node("total").isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("When paginating is specified, return entities paginated accordingly")
+    void WhenPaginatingIsSpecified_ReturnEntitiesPaginatedAccordingly() throws Exception {
+      endpointComposer.forEndpoint(EndpointFixture.createEndpoint("A")).persist().get();
+      endpointComposer.forEndpoint(EndpointFixture.createEndpoint("B")).persist().get();
+      Endpoint epC =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint("C")).persist().get();
+      Endpoint epD =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint("D")).persist().get();
+      endpointComposer.forEndpoint(EndpointFixture.createEndpoint("E")).persist().get();
+
+      Widget listWidget = WidgetFixture.createListWidgetWithEntity("endpoint");
+      EngineSortField sortField = new EngineSortField();
+      sortField.setFieldName("endpoint_name");
+      sortField.setDirection(SortDirection.ASC);
+      ((ListConfiguration) listWidget.getWidgetConfiguration()).setSorts(List.of(sortField));
+      Widget widget =
+          widgetComposer
+              .forWidget(listWidget)
+              .withCustomDashboard(
+                  customDashboardComposer.forCustomDashboard(
+                      CustomDashboardFixture.createCustomDashboardWithDefaultParams()))
+              .persist()
+              .get();
+
+      // force persistence
+      entityManager.flush();
+      entityManager.clear();
+      engineService.bulkProcessing(engineContext.getModels().stream());
+      // elastic needs to process the data; it does so async, so the method above
+      // completes before the data is available in the system
+      Thread.sleep(1000);
+
+      EntitiesPaginationInput input = new EntitiesPaginationInput();
+      Pagination pagination = new Pagination();
+      pagination.setPage(1);
+      pagination.setSize(2);
+      input.setPagination(pagination);
+
+      String response =
+          mvc.perform(
+                  post(DASHBOARD_URI + "/entities/" + widget.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThatJson(response).node("total").isEqualTo(5);
+      assertThatJson(response).node("page_number").isEqualTo(1);
+      assertThatJson(response).node("page_size").isEqualTo(2);
+      assertThatJson(response).node("total_pages").isEqualTo(3);
+      assertThatJson(response).node("es_datas[0].base_id").isEqualTo(epC.getId());
+      assertThatJson(response).node("es_datas[1].base_id").isEqualTo(epD.getId());
     }
   }
 
@@ -820,7 +883,8 @@ class DashboardApiTest extends IntegrationTest {
                 assertThatJson(filter).node("key").isEqualTo("endpoint_platform");
                 assertThatJson(filter).node("values").isArray().containsExactly("Windows");
               });
-      assertThatJson(response).node("es_entities").isArray().size().isEqualTo(2);
+      assertThatJson(response).node("es_entities.total").isEqualTo(2);
+      assertThatJson(response).node("es_entities.es_datas").isArray().size().isEqualTo(2);
     }
 
     @Test
@@ -907,11 +971,12 @@ class DashboardApiTest extends IntegrationTest {
                     .containsExactly("expectation-inject");
               });
       assertThatJson(response)
-          .node("es_entities")
+          .node("es_entities.es_datas")
           .isArray()
           .hasSize(6)
           .extracting("base_inject_side")
           .containsOnly(inject1.getId(), inject2.getId(), inject3.getId());
+      assertThatJson(response).node("es_entities.total").isEqualTo(6);
     }
 
     @Test
@@ -988,7 +1053,7 @@ class DashboardApiTest extends IntegrationTest {
                     .containsExactly(networkDomain.getId());
               });
 
-      assertThatJson(response).node("es_entities").isArray().hasSize(2);
+      assertThatJson(response).node("es_entities.es_datas").isArray().hasSize(2);
     }
   }
 }

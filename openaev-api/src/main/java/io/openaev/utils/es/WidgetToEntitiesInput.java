@@ -1,6 +1,7 @@
-package io.openaev.rest.dashboard.model;
+package io.openaev.utils.es;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.utils.pagination.Pagination;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import java.util.Map;
@@ -24,4 +25,8 @@ public class WidgetToEntitiesInput {
   @JsonProperty("parameters")
   @Schema(description = "Additional parameters for the widget")
   private Map<String, String> parameters;
+
+  @JsonProperty("pagination")
+  @Schema(description = "Pagination for the widget")
+  private Pagination pagination;
 }

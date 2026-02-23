@@ -29,7 +29,7 @@ public class DomainApi extends RestBehavior {
   @LogExecutionTime
   @Operation(summary = "Search Domains")
   @GetMapping(DOMAIN_URI)
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.DOMAIN)
   public List<Domain> domains() {
     return domainService.searchDomains();
   }
@@ -39,13 +39,13 @@ public class DomainApi extends RestBehavior {
   @AccessControl(
       resourceId = "#domainId",
       actionPerformed = Action.READ,
-      resourceType = ResourceType.PAYLOAD)
+      resourceType = ResourceType.DOMAIN)
   public Domain getDomain(@PathVariable String domainId) {
     return domainService.findById(domainId);
   }
 
   @PostMapping(DOMAIN_URI + "/{domainId}/upsert")
-  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.DOMAIN)
   @Transactional(rollbackOn = Exception.class)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The upserted domain")})
   @Operation(description = "Upsert a domain", summary = "Upsert domain")
