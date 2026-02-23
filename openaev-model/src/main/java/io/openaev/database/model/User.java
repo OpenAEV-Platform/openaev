@@ -9,11 +9,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MonoIdSerializer;
-import io.openaev.helper.MultiIdListSerializer;
-import io.openaev.helper.MultiIdSetSerializer;
-import io.openaev.helper.MultiModelSerializer;
-import io.openaev.helper.UserHelper;
+import io.openaev.helper.*;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -187,7 +183,8 @@ public class User implements Base {
 
   // -- RELATIONS --
 
-  @ArraySchema(schema = @Schema(description = "Group IDs of the user", type = "string"))
+  @ArraySchema(
+      schema = @Schema(description = "Group IDs of the user", implementation = String.class))
   @Setter
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
@@ -198,7 +195,8 @@ public class User implements Base {
   @JsonProperty("user_groups")
   private List<Group> groups = new ArrayList<>();
 
-  @ArraySchema(schema = @Schema(description = "Team IDs of the user", type = "string"))
+  @ArraySchema(
+      schema = @Schema(description = "Team IDs of the user", implementation = String.class))
   @Setter
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
@@ -210,7 +208,7 @@ public class User implements Base {
   @Queryable(dynamicValues = true, filterable = true, sortable = true, path = "teams.id")
   private List<Team> teams = new ArrayList<>();
 
-  @ArraySchema(schema = @Schema(description = "Tag IDs of the user", type = "string"))
+  @ArraySchema(schema = @Schema(description = "Tag IDs of the user", implementation = String.class))
   @Setter
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
@@ -222,7 +220,9 @@ public class User implements Base {
   @Queryable(dynamicValues = true, filterable = true, sortable = true, path = "tags.id")
   private Set<Tag> tags = new HashSet<>();
 
-  @ArraySchema(schema = @Schema(description = "Communication IDs of the user", type = "string"))
+  @ArraySchema(
+      schema =
+          @Schema(description = "Communication IDs of the user", implementation = String.class))
   @Setter
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
@@ -237,7 +237,7 @@ public class User implements Base {
       schema =
           @Schema(
               description = "List of 3-tuple linking simulation IDs and team IDs to this user ID",
-              type = "string"))
+              implementation = String.class))
   @OneToMany(
       mappedBy = "user",
       fetch = FetchType.LAZY,

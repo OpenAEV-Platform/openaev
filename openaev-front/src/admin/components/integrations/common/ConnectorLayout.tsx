@@ -1,5 +1,5 @@
 import { capitalize } from '@mui/material';
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useState } from 'react';
 import { Outlet, useParams } from 'react-router';
 
 import { fetchConnector, isXtmComposerIsReachable } from '../../../../actions/catalog/catalog-actions';
@@ -38,7 +38,6 @@ const ConnectorLayout = () => {
   const dispatch = useAppDispatch();
   const [loading, setLoading] = useState<boolean>(true);
   const [relatedIds, setRelatedIds] = useState<ConnectorIds>();
-  const [isRelatedIdsLoaded, setIsRelatedIdsLoaded] = useState<boolean>(false);
   const [isXtmComposerUp, setIsXtmComposerUp] = useState<boolean>(false);
 
   const getConnectorHelper = () => {
@@ -59,34 +58,33 @@ const ConnectorLayout = () => {
   const { connector: catalogConnector } = useHelper((helper: CatalogConnectorsHelper) => ({ connector: helper.getCatalogConnector(relatedIds?.catalog_connector_id ?? '') }));
   const { instance } = useHelper((helper: ConnectorInstanceHelper) => ({ instance: helper.getConnectorInstance(relatedIds?.connector_instance_id ?? '') }));
 
-  useEffect(() => {
+  useDataLoader(() => {
     isXtmComposerIsReachable().then(({ data }) => setIsXtmComposerUp(data));
+
     if (!connectorId) {
       setLoading(false);
+      setRelatedIds(undefined);
       return;
     }
-    setIsRelatedIdsLoaded(false);
+    setLoading(true);
     apiRequest.getRelatedIds(connectorId).then(({ data }: { data: ConnectorIds }) => {
-      setRelatedIds(data);
-      setIsRelatedIdsLoaded(true);
-    });
-  }, [connectorId]);
-
-  useDataLoader(() => {
-    if (!isRelatedIdsLoaded || !connectorId) {
-      return;
-    }
-    const promises: Promise<typeof store.dispatch>[] = [
-      dispatch(apiRequest.fetchSingle(connectorId)),
-    ];
-    if (relatedIds?.catalog_connector_id) {
-      promises.push(dispatch(fetchConnector(relatedIds.catalog_connector_id)));
-    }
-    if (relatedIds?.connector_instance_id) {
-      promises.push(dispatch(fetchConnectorInstance(relatedIds.connector_instance_id)));
-    }
-    Promise.all(promises).finally(() => setLoading(false));
-  }, [isRelatedIdsLoaded]);
+      if (!data) {
+        setLoading(false);
+      } else {
+        setRelatedIds(data);
+        const promises: Promise<typeof store.dispatch>[] = [
+          dispatch(apiRequest.fetchSingle(connectorId)),
+        ];
+        if (data?.catalog_connector_id) {
+          promises.push(dispatch(fetchConnector(data.catalog_connector_id)));
+        }
+        if (data?.connector_instance_id) {
+          promises.push(dispatch(fetchConnectorInstance(data.connector_instance_id)));
+        }
+        Promise.all(promises).finally(() => setLoading(false));
+      }
+    }).catch(() => setLoading(false));
+  }, [connectorId, apiRequest, dispatch]);
 
   const breadcrumbElements = connectorId
     ? [

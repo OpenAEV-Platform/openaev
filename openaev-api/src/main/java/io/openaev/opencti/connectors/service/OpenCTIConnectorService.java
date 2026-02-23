@@ -5,13 +5,13 @@ import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.opencti.service.OpenCTIService;
 import io.openaev.stix.objects.Bundle;
+import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -22,12 +22,13 @@ public class OpenCTIConnectorService {
   private final OpenCTIService openCTIService;
 
   @NotNull
-  private Optional<ConnectorBase> getConnectorBase() {
+  public Optional<SecurityCoverageConnector> getConnectorBase() {
     // don't examine the bundle
     // pick the first occurrence of the correct connector type
     // it's not supported yet to have more than one active connector of each type
     return connectors.stream()
         .filter(c -> c instanceof SecurityCoverageConnector && c.shouldRegister())
+        .map(c -> (SecurityCoverageConnector) c)
         .findFirst();
   }
 
@@ -56,7 +57,7 @@ public class OpenCTIConnectorService {
   }
 
   public void pushSecurityCoverageStixBundle(Bundle bundle) throws ConnectorError, IOException {
-    Optional<ConnectorBase> connector = getConnectorBase();
+    Optional<SecurityCoverageConnector> connector = getConnectorBase();
 
     if (connector.isEmpty()) {
       throw new ConnectorError(
@@ -67,7 +68,7 @@ public class OpenCTIConnectorService {
   }
 
   public void acknowledgeReceivedOfCoverage(String workId, String message) {
-    Optional<ConnectorBase> connector = getConnectorBase();
+    Optional<SecurityCoverageConnector> connector = getConnectorBase();
 
     if (connector.isPresent()) {
       try {
@@ -79,7 +80,7 @@ public class OpenCTIConnectorService {
   }
 
   public void acknowledgeProcessedOfCoverage(String workId, String message, Boolean inError) {
-    Optional<ConnectorBase> connector = getConnectorBase();
+    Optional<SecurityCoverageConnector> connector = getConnectorBase();
 
     if (connector.isPresent()) {
       try {

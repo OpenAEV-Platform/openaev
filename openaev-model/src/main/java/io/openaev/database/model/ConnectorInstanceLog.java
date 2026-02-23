@@ -44,4 +44,8 @@ public class ConnectorInstanceLog implements Base {
   @JsonProperty("connector_instance_log_created_at")
   @Schema(description = "Connector instance log created at")
   private Instant connector_instance_log_created_at = Instant.now();
+
+  @Getter(onMethod_ = @JsonIgnore)
+  @Transient
+  private final ResourceType resourceType = ResourceType.CONNECTOR_INSTANCE_LOG;
 }

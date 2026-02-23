@@ -21,13 +21,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.mock.web.MockPart;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
@@ -37,8 +37,8 @@ import org.springframework.web.client.RestTemplate;
 public class AttackPatternApiTest extends IntegrationTest {
   @Autowired private Environment env;
 
-  @MockBean private RestTemplate mockRestTemplate;
-  @MockBean private EnterpriseEditionService mockEnterpriseEditionService;
+  @MockitoBean private RestTemplate mockRestTemplate;
+  @MockitoBean private EnterpriseEditionService mockEnterpriseEditionService;
 
   @Autowired private MockMvc mvc;
   @Autowired private AttackPatternRepository attackPatternRepository;

@@ -5,7 +5,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class FlatConfiguration extends WidgetConfiguration {
+public class FlatConfiguration extends WidgetConfigurationWithSeries {
 
   public FlatConfiguration() {
     super(WidgetConfigurationType.FLAT);

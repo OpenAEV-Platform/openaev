@@ -295,12 +295,14 @@ public class InjectSearchService {
     Map<String, Join<Base, Base>> joinMap = new HashMap<>();
 
     Specification<Inject> customSpec =
-        Specification.where(
-            (root, query, cb) -> {
-              Predicate predicate = cb.conjunction();
-              predicate = cb.and(predicate, cb.equal(root.get("exercise").get("id"), exerciseId));
-              return predicate;
-            });
+        Specification.<Inject>unrestricted()
+            .and(
+                (root, query, cb) -> {
+                  Predicate predicate = cb.conjunction();
+                  predicate =
+                      cb.and(predicate, cb.equal(root.get("exercise").get("id"), exerciseId));
+                  return predicate;
+                });
 
     return buildPaginationCriteriaBuilder(
         (Specification<Inject> specification,
@@ -337,8 +339,8 @@ public class InjectSearchService {
   public List<InjectResultOutput> getListOfInjectResults(String exerciseId) {
     // Create specification for filtering by exerciseId
     Specification<Inject> specification =
-        Specification.where(
-            (root, query, cb) -> cb.equal(root.get("exercise").get("id"), exerciseId));
+        Specification.<Inject>unrestricted()
+            .and((root, query, cb) -> cb.equal(root.get("exercise").get("id"), exerciseId));
 
     // Prepare query and execute
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();

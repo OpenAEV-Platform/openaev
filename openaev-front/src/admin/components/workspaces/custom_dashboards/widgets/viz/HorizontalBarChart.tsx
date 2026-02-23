@@ -4,14 +4,14 @@ import Chart from 'react-apexcharts';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../../../components/i18n';
-import { type DateHistogramWidget, type StructuralHistogramWidget, type Widget } from '../../../../../../utils/api-types';
+import { type StructuralHistogramWidget } from '../../../../../../utils/api-types';
 import { horizontalBarsChartOptions } from '../../../../../../utils/Charts';
 import { CustomDashboardContext } from '../../CustomDashboardContext';
 import { type SerieData } from '../WidgetViz';
 
 interface Props {
   widgetId: string;
-  widgetConfig: Widget['widget_config'];
+  widgetConfig: StructuralHistogramWidget;
   series: ApexAxisChartSeries;
 }
 
@@ -32,7 +32,7 @@ const HorizontalBarChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, 
     const dataPoint = series[config.seriesIndex].data[config.dataPointIndex] as SerieData;
     openWidgetDataDrawer({
       widgetId,
-      filter_values: [dataPoint?.meta ?? ''],
+      filter_values_map: { [widgetConfig.field]: [dataPoint?.meta ?? ''] },
       series_index: config.seriesIndex,
     });
   }, [series, openWidgetDataDrawer, widgetId]);
@@ -40,7 +40,7 @@ const HorizontalBarChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, 
   // Memoize widget mode
   const widgetMode = useMemo((): string => {
     if (widgetConfig.widget_configuration_type === 'temporal-histogram' || widgetConfig.widget_configuration_type === 'structural-histogram') {
-      return (widgetConfig as DateHistogramWidget | StructuralHistogramWidget).mode;
+      return widgetConfig.mode;
     }
     return 'structural';
   }, [widgetConfig]);

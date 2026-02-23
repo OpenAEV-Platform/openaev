@@ -3,7 +3,6 @@ package io.openaev.rest;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -143,7 +142,7 @@ public class MapperApiTest extends IntegrationTest {
     String response =
         this.mvc
             .perform(
-                MockMvcRequestBuilders.post("/api/mappers/")
+                MockMvcRequestBuilders.post("/api/mappers")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(asJsonString(importMapperInput)))
             .andExpect(status().is2xxSuccessful())

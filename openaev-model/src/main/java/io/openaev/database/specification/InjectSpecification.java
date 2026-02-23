@@ -44,7 +44,7 @@ public class InjectSpecification {
   public static Specification<Inject> fromScenarioOrSimulation(String scenarioOrSimulationId) {
     if (StringUtils.isBlank(scenarioOrSimulationId)) {
       // Return an empty specification
-      return Specification.where(null);
+      return Specification.unrestricted();
     }
     return fromSimulation(scenarioOrSimulationId).or(fromScenario(scenarioOrSimulationId));
   }
@@ -76,7 +76,8 @@ public class InjectSpecification {
   }
 
   public static Specification<Inject> forAtomicTesting() {
-    return Specification.where(isAtomicTesting())
+    return Specification.<Inject>unrestricted()
+        .and(isAtomicTesting())
         .and((root, query, cb) -> cb.equal(root.get("status").get("name"), ExecutionStatus.QUEUING))
         .and(
             (root, query, cb) ->

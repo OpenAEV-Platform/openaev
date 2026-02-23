@@ -6,8 +6,8 @@ import io.openaev.database.model.Endpoint;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.data.jpa.domain.Specification;
 
 public class EndpointSpecification {

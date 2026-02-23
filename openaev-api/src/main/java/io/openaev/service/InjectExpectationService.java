@@ -564,13 +564,14 @@ public class InjectExpectationService {
    */
   public List<InjectExpectation> preventionExpectationsNotExpired(final Integer expirationTime) {
     return this.injectExpectationRepository.findAll(
-        Specification.where(
-            InjectExpectationSpecification.type(PREVENTION)
-                .and(InjectExpectationSpecification.agentNotNull())
-                .and(InjectExpectationSpecification.assetNotNull())
-                .and(
-                    InjectExpectationSpecification.from(
-                        Instant.now().minus(expirationTime, ChronoUnit.MINUTES)))));
+        Specification.<InjectExpectation>unrestricted()
+            .and(
+                InjectExpectationSpecification.type(PREVENTION)
+                    .and(InjectExpectationSpecification.agentNotNull())
+                    .and(InjectExpectationSpecification.assetNotNull())
+                    .and(
+                        InjectExpectationSpecification.from(
+                            Instant.now().minus(expirationTime, ChronoUnit.MINUTES)))));
   }
 
   /**
@@ -581,7 +582,9 @@ public class InjectExpectationService {
    */
   public List<InjectExpectation> preventionExpectationsNotFill(@NotBlank final String sourceId) {
     return this.injectExpectationRepository
-        .findAll(Specification.where(InjectExpectationSpecification.type(PREVENTION)))
+        .findAll(
+            Specification.<InjectExpectation>unrestricted()
+                .and(InjectExpectationSpecification.type(PREVENTION)))
         .stream()
         .filter(ExpectationUtils::isAgentExpectation)
         .filter(e -> hasNoResult(e.getResults(), sourceId))
@@ -595,7 +598,9 @@ public class InjectExpectationService {
    */
   public List<InjectExpectation> preventionExpectationsNotFill() {
     return this.injectExpectationRepository
-        .findAll(Specification.where(InjectExpectationSpecification.type(PREVENTION)))
+        .findAll(
+            Specification.<InjectExpectation>unrestricted()
+                .and(InjectExpectationSpecification.type(PREVENTION)))
         .stream()
         .filter(ExpectationUtils::isAgentExpectation)
         .filter(e -> hasNoResults(e.getResults()))
@@ -635,13 +640,14 @@ public class InjectExpectationService {
    */
   public List<InjectExpectation> detectionExpectationsNotExpired(final Integer expirationTime) {
     return this.injectExpectationRepository.findAll(
-        Specification.where(
-            InjectExpectationSpecification.type(DETECTION)
-                .and(InjectExpectationSpecification.agentNotNull())
-                .and(InjectExpectationSpecification.assetNotNull())
-                .and(
-                    InjectExpectationSpecification.from(
-                        Instant.now().minus(expirationTime, ChronoUnit.MINUTES)))));
+        Specification.<InjectExpectation>unrestricted()
+            .and(
+                InjectExpectationSpecification.type(DETECTION)
+                    .and(InjectExpectationSpecification.agentNotNull())
+                    .and(InjectExpectationSpecification.assetNotNull())
+                    .and(
+                        InjectExpectationSpecification.from(
+                            Instant.now().minus(expirationTime, ChronoUnit.MINUTES)))));
   }
 
   /**
@@ -652,7 +658,9 @@ public class InjectExpectationService {
    */
   public List<InjectExpectation> detectionExpectationsNotFill(@NotBlank final String sourceId) {
     return this.injectExpectationRepository
-        .findAll(Specification.where(InjectExpectationSpecification.type(DETECTION)))
+        .findAll(
+            Specification.<InjectExpectation>unrestricted()
+                .and(InjectExpectationSpecification.type(DETECTION)))
         .stream()
         .filter(ExpectationUtils::isAgentExpectation)
         .filter(e -> hasNoResult(e.getResults(), sourceId))
@@ -666,7 +674,9 @@ public class InjectExpectationService {
    */
   public List<InjectExpectation> detectionExpectationsNotFill() {
     return this.injectExpectationRepository
-        .findAll(Specification.where(InjectExpectationSpecification.type(DETECTION)))
+        .findAll(
+            Specification.<InjectExpectation>unrestricted()
+                .and(InjectExpectationSpecification.type(DETECTION)))
         .stream()
         .filter(ExpectationUtils::isAgentExpectation)
         .filter(e -> hasNoResults(e.getResults()))
@@ -707,13 +717,14 @@ public class InjectExpectationService {
    */
   public List<InjectExpectation> manualExpectationsNotExpired(final Integer expirationTime) {
     return this.injectExpectationRepository.findAll(
-        Specification.where(
-            InjectExpectationSpecification.type(MANUAL)
-                .and(InjectExpectationSpecification.agentNotNull())
-                .and(InjectExpectationSpecification.assetNotNull())
-                .and(
-                    InjectExpectationSpecification.from(
-                        Instant.now().minus(expirationTime, ChronoUnit.MINUTES)))));
+        Specification.<InjectExpectation>unrestricted()
+            .and(
+                InjectExpectationSpecification.type(MANUAL)
+                    .and(InjectExpectationSpecification.agentNotNull())
+                    .and(InjectExpectationSpecification.assetNotNull())
+                    .and(
+                        InjectExpectationSpecification.from(
+                            Instant.now().minus(expirationTime, ChronoUnit.MINUTES)))));
   }
 
   /**
@@ -724,7 +735,9 @@ public class InjectExpectationService {
    */
   public List<InjectExpectation> manualExpectationsNotFill(@NotBlank final String sourceId) {
     return this.injectExpectationRepository
-        .findAll(Specification.where(InjectExpectationSpecification.type(MANUAL)))
+        .findAll(
+            Specification.<InjectExpectation>unrestricted()
+                .and(InjectExpectationSpecification.type(MANUAL)))
         .stream()
         .filter(e -> hasNoResult(e.getResults(), sourceId))
         .toList();
@@ -737,7 +750,9 @@ public class InjectExpectationService {
    */
   public List<InjectExpectation> manualExpectationsNotFill() {
     return this.injectExpectationRepository
-        .findAll(Specification.where(InjectExpectationSpecification.type(MANUAL)))
+        .findAll(
+            Specification.<InjectExpectation>unrestricted()
+                .and(InjectExpectationSpecification.type(MANUAL)))
         .stream()
         .filter(e -> hasNoResults(e.getResults()))
         .toList();
@@ -1010,8 +1025,6 @@ public class InjectExpectationService {
 
     List<InjectExpectation> injectExpectations = new ArrayList<>();
     if (!teams.isEmpty()) {
-      final String exerciseId = executableInject.getInjection().getExercise().getId();
-
       List<InjectExpectation> injectExpectationsByUserAndTeam;
       // If atomicTesting, We create expectation for every player and every team
       if (isAtomicTesting) {
@@ -1047,6 +1060,7 @@ public class InjectExpectationService {
                                                     expectationPropertiesConfig))))
                 .toList();
       } else {
+        final String exerciseId = executableInject.getInjection().getExercise().getId();
         // Create expectations for every enabled player in every team
         injectExpectationsByUserAndTeam =
             teams.stream()

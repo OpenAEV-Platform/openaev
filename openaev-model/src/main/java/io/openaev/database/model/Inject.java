@@ -15,6 +15,11 @@ import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.converter.ContentConverter;
 import io.openaev.helper.*;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.openaev.helper.InjectModelHelper;
+import io.openaev.helper.MonoIdSerializer;
+import io.openaev.helper.MultiIdListSerializer;
+import io.openaev.helper.MultiIdSetSerializer;
+import io.openaev.helper.MultiModelSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
@@ -127,7 +132,7 @@ public class Inject implements GrantableBase, Injection {
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonDeserialize(using = MonoIdDeserializerHelper.class)
   @JsonProperty("inject_exercise")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Exercise exercise;
 
   @Getter
@@ -136,7 +141,7 @@ public class Inject implements GrantableBase, Injection {
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonDeserialize(using = MonoIdDeserializerHelper.class)
   @JsonProperty("inject_scenario")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Scenario scenario;
 
   @Getter
@@ -175,7 +180,7 @@ public class Inject implements GrantableBase, Injection {
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonDeserialize(using = MonoIdDeserializerHelper.class)
   @JsonProperty("inject_user")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private User user;
 
   // CascadeType.ALL is required here because inject status are embedded
@@ -196,7 +201,7 @@ public class Inject implements GrantableBase, Injection {
     this.status = status;
   }
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @Getter
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
@@ -215,7 +220,7 @@ public class Inject implements GrantableBase, Injection {
     this.tags = tags;
   }
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @Getter
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
@@ -234,7 +239,7 @@ public class Inject implements GrantableBase, Injection {
     this.teams = teams;
   }
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @Getter
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
@@ -253,7 +258,7 @@ public class Inject implements GrantableBase, Injection {
     this.assets = assets;
   }
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @Getter
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
@@ -273,7 +278,7 @@ public class Inject implements GrantableBase, Injection {
   }
 
   // CascadeType.ALL is required here because of complex relationships
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @Getter
   @OneToMany(
       mappedBy = "inject",
@@ -286,7 +291,7 @@ public class Inject implements GrantableBase, Injection {
   private List<InjectDocument> documents = new ArrayList<>();
 
   // CascadeType.ALL is required here because communications are embedded
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @Getter
   @OneToMany(
       mappedBy = "inject",
@@ -299,7 +304,7 @@ public class Inject implements GrantableBase, Injection {
   private List<Communication> communications = new ArrayList<>();
 
   // CascadeType.ALL is required here because expectations are embedded
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @Getter
   @OneToMany(
       mappedBy = "inject",

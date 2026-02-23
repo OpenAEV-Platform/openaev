@@ -49,7 +49,7 @@ public class ManualInjectorIntegrationFactory extends IntegrationFactory {
 
   @Override
   protected final String getClassName() {
-    return this.getClass().getCanonicalName();
+    return ManualInjectorIntegrationFactory.class.getCanonicalName();
   }
 
   @Override

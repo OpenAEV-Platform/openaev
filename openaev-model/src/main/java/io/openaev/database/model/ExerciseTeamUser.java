@@ -19,7 +19,7 @@ public class ExerciseTeamUser {
   @JoinColumn(name = "exercise_id")
   @JsonProperty("exercise_id")
   @JsonSerialize(using = MonoIdSerializer.class)
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Exercise exercise;
 
   @ManyToOne(fetch = FetchType.LAZY)
@@ -27,7 +27,7 @@ public class ExerciseTeamUser {
   @JoinColumn(name = "team_id")
   @JsonProperty("team_id")
   @JsonSerialize(using = MonoIdSerializer.class)
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Team team;
 
   @ManyToOne(fetch = FetchType.LAZY)
@@ -35,7 +35,7 @@ public class ExerciseTeamUser {
   @JoinColumn(name = "user_id")
   @JsonProperty("user_id")
   @JsonSerialize(using = MonoIdSerializer.class)
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private User user;
 
   public ExerciseTeamUserId getCompositeId() {

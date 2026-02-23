@@ -37,7 +37,7 @@ public class Evaluation implements Base {
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("evaluation_objective")
   @NotNull
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Objective objective;
 
   @ManyToOne(fetch = FetchType.LAZY)
@@ -45,7 +45,7 @@ public class Evaluation implements Base {
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("evaluation_user")
   @NotNull
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private User user;
 
   @Column(name = "evaluation_score")

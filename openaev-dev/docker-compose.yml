@@ -230,7 +230,7 @@ services:
       openaev-test-elasticsearch:
         condition: service_healthy
   rsa-key-generator:
-    image: alpine/openssl:3.5.4
+    image: alpine/openssl:3.5.5
     volumes:
       - rsakeys:/keys
     entrypoint: [ "/bin/ash" ]

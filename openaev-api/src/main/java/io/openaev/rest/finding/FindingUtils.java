@@ -2,7 +2,7 @@ package io.openaev.rest.finding;
 
 import io.openaev.database.model.*;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
-import org.jetbrains.annotations.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 public final class FindingUtils {
 

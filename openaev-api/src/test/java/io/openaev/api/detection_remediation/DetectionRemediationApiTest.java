@@ -33,9 +33,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,11 +45,11 @@ import org.springframework.transaction.annotation.Transactional;
 @DisplayName("Get detection and remediation rule using AI")
 public class DetectionRemediationApiTest extends IntegrationTest {
 
-  @MockBean private EnterpriseEditionService enterpriseEdition;
+  @MockitoBean private EnterpriseEditionService enterpriseEdition;
 
-  @MockBean private CloseableHttpClient httpClient;
+  @MockitoBean private CloseableHttpClient httpClient;
 
-  @MockBean private HttpClientFactory httpClientFactory;
+  @MockitoBean private HttpClientFactory httpClientFactory;
 
   @Autowired private MockMvc mockMvc;
 

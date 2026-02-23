@@ -12,15 +12,10 @@ import javax.net.ssl.SSLContext;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
-import org.apache.hc.client5.http.impl.io.BasicHttpClientConnectionManager;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.client5.http.io.HttpClientConnectionManager;
-import org.apache.hc.client5.http.socket.ConnectionSocketFactory;
-import org.apache.hc.client5.http.socket.PlainConnectionSocketFactory;
-import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
-import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
-import org.apache.hc.core5.http.config.Registry;
-import org.apache.hc.core5.http.config.RegistryBuilder;
+import org.apache.hc.client5.http.ssl.ClientTlsStrategyBuilder;
+import org.apache.hc.client5.http.ssl.TlsSocketStrategy;
 import org.apache.hc.core5.ssl.SSLContextBuilder;
 import org.apache.hc.core5.ssl.SSLContexts;
 import org.apache.hc.core5.ssl.TrustStrategy;
@@ -123,8 +118,8 @@ public final class RabbitMQHelper {
           CertificateException {
     RestTemplate restTemplate =
         new RestTemplateBuilder()
-            .setConnectTimeout(Duration.ofSeconds(2))
-            .setReadTimeout(Duration.ofSeconds(2))
+            .connectTimeout(Duration.ofSeconds(2))
+            .readTimeout(Duration.ofSeconds(2))
             .build();
 
     if (rabbitmqConfig.isSsl() && rabbitmqConfig.isManagementInsecure()) {
@@ -134,16 +129,15 @@ public final class RabbitMQHelper {
       TrustStrategy acceptingTrustStrategy = (cert, authType) -> true;
       SSLContext sslContext =
           SSLContexts.custom().loadTrustMaterial(null, acceptingTrustStrategy).build();
-      SSLConnectionSocketFactory sslsf =
-          new SSLConnectionSocketFactory(sslContext, NoopHostnameVerifier.INSTANCE);
-      Registry<ConnectionSocketFactory> socketFactoryRegistry =
-          RegistryBuilder.<ConnectionSocketFactory>create()
-              .register("https", sslsf)
-              .register("http", new PlainConnectionSocketFactory())
+      TlsSocketStrategy tlsStrategy =
+          ClientTlsStrategyBuilder.create()
+              .setSslContext(sslContext)
+              .setHostnameVerifier((hostname, session) -> true) // Noop
+              .buildClassic();
+      HttpClientConnectionManager connectionManager =
+          PoolingHttpClientConnectionManagerBuilder.create()
+              .setTlsSocketStrategy(tlsStrategy)
               .build();
-
-      BasicHttpClientConnectionManager connectionManager =
-          new BasicHttpClientConnectionManager(socketFactoryRegistry);
       CloseableHttpClient httpClient =
           HttpClients.custom().setConnectionManager(connectionManager).build();
       requestFactoryHttp.setHttpClient(httpClient);
@@ -155,10 +149,11 @@ public final class RabbitMQHelper {
                   rabbitmqConfig.getTrustStore().getURL(),
                   rabbitmqConfig.getTrustStorePassword().toCharArray())
               .build();
-      SSLConnectionSocketFactory sslConFactory = new SSLConnectionSocketFactory(sslContext);
+      TlsSocketStrategy tlsStrategy =
+          ClientTlsStrategyBuilder.create().setSslContext(sslContext).buildClassic();
       HttpClientConnectionManager cm =
           PoolingHttpClientConnectionManagerBuilder.create()
-              .setSSLSocketFactory(sslConFactory)
+              .setTlsSocketStrategy(tlsStrategy)
               .build();
       CloseableHttpClient httpClient = HttpClients.custom().setConnectionManager(cm).build();
       ClientHttpRequestFactory requestFactory =

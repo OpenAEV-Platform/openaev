@@ -15,20 +15,16 @@ import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.integration.migration.SentinelOneExecutorConfigurationMigration;
-import io.openaev.service.AgentService;
-import io.openaev.service.AssetGroupService;
-import io.openaev.service.EndpointService;
-import io.openaev.service.FileService;
+import io.openaev.service.*;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.stereotype.Service;
 
-// FIXME: this disables the executor altogether, but is not a feature flag. Revert right after
-// release
-// @Service
+@Service
 @Profile("!test")
 @Slf4j
 public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
@@ -80,7 +76,7 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
 
   @Override
   protected final String getClassName() {
-    return this.getClass().getCanonicalName();
+    return SentinelOneExecutorIntegrationFactory.class.getCanonicalName();
   }
 
   @Override
@@ -101,8 +97,8 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
     connector.setLogoUrl(logoFilename);
     connector.setDescription(
         """
-                With SentinelOne executor register your asset in OpenAEV and enable execution of OpenAEV scenarios through your SentinelOne instance.
-                """);
+                    With SentinelOne executor register your asset in OpenAEV and enable execution of OpenAEV scenarios through your SentinelOne instance.
+                    """);
     connector.setShortDescription(
         "Enable execution of OpenAEV scenarios through your SentinelOne instance.");
     connector.setClassName(getClassName());

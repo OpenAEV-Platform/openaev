@@ -6,9 +6,11 @@ import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.ConnectorType;
 import io.openaev.utils.StringUtils;
+import jakarta.validation.Valid;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
+import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
@@ -20,11 +22,12 @@ public class SecurityCoverageConnector extends ConnectorBase {
   private final String id = "68949a7b-c1c2-4649-b3de-7db804ba02bb";
 
   // need to access the base URL for overriding the callback URI
-  @Autowired private OpenCTIConfig openctiConfig;
-  @Autowired private OpenAEVConfig mainConfig;
+  @Autowired @Valid private OpenCTIConfig openctiConfig;
+  @Autowired @Valid private OpenAEVConfig mainConfig;
 
   private final ConnectorType type = ConnectorType.INTERNAL_ENRICHMENT;
   private final String name = "OpenAEV Coverage";
+  @Setter private volatile String jwks;
 
   public SecurityCoverageConnector() {
     this.setScope(new ArrayList<>(List.of("security-coverage")));

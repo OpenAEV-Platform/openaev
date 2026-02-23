@@ -69,8 +69,8 @@ const WidgetForm: FunctionComponent<Props> = ({
         })),
         date_attribute: z.string().min(1, { error: t('Should not be empty') }),
         time_range: z.enum(['DEFAULT', 'ALL_TIME', 'CUSTOM', 'LAST_DAY', 'LAST_WEEK', 'LAST_MONTH', 'LAST_QUARTER', 'LAST_SEMESTER', 'LAST_YEAR']),
-        start: z.string().optional(),
-        end: z.string().optional(),
+        start: z.string().optional().nullable(),
+        end: z.string().optional().nullable(),
       }),
       // AverageConfiguration
       z.object({
@@ -82,8 +82,8 @@ const WidgetForm: FunctionComponent<Props> = ({
         })),
         date_attribute: z.string().min(1, { error: t('Should not be empty') }),
         time_range: z.enum(['DEFAULT', 'ALL_TIME', 'CUSTOM', 'LAST_DAY', 'LAST_WEEK', 'LAST_MONTH', 'LAST_QUARTER', 'LAST_SEMESTER', 'LAST_YEAR']),
-        start: z.string().optional(),
-        end: z.string().optional(),
+        start: z.string().optional().nullable(),
+        end: z.string().optional().nullable(),
       }),
       // DateHistogramConfiguration
       z.object({
@@ -92,8 +92,8 @@ const WidgetForm: FunctionComponent<Props> = ({
         title: z.string().optional(),
         date_attribute: z.string().min(1, { error: t('Should not be empty') }),
         time_range: z.enum(['DEFAULT', 'ALL_TIME', 'CUSTOM', 'LAST_DAY', 'LAST_WEEK', 'LAST_MONTH', 'LAST_QUARTER', 'LAST_SEMESTER', 'LAST_YEAR']),
-        start: z.string().optional(),
-        end: z.string().optional(),
+        start: z.string().optional().nullable(),
+        end: z.string().optional().nullable(),
         interval: z.enum(['year', 'month', 'week', 'day', 'hour', 'quarter']),
         stacked: z.boolean().optional(),
         display_legend: z.boolean().optional(),
@@ -110,8 +110,8 @@ const WidgetForm: FunctionComponent<Props> = ({
         field: z.string().min(1, { error: t('Should not be empty') }),
         date_attribute: z.string().min(1, { error: t('Should not be empty') }),
         time_range: z.enum(['DEFAULT', 'ALL_TIME', 'CUSTOM', 'LAST_DAY', 'LAST_WEEK', 'LAST_MONTH', 'LAST_QUARTER', 'LAST_SEMESTER', 'LAST_YEAR']),
-        start: z.string().optional(),
-        end: z.string().optional(),
+        start: z.string().optional().nullable(),
+        end: z.string().optional().nullable(),
         stacked: z.boolean().optional(),
         display_legend: z.boolean().optional(),
         limit: z.number()
@@ -129,8 +129,8 @@ const WidgetForm: FunctionComponent<Props> = ({
         title: z.string().optional(),
         date_attribute: z.string().min(1, { error: t('Should not be empty') }),
         time_range: z.enum(['DEFAULT', 'ALL_TIME', 'CUSTOM', 'LAST_DAY', 'LAST_WEEK', 'LAST_MONTH', 'LAST_QUARTER', 'LAST_SEMESTER', 'LAST_YEAR']),
-        start: z.string().optional(),
-        end: z.string().optional(),
+        start: z.string().optional().nullable(),
+        end: z.string().optional().nullable(),
         sorts: z.array(z.object({
           direction: z.literal('ASC').or(z.literal('DESC')),
           fieldName: z.string(),
@@ -144,10 +144,6 @@ const WidgetForm: FunctionComponent<Props> = ({
           name: z.string().optional(),
           filter: z.any().optional().refine(val => val !== undefined, { error: 'Filter cannot be undefined' }),
         }),
-        series: z.array(z.object({
-          name: z.string().optional(),
-          filter: z.any().optional().refine(val => val !== undefined, { error: 'Filter cannot be undefined' }),
-        })),
       }),
     ]);
 
@@ -210,7 +206,7 @@ const WidgetForm: FunctionComponent<Props> = ({
     onClose();
   };
 
-  const handleSubmitWithoutPropagation = async () => {
+  const handleSubmitWithoutPropagation = () => {
     handleSubmit((values) => {
       onSubmit(values);
       onClose();
@@ -256,7 +252,6 @@ const WidgetForm: FunctionComponent<Props> = ({
                 onChange={onChange}
                 onSubmit={nextStep}
               />
-
             )}
           />
         );

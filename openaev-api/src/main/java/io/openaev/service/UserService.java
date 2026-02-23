@@ -6,6 +6,7 @@ import static io.openaev.helper.DatabaseHelper.updateRelation;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static java.time.Instant.now;
 
+import io.openaev.config.DefaultOpenAEVPrincipal;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.SessionManager;
@@ -23,10 +24,11 @@ import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -48,6 +50,9 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public class UserService {
   @Resource private SessionManager sessionManager;
+
+  @Value("${openbas.admin.email:${openaev.admin.email:#{null}}}")
+  private String adminEmail;
 
   /** Password encoder using Argon2 algorithm (Spring Security 5.8 defaults). */
   private final Argon2PasswordEncoder passwordEncoder =
@@ -129,6 +134,12 @@ public class UserService {
     SecurityContextHolder.setContext(context);
   }
 
+  /** Creates admin security session */
+  public void createAdminSession() {
+    User adminUser = this.userRepository.findByEmailIgnoreCase(this.adminEmail).orElseThrow();
+    this.createUserSession(adminUser);
+  }
+
   /**
    * Encodes a plaintext password using Argon2.
    *
@@ -184,6 +195,11 @@ public class UserService {
    * @return the created user
    */
   public User createUser(CreateUserInput input, int status) {
+    // Check for existing user with same email
+    if (userRepository.findByEmailIgnoreCase(input.getEmail()).isPresent()) {
+      throw new DataIntegrityViolationException(
+          "User with email " + input.getEmail() + " already exists");
+    }
     User user = new User();
     user.setUpdateAttributes(input);
     user.setStatus((short) status);
@@ -320,30 +336,11 @@ public class UserService {
     if (user.isAdmin()) {
       roles.add(new SimpleGrantedAuthority(ROLE_ADMIN));
     }
-    return new PreAuthenticatedAuthenticationToken(
-        new OpenAEVPrincipal() {
-          @Override
-          public String getId() {
-            return user.getId();
-          }
 
-          @Override
-          public Collection<? extends GrantedAuthority> getAuthorities() {
-            return roles;
-          }
+    OpenAEVPrincipal principal =
+        new DefaultOpenAEVPrincipal(user.getId(), roles, user.isAdmin(), user.getLang());
 
-          @Override
-          public boolean isAdmin() {
-            return user.isAdmin();
-          }
-
-          @Override
-          public String getLang() {
-            return user.getLang();
-          }
-        },
-        "",
-        roles);
+    return new PreAuthenticatedAuthenticationToken(principal, "", roles);
   }
 
   /**

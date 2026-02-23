@@ -7,7 +7,7 @@ import static io.openaev.utils.fixtures.AssetGroupFixture.createAssetGroupWithAs
 import static io.openaev.utils.fixtures.AssetGroupFixture.createDefaultAssetGroup;
 import static io.openaev.utils.fixtures.EndpointFixture.*;
 import static io.openaev.utils.fixtures.InjectFixture.getDefaultInject;
-import static io.openaev.utils.fixtures.TagFixture.getTag;
+import static io.openaev.utils.fixtures.TagFixture.getTagNoId;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -45,8 +45,8 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -62,7 +62,7 @@ class EndpointApiTest extends IntegrationTest {
   @Autowired private ExecutorComposer executorComposer;
   @Autowired private ExecutorFixture executorFixture;
 
-  @SpyBean private EndpointService endpointService;
+  @MockitoSpyBean private EndpointService endpointService;
   @Autowired private AssetGroupRepository assetGroupRepository;
 
   @BeforeEach
@@ -123,7 +123,7 @@ class EndpointApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void given_validEndpointInput_should_upsertEndpointSuccessfully() throws Exception {
     // --PREPARE--
-    Tag tag = tagRepository.save(getTag());
+    Tag tag = tagRepository.save(getTagNoId());
     String externalReference = "external01";
     EndpointRegisterInput registerInput =
         createWindowsEndpointRegisterInput(List.of(tag.getId()), externalReference);
@@ -170,7 +170,7 @@ class EndpointApiTest extends IntegrationTest {
   void given_validInputForNonExistingEndpoint_should_createAndUpsertSuccessfully()
       throws Exception {
     // --PREPARE--
-    Tag tag = tagRepository.save(getTag());
+    Tag tag = tagRepository.save(getTagNoId());
     String externalReference = "external01";
     EndpointRegisterInput registerInput =
         createWindowsEndpointRegisterInput(List.of(tag.getId()), externalReference);
@@ -206,7 +206,7 @@ class EndpointApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void given_validInput_should_updateEndpointSuccessfully() throws Exception {
     // --PREPARE--
-    Tag tag = tagRepository.save(getTag());
+    Tag tag = tagRepository.save(getTagNoId());
     String externalReference = "external01";
     EndpointInput endpointInput = createWindowsEndpointInput(List.of(tag.getId()));
     Endpoint endpoint = new Endpoint();
@@ -254,7 +254,7 @@ class EndpointApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void given_validInput_should_deleteEndpointSuccessfully() throws Exception {
     // --PREPARE--
-    Tag tag = tagRepository.save(getTag());
+    Tag tag = tagRepository.save(getTagNoId());
     String externalReference = "external01";
     EndpointInput endpointInput = createWindowsEndpointInput(List.of(tag.getId()));
     Endpoint endpoint = new Endpoint();

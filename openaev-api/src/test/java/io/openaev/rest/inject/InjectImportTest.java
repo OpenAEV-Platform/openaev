@@ -38,9 +38,9 @@ import java.util.*;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
@@ -83,7 +83,7 @@ class InjectImportTest extends IntegrationTest {
   @Autowired private InjectRepository injectRepository;
   @Autowired private ArticleService articleService;
   @Autowired private InjectorFixture injectorFixture;
-  @MockBean private EnterpriseEditionService enterpriseEditionService;
+  @MockitoBean private EnterpriseEditionService enterpriseEditionService;
   @Autowired private ChannelInjectorIntegrationFactory channelInjectorIntegrationFactory;
   @Autowired private ChallengeInjectorIntegrationFactory challengeInjectorIntegrationFactory;
 

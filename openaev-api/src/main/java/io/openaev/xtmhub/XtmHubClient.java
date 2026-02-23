@@ -43,6 +43,22 @@ public class XtmHubClient {
     this.graphqlEndpoint = config.getApiUrl() + GRAPHQL_PATH;
   }
 
+  public Boolean contactUs(String message, String token, String platformId) {
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
+      HttpPost httpPost = new HttpPost(this.graphqlEndpoint);
+      httpPost.addHeader("Content-Type", "application/json; charset=utf-8");
+      httpPost.addHeader("Accept", "application/json");
+      httpPost.addHeader(XTMHUB_PLATFORM_TOKEN_HEADER, token);
+      httpPost.addHeader(XTMHUB_PLATFORM_ID_HEADER, platformId);
+      StringEntity httpBody = buildMutationContactUsBody(message);
+      httpPost.setEntity(httpBody);
+      return httpClient.execute(httpPost, this::isContactUsResponseSuccessful);
+    } catch (Exception e) {
+      log.error("XTM Hub is unreachable on {}: {}", config.getApiUrl(), e.getMessage(), e);
+      return false;
+    }
+  }
+
   public XtmHubConnectivityStatus refreshRegistrationStatus(
       String platformId, String platformVersion, String token) {
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
@@ -88,6 +104,31 @@ public class XtmHubClient {
           org.springframework.http.HttpStatus.BAD_GATEWAY,
           "Failed to auto-register XtmHub" + e.getMessage());
     }
+  }
+
+  @NotNull
+  private StringEntity buildMutationContactUsBody(String message) {
+    String mutationBody =
+        String.format(
+            """
+    {
+      "query": "
+        mutation ContactUsXTMHub($message: String!) {
+          contactUs(message: $message) {
+            success
+          }
+        }
+      ",
+      "variables": {
+        "message": "%s",
+        "platform_identifier": "%s"
+      }
+    }
+    """,
+            message, "openaev");
+
+    JsonElement element = JsonParser.parseString(mutationBody);
+    return new StringEntity(element.toString());
   }
 
   @NotNull
@@ -201,5 +242,9 @@ public class XtmHubClient {
       log.warn("Error occurred while parsing XTM Hub success response: {}", e.getMessage(), e);
       return false;
     }
+  }
+
+  private Boolean isContactUsResponseSuccessful(ClassicHttpResponse response) {
+    return response.getCode() == HttpStatus.SC_OK;
   }
 }

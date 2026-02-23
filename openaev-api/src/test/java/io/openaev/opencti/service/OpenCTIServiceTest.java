@@ -46,13 +46,13 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 @DisplayName("OpenCTI Service tests")
 public class OpenCTIServiceTest extends IntegrationTest {
-  @MockBean private OpenCTIClient mockOpenCTIClient;
+  @MockitoBean private OpenCTIClient mockOpenCTIClient;
   @Autowired private OpenCTIService openCTIService;
   @Autowired private ObjectMapper mapper;
   @Autowired private RoleService roleService;
@@ -116,6 +116,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
             "registerConnector": {
               "id": "%s",
               "connector_state": null,
+              "jwks": "{}",
               "config": {
                 "connection": {
                   "host": "some host",
@@ -190,6 +191,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
           {
             "pingConnector": {
               "id": "%s",
+              "jwks": "{}",
               "connector_state": null,
               "connector_info": {
                 "run_and_terminate": false,

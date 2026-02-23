@@ -36,14 +36,14 @@ public class ComcheckStatus implements Base {
   @JoinColumn(name = "status_user")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("comcheckstatus_user")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private User user;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "status_comcheck")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("comcheckstatus_comcheck")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Comcheck comcheck;
 
   @Column(name = "status_sent_date")

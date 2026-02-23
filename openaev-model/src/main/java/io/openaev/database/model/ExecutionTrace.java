@@ -36,19 +36,19 @@ public class ExecutionTrace implements Base {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "execution_inject_status_id")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   @JsonSerialize(using = MonoIdSerializer.class)
   private InjectStatus injectStatus;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "execution_inject_test_status_id")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   @JsonSerialize(using = MonoIdSerializer.class)
   private InjectTestStatus injectTestStatus;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "execution_agent_id")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   @JsonSerialize(using = MonoIdSerializer.class)
   private Agent agent;
 

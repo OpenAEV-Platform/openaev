@@ -10,6 +10,7 @@ import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.config.RabbitMQSslConfiguration;
 import io.openaev.config.RabbitmqConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
@@ -25,6 +26,7 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.exports.ExportOptions;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.helper.ValidationErrorBag;
 import io.openaev.rest.helper.queue.BatchQueueService;
 import io.openaev.rest.helper.queue.executor.BatchExecutionTraceExecutor;
 import io.openaev.rest.inject.form.*;
@@ -42,6 +44,8 @@ import io.openaev.utils.TargetType;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.annotation.PostConstruct;
@@ -93,6 +97,7 @@ public class InjectApi extends RestBehavior {
   private final RabbitmqConfig rabbitmqConfig;
   private final OpenAEVConfig openAEVConfig;
   private final ObjectMapper objectMapper;
+  private final RabbitMQSslConfiguration rabbitMQSslConfiguration;
 
   private final PreviewFeatureService previewFeatureService;
 
@@ -109,7 +114,8 @@ public class InjectApi extends RestBehavior {
               batchExecutionTraceExecutor::handleInjectExecutionCallbackList,
               rabbitmqConfig,
               objectMapper,
-              openAEVConfig.getQueueConfig().get("inject-trace"));
+              openAEVConfig.getQueueConfig().get("inject-trace"),
+              rabbitMQSslConfiguration);
     }
   }
 
@@ -158,7 +164,8 @@ public class InjectApi extends RestBehavior {
     User currentUser = userService.currentUser();
     List<Inject> injects =
         injectRepository.findAll(
-            Specification.where(SpecificationUtils.<Inject>hasIdIn(targetIds))
+            Specification.<Inject>unrestricted()
+                .and(SpecificationUtils.hasIdIn(targetIds))
                 .and(
                     SpecificationUtils.hasGrantAccess(
                         currentUser.getId(),
@@ -421,6 +428,13 @@ public class InjectApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
+  @ApiResponse(
+      responseCode = "403",
+      description = "License restriction",
+      content =
+          @Content(
+              mediaType = "application/json",
+              schema = @Schema(implementation = ValidationErrorBag.class)))
   public Inject updateInject(
       @PathVariable String exerciseId,
       @PathVariable String injectId,

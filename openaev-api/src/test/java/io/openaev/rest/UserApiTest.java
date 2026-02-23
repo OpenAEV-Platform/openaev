@@ -41,13 +41,17 @@ import net.javacrumbs.jsonunit.core.Option;
 import org.junit.jupiter.api.*;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
+@Transactional
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 class UserApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
@@ -60,34 +64,23 @@ class UserApiTest extends IntegrationTest {
   @Autowired private GrantRepository grantRepository;
   @Autowired private TagComposer tagComposer;
 
-  @MockBean private MailingService mailingService;
-  @MockBean private RandomUtils randomUtils;
+  @MockitoBean private MailingService mailingService;
+  @MockitoBean private RandomUtils randomUtils;
 
   @Autowired private UserComposer userComposer;
   @Autowired private OrganizationComposer organisationComposer;
   @Autowired private TagRepository tagRepository;
 
-  @BeforeAll
+  @BeforeEach
   public void setup() {
-    // Create user
-    User user = new User();
-    user.setEmail(EMAIL);
-    user.setPassword(UserFixture.ENCODED_PASSWORD);
+    // Create user using composer if not already present
     if (this.userRepository.findByEmailIgnoreCase(EMAIL).isEmpty()) {
-      this.userRepository.save(user);
-    } else {
-      this.userRepository.findByEmailIgnoreCase(EMAIL).get();
+      User user = UserFixture.getUser("Test", "User", EMAIL);
+      user.setPassword(UserFixture.ENCODED_PASSWORD);
+      userComposer.forUser(user).persist();
     }
-  }
-
-  @AfterAll
-  public void teardown() {
-    this.scenarioRepository.deleteAll();
-    this.userRepository.deleteAll();
-    this.groupRepository.deleteAll();
-    this.grantRepository.deleteAll();
-    this.organizationRepository.deleteAll();
-    tagRepository.deleteAll(this.tagComposer.generatedItems);
+    entityManager.flush();
+    entityManager.clear();
   }
 
   @Nested
@@ -422,8 +415,11 @@ class UserApiTest extends IntegrationTest {
     grantPlanner.setName(Grant.GRANT_TYPE.PLANNER);
     grantRepository.saveAll(List.of(grantObserver, grantPlanner));
     group.setGrants(new ArrayList<>(List.of(grantObserver, grantPlanner)));
-    group.setUsers(new ArrayList<>(List.of(user)));
-    groupRepository.save(group);
+    // Set user's groups (owning side) and save user to persist the relationship
+    user.setGroups(new ArrayList<>(List.of(group)));
+    userRepository.save(user);
+    entityManager.flush();
+    entityManager.clear();
 
     UpdateUserInput updateUserInput = new UpdateUserInput();
     updateUserInput.setFirstname(user.getFirstname());

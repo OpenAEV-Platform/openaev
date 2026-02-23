@@ -36,7 +36,7 @@ const DonutChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, datas }:
     const dataPoint = datas[config.dataPointIndex];
     openWidgetDataDrawer({
       widgetId,
-      filter_values: [dataPoint?.meta ?? ''],
+      filter_values_map: { [widgetConfig.field]: [dataPoint?.meta ?? ''] },
       series_index: config.seriesIndex,
     });
   }, [datas, openWidgetDataDrawer, widgetId]);
@@ -55,15 +55,19 @@ const DonutChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, datas }:
     return isStatusBreakdown ? labels.map(label => getStatusColor(theme, label)) : [];
   }, [widgetConfig, labels, theme]);
 
+  // Memoize empty chart text
+  const emptyChartText = useMemo(() => t('No data to display'), [t]);
+
   // Memoize chart options
   const options = useMemo(
     () => donutChartOptions({
       theme,
       labels,
       chartColors,
+      emptyChartText,
       onClick,
     }),
-    [theme, labels, chartColors, onClick],
+    [theme, labels, chartColors, emptyChartText, onClick],
   );
 
   // Memoize series data

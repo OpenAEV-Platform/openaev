@@ -1,6 +1,6 @@
 package io.openaev.engine.query;
 
-import java.util.ArrayList;
+import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -11,6 +11,7 @@ import lombok.Setter;
 @AllArgsConstructor
 public class EsDomainsAvgData {
 
-  private String label;
-  private List<EsSeries> data = new ArrayList<>();
+  @NotBlank private String label;
+
+  @NotBlank private List<EsSeries> data;
 }

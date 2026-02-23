@@ -1,25 +1,30 @@
 import { Groups, HelpOutlined, ImportantDevices, Language, Lock, Mail, WebAsset } from '@mui/icons-material';
-import { type Theme } from '@mui/material';
+import { type SvgIconProps, type Theme } from '@mui/material';
 import { Cloud, Database } from 'mdi-material-ui';
-import { type ReactElement } from 'react';
+import { type ComponentType, type CSSProperties, type ReactElement } from 'react';
 
-import type { EsAvgs, EsDomainsAvgData, EsSeries, EsSeriesData } from '../../../../../../../utils/api-types';
+import type { Domain, EsAvgs, EsDomainsAvgData, EsSeries, EsSeriesData } from '../../../../../../../utils/api-types';
 import { TO_CLASSIFY } from '../../../../../../../utils/domains/domainUtils';
+import { computeInjectExpectationLabel } from '../../../../../../../utils/statusUtils';
 import { type IconBarElement } from '../../../../../common/domains/IconBar-model';
 
 // Extend base types to add frontend values on objects
-export type EsExpectationDataExtended = EsSeriesData & {
+export type EsExpectationByDomainTypeAndStatus = EsSeriesData & {
   percentage?: number;
   color?: string;
+  label: string;
+  key: string;
 };
-export type EsExpectationExtended = EsSeries & {
-  data?: EsExpectationDataExtended[];
+export type EsExpectationByDomainAndType = EsSeries & {
+  data: EsExpectationByDomainTypeAndStatus[];
   status?: string;
-  color?: string;
+  color: string;
+  label: string;
+  value: number;
 };
-export type EsDomainsAvgDataExtended = EsDomainsAvgData & {
-  data?: EsExpectationExtended[];
-  color?: string;
+export type EsDomainsAvgDataExtended = Omit<EsDomainsAvgData, 'data'> & {
+  data: EsExpectationByDomainAndType[];
+  color: string;
 };
 export type EsAvgsExtended = { security_domain_average: EsDomainsAvgDataExtended[] };
 
@@ -29,7 +34,7 @@ export const STATUS_WARNING = 'warning';
 export const STATUS_INTERMEDIATE = 'intermediate';
 export const STATUS_SUCCESS = 'success';
 export const EMPTY_DATA = 'rgba(128,127,127,0.37)';
-export const DEFAULT_EMPTY_EXPECTATIONS: EsExpectationExtended[] = [
+export const DEFAULT_EMPTY_EXPECTATIONS: EsExpectationByDomainAndType[] = [
   {
     label: 'prevention',
     value: -1,
@@ -50,50 +55,65 @@ export const DEFAULT_EMPTY_EXPECTATIONS: EsExpectationExtended[] = [
   },
 ];
 
-export function getIconByDomain(name: string | undefined): ReactElement {
-  switch (name) {
-    case 'Endpoint':
-      return <ImportantDevices fontSize="large" />;
-    case 'Network':
-      return <Language fontSize="large" />;
-    case 'Web App':
-      return <WebAsset fontSize="large" />;
-    case 'E-mail Infiltration':
-      return <Mail fontSize="large" />;
-    case 'Data Exfiltration':
-      return <Database fontSize="large" />;
-    case 'URL Filtering':
-      return <Lock fontSize="large" />;
-    case 'Cloud':
-      return <Cloud fontSize="large" />;
-    case 'Tabletop':
-      return <Groups fontSize="large" />;
-    default:
-      return <HelpOutlined fontSize="large" />;
-  }
+interface DomainConfig {
+  icon: ComponentType<SvgIconProps>;
+  order: number;
+}
+
+const DOMAIN_CONFIG: Record<string, DomainConfig> = {
+  'Endpoint': {
+    icon: ImportantDevices,
+    order: 0,
+  },
+  'Network': {
+    icon: Language,
+    order: 1,
+  },
+  'Web App': {
+    icon: WebAsset,
+    order: 2,
+  },
+  'E-mail Infiltration': {
+    icon: Mail,
+    order: 3,
+  },
+  'Data Exfiltration': {
+    icon: Database,
+    order: 4,
+  },
+  'URL Filtering': {
+    icon: Lock,
+    order: 5,
+  },
+  'Cloud': {
+    icon: Cloud,
+    order: 6,
+  },
+  'Tabletop': {
+    icon: Groups,
+    order: 7,
+  },
 };
 
-export function getOrderByDomain(name: string | undefined): number {
-  switch (name) {
-    case 'Endpoint':
-      return 0;
-    case 'Network':
-      return 1;
-    case 'Web App':
-      return 2;
-    case 'E-mail Infiltration':
-      return 3;
-    case 'Data Exfiltration':
-      return 4;
-    case 'URL Filtering':
-      return 5;
-    case 'Cloud':
-      return 6;
-    case 'Tabletop':
-      return 7;
-    default:
-      return 8;
-  }
+const DEFAULT_CONFIG: DomainConfig = {
+  icon: HelpOutlined,
+  order: 8,
+};
+
+export const getDomainConfig = (name: string | undefined): DomainConfig => {
+  return DOMAIN_CONFIG[name ?? ''] ?? DEFAULT_CONFIG;
+};
+
+export const getIconByDomain = (
+  name: string | undefined,
+  style: CSSProperties = {},
+): ReactElement => {
+  const { icon: IconComponent } = getDomainConfig(name);
+  return <IconComponent fontSize="large" style={style} />;
+};
+
+export const getOrderByDomain = (name: string | undefined): number => {
+  return getDomainConfig(name).order;
 };
 
 export function calcPercentage(part: number, total: number): number {
@@ -105,23 +125,24 @@ export function formatPercentage(value: number, fractionDigits = 0): string {
   return `${value.toFixed(fractionDigits)}%`;
 }
 
-export function buildOrderedDomains(items: IconBarElement[]): IconBarElement[] {
-  const orderedDomains: IconBarElement[] = [];
-  for (const item of items) {
-    const name = item.name;
-    if (!name) continue;
-    const index = getOrderByDomain(item.name);
-    orderedDomains[index] = item;
-  }
-  return orderedDomains;
-}
+export const buildOrderedDomains = (items: IconBarElement[]): IconBarElement[] => {
+  return [...items]
+    .filter(item => item.name)
+    .sort((a, b) => getOrderByDomain(a.name) - getOrderByDomain(b.name));
+};
+
+export const orderDomains = (domains: Domain[]): Domain[] => {
+  return [...domains]
+    .filter(domain => domain.domain_name)
+    .sort((a, b) => getOrderByDomain(a.domain_name) - getOrderByDomain(b.domain_name));
+};
 
 /**
  * Define the color of the icon of a domain
  * @param data to calculate
  * @param theme to get colors values
  */
-const colorByAverageForDomain = (data: EsExpectationExtended[], theme: Theme): string => {
+const colorByAverageForDomain = (data: EsExpectationByDomainAndType[], theme: Theme): string => {
   switch (true) {
     case data.some(expectationExtended => expectationExtended?.status === STATUS_FAILURE):
       return theme.palette.widgets.securityDomains.colors.failed;
@@ -163,7 +184,7 @@ const colorByAverageForExpectation = (average: number, theme: Theme): string => 
  * @param label to calculate
  * @param theme to get colors values
  */
-export const colorByLabel = (label: string, theme: Theme): string => {
+export const colorByLabel = (label: string | null, theme: Theme): string => {
   switch (label) {
     case 'success':
       return theme.palette.widgets.securityDomains.colors.success;
@@ -200,36 +221,29 @@ export const statusByAverage = (average: number): string => {
  * @param esSerie to determine
  * @param theme to get colors values
  */
-const manageExpectationExtended = (esSerie: EsSeries, theme: Theme): EsExpectationExtended => {
-  const esExpectationExtended: EsExpectationExtended = {
-    ...esSerie,
-    data: [],
-  };
-  let successEsExpectationDataExtended: EsExpectationDataExtended = {};
-
-  // Manage all data on a Serie, reprensent the results (success and failed) elements of a line from a domain
-  esSerie.data?.map((expectationData) => {
-    const esExpectationDataExtended: EsExpectationDataExtended = { ...expectationData };
-
-    // Calculate percentage and color of a result (failed or success) from a line of expectation on a domain
-    if (expectationData.value != null && esExpectationExtended.value != null && expectationData.label != null) {
-      esExpectationDataExtended.percentage = calcPercentage(expectationData.value, esExpectationExtended.value);
-      esExpectationDataExtended.color = colorByLabel(expectationData.label, theme);
-    }
-    esExpectationExtended.data!.push(esExpectationDataExtended);
-
-    if (esExpectationDataExtended.key === 'success') {
-      successEsExpectationDataExtended = esExpectationDataExtended;
-    }
+const manageExpectationByDomainAndType = (esSerie: EsSeries, theme: Theme): EsExpectationByDomainAndType => {
+  // Manage all data on a Serie, represent the results (success and failed) elements of a line from a domain
+  const calculatedAveragesByDomainTypeAndStatus = esSerie.data?.map((expectationData) => {
+    return {
+      ...expectationData,
+      label: expectationData.label ? computeInjectExpectationLabel(expectationData.label, esSerie.label) : '',
+      percentage: expectationData.value != null && esSerie.value != null ? calcPercentage(expectationData.value, esSerie.value) : null,
+      color: colorByLabel(expectationData.label ?? null, theme),
+    } as EsExpectationByDomainTypeAndStatus;
   });
 
   // Determine the information for the icon of the expectation line of a domain, from the success value
-  const successRate = successEsExpectationDataExtended.value && esSerie.value
-    ? calcPercentage(successEsExpectationDataExtended.value, esSerie.value)
+  const successExpectationByDomainAndType = esSerie.data?.find(expectationData => expectationData.key === 'success');
+  const successRate = successExpectationByDomainAndType?.value && esSerie?.value
+    ? calcPercentage(successExpectationByDomainAndType.value, esSerie.value)
     : 0;
-  esExpectationExtended.color = colorByAverageForExpectation(successRate, theme);
-  esExpectationExtended.status = statusByAverage(successRate);
-  return esExpectationExtended;
+
+  return {
+    ...esSerie,
+    data: calculatedAveragesByDomainTypeAndStatus ?? [],
+    color: colorByAverageForExpectation(successRate, theme),
+    status: statusByAverage(successRate),
+  } as EsExpectationByDomainAndType;
 };
 
 /**
@@ -238,19 +252,16 @@ const manageExpectationExtended = (esSerie: EsSeries, theme: Theme): EsExpectati
  * @param theme to get colors values
  */
 const manageDomainAverage = (domainAvgs: EsDomainsAvgData, theme: Theme): EsDomainsAvgDataExtended => {
-  const domainAvgsExtended: EsDomainsAvgDataExtended = {
-    ...domainAvgs,
-    data: [],
-  };
-
   // Manage Domain averages, represent all the lines of a domain on the widget
-  domainAvgs.data?.forEach((esSerie) => {
-    const esExpectationExtended = manageExpectationExtended(esSerie, theme);
-    domainAvgsExtended.data!.push(esExpectationExtended);
-  });
+  const calculatedAvgsByExpectationType = domainAvgs.data?.map(esSerie =>
+    manageExpectationByDomainAndType(esSerie, theme),
+  );
 
-  domainAvgsExtended.color = colorByAverageForDomain(domainAvgsExtended.data ?? [], theme);
-  return domainAvgsExtended;
+  return {
+    ...domainAvgs,
+    data: calculatedAvgsByExpectationType,
+    color: colorByAverageForDomain(calculatedAvgsByExpectationType, theme),
+  };
 };
 
 /**
@@ -259,17 +270,10 @@ const manageDomainAverage = (domainAvgs: EsDomainsAvgData, theme: Theme): EsDoma
  * @param theme to get colors values
  */
 export const determinePercentage = (esAvgs: EsAvgs, theme: Theme): EsAvgsExtended => {
-  const mappedAverage: EsAvgsExtended = {
-    ...esAvgs,
-    security_domain_average: [],
-  };
-
   // Manage Security Domain Average, represent the list of available average to display on the widget
-  esAvgs.security_domain_average
+  const calculatedAveragesBySecurityDomain = esAvgs.security_domain_average
     .filter(domainAvgs => domainAvgs.label !== TO_CLASSIFY)
-    .forEach((domainAvgs) => {
-      const domainAvgsExtended = manageDomainAverage(domainAvgs, theme);
-      mappedAverage.security_domain_average.push(domainAvgsExtended);
-    });
-  return mappedAverage;
+    .map(domainAvgs => manageDomainAverage(domainAvgs, theme));
+
+  return { security_domain_average: calculatedAveragesBySecurityDomain };
 };

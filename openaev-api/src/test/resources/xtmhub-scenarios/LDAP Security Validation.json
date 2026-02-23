@@ -1,0 +1,639 @@
+{
+  "export_version" : 1,
+  "scenario_information" : {
+    "scenario_id" : "4dfb840d-90ba-4a88-ba63-f3e72c3baf27",
+    "scenario_name" : "LDAP Security Validation",
+    "scenario_description" : "Why it matters: Without LDAP signing and channel binding, attackers can perform man-in-the-middle attacks, intercept credentials, and manipulate directory data. This weakens authentication security and can lead to privilege escalation or lateral movement within the network. Remediation is critical to protect sensitive identity information.",
+    "scenario_subtitle" : "",
+    "scenario_category" : "attack-scenario",
+    "scenario_main_focus" : "incident-response",
+    "scenario_severity" : "high",
+    "scenario_message_header" : "SIMULATION HEADER",
+    "scenario_message_footer" : "SIMULATION FOOTER",
+    "scenario_mail_from" : "no-reply@openbas.io",
+    "scenario_tags" : [ ],
+    "scenario_documents" : [ ]
+  },
+  "scenario_teams" : [ ],
+  "scenario_objectives" : null,
+  "scenario_users" : [ ],
+  "scenario_organizations" : [ ],
+  "scenario_injects" : [ {
+    "inject_id" : "3e0aacc9-d384-4cd2-b8f0-14bccb080b71",
+    "inject_title" : "LDAP Security Validation",
+    "inject_description" : "",
+    "inject_country" : null,
+    "inject_city" : null,
+    "inject_enabled" : true,
+    "inject_content" : {
+      "expectations" : [ {
+        "expectation_type" : "PREVENTION",
+        "expectation_name" : "Prevention",
+        "expectation_description" : null,
+        "expectation_score" : 100,
+        "expectation_expectation_group" : false,
+        "expectation_expiration_time" : 21600
+      }, {
+        "expectation_type" : "DETECTION",
+        "expectation_name" : "Detection",
+        "expectation_description" : null,
+        "expectation_score" : 100,
+        "expectation_expectation_group" : false,
+        "expectation_expiration_time" : 21600
+      } ],
+      "obfuscator" : "plain-text",
+      "IP" : "192.168.56.0/24",
+      "user" : "vagrant",
+      "password" : "vagrant",
+      "domain" : "workgroup"
+    },
+    "inject_all_teams" : false,
+    "inject_depends_on" : [ ],
+    "inject_depends_duration" : 0,
+    "inject_injector_contract" : {
+      "convertedContent" : {
+        "config" : {
+          "type" : "openbas_implant",
+          "expose" : true,
+          "label" : {
+            "en" : "OpenBAS Implant",
+            "fr" : "OpenBAS Implant"
+          },
+          "color_dark" : "#000000",
+          "color_light" : "#000000"
+        },
+        "label" : {
+          "en" : "LDAP Security Validation",
+          "fr" : "LDAP Security Validation"
+        },
+        "manual" : false,
+        "fields" : [ {
+          "key" : "assets",
+          "label" : "Assets",
+          "mandatory" : false,
+          "readOnly" : false,
+          "mandatoryGroups" : [ "assets", "assetgroups" ],
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "cardinality" : "n",
+          "defaultValue" : [ ],
+          "type" : "asset"
+        }, {
+          "key" : "assetgroups",
+          "label" : "Asset groups",
+          "mandatory" : false,
+          "readOnly" : false,
+          "mandatoryGroups" : [ "assets", "assetgroups" ],
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "cardinality" : "n",
+          "defaultValue" : [ ],
+          "type" : "asset-group"
+        }, {
+          "key" : "obfuscator",
+          "label" : "Obfuscators",
+          "mandatory" : false,
+          "readOnly" : false,
+          "mandatoryGroups" : null,
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "cardinality" : "1",
+          "defaultValue" : [ "plain-text" ],
+          "choices" : [ {
+            "label" : "plain-text",
+            "value" : "plain-text",
+            "information" : ""
+          }, {
+            "label" : "base64",
+            "value" : "base64",
+            "information" : "CMD does not support base64 obfuscation"
+          } ],
+          "type" : "choice"
+        }, {
+          "key" : "expectations",
+          "label" : "Expectations",
+          "mandatory" : false,
+          "readOnly" : false,
+          "mandatoryGroups" : null,
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "cardinality" : "n",
+          "defaultValue" : [ ],
+          "predefinedExpectations" : [ {
+            "expectation_type" : "PREVENTION",
+            "expectation_name" : "Prevention",
+            "expectation_description" : null,
+            "expectation_score" : 100.0,
+            "expectation_expectation_group" : false,
+            "expectation_expiration_time" : 21600
+          }, {
+            "expectation_type" : "DETECTION",
+            "expectation_name" : "Detection",
+            "expectation_description" : null,
+            "expectation_score" : 100.0,
+            "expectation_expectation_group" : false,
+            "expectation_expiration_time" : 21600
+          }, {
+            "expectation_type" : "VULNERABILITY",
+            "expectation_name" : "Not vulnerable",
+            "expectation_description" : "",
+            "expectation_score" : 100.0,
+            "expectation_expectation_group" : false,
+            "expectation_expiration_time" : 21600
+          } ],
+          "type" : "expectation"
+        }, {
+          "key" : "IP",
+          "label" : "IP",
+          "mandatory" : true,
+          "readOnly" : false,
+          "mandatoryGroups" : null,
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "defaultValue" : "192.168.56.0/24",
+          "type" : "text"
+        }, {
+          "key" : "user",
+          "label" : "user",
+          "mandatory" : true,
+          "readOnly" : false,
+          "mandatoryGroups" : null,
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "defaultValue" : "vagrant",
+          "type" : "text"
+        }, {
+          "key" : "password",
+          "label" : "password",
+          "mandatory" : true,
+          "readOnly" : false,
+          "mandatoryGroups" : null,
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "defaultValue" : "vagrant",
+          "type" : "text"
+        }, {
+          "key" : "domain",
+          "label" : "domain",
+          "mandatory" : true,
+          "readOnly" : false,
+          "mandatoryGroups" : null,
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "defaultValue" : "workgroup",
+          "type" : "text"
+        } ],
+        "variables" : [ {
+          "key" : "user",
+          "label" : "User that will receive the injection",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ {
+            "key" : "user.id",
+            "label" : "Id of the user in the platform",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "user.email",
+            "label" : "Email of the user",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "user.firstname",
+            "label" : "First name of the user",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "user.lastname",
+            "label" : "Last name of the user",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "user.lang",
+            "label" : "Language of the user",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          } ]
+        }, {
+          "key" : "exercise",
+          "label" : "Exercise of the current injection",
+          "type" : "Object",
+          "cardinality" : "1",
+          "children" : [ {
+            "key" : "exercise.id",
+            "label" : "Id of the user in the platform",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "exercise.name",
+            "label" : "Name of the exercise",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "exercise.description",
+            "label" : "Description of the exercise",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          } ]
+        }, {
+          "key" : "teams",
+          "label" : "List of team name for the injection",
+          "type" : "String",
+          "cardinality" : "n",
+          "children" : [ ]
+        }, {
+          "key" : "player_uri",
+          "label" : "Player interface platform link",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ ]
+        }, {
+          "key" : "challenges_uri",
+          "label" : "Challenges interface platform link",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ ]
+        }, {
+          "key" : "scoreboard_uri",
+          "label" : "Scoreboard interface platform link",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ ]
+        }, {
+          "key" : "lessons_uri",
+          "label" : "Lessons learned interface platform link",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ ]
+        } ],
+        "context" : { },
+        "contract_id" : "34aa7930-3e8c-4b47-81be-af890a7429e4",
+        "contract_attack_patterns_external_ids" : [ ],
+        "is_atomic_testing" : true,
+        "needs_executor" : true,
+        "platforms" : [ "Windows" ]
+      },
+      "listened" : true,
+      "injector_contract_id" : "34aa7930-3e8c-4b47-81be-af890a7429e4",
+      "injector_contract_labels" : {
+        "en" : "LDAP Security Validation",
+        "fr" : "LDAP Security Validation"
+      },
+      "injector_contract_manual" : false,
+      "injector_contract_content" : "{\"config\":{\"type\":\"openbas_implant\",\"expose\":true,\"label\":{\"en\":\"OpenBAS Implant\",\"fr\":\"OpenBAS Implant\"},\"color_dark\":\"#000000\",\"color_light\":\"#000000\"},\"label\":{\"en\":\"LDAP Security Validation\",\"fr\":\"LDAP Security Validation\"},\"manual\":false,\"fields\":[{\"key\":\"assets\",\"label\":\"Assets\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":[\"assets\",\"assetgroups\"],\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"type\":\"asset\"},{\"key\":\"assetgroups\",\"label\":\"Asset groups\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":[\"assets\",\"assetgroups\"],\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"type\":\"asset-group\"},{\"key\":\"obfuscator\",\"label\":\"Obfuscators\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"1\",\"defaultValue\":[\"plain-text\"],\"choices\":[{\"label\":\"plain-text\",\"value\":\"plain-text\",\"information\":\"\"},{\"label\":\"base64\",\"value\":\"base64\",\"information\":\"CMD does not support base64 obfuscation\"}],\"type\":\"choice\"},{\"key\":\"expectations\",\"label\":\"Expectations\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"predefinedExpectations\":[{\"expectation_type\":\"PREVENTION\",\"expectation_name\":\"Prevention\",\"expectation_description\":null,\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600},{\"expectation_type\":\"DETECTION\",\"expectation_name\":\"Detection\",\"expectation_description\":null,\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600},{\"expectation_type\":\"VULNERABILITY\",\"expectation_name\":\"Not vulnerable\",\"expectation_description\":\"\",\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600}],\"type\":\"expectation\"},{\"key\":\"IP\",\"label\":\"IP\",\"mandatory\":true,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"defaultValue\":\"192.168.56.0/24\",\"type\":\"text\"},{\"key\":\"user\",\"label\":\"user\",\"mandatory\":true,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"defaultValue\":\"vagrant\",\"type\":\"text\"},{\"key\":\"password\",\"label\":\"password\",\"mandatory\":true,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"defaultValue\":\"vagrant\",\"type\":\"text\"},{\"key\":\"domain\",\"label\":\"domain\",\"mandatory\":true,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"defaultValue\":\"workgroup\",\"type\":\"text\"}],\"variables\":[{\"key\":\"user\",\"label\":\"User that will receive the injection\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[{\"key\":\"user.id\",\"label\":\"Id of the user in the platform\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.email\",\"label\":\"Email of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.firstname\",\"label\":\"First name of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.lastname\",\"label\":\"Last name of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.lang\",\"label\":\"Language of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}]},{\"key\":\"exercise\",\"label\":\"Exercise of the current injection\",\"type\":\"Object\",\"cardinality\":\"1\",\"children\":[{\"key\":\"exercise.id\",\"label\":\"Id of the user in the platform\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"exercise.name\",\"label\":\"Name of the exercise\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"exercise.description\",\"label\":\"Description of the exercise\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}]},{\"key\":\"teams\",\"label\":\"List of team name for the injection\",\"type\":\"String\",\"cardinality\":\"n\",\"children\":[]},{\"key\":\"player_uri\",\"label\":\"Player interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"challenges_uri\",\"label\":\"Challenges interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"scoreboard_uri\",\"label\":\"Scoreboard interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"lessons_uri\",\"label\":\"Lessons learned interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}],\"context\":{},\"contract_id\":\"34aa7930-3e8c-4b47-81be-af890a7429e4\",\"contract_attack_patterns_external_ids\":[],\"is_atomic_testing\":true,\"needs_executor\":true,\"platforms\":[\"Windows\"]}",
+      "injector_contract_custom" : false,
+      "injector_contract_needs_executor" : true,
+      "injector_contract_platforms" : [ "Windows" ],
+      "injector_contract_payload" : {
+        "listened" : true,
+        "payload_id" : "b2de8c16-312d-4b8f-ae8a-7b3bf46eeeb5",
+        "payload_type" : "Command",
+        "payload_name" : "LDAP Security Validation",
+        "payload_description" : "Why it matters: Without LDAP signing and channel binding, attackers can perform man-in-the-middle attacks, intercept credentials, and manipulate directory data. This weakens authentication security and can lead to privilege escalation or lateral movement within the network. Remediation is critical to protect sensitive identity information.",
+        "payload_platforms" : [ "Windows" ],
+        "payload_attack_patterns" : [ {
+          "attack_pattern_id" : "4a72297b-9b9a-4ec4-b885-8029d8da530d",
+          "attack_pattern_name" : "Credentials In Files",
+          "attack_pattern_description" : "Adversaries may search local file systems and remote file shares for files containing insecurely stored credentials. These can be files created by users to store their own credentials, shared credential stores for a group of individuals, configuration files containing passwords for a system or service, or source code/binary files containing embedded passwords.\n\nIt is possible to extract passwords from backups or saved virtual machines through [OS Credential Dumping](https://attack.mitre.org/techniques/T1003).(Citation: CG 2014) Passwords may also be obtained from Group Policy Preferences stored on the Windows Domain Controller.(Citation: SRD GPP)\n\nIn cloud and/or containerized environments, authenticated user and service account credentials are often stored in local configuration and credential files.(Citation: Unit 42 Hildegard Malware) They may also be found as parameters to deployment commands in container logs.(Citation: Unit 42 Unsecured Docker Daemons) In some cases, these files can be copied and reused on another machine or the contents can be read and then used to authenticate without needing to copy any files.(Citation: Specter Ops - Cloud Credential Storage)",
+          "attack_pattern_external_id" : "T1552.001",
+          "attack_pattern_kill_chain_phases" : [ {
+            "phase_id" : "447bbaf6-82da-4c43-90c8-713bd6117a85",
+            "phase_external_id" : "TA0006",
+            "phase_stix_id" : "x-mitre-tactic--2558fd61-8c75-4730-94c4-11926db2a263",
+            "phase_name" : "Credential Access",
+            "phase_shortname" : "credential-access",
+            "phase_kill_chain_name" : "mitre-attack",
+            "phase_description" : "The adversary is trying to steal account names and passwords.\n\nCredential Access consists of techniques for stealing credentials like account names and passwords. Techniques used to get credentials include keylogging or credential dumping. Using legitimate credentials can give adversaries access to systems, make them harder to detect, and provide the opportunity to create more accounts to help achieve their goals.",
+            "phase_order" : 7
+          } ]
+        }, {
+          "attack_pattern_id" : "9332c8ee-5d6f-4f0c-ad62-2e2cc347c0db",
+          "attack_pattern_name" : "Token Impersonation/Theft",
+          "attack_pattern_description" : "Adversaries may duplicate then impersonate another user's existing token to escalate privileges and bypass access controls. For example, an adversary can duplicate an existing token using `DuplicateToken` or `DuplicateTokenEx`.(Citation: DuplicateToken function) The token can then be used with `ImpersonateLoggedOnUser` to allow the calling thread to impersonate a logged on user's security context, or with `SetThreadToken` to assign the impersonated token to a thread.\n\nAn adversary may perform [Token Impersonation/Theft](https://attack.mitre.org/techniques/T1134/001) when they have a specific, existing process they want to assign the duplicated token to. For example, this may be useful for when the target user has a non-network logon session on the system.\n\nWhen an adversary would instead use a duplicated token to create a new process rather than attaching to an existing process, they can additionally [Create Process with Token](https://attack.mitre.org/techniques/T1134/002) using `CreateProcessWithTokenW` or `CreateProcessAsUserW`. [Token Impersonation/Theft](https://attack.mitre.org/techniques/T1134/001) is also distinct from [Make and Impersonate Token](https://attack.mitre.org/techniques/T1134/003) in that it refers to duplicating an existing token, rather than creating a new one.",
+          "attack_pattern_external_id" : "T1134.001",
+          "attack_pattern_kill_chain_phases" : [ {
+            "phase_id" : "85f85b70-0513-4765-a231-c6de150aad97",
+            "phase_external_id" : "TA0004",
+            "phase_stix_id" : "x-mitre-tactic--5e29b093-294e-49e9-a803-dab3d73b77dd",
+            "phase_name" : "Privilege Escalation",
+            "phase_shortname" : "privilege-escalation",
+            "phase_kill_chain_name" : "mitre-attack",
+            "phase_description" : "The adversary is trying to gain higher-level permissions.\n\nPrivilege Escalation consists of techniques that adversaries use to gain higher-level permissions on a system or network. Adversaries can often enter and explore a network with unprivileged access but require elevated permissions to follow through on their objectives. Common approaches are to take advantage of system weaknesses, misconfigurations, and vulnerabilities. Examples of elevated access include: \n\n* SYSTEM/root level\n* local administrator\n* user account with admin-like access \n* user accounts with access to specific system or perform specific function\n\nThese techniques often overlap with Persistence techniques, as OS features that let an adversary persist can execute in an elevated context.  ",
+            "phase_order" : 5
+          }, {
+            "phase_id" : "92c4f727-b17e-4641-825d-ac5e3bc97527",
+            "phase_external_id" : "TA0005",
+            "phase_stix_id" : "x-mitre-tactic--78b23412-0651-46d7-a540-170a1ce8bd5a",
+            "phase_name" : "Defense Evasion",
+            "phase_shortname" : "defense-evasion",
+            "phase_kill_chain_name" : "mitre-attack",
+            "phase_description" : "The adversary is trying to avoid being detected.\n\nDefense Evasion consists of techniques that adversaries use to avoid detection throughout their compromise. Techniques used for defense evasion include uninstalling/disabling security software or obfuscating/encrypting data and scripts. Adversaries also leverage and abuse trusted processes to hide and masquerade their malware. Other tactics’ techniques are cross-listed here when those techniques include the added benefit of subverting defenses. ",
+            "phase_order" : 6
+          } ]
+        }, {
+          "attack_pattern_id" : "597ad60e-3b7f-4a01-a73f-64f2192986c4",
+          "attack_pattern_name" : "ARP Cache Poisoning",
+          "attack_pattern_description" : "Adversaries may poison Address Resolution Protocol (ARP) caches to position themselves between the communication of two or more networked devices. This activity may be used to enable follow-on behaviors such as [Network Sniffing](https://attack.mitre.org/techniques/T1040) or [Transmitted Data Manipulation](https://attack.mitre.org/techniques/T1565/002).\n\nThe ARP protocol is used to resolve IPv4 addresses to link layer addresses, such as a media access control (MAC) address.(Citation: RFC826 ARP) Devices in a local network segment communicate with each other by using link layer addresses. If a networked device does not have the link layer address of a particular networked device, it may send out a broadcast ARP request to the local network to translate the IP address to a MAC address. The device with the associated IP address directly replies with its MAC address. The networked device that made the ARP request will then use as well as store that information in its ARP cache.\n\nAn adversary may passively wait for an ARP request to poison the ARP cache of the requesting device. The adversary may reply with their MAC address, thus deceiving the victim by making them believe that they are communicating with the intended networked device. For the adversary to poison the ARP cache, their reply must be faster than the one made by the legitimate IP address owner. Adversaries may also send a gratuitous ARP reply that maliciously announces the ownership of a particular IP address to all the devices in the local network segment.\n\nThe ARP protocol is stateless and does not require authentication. Therefore, devices may wrongly add or update the MAC address of the IP address in their ARP cache.(Citation: Sans ARP Spoofing Aug 2003)(Citation: Cylance Cleaver)\n\nAdversaries may use ARP cache poisoning as a means to intercept network traffic. This activity may be used to collect and/or relay data such as credentials, especially those sent over an insecure, unencrypted protocol.(Citation: Sans ARP Spoofing Aug 2003)\n",
+          "attack_pattern_external_id" : "T1557.002",
+          "attack_pattern_kill_chain_phases" : [ {
+            "phase_id" : "304030e2-2bb4-4236-8e56-68d81468de1e",
+            "phase_external_id" : "TA0009",
+            "phase_stix_id" : "x-mitre-tactic--d108ce10-2419-4cf9-a774-46161d6c6cfe",
+            "phase_name" : "Collection",
+            "phase_shortname" : "collection",
+            "phase_kill_chain_name" : "mitre-attack",
+            "phase_description" : "The adversary is trying to gather data of interest to their goal.\n\nCollection consists of techniques adversaries may use to gather information and the sources information is collected from that are relevant to following through on the adversary's objectives. Frequently, the next goal after collecting data is to either steal (exfiltrate) the data or to use the data to gain more information about the target environment. Common target sources include various drive types, browsers, audio, video, and email. Common collection methods include capturing screenshots and keyboard input.",
+            "phase_order" : 10
+          }, {
+            "phase_id" : "447bbaf6-82da-4c43-90c8-713bd6117a85",
+            "phase_external_id" : "TA0006",
+            "phase_stix_id" : "x-mitre-tactic--2558fd61-8c75-4730-94c4-11926db2a263",
+            "phase_name" : "Credential Access",
+            "phase_shortname" : "credential-access",
+            "phase_kill_chain_name" : "mitre-attack",
+            "phase_description" : "The adversary is trying to steal account names and passwords.\n\nCredential Access consists of techniques for stealing credentials like account names and passwords. Techniques used to get credentials include keylogging or credential dumping. Using legitimate credentials can give adversaries access to systems, make them harder to detect, and provide the opportunity to create more accounts to help achieve their goals.",
+            "phase_order" : 7
+          } ]
+        }, {
+          "attack_pattern_id" : "c9e5b269-3772-4282-9999-a29b3facfbe1",
+          "attack_pattern_name" : "Network Sniffing",
+          "attack_pattern_description" : "Adversaries may passively sniff network traffic to capture information about an environment, including authentication material passed over the network. Network sniffing refers to using the network interface on a system to monitor or capture information sent over a wired or wireless connection. An adversary may place a network interface into promiscuous mode to passively access data in transit over the network, or use span ports to capture a larger amount of data.\n\nData captured via this technique may include user credentials, especially those sent over an insecure, unencrypted protocol. Techniques for name service resolution poisoning, such as [LLMNR/NBT-NS Poisoning and SMB Relay](https://attack.mitre.org/techniques/T1557/001), can also be used to capture credentials to websites, proxies, and internal systems by redirecting traffic to an adversary.\n\nNetwork sniffing may reveal configuration details, such as running services, version numbers, and other network characteristics (e.g. IP addresses, hostnames, VLAN IDs) necessary for subsequent [Lateral Movement](https://attack.mitre.org/tactics/TA0008) and/or [Defense Evasion](https://attack.mitre.org/tactics/TA0005) activities. Adversaries may likely also utilize network sniffing during [Adversary-in-the-Middle](https://attack.mitre.org/techniques/T1557) (AiTM) to passively gain additional knowledge about the environment.\n\nIn cloud-based environments, adversaries may still be able to use traffic mirroring services to sniff network traffic from virtual machines. For example, AWS Traffic Mirroring, GCP Packet Mirroring, and Azure vTap allow users to define specified instances to collect traffic from and specified targets to send collected traffic to.(Citation: AWS Traffic Mirroring)(Citation: GCP Packet Mirroring)(Citation: Azure Virtual Network TAP) Often, much of this traffic will be in cleartext due to the use of TLS termination at the load balancer level to reduce the strain of encrypting and decrypting traffic.(Citation: Rhino Security Labs AWS VPC Traffic Mirroring)(Citation: SpecterOps AWS Traffic Mirroring) The adversary can then use exfiltration techniques such as Transfer Data to Cloud Account in order to access the sniffed traffic.(Citation: Rhino Security Labs AWS VPC Traffic Mirroring)\n\nOn network devices, adversaries may perform network captures using [Network Device CLI](https://attack.mitre.org/techniques/T1059/008) commands such as `monitor capture`.(Citation: US-CERT-TA18-106A)(Citation: capture_embedded_packet_on_software)",
+          "attack_pattern_external_id" : "T1040",
+          "attack_pattern_kill_chain_phases" : [ {
+            "phase_id" : "447bbaf6-82da-4c43-90c8-713bd6117a85",
+            "phase_external_id" : "TA0006",
+            "phase_stix_id" : "x-mitre-tactic--2558fd61-8c75-4730-94c4-11926db2a263",
+            "phase_name" : "Credential Access",
+            "phase_shortname" : "credential-access",
+            "phase_kill_chain_name" : "mitre-attack",
+            "phase_description" : "The adversary is trying to steal account names and passwords.\n\nCredential Access consists of techniques for stealing credentials like account names and passwords. Techniques used to get credentials include keylogging or credential dumping. Using legitimate credentials can give adversaries access to systems, make them harder to detect, and provide the opportunity to create more accounts to help achieve their goals.",
+            "phase_order" : 7
+          }, {
+            "phase_id" : "e0a815b3-1d61-4145-915a-d17482f5887d",
+            "phase_external_id" : "TA0007",
+            "phase_stix_id" : "x-mitre-tactic--c17c5845-175e-4421-9713-829d0573dbc9",
+            "phase_name" : "Discovery",
+            "phase_shortname" : "discovery",
+            "phase_kill_chain_name" : "mitre-attack",
+            "phase_description" : "The adversary is trying to figure out your environment.\n\nDiscovery consists of techniques an adversary may use to gain knowledge about the system and internal network. These techniques help adversaries observe the environment and orient themselves before deciding how to act. They also allow adversaries to explore what they can control and what’s around their entry point in order to discover how it could benefit their current objective. Native operating system tools are often used toward this post-compromise information-gathering objective. ",
+            "phase_order" : 8
+          } ]
+        }, {
+          "attack_pattern_id" : "af0e3886-c53d-416d-8c99-effedb433edd",
+          "attack_pattern_name" : "Password Spraying",
+          "attack_pattern_description" : "Adversaries may use a single or small list of commonly used passwords against many different accounts to attempt to acquire valid account credentials. Password spraying uses one password (e.g. 'Password01'), or a small list of commonly used passwords, that may match the complexity policy of the domain. Logins are attempted with that password against many different accounts on a network to avoid account lockouts that would normally occur when brute forcing a single account with many passwords. (Citation: BlackHillsInfosec Password Spraying)\n\nTypically, management services over commonly used ports are used when password spraying. Commonly targeted services include the following:\n\n* SSH (22/TCP)\n* Telnet (23/TCP)\n* FTP (21/TCP)\n* NetBIOS / SMB / Samba (139/TCP & 445/TCP)\n* LDAP (389/TCP)\n* Kerberos (88/TCP)\n* RDP / Terminal Services (3389/TCP)\n* HTTP/HTTP Management Services (80/TCP & 443/TCP)\n* MSSQL (1433/TCP)\n* Oracle (1521/TCP)\n* MySQL (3306/TCP)\n* VNC (5900/TCP)\n\nIn addition to management services, adversaries may \"target single sign-on (SSO) and cloud-based applications utilizing federated authentication protocols,\" as well as externally facing email applications, such as Office 365.(Citation: US-CERT TA18-068A 2018)\n\nIn default environments, LDAP and Kerberos connection attempts are less likely to trigger events over SMB, which creates Windows \"logon failure\" event ID 4625.",
+          "attack_pattern_external_id" : "T1110.003",
+          "attack_pattern_kill_chain_phases" : [ {
+            "phase_id" : "447bbaf6-82da-4c43-90c8-713bd6117a85",
+            "phase_external_id" : "TA0006",
+            "phase_stix_id" : "x-mitre-tactic--2558fd61-8c75-4730-94c4-11926db2a263",
+            "phase_name" : "Credential Access",
+            "phase_shortname" : "credential-access",
+            "phase_kill_chain_name" : "mitre-attack",
+            "phase_description" : "The adversary is trying to steal account names and passwords.\n\nCredential Access consists of techniques for stealing credentials like account names and passwords. Techniques used to get credentials include keylogging or credential dumping. Using legitimate credentials can give adversaries access to systems, make them harder to detect, and provide the opportunity to create more accounts to help achieve their goals.",
+            "phase_order" : 7
+          } ]
+        } ],
+        "payload_cleanup_executor" : "psh",
+        "payload_cleanup_command" : "remove-item \"C:\\users\\public\\nxc-windows-latest\" -Recurse -Force",
+        "payload_elevation_required" : false,
+        "payload_arguments" : [ {
+          "type" : "text",
+          "key" : "IP",
+          "default_value" : "192.168.56.0/24",
+          "description" : null,
+          "separator" : null
+        }, {
+          "type" : "text",
+          "key" : "user",
+          "default_value" : "vagrant",
+          "description" : null,
+          "separator" : null
+        }, {
+          "type" : "text",
+          "key" : "password",
+          "default_value" : "vagrant",
+          "description" : null,
+          "separator" : null
+        }, {
+          "type" : "text",
+          "key" : "domain",
+          "default_value" : "workgroup",
+          "description" : null,
+          "separator" : null
+        } ],
+        "payload_prerequisites" : [ {
+          "executor" : "psh",
+          "get_command" : "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12;$zipUrl = \"https://github.com/Pennyw0rth/NetExec/releases/download/v1.4.0/nxc-windows-latest.zip\"; $tempZip = \"c:\\users\\public\\nxc-windows-latest.zip\"; $tempDir = \"c:\\users\\public\\nxc-windows-latest\"; $destPath = \"c:\\users\\public\\nxc-windows-latest\\nxc.exe\" ; Invoke-WebRequest -Uri $zipUrl -OutFile $tempZip; Expand-Archive -Path $tempZip -DestinationPath $tempDir -Force; Remove-Item -Path $tempZip -Force",
+          "check_command" : "if (Test-Path 'c:\\users\\public\\nxc-windows-latest\\nxc.exe') {exit 0} else {exit 1}",
+          "description" : null
+        } ],
+        "payload_external_id" : null,
+        "payload_source" : "MANUAL",
+        "payload_status" : "UNVERIFIED",
+        "payload_execution_arch" : "ALL_ARCHITECTURES",
+        "payload_collector" : null,
+        "payload_detection_remediations" : [ ],
+        "payload_tags" : [ ],
+        "payload_output_parsers" : [ {
+          "listened" : true,
+          "output_parser_id" : "9cd57a0e-c279-46a3-8984-547d658f0a8b",
+          "output_parser_mode" : "STDOUT",
+          "output_parser_type" : "REGEX",
+          "output_parser_contract_output_elements" : [ {
+            "listened" : true,
+            "contract_output_element_id" : "1b7c39f2-f7f7-4d92-832e-fbe128c17c51",
+            "contract_output_element_is_finding" : true,
+            "contract_output_element_rule" : "(?<=^LDAP-CHE.*\\s)(\\d{1,3}(?:\\.\\d{1,3}){3})(?=.*LDAPS channel binding is set to: Never)",
+            "contract_output_element_name" : "LDAP_CHANNEL_NOT_SET",
+            "contract_output_element_regex_groups" : [ {
+              "listened" : true,
+              "regex_group_id" : "6d3564dc-6e28-48d1-9d7f-43bdae9cedd1",
+              "regex_group_field" : "ipv4",
+              "regex_group_index_values" : "$1",
+              "regex_group_created_at" : "2025-06-26T09:51:36.015585Z",
+              "regex_group_updated_at" : "2025-06-26T09:51:36.015585Z"
+            } ],
+            "contract_output_element_key" : "LDAP_CHANNEL_NOT_SET",
+            "contract_output_element_type" : "ipv4",
+            "contract_output_element_tags" : [ ],
+            "contract_output_element_created_at" : "2025-06-26T09:51:36.014963Z",
+            "contract_output_element_updated_at" : "2025-06-26T09:51:36.014963Z"
+          }, {
+            "listened" : true,
+            "contract_output_element_id" : "6508cb81-8dd3-47ea-a815-efd49800cc19",
+            "contract_output_element_is_finding" : true,
+            "contract_output_element_rule" : "(?<=^LDAP-CHE.*\\s)(\\d{1,3}(?:\\.\\d{1,3}){3})(?=.*LDAP signing NOT enforced)",
+            "contract_output_element_name" : "LDAP_SIGNING_NOT_SET",
+            "contract_output_element_regex_groups" : [ {
+              "listened" : true,
+              "regex_group_id" : "576a3f79-d764-4a9d-98b3-afcf09b4d605",
+              "regex_group_field" : "ipv4",
+              "regex_group_index_values" : "$1",
+              "regex_group_created_at" : "2025-06-26T09:51:36.015724Z",
+              "regex_group_updated_at" : "2025-06-26T09:51:36.015724Z"
+            } ],
+            "contract_output_element_key" : "LDAP_SIGNING_NOT_SET",
+            "contract_output_element_type" : "ipv4",
+            "contract_output_element_tags" : [ ],
+            "contract_output_element_created_at" : "2025-06-26T09:51:36.014963Z",
+            "contract_output_element_updated_at" : "2025-06-26T09:51:36.014963Z"
+          } ],
+          "output_parser_created_at" : "2025-06-26T09:51:36.014865Z",
+          "output_parser_updated_at" : "2025-06-26T09:51:36.014865Z"
+        } ],
+        "payload_created_at" : "2025-06-26T09:51:36.014563Z",
+        "payload_updated_at" : "2025-06-26T09:51:36.014563Z",
+        "command_executor" : "cmd",
+        "command_content" : "C:\\Users\\Public\\nxc-windows-latest\\nxc.exe ldap #{IP} -u #{user} -p #{password} -d #{domain} -M ldap-checker",
+        "payload_collector_type" : null
+      },
+      "injector_contract_created_at" : "2025-06-26T09:51:36.058949Z",
+      "injector_contract_updated_at" : "2025-06-26T09:51:36.058950Z",
+      "injector_contract_injector" : "49229430-b5b5-431f-ba5b-f36f599b0144",
+      "injector_contract_attack_patterns" : [ {
+        "attack_pattern_id" : "4a72297b-9b9a-4ec4-b885-8029d8da530d",
+        "attack_pattern_name" : "Credentials In Files",
+        "attack_pattern_description" : "Adversaries may search local file systems and remote file shares for files containing insecurely stored credentials. These can be files created by users to store their own credentials, shared credential stores for a group of individuals, configuration files containing passwords for a system or service, or source code/binary files containing embedded passwords.\n\nIt is possible to extract passwords from backups or saved virtual machines through [OS Credential Dumping](https://attack.mitre.org/techniques/T1003).(Citation: CG 2014) Passwords may also be obtained from Group Policy Preferences stored on the Windows Domain Controller.(Citation: SRD GPP)\n\nIn cloud and/or containerized environments, authenticated user and service account credentials are often stored in local configuration and credential files.(Citation: Unit 42 Hildegard Malware) They may also be found as parameters to deployment commands in container logs.(Citation: Unit 42 Unsecured Docker Daemons) In some cases, these files can be copied and reused on another machine or the contents can be read and then used to authenticate without needing to copy any files.(Citation: Specter Ops - Cloud Credential Storage)",
+        "attack_pattern_external_id" : "T1552.001",
+        "attack_pattern_kill_chain_phases" : [ {
+          "phase_id" : "447bbaf6-82da-4c43-90c8-713bd6117a85",
+          "phase_external_id" : "TA0006",
+          "phase_stix_id" : "x-mitre-tactic--2558fd61-8c75-4730-94c4-11926db2a263",
+          "phase_name" : "Credential Access",
+          "phase_shortname" : "credential-access",
+          "phase_kill_chain_name" : "mitre-attack",
+          "phase_description" : "The adversary is trying to steal account names and passwords.\n\nCredential Access consists of techniques for stealing credentials like account names and passwords. Techniques used to get credentials include keylogging or credential dumping. Using legitimate credentials can give adversaries access to systems, make them harder to detect, and provide the opportunity to create more accounts to help achieve their goals.",
+          "phase_order" : 7
+        } ]
+      }, {
+        "attack_pattern_id" : "9332c8ee-5d6f-4f0c-ad62-2e2cc347c0db",
+        "attack_pattern_name" : "Token Impersonation/Theft",
+        "attack_pattern_description" : "Adversaries may duplicate then impersonate another user's existing token to escalate privileges and bypass access controls. For example, an adversary can duplicate an existing token using `DuplicateToken` or `DuplicateTokenEx`.(Citation: DuplicateToken function) The token can then be used with `ImpersonateLoggedOnUser` to allow the calling thread to impersonate a logged on user's security context, or with `SetThreadToken` to assign the impersonated token to a thread.\n\nAn adversary may perform [Token Impersonation/Theft](https://attack.mitre.org/techniques/T1134/001) when they have a specific, existing process they want to assign the duplicated token to. For example, this may be useful for when the target user has a non-network logon session on the system.\n\nWhen an adversary would instead use a duplicated token to create a new process rather than attaching to an existing process, they can additionally [Create Process with Token](https://attack.mitre.org/techniques/T1134/002) using `CreateProcessWithTokenW` or `CreateProcessAsUserW`. [Token Impersonation/Theft](https://attack.mitre.org/techniques/T1134/001) is also distinct from [Make and Impersonate Token](https://attack.mitre.org/techniques/T1134/003) in that it refers to duplicating an existing token, rather than creating a new one.",
+        "attack_pattern_external_id" : "T1134.001",
+        "attack_pattern_kill_chain_phases" : [ {
+          "phase_id" : "85f85b70-0513-4765-a231-c6de150aad97",
+          "phase_external_id" : "TA0004",
+          "phase_stix_id" : "x-mitre-tactic--5e29b093-294e-49e9-a803-dab3d73b77dd",
+          "phase_name" : "Privilege Escalation",
+          "phase_shortname" : "privilege-escalation",
+          "phase_kill_chain_name" : "mitre-attack",
+          "phase_description" : "The adversary is trying to gain higher-level permissions.\n\nPrivilege Escalation consists of techniques that adversaries use to gain higher-level permissions on a system or network. Adversaries can often enter and explore a network with unprivileged access but require elevated permissions to follow through on their objectives. Common approaches are to take advantage of system weaknesses, misconfigurations, and vulnerabilities. Examples of elevated access include: \n\n* SYSTEM/root level\n* local administrator\n* user account with admin-like access \n* user accounts with access to specific system or perform specific function\n\nThese techniques often overlap with Persistence techniques, as OS features that let an adversary persist can execute in an elevated context.  ",
+          "phase_order" : 5
+        }, {
+          "phase_id" : "92c4f727-b17e-4641-825d-ac5e3bc97527",
+          "phase_external_id" : "TA0005",
+          "phase_stix_id" : "x-mitre-tactic--78b23412-0651-46d7-a540-170a1ce8bd5a",
+          "phase_name" : "Defense Evasion",
+          "phase_shortname" : "defense-evasion",
+          "phase_kill_chain_name" : "mitre-attack",
+          "phase_description" : "The adversary is trying to avoid being detected.\n\nDefense Evasion consists of techniques that adversaries use to avoid detection throughout their compromise. Techniques used for defense evasion include uninstalling/disabling security software or obfuscating/encrypting data and scripts. Adversaries also leverage and abuse trusted processes to hide and masquerade their malware. Other tactics’ techniques are cross-listed here when those techniques include the added benefit of subverting defenses. ",
+          "phase_order" : 6
+        } ]
+      }, {
+        "attack_pattern_id" : "597ad60e-3b7f-4a01-a73f-64f2192986c4",
+        "attack_pattern_name" : "ARP Cache Poisoning",
+        "attack_pattern_description" : "Adversaries may poison Address Resolution Protocol (ARP) caches to position themselves between the communication of two or more networked devices. This activity may be used to enable follow-on behaviors such as [Network Sniffing](https://attack.mitre.org/techniques/T1040) or [Transmitted Data Manipulation](https://attack.mitre.org/techniques/T1565/002).\n\nThe ARP protocol is used to resolve IPv4 addresses to link layer addresses, such as a media access control (MAC) address.(Citation: RFC826 ARP) Devices in a local network segment communicate with each other by using link layer addresses. If a networked device does not have the link layer address of a particular networked device, it may send out a broadcast ARP request to the local network to translate the IP address to a MAC address. The device with the associated IP address directly replies with its MAC address. The networked device that made the ARP request will then use as well as store that information in its ARP cache.\n\nAn adversary may passively wait for an ARP request to poison the ARP cache of the requesting device. The adversary may reply with their MAC address, thus deceiving the victim by making them believe that they are communicating with the intended networked device. For the adversary to poison the ARP cache, their reply must be faster than the one made by the legitimate IP address owner. Adversaries may also send a gratuitous ARP reply that maliciously announces the ownership of a particular IP address to all the devices in the local network segment.\n\nThe ARP protocol is stateless and does not require authentication. Therefore, devices may wrongly add or update the MAC address of the IP address in their ARP cache.(Citation: Sans ARP Spoofing Aug 2003)(Citation: Cylance Cleaver)\n\nAdversaries may use ARP cache poisoning as a means to intercept network traffic. This activity may be used to collect and/or relay data such as credentials, especially those sent over an insecure, unencrypted protocol.(Citation: Sans ARP Spoofing Aug 2003)\n",
+        "attack_pattern_external_id" : "T1557.002",
+        "attack_pattern_kill_chain_phases" : [ {
+          "phase_id" : "304030e2-2bb4-4236-8e56-68d81468de1e",
+          "phase_external_id" : "TA0009",
+          "phase_stix_id" : "x-mitre-tactic--d108ce10-2419-4cf9-a774-46161d6c6cfe",
+          "phase_name" : "Collection",
+          "phase_shortname" : "collection",
+          "phase_kill_chain_name" : "mitre-attack",
+          "phase_description" : "The adversary is trying to gather data of interest to their goal.\n\nCollection consists of techniques adversaries may use to gather information and the sources information is collected from that are relevant to following through on the adversary's objectives. Frequently, the next goal after collecting data is to either steal (exfiltrate) the data or to use the data to gain more information about the target environment. Common target sources include various drive types, browsers, audio, video, and email. Common collection methods include capturing screenshots and keyboard input.",
+          "phase_order" : 10
+        }, {
+          "phase_id" : "447bbaf6-82da-4c43-90c8-713bd6117a85",
+          "phase_external_id" : "TA0006",
+          "phase_stix_id" : "x-mitre-tactic--2558fd61-8c75-4730-94c4-11926db2a263",
+          "phase_name" : "Credential Access",
+          "phase_shortname" : "credential-access",
+          "phase_kill_chain_name" : "mitre-attack",
+          "phase_description" : "The adversary is trying to steal account names and passwords.\n\nCredential Access consists of techniques for stealing credentials like account names and passwords. Techniques used to get credentials include keylogging or credential dumping. Using legitimate credentials can give adversaries access to systems, make them harder to detect, and provide the opportunity to create more accounts to help achieve their goals.",
+          "phase_order" : 7
+        } ]
+      }, {
+        "attack_pattern_id" : "c9e5b269-3772-4282-9999-a29b3facfbe1",
+        "attack_pattern_name" : "Network Sniffing",
+        "attack_pattern_description" : "Adversaries may passively sniff network traffic to capture information about an environment, including authentication material passed over the network. Network sniffing refers to using the network interface on a system to monitor or capture information sent over a wired or wireless connection. An adversary may place a network interface into promiscuous mode to passively access data in transit over the network, or use span ports to capture a larger amount of data.\n\nData captured via this technique may include user credentials, especially those sent over an insecure, unencrypted protocol. Techniques for name service resolution poisoning, such as [LLMNR/NBT-NS Poisoning and SMB Relay](https://attack.mitre.org/techniques/T1557/001), can also be used to capture credentials to websites, proxies, and internal systems by redirecting traffic to an adversary.\n\nNetwork sniffing may reveal configuration details, such as running services, version numbers, and other network characteristics (e.g. IP addresses, hostnames, VLAN IDs) necessary for subsequent [Lateral Movement](https://attack.mitre.org/tactics/TA0008) and/or [Defense Evasion](https://attack.mitre.org/tactics/TA0005) activities. Adversaries may likely also utilize network sniffing during [Adversary-in-the-Middle](https://attack.mitre.org/techniques/T1557) (AiTM) to passively gain additional knowledge about the environment.\n\nIn cloud-based environments, adversaries may still be able to use traffic mirroring services to sniff network traffic from virtual machines. For example, AWS Traffic Mirroring, GCP Packet Mirroring, and Azure vTap allow users to define specified instances to collect traffic from and specified targets to send collected traffic to.(Citation: AWS Traffic Mirroring)(Citation: GCP Packet Mirroring)(Citation: Azure Virtual Network TAP) Often, much of this traffic will be in cleartext due to the use of TLS termination at the load balancer level to reduce the strain of encrypting and decrypting traffic.(Citation: Rhino Security Labs AWS VPC Traffic Mirroring)(Citation: SpecterOps AWS Traffic Mirroring) The adversary can then use exfiltration techniques such as Transfer Data to Cloud Account in order to access the sniffed traffic.(Citation: Rhino Security Labs AWS VPC Traffic Mirroring)\n\nOn network devices, adversaries may perform network captures using [Network Device CLI](https://attack.mitre.org/techniques/T1059/008) commands such as `monitor capture`.(Citation: US-CERT-TA18-106A)(Citation: capture_embedded_packet_on_software)",
+        "attack_pattern_external_id" : "T1040",
+        "attack_pattern_kill_chain_phases" : [ {
+          "phase_id" : "447bbaf6-82da-4c43-90c8-713bd6117a85",
+          "phase_external_id" : "TA0006",
+          "phase_stix_id" : "x-mitre-tactic--2558fd61-8c75-4730-94c4-11926db2a263",
+          "phase_name" : "Credential Access",
+          "phase_shortname" : "credential-access",
+          "phase_kill_chain_name" : "mitre-attack",
+          "phase_description" : "The adversary is trying to steal account names and passwords.\n\nCredential Access consists of techniques for stealing credentials like account names and passwords. Techniques used to get credentials include keylogging or credential dumping. Using legitimate credentials can give adversaries access to systems, make them harder to detect, and provide the opportunity to create more accounts to help achieve their goals.",
+          "phase_order" : 7
+        }, {
+          "phase_id" : "e0a815b3-1d61-4145-915a-d17482f5887d",
+          "phase_external_id" : "TA0007",
+          "phase_stix_id" : "x-mitre-tactic--c17c5845-175e-4421-9713-829d0573dbc9",
+          "phase_name" : "Discovery",
+          "phase_shortname" : "discovery",
+          "phase_kill_chain_name" : "mitre-attack",
+          "phase_description" : "The adversary is trying to figure out your environment.\n\nDiscovery consists of techniques an adversary may use to gain knowledge about the system and internal network. These techniques help adversaries observe the environment and orient themselves before deciding how to act. They also allow adversaries to explore what they can control and what’s around their entry point in order to discover how it could benefit their current objective. Native operating system tools are often used toward this post-compromise information-gathering objective. ",
+          "phase_order" : 8
+        } ]
+      }, {
+        "attack_pattern_id" : "af0e3886-c53d-416d-8c99-effedb433edd",
+        "attack_pattern_name" : "Password Spraying",
+        "attack_pattern_description" : "Adversaries may use a single or small list of commonly used passwords against many different accounts to attempt to acquire valid account credentials. Password spraying uses one password (e.g. 'Password01'), or a small list of commonly used passwords, that may match the complexity policy of the domain. Logins are attempted with that password against many different accounts on a network to avoid account lockouts that would normally occur when brute forcing a single account with many passwords. (Citation: BlackHillsInfosec Password Spraying)\n\nTypically, management services over commonly used ports are used when password spraying. Commonly targeted services include the following:\n\n* SSH (22/TCP)\n* Telnet (23/TCP)\n* FTP (21/TCP)\n* NetBIOS / SMB / Samba (139/TCP & 445/TCP)\n* LDAP (389/TCP)\n* Kerberos (88/TCP)\n* RDP / Terminal Services (3389/TCP)\n* HTTP/HTTP Management Services (80/TCP & 443/TCP)\n* MSSQL (1433/TCP)\n* Oracle (1521/TCP)\n* MySQL (3306/TCP)\n* VNC (5900/TCP)\n\nIn addition to management services, adversaries may \"target single sign-on (SSO) and cloud-based applications utilizing federated authentication protocols,\" as well as externally facing email applications, such as Office 365.(Citation: US-CERT TA18-068A 2018)\n\nIn default environments, LDAP and Kerberos connection attempts are less likely to trigger events over SMB, which creates Windows \"logon failure\" event ID 4625.",
+        "attack_pattern_external_id" : "T1110.003",
+        "attack_pattern_kill_chain_phases" : [ {
+          "phase_id" : "447bbaf6-82da-4c43-90c8-713bd6117a85",
+          "phase_external_id" : "TA0006",
+          "phase_stix_id" : "x-mitre-tactic--2558fd61-8c75-4730-94c4-11926db2a263",
+          "phase_name" : "Credential Access",
+          "phase_shortname" : "credential-access",
+          "phase_kill_chain_name" : "mitre-attack",
+          "phase_description" : "The adversary is trying to steal account names and passwords.\n\nCredential Access consists of techniques for stealing credentials like account names and passwords. Techniques used to get credentials include keylogging or credential dumping. Using legitimate credentials can give adversaries access to systems, make them harder to detect, and provide the opportunity to create more accounts to help achieve their goals.",
+          "phase_order" : 7
+        } ]
+      } ],
+      "injector_contract_atomic_testing" : true,
+      "injector_contract_import_available" : false,
+      "injector_contract_arch" : "ALL_ARCHITECTURES",
+      "injector_contract_injector_type" : "openbas_implant",
+      "injector_contract_injector_type_name" : "OpenBAS Implant"
+    },
+    "inject_tags" : [ ],
+    "inject_teams" : [ ],
+    "inject_documents" : [ ]
+  } ],
+  "scenario_tags" : [ ],
+  "scenario_documents" : [ ],
+  "scenario_channels" : [ ],
+  "scenario_articles" : [ ],
+  "scenario_challenges" : [ ],
+  "scenario_lessons_categories" : [ ],
+  "scenario_lessons_questions" : [ ],
+  "scenario_variables" : [ ]
+}

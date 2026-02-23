@@ -7,18 +7,22 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
-import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
+import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.constants.Constants;
+import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import org.jetbrains.annotations.NotNull;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.mockito.MockitoAnnotations;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
@@ -54,6 +58,8 @@ class V1_DataImporterTest extends IntegrationTest {
   @Autowired private InjectorContractRepository injectorContractRepository;
 
   @Autowired private InjectRepository injectRepository;
+
+  @Autowired private DomainRepository domainRepository;
 
   private JsonNode importNode;
 
@@ -143,6 +149,10 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // delete scenario and payload before reimporting to verify that the killchainphase is not
     // recreated
+    // Clear the persistence context to avoid TransientObjectException from stale references
+    entityManager.clear();
+    // Delete injects first (they reference Scenario), then scenarios, then payloads
+    injectRepository.deleteAll();
     scenarioRepository.deleteAll();
     payloadRepository.deleteAll();
 
@@ -180,6 +190,49 @@ class V1_DataImporterTest extends IntegrationTest {
     List<InjectorContract> injectorContracts =
         injectorContractRepository.findInjectorContractsByInjector(dummyInjector);
     assertEquals(1, injectorContracts.size());
+  }
+
+  @Test
+  @Transactional
+  void testImportXTMHubScenarios() throws IOException {
+    MockitoAnnotations.openMocks(this);
+
+    ObjectMapper mapper = new ObjectMapper();
+    Path xtmHubScenariosDir = Paths.get("src/test/resources/xtmhub-scenarios");
+
+    List<Path> xtmScenariosFilesPath =
+        Files.list(xtmHubScenariosDir)
+            .filter(Files::isRegularFile)
+            .filter(p -> p.toString().endsWith(".json"))
+            .toList();
+
+    for (Path xtmScenariosFilePath : xtmScenariosFilesPath) {
+      String jsonContent = Files.readString(xtmScenariosFilePath);
+      JsonNode importNode = mapper.readTree(jsonContent);
+      this.importer.importData(
+          importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    }
+  }
+
+  @Test
+  @Transactional
+  void test_empty() throws IOException {
+    ObjectMapper mapper = new ObjectMapper();
+    String jsonContent =
+        new String(
+            Files.readAllBytes(
+                Paths.get(
+                    "src/test/resources/payload-json-for-domain-tests/payload_with_no_domain.json")));
+    this.importNode = mapper.readTree(jsonContent);
+
+    Domain domainToClassify =
+        domainRepository.findByName(PresetDomain.TOCLASSIFY.getName()).orElseThrow();
+
+    List<String> importDomainIds =
+        this.importer.importDomains(this.importNode, "payload_", new HashMap<>());
+
+    assertEquals(1, importDomainIds.size());
+    assertEquals(domainToClassify.getId(), importDomainIds.get(0));
   }
 
   // -- UTILS --

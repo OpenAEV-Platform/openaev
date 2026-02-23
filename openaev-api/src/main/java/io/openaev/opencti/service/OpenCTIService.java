@@ -11,6 +11,7 @@ import io.openaev.opencti.client.response.Response;
 import io.openaev.opencti.client.response.fields.Error;
 import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.connectors.ConnectorBase;
+import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.connectors.service.PrivilegeService;
 import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.stix.objects.Bundle;
@@ -31,6 +32,12 @@ public class OpenCTIService {
   private final OpenCTIClient openCTIClient;
   private final ObjectMapper mapper;
   private final PrivilegeService privilegeService;
+
+  private void applyJwksIfApplicable(ConnectorBase connector, String jwks) {
+    if (connector instanceof SecurityCoverageConnector scc) {
+      scc.setJwks(jwks);
+    }
+  }
 
   public RegisterConnector.ResponsePayload registerConnector(ConnectorBase connector)
       throws IOException, ConnectorError {
@@ -60,6 +67,9 @@ public class OpenCTIService {
           "Registered connector {} with OpenCTI at {}", connector.getName(), connector.getApiUrl());
       // side effect on transient state
       connector.setRegistered(true);
+      if (payload.getRegisterConnectorContent() != null) {
+        applyJwksIfApplicable(connector, payload.getRegisterConnectorContent().getJwks());
+      }
       return payload;
     }
   }
@@ -91,6 +101,9 @@ public class OpenCTIService {
       Ping.ResponsePayload payload = mapper.convertValue(r.getData(), Ping.ResponsePayload.class);
       log.info(
           "Pinged connector {} with OpenCTI at {}", connector.getName(), connector.getApiUrl());
+      if (payload.getPingConnectorContent() != null) {
+        applyJwksIfApplicable(connector, payload.getPingConnectorContent().getJwks());
+      }
       return payload;
     }
   }

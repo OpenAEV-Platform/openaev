@@ -48,6 +48,9 @@ public class Executor {
   private final ExecutableInjectDTOMapper executableInjectDTOMapper;
   private final ConnectorInstanceService connectorInstanceService;
 
+  public static final String CMD = "cmd";
+  public static final String PSH = "psh";
+
   @Qualifier("coreInjectorService")
   private final InjectorService injectorService;
 

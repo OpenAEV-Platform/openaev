@@ -105,7 +105,7 @@ const ThemeDark = (
           intermediate: 'rgb(255 216 0)',
           warning: 'rgb(245, 166, 35)',
           failed: 'rgb(220, 81, 72)',
-          pending: 'rgba(248,243,243,0.37)',
+          pending: 'rgba(248,243,243,0.74)',
           unknown: 'rgba(73,72,72,0.37)',
         },
       },

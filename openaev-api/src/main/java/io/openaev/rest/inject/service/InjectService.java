@@ -61,6 +61,7 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Subquery;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
 import java.util.function.BiFunction;
@@ -73,7 +74,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.hibernate.Hibernate;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
@@ -667,6 +667,10 @@ public class InjectService {
       @NotBlank final String injectId, @jakarta.validation.constraints.NotNull InjectInput input) {
     Inject inject =
         this.injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
+    // Managing case where input.dependsDuration is null, as the field is marked as NotNull
+    if (input.getDependsDuration() == null) {
+      input.setDependsDuration(inject.getDependsDuration());
+    }
     inject.setUpdateAttributes(input);
 
     // Set dependencies

@@ -21,6 +21,7 @@ import io.openaev.rest.scenario.response.ImportTestSummary;
 import io.openaev.utils.InjectImportUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.mapper.InjectMapper;
+import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -48,7 +49,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.util.Strings;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellReference;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 

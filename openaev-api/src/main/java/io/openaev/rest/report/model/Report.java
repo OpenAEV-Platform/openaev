@@ -14,7 +14,9 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -70,7 +72,7 @@ public class Report implements Base {
       inverseJoinColumns = @JoinColumn(name = "exercise_id"))
   @JsonProperty("report_exercise")
   @JsonSerialize(using = MonoIdSerializer.class)
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Exercise exercise;
 
   @OneToMany(
@@ -80,6 +82,7 @@ public class Report implements Base {
       fetch = FetchType.EAGER)
   @JsonProperty("report_injects_comments")
   @JsonSerialize(using = MultiModelSerializer.class)
+  @Schema(implementation = ReportInjectComment[].class)
   private List<ReportInjectComment> reportInjectsComments = new ArrayList<>();
 
   @Override

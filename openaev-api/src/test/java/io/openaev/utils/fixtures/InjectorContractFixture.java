@@ -2,6 +2,7 @@ package io.openaev.utils.fixtures;
 
 import static io.openaev.database.model.InjectorContract.CONTRACT_CONTENT_FIELDS;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
+import static io.openaev.executors.Executor.CMD;
 import static io.openaev.injector_contract.ContractCardinality.Multiple;
 import static io.openaev.injector_contract.ContractDef.contractBuilder;
 import static io.openaev.injector_contract.fields.ContractAsset.assetField;
@@ -17,10 +18,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.database.model.Endpoint;
-import io.openaev.database.model.Injector;
-import io.openaev.database.model.InjectorContract;
-import io.openaev.database.model.Payload;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.injector_contract.ContractCardinality;
 import io.openaev.injector_contract.ContractDef;
@@ -126,6 +124,14 @@ public class InjectorContractFixture {
     return createDefaultInjectorContractInternal();
   }
 
+  public static InjectorContract createInjectorContractWithDomain(Domain domain) {
+    InjectorContract injectorContract = createDefaultInjectorContractInternal();
+    Set<Domain> domains = new HashSet<>();
+    domains.add(domain);
+    injectorContract.setDomains(domains);
+    return injectorContract;
+  }
+
   public static InjectorContract createDefaultInjectorContractWithExternalId(String externalId) {
     InjectorContract injectorContract = createDefaultInjectorContractInternal();
     injectorContract.setExternalId(externalId);
@@ -144,11 +150,16 @@ public class InjectorContractFixture {
     return createPayloadInjectorContractWithFieldsContent(injector, payloadCommand, List.of());
   }
 
-  public static InjectorContract createPayloadInjectorContractWithObfuscator()
+  public static InjectorContract createPayloadInjectorContractWithObfuscator(String executor)
       throws JsonProcessingException {
     ContractSelect obfuscatorSelect =
         new ContractSelect("obfuscator", "Obfuscators", ContractCardinality.One);
-    obfuscatorSelect.setChoices(Map.of("plain-text", "plain-text", "base64", "base64"));
+
+    if (CMD.equals(executor)) {
+      obfuscatorSelect.setChoices(Map.of("plain-text", "plain-text"));
+    } else {
+      obfuscatorSelect.setChoices(Map.of("plain-text", "plain-text", "base64", "base64"));
+    }
 
     return createPayloadInjectorContractWithFieldsContent(List.of(obfuscatorSelect));
   }

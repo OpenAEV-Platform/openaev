@@ -49,6 +49,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -741,7 +745,7 @@ class InjectServiceTest {
     expectationsArray.add(expectationPrevention);
 
     ObjectNode content = mapper.createObjectNode();
-    content.put("expectations", expectationsArray);
+    content.set("expectations", expectationsArray);
     inject.setContent(content);
 
     // MOCK

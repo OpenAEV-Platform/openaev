@@ -1,0 +1,42 @@
+{
+  "listened" : true,
+  "payload_id" : "9a48871c-e21d-422f-b13b-e50e6b585747",
+  "payload_type" : "Command",
+  "payload_name" : "Process Discovery - tasklist",
+  "payload_description" : "Utilize tasklist to identify processes.\n\nUpon successful execution, cmd.exe will execute tasklist.exe to list processes. Output will be via stdout. \n",
+  "payload_platforms" : [ "Windows" ],
+  "payload_attack_patterns" : [ {
+    "attack_pattern_id" : "63d77e78-e4a2-4c42-8e8f-7bc4e5f48fb9",
+    "attack_pattern_name" : "Process Discovery",
+    "attack_pattern_description" : "Adversaries may attempt to get information about running processes on a system. Information obtained could be used to gain an understanding of common software/applications running on systems within the network. Administrator or otherwise elevated access may provide better process details. Adversaries may use the information from [Process Discovery](https://attack.mitre.org/techniques/T1057) during automated discovery to shape follow-on behaviors, including whether or not the adversary fully infects the target and/or attempts specific actions.\n\nIn Windows environments, adversaries could obtain details on running processes using the [Tasklist](https://attack.mitre.org/software/S0057) utility via [cmd](https://attack.mitre.org/software/S0106) or <code>Get-Process</code> via [PowerShell](https://attack.mitre.org/techniques/T1059/001). Information about processes can also be extracted from the output of [Native API](https://attack.mitre.org/techniques/T1106) calls such as <code>CreateToolhelp32Snapshot</code>. In Mac and Linux, this is accomplished with the <code>ps</code> command. Adversaries may also opt to enumerate processes via `/proc`. ESXi also supports use of the `ps` command, as well as `esxcli system process list`.(Citation: Sygnia ESXi Ransomware 2025)(Citation: Crowdstrike Hypervisor Jackpotting Pt 2 2021)\n\nOn network devices, [Network Device CLI](https://attack.mitre.org/techniques/T1059/008) commands such as `show processes` can be used to display current running processes.(Citation: US-CERT-TA18-106A)(Citation: show_processes_cisco_cmd)",
+    "attack_pattern_external_id" : "T1057",
+    "attack_pattern_kill_chain_phases" : [ {
+      "phase_id" : "e0a815b3-1d61-4145-915a-d17482f5887d",
+      "phase_external_id" : "TA0007",
+      "phase_stix_id" : "x-mitre-tactic--c17c5845-175e-4421-9713-829d0573dbc9",
+      "phase_name" : "Discovery",
+      "phase_shortname" : "discovery",
+      "phase_kill_chain_name" : "mitre-attack",
+      "phase_description" : "The adversary is trying to figure out your environment.\n\nDiscovery consists of techniques an adversary may use to gain knowledge about the system and internal network. These techniques help adversaries observe the environment and orient themselves before deciding how to act. They also allow adversaries to explore what they can control and what’s around their entry point in order to discover how it could benefit their current objective. Native operating system tools are often used toward this post-compromise information-gathering objective. ",
+      "phase_order" : 8
+    } ]
+  } ],
+  "payload_cleanup_executor" : null,
+  "payload_cleanup_command" : null,
+  "payload_elevation_required" : false,
+  "payload_arguments" : [ ],
+  "payload_prerequisites" : [ ],
+  "payload_external_id" : "c5806a4f-62b8-4900-980b-c7ec004e9908",
+  "payload_source" : "COMMUNITY",
+  "payload_status" : "UNVERIFIED",
+  "payload_execution_arch" : "ALL_ARCHITECTURES",
+  "payload_collector" : "0f2a85c1-0a3b-4405-a79c-c65398ee4a76",
+  "payload_detection_remediations" : [ ],
+  "payload_tags" : [ ],
+  "payload_output_parsers" : [ ],
+  "payload_created_at" : "2024-12-12T08:12:46.046360Z",
+  "payload_updated_at" : "2025-07-03T14:50:46.702988Z",
+  "command_executor" : "cmd",
+  "command_content" : "tasklist\n",
+  "payload_collector_type" : "openbas_atomic_red_team"
+}
