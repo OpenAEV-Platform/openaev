@@ -64,8 +64,7 @@ public class AgentExecutionProcessingHandler implements ExecutionProcessingHandl
             outputParsers, executionContext.input().getMessage())
         .map(
             structuredOutput -> {
-              // Process findings for each compatible output parser
-              getAllIsFindingCompatibleContractOutputs(outputParsers).stream()
+              getAllContractOutputs(outputParsers).stream()
                   .map(ContractOutputContext::from)
                   .forEach(
                       contractOutputCtx -> {
@@ -81,17 +80,14 @@ public class AgentExecutionProcessingHandler implements ExecutionProcessingHandl
   }
 
   /**
-   * Retrieves all contract output elements from the output parsers that are compatible with
-   * findings.
+   * Retrieves all contract output elements from the output parsers.
    *
    * @param outputParsers the set of output parsers to inspect
-   * @return list of finding-compatible contract output elements
+   * @return list of contract output elements
    */
-  private List<ContractOutputElement> getAllIsFindingCompatibleContractOutputs(
-      Set<OutputParser> outputParsers) {
+  private List<ContractOutputElement> getAllContractOutputs(Set<OutputParser> outputParsers) {
     return outputParsers.stream()
         .flatMap(outputParser -> outputParser.getContractOutputElements().stream())
-        .filter(ContractOutputElement::isFinding)
         .toList();
   }
 }

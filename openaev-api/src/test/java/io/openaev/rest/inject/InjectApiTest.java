@@ -4,8 +4,7 @@ import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.model.ExerciseStatus.RUNNING;
 import static io.openaev.database.model.InjectExpectationSignature.EXPECTATION_SIGNATURE_TYPE_END_DATE;
 import static io.openaev.database.model.InjectExpectationSignature.EXPECTATION_SIGNATURE_TYPE_START_DATE;
-import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_ASSET_SEPARATOR;
-import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
+import static io.openaev.database.model.InjectorContract.*;
 import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openaev.rest.atomic_testing.AtomicTestingApi.ATOMIC_TESTING_URI;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
@@ -1289,9 +1288,9 @@ class InjectApiTest extends IntegrationTest {
     }
 
     @Nested
-    @DisplayName("Finding Handling")
+    @DisplayName("Finding Processing Handling")
     @KeepRabbit
-    class FindingHandlingTest {
+    class FindingProcessingHandlingTest {
 
       @Test
       @DisplayName("Should link finding to targeted asset")
@@ -1360,6 +1359,427 @@ class InjectApiTest extends IntegrationTest {
         assertEquals(endpointSaved.getId(), findings.getFirst().getAssets().getFirst().getId());
         assertEquals(1, findings.getLast().getAssets().size());
         assertEquals(endpointSaved.getId(), findings.getLast().getAssets().getFirst().getId());
+      }
+    }
+
+    @Nested
+    @DisplayName("Asset Processing Handling")
+    @KeepRabbit
+    class AssetProcessingHandlingTest {
+
+      @Test
+      @DisplayName("Should create a asset agentless")
+      void shouldCreateAssetFromStructuredOutput() throws Exception {
+        // -- PREPARE --
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage("Creation Assets");
+        input.setOutputStructured(
+            """
+                            {
+                             	"found_assets": [
+                             		{
+                             			"name": "Asset A",
+                             			"type": "Endpoint",
+                             			"description": "describe asset A",
+                             			"externalReference": "https://shodan.io/.../assetA",
+                             			"tags": ["source:shodan.io"],
+                             			"extendedAttributes": {
+                             				"ip_addresses": ["192.168.0.2"],
+                             				"platform": "Windows",
+                             				"hostname": "test.if",
+                             				"mac_addresses": ["1::22:45:67:89:AB"],
+                             				"arch": "x86_64",
+                             				"end_of_life": true
+                             			}
+                             		},
+                             		{
+                             			"name": "Asset B",
+                             			"type": "Endpoint",
+                             			"description": "describe asset B",
+                             			"externalReference": "https://shodan.io/.../assetB",
+                             			"tags": ["source:shodan.io"],
+                             			"extendedAttributes": {
+                             				"ip_addresses": ["192.168.0.10"],
+                             				"platform": "Linux",
+                             				"hostname": "test.io",
+                             				"mac_addresses": ["1::23:45:67:89:AB"],
+                             				"arch": "arm64",
+                             				"end_of_life": false
+                             			}
+                             		}
+                             	]
+                             }
+                """);
+        input.setAction(InjectExecutionAction.complete);
+        input.setStatus("SUCCESS");
+        Inject inject = getPendingInjectWithAssets();
+        Injector injector = InjectorFixture.createDefaultPayloadInjector();
+        injectTestHelper.forceSaveInjector(injector);
+        ObjectNode convertedContent =
+            (ObjectNode)
+                mapper.readTree(
+                    """
+                        {
+                          "outputs": [
+                            {
+                               "field": "found_assets",
+                               "isFindingCompatible": false,
+                               "isMultiple": true,
+                               "labels": [
+                                   "shodan"
+                               ],
+                               "type": "asset"
+                           }
+                          ]
+                        }
+                        """);
+        convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
+        InjectorContract injectorContract =
+            InjectorContractFixture.createInjectorContract(convertedContent);
+        injectorContract.setInjector(injector);
+        InjectorContract injectorContractSaved =
+            injectTestHelper.forceSaveInjectorContract(injectorContract);
+        inject.setInjectorContract(injectorContractSaved);
+        inject.setContent(convertedContent);
+        injectTestHelper.forceSaveInject(inject);
+
+        // -- EXECUTE --
+        performAgentlessCallbackRequest(inject.getId(), input);
+
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () -> {
+                  List<Endpoint> endpointsA =
+                      endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
+                  List<Endpoint> endpointsB =
+                      endpointRepository.findByExternalReference("https://shodan.io/.../assetB");
+                  return endpointsA.size() == 1 && endpointsB.size() == 1;
+                });
+
+        List<Endpoint> endpointsA =
+            endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
+        List<Endpoint> endpointsB =
+            endpointRepository.findByExternalReference("https://shodan.io/.../assetB");
+        assertEquals(1, endpointsA.size());
+        assertEquals(1, endpointsB.size());
+        assertEquals("test.if", endpointsA.getFirst().getHostname());
+        assertEquals("test.io", endpointsB.getFirst().getHostname());
+      }
+
+      @Test
+      @DisplayName("Should find asset from structured output and not create a new one")
+      void shouldFindAssetFromStructuredOutputAndNotCreateNewAsset() throws Exception {
+        // -- PREPARE --
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage("Creation Assets");
+        input.setOutputStructured(
+            """
+                            {
+                             	"found_assets": [
+                             		{
+                             			"name": "Asset A",
+                             			"type": "Endpoint",
+                             			"description": "describe asset A",
+                             			"externalReference": "https://shodan.io/.../assetA",
+                             			"tags": ["source:shodan.io"],
+                             			"extendedAttributes": {
+                             				"ip_addresses": ["192.168.0.2"],
+                             				"platform": "Windows",
+                             				"hostname": "test.if",
+                             				"mac_addresses": ["1::22:45:67:89:AB"],
+                             				"arch": "x86_64",
+                             				"end_of_life": true
+                             			}
+                             		},
+                             		{
+                             			"name": "Asset B",
+                             			"type": "Endpoint",
+                             			"description": "describe asset B",
+                             			"externalReference": "https://shodan.io/.../assetA",
+                             			"tags": ["source:shodan.io"],
+                             			"extendedAttributes": {
+                             				"ip_addresses": ["192.168.0.2"],
+                             				"platform": "Windows",
+                             				"hostname": "test.if",
+                             				"mac_addresses": ["1::22:45:67:89:AB"],
+                             				"arch": "arm64",
+                             				"end_of_life": false
+                             			}
+                             		}
+                             	]
+                             }
+                """);
+        input.setAction(InjectExecutionAction.complete);
+        input.setStatus("SUCCESS");
+        Inject inject = getPendingInjectWithAssets();
+        Injector injector = InjectorFixture.createDefaultPayloadInjector();
+        injectTestHelper.forceSaveInjector(injector);
+        ObjectNode convertedContent =
+            (ObjectNode)
+                mapper.readTree(
+                    """
+                        {
+                          "outputs": [
+                            {
+                               "field": "found_assets",
+                               "isFindingCompatible": false,
+                               "isMultiple": true,
+                               "labels": [
+                                   "shodan"
+                               ],
+                               "type": "asset"
+                           }
+                          ]
+                        }
+                        """);
+        convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
+        InjectorContract injectorContract =
+            InjectorContractFixture.createInjectorContract(convertedContent);
+        injectorContract.setInjector(injector);
+        InjectorContract injectorContractSaved =
+            injectTestHelper.forceSaveInjectorContract(injectorContract);
+        inject.setInjectorContract(injectorContractSaved);
+        inject.setContent(convertedContent);
+        injectTestHelper.forceSaveInject(inject);
+
+        // -- EXECUTE --
+        performAgentlessCallbackRequest(inject.getId(), input);
+
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () -> {
+                  List<Endpoint> endpointsA =
+                      endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
+                  return endpointsA.size() == 1;
+                });
+
+        List<Endpoint> endpointsA =
+            endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
+        assertEquals(1, endpointsA.size());
+        assertEquals("test.if", endpointsA.getFirst().getHostname());
+      }
+
+      @Test
+      @DisplayName("shouldNotProduceNothingWhenContractHasNotAssetType")
+      void shouldNotProduceNothingWhenContractHasNotAssetType() throws Exception {
+        // -- PREPARE --
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage("Creation Assets");
+        input.setOutputStructured(
+            """
+                            {
+                             	"found_assets": [
+                             		{
+                             			"name": "Asset A",
+                             			"type": "Endpoint",
+                             			"description": "describe asset A",
+                             			"externalReference": "https://shodan.io/.../assetA",
+                             			"tags": ["source:shodan.io"],
+                             			"extendedAttributes": {
+                             				"ip_addresses": ["192.168.0.2"],
+                             				"platform": "Windows",
+                             				"hostname": "test.if",
+                             				"mac_addresses": ["1::22:45:67:89:AB"],
+                             				"arch": "x86_64",
+                             				"end_of_life": true
+                             			}
+                             		}
+                             	]
+                             }
+                """);
+        input.setAction(InjectExecutionAction.complete);
+        input.setStatus("SUCCESS");
+        Inject inject = getPendingInjectWithAssets();
+        Injector injector = InjectorFixture.createDefaultPayloadInjector();
+        injectTestHelper.forceSaveInjector(injector);
+        ObjectNode convertedContent =
+            (ObjectNode)
+                mapper.readTree(
+                    """
+                        {
+                          "outputs": [
+                            {
+                               "field": "cve",
+                               "isFindingCompatible": true,
+                               "isMultiple": true,
+                               "labels": [
+                                   "shodan"
+                               ],
+                               "type": "cve"
+                           }
+                          ]
+                        }
+                        """);
+        convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
+        InjectorContract injectorContract =
+            InjectorContractFixture.createInjectorContract(convertedContent);
+        injectorContract.setInjector(injector);
+        InjectorContract injectorContractSaved =
+            injectTestHelper.forceSaveInjectorContract(injectorContract);
+        inject.setInjectorContract(injectorContractSaved);
+        inject.setContent(convertedContent);
+        injectTestHelper.forceSaveInject(inject);
+
+        // -- EXECUTE --
+        performAgentlessCallbackRequest(inject.getId(), input);
+
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () -> {
+                  List<Finding> findings = findingRepository.findAllByInjectId(inject.getId());
+                  return findings.isEmpty();
+                });
+      }
+
+      @Test
+      @DisplayName("shouldNotProduceNothingWhenStructuredOutputIsEmpty")
+      void shouldNotProduceNothingWhenStructuredOutputIsEmpty() throws Exception {
+        // -- PREPARE --
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage("Creation Assets");
+        input.setOutputStructured("{}");
+        input.setAction(InjectExecutionAction.complete);
+        input.setStatus("SUCCESS");
+        Inject inject = getPendingInjectWithAssets();
+        Injector injector = InjectorFixture.createDefaultPayloadInjector();
+        injectTestHelper.forceSaveInjector(injector);
+        ObjectNode convertedContent =
+            (ObjectNode)
+                mapper.readTree(
+                    """
+                        {
+                          "outputs": [
+                            {
+                               "field": "found_assets",
+                               "isFindingCompatible": false,
+                               "isMultiple": true,
+                               "labels": [
+                                   "shodan"
+                               ],
+                               "type": "asset"
+                           }
+                          ]
+                        }
+                        """);
+        convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
+        InjectorContract injectorContract =
+            InjectorContractFixture.createInjectorContract(convertedContent);
+        injectorContract.setInjector(injector);
+        InjectorContract injectorContractSaved =
+            injectTestHelper.forceSaveInjectorContract(injectorContract);
+        inject.setInjectorContract(injectorContractSaved);
+        inject.setContent(convertedContent);
+        injectTestHelper.forceSaveInject(inject);
+
+        // -- EXECUTE --
+        performAgentlessCallbackRequest(inject.getId(), input);
+
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () -> {
+                  List<Endpoint> endpointsA =
+                      endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
+                  return endpointsA.isEmpty();
+                });
+      }
+
+      @Test
+      @DisplayName("Should create a asset agentless")
+      void shouldCreateNothingWhenTypeAndStructureOutputAreNotRelatedByType() throws Exception {
+        // -- PREPARE --
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage("Creation Assets");
+        input.setOutputStructured(
+            """
+                            {
+                             	"found_assets": [
+                             		{
+                             			"name": "Asset A",
+                             			"type": "Endpoint",
+                             			"description": "describe asset A",
+                             			"externalReference": "https://shodan.io/.../assetA",
+                             			"tags": ["source:shodan.io"],
+                             			"extendedAttributes": {
+                             				"ip_addresses": ["192.168.0.2"],
+                             				"platform": "Windows",
+                             				"hostname": "test.if",
+                             				"mac_addresses": ["1::22:45:67:89:AB"],
+                             				"arch": "x86_64",
+                             				"end_of_life": true
+                             			}
+                             		}
+                             	]
+                             }
+                """);
+        input.setAction(InjectExecutionAction.complete);
+        input.setStatus("SUCCESS");
+        Inject inject = getPendingInjectWithAssets();
+        Injector injector = InjectorFixture.createDefaultPayloadInjector();
+        injectTestHelper.forceSaveInjector(injector);
+        ObjectNode convertedContent =
+            (ObjectNode)
+                mapper.readTree(
+                    """
+                        {
+                          "outputs": [
+                            {
+                               "field": "cve",
+                               "isFindingCompatible": true,
+                               "isMultiple": true,
+                               "labels": [
+                                   "shodan:cve"
+                               ],
+                               "type": "cve"
+                           }
+                          ]
+                        }
+                        """);
+        convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
+        InjectorContract injectorContract =
+            InjectorContractFixture.createInjectorContract(convertedContent);
+        injectorContract.setInjector(injector);
+        InjectorContract injectorContractSaved =
+            injectTestHelper.forceSaveInjectorContract(injectorContract);
+        inject.setInjectorContract(injectorContractSaved);
+        inject.setContent(convertedContent);
+        injectTestHelper.forceSaveInject(inject);
+
+        // -- EXECUTE --
+        performAgentlessCallbackRequest(inject.getId(), input);
+
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () -> {
+                  List<Endpoint> endpointsA =
+                      endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
+                  List<Endpoint> endpointsB =
+                      endpointRepository.findByExternalReference("https://shodan.io/.../assetB");
+                  return endpointsA.size() == 1 && endpointsB.size() == 1;
+                });
+
+        List<Endpoint> endpointsA =
+            endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
+        List<Endpoint> endpointsB =
+            endpointRepository.findByExternalReference("https://shodan.io/.../assetB");
+        assertEquals(1, endpointsA.size());
+        assertEquals(1, endpointsB.size());
+        assertEquals("test.if", endpointsA.getFirst().getHostname());
+        assertEquals("test.io", endpointsB.getFirst().getHostname());
       }
     }
   }

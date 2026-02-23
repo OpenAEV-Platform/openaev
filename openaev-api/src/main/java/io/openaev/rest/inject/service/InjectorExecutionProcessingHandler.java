@@ -67,10 +67,8 @@ public class InjectorExecutionProcessingHandler implements ExecutionProcessingHa
 
     InjectorContract injectorContract =
         executionContext.inject().getInjectorContract().orElseThrow();
-    List<InjectorContractContentOutputElement> contractOutputElements =
-        getAllIsFindingCompatibleContractOutputs(injectorContract);
 
-    contractOutputElements.stream()
+    getAllContractOutputs(injectorContract).stream()
         .map(ContractOutputContext::from)
         .forEach(
             contractOutputCtx -> {
@@ -86,18 +84,16 @@ public class InjectorExecutionProcessingHandler implements ExecutionProcessingHa
   }
 
   /**
-   * Retrieves all contract output elements from the injector contract that are compatible with
-   * findings.
+   * Retrieves all contract output elements from the injector contract.
    *
    * @param injectorContract the injector contract to inspect
-   * @return list of finding-compatible contract output elements
+   * @return list of contract output elements
    */
-  private List<InjectorContractContentOutputElement> getAllIsFindingCompatibleContractOutputs(
+  private List<InjectorContractContentOutputElement> getAllContractOutputs(
       InjectorContract injectorContract) {
     return injectorContractContentUtils
         .getContractOutputs(injectorContract.getConvertedContent(), mapper)
         .stream()
-        .filter(InjectorContractContentOutputElement::isFindingCompatible)
         .toList();
   }
 }
