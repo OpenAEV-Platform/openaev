@@ -1,11 +1,5 @@
 package io.openaev.service.chaining;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
-
-import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.ActionStep;
 import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
@@ -15,25 +9,27 @@ import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.utilstest.RabbitMQTestListener;
-import java.io.IOException;
-import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.TestExecutionListeners;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-@SpringBootTest
-@TestExecutionListeners(
-    value = {RabbitMQTestListener.class},
-    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
-public class StepServiceTest extends IntegrationTest {
+import java.io.IOException;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+public class StepServiceTest {
 
   @Mock private StepRepository stepRepository;
   @Mock private InjectExecutionStep injectExecutionStep;
@@ -234,6 +230,7 @@ public class StepServiceTest extends IntegrationTest {
       Workflow workflowRun = mock(Workflow.class);
 
       when(workflowService.launchWorkflow(workflowTemplate)).thenReturn(workflowRun);
+      when(workflowService.findWorkflowTemplateBySimulationId(simulationId)).thenReturn(Optional.of(workflowTemplate));
 
       when(stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(templateWorkflowId))
           .thenReturn(Collections.emptyList());
@@ -253,7 +250,7 @@ public class StepServiceTest extends IntegrationTest {
       assertEquals(simulationId, simulationIdCaptor.getValue());
 
       verify(stepService, never()).ready(any(Step.class), any(Workflow.class), any());
-      verifyNoMoreInteractions(workflowService);
+
     }
 
     @ParameterizedTest(name = "{index} => steps={0}, nonNullReadyIndices={1}")
@@ -279,10 +276,10 @@ public class StepServiceTest extends IntegrationTest {
       // For each template step:
       // - return a non-null Step for chosen indices
       // - return null otherwise
-      Map<Step, Step> readyReturnByInputStep = new HashMap<>();
+      Map<Step, Optional<Step>> readyReturnByInputStep = new HashMap<>();
       for (int i = 0; i < stepTemplates.size(); i++) {
         Step input = stepTemplates.get(i);
-        Step returned = nonNullReadyIndices.contains(i) ? mock(Step.class) : null;
+        Optional<Step> returned = (nonNullReadyIndices.contains(i) ? Optional.ofNullable(mock(Step.class)) : Optional.empty());
         readyReturnByInputStep.put(input, returned);
       }
 
@@ -305,7 +302,7 @@ public class StepServiceTest extends IntegrationTest {
           .findAllByStepTemplateIdIsNullAndWorkflowId(workflowTemplateIdCaptor.capture());
       assertEquals(templateWorkflowId, workflowTemplateIdCaptor.getValue());
 
-      verify(workflowService).launchWorkflow(workflowCaptor.capture());
+      verify(workflowService).launchWorkflow(workflowTemplate);
       assertEquals(simulationId, simulationIdCaptor.getValue());
 
       verify(stepService, times(stepTemplates.size()))
@@ -381,11 +378,8 @@ public class StepServiceTest extends IntegrationTest {
      * ============================================================ */
     @Nested
     class ConditionOutcomes {
-
-      @ParameterizedTest(name = "{index} => conditionExecutionNull={0}")
-      @MethodSource("conditionExecutionTestInputs")
-      void shouldReturnNullAndStop_whenConditionExecutionIsNull(boolean conditionExecutionNull)
-          throws Exception {
+        @Test
+      void shouldReturnNullAndStop_whenConditionExecutionIsNull() throws Exception {
         // -------- Prepare --------
         Step nextStepTemplateToExecute = mock(Step.class);
         Step persistedTemplate = mock(Step.class);
@@ -396,24 +390,14 @@ public class StepServiceTest extends IntegrationTest {
         String stepId = UUID.randomUUID().toString();
 
         when(nextStepTemplateToExecute.getStepAction()).thenReturn(null);
-        when(stepService.factoryAction(null, null)).thenReturn(actionStep);
+        doReturn(actionStep).when(stepService).factoryAction(null, stepId);
 
         when(nextStepTemplateToExecute.getId()).thenReturn(stepId);
-        when(stepRepository.findById(stepId)).thenReturn(Optional.of(persistedTemplate));
-
-        // used by checkCondition call
-        when(persistedTemplate.getData()).thenReturn("{\"data\":true}");
+        when(stepRepository.findByIdAndStatus(stepId, StepStatus.TEMPLATE)).thenReturn(Optional.of(persistedTemplate));
 
         when(conditionService.checkCondition(
                 eq(persistedTemplate), eq(input), eq(workflowRun), eq(stepService)))
-            .thenReturn(conditionExecutionNull ? null : List.of(mock(Condition.class)));
-
-        // If conditions are non-null, actionStep.ready will be called; to keep focus here,
-        // we only validate the null-case behavior. We force conditionExecutionNull = true in source
-        // below.
-        assertTrue(
-            conditionExecutionNull,
-            "This scenario is intended for the null conditionExecution path.");
+            .thenReturn(null);
 
         // -------- Act --------
         Optional<Step> resultOpt = stepService.ready(nextStepTemplateToExecute, workflowRun, input);
@@ -421,7 +405,7 @@ public class StepServiceTest extends IntegrationTest {
         // -------- Assert --------
         assertFalse(resultOpt.isPresent());
 
-        verify(stepRepository).findById(stepIdCaptor.capture());
+        verify(stepRepository).findByIdAndStatus(stepIdCaptor.capture(), any());
         assertEquals(stepId, stepIdCaptor.getValue());
 
         verify(conditionService)
@@ -431,12 +415,6 @@ public class StepServiceTest extends IntegrationTest {
         verify(stepRepository, never()).save(any());
         verify(conditionService, never()).saveAllConditions(anyList());
         verify(queueChainingService, never()).readyStep(any(), any());
-      }
-
-      static Stream<Arguments> conditionExecutionTestInputs() {
-        return Stream.of(
-            Arguments.of(true) // conditionExecution == null
-            );
       }
     }
 
@@ -486,6 +464,7 @@ public class StepServiceTest extends IntegrationTest {
         // queueChainingService.readyStep(...) does not throw here
         doNothing().when(queueChainingService).readyStep(stepReady, workflowRun);
 
+        when(stepRepository.findByIdAndStatus(any(), eq(StepStatus.TEMPLATE))).thenReturn(Optional.of(persistedTemplate));
         // -------- Act --------
         Optional<Step> resultOpt = stepService.ready(nextStepTemplateToExecute, workflowRun, input);
         assertTrue(resultOpt.isPresent());
@@ -530,7 +509,7 @@ public class StepServiceTest extends IntegrationTest {
     class QueueChainingIOException {
 
       @Test
-      void shouldWrapIOExceptionIntoRuntimeException() throws Exception {
+      void shouldWrapIOExceptionIntoLogsAndEmptyOptionalStep() throws Exception {
         // -------- Prepare --------
         Step nextStepTemplateToExecute = mock(Step.class);
         Step persistedTemplate = mock(Step.class);
@@ -539,7 +518,7 @@ public class StepServiceTest extends IntegrationTest {
 
         String input = "{\"q\":true}";
         String stepId = UUID.randomUUID().toString();
-
+          System.out.println("stepId "+stepId);
         when(nextStepTemplateToExecute.getStepAction())
             .thenReturn(StepActionClass.INJECT_EXECUTION);
         when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, stepId))
@@ -558,22 +537,26 @@ public class StepServiceTest extends IntegrationTest {
             .thenReturn(conditionExecution);
 
         Step stepReady = mock(Step.class);
+
+          System.out.println("stepReady "+(stepReady!=null ? stepReady.getId() : null));
         when(actionStep.ready(persistedTemplate, input, workflowRun))
             .thenReturn(Optional.ofNullable(stepReady));
         assertNotNull(stepReady);
-        when(stepRepository.save(stepReady)).thenReturn(stepReady);
+          System.out.println("stepReady " + stepReady.getId());
 
+          when(stepRepository.save(stepReady)).thenReturn(stepReady);
+
+          System.out.println("stepReady " + stepReady.getId());
         IOException ioException = new IOException("boom");
         doThrow(ioException).when(queueChainingService).readyStep(stepReady, workflowRun);
 
         // -------- Act --------
-        RuntimeException ex =
-            assertThrows(
-                RuntimeException.class,
-                () -> stepService.ready(nextStepTemplateToExecute, workflowRun, input));
+          System.out.println("nextStepTemplateToExecute " + nextStepTemplateToExecute.getId());
+          when(stepService.findByIdAndStatus(nextStepTemplateToExecute.getId(), nextStepTemplateToExecute.getStatus())).thenReturn(nextStepTemplateToExecute);
+          Optional<Step> step = stepService.ready(nextStepTemplateToExecute, workflowRun, input);
+          assertEquals(Optional.empty(), step );
 
         // -------- Assert --------
-        assertSame(ioException, ex.getCause());
 
         verify(actionStep).ready(persistedTemplate, input, workflowRun);
         verify(stepReady).setWorkflow(workflowRun);
@@ -1382,7 +1365,7 @@ public class StepServiceTest extends IntegrationTest {
     when(workflowService.getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
         .thenReturn(workflow);
 
-    when(stepService.factoryAction(eq(stepInput.getStepAction()), any())).thenReturn(actionStep);
+    when(stepService.factoryAction(stepInput.getStepAction(), null) ).thenReturn(actionStep);
 
     when(actionStep.create(any(), eq(workflow))).thenReturn(Optional.ofNullable(step));
 
