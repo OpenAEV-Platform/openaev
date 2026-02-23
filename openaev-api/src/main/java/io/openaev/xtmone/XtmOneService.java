@@ -52,9 +52,8 @@ public class XtmOneService {
       try {
         var license = eeService.getEnterpriseEditionInfo();
         if (license != null && license.isLicenseValidated()) {
-          licenseType = license.getType() != null
-              ? license.getType().name().toLowerCase()
-              : "enterprise";
+          licenseType =
+              license.getType() != null ? license.getType().name().toLowerCase() : "enterprise";
         }
       } catch (Exception ignored) {
         // license info not available
