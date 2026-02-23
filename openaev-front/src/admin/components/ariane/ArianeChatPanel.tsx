@@ -323,7 +323,11 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
     setConversationId(null);
     setAttachedFiles([]);
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_AGENT_KEY);
     historyLoadedRef.current = false;
+    if (agents.length > 0) {
+      setSelectedAgent(agents[0]);
+    }
   };
 
   const handleCopyCode = (code: string) => {
