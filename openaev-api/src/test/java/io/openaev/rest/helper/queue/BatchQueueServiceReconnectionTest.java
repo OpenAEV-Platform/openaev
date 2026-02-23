@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.*;
 import io.openaev.config.QueueConfig;
+import io.openaev.config.RabbitMQSslConfiguration;
 import io.openaev.config.RabbitmqConfig;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -34,6 +35,7 @@ class BatchQueueServiceReconnectionTest {
   @Mock private Connection connection;
   @Mock private Channel publisherChannel;
   @Mock private Channel consumerChannel;
+  @Mock private RabbitMQSslConfiguration rabbitMQSslConfiguration;
 
   private BatchQueueService<BatchQueueServiceTest.TestQueueable> service;
   private MockedConstruction<ConnectionFactory> mockedFactory;
@@ -72,7 +74,8 @@ class BatchQueueServiceReconnectionTest {
             queueExecution,
             rabbitmqConfig,
             new ObjectMapper(),
-            queueConfig);
+            queueConfig,
+                rabbitMQSslConfiguration);
 
     // Capture the ShutdownListener registered on the connection
     ArgumentCaptor<ShutdownListener> captor = ArgumentCaptor.forClass(ShutdownListener.class);

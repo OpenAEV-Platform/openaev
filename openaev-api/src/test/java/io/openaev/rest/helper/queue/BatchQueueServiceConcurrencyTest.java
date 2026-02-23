@@ -8,6 +8,7 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import io.openaev.config.QueueConfig;
+import io.openaev.config.RabbitMQSslConfiguration;
 import io.openaev.config.RabbitmqConfig;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -34,6 +35,7 @@ class BatchQueueServiceConcurrencyTest {
   private ObjectMapper mapper;
   private BatchQueueService<BatchQueueServiceTest.TestQueueable> service;
   private MockedConstruction<ConnectionFactory> mockedFactory;
+  private RabbitMQSslConfiguration rabbitMQSslConfiguration;
 
   @BeforeEach
   void setUp() {
@@ -98,7 +100,7 @@ class BatchQueueServiceConcurrencyTest {
             null, // queueExecution set later per test
             rabbitmqConfig,
             mapper,
-            queueConfig);
+            queueConfig, rabbitMQSslConfiguration);
   }
 
   // ========================================================================
@@ -232,7 +234,7 @@ class BatchQueueServiceConcurrencyTest {
               blockingExecution,
               rabbitmqConfig,
               mapper,
-              multiWorkerConfig);
+              multiWorkerConfig, rabbitMQSslConfiguration);
 
       Map<Integer, BlockingQueue<BatchQueueServiceTest.TestQueueable>> internalQueue =
           getInternalQueue();

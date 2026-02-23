@@ -8,6 +8,7 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import io.openaev.config.QueueConfig;
+import io.openaev.config.RabbitMQSslConfiguration;
 import io.openaev.config.RabbitmqConfig;
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
@@ -31,6 +32,7 @@ class BatchQueueServiceTest {
 
   private RabbitmqConfig rabbitmqConfig;
   private QueueConfig queueConfig;
+  private RabbitMQSslConfiguration rabbitMQSslConfiguration;
   private ObjectMapper mapper;
 
   @BeforeEach
@@ -103,7 +105,7 @@ class BatchQueueServiceTest {
 
         BatchQueueService<TestQueueable> service =
             new BatchQueueService<>(
-                TestQueueable.class, queueExecution, rabbitmqConfig, mapper, queueConfig);
+                TestQueueable.class, queueExecution, rabbitmqConfig, mapper, queueConfig, rabbitMQSslConfiguration);
 
         assertNotNull(service);
         service.stop();
@@ -124,7 +126,7 @@ class BatchQueueServiceTest {
             IOException.class,
             () ->
                 new BatchQueueService<>(
-                    TestQueueable.class, queueExecution, rabbitmqConfig, mapper, queueConfig));
+                                    TestQueueable.class, queueExecution, rabbitmqConfig, mapper, queueConfig, rabbitMQSslConfiguration));
       }
     }
 
@@ -142,7 +144,7 @@ class BatchQueueServiceTest {
             TimeoutException.class,
             () ->
                 new BatchQueueService<>(
-                    TestQueueable.class, queueExecution, rabbitmqConfig, mapper, queueConfig));
+                        TestQueueable.class, queueExecution, rabbitmqConfig, mapper, queueConfig, rabbitMQSslConfiguration));
       }
     }
   }
@@ -168,7 +170,7 @@ class BatchQueueServiceTest {
 
         BatchQueueService<TestQueueable> service =
             new BatchQueueService<>(
-                TestQueueable.class, queueExecution, rabbitmqConfig, mapper, queueConfig);
+                TestQueueable.class, queueExecution, rabbitmqConfig, mapper, queueConfig, rabbitMQSslConfiguration);
 
         TestQueueable element = new TestQueueable("key1");
         service.publish(element);
@@ -196,7 +198,7 @@ class BatchQueueServiceTest {
 
         BatchQueueService<TestQueueable> service =
             new BatchQueueService<>(
-                TestQueueable.class, queueExecution, rabbitmqConfig, mapper, queueConfig);
+                TestQueueable.class, queueExecution, rabbitmqConfig, mapper, queueConfig, rabbitMQSslConfiguration);
 
         TestQueueable element = new TestQueueable("key1");
 
@@ -227,7 +229,7 @@ class BatchQueueServiceTest {
 
         BatchQueueService<TestQueueable> service =
             new BatchQueueService<>(
-                TestQueueable.class, queueExecution, rabbitmqConfig, mapper, queueConfig);
+                TestQueueable.class, queueExecution, rabbitmqConfig, mapper, queueConfig, rabbitMQSslConfiguration);
 
         service.forcePurge();
 
@@ -251,7 +253,7 @@ class BatchQueueServiceTest {
 
         BatchQueueService<TestQueueable> service =
             new BatchQueueService<>(
-                TestQueueable.class, queueExecution, rabbitmqConfig, mapper, queueConfig);
+                TestQueueable.class, queueExecution, rabbitmqConfig, mapper, queueConfig, rabbitMQSslConfiguration);
 
         assertThrows(IOException.class, service::forcePurge);
         service.stop();
@@ -283,7 +285,7 @@ class BatchQueueServiceTest {
 
         BatchQueueService<TestQueueable> service =
             new BatchQueueService<>(
-                TestQueueable.class, queueExecution, rabbitmqConfig, mapper, queueConfig);
+                TestQueueable.class, queueExecution, rabbitmqConfig, mapper, queueConfig, rabbitMQSslConfiguration);
 
         service.stop();
 
@@ -310,7 +312,8 @@ class BatchQueueServiceTest {
 
         BatchQueueService<TestQueueable> service =
             new BatchQueueService<>(
-                TestQueueable.class, queueExecution, rabbitmqConfig, mapper, queueConfig);
+                TestQueueable.class, queueExecution, rabbitmqConfig, mapper, queueConfig, rabbitMQSslConfiguration);
+
 
         service.stop();
 
@@ -342,7 +345,7 @@ class BatchQueueServiceTest {
 
         BatchQueueService<TestQueueable> service =
             new BatchQueueService<>(
-                TestQueueable.class, queueExecution, rabbitmqConfig, mapper, queueConfig);
+                TestQueueable.class, queueExecution, rabbitmqConfig, mapper, queueConfig, rabbitMQSslConfiguration);
 
         // Should not throw
         service.processBufferedBatch(0);
@@ -380,7 +383,7 @@ class BatchQueueServiceTest {
 
         BatchQueueService<TestQueueable> service =
             new BatchQueueService<>(
-                TestQueueable.class, queueExecution, rabbitmqConfig, mapper, queueConfig);
+                TestQueueable.class, queueExecution, rabbitmqConfig, mapper, queueConfig, rabbitMQSslConfiguration);
 
         QueueExecution<TestQueueable> newExecution = elements -> elements;
         service.setQueueExecution(newExecution);

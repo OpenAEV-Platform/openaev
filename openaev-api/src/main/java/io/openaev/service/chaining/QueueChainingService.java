@@ -2,6 +2,7 @@ package io.openaev.service.chaining;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.config.RabbitMQSslConfiguration;
 import io.openaev.config.RabbitmqConfig;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
@@ -26,6 +27,7 @@ public class QueueChainingService {
   private final RabbitmqConfig rabbitmqConfig;
   private final OpenAEVConfig openAEVConfig;
   private final ObjectMapper objectMapper;
+    private final RabbitMQSslConfiguration rabbitMQSslConfiguration;
 
   @Setter private BatchQueueService<StepEvent> delayQueueService; // TODO switch to DB queue
   @Setter private BatchQueueService<StepEvent> readyQueueService;
@@ -61,7 +63,8 @@ public class QueueChainingService {
             null,
             rabbitmqConfig,
             objectMapper,
-            openAEVConfig.getQueueConfig().get("workflows-ready"));
+            openAEVConfig.getQueueConfig().get("workflows-ready"),
+            rabbitMQSslConfiguration);
 
     // Initializing the queue to manage tasks blocked by a time condition
     delayQueueService =
@@ -70,7 +73,8 @@ public class QueueChainingService {
             null,
             rabbitmqConfig,
             objectMapper,
-            openAEVConfig.getQueueConfig().get("workflows-delay"));
+            openAEVConfig.getQueueConfig().get("workflows-delay"),
+                rabbitMQSslConfiguration);
 
     // Initializing the queue to manage update event from external sources
     updateQueueService =
@@ -79,7 +83,8 @@ public class QueueChainingService {
             null,
             rabbitmqConfig,
             objectMapper,
-            openAEVConfig.getQueueConfig().get("workflows-update"));
+            openAEVConfig.getQueueConfig().get("workflows-update"),
+                rabbitMQSslConfiguration);
   }
 
   @PreDestroy

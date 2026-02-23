@@ -8,6 +8,7 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import io.openaev.config.QueueConfig;
+import io.openaev.config.RabbitMQSslConfiguration;
 import io.openaev.config.RabbitmqConfig;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -31,6 +32,7 @@ class BatchQueueServiceBatchProcessingTest {
   @Mock private Channel consumerChannel;
 
   private RabbitmqConfig rabbitmqConfig;
+  private RabbitMQSslConfiguration rabbitMQSslConfiguration;
   private ObjectMapper mapper;
   private BatchQueueService<BatchQueueServiceTest.TestQueueable> service;
   private MockedConstruction<ConnectionFactory> mockedFactory;
@@ -70,7 +72,8 @@ class BatchQueueServiceBatchProcessingTest {
             queueExecution,
             rabbitmqConfig,
             mapper,
-            queueConfig);
+            queueConfig,
+            rabbitMQSslConfiguration);
   }
 
   @AfterEach
@@ -126,7 +129,7 @@ class BatchQueueServiceBatchProcessingTest {
             queueExecution,
             rabbitmqConfig,
             mapper,
-            config);
+            config, rabbitMQSslConfiguration);
   }
 
   // ========================================================================
@@ -643,7 +646,7 @@ class BatchQueueServiceBatchProcessingTest {
               queueExecution,
               rabbitmqConfig,
               mapper,
-              multiPubConfig);
+              multiPubConfig, rabbitMQSslConfiguration);
 
       // -3 % 2 = -1 in Java, so publisherChannels.get(-1) throws
       NegativeHashQueueable negativeHashElem = new NegativeHashQueueable("key");

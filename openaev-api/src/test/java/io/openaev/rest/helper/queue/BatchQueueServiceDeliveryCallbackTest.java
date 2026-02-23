@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.*;
 import io.openaev.config.QueueConfig;
+import io.openaev.config.RabbitMQSslConfiguration;
 import io.openaev.config.RabbitmqConfig;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -42,8 +43,10 @@ class BatchQueueServiceDeliveryCallbackTest {
   @Mock private Connection connection;
   @Mock private Channel publisherChannel;
   @Mock private Channel consumerChannel;
+  @Mock private RabbitMQSslConfiguration rabbitMQSslConfiguration;
 
-  private ObjectMapper mapper;
+
+    private ObjectMapper mapper;
   private BatchQueueService<SerializableQueueable> service;
   private MockedConstruction<ConnectionFactory> mockedFactory;
   private DeliverCallback deliverCallback;
@@ -82,7 +85,7 @@ class BatchQueueServiceDeliveryCallbackTest {
 
     service =
         new BatchQueueService<>(
-            SerializableQueueable.class, queueExecution, rabbitmqConfig, mapper, queueConfig);
+            SerializableQueueable.class, queueExecution, rabbitmqConfig, mapper, queueConfig, rabbitMQSslConfiguration);
 
     // Capture the DeliverCallback registered with the consumer channel
     ArgumentCaptor<DeliverCallback> captor = ArgumentCaptor.forClass(DeliverCallback.class);
