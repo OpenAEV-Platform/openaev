@@ -10,7 +10,7 @@ export const computeBannerSettings = (settings: PlatformSettings) => {
   const isBannerActivated = (bannerByLevel !== undefined
     && isNotEmptyField(recordKeys(bannerByLevel)))
   || settings.platform_license?.license_type === LICENSE_OPTION_TRIAL
-  || (settings.platform_base_url === 'https://demo.openaev.io' && settings.enabled_dev_features?.includes('OPENAEV_TRIALS_XTMHUB'));
+  || settings.platform_base_url === 'https://demo.openaev.io';
   let numberOfElements = 0;
   if (settings.platform_banner_by_level !== undefined) {
     for (const bannerLevel of recordEntries(settings.platform_banner_by_level)) {

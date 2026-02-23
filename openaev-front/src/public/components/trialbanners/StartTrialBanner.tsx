@@ -11,10 +11,6 @@ const StartTrialBanner = (settings: { settings: PlatformSettings }) => {
 
   if (!settings || isEmptyField(settings.settings?.xtm_hub_url) || settings.settings.platform_base_url !== 'https://demo.openaev.io') return <></>;
 
-  // REMOVE WHEN REMOVING FEATURE FLAG OPENAEV_TRIALS_XTMHUB
-  const freeTrialsEnabled = settings.settings?.enabled_dev_features?.includes('OPENAEV_TRIALS_XTMHUB') ?? false;
-  if (!freeTrialsEnabled) return <></>;
-
   const freeTrialUrl = `${settings.settings?.xtm_hub_url}/cybersecurity-solutions/openaev-free-trial`;
   const createFreeTrialUrl = `${settings.settings?.xtm_hub_url}/redirect/create-free-trial`;
 
