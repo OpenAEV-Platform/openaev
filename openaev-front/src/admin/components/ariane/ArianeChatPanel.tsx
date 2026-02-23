@@ -9,7 +9,6 @@ import {
   FullscreenExitOutlined,
   InsertDriveFileOutlined,
   LaunchOutlined,
-  OpenInNewOutlined,
   PersonAddOutlined,
   PictureInPictureAltOutlined,
   PsychologyOutlined,
@@ -941,7 +940,6 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
           </Paper>
         </ClickAwayListener>
       </Popper>
-      <Tooltip title={t('Open in new window')}><IconButton size="small" sx={{ mr: 0.25 }}><OpenInNewOutlined sx={{ fontSize: 18 }} /></IconButton></Tooltip>
       <Tooltip title={t('Close')}><IconButton size="small" onClick={onClose}><CloseOutlined sx={{ fontSize: 20 }} /></IconButton></Tooltip>
     </Box>
   );
@@ -1203,7 +1201,7 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
       )}
       <Box sx={{
         'display': 'flex',
-        'alignItems': 'flex-end',
+        'alignItems': 'center',
         'border': `1px solid ${theme.palette.divider}`,
         'borderRadius': '12px',
         'padding': '4px 4px 4px 8px',
