@@ -45,7 +45,18 @@ public class XtmOneService {
       try {
         licensePem = eeService.getEncodedCertificate();
       } catch (Exception ignored) {
-        // CE platform — no EE license available
+        // CE platform or NFR — certificate not available as PEM
+      }
+
+      String licenseType = null;
+      try {
+        var license = eeService.getEnterpriseEditionInfo();
+        if (license != null && license.isLicenseValidated()) {
+          licenseType =
+              license.getType() != null ? license.getType().name().toLowerCase() : "enterprise";
+        }
+      } catch (Exception ignored) {
+        // license info not available
       }
 
       List<Map<String, String>> userEntries = collectUserEntries();
@@ -60,6 +71,7 @@ public class XtmOneService {
               version != null ? version : "",
               settings.getPlatformId() != null ? settings.getPlatformId() : "",
               licensePem,
+              licenseType,
               adminToken,
               userEntries);
       if (result != null) {

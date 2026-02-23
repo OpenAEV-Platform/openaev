@@ -323,7 +323,11 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
     setConversationId(null);
     setAttachedFiles([]);
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_AGENT_KEY);
     historyLoadedRef.current = false;
+    if (agents.length > 0) {
+      setSelectedAgent(agents[0]);
+    }
   };
 
   const handleCopyCode = (code: string) => {
@@ -890,7 +894,12 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
                   window.open(`${xtmOneUrl}/agents`, '_blank');
                 }}
               >
-                <ListItemAvatar sx={{ minWidth: 36 }}>
+                <ListItemAvatar sx={{
+                  minWidth: 36,
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                >
                   <LaunchOutlined sx={{
                     fontSize: 18,
                     color: theme.palette.text?.secondary,
@@ -909,7 +918,12 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
                   window.open(`${xtmOneUrl}/agents/new`, '_blank');
                 }}
               >
-                <ListItemAvatar sx={{ minWidth: 36 }}>
+                <ListItemAvatar sx={{
+                  minWidth: 36,
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                >
                   <PersonAddOutlined sx={{
                     fontSize: 18,
                     color: theme.palette.text?.secondary,
@@ -1275,7 +1289,7 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
         </IconButton>
         <InputBase
           fullWidth
-          placeholder={t('Ask, @mention, or / for actions')}
+          placeholder={t('Ask a question...')}
           value={inputValue}
           onChange={e => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
