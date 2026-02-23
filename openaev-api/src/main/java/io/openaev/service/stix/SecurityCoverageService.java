@@ -644,6 +644,7 @@ public class SecurityCoverageService {
                 .filter(
                     inject ->
                         inject.getPayload().isPresent()
+                            && inject.getPayload().get() instanceof FileDrop
                             && documentIds.contains(
                                 ((FileDrop) inject.getPayload().get()).getFileDropFile().getId()))
                 .toList(),
