@@ -322,16 +322,22 @@ public class SecurityCoverageService {
    */
   public void pushSecurityCoverageBundleWithExternalURI(Scenario scenario)
       throws ParsingException, ConnectorError, IOException {
-    SecurityCoverage coverage = scenario.getSecurityCoverage();
-    String externalLink = openAEVConfig.getBaseUrl() + "/admin/scenarios/" + scenario.getId();
 
-    DomainObject sdo = (DomainObject) stixParser.parseObject(coverage.getContent());
-    sdo.setProperty(CommonProperties.EXTERNAL_URI.toString(), new StixString(externalLink));
+    String scenarioId = scenario.getId();
+      SecurityCoverage coverage = scenario.getSecurityCoverage();
+      String externalLink = openAEVConfig.getBaseUrl() + "/admin/scenarios/" + scenarioId;
 
-    Bundle bundle =
-        new Bundle(new Identifier("bundle", UUID.randomUUID().toString()), List.of(sdo));
+      DomainObject sdo = (DomainObject) stixParser.parseObject(coverage.getContent());
 
-    openCTIConnectorService.pushSecurityCoverageStixBundle(bundle);
+      // Injecting the external URI into the STIX object
+      sdo.setProperty(CommonProperties.EXTERNAL_URI.toString(), new StixString(externalLink));
+
+      Bundle bundle = new Bundle(
+          new Identifier("bundle", UUID.randomUUID().toString()),
+          List.of(sdo)
+      );
+      openCTIConnectorService.pushSecurityCoverageStixBundle(bundle);
+      log.info("Security coverage successfully pushed to OpenCTI for scenario: {}", scenarioId);
   }
 
   /**
