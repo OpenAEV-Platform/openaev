@@ -132,7 +132,6 @@ public class ConditionService {
    * @param stepService the service used to interact with steps and related logic
    * @return a list of conditions that are valid and ready for execution, or {@code null} if a
    *     delayed "AFTER" condition has been scheduled
-   * @throws RuntimeException if scheduling a delayed step fails due to an {@link IOException}
    */
   public List<Condition> checkCondition(
       Step nextStepTemplateToExecute, String input, Workflow workflowRun, StepService stepService) {
