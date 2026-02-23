@@ -1334,12 +1334,16 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
             onClick={isLoading ? handleStopGenerating : handleSendMessage}
             disabled={!isLoading && !inputValue.trim() && attachedFiles.length === 0}
             sx={{
-              'color': isLoading
-                ? theme.palette.error.main
-                : (inputValue.trim() || attachedFiles.length > 0) ? theme.palette.ai.main : theme.palette.action.disabled,
-              'bgcolor': isLoading
-                ? theme.palette.error.main + '1A'
-                : (inputValue.trim() || attachedFiles.length > 0) ? theme.palette.ai.main + '1A' : 'transparent',
+              'color': (() => {
+                if (isLoading) return theme.palette.error.main;
+                if (inputValue.trim() || attachedFiles.length > 0) return theme.palette.ai.main;
+                return theme.palette.action.disabled;
+              })(),
+              'bgcolor': (() => {
+                if (isLoading) return theme.palette.error.main + '1A';
+                if (inputValue.trim() || attachedFiles.length > 0) return theme.palette.ai.main + '1A';
+                return 'transparent';
+              })(),
               'borderRadius': '8px',
               'width': 32,
               'height': 32,
