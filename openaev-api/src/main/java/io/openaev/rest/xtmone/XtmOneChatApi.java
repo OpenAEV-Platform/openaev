@@ -45,8 +45,7 @@ public class XtmOneChatApi extends RestBehavior {
   }
 
   @PostMapping("/api/xtmone/chat/sessions")
-  public ResponseEntity<Map<String, Object>> createSession(
-      @RequestBody Map<String, Object> body) {
+  public ResponseEntity<Map<String, Object>> createSession(@RequestBody Map<String, Object> body) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }
@@ -61,11 +60,8 @@ public class XtmOneChatApi extends RestBehavior {
     return ResponseEntity.ok(result);
   }
 
-  @PostMapping(
-      path = "/api/xtmone/chat/messages",
-      produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-  public ResponseEntity<StreamingResponseBody> sendMessage(
-      @RequestBody Map<String, Object> body) {
+  @PostMapping(path = "/api/xtmone/chat/messages", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+  public ResponseEntity<StreamingResponseBody> sendMessage(@RequestBody Map<String, Object> body) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }
@@ -80,11 +76,12 @@ public class XtmOneChatApi extends RestBehavior {
       return ResponseEntity.internalServerError().build();
     }
 
-    StreamingResponseBody responseBody = outputStream -> {
-      try (sseStream) {
-        sseStream.transferTo(outputStream);
-      }
-    };
+    StreamingResponseBody responseBody =
+        outputStream -> {
+          try (sseStream) {
+            sseStream.transferTo(outputStream);
+          }
+        };
 
     return ResponseEntity.ok()
         .contentType(MediaType.TEXT_EVENT_STREAM)
