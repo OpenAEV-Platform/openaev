@@ -103,10 +103,15 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
   const { me, settings } = useAuth();
   const xtmOneUrl = settings.platform_xtm_one_url || '';
 
+  const STORAGE_KEY = 'arianeChatConversationId';
+  const STORAGE_AGENT_KEY = 'arianeChatAgentSlug';
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(
+    () => localStorage.getItem(STORAGE_KEY),
+  );
   const [agents, setAgents] = useState<XtmAgent[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<XtmAgent | null>(null);
   const [agentMenuOpen, setAgentMenuOpen] = useState(false);
@@ -117,6 +122,7 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
   const modeAnchorRef = useRef<HTMLButtonElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const historyLoadedRef = useRef(false);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -128,11 +134,40 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
       .then((data: XtmAgent[]) => {
         setAgents(data);
         if (data.length > 0 && !selectedAgent) {
-          setSelectedAgent(data[0]);
+          const savedSlug = localStorage.getItem(STORAGE_AGENT_KEY);
+          const match = savedSlug ? data.find(a => a.slug === savedSlug) : null;
+          setSelectedAgent(match || data[0]);
         }
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!conversationId || historyLoadedRef.current || !selectedAgent) return;
+    historyLoadedRef.current = true;
+    fetch('/api/xtmone/chat/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        conversation_id: conversationId,
+        agent_slug: selectedAgent.slug,
+      }),
+    })
+      .then(res => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data?.messages?.length) return;
+        const restored: ChatMessage[] = data.messages.map(
+          (m: { role: string; content: string }, i: number) => ({
+            id: `restored-${i}`,
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+            timestamp: new Date(),
+          }),
+        );
+        setMessages(restored);
+      })
+      .catch(() => {});
+  }, [conversationId, selectedAgent]);
 
   const firstName = me?.user_firstname || me?.user_email?.split('@')[0] || 'there';
   const agentName = selectedAgent?.name || 'Ariane';
@@ -236,7 +271,10 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
                   }
                 : m)));
             } else if (evt.type === 'done') {
-              if (evt.conversation_id) setConversationId(evt.conversation_id);
+              if (evt.conversation_id) {
+                setConversationId(evt.conversation_id);
+                localStorage.setItem(STORAGE_KEY, evt.conversation_id);
+              }
               setMessages(prev => prev.map(m => (m.id === assistantId
                 ? {
                     ...m,
@@ -281,6 +319,8 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
     setInputValue('');
     setConversationId(null);
     setAttachedFiles([]);
+    localStorage.removeItem(STORAGE_KEY);
+    historyLoadedRef.current = false;
   };
 
   const handleCopyCode = (code: string) => {
@@ -796,6 +836,7 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
                   selected={agent.id === selectedAgent?.id}
                   onClick={() => {
                     setSelectedAgent(agent);
+                    if (agent.slug) localStorage.setItem(STORAGE_AGENT_KEY, agent.slug);
                     setAgentMenuOpen(false);
                     handleNewChat();
                   }}
