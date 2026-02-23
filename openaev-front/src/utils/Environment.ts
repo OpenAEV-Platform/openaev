@@ -14,6 +14,8 @@ export interface Message {
 
 // Service bus
 const MESSENGER$ = new Subject<Message[]>().pipe(debounce(() => timer(500)));
+export type ArianeChatMode = 'sidebar' | 'floating' | 'fullscreen';
+
 export const MESSAGING$ = {
   messages: MESSENGER$,
   notifyError: (text: ReactNode, sticky = false) => (MESSENGER$ as Subject<Message[]>).next([{
@@ -27,6 +29,8 @@ export const MESSAGING$ = {
   }]),
   toggleNav: new Subject<void>(),
   redirect: new Subject<string>(),
+  toggleArianeChat: new Subject<void>(),
+  setArianeChatMode: new Subject<ArianeChatMode>(),
 };
 
 // Default application exception.

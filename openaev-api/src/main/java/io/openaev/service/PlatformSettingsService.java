@@ -33,6 +33,7 @@ import io.openaev.xtmhub.XtmHubConnectivityService;
 import io.openaev.xtmhub.XtmHubRegistererRecord;
 import io.openaev.xtmhub.XtmHubRegistrationStatus;
 import io.openaev.xtmhub.config.XtmHubConfig;
+import io.openaev.xtmone.XtmOneConfig;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -69,6 +70,7 @@ public class PlatformSettingsService {
   private final EnterpriseEditionService enterpriseEditionService;
   private final EngineService engineService;
   private final XtmHubConnectivityService xtmHubConnectivityService;
+  private final XtmOneConfig xtmOneConfig;
 
   @Autowired private TransactionTemplate transactionTemplate;
 
@@ -318,13 +320,44 @@ public class PlatformSettingsService {
 
     // Admin-only settings
     OpenAEVPrincipal user = currentUser();
-    if (user != null && user.isAdmin()) {
-      platformSettings.setPlatformVersion(openAEVConfig.getVersion());
-      platformSettings.setPostgreVersion(settingRepository.getServerVersion());
-      platformSettings.setJavaVersion(Runtime.version().toString());
-      platformSettings.setRabbitMQVersion(RabbitMQHelper.getRabbitMQVersion(rabbitmqConfig));
-      platformSettings.setAnalyticsEngineType(engineConfig.getEngineSelector());
-      platformSettings.setAnalyticsEngineVersion(engineService.getEngineVersion());
+    if (user != null) {
+      platformSettings.setPlatformWhitemark(
+          ofNullable(dbSettings.get(PLATFORM_WHITEMARK.key()))
+              .map(Setting::getValue)
+              .orElse(PLATFORM_WHITEMARK.defaultValue()));
+      platformSettings.setMapTileServerLight(openAEVConfig.getMapTileServerLight());
+      platformSettings.setMapTileServerDark(openAEVConfig.getMapTileServerDark());
+      platformSettings.setPlatformId(
+          ofNullable(dbSettings.get(PLATFORM_INSTANCE.key()))
+              .map(Setting::getValue)
+              .orElse(PLATFORM_INSTANCE.defaultValue()));
+      platformSettings.setPlatformName(
+          ofNullable(dbSettings.get(PLATFORM_NAME.key()))
+              .map(Setting::getValue)
+              .orElse(PLATFORM_NAME.defaultValue()));
+      platformSettings.setPlatformBaseUrl(openAEVConfig.getBaseUrl());
+      platformSettings.setPlatformAgentUrl(openAEVConfig.getBaseUrlForAgent());
+      platformSettings.setXtmOpenctiEnable(openCTIConfig.getEnable());
+      platformSettings.setXtmOpenctiUrl(openCTIConfig.getUrl());
+      platformSettings.setXtmOneConfigured(xtmOneConfig.isConfigured());
+      platformSettings.setXtmOneUrl(xtmOneConfig.getUrl());
+      platformSettings.setXtmOneWebToken(xtmOneConfig.getEffectiveWebToken());
+      platformSettings.setAiEnabled(aiConfig.isEnabled());
+      platformSettings.setAiHasToken(StringUtils.hasText(aiConfig.getToken()));
+      platformSettings.setAiType(aiConfig.getType());
+      platformSettings.setAiModel(aiConfig.getModel());
+      platformSettings.setExecutorTaniumEnable(false);
+      platformSettings.setTelemetryManagerEnable(true);
+
+      // Build admin settings
+      if (user.isAdmin()) {
+        platformSettings.setPlatformVersion(openAEVConfig.getVersion());
+        platformSettings.setPostgreVersion(settingRepository.getServerVersion());
+        platformSettings.setJavaVersion(Runtime.version().toString());
+        platformSettings.setRabbitMQVersion(RabbitMQHelper.getRabbitMQVersion(rabbitmqConfig));
+        platformSettings.setAnalyticsEngineType(engineConfig.getEngineSelector());
+        platformSettings.setAnalyticsEngineVersion(engineService.getEngineVersion());
+      }
     }
 
     // EXPECTATION

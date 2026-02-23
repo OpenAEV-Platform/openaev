@@ -1,6 +1,6 @@
 import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Route, Routes, useNavigate } from 'react-router';
 import { type CSSObject } from 'tss-react';
 import { makeStyles } from 'tss-react/mui';
@@ -16,10 +16,12 @@ import Loader from '../components/Loader';
 import NotFound from '../components/NotFound';
 import { computeBannerSettings } from '../public/components/systembanners/utils';
 import { useHelper } from '../store';
+import { type ArianeChatMode, MESSAGING$ } from '../utils/Environment';
 import { useAppDispatch } from '../utils/hooks';
 import useDataLoader from '../utils/hooks/useDataLoader';
 import ProtectedRoute from '../utils/permissions/ProtectedRoute';
 import { ACTIONS, SUBJECTS } from '../utils/permissions/types';
+import ArianeChatPanel from './components/ariane/ArianeChatPanel';
 import { GETTING_STARTED_LOCAL_STORAGE_KEY } from './components/getting_started/GettingStartedPage';
 import GettingStartedRoutes, { GETTING_STARTED_URI } from './components/getting_started/GettingStartedRoutes';
 import LeftBar from './components/nav/LeftBar';
@@ -68,10 +70,34 @@ const Index = () => {
     }
   }, [logged]);
 
+  const isXtmOneConfigured = settings.platform_xtm_one_configured === true;
+  const [arianeChatOpen, setArianeChatOpen] = useState(false);
+  const [arianeChatMode, setArianeChatMode] = useState<ArianeChatMode>(
+    () => (localStorage.getItem('arianeChatMode') as ArianeChatMode) || 'sidebar',
+  );
+
+  useEffect(() => {
+    if (!isXtmOneConfigured) return undefined;
+    const toggleSub = MESSAGING$.toggleArianeChat.subscribe({ next: () => setArianeChatOpen(prev => !prev) });
+    const modeSub = MESSAGING$.setArianeChatMode.subscribe({
+      next: (mode) => {
+        setArianeChatMode(mode);
+        localStorage.setItem('arianeChatMode', mode);
+      },
+    });
+    return () => {
+      toggleSub.unsubscribe();
+      modeSub.unsubscribe();
+    };
+  }, [isXtmOneConfigured]);
+
+  const sidebarPush = isXtmOneConfigured && arianeChatOpen && arianeChatMode === 'sidebar';
+
   const boxSx = {
     flexGrow: 1,
     padding: 3,
-    transition: theme.transitions.create('width', {
+    marginRight: sidebarPush ? '400px' : 0,
+    transition: theme.transitions.create(['width', 'margin-right'], {
       easing: theme.transitions.easing.easeInOut,
       duration: theme.transitions.duration.enteringScreen,
     }),
@@ -240,6 +266,17 @@ const Index = () => {
           </Routes>
         </Suspense>
       </Box>
+      {isXtmOneConfigured && arianeChatOpen && (
+        <ArianeChatPanel
+          mode={arianeChatMode}
+          onClose={() => setArianeChatOpen(false)}
+          onModeChange={(mode) => {
+            setArianeChatMode(mode);
+            localStorage.setItem('arianeChatMode', mode);
+          }}
+          bannerHeight={bannerHeight ? parseInt(String(bannerHeight), 10) || 0 : 0}
+        />
+      )}
     </Box>
   );
 };

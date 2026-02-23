@@ -141,7 +141,8 @@ public class XtmComposerService {
    */
   public void throwIfInvalidXtmComposerId(String xtmComposerId) throws BadRequestException {
     Map<String, Setting> xtmComposerInformation = this.getXtmComposerSettings();
-    if (!xtmComposerId.equals(xtmComposerInformation.get(XTM_COMPOSER_ID.key()).getValue())) {
+    Setting composerIdSetting = xtmComposerInformation.get(XTM_COMPOSER_ID.key());
+    if (composerIdSetting == null || !xtmComposerId.equals(composerIdSetting.getValue())) {
       throw new BadRequestException("Invalid xtm-composer identifier");
     }
   }
