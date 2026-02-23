@@ -175,7 +175,7 @@ public class UserMappingServiceTest extends IntegrationTest {
 
     // -- ARRANGE ---
     String object =
-            "[{\"idpGroup\": \"observer1\",\"userGroup\": \"observerOAEV1\",\"autoCreate\": \"true\"},{\"idpGroup\": \"observer2\",\"userGroup\": \"observerOAEV2\",\"autoCreate\": \"true\"}]";
+        "[{\"idpGroup\": \"observer1\",\"userGroup\": \"observerOAEV1\",\"autoCreate\": \"true\"},{\"idpGroup\": \"observer2\",\"userGroup\": \"observerOAEV2\",\"autoCreate\": \"true\"}]";
     Group specificGroup1 = GroupFixture.createGroupWithName("observerOAEV1");
     specificGroup1.setId(Constants.PROCESS_STIX_GROUP_ID);
     specificGroup1.setDescription("a description");

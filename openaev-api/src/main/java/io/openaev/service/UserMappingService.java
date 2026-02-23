@@ -69,10 +69,13 @@ public class UserMappingService {
         }
       }
 
-      // If the user has not this group in the groups from the token but he has the group in his current groups
-      if(groupsFromToken.stream().noneMatch(groupToken -> groupToken.equals(mapping.getIdpGroup()))
-              && user.getGroups().stream().anyMatch(groupOfUser -> groupOfUser.getName().equals(mapping.getUserGroup()))) {
-        // It means the user was removed from the group in the identity provider -> we remove it from its current groups
+      // If the user has not this group in the groups from the token but he has the group in his
+      // current groups
+      if (groupsFromToken.stream().noneMatch(groupToken -> groupToken.equals(mapping.getIdpGroup()))
+          && user.getGroups().stream()
+              .anyMatch(groupOfUser -> groupOfUser.getName().equals(mapping.getUserGroup()))) {
+        // It means the user was removed from the group in the identity provider -> we remove it
+        // from its current groups
         List<Group> userGroups = user.getGroups();
         userGroups.removeIf(group -> group.getName().equals(mapping.getUserGroup()));
         user.setGroups(userGroups);
