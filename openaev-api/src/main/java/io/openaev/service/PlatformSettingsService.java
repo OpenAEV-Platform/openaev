@@ -29,6 +29,7 @@ import io.openaev.xtmhub.XtmHubConnectivityService;
 import io.openaev.xtmhub.XtmHubRegistererRecord;
 import io.openaev.xtmhub.XtmHubRegistrationStatus;
 import io.openaev.xtmhub.config.XtmHubConfig;
+import io.openaev.xtmone.XtmOneConfig;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -65,6 +66,7 @@ public class PlatformSettingsService {
   private final EnterpriseEditionService enterpriseEditionService;
   private final EngineService engineService;
   private final XtmHubConnectivityService xtmHubConnectivityService;
+  private final XtmOneConfig xtmOneConfig;
 
   @Autowired private TransactionTemplate transactionTemplate;
 
@@ -236,6 +238,9 @@ public class PlatformSettingsService {
       platformSettings.setPlatformAgentUrl(openAEVConfig.getBaseUrlForAgent());
       platformSettings.setXtmOpenctiEnable(openCTIConfig.getEnable());
       platformSettings.setXtmOpenctiUrl(openCTIConfig.getUrl());
+      platformSettings.setXtmOneConfigured(xtmOneConfig.isConfigured());
+      platformSettings.setXtmOneUrl(xtmOneConfig.getUrl());
+      platformSettings.setXtmOneWebToken(xtmOneConfig.getEffectiveWebToken());
       platformSettings.setAiEnabled(aiConfig.isEnabled());
       platformSettings.setAiHasToken(StringUtils.hasText(aiConfig.getToken()));
       platformSettings.setAiType(aiConfig.getType());

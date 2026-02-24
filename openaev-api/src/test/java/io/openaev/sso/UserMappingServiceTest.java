@@ -169,6 +169,40 @@ public class UserMappingServiceTest extends IntegrationTest {
     assertThat(user.getGroups().getFirst().getName()).isEqualTo("admin2");
   }
 
+  @Test
+  @DisplayName("When removed from the idp group, remove from oaev group")
+  public void whenRemovedFromIdpGroup_propagateDeleteFromGroup() {
+
+    // -- ARRANGE ---
+    String object =
+        "[{\"idpGroup\": \"observer1\",\"userGroup\": \"observerOAEV1\",\"autoCreate\": \"true\"},{\"idpGroup\": \"observer2\",\"userGroup\": \"observerOAEV2\",\"autoCreate\": \"true\"}]";
+    Group specificGroup1 = GroupFixture.createGroupWithName("observerOAEV1");
+    specificGroup1.setId(Constants.PROCESS_STIX_GROUP_ID);
+    specificGroup1.setDescription("a description");
+    specificGroup1.setRoles(new ArrayList<>());
+    groupComposer.forGroup(specificGroup1).persist();
+    Group specificGroup2 = GroupFixture.createGroupWithName("observerOAEV2");
+    specificGroup2.setId(Constants.PROCESS_STIX_ROLE_ID);
+    specificGroup2.setDescription("a description");
+    specificGroup2.setRoles(new ArrayList<>());
+    groupComposer.forGroup(specificGroup2).persist();
+    entityManager.flush();
+    entityManager.clear();
+    User user = UserFixture.getUser();
+    user.getGroups().addAll(List.of(specificGroup1, specificGroup2));
+    userComposer.forUser(user).persist();
+    entityManager.flush();
+    entityManager.clear();
+    List<String> roles = List.of("observer1");
+
+    // ---- ACT ----
+    userMappingService.mapCurrentUserWithGroup(object, user, roles);
+
+    // -- ASSERT --
+    assertThat(user.getGroups().size()).isEqualTo(1);
+    assertThat(user.getGroups().getFirst().getName()).isEqualTo("observerOAEV1");
+  }
+
   @Nested
   class TestRolesAndGroupsExtraction {
     @Test
