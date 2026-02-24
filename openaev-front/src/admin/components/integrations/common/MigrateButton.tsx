@@ -27,7 +27,7 @@ const MigrateButton = ({ onMigrateBtnClick, style = {} }: Props) => {
     }
   };
   return (
-    <Tooltip title={t('Can not deploy more than one instance')}>
+    <Tooltip title={t('Migrate an instance deployed manually to the XTM Composer')}>
       <div style={{
         ...style,
         position: 'relative',
