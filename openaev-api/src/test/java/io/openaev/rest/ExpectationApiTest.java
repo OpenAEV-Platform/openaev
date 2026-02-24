@@ -15,6 +15,7 @@ import static io.openaev.utils.fixtures.InjectExpectationFixture.getInjectExpect
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -433,7 +434,8 @@ class ExpectationApiTest extends IntegrationTest {
       String response =
           mvc.perform(
                   get(INJECTS_EXPECTATIONS_URI + "/assets/" + savedCollector.getId())
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -476,7 +478,8 @@ class ExpectationApiTest extends IntegrationTest {
       String response =
           mvc.perform(
                   get(INJECTS_EXPECTATIONS_URI + "/prevention/" + savedCollector.getId())
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -515,7 +518,8 @@ class ExpectationApiTest extends IntegrationTest {
       response =
           mvc.perform(
                   get(INJECTS_EXPECTATIONS_URI + "/prevention/" + savedCollector.getId())
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -560,7 +564,8 @@ class ExpectationApiTest extends IntegrationTest {
       String response =
           mvc.perform(
                   get(INJECTS_EXPECTATIONS_URI + "/detection/" + savedCollector.getId())
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -599,7 +604,8 @@ class ExpectationApiTest extends IntegrationTest {
       response =
           mvc.perform(
                   get(INJECTS_EXPECTATIONS_URI + "/detection/" + savedCollector.getId())
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -794,7 +800,8 @@ class ExpectationApiTest extends IntegrationTest {
               put(INJECTS_EXPECTATIONS_URI + "/bulk")
                   .content(asJsonString(inputs))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
@@ -858,7 +865,8 @@ class ExpectationApiTest extends IntegrationTest {
                   get(INJECTS_EXPECTATIONS_URI
                           + "/available?injectorContractId="
                           + mailInjectorContract.getId())
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -874,7 +882,8 @@ class ExpectationApiTest extends IntegrationTest {
                   get(INJECTS_EXPECTATIONS_URI
                           + "/available?injectorContractId="
                           + challengeInjectorContract.getId())
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -891,7 +900,8 @@ class ExpectationApiTest extends IntegrationTest {
                   get(INJECTS_EXPECTATIONS_URI
                           + "/available?injectorContractId="
                           + savedInjectorContract.getId())
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()

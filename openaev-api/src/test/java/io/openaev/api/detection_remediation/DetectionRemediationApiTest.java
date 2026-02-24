@@ -174,7 +174,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                     + "/rules/"
                     + CROWDSTRIKE_FRONTEND_NAME)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(mapper.writeValueAsString(input)))
+                .content(mapper.writeValueAsString(input))
+                .with(csrf()))
         .andExpect(status().isBadGateway());
   }
 

@@ -227,7 +227,9 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void deleteInjectForScenarioTest() throws Exception {
     // -- EXECUTE 1 ASSERT --
-    mvc.perform(delete(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects/" + SCENARIO_INJECT_ID))
+    mvc.perform(
+            delete(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects/" + SCENARIO_INJECT_ID)
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful());
 
     assertFalse(injectRepository.existsById(SCENARIO_INJECT_ID));
@@ -279,7 +281,8 @@ class ScenarioInjectApiTest extends IntegrationTest {
                       post(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects/assistant")
                           .content(asJsonString(input))
                           .contentType(MediaType.APPLICATION_JSON)
-                          .accept(MediaType.APPLICATION_JSON)));
+                          .accept(MediaType.APPLICATION_JSON)
+                          .with(csrf())));
 
       // --ASSERT--
       assertTrue(

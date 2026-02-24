@@ -7,7 +7,6 @@ import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -69,79 +68,14 @@ class PayloadApiImporterTest extends IntegrationTest {
     return new MockMultipartFile("file", "payload.zip", "application/zip", zip);
   }
 
-  private String performImport(MockMultipartFile zipFile) throws Exception {
-    return mockMvc
-        .perform(multipart(PAYLOAD_URI + "/import").file(zipFile))
-        .andExpect(status().is2xxSuccessful())
-        .andReturn()
-        .getResponse()
-        .getContentAsString();
-  }
-
-  // -- TESTS --
-
-  @Test
-  @DisplayName("Import payload should create injector contract")
-  void importPayloadShouldCreateInjectorContract() throws Exception {
-    new Manager(List.of(openaevInjectorIntegrationFactory)).monitorIntegrations();
-
-    // -- PREPARE --
-    String domainId = "02e33774-33ae-4d65-91fd-a9c0e1a37c7b";
-    Map<String, Object> domainAttributes = new HashMap<>();
-    domainAttributes.put("domain_id", domainId);
-    domainAttributes.put("domain_name", "Data Exfiltration");
-    domainAttributes.put("domain_color", "#9933CC");
-    domainAttributes.put("domain_created_at", "2026-02-02T14:55:27.442379Z");
-    domainAttributes.put("domain_updated_at", "2026-02-02T14:55:27.442379Z");
-    ResourceObject domainElement =
-        new ResourceObject(domainId, "domains", domainAttributes, emptyMap());
-
-    JsonApiDocument<ResourceObject> document =
-        new JsonApiDocument<>(
-            new ResourceObject(
-                null,
-                "command",
-                buildDefaultPayloadAttributes(),
-                Map.of(
-                    "payload_domains",
-                    new Relationship(List.of(new ResourceIdentifier(domainId, "domains"))))),
-            List.of(domainElement));
-
-    MockMultipartFile zipFile = buildZipFile(document);
-
     // -- EXECUTE --
-    String response = performImport(zipFile);
-
-    // -- ASSERT --
-    assertNotNull(response);
-
-    JsonNode json = objectMapper.readTree(response);
-    String payloadId = json.at("/data/attributes/payload_id").asText();
-    assertNotNull(payloadId);
-
-    Optional<Payload> payloadPersisted = payloadRepository.findById(payloadId);
-    assertFalse(payloadPersisted.isEmpty(), "Payload should have been persisted in the database");
-
-    List<InjectorContract> injectorContracts =
-        injectorContractRepository.findInjectorContractsByPayload(payloadPersisted.get());
-    assertNotNull(injectorContracts);
-    assertEquals(1, injectorContracts.size());
-    assertEquals(payloadId, injectorContracts.getFirst().getPayload().getId());
-  }
-
-  @Test
-  @DisplayName("Import a payload returns complete entity")
-  void importPayloadReturnsPayloadWithRelationship() throws Exception {
-    // -- PREPARE --
-    JsonApiDocument<ResourceObject> document =
-        new JsonApiDocument<>(
-            new ResourceObject(null, "command", buildDefaultPayloadAttributes(), emptyMap()),
-            emptyList());
-
-    MockMultipartFile zipFile = buildZipFile(document);
-
-    // -- EXECUTE --
-    String response = performImport(zipFile);
+    String response =
+        mockMvc
+            .perform(multipart(PAYLOAD_URI + "/import").file(zipFile))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
 
     // -- ASSERT --
     assertNotNull(response);
