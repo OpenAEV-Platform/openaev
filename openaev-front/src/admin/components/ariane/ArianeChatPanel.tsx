@@ -270,7 +270,16 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
           if (!line.startsWith('data: ')) continue;
           try {
             const evt = JSON.parse(line.slice(6));
-            if (evt.type === 'stream') {
+            if (evt.type === 'error') {
+              setMessages(prev => prev.map(m => (m.id === assistantId
+                ? {
+                    ...m,
+                    content: evt.content || t('Unable to connect to XTM One. Please check the configuration.'),
+                  }
+                : m)));
+              setIsLoading(false);
+              return;
+            } else if (evt.type === 'stream') {
               accumulated += evt.content;
               setMessages(prev => prev.map(m => (m.id === assistantId
                 ? {
