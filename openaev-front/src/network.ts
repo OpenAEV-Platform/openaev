@@ -13,7 +13,29 @@ interface ApiErrorResponse {
 
 // eslint-disable-next-line import/prefer-default-export
 export const api = <T>(schema?: Schema<T> | null): AxiosInstance => {
-  const instance = axios.create({ headers: { responseType: 'json' } });
+  const instance = axios.create({
+    headers: { responseType: 'json' },
+    withCredentials: true,
+  });
+
+  // Intercept REQUEST to inject CSRF token
+  instance.interceptors.request.use((config) => {
+    const method = (config.method ?? 'GET').toUpperCase();
+    const mutating = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method);
+
+    if (mutating) {
+      const match = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('XSRF-TOKEN='));
+      const token = match ? decodeURIComponent(match.split('=')[1]) : null;
+
+      if (token) {
+        config.headers['X-XSRF-TOKEN'] = token;
+      }
+    }
+    return config;
+  });
+
   // Intercept to apply schema and test unauthorized users
   instance.interceptors.response.use(
     (response: AxiosResponse) => {
