@@ -1,7 +1,6 @@
 package io.openaev.rest.executor.form;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.model.ConnectorInstance;
 import io.openaev.rest.catalog_connector.dto.CatalogConnectorSimpleOutput;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceOutput;
 import io.swagger.v3.oas.annotations.media.Schema;

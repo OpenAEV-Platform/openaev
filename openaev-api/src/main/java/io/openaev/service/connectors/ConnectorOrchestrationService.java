@@ -206,16 +206,18 @@ public class ConnectorOrchestrationService {
     throwIfEnterpriseLicenseNotActive();
 
     throwIfXtmComposerDownAndNeeded(catalogConnectorWithConfigMap.catalogConnector);
-    // If we're migrating from an existing connector, we do not check if the connector already exists
-    if(migrateFrom == null) {
+    // If we're migrating from an existing connector, we do not check if the connector already
+    // exists
+    if (migrateFrom == null) {
       throwIfInstanceOrConnectorAlreadyExist(
-              catalogConnectorWithConfigMap.catalogConnector.getId(),
-              catalogConnectorWithConfigMap.catalogConnector.getSlug(),
-              catalogConnectorWithConfigMap.catalogConnector.getContainerType());
+          catalogConnectorWithConfigMap.catalogConnector.getId(),
+          catalogConnectorWithConfigMap.catalogConnector.getSlug(),
+          catalogConnectorWithConfigMap.catalogConnector.getContainerType());
     }
 
     ConnectorInstancePersisted connectorInstance =
-        connectorInstanceService.createConnectorInstance(catalogConnectorWithConfigMap, input, migrateFrom);
+        connectorInstanceService.createConnectorInstance(
+            catalogConnectorWithConfigMap, input, migrateFrom);
 
     cleanDummyInjectorsIfItExists(
         catalogConnectorWithConfigMap.catalogConnector.getSlug(),

@@ -41,7 +41,8 @@ public class ConnectorInstanceApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "Successfully created connector instance")
       })
   public ConnectorInstancePersisted createConnectorInstance(
-      @Valid @RequestBody CreateConnectorInstanceInput input, @RequestParam(value = "migrateFrom", required = false) String migrateFrom) {
+      @Valid @RequestBody CreateConnectorInstanceInput input,
+      @RequestParam(value = "migrateFrom", required = false) String migrateFrom) {
     // --- /!\ --- SECURITY START : Encrypt sensitive values before any LOGGING or processing
     ConnectorOrchestrationService.CatalogConnectorWithConfigMap catalogConnectorWithConfigMap =
         this.orchestrationService.getCatalogConnectorWithConfigurationsMap(
@@ -52,7 +53,8 @@ public class ConnectorInstanceApi extends RestBehavior {
     // --- /!\ --- SECURITY END
 
     // only instance managed by XTM Composer can be created through this API
-    return orchestrationService.createConnectorInstance(catalogConnectorWithConfigMap, safeInput, migrateFrom);
+    return orchestrationService.createConnectorInstance(
+        catalogConnectorWithConfigMap, safeInput, migrateFrom);
   }
 
   @GetMapping(value = CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}")
