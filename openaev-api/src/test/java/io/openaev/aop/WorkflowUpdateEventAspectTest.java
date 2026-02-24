@@ -157,14 +157,15 @@ class WorkflowUpdateEventAspectTest {
       // -------- Prepare --------
       String injectId = "inject-123";
       setupJoinPoint(injectId);
-
+      when(stepService.findStepIdByInjectId(injectId))
+          .thenThrow(new ElementNotFoundException("Step id not found for inject id : " + injectId));
       // -------- Act --------
-      aspect.afterEventProcessed(joinPoint, annotation);
+      assertThrows(
+          ElementNotFoundException.class, () -> aspect.afterEventProcessed(joinPoint, annotation));
 
       // -------- Assert --------
       verify(stepService).findStepIdByInjectId(injectId);
-      assertThrowsExactly(
-          ElementNotFoundException.class, () -> aspect.afterEventProcessed(joinPoint, annotation));
+      verifyNoInteractions(queueChainingService);
     }
 
     @Test
