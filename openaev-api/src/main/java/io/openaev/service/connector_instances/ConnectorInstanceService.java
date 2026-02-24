@@ -415,7 +415,7 @@ public class ConnectorInstanceService {
 
     // Add OpenAEV token
     configurations.add(createTokenConfiguration(newInstance));
-    // Add container ID
+    // Add container ID if not already present (in case of a migration)
     if (input.getConfigurations().stream()
         .noneMatch(
             configurationInput ->
