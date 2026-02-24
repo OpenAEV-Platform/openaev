@@ -5226,6 +5226,7 @@ export interface PlatformSettings {
     | "_RESERVED"
     | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
     | "LEGACY_INGESTION_EXECUTION_TRACE"
+    | "OPENAEV_TRIALS_XTMHUB"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;

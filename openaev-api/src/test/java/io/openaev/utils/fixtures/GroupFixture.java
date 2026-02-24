@@ -8,8 +8,12 @@ import java.util.List;
 public class GroupFixture {
 
   public static Group createGroup() {
+    return createGroupWithName("Group");
+  }
+
+  public static Group createGroupWithName(String name) {
     Group group = new Group();
-    group.setName("Group");
+    group.setName(name);
     group.setDescription("Group Description");
     return group;
   }

@@ -4,10 +4,5 @@ paths:
   - openaev-front/src
   - openaev-framework/src
   - openaev-model/src
-  - openaev-injectors/openaev-http/src
-  - openaev-injectors/openaev-lade/src
-  - openaev-injectors/openaev-mastodon/src
-  - openaev-injectors/openaev-ovh/src
-  - openaev-injectors/openaev-ssh/src
 paths-ignore:
   - openaev-front/src/static

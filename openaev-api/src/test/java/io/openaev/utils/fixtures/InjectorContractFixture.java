@@ -2,6 +2,7 @@ package io.openaev.utils.fixtures;
 
 import static io.openaev.database.model.InjectorContract.CONTRACT_CONTENT_FIELDS;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
+import static io.openaev.executors.Executor.CMD;
 import static io.openaev.injector_contract.ContractCardinality.Multiple;
 import static io.openaev.injector_contract.ContractDef.contractBuilder;
 import static io.openaev.injector_contract.fields.ContractAsset.assetField;
@@ -144,11 +145,16 @@ public class InjectorContractFixture {
     return createPayloadInjectorContractWithFieldsContent(injector, payloadCommand, List.of());
   }
 
-  public static InjectorContract createPayloadInjectorContractWithObfuscator()
+  public static InjectorContract createPayloadInjectorContractWithObfuscator(String executor)
       throws JsonProcessingException {
     ContractSelect obfuscatorSelect =
         new ContractSelect("obfuscator", "Obfuscators", ContractCardinality.One);
-    obfuscatorSelect.setChoices(Map.of("plain-text", "plain-text", "base64", "base64"));
+
+    if (CMD.equals(executor)) {
+      obfuscatorSelect.setChoices(Map.of("plain-text", "plain-text"));
+    } else {
+      obfuscatorSelect.setChoices(Map.of("plain-text", "plain-text", "base64", "base64"));
+    }
 
     return createPayloadInjectorContractWithFieldsContent(List.of(obfuscatorSelect));
   }

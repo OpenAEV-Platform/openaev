@@ -3,6 +3,7 @@ package io.openaev.rest.helper.queue;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.*;
 import io.openaev.config.QueueConfig;
+import io.openaev.config.RabbitMQSslConfiguration;
 import io.openaev.config.RabbitmqConfig;
 import jakarta.annotation.PreDestroy;
 import java.io.IOException;
@@ -14,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class BatchQueueService<T extends Queueable> {
+  private final RabbitMQSslConfiguration rabbitMQSslConfiguration;
 
   private final Class<T> clazz;
   private final QueueExecution<T> queueExecution;
@@ -60,13 +62,15 @@ public class BatchQueueService<T extends Queueable> {
       QueueExecution<T> queueExecution,
       RabbitmqConfig rabbitmqConfig,
       ObjectMapper mapper,
-      QueueConfig queueConfig)
+      QueueConfig queueConfig,
+      RabbitMQSslConfiguration rabbitMQSslConfiguration)
       throws IOException, TimeoutException {
     this.clazz = clazz;
     this.queueExecution = queueExecution;
     this.mapper = mapper;
     this.queueConfig = queueConfig;
     this.rabbitmqConfig = rabbitmqConfig;
+    this.rabbitMQSslConfiguration = rabbitMQSslConfiguration;
 
     executor = Executors.newFixedThreadPool(queueConfig.getWorkerNumber());
     shutdownListener = this::handleConnectionShutdown;
@@ -121,6 +125,16 @@ public class BatchQueueService<T extends Queueable> {
     factory.setSharedExecutor(
         Executors.newFixedThreadPool(
             queueConfig.getConsumerNumber() + queueConfig.getPublisherNumber()));
+
+    // Configure SSL if enabled
+    if (rabbitmqConfig.isSsl()) {
+      try {
+        rabbitMQSslConfiguration.configureSsl(factory, rabbitmqConfig);
+      } catch (Exception e) {
+        log.error("Failed to configure SSL for RabbitMQ connection", e);
+        throw new IllegalStateException("Failed to configure SSL for RabbitMQ", e);
+      }
+    }
 
     connection = factory.newConnection();
 

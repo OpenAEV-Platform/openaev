@@ -15,6 +15,7 @@ import Message from './components/Message';
 import NotFound from './components/NotFound';
 import SystemBanners from './public/components/systembanners/SystemBanners';
 import LicenseBanner from './public/components/trialbanners/LicenseBanner';
+import StartTrialBanner from './public/components/trialbanners/StartTrialBanner';
 import { useHelper } from './store';
 import ErrorHandler from './utils/error/ErrorHandler';
 import { useAppDispatch } from './utils/hooks';
@@ -60,6 +61,7 @@ const Root = () => {
       </Suspense>
     );
   }
+
   return (
     <PermissionsProvider capabilities={me.user_capabilities} grants={me.user_grants} isAdmin={me.user_admin}>
       <UserContext.Provider
@@ -79,6 +81,7 @@ const Root = () => {
                 <EnterpriseEditionAgreementDialog />
                 <SystemBanners settings={settings} />
                 <LicenseBanner settings={settings} />
+                <StartTrialBanner settings={settings} />
                 <Suspense fallback={<Loader />}>
                   <Routes>
                     <Route

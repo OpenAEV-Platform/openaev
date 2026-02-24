@@ -7,7 +7,10 @@ export type BannerMessage = Record<'debug' | 'info' | 'warn' | 'error' | 'fatal'
 // eslint-disable-next-line import/prefer-default-export
 export const computeBannerSettings = (settings: PlatformSettings) => {
   const bannerByLevel = settings.platform_banner_by_level;
-  const isBannerActivated = (bannerByLevel !== undefined && isNotEmptyField(recordKeys(bannerByLevel))) || settings.platform_license?.license_type === LICENSE_OPTION_TRIAL;
+  const isBannerActivated = (bannerByLevel !== undefined
+    && isNotEmptyField(recordKeys(bannerByLevel)))
+  || settings.platform_license?.license_type === LICENSE_OPTION_TRIAL
+  || (settings.platform_base_url === 'https://demo.openaev.io' && settings.enabled_dev_features?.includes('OPENAEV_TRIALS_XTMHUB'));
   let numberOfElements = 0;
   if (settings.platform_banner_by_level !== undefined) {
     for (const bannerLevel of recordEntries(settings.platform_banner_by_level)) {
