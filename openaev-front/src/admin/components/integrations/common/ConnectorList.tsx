@@ -3,7 +3,7 @@ import { useTheme } from '@mui/material/styles';
 import { type SyntheticEvent, useContext, useState } from 'react';
 import { useOutletContext } from 'react-router';
 
-import { fetchUndeployedCatalogConnectors } from '../../../../actions/catalog/catalog-actions';
+import { fetchCatalogConnectors } from '../../../../actions/catalog/catalog-actions';
 import { type CatalogConnectorsHelper } from '../../../../actions/catalog/catalog-helper';
 import { type CollectorHelper } from '../../../../actions/collectors/collector-helper';
 import type { ExecutorHelper } from '../../../../actions/executors/executor-helper';
@@ -43,7 +43,7 @@ const ConnectorList = () => {
   );
 
   useDataLoader(() => {
-    dispatch(fetchUndeployedCatalogConnectors());
+    dispatch(fetchCatalogConnectors());
   });
 
   // Fetching data - hooks must be called at top level unconditionally

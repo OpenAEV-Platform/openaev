@@ -86,6 +86,16 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+  collector-atomic-red-team:
+    image: openaev/collector-atomic-red-team:latest
+    environment:
+      - OPENAEV_URL=http://host.containers.internal:8080
+      - OPENAEV_TOKEN=${OPENAEV_TOKEN}
+      - COLLECTOR_ID=66d3db57-8488-4d85-9363-0c3a47983e9c
+      - COLLECTOR_NAME=${COLLECTOR_NAME:-"Atomic Red Team"}
+      - COLLECTOR_PERIOD=${COLLECTOR_PERIOD:-P7D}
+      - COLLECTOR_LOG_LEVEL=${COLLECTOR_LOG_LEVEL:-warn}
+    restart: unless-stopped
 #  openaev-pyroscope:
 #    container_name: openaev-pyroscope
 #    image: grafana/pyroscope:latest
