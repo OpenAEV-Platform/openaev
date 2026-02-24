@@ -107,10 +107,11 @@ public class SecurityCoverageUtils {
           && obj.hasExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION)) {
         Dictionary extensionObj =
             (Dictionary) obj.getExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION);
-        if (extensionObj.has(StixConstants.FILES)) {
+        Object filesValue = extensionObj.get(StixConstants.FILES);
+        if (extensionObj.has(StixConstants.FILES)
+            && filesValue instanceof io.openaev.stix.types.List<?> filesList) {
           List<String> documentIds =
-              getAllDocumentIdsFromFiles(
-                  (io.openaev.stix.types.List<Dictionary>) extensionObj.get(StixConstants.FILES));
+              getAllDocumentIdsFromFiles((io.openaev.stix.types.List<Dictionary>) filesList);
           manageAndAddStixRefToExternalRefs(stixToRef, obj, documentIds);
         }
         continue;

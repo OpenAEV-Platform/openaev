@@ -279,7 +279,12 @@ public class OpenCTIService {
         return documentService.upsert(
             name, octiFile.getInputStream(), octiFile.getSize(), mimeType, documentCreateInput);
       } catch (Exception e) {
-        throw new RuntimeException(e);
+        String errorMessage =
+            String.format(
+                "Error while upserting document from OpenCTI file (uri=%s, name=%s, mimeType=%s)",
+                uri, name, mimeType);
+        log.error(errorMessage, e);
+        throw new RuntimeException(errorMessage, e);
       }
     }
     return null;
