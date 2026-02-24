@@ -418,18 +418,18 @@ public class ConnectorInstanceService {
     // Add OpenAEV token
     configurations.add(createTokenConfiguration(newInstance));
     // Add container ID
-    if(migrateFrom == null) {
+    if (migrateFrom == null) {
       configurations.add(
-              createContainerIdConfiguration(
-                      newInstance, catalogConnectorWithConfigMap.catalogConnector().getContainerType()));
+          createContainerIdConfiguration(
+              newInstance, catalogConnectorWithConfigMap.catalogConnector().getContainerType()));
     } else {
-      configurations.add(createConfiguration(
+      configurations.add(
+          createConfiguration(
               catalogConnectorWithConfigMap.catalogConnector().getContainerType().getIdKeyName(),
               objectMapper.getNodeFactory().textNode(migrateFrom),
               false,
               newInstance));
     }
-
 
     newInstance.setConfigurations(Set.copyOf(configurations));
     return (ConnectorInstancePersisted) this.save(newInstance);
