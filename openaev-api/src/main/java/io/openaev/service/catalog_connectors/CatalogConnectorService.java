@@ -26,7 +26,7 @@ public class CatalogConnectorService {
   private final ConnectorInstanceService connectorInstanceService;
 
   /**
-   * Retrieves all unDeployed catalog connectors in CatalogConnectorOutput format.
+   * Retrieves all catalog connectors in CatalogConnectorOutput format.
    *
    * @return a list of catalog connector outputs with associated instance counts
    */

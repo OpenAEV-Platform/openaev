@@ -204,8 +204,8 @@ public class ConnectorOrchestrationService {
     throwIfEnterpriseLicenseNotActive();
 
     throwIfXtmComposerDownAndNeeded(catalogConnectorWithConfigMap.catalogConnector);
-    // If we're migrating from an existing connector, we do not check if the connector already
-    // exists
+    // If we already have an ID in the input, then we're migrating from an existing connector
+    // meaning that we do not check if the connector type already exists
     if (input.getConfigurations().stream()
         .noneMatch(
             configurationInput ->
