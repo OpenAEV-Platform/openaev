@@ -18,6 +18,7 @@ import io.openaev.rest.connector_instance.dto.ConnectorInstanceOutput;
 import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.utils.mapper.ConnectorInstanceMapper;
+import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.*;
 import java.util.function.Function;
@@ -406,7 +407,8 @@ public class ConnectorInstanceService {
    */
   public ConnectorInstancePersisted createConnectorInstance(
       ConnectorOrchestrationService.CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
-      CreateConnectorInstanceInput input) {
+      CreateConnectorInstanceInput input,
+      @Nullable String migrateFrom) {
     ConnectorInstancePersisted newInstance =
         buildNewConnectorInstanceFromCatalog(catalogConnectorWithConfigMap.catalogConnector());
     List<ConnectorInstanceConfiguration> configurations =
@@ -416,9 +418,18 @@ public class ConnectorInstanceService {
     // Add OpenAEV token
     configurations.add(createTokenConfiguration(newInstance));
     // Add container ID
-    configurations.add(
-        createContainerIdConfiguration(
-            newInstance, catalogConnectorWithConfigMap.catalogConnector().getContainerType()));
+    if(migrateFrom == null) {
+      configurations.add(
+              createContainerIdConfiguration(
+                      newInstance, catalogConnectorWithConfigMap.catalogConnector().getContainerType()));
+    } else {
+      configurations.add(createConfiguration(
+              catalogConnectorWithConfigMap.catalogConnector().getContainerType().getIdKeyName(),
+              objectMapper.getNodeFactory().textNode(migrateFrom),
+              false,
+              newInstance));
+    }
+
 
     newInstance.setConfigurations(Set.copyOf(configurations));
     return (ConnectorInstancePersisted) this.save(newInstance);

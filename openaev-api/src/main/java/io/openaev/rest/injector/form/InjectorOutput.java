@@ -3,6 +3,7 @@ package io.openaev.rest.injector.form;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.rest.catalog_connector.dto.CatalogConnectorSimpleOutput;
+import io.openaev.rest.connector_instance.dto.ConnectorInstanceOutput;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
@@ -33,12 +34,12 @@ public class InjectorOutput {
   @JsonProperty("is_verified")
   private boolean verified = false;
 
-  @JsonProperty("current_status")
-  private ConnectorInstance.CURRENT_STATUS_TYPE currentStatus;
-
   @JsonProperty("existing_injector")
   private boolean existing;
 
   @JsonProperty("injector_updated_at")
   private Instant updatedAt;
+
+  @JsonProperty("connector_instance")
+  private ConnectorInstanceOutput connectorInstance;
 }

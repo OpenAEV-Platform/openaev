@@ -8,6 +8,7 @@ import { type CatalogConnector, type ConnectorInstanceOutput } from '../../../..
 import ConnectorStatus from './ConnectorStatus';
 import ConnectorTitle from './ConnectorTitle';
 import DeployButton from './DeployButton';
+import MigrateButton from "./MigrateButton";
 
 const useStyles = makeStyles()(theme => ({
   card: {
@@ -71,7 +72,7 @@ export type ConnectorMainInfo = {
   isVerified?: boolean;
   connectorUseCases?: string[];
   connectorInstancesCount?: number;
-  connectorCurrentStatus?: ConnectorInstanceOutput['connector_instance_current_status'];
+  connectorCurrentStatus?: ConnectorInstanceOutput['connector_instance_current_status'] | null;
 };
 
 type ConnectorCardProps = {
@@ -80,6 +81,7 @@ type ConnectorCardProps = {
   isNotClickable?: boolean;
   connector: ConnectorMainInfo;
   onDeployBtnClick?: (e: SyntheticEvent) => void;
+  onMigrateBtnClick?: (e: SyntheticEvent) => void;
 };
 
 const ConnectorCard = ({
@@ -88,6 +90,7 @@ const ConnectorCard = ({
   showStatusOrLastUpdatedAt = false,
   isNotClickable = false,
   onDeployBtnClick,
+  onMigrateBtnClick,
 }: ConnectorCardProps) => {
   const { classes } = useStyles();
   const { t, nsdt } = useFormatter();
@@ -106,6 +109,8 @@ const ConnectorCard = ({
               {connector.connectorDescription}
             </Typography>
           )}
+          {onMigrateBtnClick
+              && <MigrateButton onMigrateBtnClick={onMigrateBtnClick} />}
           <div className={classes.footer}>
             <Chip
               variant="outlined"

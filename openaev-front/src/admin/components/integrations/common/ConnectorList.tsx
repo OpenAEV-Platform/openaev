@@ -1,23 +1,37 @@
 import { Grid } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useContext } from 'react';
+import {type SyntheticEvent, useContext, useState} from 'react';
 
 import { type CollectorHelper } from '../../../../actions/collectors/collector-helper';
 import type { ExecutorHelper } from '../../../../actions/executors/executor-helper';
 import { type InjectorHelper } from '../../../../actions/injectors/injector-helper';
 import SearchFilter from '../../../../components/SearchFilter';
 import { useHelper } from '../../../../store';
-import type { CatalogConnector, CollectorOutput, ExecutorOutput, InjectorOutput } from '../../../../utils/api-types';
+import type {
+  CatalogConnector,
+  CatalogConnectorOutput,
+  CollectorOutput,
+  ExecutorOutput,
+  InjectorOutput
+} from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSearchAndFilter from '../../../../utils/SortingFiltering';
 import ConnectorCard from '../common/ConnectorCard';
 import { ConnectorContext, type ConnectorOutput } from './ConnectorContext';
+import CreateConnectorInstanceDrawer from "../connector_instance/CreateConnectorInstanceDrawer";
+import {useOutletContext} from "react-router";
+import type {CatalogContextType} from "../catalog_connectors/CatalogLayout";
+import {useFormatter} from "../../../../components/i18n";
+import {CatalogConnectorsHelper} from "../../../../actions/catalog/catalog-helper";
+import {fetchUndeployedCatalogConnectors} from "../../../../actions/catalog/catalog-actions";
 
 const ConnectorList = () => {
   // Standard hooks
   const theme = useTheme();
   const dispatch = useAppDispatch();
+  const { isXtmComposerUp } = useOutletContext<CatalogContextType>();
+  const { t } = useFormatter();
   const { connectorType, apiRequest, routes, normalizeSingle, logoUrl } = useContext(ConnectorContext);
 
   // Filter and sort hook
@@ -28,10 +42,21 @@ const ConnectorList = () => {
     searchColumns,
   );
 
+  useDataLoader(() => {
+    dispatch(fetchUndeployedCatalogConnectors());
+  });
+
   // Fetching data - hooks must be called at top level unconditionally
   const { executors } = useHelper((helper: ExecutorHelper) => ({ executors: helper.getExecutorsIncludingPending() }));
   const { injectors } = useHelper((helper: InjectorHelper) => ({ injectors: helper.getInjectorsIncludingPending() }));
   const { collectors } = useHelper((helper: CollectorHelper) => ({ collectors: helper.getCollectorsIncludingPending() }));
+  const { catalogConnectors } = useHelper((helper: CatalogConnectorsHelper) => ({ catalogConnectors: helper.getCatalogConnectors() }));
+
+  const [selectedCatalogConnector, setSelectedCatalogConnector] = useState<CatalogConnectorOutput>();
+  const [selectedConnector, setSelectedConnector] = useState<ConnectorOutput>();
+  const [openCreateConnectorInstanceDrawer, setOpenCreateConnectorInstanceDrawer] = useState(false);
+  const onOpenCreateConnectorInstanceDrawer = () => setOpenCreateConnectorInstanceDrawer(true);
+  const onCloseCreateConnectorInstanceDrawer = () => setOpenCreateConnectorInstanceDrawer(false);
 
   // Select the appropriate connectors based on connector type
   const getRawConnectors = (): (CollectorOutput | ExecutorOutput | InjectorOutput)[] => {
@@ -51,6 +76,16 @@ const ConnectorList = () => {
   const connectors = normalizeSingle
     ? rawConnectors.map((c: CollectorOutput | ExecutorOutput | InjectorOutput) => normalizeSingle(c))
     : rawConnectors;
+
+  const onDeployBtnClick = (e: SyntheticEvent, connector: ConnectorOutput) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedConnector(connector);
+    let catalogConnector = catalogConnectors.find((catalogConnector: CatalogConnectorOutput) => catalogConnector.catalog_connector_id === connector.catalog?.catalog_connector_id);
+    setSelectedCatalogConnector(catalogConnector);
+    console.log(catalogConnector);
+    onOpenCreateConnectorInstanceDrawer();
+  };
 
   useDataLoader(() => {
     dispatch(apiRequest.fetchAll());
@@ -79,14 +114,27 @@ const ConnectorList = () => {
                 isVerified: connector.isVerified,
                 connectorUseCases: [],
                 isExternal: connector.isExternal,
-                connectorCurrentStatus: connector.currentStatus,
+                connectorCurrentStatus: connector.connectorInstance ? connector.connectorInstance.connector_instance_current_status : null,
               }}
+              onMigrateBtnClick={connector.isExternal && connector.connectorInstance == null && isXtmComposerUp ? e => onDeployBtnClick(e, connector) : undefined}
               cardActionUrl={routes.detail(connector.id)}
               isNotClickable={connector.catalog === null && connectorType !== 'injector'}
               showStatusOrLastUpdatedAt
             />
           </Grid>
         ))}
+        {selectedCatalogConnector && openCreateConnectorInstanceDrawer && (
+            <CreateConnectorInstanceDrawer
+                open={openCreateConnectorInstanceDrawer}
+                catalogConnectorId={selectedCatalogConnector.catalog_connector_id}
+                catalogConnectorSlug={selectedCatalogConnector.catalog_connector_slug}
+                onClose={onCloseCreateConnectorInstanceDrawer}
+                connectorType={selectedCatalogConnector.catalog_connector_type}
+                disabled={!isXtmComposerUp && selectedCatalogConnector.catalog_connector_manager_supported}
+                migrateFrom={selectedConnector?.id}
+                disabledMessage={t('Deployment of this {catalogType} requires the installation of our Integration Manager.', { catalogType: selectedCatalogConnector.catalog_connector_type.toLowerCase() })}
+            />
+        )}
       </Grid>
     </>
   );
