@@ -88,8 +88,8 @@ const Healthchecks = ({ healthchecks, scenarioId }: Props) => {
           expandIcon={<ExpandMore />}
           sx={{
             'padding': theme.spacing(1, 2),
-            'minHeight': 48,
-            '&.Mui-expanded': { minHeight: 48 },
+            'minHeight': theme.spacing(6),
+            '&.Mui-expanded': { minHeight: theme.spacing(6) },
           }}
         >
           <Typography
@@ -97,7 +97,7 @@ const Healthchecks = ({ healthchecks, scenarioId }: Props) => {
             marginBottom={0}
             sx={{
               color: theme.palette.warning.main,
-              fontWeight: 500,
+              fontWeight: theme.typography.fontWeightMedium,
             }}
           >
             {t('Scenario configuration')}
