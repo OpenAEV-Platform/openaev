@@ -49,6 +49,21 @@ export const api = <T>(schema?: Schema<T> | null): AxiosInstance => {
     (err) => {
       const res = err.response;
       const config = err.config as ExtendedAxiosRequestConfig | undefined;
+
+      // Automatic retry on 403 if XSRF cookie have just been dropped
+      // eslint-disable-next-line no-underscore-dangle
+      if (res && res.status === 403 && config && !config.__isRetryRequest) {
+        const csrfCookie = document.cookie
+          .split('; ')
+          .find(row => row.startsWith('XSRF-TOKEN='));
+
+        if (csrfCookie) {
+          // eslint-disable-next-line no-underscore-dangle
+          config.__isRetryRequest = true;
+          return instance(config);
+        }
+      }
+
       if (
         res
         && res.status === 503

@@ -5,6 +5,7 @@ import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static net.javacrumbs.jsonunit.core.Option.IGNORING_ARRAY_ORDER;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -100,7 +101,8 @@ class DocumentApiTest extends IntegrationTest {
     void givenADocumentRelatedToAPayload_ShouldNoDeleteDocument() throws Exception {
       Document document = getDocumentWithPayload();
 
-      mvc.perform(delete(DOCUMENT_API + "/" + document.getId())).andExpect(status().isBadRequest());
+      mvc.perform(delete(DOCUMENT_API + "/" + document.getId()).with(csrf()))
+          .andExpect(status().isBadRequest());
 
       Assertions.assertTrue(documentRepository.findById(document.getId()).isPresent());
     }
@@ -111,7 +113,8 @@ class DocumentApiTest extends IntegrationTest {
       Document document = getDocumentWithChallenge();
       Challenge challenge = document.getChallenges().stream().findFirst().get();
 
-      mvc.perform(delete(DOCUMENT_API + "/" + document.getId())).andExpect(status().isOk());
+      mvc.perform(delete(DOCUMENT_API + "/" + document.getId()).with(csrf()))
+          .andExpect(status().isOk());
 
       assertFalse(documentRepository.findById(document.getId()).isPresent());
       assertTrue(challengeRepository.findById(challenge.getId()).isPresent());
@@ -124,7 +127,7 @@ class DocumentApiTest extends IntegrationTest {
       Challenge challenge = document.getChallenges().stream().findFirst().get();
 
       String response =
-          mvc.perform(get(DOCUMENT_API + "/" + document.getId() + "/relations"))
+          mvc.perform(get(DOCUMENT_API + "/" + document.getId() + "/relations").with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()

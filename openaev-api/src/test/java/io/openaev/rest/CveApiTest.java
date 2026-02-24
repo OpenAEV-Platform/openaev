@@ -9,6 +9,7 @@ import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -83,7 +84,8 @@ class CveApiTest extends IntegrationTest {
           mvc.perform(
                   post(CVE_API)
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input)))
+                      .content(asJsonString(input))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -103,7 +105,7 @@ class CveApiTest extends IntegrationTest {
       vulnerabilityComposer.forVulnerability(cve).persist();
 
       String response =
-          mvc.perform(get(CVE_API + "/" + cve.getId()))
+          mvc.perform(get(CVE_API + "/" + cve.getId()).with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -127,7 +129,8 @@ class CveApiTest extends IntegrationTest {
       mvc.perform(
               put(CVE_API + "/" + cve.getId())
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(updateInput)))
+                  .content(asJsonString(updateInput))
+                  .with(csrf()))
           .andExpect(status().isOk())
           .andReturn()
           .getResponse()
@@ -161,7 +164,8 @@ class CveApiTest extends IntegrationTest {
               post(CVE_API + "/bulk")
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isOk())
           .andReturn()
           .getResponse()
@@ -192,7 +196,8 @@ class CveApiTest extends IntegrationTest {
       cve.setDescription("To be deleted");
       vulnerabilityComposer.forVulnerability(cve).persist();
 
-      mvc.perform(delete(CVE_API + "/" + cve.getExternalId())).andExpect(status().isOk());
+      mvc.perform(delete(CVE_API + "/" + cve.getExternalId()).with(csrf()))
+          .andExpect(status().isOk());
 
       Assertions.assertFalse(vulnerabilityRepository.findById(cve.getExternalId()).isPresent());
     }
@@ -221,7 +226,8 @@ class CveApiTest extends IntegrationTest {
                   post(CVE_API + "/search")
                       .content(asJsonString(input))
                       .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()

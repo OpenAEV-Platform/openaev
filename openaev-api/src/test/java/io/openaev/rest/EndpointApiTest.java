@@ -11,6 +11,7 @@ import static io.openaev.utils.fixtures.TagFixture.getTag;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -83,7 +84,8 @@ class EndpointApiTest extends IntegrationTest {
                 post(ENDPOINT_URI + "/agentless")
                     .content(asJsonString(endpointInput))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -114,7 +116,8 @@ class EndpointApiTest extends IntegrationTest {
             post(ENDPOINT_URI + "/agentless")
                 .content(asJsonString(endpointInput))
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().is4xxClientError());
   }
 
@@ -153,7 +156,8 @@ class EndpointApiTest extends IntegrationTest {
                 post(ENDPOINT_URI + "/register")
                     .content(asJsonString(registerInput))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -191,7 +195,8 @@ class EndpointApiTest extends IntegrationTest {
                 post(ENDPOINT_URI + "/register")
                     .content(asJsonString(registerInput))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -236,7 +241,8 @@ class EndpointApiTest extends IntegrationTest {
                 put(ENDPOINT_URI + "/" + endpointCreated.getId())
                     .content(asJsonString(updateInput))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -272,7 +278,9 @@ class EndpointApiTest extends IntegrationTest {
 
     // -- EXECUTE --
     mvc.perform(
-            delete(ENDPOINT_URI + "/" + endpointCreated.getId()).accept(MediaType.APPLICATION_JSON))
+            delete(ENDPOINT_URI + "/" + endpointCreated.getId())
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful());
 
     // The 2 calls (delete then get) should not be in the same transaction
@@ -282,7 +290,9 @@ class EndpointApiTest extends IntegrationTest {
 
     // -- ASSERT --
     mvc.perform(
-            get(ENDPOINT_URI + "/" + endpointCreated.getId()).accept(MediaType.APPLICATION_JSON))
+            get(ENDPOINT_URI + "/" + endpointCreated.getId())
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().is4xxClientError());
   }
 
@@ -325,7 +335,8 @@ class EndpointApiTest extends IntegrationTest {
           mvc.perform(
                   post(ENDPOINT_URI + "/targets")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(searchPaginationInput)))
+                      .content(asJsonString(searchPaginationInput))
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andExpect(jsonPath("$.numberOfElements").value(2))
               .andReturn()
@@ -369,7 +380,8 @@ class EndpointApiTest extends IntegrationTest {
       mvc.perform(
               post(ENDPOINT_URI + "/targets")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(searchPaginationInput)))
+                  .content(asJsonString(searchPaginationInput))
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.numberOfElements").value(1))
           .andExpect(jsonPath("$.content.[0].asset_id").value(windowEndpoint.getId()));
@@ -407,7 +419,8 @@ class EndpointApiTest extends IntegrationTest {
       mvc.perform(
               post(ENDPOINT_URI + "/targets")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(searchPaginationInput)))
+                  .content(asJsonString(searchPaginationInput))
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.numberOfElements").value(1))
           .andExpect(jsonPath("$.content.[0].asset_id").value(windowEndpoint2.getId()));
@@ -487,7 +500,8 @@ class EndpointApiTest extends IntegrationTest {
                 get(ENDPOINT_URI + "/options")
                     .queryParam("searchText", searchText)
                     .queryParam("sourceId", simulationOrScenarioId ? exercise.getId() : null)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andReturn()
             .getResponse()
             .getContentAsString();
@@ -527,7 +541,8 @@ class EndpointApiTest extends IntegrationTest {
                 post(ENDPOINT_URI + "/options")
                     .content(asJsonString(idsToSearch))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andReturn()
             .getResponse()
             .getContentAsString();

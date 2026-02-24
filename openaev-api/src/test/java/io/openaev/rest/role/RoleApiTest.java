@@ -3,6 +3,7 @@ package io.openaev.rest.role;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -65,7 +66,8 @@ public class RoleApiTest extends IntegrationTest {
                 post(ROLE_URI)
                     .content(asJsonString(roleInput))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -89,7 +91,10 @@ public class RoleApiTest extends IntegrationTest {
     Role expectedRole = roleRepository.save(RoleFixture.getRole());
     // Find call
     String response =
-        mvc.perform(get(ROLE_URI + "/" + expectedRole.getId()).accept(MediaType.APPLICATION_JSON))
+        mvc.perform(
+                get(ROLE_URI + "/" + expectedRole.getId())
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()

@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -96,7 +97,8 @@ public class ReportApiTest extends IntegrationTest {
                   MockMvcRequestBuilders.post("/api/exercises/" + exercise.getId() + "/reports")
                       .content(asJsonString(reportInput))
                       .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -119,7 +121,8 @@ public class ReportApiTest extends IntegrationTest {
       String response =
           mvc.perform(
                   MockMvcRequestBuilders.get("/api/exercises/fakeExercisesId123/reports")
-                      .contentType(MediaType.APPLICATION_JSON))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -147,7 +150,8 @@ public class ReportApiTest extends IntegrationTest {
                           "/api/exercises/" + exercise.getId() + "/reports/" + report.getId())
                       .content(asJsonString(reportInput))
                       .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -191,7 +195,8 @@ public class ReportApiTest extends IntegrationTest {
                               + "/inject-comments")
                       .content(asJsonString(injectCommentInput))
                       .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -216,7 +221,8 @@ public class ReportApiTest extends IntegrationTest {
               MockMvcRequestBuilders.delete(
                       "/api/exercises/" + exercise.getId() + "/reports/" + report.getId())
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(PaginationFixture.getDefault().textSearch("").build())))
+                  .content(asJsonString(PaginationFixture.getDefault().textSearch("").build()))
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --

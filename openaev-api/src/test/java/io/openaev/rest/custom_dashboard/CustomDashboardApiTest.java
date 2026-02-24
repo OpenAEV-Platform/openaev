@@ -7,6 +7,7 @@ import static io.openaev.utils.fixtures.CustomDashboardFixture.NAME;
 import static io.openaev.utils.fixtures.CustomDashboardFixture.createDefaultCustomDashboard;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -176,7 +177,7 @@ class CustomDashboardApiTest extends IntegrationTest {
 
       defaultDashboardSetting.setValue(wrapper.get().getId());
       settingRepository.save(defaultDashboardSetting);
-      mockMvc.perform(delete(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()));
+      mockMvc.perform(delete(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()).with(csrf()));
 
       assertThat(repository.existsById(wrapper.get().getId())).isFalse();
       Setting defaultScenarioDashboardSetting =
@@ -201,7 +202,7 @@ class CustomDashboardApiTest extends IntegrationTest {
 
       defaultDashboardSetting.setValue(wrapper.get().getId());
       settingRepository.save(defaultDashboardSetting);
-      mockMvc.perform(delete(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()));
+      mockMvc.perform(delete(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()).with(csrf()));
 
       assertThat(repository.existsById(wrapper.get().getId())).isFalse();
       Setting defaultScenarioDashboardSetting =

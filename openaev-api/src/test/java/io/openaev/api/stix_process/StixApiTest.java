@@ -327,7 +327,7 @@ class StixApiTest extends IntegrationTest {
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(mapper.writeValueAsString(updated)))
-          .andExpect(status().isOk());
+          .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -339,8 +339,8 @@ class StixApiTest extends IntegrationTest {
       mvc.perform(
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(content))
-          .andExpect(status().isOk());
+                  .content(duplicatedCoverage))
+          .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -423,7 +423,7 @@ class StixApiTest extends IntegrationTest {
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(mapper.writeValueAsString(stixSecurityCoverage)))
-          .andExpect(status().isOk());
+          .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -460,7 +460,7 @@ class StixApiTest extends IntegrationTest {
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(mapper.writeValueAsString(updated)))
-          .andExpect(status().isOk());
+          .andExpect(status().isBadRequest());
     }
 
     @Test

@@ -71,12 +71,12 @@ public class AppSecurityConfig {
                     .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
                     .ignoringRequestMatchers(
                         "/api/health",
+                        "/api/login",
                         "/api/comcheck/**",
                         "/api/player/**",
                         "/api/settings",
                         "/api/agent/**",
                         "/api/implant/**",
-                        "/api/login",
                         "/api/reset/**",
                         "/actuator/**"))
         .formLogin(AbstractHttpConfigurer::disable)

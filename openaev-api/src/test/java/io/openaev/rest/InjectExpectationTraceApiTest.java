@@ -6,6 +6,7 @@ import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static net.javacrumbs.jsonunit.core.Option.IGNORING_ARRAY_ORDER;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -129,7 +130,8 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
                 post(INJECT_EXPECTATION_TRACES_URI)
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -156,7 +158,8 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
                         + savedInjectExpectation.getId()
                         + "&sourceId="
                         + savedCollector.getId())
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -194,7 +197,8 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
                         + "&sourceId="
                         + savedSecurityPlatform.getExternalReference()
                         + "&expectationResultSourceType=collector")
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -218,7 +222,8 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
                         + "&sourceId="
                         + savedSecurityPlatform.getExternalReference()
                         + "&expectationResultSourceType=other")
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -242,7 +247,8 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
                         + "&sourceId="
                         + savedSecurityPlatform.getId()
                         + "&expectationResultSourceType=other")
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -272,7 +278,8 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
             post(INJECT_EXPECTATION_TRACES_URI + "/bulk")
                 .content(asJsonString(inputBulk))
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andReturn();
 
@@ -325,7 +332,8 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
             post(INJECT_EXPECTATION_TRACES_URI + "/bulk")
                 .content(asJsonString(inputBulk))
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andReturn();
 
@@ -373,7 +381,8 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
             post(INJECT_EXPECTATION_TRACES_URI + "/bulk")
                 .content(asJsonString(inputBulk))
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andReturn();
 

@@ -4,6 +4,7 @@ import static io.openaev.service.UserService.buildAuthenticationToken;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 
 import io.openaev.IntegrationTest;
@@ -143,7 +144,8 @@ public class RbacMockMvcTest extends IntegrationTest {
       // Use first content type and add dummy JSON body
       builder
           .contentType(MediaType.valueOf(ep.getConsumes().get(0)))
-          .content("{}"); // Dummy JSON body
+          .content("{}")
+          .with(csrf()); // Dummy JSON body
     }
 
     return builder;

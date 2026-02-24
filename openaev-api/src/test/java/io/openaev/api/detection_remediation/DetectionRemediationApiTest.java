@@ -3,6 +3,7 @@ package io.openaev.api.detection_remediation;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -106,7 +107,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                             + "/rules/"
                             + CROWDSTRIKE_FRONTEND_NAME)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(input))))
+                        .content(mapper.writeValueAsString(input))
+                        .with(csrf())))
         .hasCauseInstanceOf(IllegalStateException.class)
         .hasMessage(
             "Request processing failed: java.lang.IllegalStateException: Enterprise Edition is not available");
@@ -134,7 +136,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                             + DetectionRemediationApi.DETECTION_REMEDIATION_URI
                             + "/rules/collector_name_unknow")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(input))))
+                        .content(mapper.writeValueAsString(input))
+                        .with(csrf())))
         .hasCauseInstanceOf(IllegalStateException.class)
         .hasMessage(
             "Request processing failed: java.lang.IllegalStateException: Collector :\"collector_name_unknow\" unsupported");
@@ -350,7 +353,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                             + "/rules/"
                             + CROWDSTRIKE_FRONTEND_NAME)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(input))))
+                        .content(mapper.writeValueAsString(input))
+                        .with(csrf())))
         .hasCauseInstanceOf(IllegalStateException.class)
         .hasMessage(
             "Request processing failed: java.lang.IllegalStateException: AI Webservice available only for empty content");
@@ -712,7 +716,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                     + "/rules/"
                     + CROWDSTRIKE_FRONTEND_NAME)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(mapper.writeValueAsString(input)));
+                .content(mapper.writeValueAsString(input))
+                .with(csrf()));
 
     // -- ASSERT --
     output.andExpect(status().isNotImplemented());
@@ -753,7 +758,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                     + "/rules/"
                     + SPLUNK_FRONTEND_NAME)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(mapper.writeValueAsString(input)));
+                .content(mapper.writeValueAsString(input))
+                .with(csrf()));
 
     // -- ASSERT --
     output.andExpect(status().isNotImplemented());
@@ -793,7 +799,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                     + "/rules/"
                     + CROWDSTRIKE_FRONTEND_NAME)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(mapper.writeValueAsString(input)));
+                .content(mapper.writeValueAsString(input))
+                .with(csrf()));
 
     // -- ASSERT --
     output.andExpect(status().isNotImplemented());
@@ -833,7 +840,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                     + "/rules/"
                     + SPLUNK_FRONTEND_NAME)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(mapper.writeValueAsString(input)));
+                .content(mapper.writeValueAsString(input))
+                .with(csrf()));
 
     // -- ASSERT --
     output.andExpect(status().isNotImplemented());
@@ -858,13 +866,13 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     assertThatThrownBy(
             () ->
                 mockMvc.perform(
-                    post(
-                        "/"
+                    post("/"
                             + DetectionRemediationApi.DETECTION_REMEDIATION_URI
                             + "/rules/inject/"
                             + inject.getId()
                             + "/collector/"
-                            + CROWDSTRIKE_FRONTEND_NAME)))
+                            + CROWDSTRIKE_FRONTEND_NAME)
+                        .with(csrf())))
         .hasCauseInstanceOf(IllegalStateException.class)
         .hasMessage(
             "Request processing failed: java.lang.IllegalStateException: Enterprise Edition is not available");
@@ -918,13 +926,13 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     assertThatThrownBy(
             () ->
                 mockMvc.perform(
-                    post(
-                        "/"
+                    post("/"
                             + DetectionRemediationApi.DETECTION_REMEDIATION_URI
                             + "/rules/inject/"
                             + inject.getId()
                             + "/collector/"
-                            + CROWDSTRIKE_FRONTEND_NAME)))
+                            + CROWDSTRIKE_FRONTEND_NAME)
+                        .with(csrf())))
         .hasCauseInstanceOf(IllegalStateException.class)
         .hasMessage(
             "Request processing failed: java.lang.IllegalStateException: AI Webservice available only for empty content");
@@ -1238,13 +1246,13 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- EXECUTE --
     ResultActions output =
         mockMvc.perform(
-            post(
-                "/"
+            post("/"
                     + DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/inject/"
                     + inject.getId()
                     + "/collector/"
-                    + CROWDSTRIKE_FRONTEND_NAME));
+                    + CROWDSTRIKE_FRONTEND_NAME)
+                .with(csrf()));
 
     // -- ASSERT --
     output.andExpect(status().isNotImplemented());
@@ -1274,13 +1282,13 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- EXECUTE --
     ResultActions output =
         mockMvc.perform(
-            post(
-                "/"
+            post("/"
                     + DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/inject/"
                     + inject.getId()
                     + "/collector/"
-                    + SPLUNK_FRONTEND_NAME));
+                    + SPLUNK_FRONTEND_NAME)
+                .with(csrf()));
 
     // -- ASSERT --
     output.andExpect(status().isNotImplemented());
@@ -1311,13 +1319,13 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- EXECUTE --
     ResultActions output =
         mockMvc.perform(
-            post(
-                "/"
+            post("/"
                     + DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/inject/"
                     + inject.getId()
                     + "/collector/"
-                    + CROWDSTRIKE_FRONTEND_NAME));
+                    + CROWDSTRIKE_FRONTEND_NAME)
+                .with(csrf()));
 
     // -- ASSERT --
     output.andExpect(status().isNotImplemented());
@@ -1347,13 +1355,13 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- EXECUTE --
     ResultActions output =
         mockMvc.perform(
-            post(
-                "/"
+            post("/"
                     + DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/inject/"
                     + inject.getId()
                     + "/collector/"
-                    + SPLUNK_FRONTEND_NAME));
+                    + SPLUNK_FRONTEND_NAME)
+                .with(csrf()));
 
     // -- ASSERT --
     output.andExpect(status().isNotImplemented());

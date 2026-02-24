@@ -7,6 +7,7 @@ import static io.openaev.utils.fixtures.ExerciseLessonsCategoryFixture.getLesson
 import static io.openaev.utils.fixtures.TeamFixture.getTeam;
 import static io.openaev.utils.fixtures.UserFixture.getUser;
 import static org.mockito.Mockito.verify;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -97,7 +98,8 @@ public class ExerciseLessonsApiTest extends IntegrationTest {
             post(EXERCISE_URI + "/" + EXERCISE.getId() + "/lessons_send")
                 .content(asJsonString(lessonsSendInput))
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful());
 
     // -- ASSERT --
