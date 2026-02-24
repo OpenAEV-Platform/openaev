@@ -6,6 +6,7 @@ import static org.springframework.util.StringUtils.hasLength;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.user.form.user.CreateUserInput;
+import io.openaev.service.UserMappingService;
 import io.openaev.service.UserService;
 import io.openaev.service.user_events.UserEventService;
 import jakarta.validation.constraints.NotBlank;
@@ -22,25 +23,28 @@ public class SecurityService {
 
   public static final String OPENAEV_PROVIDER_PATH_PREFIX = "openaev.provider.";
   public static final String ROLES_ADMIN_PATH_SUFFIX = ".roles_admin";
+  public static final String GROUPS_MANAGEMENT_SUFFIX = ".groups_management";
   public static final String ALL_ADMIN_PATH_SUFFIX = ".all_admin";
   public static final String AUDIENCE_PATH = ".audience";
   public static final String REGISTRATION_ID = "registration_id";
 
   private final UserRepository userRepository;
   private final UserService userService;
+  private final UserMappingService userMappingService;
   private final Environment env;
   private final UserEventService userEventService;
 
   public User userManagement(
       String emailAttribute,
       String registrationId,
-      List<String> rolesFromToken,
+      List<String> roles,
+      List<String> groups,
       String firstName,
       String lastName) {
     String email = ofNullable(emailAttribute).orElseThrow();
     List<String> adminRoles = getAdminRoles(registrationId);
     boolean allAdmin = isAllAdmin(registrationId);
-    boolean isAdmin = allAdmin || adminRoles.stream().anyMatch(rolesFromToken::contains);
+    boolean isAdmin = allAdmin || adminRoles.stream().anyMatch(roles::contains);
     if (hasLength(email)) {
       Optional<User> optionalUser = userRepository.findByEmailIgnoreCase(email);
       // If user not exists, create it
@@ -55,7 +59,13 @@ public class SecurityService {
         User user = this.userService.createUser(createUserInput, 0);
         this.userEventService.createUserCreatedEvent(user, registrationId);
         userEventService.createLoginSuccessEvent(user);
-        return user;
+        String groupsManagementObject =
+            env.getProperty(
+                OPENAEV_PROVIDER_PATH_PREFIX + registrationId + GROUPS_MANAGEMENT_SUFFIX,
+                String.class,
+                "");
+        userMappingService.mapCurrentUserWithGroup(groupsManagementObject, user, groups);
+        return this.userService.updateUser(user);
       } else {
         // If user exists, update it
         User currentUser = optionalUser.get();
@@ -65,6 +75,12 @@ public class SecurityService {
           currentUser.setAdmin(isAdmin);
         }
         userEventService.createLoginSuccessEvent(currentUser);
+        String groupsManagementObject =
+            env.getProperty(
+                OPENAEV_PROVIDER_PATH_PREFIX + registrationId + GROUPS_MANAGEMENT_SUFFIX,
+                String.class,
+                "");
+        userMappingService.mapCurrentUserWithGroup(groupsManagementObject, currentUser, groups);
         return this.userService.updateUser(currentUser);
       }
     }

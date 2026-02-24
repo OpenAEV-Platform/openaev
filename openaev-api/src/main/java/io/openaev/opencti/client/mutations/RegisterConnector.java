@@ -23,6 +23,7 @@ public class RegisterConnector implements Mutation {
       registerConnector(input: $input) {
         id
         connector_state
+        jwks
         config {
           connection {
             host
@@ -94,6 +95,9 @@ public class RegisterConnector implements Mutation {
 
       @JsonProperty("connector_state")
       private ObjectNode connectorState;
+
+      @JsonProperty("jwks")
+      private String jwks;
 
       @JsonProperty("config")
       private ConfigNode config;
