@@ -125,7 +125,8 @@ public class RoleApiTest extends IntegrationTest {
                 put(ROLE_URI + "/" + savedRole.getId())
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -147,7 +148,10 @@ public class RoleApiTest extends IntegrationTest {
   void test_deleteRole() throws Exception {
     Role savedRole = roleRepository.save(RoleFixture.getRole());
 
-    mvc.perform(delete(ROLE_URI + "/" + savedRole.getId()).accept(MediaType.APPLICATION_JSON))
+    mvc.perform(
+            delete(ROLE_URI + "/" + savedRole.getId())
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andReturn()
         .getResponse()
@@ -172,7 +176,8 @@ public class RoleApiTest extends IntegrationTest {
                 post(ROLE_URI + "/search")
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -197,7 +202,8 @@ public class RoleApiTest extends IntegrationTest {
         mvc.perform(
                 get(ROLE_URI)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -224,7 +230,8 @@ public class RoleApiTest extends IntegrationTest {
             put(ROLE_URI + "/randomid")
                 .content(asJsonString(input))
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().isNotFound());
   }
 
@@ -232,7 +239,7 @@ public class RoleApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void test_deleteRole_WITH_nonexistent_id() throws Exception {
 
-    mvc.perform(delete(ROLE_URI + "/randomid").accept(MediaType.APPLICATION_JSON))
+    mvc.perform(delete(ROLE_URI + "/randomid").accept(MediaType.APPLICATION_JSON).with(csrf()))
         .andExpect(status().isNotFound());
   }
 
@@ -240,7 +247,7 @@ public class RoleApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void test_findRole_WITH_nonexistent_id() throws Exception {
 
-    mvc.perform(get(ROLE_URI + "/randomid").accept(MediaType.APPLICATION_JSON))
+    mvc.perform(get(ROLE_URI + "/randomid").accept(MediaType.APPLICATION_JSON).with(csrf()))
         .andExpect(status().isNotFound());
   }
 }

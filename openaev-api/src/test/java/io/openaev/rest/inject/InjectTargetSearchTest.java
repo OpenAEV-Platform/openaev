@@ -3,6 +3,7 @@ package io.openaev.rest.inject;
 import static io.openaev.rest.inject.InjectApi.INJECT_URI;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -117,7 +118,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
       mvc.perform(
               post(INJECT_URI + "/" + id + "/targets/" + TargetType.ASSETS_GROUPS + "/search")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(mapper.writeValueAsString(new SearchPaginationInput())))
+                  .content(mapper.writeValueAsString(new SearchPaginationInput()))
+                  .with(csrf()))
           .andExpect(status().isNotFound());
     }
   }
@@ -138,7 +140,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
                       + "THIS_TARGET_TYPE_DOES_NOT_EXIST"
                       + "/search")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(mapper.writeValueAsString(new SearchPaginationInput())))
+                  .content(mapper.writeValueAsString(new SearchPaginationInput()))
+                  .with(csrf()))
           .andExpect(status().isBadRequest());
     }
   }
@@ -154,7 +157,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
       mvc.perform(
               post(INJECT_URI + "/" + id + "/targets/" + TargetType.ASSETS_GROUPS + "/search")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(mapper.writeValueAsString(new SearchPaginationInput())))
+                  .content(mapper.writeValueAsString(new SearchPaginationInput()))
+                  .with(csrf()))
           .andExpect(status().isNotFound());
     }
   }
@@ -179,7 +183,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
         String response =
             mvc.perform(
                     get(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/options")
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -224,7 +229,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
             mvc.perform(
                     post(INJECT_URI + "/targets/" + targetType + "/options")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(ids)))
+                        .content(mapper.writeValueAsString(ids))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -321,7 +327,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
             mvc.perform(
                     post(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/search")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(search)))
+                        .content(mapper.writeValueAsString(search))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -446,7 +453,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
             mvc.perform(
                     post(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/search")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(search)))
+                        .content(mapper.writeValueAsString(search))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -537,7 +545,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
             mvc.perform(
                     post(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/search")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(search)))
+                        .content(mapper.writeValueAsString(search))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -627,7 +636,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
             mvc.perform(
                     post(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/search")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(search)))
+                        .content(mapper.writeValueAsString(search))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -732,7 +742,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
             mvc.perform(
                     post(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/search")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(search)))
+                        .content(mapper.writeValueAsString(search))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -812,7 +823,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
             mvc.perform(
                     post(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/search")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(search)))
+                        .content(mapper.writeValueAsString(search))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -893,7 +905,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
             mvc.perform(
                     post(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/search")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(search)))
+                        .content(mapper.writeValueAsString(search))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -978,7 +991,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
             mvc.perform(
                     post(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/search")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(search)))
+                        .content(mapper.writeValueAsString(search))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -1065,7 +1079,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
               mvc.perform(
                       post(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/search")
                           .contentType(MediaType.APPLICATION_JSON)
-                          .content(mapper.writeValueAsString(search)))
+                          .content(mapper.writeValueAsString(search))
+                          .with(csrf()))
                   .andExpect(status().isOk())
                   .andReturn()
                   .getResponse()
@@ -1149,7 +1164,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
               mvc.perform(
                       post(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/search")
                           .contentType(MediaType.APPLICATION_JSON)
-                          .content(mapper.writeValueAsString(search)))
+                          .content(mapper.writeValueAsString(search))
+                          .with(csrf()))
                   .andExpect(status().isOk())
                   .andReturn()
                   .getResponse()
@@ -1232,7 +1248,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
               mvc.perform(
                       post(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/search")
                           .contentType(MediaType.APPLICATION_JSON)
-                          .content(mapper.writeValueAsString(search)))
+                          .content(mapper.writeValueAsString(search))
+                          .with(csrf()))
                   .andExpect(status().isOk())
                   .andReturn()
                   .getResponse()
@@ -1316,7 +1333,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
               mvc.perform(
                       post(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/search")
                           .contentType(MediaType.APPLICATION_JSON)
-                          .content(mapper.writeValueAsString(search)))
+                          .content(mapper.writeValueAsString(search))
+                          .with(csrf()))
                   .andExpect(status().isOk())
                   .andReturn()
                   .getResponse()
@@ -1388,7 +1406,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
         String response =
             mvc.perform(
                     get(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/options")
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -1446,7 +1465,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
             mvc.perform(
                     get(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/options")
                         .queryParam("searchText", "search this")
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -1506,7 +1526,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
             mvc.perform(
                     post(INJECT_URI + "/targets/" + targetType + "/options")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(ids)))
+                        .content(mapper.writeValueAsString(ids))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -1585,7 +1606,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
             mvc.perform(
                     post(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/search")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(search)))
+                        .content(mapper.writeValueAsString(search))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -1696,7 +1718,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
             mvc.perform(
                     post(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/search")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(search)))
+                        .content(mapper.writeValueAsString(search))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -1771,7 +1794,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
             mvc.perform(
                     post(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/search")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(search)))
+                        .content(mapper.writeValueAsString(search))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -1838,7 +1862,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
             mvc.perform(
                     post(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/search")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(search)))
+                        .content(mapper.writeValueAsString(search))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -1916,7 +1941,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
             mvc.perform(
                     post(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/search")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(search)))
+                        .content(mapper.writeValueAsString(search))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -1980,7 +2006,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
             mvc.perform(
                     post(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/search")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(search)))
+                        .content(mapper.writeValueAsString(search))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -2044,7 +2071,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
             mvc.perform(
                     post(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/search")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(search)))
+                        .content(mapper.writeValueAsString(search))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -2111,7 +2139,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
             mvc.perform(
                     post(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/search")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(search)))
+                        .content(mapper.writeValueAsString(search))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -2174,7 +2203,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
         String response =
             mvc.perform(
                     get(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/options")
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -2228,7 +2258,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
                     get(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/options")
                         // keep lower case for case-insensitive search
                         .queryParam("searchText", "returnthis")
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -2280,7 +2311,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
             mvc.perform(
                     post(INJECT_URI + "/targets/" + targetType + "/options")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(ids)))
+                        .content(mapper.writeValueAsString(ids))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -2316,7 +2348,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
                           + targetType.name()
                           + "/search")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(search)))
+                      .content(mapper.writeValueAsString(search))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -2349,7 +2382,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
                           + targetType.name()
                           + "/search")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(search)))
+                      .content(mapper.writeValueAsString(search))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -2397,7 +2431,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
                           + targetType.name()
                           + "/search")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(search)))
+                      .content(mapper.writeValueAsString(search))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -2471,7 +2506,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
                             + targetType.name()
                             + "/search")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(search)))
+                        .content(mapper.writeValueAsString(search))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -2526,7 +2562,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
         String response =
             mvc.perform(
                     get(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/options")
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -2575,7 +2612,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
                             + "/targets/"
                             + targetType
                             + "/options")
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -2624,7 +2662,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
                             + "/targets/"
                             + targetType
                             + "/options")
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -2660,7 +2699,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
             mvc.perform(
                     get(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/options")
                         .queryParam("searchText", "Other")
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -2695,7 +2735,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
             mvc.perform(
                     post(INJECT_URI + "/targets/" + targetType + "/options")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(ids)))
+                        .content(mapper.writeValueAsString(ids))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -2731,7 +2772,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
                           + targetType.name()
                           + "/search")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(search)))
+                      .content(mapper.writeValueAsString(search))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -2764,7 +2806,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
                           + targetType.name()
                           + "/search")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(search)))
+                      .content(mapper.writeValueAsString(search))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -2810,7 +2853,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
                           + targetType.name()
                           + "/search")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(search)))
+                      .content(mapper.writeValueAsString(search))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -2868,7 +2912,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
                           + targetType.name()
                           + "/search")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(search)))
+                      .content(mapper.writeValueAsString(search))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -2926,7 +2971,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
                             + targetType.name()
                             + "/search")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(search)))
+                        .content(mapper.writeValueAsString(search))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -2975,7 +3021,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
                           + targetType.name()
                           + "/search")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(search)))
+                      .content(mapper.writeValueAsString(search))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -3014,7 +3061,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
                           + targetType.name()
                           + "/search")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(search)))
+                      .content(mapper.writeValueAsString(search))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -3069,7 +3117,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
                           + targetType.name()
                           + "/search")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(search)))
+                      .content(mapper.writeValueAsString(search))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -3130,7 +3179,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
                           + targetType.name()
                           + "/search")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(search)))
+                      .content(mapper.writeValueAsString(search))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -3189,7 +3239,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
                           + targetType.name()
                           + "/search")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(search)))
+                      .content(mapper.writeValueAsString(search))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -3253,7 +3304,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
                             + targetType.name()
                             + "/search")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(search)))
+                        .content(mapper.writeValueAsString(search))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
