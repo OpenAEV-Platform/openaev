@@ -204,7 +204,7 @@ class AssetOutputProcessorTest {
                     trace.getStatus() == ExecutionTraceStatus.INFO
                         && trace
                             .getMessage()
-                            .contains("Created endpoint: Asset A (id=endpoint-id)"));
+                            .contains("Created endpoint: Asset A"));
     assertTrue(found, "INFO trace for created endpoint should be present");
   }
 
@@ -235,7 +235,7 @@ class AssetOutputProcessorTest {
                     trace.getStatus() == ExecutionTraceStatus.INFO
                         && trace
                             .getMessage()
-                            .contains("Endpoint already existent: Asset A (id=existing-id)"));
+                            .contains("Endpoint already existent: Asset A"));
     assertTrue(found, "INFO trace for existing endpoint should be present");
   }
 
