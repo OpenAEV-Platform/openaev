@@ -190,7 +190,6 @@ class AssetOutputProcessorTest {
     when(endpointService.findExistingEndpoint(any())).thenReturn(Optional.empty());
     when(endpointService.createEndpoint(any(EndpointInput.class))).thenReturn(created);
 
-    // Use real Inject and InjectStatus to capture traces
     Inject realInject = new Inject();
     InjectStatus realStatus = new InjectStatus();
     realInject.setStatus(realStatus);
@@ -222,7 +221,6 @@ class AssetOutputProcessorTest {
     when(existing.getId()).thenReturn("existing-id");
     when(endpointService.findExistingEndpoint(any())).thenReturn(Optional.of(existing));
 
-    // Use real Inject and InjectStatus to capture traces
     Inject realInject = new Inject();
     InjectStatus realStatus = new InjectStatus();
     realInject.setStatus(realStatus);
