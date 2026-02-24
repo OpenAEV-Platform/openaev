@@ -1127,6 +1127,8 @@
   "Messages header": "Заголовок сообщений",
   "Metrics Version 3.1": "Метрика Версия 3.1",
   "microblogging": "Микроблоги",
+  "Migrate": "Мигрируйте",
+  "Migrate an instance deployed manually to the XTM Composer": "Перенесите экземпляр, развернутый вручную, в XTM Composer",
   "Minimum value is 1": "Минимальное значение - 1",
   "Minutes": "Минуты",
   "Missing content": "Отсутствующее содержимое",

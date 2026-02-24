@@ -1127,6 +1127,8 @@
   "Messages header": "메시지 헤더",
   "Metrics Version 3.1": "메트릭 버전 3.1",
   "microblogging": "마이크로블로그",
+  "Migrate": "마이그레이션",
+  "Migrate an instance deployed manually to the XTM Composer": "수동으로 배포된 인스턴스를 XTM Composer로 마이그레이션하기",
   "Minimum value is 1": "최소값은 1입니다",
   "Minutes": "분",
   "Missing content": "누락된 콘텐츠",

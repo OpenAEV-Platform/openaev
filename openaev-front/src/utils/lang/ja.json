@@ -1127,6 +1127,8 @@
   "Messages header": "メッセージヘッダー",
   "Metrics Version 3.1": "メトリクス・バージョン3.1",
   "microblogging": "マイクロブログ",
+  "Migrate": "移住",
+  "Migrate an instance deployed manually to the XTM Composer": "手動でデプロイしたインスタンスを XTM Composer に移行する",
   "Minimum value is 1": "最小値は1",
   "Minutes": "分",
   "Missing content": "不足内容",
