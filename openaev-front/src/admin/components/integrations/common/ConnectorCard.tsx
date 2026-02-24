@@ -8,7 +8,7 @@ import { type CatalogConnector, type ConnectorInstanceOutput } from '../../../..
 import ConnectorStatus from './ConnectorStatus';
 import ConnectorTitle from './ConnectorTitle';
 import DeployButton from './DeployButton';
-import MigrateButton from "./MigrateButton";
+import MigrateButton from './MigrateButton';
 
 const useStyles = makeStyles()(theme => ({
   card: {
@@ -110,7 +110,7 @@ const ConnectorCard = ({
             </Typography>
           )}
           {onMigrateBtnClick
-              && <MigrateButton onMigrateBtnClick={onMigrateBtnClick} />}
+            && <MigrateButton onMigrateBtnClick={onMigrateBtnClick} />}
           <div className={classes.footer}>
             <Chip
               variant="outlined"
