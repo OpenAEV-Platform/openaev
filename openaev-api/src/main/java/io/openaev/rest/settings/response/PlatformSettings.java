@@ -133,6 +133,18 @@ public class PlatformSettings {
   @Schema(description = "Current version of analytics engine")
   private String analyticsEngineVersion;
 
+  @JsonProperty("platform_xtm_one_configured")
+  @Schema(description = "True if XTM One is configured (url and token set)")
+  private Boolean xtmOneConfigured;
+
+  @JsonProperty("platform_xtm_one_url")
+  @Schema(description = "XTM One platform URL")
+  private String xtmOneUrl;
+
+  @JsonProperty("platform_xtm_one_web_token")
+  @Schema(description = "XTM One public chat web token for the embedded agent")
+  private String xtmOneWebToken;
+
   @JsonProperty("platform_ai_enabled")
   @Schema(description = "True if AI is enabled for the platform")
   private Boolean aiEnabled;

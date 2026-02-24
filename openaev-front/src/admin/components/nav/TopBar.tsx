@@ -21,6 +21,7 @@ import { useAppDispatch } from '../../../utils/hooks';
 import useAuth from '../../../utils/hooks/useAuth';
 import { AbilityContext } from '../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import AskArianeButton from '../ariane/AskArianeButton';
 
 const useStyles = makeStyles()(theme => ({
   appBar: {
@@ -148,10 +149,13 @@ const TopBar: FunctionComponent = () => {
   const [navOpen, setNavOpen] = useState(
     localStorage.getItem('navOpen') === 'true',
   );
+  const [isArianeChatOpen, setIsArianeChatOpen] = useState(false);
   useEffect(() => {
     const sub = MESSAGING$.toggleNav.subscribe({ next: () => setNavOpen(localStorage.getItem('navOpen') === 'true') });
+    const chatSub = MESSAGING$.toggleArianeChat.subscribe({ next: () => setIsArianeChatOpen(prev => !prev) });
     return () => {
       sub.unsubscribe();
+      chatSub.unsubscribe();
     };
   });
   const handleLogout = async () => {
@@ -217,6 +221,7 @@ const TopBar: FunctionComponent = () => {
         <div className={classes.barRight}>
           <div className={classes.barRightContainer}>
             { settings.platform_license?.license_type === 'nfr' && <ItemBoolean variant="large" label="EE DEV LICENSE" status={false} /> }
+            <AskArianeButton isOpen={isArianeChatOpen} />
             <Tooltip title={t('Install simulation agents')}>
               <IconButton
                 size="medium"
