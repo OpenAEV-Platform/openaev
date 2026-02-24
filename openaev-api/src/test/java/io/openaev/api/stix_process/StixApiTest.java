@@ -56,11 +56,11 @@ import org.mockserver.configuration.Configuration;
 import org.mockserver.integration.ClientAndServer;
 import org.mockserver.socket.PortFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @TestInstance(PER_CLASS)
@@ -98,7 +98,7 @@ class StixApiTest extends IntegrationTest {
 
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private InjectorContractFixture injectorContractFixture;
-  @MockitoSpyBean private SecurityCoverageService securityCoverageService;
+  @SpyBean private SecurityCoverageService securityCoverageService;
   @Autowired private OpenCTIConnectorService openCTIConnectorService;
 
   private JsonNode stixSecurityCoverage;
