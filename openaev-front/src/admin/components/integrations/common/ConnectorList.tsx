@@ -1,10 +1,14 @@
 import { Grid } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import {type SyntheticEvent, useContext, useState} from 'react';
+import { type SyntheticEvent, useContext, useState } from 'react';
+import { useOutletContext } from 'react-router';
 
+import { fetchUndeployedCatalogConnectors } from '../../../../actions/catalog/catalog-actions';
+import { type CatalogConnectorsHelper } from '../../../../actions/catalog/catalog-helper';
 import { type CollectorHelper } from '../../../../actions/collectors/collector-helper';
 import type { ExecutorHelper } from '../../../../actions/executors/executor-helper';
 import { type InjectorHelper } from '../../../../actions/injectors/injector-helper';
+import { useFormatter } from '../../../../components/i18n';
 import SearchFilter from '../../../../components/SearchFilter';
 import { useHelper } from '../../../../store';
 import type {
@@ -12,19 +16,15 @@ import type {
   CatalogConnectorOutput,
   CollectorOutput,
   ExecutorOutput,
-  InjectorOutput
+  InjectorOutput,
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSearchAndFilter from '../../../../utils/SortingFiltering';
+import type { CatalogContextType } from '../catalog_connectors/CatalogLayout';
 import ConnectorCard from '../common/ConnectorCard';
+import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
 import { ConnectorContext, type ConnectorOutput } from './ConnectorContext';
-import CreateConnectorInstanceDrawer from "../connector_instance/CreateConnectorInstanceDrawer";
-import {useOutletContext} from "react-router";
-import type {CatalogContextType} from "../catalog_connectors/CatalogLayout";
-import {useFormatter} from "../../../../components/i18n";
-import {CatalogConnectorsHelper} from "../../../../actions/catalog/catalog-helper";
-import {fetchUndeployedCatalogConnectors} from "../../../../actions/catalog/catalog-actions";
 
 const ConnectorList = () => {
   // Standard hooks
@@ -81,9 +81,10 @@ const ConnectorList = () => {
     e.preventDefault();
     e.stopPropagation();
     setSelectedConnector(connector);
-    let catalogConnector = catalogConnectors.find((catalogConnector: CatalogConnectorOutput) => catalogConnector.catalog_connector_id === connector.catalog?.catalog_connector_id);
+    const catalogConnector = catalogConnectors.find(
+      (catalogConnector: CatalogConnectorOutput) => catalogConnector.catalog_connector_id === connector.catalog?.catalog_connector_id,
+    );
     setSelectedCatalogConnector(catalogConnector);
-    console.log(catalogConnector);
     onOpenCreateConnectorInstanceDrawer();
   };
 
@@ -124,16 +125,16 @@ const ConnectorList = () => {
           </Grid>
         ))}
         {selectedCatalogConnector && openCreateConnectorInstanceDrawer && (
-            <CreateConnectorInstanceDrawer
-                open={openCreateConnectorInstanceDrawer}
-                catalogConnectorId={selectedCatalogConnector.catalog_connector_id}
-                catalogConnectorSlug={selectedCatalogConnector.catalog_connector_slug}
-                onClose={onCloseCreateConnectorInstanceDrawer}
-                connectorType={selectedCatalogConnector.catalog_connector_type}
-                disabled={!isXtmComposerUp && selectedCatalogConnector.catalog_connector_manager_supported}
-                migrateFrom={selectedConnector?.id}
-                disabledMessage={t('Deployment of this {catalogType} requires the installation of our Integration Manager.', { catalogType: selectedCatalogConnector.catalog_connector_type.toLowerCase() })}
-            />
+          <CreateConnectorInstanceDrawer
+            open={openCreateConnectorInstanceDrawer}
+            catalogConnectorId={selectedCatalogConnector.catalog_connector_id}
+            catalogConnectorSlug={selectedCatalogConnector.catalog_connector_slug}
+            onClose={onCloseCreateConnectorInstanceDrawer}
+            connectorType={selectedCatalogConnector.catalog_connector_type}
+            disabled={!isXtmComposerUp && selectedCatalogConnector.catalog_connector_manager_supported}
+            migrateFrom={selectedConnector?.id}
+            disabledMessage={t('Deployment of this {catalogType} requires the installation of our Integration Manager.', { catalogType: selectedCatalogConnector.catalog_connector_type.toLowerCase() })}
+          />
         )}
       </Grid>
     </>

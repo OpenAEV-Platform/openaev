@@ -23,7 +23,7 @@ const MigrateButton = ({ onMigrateBtnClick, style = {} }: Props) => {
       setEEFeatureDetectedInfo(t('Connectors deployment'));
       openEnterpriseEditionDialog();
     } else {
-        onMigrateBtnClick(e);
+      onMigrateBtnClick(e);
     }
   };
   return (
