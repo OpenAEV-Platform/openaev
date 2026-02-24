@@ -1566,7 +1566,7 @@ class InjectApiTest extends IntegrationTest {
       }
 
       @Test
-      @DisplayName("shouldNotProduceNothingWhenContractHasNotAssetType")
+      @DisplayName("Should Not Produce Nothing When Contract Has Not Asset Type")
       void shouldNotProduceNothingWhenContractHasNotAssetType() throws Exception {
         // -- PREPARE --
         InjectExecutionInput input = new InjectExecutionInput();
@@ -1641,7 +1641,7 @@ class InjectApiTest extends IntegrationTest {
       }
 
       @Test
-      @DisplayName("shouldNotProduceNothingWhenStructuredOutputIsEmpty")
+      @DisplayName("Should Not Produce Nothing When StructuredOutput Is Empty")
       void shouldNotProduceNothingWhenStructuredOutputIsEmpty() throws Exception {
         // -- PREPARE --
         InjectExecutionInput input = new InjectExecutionInput();
@@ -1696,8 +1696,8 @@ class InjectApiTest extends IntegrationTest {
       }
 
       @Test
-      @DisplayName("Should create a asset agentless")
-      void shouldCreateNothingWhenTypeAndStructureOutputAreNotRelatedByType() throws Exception {
+      @DisplayName("Should Create Asset Even If Some Informations Are Null")
+      void shouldCreateAssetEvenIfSomeInformationAreNull() throws Exception {
         // -- PREPARE --
         InjectExecutionInput input = new InjectExecutionInput();
         input.setMessage("Creation Assets");
@@ -1712,9 +1712,8 @@ class InjectApiTest extends IntegrationTest {
                              			"externalReference": "https://shodan.io/.../assetA",
                              			"tags": ["source:shodan.io"],
                              			"extendedAttributes": {
-                             				"ip_addresses": ["192.168.0.2"],
-                             				"platform": "Windows",
-                             				"hostname": "test.if",
+                             				"ip_addresses": [],
+                             				"platform": "Unknown",
                              				"mac_addresses": ["1::22:45:67:89:AB"],
                              				"arch": "x86_64",
                              				"end_of_life": true
@@ -1735,13 +1734,13 @@ class InjectApiTest extends IntegrationTest {
                         {
                           "outputs": [
                             {
-                               "field": "cve",
-                               "isFindingCompatible": true,
+                               "field": "found_assets",
+                               "isFindingCompatible": false,
                                "isMultiple": true,
                                "labels": [
-                                   "shodan:cve"
+                                   "shodan:asset"
                                ],
-                               "type": "cve"
+                               "type": "asset"
                            }
                           ]
                         }
@@ -1767,19 +1766,16 @@ class InjectApiTest extends IntegrationTest {
                 () -> {
                   List<Endpoint> endpointsA =
                       endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
-                  List<Endpoint> endpointsB =
-                      endpointRepository.findByExternalReference("https://shodan.io/.../assetB");
-                  return endpointsA.size() == 1 && endpointsB.size() == 1;
+                  return endpointsA.size() == 1;
                 });
 
         List<Endpoint> endpointsA =
             endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
-        List<Endpoint> endpointsB =
-            endpointRepository.findByExternalReference("https://shodan.io/.../assetB");
         assertEquals(1, endpointsA.size());
-        assertEquals(1, endpointsB.size());
-        assertEquals("test.if", endpointsA.getFirst().getHostname());
-        assertEquals("test.io", endpointsB.getFirst().getHostname());
+        assertEquals("", endpointsA.getFirst().getHostname());
+        assertEquals(Endpoint.PLATFORM_TYPE.Unknown, endpointsA.getFirst().getPlatform());
+        assertEquals(Endpoint.PLATFORM_ARCH.x86_64, endpointsA.getFirst().getPlatform());
+        assertEquals(0, endpointsA.getFirst().getIps().length);
       }
     }
   }
