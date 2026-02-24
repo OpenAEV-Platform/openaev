@@ -21,6 +21,7 @@ public class Ping implements Mutation {
       mutation PingConnector($id: ID!, $state: String, $connectorInfo: ConnectorInfoInput ) {
         pingConnector(id: $id, state: $state, connectorInfo: $connectorInfo) {
           id
+          jwks
           connector_state
           connector_info {
               run_and_terminate
@@ -56,6 +57,9 @@ public class Ping implements Mutation {
 
       @JsonProperty("connector_state")
       private ObjectNode connectorState;
+
+      @JsonProperty("jwks")
+      private String jwks;
 
       @JsonProperty("connector_info")
       private ConnectorInfo connectorInfo;
