@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 
 import io.openaev.IntegrationTest;
@@ -60,7 +61,8 @@ public class AttackPatternApiTest extends IntegrationTest {
                   mvc.perform(
                       multipart(ATTACK_PATTERN_URI + "/search-with-ai")
                           .part(jsonPart)
-                          .contentType(MediaType.MULTIPART_FORM_DATA)));
+                          .contentType(MediaType.MULTIPART_FORM_DATA)
+                          .with(csrf())));
 
       assertTrue(exception.getMessage().contains("Either files or text must be provided"));
     }
@@ -96,7 +98,8 @@ public class AttackPatternApiTest extends IntegrationTest {
                           .file(mockFile4)
                           .file(mockFile5)
                           .file(mockFile6)
-                          .contentType(MediaType.MULTIPART_FORM_DATA)));
+                          .contentType(MediaType.MULTIPART_FORM_DATA)
+                          .with(csrf())));
 
       assertTrue(exception.getMessage().contains("Maximum of 5 files allowed"));
     }
@@ -135,7 +138,8 @@ public class AttackPatternApiTest extends IntegrationTest {
                   multipart(ATTACK_PATTERN_URI + "/search-with-ai")
                       .part(jsonPart)
                       .file(mockFile)
-                      .contentType(MediaType.MULTIPART_FORM_DATA))
+                      .contentType(MediaType.MULTIPART_FORM_DATA)
+                      .with(csrf()))
               .andReturn()
               .getResponse()
               .getContentAsString();

@@ -919,7 +919,8 @@ class ExpectationApiTest extends IntegrationTest {
                   get(INJECTS_EXPECTATIONS_URI
                           + "/available?injectorContractId="
                           + implantInjectorContract.getId())
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -969,7 +970,8 @@ class ExpectationApiTest extends IntegrationTest {
             put(INJECTS_EXPECTATIONS_URI + "/" + injectExpectation.getId())
                 .content(asJsonString(expectationUpdateInput))
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful());
   }
 
@@ -981,7 +983,8 @@ class ExpectationApiTest extends IntegrationTest {
             put(EXPECTATIONS_URI + "/" + injectExpectation.getId())
                 .content(asJsonString(expectationUpdateInput))
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful());
   }
 
@@ -990,13 +993,13 @@ class ExpectationApiTest extends IntegrationTest {
       @NotNull final ExpectationUpdateInput expectationUpdateInput)
       throws Exception {
     mvc.perform(
-            put(
-                EXPECTATIONS_URI
+            put(EXPECTATIONS_URI
                     + "/"
                     + injectExpectation.getId()
                     + "/"
                     + expectationUpdateInput.getSourceId()
-                    + "/delete"))
+                    + "/delete")
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful());
   }
 }

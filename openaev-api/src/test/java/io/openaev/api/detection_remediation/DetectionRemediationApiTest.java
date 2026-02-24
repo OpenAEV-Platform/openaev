@@ -221,7 +221,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                     + "/rules/"
                     + CROWDSTRIKE_FRONTEND_NAME)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(mapper.writeValueAsString(input)))
+                .content(mapper.writeValueAsString(input))
+                .with(csrf()))
         .andExpect(status().isServiceUnavailable());
   }
 
@@ -269,7 +270,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                     + "/rules/"
                     + CROWDSTRIKE_FRONTEND_NAME)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(mapper.writeValueAsString(input)))
+                .content(mapper.writeValueAsString(input))
+                .with(csrf()))
         .andExpect(status().isBadGateway());
   }
 
@@ -317,7 +319,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                     + "/rules/"
                     + CROWDSTRIKE_FRONTEND_NAME)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(mapper.writeValueAsString(input)))
+                .content(mapper.writeValueAsString(input))
+                .with(csrf()))
         .andExpect(status().isOk());
   }
 
@@ -396,7 +399,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                         + "/rules/"
                         + CROWDSTRIKE_FRONTEND_NAME)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
@@ -469,7 +473,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                         + "/rules/"
                         + CROWDSTRIKE_FRONTEND_NAME)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
@@ -542,7 +547,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                         + "/rules/"
                         + SPLUNK_FRONTEND_NAME)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
@@ -597,7 +603,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                         + "/rules/"
                         + CROWDSTRIKE_FRONTEND_NAME)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
@@ -669,7 +676,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                         + "/rules/"
                         + SPLUNK_FRONTEND_NAME)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
@@ -889,12 +897,12 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     MockHttpServletResponse output =
         mockMvc
             .perform(
-                post(
-                    "/"
+                post("/"
                         + DetectionRemediationApi.DETECTION_REMEDIATION_URI
                         + "/rules/inject/"
                         + inject.getId()
-                        + "/collector/collector_name_unknow"))
+                        + "/collector/collector_name_unknow")
+                    .with(csrf()))
             .andReturn()
             .getResponse();
 
@@ -969,13 +977,13 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- EXECUTE --
     mockMvc
         .perform(
-            post(
-                "/"
+            post("/"
                     + DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/inject/"
                     + inject.getId()
                     + "/collector/"
-                    + CROWDSTRIKE_FRONTEND_NAME))
+                    + CROWDSTRIKE_FRONTEND_NAME)
+                .with(csrf()))
         .andExpect(status().isOk());
   }
 
@@ -1005,13 +1013,13 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     String output =
         mockMvc
             .perform(
-                post(
-                    "/"
+                post("/"
                         + DetectionRemediationApi.DETECTION_REMEDIATION_URI
                         + "/rules/inject/"
                         + inject.getId()
                         + "/collector/"
-                        + CROWDSTRIKE_FRONTEND_NAME))
+                        + CROWDSTRIKE_FRONTEND_NAME)
+                    .with(csrf()))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
@@ -1073,13 +1081,13 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     String output =
         mockMvc
             .perform(
-                post(
-                    "/"
+                post("/"
                         + DetectionRemediationApi.DETECTION_REMEDIATION_URI
                         + "/rules/inject/"
                         + inject.getId()
                         + "/collector/"
-                        + SPLUNK_FRONTEND_NAME))
+                        + SPLUNK_FRONTEND_NAME)
+                    .with(csrf()))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
@@ -1126,13 +1134,13 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     String output =
         mockMvc
             .perform(
-                post(
-                    "/"
+                post("/"
                         + DetectionRemediationApi.DETECTION_REMEDIATION_URI
                         + "/rules/inject/"
                         + inject.getId()
                         + "/collector/"
-                        + CROWDSTRIKE_FRONTEND_NAME))
+                        + CROWDSTRIKE_FRONTEND_NAME)
+                    .with(csrf()))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
@@ -1196,13 +1204,13 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     String output =
         mockMvc
             .perform(
-                post(
-                    "/"
+                post("/"
                         + DetectionRemediationApi.DETECTION_REMEDIATION_URI
                         + "/rules/inject/"
                         + inject.getId()
                         + "/collector/"
-                        + SPLUNK_FRONTEND_NAME))
+                        + SPLUNK_FRONTEND_NAME)
+                    .with(csrf()))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()

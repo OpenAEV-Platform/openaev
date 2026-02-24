@@ -3,6 +3,7 @@ package io.openaev.security;
 import static io.openaev.api.stix_process.StixApi.STIX_URI;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -123,7 +124,10 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
     entityManager.flush();
 
     var request =
-        post(STIX_URI + "/process-bundle").contentType(MediaType.APPLICATION_JSON).content("");
+        post(STIX_URI + "/process-bundle")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("")
+            .with(csrf());
 
     if (authHeader != null) {
       request = request.header("Authorization", authHeader);

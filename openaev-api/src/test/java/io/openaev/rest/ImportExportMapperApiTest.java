@@ -3,6 +3,7 @@ package io.openaev.rest;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
@@ -51,7 +52,8 @@ public class ImportExportMapperApiTest extends IntegrationTest {
                 MockMvcRequestBuilders.post(
                         "/api/mappers/export/csv?targetType=" + TargetType.ENDPOINTS)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(new SearchPaginationInput())))
+                    .content(asJsonString(new SearchPaginationInput()))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -73,7 +75,8 @@ public class ImportExportMapperApiTest extends IntegrationTest {
         .perform(
             MockMvcRequestBuilders.post("/api/mappers/export/csv?targetType=" + TargetType.AGENT)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(new SearchPaginationInput())))
+                .content(asJsonString(new SearchPaginationInput()))
+                .with(csrf()))
         .andExpect(status().is4xxClientError())
         .andReturn()
         .getResponse()
@@ -97,7 +100,8 @@ public class ImportExportMapperApiTest extends IntegrationTest {
         .perform(
             MockMvcRequestBuilders.multipart(
                     "/api/mappers/import/csv?targetType=" + TargetType.ENDPOINTS)
-                .file(csvFile))
+                .file(csvFile)
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andReturn()
         .getResponse()
@@ -133,7 +137,8 @@ public class ImportExportMapperApiTest extends IntegrationTest {
         .perform(
             MockMvcRequestBuilders.multipart(
                     "/api/mappers/import/csv?targetType=" + TargetType.AGENT)
-                .file(csvFile))
+                .file(csvFile)
+                .with(csrf()))
         .andExpect(status().is4xxClientError())
         .andReturn()
         .getResponse()

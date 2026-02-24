@@ -9,6 +9,7 @@ import static io.openaev.utils.fixtures.ConnectorInstanceFixture.createDefaultCo
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -82,7 +83,8 @@ public class XtmComposerApiTest extends IntegrationTest {
                     post(XTMCOMPOSER_URI + "/register")
                         .content(asJsonString(input))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().is2xxSuccessful())
                 .andReturn()
                 .getResponse()
@@ -119,7 +121,8 @@ public class XtmComposerApiTest extends IntegrationTest {
                 post(XTMCOMPOSER_URI + "/register")
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -136,7 +139,8 @@ public class XtmComposerApiTest extends IntegrationTest {
                     post(XTMCOMPOSER_URI + "/register")
                         .content(asJsonString(input))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().is2xxSuccessful())
                 .andReturn()
                 .getResponse()
@@ -172,7 +176,8 @@ public class XtmComposerApiTest extends IntegrationTest {
         mvc.perform(
                 put(XTMCOMPOSER_URI + "/composer-id-test/refresh-connectivity")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -195,7 +200,8 @@ public class XtmComposerApiTest extends IntegrationTest {
         mvc.perform(
                 put(XTMCOMPOSER_URI + "/fake-composer-id/refresh-connectivity")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().isBadRequest());
       }
     }
@@ -216,7 +222,8 @@ public class XtmComposerApiTest extends IntegrationTest {
             mvc.perform(
                     get(XTMCOMPOSER_URI + "/reachable")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().is2xxSuccessful())
                 .andReturn()
                 .getResponse()
@@ -237,7 +244,8 @@ public class XtmComposerApiTest extends IntegrationTest {
             mvc.perform(
                     get(XTMCOMPOSER_URI + "/reachable")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().is2xxSuccessful())
                 .andReturn()
                 .getResponse()
@@ -276,7 +284,8 @@ public class XtmComposerApiTest extends IntegrationTest {
         mvc.perform(
                 get(XTMCOMPOSER_URI + "/fake-composer-id/connector-instances")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().isBadRequest())
             .andExpect(
                 result -> {
@@ -300,7 +309,8 @@ public class XtmComposerApiTest extends IntegrationTest {
             mvc.perform(
                     get(XTMCOMPOSER_URI + "/composer-id-test/connector-instances")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().is2xxSuccessful())
                 .andReturn()
                 .getResponse()
@@ -358,7 +368,8 @@ public class XtmComposerApiTest extends IntegrationTest {
                         + "/fake-composer-id/connector-instances/fake-instance-id/status")
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().isBadRequest())
             .andExpect(
                 result -> {
@@ -385,7 +396,8 @@ public class XtmComposerApiTest extends IntegrationTest {
                         + "/status")
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -406,7 +418,8 @@ public class XtmComposerApiTest extends IntegrationTest {
                         + "/status")
                     .content(asJsonString(input2))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -436,7 +449,8 @@ public class XtmComposerApiTest extends IntegrationTest {
                         + "/fake-composer-id/connector-instances/fake-instance-id/logs")
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().isBadRequest())
             .andExpect(
                 result -> {
@@ -471,7 +485,8 @@ public class XtmComposerApiTest extends IntegrationTest {
                         + "/logs")
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -501,7 +516,8 @@ public class XtmComposerApiTest extends IntegrationTest {
                         + "/fake-composer-id/connector-instances/fake-instance-id/health-check")
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().isBadRequest())
             .andExpect(
                 result -> {
@@ -532,7 +548,8 @@ public class XtmComposerApiTest extends IntegrationTest {
                         + "/health-check")
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()

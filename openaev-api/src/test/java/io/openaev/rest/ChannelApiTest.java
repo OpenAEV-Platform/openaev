@@ -5,6 +5,7 @@ import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -85,7 +86,8 @@ class ChannelApiTest extends IntegrationTest {
                 post(SCENARIO_URI + "/" + SCENARIO_ID + "/articles")
                     .content(asJsonString(articleCreateInput))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -107,7 +109,8 @@ class ChannelApiTest extends IntegrationTest {
         this.mvc
             .perform(
                 get(SCENARIO_URI + "/" + SCENARIO_ID + "/articles")
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -135,7 +138,8 @@ class ChannelApiTest extends IntegrationTest {
                 put(SCENARIO_URI + "/" + SCENARIO_ID + "/articles/" + ARTICLE_ID)
                     .content(asJsonString(articleUpdateInput))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -153,7 +157,7 @@ class ChannelApiTest extends IntegrationTest {
   void deleteArticleForScenarioTest() throws Exception {
     // -- EXECUTE 1 ASSERT --
     this.mvc
-        .perform(delete(SCENARIO_URI + "/" + SCENARIO_ID + "/articles/" + ARTICLE_ID))
+        .perform(delete(SCENARIO_URI + "/" + SCENARIO_ID + "/articles/" + ARTICLE_ID).with(csrf()))
         .andExpect(status().is2xxSuccessful());
   }
 }

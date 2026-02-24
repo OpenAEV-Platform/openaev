@@ -363,13 +363,15 @@ class UserApiTest extends IntegrationTest {
       mvc.perform(
               post("/api/reset")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
+                  .content(asJsonString(input))
+                  .with(csrf()))
           .andExpect(status().isOk());
 
       mvc.perform(
               post("/api/reset/" + firstToken)
                   .content(asJsonString(changePasswordInput))
-                  .contentType(MediaType.APPLICATION_JSON))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           // should be 401 Access Denied
           // but some black magic is changing the actual status code
           // see RestBehavior.java
@@ -382,7 +384,8 @@ class UserApiTest extends IntegrationTest {
       mvc.perform(
               post("/api/reset/" + firstToken)
                   .content(asJsonString(changePasswordInput))
-                  .contentType(MediaType.APPLICATION_JSON))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           // should be 401 Access Denied
           // but some black magic is changing the actual status code
           // see RestBehavior.java
@@ -401,7 +404,8 @@ class UserApiTest extends IntegrationTest {
       mvc.perform(
               post("/api/reset")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
+                  .content(asJsonString(input))
+                  .with(csrf()))
           .andExpect(status().isOk());
 
       // -- ASSERT --
@@ -446,7 +450,8 @@ class UserApiTest extends IntegrationTest {
         mvc.perform(
                 MockMvcRequestBuilders.put("/api/users/" + user.getId())
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(updateUserInput)))
+                    .content(asJsonString(updateUserInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
