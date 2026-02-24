@@ -18,6 +18,8 @@ import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
+import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
+import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.service.InjectService;
@@ -44,6 +46,8 @@ import io.openaev.utils.ResultUtils;
 import io.openaev.utils.StringUtils;
 import io.openaev.utils.time.TimeUtils;
 import jakarta.annotation.Resource;
+import jakarta.validation.constraints.NotNull;
+import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -54,7 +58,6 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.coyote.BadRequestException;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -78,7 +81,7 @@ public class SecurityCoverageService {
   @Resource private OpenAEVConfig openAEVConfig;
   private final ObjectMapper objectMapper;
   private final VulnerabilityService vulnerabilityService;
-
+  private final OpenCTIConnectorService openCTIConnectorService;
   private final PreviewFeatureService previewFeatureService;
 
   // FIXME: don't access the connector directly when we deal with multiple origins
@@ -305,7 +308,30 @@ public class SecurityCoverageService {
         "Creating or Updating Scenario with ID: {} from Security coverage with external ID: {}",
         scenario.getId(),
         securityCoverage.getExternalId());
+
     return scenario;
+  }
+
+  /**
+   * Enrich and push the security coverage to OpenCTI. This injects the OpenAEV scenario external
+   * URL into the STIX object.
+   *
+   * @param scenario The scenario containing the security coverage.
+   * @throws ParsingException If STIX parsing fails.
+   * @throws ConnectorError If the OpenCTI push fails.
+   */
+  public void pushSecurityCoverageBundleWithExternalURI(Scenario scenario)
+      throws ParsingException, ConnectorError, IOException {
+    SecurityCoverage coverage = scenario.getSecurityCoverage();
+    String externalLink = openAEVConfig.getBaseUrl() + "/admin/scenarios/" + scenario.getId();
+
+    DomainObject sdo = (DomainObject) stixParser.parseObject(coverage.getContent());
+    sdo.setProperty(CommonProperties.EXTERNAL_URI.toString(), new StixString(externalLink));
+
+    Bundle bundle =
+        new Bundle(new Identifier("bundle", UUID.randomUUID().toString()), List.of(sdo));
+
+    openCTIConnectorService.pushSecurityCoverageStixBundle(bundle);
   }
 
   /**
