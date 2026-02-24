@@ -95,7 +95,20 @@ public class XtmOneChatApi extends RestBehavior {
             return;
           }
           try (sseStream) {
-            sseStream.transferTo(outputStream);
+            byte[] buf = new byte[4096];
+            int n;
+            while ((n = sseStream.read(buf)) != -1) {
+              outputStream.write(buf, 0, n);
+              outputStream.flush();
+            }
+          } catch (Exception e) {
+            log.warning(
+                "[XTM One Chat] Stream interrupted for user="
+                    + userEmail
+                    + ", agent="
+                    + agentSlug
+                    + ": "
+                    + e.getMessage());
           }
         };
 
