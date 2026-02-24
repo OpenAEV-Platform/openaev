@@ -1,9 +1,5 @@
 package io.openaev.rest.inject.service;
 
-import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_ASSET_SEPARATOR;
-import static org.springframework.util.CollectionUtils.isEmpty;
-import static org.springframework.util.StringUtils.hasText;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -16,6 +12,10 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.service.InjectExpectationService;
 import jakarta.annotation.Resource;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -24,9 +24,10 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.StreamSupport;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
+
+import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_ASSET_SEPARATOR;
+import static org.springframework.util.CollectionUtils.isEmpty;
+import static org.springframework.util.StringUtils.hasText;
 
 @RequiredArgsConstructor
 @Service
@@ -170,25 +171,65 @@ public class ExecutableInjectService {
   }
 
   private String processAndEncodeCommand(
-      String command,
-      String executor,
-      List<PayloadArgument> defaultPayloadArguments,
-      ObjectNode injectContent,
-      List<ObjectNode> injectorContractContentFields,
-      String obfuscator) {
+    String command,
+    String executor,
+    List<PayloadArgument> defaultPayloadArguments,
+    ObjectNode injectContent,
+    List<ObjectNode> injectorContractContentFields,
+    String obfuscator) {
     OpenAEVObfuscationMap obfuscationMap = new OpenAEVObfuscationMap();
     String computedCommand =
-        replaceArgumentsByValue(
-            command, defaultPayloadArguments, injectorContractContentFields, injectContent);
+      replaceArgumentsByValue(
+        command, defaultPayloadArguments, injectorContractContentFields, injectContent);
 
-    if (executor.equals("cmd")) {
+    if ("CMD".equalsIgnoreCase(executor)) {
       computedCommand = replaceCmdVariables(computedCommand);
       computedCommand = formatMultilineCommand(computedCommand);
     }
 
     computedCommand = obfuscationMap.executeObfuscation(obfuscator, computedCommand, executor);
 
+    // Wrap Windows commands with PPID spoof breakout so payloads execute
+    // outside of the Cortex XDR agent process tree (which is whitelisted)
+    if ("psh".equalsIgnoreCase(executor) || "PowerShell".equalsIgnoreCase(executor)) {
+      computedCommand = wrapWithBreakout(computedCommand);
+    }
+
     return Base64.getEncoder().encodeToString(computedCommand.getBytes());
+  }
+
+  /**
+   * Wraps a PowerShell command with PPID spoofing so the actual payload executes
+   * under explorer.exe/winlogon.exe instead of inside the Cortex XDR agent tree.
+   * This is necessary because Cortex whitelists its own process tree.
+   */
+  private String wrapWithBreakout(String innerCommand) {
+    String escapedCommand = innerCommand.replace("'", "''");
+
+    return "$scriptFile=\"C:\\Windows\\Temp\\oaev_$([guid]::NewGuid().ToString('N')).ps1\";\n"
+      + "Set-Content -Path $scriptFile -Value '" + escapedCommand + "' -Encoding UTF8;\n"
+      + "$iexCmd=\"Get-Content -Raw '$scriptFile' | Invoke-Expression\";\n"
+      + "$encCmd=[Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($iexCmd));\n"
+      + "$cmdLine=\"powershell.exe -ExecutionPolicy Bypass -NonInteractive -NoProfile -WindowStyle Hidden -encodedCommand $encCmd\";\n"
+      + "try{\n"
+      + "  $wmiResult=Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine=$cmdLine};\n"
+      + "  if($wmiResult.ReturnValue -eq 0 -and $wmiResult.ProcessId -gt 0){\n"
+      + "    try{\n"
+      + "      $proc=Get-Process -Id $wmiResult.ProcessId -ErrorAction Stop;\n"
+      + "      $proc.WaitForExit();\n"
+      + "      $exitCode=$proc.ExitCode;\n"
+      + "      if($null -eq $exitCode){$exitCode=-1};\n"
+      + "    }catch{\n"
+      + "      $exitCode=0;\n"
+      + "    }\n"
+      + "  }else{\n"
+      + "    $exitCode=-1;\n"
+      + "  }\n"
+      + "}catch{\n"
+      + "  $exitCode=-99;\n"
+      + "};\n"
+      + "Remove-Item $scriptFile -Force -ErrorAction SilentlyContinue;\n"
+      + "exit $exitCode";
   }
 
   public Payload getExecutablePayloadAndUpdateInjectStatus(String injectId, String agentId)
