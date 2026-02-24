@@ -429,7 +429,12 @@ class WorkflowUpdateEventAspectTest {
       setupInjectIdJoinPoint(injectId3);
 
       // -------- Act --------
-      aspect.afterEventProcessed(joinPoint, annotation);
+      when(stepService.findStepIdByInjectId(injectId3))
+          .thenThrow(
+              new ElementNotFoundException("Step id not found for inject id : " + injectId3));
+
+      assertThrows(
+          ElementNotFoundException.class, () -> aspect.afterEventProcessed(joinPoint, annotation));
 
       // -------- Assert --------
       // Cache should be cleared, so no retry attempts on third call
