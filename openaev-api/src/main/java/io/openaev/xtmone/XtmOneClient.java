@@ -153,7 +153,7 @@ public class XtmOneClient {
               .header("Authorization", "Bearer " + config.getToken())
               .header("Content-Type", "application/json")
               .POST(HttpRequest.BodyPublishers.ofString(json))
-              .timeout(Duration.ofMinutes(10))
+              .timeout(Duration.ofMinutes(15))
               .build();
       HttpResponse<InputStream> response =
           httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());

@@ -1,5 +1,7 @@
 import {
   AttachFileOutlined,
+  AutoAwesomeOutlined,
+  BuildOutlined,
   CloseOutlined,
   ContentCopyOutlined,
   CropFreeOutlined,
@@ -7,13 +9,19 @@ import {
   EditNoteOutlined,
   ExpandMoreOutlined,
   FullscreenExitOutlined,
+  InfoOutlined,
   InsertDriveFileOutlined,
   LaunchOutlined,
+  MailOutlined,
   PersonAddOutlined,
   PictureInPictureAltOutlined,
   PsychologyOutlined,
+  PublicOutlined,
+  SearchOutlined,
   SendOutlined,
   StopCircleOutlined,
+  StorageOutlined,
+  TerminalOutlined,
   ViewSidebarOutlined,
 } from '@mui/icons-material';
 import {
@@ -59,6 +67,14 @@ interface ChatMessage {
   content: string;
   timestamp: Date;
   files?: ChatFile[];
+  toolNames?: string[];
+  toolCallCount?: number;
+  iterations?: number;
+}
+
+interface AgentStatusState {
+  status: string;
+  tools?: string[];
 }
 
 interface ChatFile {
@@ -110,6 +126,7 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [agentStatus, setAgentStatus] = useState<AgentStatusState | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(
     () => localStorage.getItem(STORAGE_KEY),
   );
@@ -119,12 +136,14 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<ChatFile[]>([]);
   const [copiedBlock, setCopiedBlock] = useState<string | null>(null);
+  const [toolDetailMsgId, setToolDetailMsgId] = useState<string | null>(null);
   const agentAnchorRef = useRef<HTMLButtonElement>(null);
   const modeAnchorRef = useRef<HTMLButtonElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const historyLoadedRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const hasUsedToolsRef = useRef(false);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -220,6 +239,8 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
     setInputValue('');
     setAttachedFiles([]);
     setIsLoading(true);
+    setAgentStatus({ status: 'thinking' });
+    hasUsedToolsRef.current = false;
 
     const assistantId = crypto.randomUUID();
     setMessages(prev => [...prev, {
@@ -257,6 +278,7 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
       const decoder = new TextDecoder();
       let buffer = '';
       let accumulated = '';
+      let doneReceived = false;
 
       // eslint-disable-next-line no-constant-condition
       while (true) {
@@ -277,10 +299,31 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
                     content: evt.content || t('Unable to connect to XTM One. Please check the configuration.'),
                   }
                 : m)));
-              setIsLoading(false);
               return;
+            }
+            if (evt.type === 'status') {
+              const st = evt.status as string;
+              if (st === 'tool_done' || st === 'wind_down') {
+                // skip transient internal events
+              } else if (st === 'streaming') {
+                setAgentStatus({ status: 'streaming' });
+              } else if (st === 'tool_start') {
+                hasUsedToolsRef.current = true;
+                setAgentStatus({
+                  status: 'tool_start',
+                  tools: evt.tools,
+                });
+              } else if (st === 'thinking' && hasUsedToolsRef.current) {
+                setAgentStatus({ status: 'analyzing' });
+              } else {
+                setAgentStatus({
+                  status: st,
+                  tools: evt.tools,
+                });
+              }
             } else if (evt.type === 'stream') {
               accumulated += evt.content;
+              setAgentStatus({ status: 'streaming' });
               setMessages(prev => prev.map(m => (m.id === assistantId
                 ? {
                     ...m,
@@ -288,6 +331,7 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
                   }
                 : m)));
             } else if (evt.type === 'done') {
+              doneReceived = true;
               if (evt.conversation_id) {
                 setConversationId(evt.conversation_id);
                 localStorage.setItem(STORAGE_KEY, evt.conversation_id);
@@ -296,13 +340,16 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
                 ? {
                     ...m,
                     content: evt.content,
+                    toolNames: evt.tool_names,
+                    toolCallCount: evt.tool_call_count,
+                    iterations: evt.iterations,
                   }
                 : m)));
             }
           } catch { /* skip malformed SSE */ }
         }
       }
-      if (accumulated && !messages.find(m => m.id === assistantId)?.content) {
+      if (accumulated && !doneReceived) {
         setMessages(prev => prev.map(m => (m.id === assistantId
           ? {
               ...m,
@@ -321,6 +368,8 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
     } finally {
       abortControllerRef.current = null;
       setIsLoading(false);
+      setAgentStatus(null);
+      hasUsedToolsRef.current = false;
     }
   };
 
@@ -341,6 +390,9 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
     setConversationId(null);
     setAttachedFiles([]);
     setIsLoading(false);
+    setAgentStatus(null);
+    setToolDetailMsgId(null);
+    hasUsedToolsRef.current = false;
     localStorage.removeItem(STORAGE_KEY);
     historyLoadedRef.current = false;
   };
@@ -360,6 +412,9 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
     setConversationId(null);
     setAttachedFiles([]);
     setIsLoading(false);
+    setAgentStatus(null);
+    setToolDetailMsgId(null);
+    hasUsedToolsRef.current = false;
     localStorage.removeItem(STORAGE_KEY);
     historyLoadedRef.current = false;
   };
@@ -368,6 +423,8 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
     setIsLoading(false);
+    setAgentStatus(null);
+    hasUsedToolsRef.current = false;
     setMessages(prev => prev.filter(m => !(m.role === 'assistant' && !m.content)));
   };
 
@@ -717,94 +774,162 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
     ),
   };
 
-  // -- Thinking indicator --
-  const renderThinking = () => (
-    <Box sx={{
-      display: 'flex',
-      gap: 1.5,
-      alignItems: 'flex-start',
-    }}
-    >
-      <Avatar sx={{
-        width: 28,
-        height: 28,
-        bgcolor: `linear-gradient(135deg, ${theme.palette.ai.main}30, ${theme.palette.ai.main}10)`,
-        background: `linear-gradient(135deg, ${theme.palette.ai.main}30, ${theme.palette.ai.main}10)`,
-      }}
-      >
-        <SvgIcon
-          component={LogoXtmOneIcon}
-          inheritViewBox
-          sx={{
-            fontSize: 14,
-            color: theme.palette.ai.main,
-          }}
-        />
-      </Avatar>
+  const resolveStatusLabel = (): {
+    label: string;
+    StatusIcon: typeof PsychologyOutlined;
+    anim: string;
+  } => {
+    if (!agentStatus) {
+      return {
+        label: t('Thinking...'),
+        StatusIcon: PsychologyOutlined,
+        anim: 'pulse 2s ease-in-out infinite',
+      };
+    }
+    switch (agentStatus.status) {
+      case 'tool_start': {
+        const rawNames = agentStatus.tools ?? [];
+        const lower = rawNames.map(n => n.toLowerCase());
+        let StatusIcon: typeof PsychologyOutlined = BuildOutlined;
+        let anim = 'pulse 2s ease-in-out infinite';
+        if (lower.some(n => n.includes('search') || n.includes('list'))) {
+          StatusIcon = SearchOutlined;
+        } else if (lower.some(n => n.includes('read') || n.includes('get') || n.includes('query'))) {
+          StatusIcon = StorageOutlined;
+        } else if (lower.some(n => n.includes('send') || n.includes('create') || n.includes('draft') || n.includes('reply') || n.includes('flag'))) {
+          StatusIcon = MailOutlined;
+        } else if (lower.some(n => n.includes('code') || n.includes('execute'))) {
+          StatusIcon = TerminalOutlined;
+          anim = 'spin 1s linear infinite';
+        } else if (lower.some(n => n.includes('web') || n.includes('browse'))) {
+          StatusIcon = PublicOutlined;
+        }
+        let label: string;
+        if (rawNames.length > 0) {
+          const display = rawNames.map(n => n.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()));
+          const unique = Array.from(new Set(display));
+          label = unique.length === 1 ? `${unique[0]}…` : `${unique[0]} (+${unique.length - 1} more)…`;
+        } else {
+          label = t('Using tools…');
+        }
+        return {
+          label,
+          StatusIcon,
+          anim,
+        };
+      }
+      case 'analyzing':
+        return {
+          label: t('Analyzing results…'),
+          StatusIcon: AutoAwesomeOutlined,
+          anim: 'pulse 2s ease-in-out infinite',
+        };
+      case 'composing':
+        return {
+          label: t('Composing answer…'),
+          StatusIcon: PsychologyOutlined,
+          anim: 'pulse 2s ease-in-out infinite',
+        };
+      case 'thinking':
+      default:
+        return {
+          label: t('Thinking...'),
+          StatusIcon: PsychologyOutlined,
+          anim: 'pulse 2s ease-in-out infinite',
+        };
+    }
+  };
+
+  const renderThinking = () => {
+    const { label, StatusIcon, anim } = resolveStatusLabel();
+    return (
       <Box sx={{
-        borderRadius: '10px',
-        bgcolor: 'rgba(255,255,255,0.03)',
-        px: 2,
-        py: 1.5,
-        position: 'relative',
-        overflow: 'hidden',
+        display: 'flex',
+        gap: 1.5,
+        alignItems: 'flex-start',
       }}
       >
-        <Box sx={{
-          position: 'absolute',
-          inset: 0,
-          background: `linear-gradient(90deg, ${theme.palette.ai.main}06, transparent, ${theme.palette.ai.main}06)`,
-          animation: 'pulse 2s ease-in-out infinite',
-          pointerEvents: 'none',
-        }}
-        />
-        <Box sx={{
-          position: 'relative',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1.25,
+        <Avatar sx={{
+          width: 28,
+          height: 28,
+          background: `linear-gradient(135deg, ${theme.palette.ai.main}30, ${theme.palette.ai.main}10)`,
         }}
         >
-          <PsychologyOutlined sx={{
-            fontSize: 16,
-            color: theme.palette.ai.main,
+          <SvgIcon
+            component={LogoXtmOneIcon}
+            inheritViewBox
+            sx={{
+              fontSize: 14,
+              color: theme.palette.ai.main,
+            }}
+          />
+        </Avatar>
+        <Box sx={{
+          borderRadius: '10px',
+          bgcolor: 'rgba(255,255,255,0.03)',
+          px: 2,
+          py: 1.5,
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+        >
+          <Box sx={{
+            position: 'absolute',
+            inset: 0,
+            background: `linear-gradient(90deg, ${theme.palette.ai.main}06, transparent, ${theme.palette.ai.main}06)`,
             animation: 'pulse 2s ease-in-out infinite',
+            pointerEvents: 'none',
           }}
           />
-          <Typography sx={{
-            fontSize: '0.8rem',
-            color: theme.palette.text?.secondary,
-          }}
-          >
-            {t('Thinking...')}
-          </Typography>
-          <style>{TYPING_DOT_KEYFRAMES}</style>
           <Box sx={{
+            position: 'relative',
             display: 'flex',
-            gap: '3px',
             alignItems: 'center',
-            ml: 0.5,
+            gap: 1.25,
           }}
           >
-            {[0, 0.15, 0.3].map((delay, i) => (
-              <Box
-                key={String(i)}
-                component="span"
-                sx={{
-                  height: 5,
-                  width: 5,
-                  borderRadius: '50%',
-                  bgcolor: theme.palette.ai.main + '80',
-                  animation: 'arianeChatDot 1s ease-in-out infinite',
-                  animationDelay: `${delay}s`,
-                }}
-              />
-            ))}
+            <StatusIcon sx={{
+              fontSize: 16,
+              color: theme.palette.ai.main,
+              animation: anim,
+            }}
+            />
+            <Typography sx={{
+              fontSize: '0.8rem',
+              color: theme.palette.text?.secondary,
+              transition: 'all 0.3s',
+            }}
+            >
+              {label}
+            </Typography>
+            <style>{TYPING_DOT_KEYFRAMES}</style>
+            <Box sx={{
+              display: 'flex',
+              gap: '3px',
+              alignItems: 'center',
+              ml: 0.5,
+            }}
+            >
+              {[0, 0.15, 0.3].map((delay, i) => (
+                <Box
+                  key={String(i)}
+                  component="span"
+                  sx={{
+                    height: 5,
+                    width: 5,
+                    borderRadius: '50%',
+                    bgcolor: theme.palette.ai.main + '80',
+                    animation: 'arianeChatDot 1s ease-in-out infinite',
+                    animationDelay: `${delay}s`,
+                  }}
+                />
+              ))}
+            </Box>
           </Box>
         </Box>
       </Box>
-    </Box>
-  );
+    );
+  };
 
   const renderHeader = () => (
     <Box sx={{
@@ -1255,6 +1380,70 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
                 />
               )}
             </Box>
+            {isAssistant && !isEmpty && !isLoading && msg.toolNames && msg.toolNames.length > 0 && (
+              <>
+                <Tooltip title={t('Reasoning details')}>
+                  <IconButton
+                    size="small"
+                    onClick={() => setToolDetailMsgId(toolDetailMsgId === msg.id ? null : msg.id)}
+                    sx={{
+                      'mt': 0.25,
+                      'opacity': 0.5,
+                      '&:hover': {
+                        opacity: 1,
+                        color: theme.palette.ai.main,
+                      },
+                      'transition': 'opacity 0.2s',
+                    }}
+                  >
+                    <InfoOutlined sx={{ fontSize: 14 }} />
+                  </IconButton>
+                </Tooltip>
+                {toolDetailMsgId === msg.id && (
+                  <Box sx={{
+                    mt: 0.75,
+                    p: 1.5,
+                    borderRadius: '8px',
+                    bgcolor: 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${theme.palette.divider}`,
+                  }}
+                  >
+                    <Typography sx={{
+                      fontSize: '0.7rem',
+                      color: theme.palette.text?.secondary,
+                      mb: 0.75,
+                    }}
+                    >
+                      {msg.iterations && msg.iterations > 1 ? `${msg.iterations} iterations · ` : ''}
+                      {msg.toolCallCount ?? msg.toolNames.length}
+                      {' '}
+                      {(msg.toolCallCount ?? msg.toolNames.length) === 1 ? t('tool call') : t('tool calls')}
+                    </Typography>
+                    <Box sx={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 0.5,
+                    }}
+                    >
+                      {Array.from(new Set(msg.toolNames)).map(tn => (
+                        <Chip
+                          key={tn}
+                          label={tn.replace(/_/g, ' ')}
+                          size="small"
+                          variant="outlined"
+                          sx={{
+                            fontSize: '0.68rem',
+                            fontFamily: 'monospace',
+                            borderColor: theme.palette.divider,
+                            color: theme.palette.text?.secondary,
+                          }}
+                        />
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+              </>
+            )}
           </Box>
         );
       })}

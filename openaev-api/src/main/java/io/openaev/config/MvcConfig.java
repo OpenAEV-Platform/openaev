@@ -45,6 +45,7 @@ public class MvcConfig implements WebMvcConfigurer {
   @Override
   public void configureAsyncSupport(AsyncSupportConfigurer configurer) {
     configurer.setTaskExecutor(getTaskExecutor());
+    configurer.setDefaultTimeout(900_000);
   }
 
   @Bean
