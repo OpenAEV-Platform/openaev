@@ -67,14 +67,15 @@ public class StreamApi extends RestBehavior {
     flux.next(message);
   }
 
-  private static final EnumSet<ResourceType> RESOURCES_STREAM_BLACKLIST =
-      EnumSet.of(ResourceType.VULNERABILITY, ResourceType.PAYLOAD);
+  private static final EnumSet<ResourceType> RESOURCES_STREAM_EXCLUSION =
+      EnumSet.of(
+          ResourceType.VULNERABILITY, ResourceType.PAYLOAD, ResourceType.CONNECTOR_INSTANCE_LOG);
 
   @Async("streamExecutor")
   @Transactional
   @TransactionalEventListener
   public void listenDatabaseUpdate(BaseEvent event) {
-    if (RESOURCES_STREAM_BLACKLIST.contains(event.getInstance().getResourceType())
+    if (RESOURCES_STREAM_EXCLUSION.contains(event.getInstance().getResourceType())
         || !event.isListened()) {
       return;
     }

@@ -24,6 +24,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.security.core.Authentication;
@@ -48,6 +49,9 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public class UserService {
   @Resource private SessionManager sessionManager;
+
+  @Value("${openbas.admin.email:${openaev.admin.email:#{null}}}")
+  private String adminEmail;
 
   /** Password encoder using Argon2 algorithm (Spring Security 5.8 defaults). */
   private final Argon2PasswordEncoder passwordEncoder =
@@ -127,6 +131,12 @@ public class UserService {
     SecurityContext context = SecurityContextHolder.createEmptyContext();
     context.setAuthentication(authentication);
     SecurityContextHolder.setContext(context);
+  }
+
+  /** Creates admin security session */
+  public void createAdminSession() {
+    User adminUser = this.userRepository.findByEmailIgnoreCase(this.adminEmail).orElseThrow();
+    this.createUserSession(adminUser);
   }
 
   /**
