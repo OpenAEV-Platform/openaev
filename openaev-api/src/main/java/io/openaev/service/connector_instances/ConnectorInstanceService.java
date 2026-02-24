@@ -18,7 +18,6 @@ import io.openaev.rest.connector_instance.dto.ConnectorInstanceOutput;
 import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.utils.mapper.ConnectorInstanceMapper;
-import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.*;
 import java.util.function.Function;
@@ -407,8 +406,7 @@ public class ConnectorInstanceService {
    */
   public ConnectorInstancePersisted createConnectorInstance(
       ConnectorOrchestrationService.CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
-      CreateConnectorInstanceInput input,
-      @Nullable String migrateFrom) {
+      CreateConnectorInstanceInput input) {
     ConnectorInstancePersisted newInstance =
         buildNewConnectorInstanceFromCatalog(catalogConnectorWithConfigMap.catalogConnector());
     List<ConnectorInstanceConfiguration> configurations =
@@ -418,17 +416,17 @@ public class ConnectorInstanceService {
     // Add OpenAEV token
     configurations.add(createTokenConfiguration(newInstance));
     // Add container ID
-    if (migrateFrom == null) {
+    if (input.getConfigurations().stream()
+        .noneMatch(
+            configurationInput ->
+                configurationInput
+                    .getKey()
+                    .equals(
+                        catalogConnectorWithConfigMap.catalogConnector().getContainerType()
+                            + "_ID"))) {
       configurations.add(
           createContainerIdConfiguration(
               newInstance, catalogConnectorWithConfigMap.catalogConnector().getContainerType()));
-    } else {
-      configurations.add(
-          createConfiguration(
-              catalogConnectorWithConfigMap.catalogConnector().getContainerType().getIdKeyName(),
-              objectMapper.getNodeFactory().textNode(migrateFrom),
-              false,
-              newInstance));
     }
 
     newInstance.setConfigurations(Set.copyOf(configurations));
