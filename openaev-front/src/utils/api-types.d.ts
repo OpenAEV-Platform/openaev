@@ -1376,7 +1376,6 @@ export interface CreateConnectorInstanceInput {
 }
 
 export interface CreateExerciseInput {
-  chaining?: boolean;
   exercise_category?: string;
   exercise_custom_dashboard?: string;
   exercise_description?: string;
@@ -7243,7 +7242,6 @@ export interface UpdateConnectorInstanceRequestedStatus {
 
 export interface UpdateExerciseInput {
   apply_tag_rule?: boolean;
-  chaining?: boolean;
   exercise_category?: string;
   exercise_custom_dashboard?: string;
   exercise_description?: string;
