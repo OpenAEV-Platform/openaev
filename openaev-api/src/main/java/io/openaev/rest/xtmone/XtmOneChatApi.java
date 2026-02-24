@@ -12,6 +12,7 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.java.Log;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+@Log
 @RestController
 @RequiredArgsConstructor
 public class XtmOneChatApi extends RestBehavior {
@@ -65,19 +67,33 @@ public class XtmOneChatApi extends RestBehavior {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }
+    // Resolve DB-dependent data eagerly so the connection is released when
+    // this method returns — the actual HTTP call to Copilot happens inside
+    // the StreamingResponseBody (async thread, no DB connection held).
     String userEmail = currentUserEmail();
     String content = body.get("content") != null ? body.get("content").toString() : "";
     String conversationId =
         body.get("conversation_id") != null ? body.get("conversation_id").toString() : null;
     String agentSlug = body.get("agent_slug") != null ? body.get("agent_slug").toString() : null;
 
-    InputStream sseStream = client.streamChatMessage(userEmail, content, conversationId, agentSlug);
-    if (sseStream == null) {
-      return ResponseEntity.internalServerError().build();
-    }
-
     StreamingResponseBody responseBody =
         outputStream -> {
+          InputStream sseStream =
+              client.streamChatMessage(userEmail, content, conversationId, agentSlug);
+          if (sseStream == null) {
+            log.warning(
+                "[XTM One Chat] streamChatMessage returned null for user="
+                    + userEmail
+                    + ", agent="
+                    + agentSlug);
+            outputStream.write(
+                ("data: "
+                        + "{\"type\":\"error\",\"content\":\"Unable to connect to the AI assistant. Please try again.\"}"
+                        + "\n\n")
+                    .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            outputStream.flush();
+            return;
+          }
           try (sseStream) {
             sseStream.transferTo(outputStream);
           }

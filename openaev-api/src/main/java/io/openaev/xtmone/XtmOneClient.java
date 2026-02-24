@@ -137,6 +137,7 @@ public class XtmOneClient {
   public InputStream streamChatMessage(
       String userEmail, String content, String conversationId, String agentSlug) {
     if (!config.isConfigured()) {
+      log.warning("[XTM One] Chat message skipped: not configured");
       return null;
     }
     try {
@@ -152,16 +153,31 @@ public class XtmOneClient {
               .header("Authorization", "Bearer " + config.getToken())
               .header("Content-Type", "application/json")
               .POST(HttpRequest.BodyPublishers.ofString(json))
-              .timeout(Duration.ofMinutes(5))
+              .timeout(Duration.ofMinutes(10))
               .build();
       HttpResponse<InputStream> response =
           httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
       if (response.statusCode() == 200) {
         return response.body();
       }
-      log.warning("[XTM One] Chat message failed: HTTP " + response.statusCode());
+      log.warning(
+          "[XTM One] Chat message failed: HTTP "
+              + response.statusCode()
+              + " for user="
+              + userEmail
+              + ", agent="
+              + agentSlug);
+    } catch (java.net.http.HttpTimeoutException e) {
+      log.warning(
+          "[XTM One] Chat message timed out for user=" + userEmail + ", agent=" + agentSlug);
     } catch (Exception e) {
-      log.warning("[XTM One] Chat message error: " + e.getMessage());
+      log.warning(
+          "[XTM One] Chat message error for user="
+              + userEmail
+              + ", agent="
+              + agentSlug
+              + ": "
+              + e.getMessage());
     }
     return null;
   }
