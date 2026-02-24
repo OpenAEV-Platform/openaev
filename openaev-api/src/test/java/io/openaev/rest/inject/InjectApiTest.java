@@ -1706,10 +1706,10 @@ class InjectApiTest extends IntegrationTest {
                             {
                              	"found_assets": [
                              		{
-                             			"name": "Asset A",
+                             			"name": "Asset C",
                              			"type": "Endpoint",
-                             			"description": "describe asset A",
-                             			"externalReference": "https://shodan.io/.../assetA",
+                             			"description": "describe asset C",
+                             			"externalReference": "https://shodan.io/.../assetC",
                              			"tags": ["source:shodan.io"],
                              			"extendedAttributes": {
                              				"ip_addresses": [],
@@ -1765,16 +1765,17 @@ class InjectApiTest extends IntegrationTest {
             .until(
                 () -> {
                   List<Endpoint> endpointsA =
-                      endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
+                      endpointRepository.findByExternalReference("https://shodan.io/.../assetC");
                   return endpointsA.size() == 1;
                 });
 
         List<Endpoint> endpointsA =
-            endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
+            endpointRepository.findByExternalReference("https://shodan.io/.../assetC");
         assertEquals(1, endpointsA.size());
         assertEquals("", endpointsA.getFirst().getHostname());
         assertEquals(Endpoint.PLATFORM_TYPE.Unknown, endpointsA.getFirst().getPlatform());
-        assertEquals(Endpoint.PLATFORM_ARCH.x86_64, endpointsA.getFirst().getPlatform());
+        assertEquals(Endpoint.PLATFORM_ARCH.x86_64, endpointsA.getFirst().getArch());
+        assertTrue(endpointsA.getFirst().isEoL());
         assertEquals(0, endpointsA.getFirst().getIps().length);
       }
     }
