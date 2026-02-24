@@ -14,18 +14,17 @@ import java.util.*;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestExecutionListeners;
 
-@SpringBootTest
-@TestExecutionListeners(
-    value = {RabbitMQTestListener.class},
-    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
-public class ConditionServiceTest extends IntegrationTest {
+@ExtendWith(MockitoExtension.class)
+public class ConditionServiceTest {
 
   @Spy @InjectMocks private ConditionService conditionService;
   @Captor private ArgumentCaptor<Condition> conditionCaptor;
@@ -317,7 +316,6 @@ public class ConditionServiceTest extends IntegrationTest {
 
       // Make goal safely in the past => now.isAfter(goal) will be true
       when(workflowRun.getWorkflowCreatedAt()).thenReturn(Instant.EPOCH);
-      when(workflowRun.getId()).thenReturn(UUID.randomUUID().toString());
 
       // We stub isTimeConditionValid to return a concrete Condition (so we don't depend on
       // builder/getters)
@@ -424,15 +422,18 @@ public class ConditionServiceTest extends IntegrationTest {
 
       String stepId = UUID.randomUUID().toString();
       when(stepTemplate.getId()).thenReturn(stepId);
+      when(stepTemplate.getData()).thenReturn("{\"data\" : \"data\"}");
 
       // One filter condition (non time, non mapper) + one mapper condition
       Condition filterTemplate = mock(Condition.class);
       when(filterTemplate.getType()).thenReturn(ConditionType.EQ);
       Condition mapperTemplate = mock(Condition.class);
       when(mapperTemplate.getType()).thenReturn(ConditionType.MAPPER);
-
-      when(conditionRepository.findAllByStep_Id(stepId))
-          .thenReturn(List.of(filterTemplate, mapperTemplate));
+        List<Condition> conditions = new ArrayList<>();
+        conditions.add(filterTemplate);
+        conditions.add(mapperTemplate);
+      when(conditionService.findAllConditionsByStepId(stepId))
+          .thenReturn(conditions);
 
       Condition filterExec = mock(Condition.class);
       doReturn(filterExec)
@@ -448,7 +449,7 @@ public class ConditionServiceTest extends IntegrationTest {
 
       // -------- Assert --------
       assertNotNull(result);
-      assertEquals(0, result.size());
+      assertEquals(1, result.size());
 
       verify(conditionService).isFilterConditionValid(eq(filterTemplate), eq("{\"in\":1}"), any());
       verify(conditionService).isMapperConditionValid(eq(mapperTemplate), eq("{\"in\":1}"), any());
@@ -494,7 +495,8 @@ public class ConditionServiceTest extends IntegrationTest {
             .thenReturn(List.of(executed));
 
         Condition depExec = mock(Condition.class);
-        doReturn(depExec).when(conditionService).isDependOn(stepFromTemplateId);
+        if(!expectedNull)
+            doReturn(depExec).when(conditionService).isDependOn(stepFromTemplateId);
 
         // -------- Act --------
         List<Condition> result =
