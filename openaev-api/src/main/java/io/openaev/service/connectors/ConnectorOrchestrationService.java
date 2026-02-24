@@ -14,6 +14,7 @@ import io.openaev.service.InjectorService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceLogService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
 import java.util.Map;
@@ -200,17 +201,21 @@ public class ConnectorOrchestrationService {
    */
   public ConnectorInstancePersisted createConnectorInstance(
       CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
-      CreateConnectorInstanceInput input) {
+      CreateConnectorInstanceInput input,
+      @Nullable String migrateFrom) {
     throwIfEnterpriseLicenseNotActive();
 
     throwIfXtmComposerDownAndNeeded(catalogConnectorWithConfigMap.catalogConnector);
-    throwIfInstanceOrConnectorAlreadyExist(
-        catalogConnectorWithConfigMap.catalogConnector.getId(),
-        catalogConnectorWithConfigMap.catalogConnector.getSlug(),
-        catalogConnectorWithConfigMap.catalogConnector.getContainerType());
+    // If we're migrating from an existing connector, we do not check if the connector already exists
+    if(migrateFrom == null) {
+      throwIfInstanceOrConnectorAlreadyExist(
+              catalogConnectorWithConfigMap.catalogConnector.getId(),
+              catalogConnectorWithConfigMap.catalogConnector.getSlug(),
+              catalogConnectorWithConfigMap.catalogConnector.getContainerType());
+    }
 
     ConnectorInstancePersisted connectorInstance =
-        connectorInstanceService.createConnectorInstance(catalogConnectorWithConfigMap, input);
+        connectorInstanceService.createConnectorInstance(catalogConnectorWithConfigMap, input, migrateFrom);
 
     cleanDummyInjectorsIfItExists(
         catalogConnectorWithConfigMap.catalogConnector.getSlug(),

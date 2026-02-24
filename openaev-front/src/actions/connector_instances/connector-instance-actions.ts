@@ -17,8 +17,9 @@ import { connectorInstance } from './connector-instance-schema';
 
 const CONNECTOR_INSTANCE_URI = '/api/connector-instances';
 
-export const createConnectorInstance = (input: CreateConnectorInstanceInput): Promise<{ data: ConnectorInstancePersisted }> => {
-  return simplePostCall(CONNECTOR_INSTANCE_URI, input, undefined, false);
+export const createConnectorInstance = (input: CreateConnectorInstanceInput, migrateFrom?: string): Promise<{ data: ConnectorInstancePersisted }> => {
+  const uri = migrateFrom ? CONNECTOR_INSTANCE_URI + '?migrateFrom=' + migrateFrom : CONNECTOR_INSTANCE_URI;
+  return simplePostCall(uri, input, undefined, false);
 };
 
 export const fetchConnectorInstance = (instanceId: string) => (dispatch: Dispatch) => {

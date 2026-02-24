@@ -22,10 +22,11 @@ interface Props {
   catalogConnectorSlug: string;
   connectorType: CatalogConnector['catalog_connector_type'];
   disabled?: boolean;
+  migrateFrom?: string;
   disabledMessage?: string;
 }
 
-const CreateConnectorInstanceDrawer = ({ open, onClose, catalogConnectorId, catalogConnectorSlug, connectorType, disabled = false, disabledMessage }: Props) => {
+const CreateConnectorInstanceDrawer = ({ open, onClose, catalogConnectorId, catalogConnectorSlug, connectorType, disabled = false, disabledMessage, migrateFrom }: Props) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const navigate = useNavigate();
@@ -41,7 +42,7 @@ const CreateConnectorInstanceDrawer = ({ open, onClose, catalogConnectorId, cata
     createConnectorInstance({
       catalog_connector_id: catalogConnectorId,
       ...data,
-    }).then(({ data }) => {
+    }, migrateFrom).then(({ data }) => {
       const connectorId = data.connector_instance_configurations.find(conf => conf.connector_instance_configuration_key === `${connectorType}_ID`)?.connector_instance_configuration_value;
       if (connectorId) {
         navigate(`/admin/integrations/${connectorType?.toLowerCase()}s/${connectorId}`);

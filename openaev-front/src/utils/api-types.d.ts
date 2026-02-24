@@ -921,7 +921,7 @@ export interface CollectorOutput {
   collector_last_execution?: string;
   collector_name: string;
   collector_type: string;
-  current_status?: "started" | "stopped";
+  connector_instance?: ConnectorInstanceOutput;
   existing_collector?: boolean;
   is_verified?: boolean;
 }
@@ -2466,7 +2466,7 @@ export interface ExecutorCreateInput {
 export interface ExecutorOutput {
   /** Catalog simple output */
   catalog?: CatalogConnectorSimpleOutput;
-  current_status?: "started" | "stopped";
+  connector_instance?: ConnectorInstanceOutput;
   executor_background_color?: string;
   executor_doc?: string;
   /** Executor id */
@@ -3802,7 +3802,7 @@ export interface InjectorCreateInput {
 export interface InjectorOutput {
   /** Catalog simple output */
   catalog?: CatalogConnectorSimpleOutput;
-  current_status?: "started" | "stopped";
+  connector_instance?: ConnectorInstanceOutput;
   existing_injector?: boolean;
   injector_external?: boolean;
   /** Injector id */
