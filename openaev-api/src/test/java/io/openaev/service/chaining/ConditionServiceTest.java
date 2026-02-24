@@ -3,10 +3,8 @@ package io.openaev.service.chaining;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
-import io.openaev.utilstest.RabbitMQTestListener;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -20,8 +18,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.TestExecutionListeners;
 
 @ExtendWith(MockitoExtension.class)
 public class ConditionServiceTest {
@@ -429,11 +425,10 @@ public class ConditionServiceTest {
       when(filterTemplate.getType()).thenReturn(ConditionType.EQ);
       Condition mapperTemplate = mock(Condition.class);
       when(mapperTemplate.getType()).thenReturn(ConditionType.MAPPER);
-        List<Condition> conditions = new ArrayList<>();
-        conditions.add(filterTemplate);
-        conditions.add(mapperTemplate);
-      when(conditionService.findAllConditionsByStepId(stepId))
-          .thenReturn(conditions);
+      List<Condition> conditions = new ArrayList<>();
+      conditions.add(filterTemplate);
+      conditions.add(mapperTemplate);
+      when(conditionService.findAllConditionsByStepId(stepId)).thenReturn(conditions);
 
       Condition filterExec = mock(Condition.class);
       doReturn(filterExec)
@@ -495,8 +490,7 @@ public class ConditionServiceTest {
             .thenReturn(List.of(executed));
 
         Condition depExec = mock(Condition.class);
-        if(!expectedNull)
-            doReturn(depExec).when(conditionService).isDependOn(stepFromTemplateId);
+        if (!expectedNull) doReturn(depExec).when(conditionService).isDependOn(stepFromTemplateId);
 
         // -------- Act --------
         List<Condition> result =

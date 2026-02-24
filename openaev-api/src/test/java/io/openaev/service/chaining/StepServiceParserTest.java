@@ -7,14 +7,15 @@ import com.google.gson.JsonObject;
 import io.openaev.database.model.StepStateEntries;
 import java.util.*;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-@SpringBootTest
+@ExtendWith(MockitoExtension.class)
 public class StepServiceParserTest {
 
   Gson gson = new Gson();
-  @Autowired StepStateService stepStateService;
+  @InjectMocks StepStateService stepStateService;
 
   @Test
   public void updateFields() {
