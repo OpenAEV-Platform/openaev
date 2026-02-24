@@ -309,11 +309,17 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
                 setAgentStatus({ status: 'streaming' });
               } else if (st === 'tool_start') {
                 hasUsedToolsRef.current = true;
-                setAgentStatus({ status: 'tool_start', tools: evt.tools });
+                setAgentStatus({
+                  status: 'tool_start',
+                  tools: evt.tools,
+                });
               } else if (st === 'thinking' && hasUsedToolsRef.current) {
                 setAgentStatus({ status: 'analyzing' });
               } else {
-                setAgentStatus({ status: st, tools: evt.tools });
+                setAgentStatus({
+                  status: st,
+                  tools: evt.tools,
+                });
               }
             } else if (evt.type === 'stream') {
               accumulated += evt.content;
@@ -768,9 +774,17 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
     ),
   };
 
-  const resolveStatusLabel = (): { label: string; StatusIcon: typeof PsychologyOutlined; anim: string } => {
+  const resolveStatusLabel = (): {
+    label: string;
+    StatusIcon: typeof PsychologyOutlined;
+    anim: string;
+  } => {
     if (!agentStatus) {
-      return { label: t('Thinking...'), StatusIcon: PsychologyOutlined, anim: 'pulse 2s ease-in-out infinite' };
+      return {
+        label: t('Thinking...'),
+        StatusIcon: PsychologyOutlined,
+        anim: 'pulse 2s ease-in-out infinite',
+      };
     }
     switch (agentStatus.status) {
       case 'tool_start': {
@@ -793,34 +807,62 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
         let label: string;
         if (rawNames.length > 0) {
           const display = rawNames.map(n => n.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()));
-          const unique = [...new Set(display)];
+          const unique = Array.from(new Set(display));
           label = unique.length === 1 ? `${unique[0]}…` : `${unique[0]} (+${unique.length - 1} more)…`;
         } else {
           label = t('Using tools…');
         }
-        return { label, StatusIcon, anim };
+        return {
+          label,
+          StatusIcon,
+          anim,
+        };
       }
       case 'analyzing':
-        return { label: t('Analyzing results…'), StatusIcon: AutoAwesomeOutlined, anim: 'pulse 2s ease-in-out infinite' };
+        return {
+          label: t('Analyzing results…'),
+          StatusIcon: AutoAwesomeOutlined,
+          anim: 'pulse 2s ease-in-out infinite',
+        };
       case 'composing':
-        return { label: t('Composing answer…'), StatusIcon: PsychologyOutlined, anim: 'pulse 2s ease-in-out infinite' };
+        return {
+          label: t('Composing answer…'),
+          StatusIcon: PsychologyOutlined,
+          anim: 'pulse 2s ease-in-out infinite',
+        };
       case 'thinking':
       default:
-        return { label: t('Thinking...'), StatusIcon: PsychologyOutlined, anim: 'pulse 2s ease-in-out infinite' };
+        return {
+          label: t('Thinking...'),
+          StatusIcon: PsychologyOutlined,
+          anim: 'pulse 2s ease-in-out infinite',
+        };
     }
   };
 
   const renderThinking = () => {
     const { label, StatusIcon, anim } = resolveStatusLabel();
     return (
-      <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+      <Box sx={{
+        display: 'flex',
+        gap: 1.5,
+        alignItems: 'flex-start',
+      }}
+      >
         <Avatar sx={{
           width: 28,
           height: 28,
           background: `linear-gradient(135deg, ${theme.palette.ai.main}30, ${theme.palette.ai.main}10)`,
         }}
         >
-          <SvgIcon component={LogoXtmOneIcon} inheritViewBox sx={{ fontSize: 14, color: theme.palette.ai.main }} />
+          <SvgIcon
+            component={LogoXtmOneIcon}
+            inheritViewBox
+            sx={{
+              fontSize: 14,
+              color: theme.palette.ai.main,
+            }}
+          />
         </Avatar>
         <Box sx={{
           borderRadius: '10px',
@@ -839,13 +881,35 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
             pointerEvents: 'none',
           }}
           />
-          <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 1.25 }}>
-            <StatusIcon sx={{ fontSize: 16, color: theme.palette.ai.main, animation: anim }} />
-            <Typography sx={{ fontSize: '0.8rem', color: theme.palette.text?.secondary, transition: 'all 0.3s' }}>
+          <Box sx={{
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.25,
+          }}
+          >
+            <StatusIcon sx={{
+              fontSize: 16,
+              color: theme.palette.ai.main,
+              animation: anim,
+            }}
+            />
+            <Typography sx={{
+              fontSize: '0.8rem',
+              color: theme.palette.text?.secondary,
+              transition: 'all 0.3s',
+            }}
+            >
               {label}
             </Typography>
             <style>{TYPING_DOT_KEYFRAMES}</style>
-            <Box sx={{ display: 'flex', gap: '3px', alignItems: 'center', ml: 0.5 }}>
+            <Box sx={{
+              display: 'flex',
+              gap: '3px',
+              alignItems: 'center',
+              ml: 0.5,
+            }}
+            >
               {[0, 0.15, 0.3].map((delay, i) => (
                 <Box
                   key={String(i)}
@@ -1323,10 +1387,13 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
                     size="small"
                     onClick={() => setToolDetailMsgId(toolDetailMsgId === msg.id ? null : msg.id)}
                     sx={{
-                      mt: 0.25,
-                      opacity: 0.5,
-                      '&:hover': { opacity: 1, color: theme.palette.ai.main },
-                      transition: 'opacity 0.2s',
+                      'mt': 0.25,
+                      'opacity': 0.5,
+                      '&:hover': {
+                        opacity: 1,
+                        color: theme.palette.ai.main,
+                      },
+                      'transition': 'opacity 0.2s',
                     }}
                   >
                     <InfoOutlined sx={{ fontSize: 14 }} />
@@ -1341,14 +1408,24 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
                     border: `1px solid ${theme.palette.divider}`,
                   }}
                   >
-                    <Typography sx={{ fontSize: '0.7rem', color: theme.palette.text?.secondary, mb: 0.75 }}>
+                    <Typography sx={{
+                      fontSize: '0.7rem',
+                      color: theme.palette.text?.secondary,
+                      mb: 0.75,
+                    }}
+                    >
                       {msg.iterations && msg.iterations > 1 ? `${msg.iterations} iterations · ` : ''}
                       {msg.toolCallCount ?? msg.toolNames.length}
                       {' '}
                       {(msg.toolCallCount ?? msg.toolNames.length) === 1 ? t('tool call') : t('tool calls')}
                     </Typography>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                      {[...new Set(msg.toolNames)].map(tn => (
+                    <Box sx={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 0.5,
+                    }}
+                    >
+                      {Array.from(new Set(msg.toolNames)).map(tn => (
                         <Chip
                           key={tn}
                           label={tn.replace(/_/g, ' ')}
