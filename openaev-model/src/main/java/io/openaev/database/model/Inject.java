@@ -14,7 +14,6 @@ import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.converter.ContentConverter;
 import io.openaev.helper.*;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.openaev.helper.InjectModelHelper;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;

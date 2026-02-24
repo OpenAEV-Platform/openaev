@@ -206,7 +206,6 @@ public class InjectorContract implements Base {
     return isAtomicTesting;
   }
 
-
   // Fixes a bug due to a new version of jackson and lombok
   // cf: https://github.com/projectlombok/lombok/issues/3978
   @Getter(onMethod_ = @JsonProperty("injector_contract_import_available"))
