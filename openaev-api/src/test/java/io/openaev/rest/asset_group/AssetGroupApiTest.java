@@ -249,11 +249,11 @@ class AssetGroupApiTest extends IntegrationTest {
         ServletException.class,
         () ->
             mvc.perform(
-                    put(ASSET_GROUP_URI + "/" + nonexistentAssetGroupId)
-                        .content(asJsonString(input))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
-                .with(csrf()));
+                put(ASSET_GROUP_URI + "/" + nonexistentAssetGroupId)
+                    .content(asJsonString(input))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf())));
   }
 
   @DisplayName("Given existing assetGroup, should delete assetGroup successfully")
