@@ -876,7 +876,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
    */
   @Override
   public void handleExternalUpdateEvent(ExternalUpdateEvent stepEvent) {
-    Step stepRun = findByIdAndStatus(stepEvent.getId(), StepStatus.RUN);
+    Step stepRun = findByIdAndStatus(stepEvent.getStepId(), StepStatus.RUN);
     Optional<Step> stepUpdatedOpt;
 
     try {
