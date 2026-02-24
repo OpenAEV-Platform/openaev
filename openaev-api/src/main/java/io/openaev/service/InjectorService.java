@@ -137,10 +137,10 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   /**
    * Check if a dummy injector exist for an injector type and delete it
    *
-   * @param injectorType
+   * @param injectorType to find dummy one
    */
   public void deleteDummyInjectorIfItExists(@NotBlank final String injectorType) {
-    injectorRepository.findById(injectorType + DUMMY_SUFFIX).ifPresent(injectorRepository::delete);
+    deleteDummyInjectorIfItExists(injectorType, null);
   }
 
   /**
@@ -244,7 +244,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         injectorContractRepository.saveAll(injectorContracts);
 
         // delete the dummy injector if it was created when importing the starter pack
-        deleteDummyInjectorIfItExists(input.getType());
+        deleteDummyInjectorIfItExists(input.getType(), savedInjector);
       }
       InjectorConnection conn =
           new InjectorConnection(
@@ -403,23 +403,41 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
           dependencies,
           staticContracts);
     } else {
-      createNewBuiltinInjector(
-          id,
-          name,
-          contractor,
-          isCustomizable,
-          category,
-          executorCommands,
-          executorClearCommands,
-          isPayloads,
-          dependencies,
-          staticContracts);
+      Injector createdInjector =
+          createNewBuiltinInjector(
+              id,
+              name,
+              contractor,
+              isCustomizable,
+              category,
+              executorCommands,
+              executorClearCommands,
+              isPayloads,
+              dependencies,
+              staticContracts);
 
       // delete the dummy injector if it was created when importing the starter pack
-      deleteDummyInjectorIfItExists(contractor.getType());
+      deleteDummyInjectorIfItExists(contractor.getType(), createdInjector);
     }
 
     log.info("Successfully registered injector '{}' (type: {})", name, contractor.getType());
+  }
+
+  private void deleteDummyInjectorIfItExists(
+      @NotBlank final String injectorType, @NotBlank final Injector newInjector) {
+    injectorRepository
+        .findById(injectorType + DUMMY_SUFFIX)
+        .ifPresent(
+            dummyInjector -> {
+              if (newInjector != null) {
+                List<InjectorContract> injectorContracts =
+                    injectorContractRepository.findInjectorContractsByInjector(dummyInjector);
+                injectorContracts.forEach(
+                    injectorContract -> injectorContract.setInjector(newInjector));
+                injectorContractRepository.saveAll(injectorContracts);
+              }
+              injectorRepository.delete(dummyInjector);
+            });
   }
 
   private void uploadInjectorIcon(Contractor contractor) {
@@ -517,7 +535,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     return !contractDB.getCustom() && (!injector.isPayloads() || contractDB.getPayload() == null);
   }
 
-  private void createNewBuiltinInjector(
+  private Injector createNewBuiltinInjector(
       String id,
       String name,
       Contractor contractor,
@@ -552,6 +570,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
                         contract, savedInjector, isPayloads))
             .toList();
     injectorContractRepository.saveAll(injectorContracts);
+    return savedInjector;
   }
 
   private void applyBuiltinInjectorProperties(
