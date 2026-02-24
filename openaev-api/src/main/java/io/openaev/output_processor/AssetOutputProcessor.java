@@ -100,15 +100,12 @@ public class AssetOutputProcessor extends AbstractOutputProcessor {
       addTrace(
           executionContext,
           ExecutionTraceStatus.INFO,
-          "Endpoint already existent: " + input.getName() + " (id=" + existing.get().getId() + ")");
+          "Endpoint already existent: " + input.getName());
       return;
     }
     Endpoint created = endpointService.createEndpoint(input);
     log.info("Created endpoint: {} (id={})", input.getName(), created.getId());
-    addTrace(
-        executionContext,
-        ExecutionTraceStatus.INFO,
-        "Created endpoint: " + input.getName() + " (id=" + created.getId() + ")");
+    addTrace(executionContext, ExecutionTraceStatus.INFO, "Created endpoint: " + input.getName());
   }
 
   /**
