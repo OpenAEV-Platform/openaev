@@ -33,19 +33,16 @@ public class ContractChoiceInformation extends ContractCardinalityElement {
   public static class ChoiceItem {
     private final String label;
     private final String value;
-    private final String information;
 
     /**
      * Creates a new choice item.
      *
      * @param label the display label for the choice
      * @param value the actual value stored when this choice is selected
-     * @param information additional context or help text for this choice
      */
-    public ChoiceItem(String label, String value, String information) {
+    public ChoiceItem(String label, String value) {
       this.label = label;
       this.value = value;
-      this.information = information;
     }
   }
 
@@ -68,8 +65,7 @@ public class ContractChoiceInformation extends ContractCardinalityElement {
 
     List<ChoiceItem> choiceItems = new ArrayList<>();
     for (Map.Entry<String, String> entry : choiceInformations.entrySet()) {
-      // Key is used for both label and value (common use case where they're identical)
-      choiceItems.add(new ChoiceItem(entry.getKey(), entry.getKey(), entry.getValue()));
+      choiceItems.add(new ChoiceItem(entry.getKey(), entry.getValue()));
     }
 
     contractChoice.setChoices(choiceItems);

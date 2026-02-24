@@ -1,5 +1,8 @@
 package io.openaev.injectors.openaev.util;
 
+import static io.openaev.executors.Executor.CMD;
+import static io.openaev.executors.Executor.PSH;
+
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.HashMap;
@@ -12,28 +15,26 @@ public class OpenAEVObfuscationMap {
 
   @Getter
   public static class OpenAEVObfuscation {
-    private final String information;
     private final BiFunction<String, String, String> obfuscate;
 
-    public OpenAEVObfuscation(String information, BiFunction<String, String, String> obfuscate) {
-      this.information = information;
+    public OpenAEVObfuscation(BiFunction<String, String, String> obfuscate) {
       this.obfuscate = obfuscate;
     }
   }
 
-  public OpenAEVObfuscationMap() {
+  public OpenAEVObfuscationMap(String executor) {
     this.obfuscationMap = new HashMap<>();
-    this.registerObfuscation("plain-text", "", this::obfuscatePlainText);
-    this.registerObfuscation(
-        "base64", "CMD does not support base64 obfuscation", this::obfuscateBase64);
+    this.registerObfuscation("plain-text", this::obfuscatePlainText);
+    if (!CMD.equals(executor)) {
+      this.registerObfuscation("base64", this::obfuscateBase64);
+    }
   }
 
-  public void registerObfuscation(
-      String key, String information, BiFunction<String, String, String> function) {
+  public void registerObfuscation(String key, BiFunction<String, String, String> function) {
     if (key == null || function == null) {
       throw new IllegalArgumentException("Key and function must not be null.");
     }
-    obfuscationMap.put(key, new OpenAEVObfuscation(information, function));
+    obfuscationMap.put(key, new OpenAEVObfuscation(function));
   }
 
   public String executeObfuscation(String key, String command, String executor) {
@@ -47,7 +48,8 @@ public class OpenAEVObfuscationMap {
   public Map<String, String> getAllObfuscationInfo() {
     Map<String, String> keyInfoMap = new HashMap<>();
     for (Map.Entry<String, OpenAEVObfuscation> entry : obfuscationMap.entrySet()) {
-      keyInfoMap.put(entry.getKey(), entry.getValue().getInformation());
+      // Key is used for both label and value (common use case where they're identical)
+      keyInfoMap.put(entry.getKey(), entry.getKey());
     }
     return keyInfoMap;
   }
@@ -59,7 +61,7 @@ public class OpenAEVObfuscationMap {
   private String obfuscateBase64(String command, String executor) {
     String obfuscatedCommand = command;
 
-    if (executor.equals("psh") || executor.equals("cmd")) {
+    if (PSH.equals(executor) || CMD.equals(executor)) {
       byte[] utf16Bytes = command.getBytes(StandardCharsets.UTF_16LE);
       String base64 = Base64.getEncoder().encodeToString(utf16Bytes);
       obfuscatedCommand = String.format("powershell -Enc %s", base64);

@@ -126,8 +126,8 @@ public class PayloadService {
     injectorContractRepository.save(injectorContractToUpdate);
   }
 
-  private ContractChoiceInformation obfuscatorField() {
-    OpenAEVObfuscationMap obfuscationMap = new OpenAEVObfuscationMap();
+  private ContractChoiceInformation obfuscatorField(String executor) {
+    OpenAEVObfuscationMap obfuscationMap = new OpenAEVObfuscationMap(executor);
     Map<String, String> obfuscationInfo = obfuscationMap.getAllObfuscationInfo();
     return ContractChoiceInformation.choiceInformationField(
         "obfuscator", "Obfuscators", obfuscationInfo, obfuscationMap.getDefaultObfuscator());
@@ -177,7 +177,7 @@ public class PayloadService {
     builder.mandatoryGroup(assetField, assetGroupField);
 
     if (Objects.equals(payload.getType(), Command.COMMAND_TYPE)) {
-      builder.optional(obfuscatorField());
+      builder.optional(obfuscatorField(((Command) payload).getExecutor()));
     }
 
     builder.optional(expectationsField);

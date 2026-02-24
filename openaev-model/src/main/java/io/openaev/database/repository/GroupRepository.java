@@ -18,4 +18,6 @@ public interface GroupRepository
 
   @NotNull
   List<Group> findAllByRoles(Role role);
+
+  Optional<Group> findByName(String name);
 }
