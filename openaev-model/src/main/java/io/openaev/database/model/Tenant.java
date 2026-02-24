@@ -59,6 +59,10 @@ public class Tenant implements Base {
   @JsonProperty("tenant_updated_at")
   private Instant updatedAt = now();
 
+  @Column(name = "tenant_deleted_at")
+  @JsonProperty("tenant_deleted_at")
+  private Instant deletedAt;
+
   public Tenant() {}
 
   public Tenant(String id) {

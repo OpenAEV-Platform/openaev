@@ -12,8 +12,6 @@ import org.springframework.stereotype.Component;
 public class V4_74__Create_default_tenant extends BaseJavaMigration {
 
   // Strings to replace in the SQL statement
-  private static String DEFAULT_TENANT_ID = "[DEFAULT_TENANT_ID]";
-  private static String TABLE_FK_TENANT = "[TABLE_FK_TENANT]";
   private static List<String> TABLES =
       List.of(
           "agents",
@@ -34,11 +32,12 @@ public class V4_74__Create_default_tenant extends BaseJavaMigration {
           "groups",
           "import_mappers",
           "injectors",
-          "injectors_contracts",
           "injects",
           "kill_chain_phases",
           "lessons_templates",
+          "mitigations",
           "organizations",
+          "notification_rules",
           "payloads",
           "roles",
           "scenarios",
@@ -49,31 +48,33 @@ public class V4_74__Create_default_tenant extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
-
-    // SQL statements to execute with Strings to replace
-    String addDefaultTenant =
-        "INSERT INTO tenants(tenant_id, tenant_name, tenant_description) VALUES ('[DEFAULT_TENANT_ID]', 'First default tenant auto created to rename', 'First default tenant auto created to rename');";
-    String addForeignKeyTenant =
-        """
-                      ALTER TABLE [TABLE_FK_TENANT]
-                         ADD COLUMN tenant_id VARCHAR(255) NOT NULL DEFAULT '[DEFAULT_TENANT_ID]',
-                         ADD CONSTRAINT fk_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id) ON DELETE CASCADE;
-                      """;
-    String addIndexTenant =
-        "CREATE INDEX IF NOT EXISTS idx_tenant_id ON [TABLE_FK_TENANT](tenant_id);";
-
     try (Statement statement = context.getConnection().createStatement()) {
       // Add default tenant
-      statement.execute(addDefaultTenant.replace(DEFAULT_TENANT_ID, DEFAULT_TENANT_UUID));
+      statement.execute(
+          String.format(
+              """
+                INSERT INTO tenants(tenant_id, tenant_name, tenant_description)
+                VALUES ('%s', 'First default tenant auto created to rename', 'First default tenant auto created to rename');
+                """,
+              DEFAULT_TENANT_UUID));
       // Add deleted_at in tenants for soft delete
       statement.execute("ALTER TABLE tenants ADD tenant_deleted_at TIMESTAMP WITH TIME ZONE;");
       // Add foreign keys with index, auto set default tenant id with default value
       for (String table : TABLES) {
         statement.addBatch(
-            addForeignKeyTenant
-                .replace(DEFAULT_TENANT_ID, DEFAULT_TENANT_UUID)
-                .replace(TABLE_FK_TENANT, table));
-        statement.addBatch(addIndexTenant.replace(TABLE_FK_TENANT, table));
+            String.format(
+                """
+                  ALTER TABLE %s
+                     ADD COLUMN tenant_id VARCHAR(255) NOT NULL DEFAULT '%s',
+                     ADD CONSTRAINT fk_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id) ON DELETE CASCADE;
+                  """,
+                table, DEFAULT_TENANT_UUID));
+        statement.addBatch(
+            String.format(
+                """
+                  CREATE INDEX IF NOT EXISTS idx_tenant_id ON %s(tenant_id);
+                  """,
+                table));
       }
       statement.executeBatch();
       // Add linked table for users and tenants
