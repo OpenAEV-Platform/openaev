@@ -98,62 +98,60 @@ public class CatalogConnectorApiTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName(
-          "Should retrieve all catalog connector")
+  @DisplayName("Should retrieve all catalog connector")
   void should_retrieveAllCatalogConnector() throws Exception {
     catalogConnectorComposer
-                    .forCatalogConnector(createDefaultCatalogConnectorManagedByXtmComposer("Collector1"))
-                    .persist();
+        .forCatalogConnector(createDefaultCatalogConnectorManagedByXtmComposer("Collector1"))
+        .persist();
     catalogConnectorComposer
-            .forCatalogConnector(createDefaultCatalogConnectorManagedByXtmComposer("Collector2"))
-            .withConnectorInstance(
-                    connectorInstanceComposer.forConnectorInstance(
-                            ConnectorInstanceFixture.createMigratedInstance()))
-            .persist();
+        .forCatalogConnector(createDefaultCatalogConnectorManagedByXtmComposer("Collector2"))
+        .withConnectorInstance(
+            connectorInstanceComposer.forConnectorInstance(
+                ConnectorInstanceFixture.createMigratedInstance()))
+        .persist();
     String response =
-            mvc.perform(
-                            get(CATALOG_CONNECTOR_URI)
-                                    .contentType(MediaType.APPLICATION_JSON)
-                                    .accept(MediaType.APPLICATION_JSON))
-                    .andExpect(status().is2xxSuccessful())
-                    .andReturn()
-                    .getResponse()
-                    .getContentAsString();
+        mvc.perform(
+                get(CATALOG_CONNECTOR_URI)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
 
     assertThatJson(response).isArray().size().isEqualTo(2);
     assertThatJson(response)
-            .inPath("[*].catalog_connector_title")
-            .isArray()
-            .containsExactlyInAnyOrderElementsOf(List.of("Collector1", "Collector2"));
+        .inPath("[*].catalog_connector_title")
+        .isArray()
+        .containsExactlyInAnyOrderElementsOf(List.of("Collector1", "Collector2"));
   }
 
   @Test
-  @DisplayName(
-          "Should retrieve all undeployed catalog connector")
+  @DisplayName("Should retrieve all undeployed catalog connector")
   void should_retrieveAllUndeployedCatalogConnector() throws Exception {
     catalogConnectorComposer
-            .forCatalogConnector(createDefaultCatalogConnectorManagedByXtmComposer("Collector1"))
-            .persist();
+        .forCatalogConnector(createDefaultCatalogConnectorManagedByXtmComposer("Collector1"))
+        .persist();
     catalogConnectorComposer
-            .forCatalogConnector(createDefaultCatalogConnectorManagedByXtmComposer("Collector2"))
-            .withConnectorInstance(
-                    connectorInstanceComposer.forConnectorInstance(
-                            ConnectorInstanceFixture.createMigratedInstance()))
-            .persist();
+        .forCatalogConnector(createDefaultCatalogConnectorManagedByXtmComposer("Collector2"))
+        .withConnectorInstance(
+            connectorInstanceComposer.forConnectorInstance(
+                ConnectorInstanceFixture.createMigratedInstance()))
+        .persist();
     String response =
-            mvc.perform(
-                            get(CATALOG_CONNECTOR_URI + "/undeployed")
-                                    .contentType(MediaType.APPLICATION_JSON)
-                                    .accept(MediaType.APPLICATION_JSON))
-                    .andExpect(status().is2xxSuccessful())
-                    .andReturn()
-                    .getResponse()
-                    .getContentAsString();
+        mvc.perform(
+                get(CATALOG_CONNECTOR_URI + "/undeployed")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
 
     assertThatJson(response).isArray().size().isEqualTo(1);
     assertThatJson(response)
-            .inPath("[*].catalog_connector_title")
-            .isArray()
-            .containsExactlyInAnyOrderElementsOf(List.of("Collector1"));
+        .inPath("[*].catalog_connector_title")
+        .isArray()
+        .containsExactlyInAnyOrderElementsOf(List.of("Collector1"));
   }
 }
