@@ -7,6 +7,8 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+
+import io.openaev.rest.exception.ChainingException;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -134,7 +136,7 @@ public class ConditionService {
    *     delayed "AFTER" condition has been scheduled
    */
   public List<Condition> checkCondition(
-      Step nextStepTemplateToExecute, String input, Workflow workflowRun, StepService stepService) {
+      Step nextStepTemplateToExecute, String input, Workflow workflowRun, StepService stepService) throws ChainingException {
     List<Condition> conditionTemplate =
         findAllConditionsByStepId(nextStepTemplateToExecute.getId());
     // No condition means direct execution:
@@ -173,10 +175,8 @@ public class ConditionService {
         try {
           queueChainingService.delayStep(nextStepTemplateToExecute, workflowRun, delay);
         } catch (IOException e) {
-          // Todo: system notif queue fail + system log for step + status FAIL
-          log.error(
-              "Failed to push step (TEMPLATE) into delay queue. Step ID: {}",
-              nextStepTemplateToExecute.getId(),
+          throw new ChainingException(
+              "Failed to push step (TEMPLATE) into delay queue. Step ID: "+nextStepTemplateToExecute.getId(),
               e);
         }
         return null;

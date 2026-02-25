@@ -10,6 +10,8 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Stream;
+
+import io.openaev.rest.exception.ChainingException;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -267,7 +269,7 @@ public class ConditionServiceTest {
 
     @ParameterizedTest(name = "{index} => templates={0}")
     @MethodSource("noConditionTemplates")
-    void shouldReturnEmptyList_whenNoConditionTemplates(List<Condition> templates) {
+    void shouldReturnEmptyList_whenNoConditionTemplates(List<Condition> templates) throws ChainingException {
       // -------- Prepare --------
       Step stepTemplate = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
@@ -294,7 +296,7 @@ public class ConditionServiceTest {
     }
 
     @Test
-    void shouldAddValidTimeCondition_whenAfterAndGoalAlreadyReached() {
+    void shouldAddValidTimeCondition_whenAfterAndGoalAlreadyReached() throws ChainingException {
       // -------- Prepare --------
       Step stepTemplate = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
@@ -400,7 +402,7 @@ public class ConditionServiceTest {
           .delayStep(any(Step.class), any(Workflow.class), anyLong());
 
       // -------- Act --------
-      assertDoesNotThrow(
+      assertThrows(ChainingException.class,
           () ->
               conditionService.checkCondition(
                   stepTemplate, "{\"in\":1}", workflowRun, stepService));
@@ -410,7 +412,7 @@ public class ConditionServiceTest {
     }
 
     @Test
-    void shouldReturnEmptyList_whenAtLeastOneConditionsInvalid() {
+    void shouldReturnEmptyList_whenAtLeastOneConditionsInvalid() throws ChainingException {
       // -------- Prepare --------
       Step stepTemplate = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
@@ -458,7 +460,7 @@ public class ConditionServiceTest {
       @ParameterizedTest(name = "{index} => hasOutput={0}, underLimit={1}, expectedNull={2}")
       @MethodSource("dependencyScenarios")
       void shouldHandleStepFromDependency(
-          boolean hasOutput, boolean underLimit, boolean expectedNull) {
+          boolean hasOutput, boolean underLimit, boolean expectedNull) throws ChainingException {
         // -------- Prepare --------
         Step nextStepTemplateToExecute = mock(Step.class);
         Workflow workflowRun = mock(Workflow.class);
