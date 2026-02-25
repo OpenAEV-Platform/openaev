@@ -105,7 +105,8 @@ public class FindingService {
         inject.getId(),
         contractOutputElement.getName(),
         asset.getId(),
-        tagIds);
+        tagIds,
+        inject.getTenant().getId());
   }
 
   // -- Extract findings from structured output : Here we compute the findings from structured

@@ -1,7 +1,6 @@
 package io.openaev.database.model;
 
 import static io.openaev.database.model.CollectExecutionStatus.COLLECTING;
-import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.database.specification.InjectSpecification.VALID_TESTABLE_TYPES;
 import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
@@ -12,6 +11,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.converter.ContentConverter;
 import io.openaev.helper.InjectModelHelper;
 import io.openaev.helper.MonoIdSerializer;
@@ -37,10 +37,10 @@ import org.hibernate.annotations.UuidGenerator;
 @Setter
 @Entity
 @Table(name = "injects")
-@EntityListeners(ModelBaseListener.class)
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Slf4j
 @Grantable(Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING)
-public class Inject implements GrantableBase, Injection {
+public class Inject implements GrantableBase, Injection, TenantBase {
 
   public static final int SPEED_STANDARD = 1; // Standard speed define by the user.
   public static final String ID_COLUMN_NAME = "inject_id";
@@ -312,7 +312,7 @@ public class Inject implements GrantableBase, Injection {
   @JoinColumn(name = "tenant_id")
   @JsonIgnore
   @NotNull
-  private Tenant tenant = new Tenant(DEFAULT_TENANT_UUID);
+  private Tenant tenant;
 
   @Getter @Setter @Transient private boolean isListened = true;
 
@@ -525,6 +525,11 @@ public class Inject implements GrantableBase, Injection {
         this.getInjectorContract().isPresent()
             ? this.getInjectorContract().get().getPayload()
             : null);
+  }
+
+  @Override
+  public Tenant getTenant() {
+    return tenant;
   }
 
   @Override

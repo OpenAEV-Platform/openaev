@@ -1,11 +1,10 @@
 package io.openaev.database.model;
 
-import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
-
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -22,8 +21,8 @@ import org.hibernate.type.SqlTypes;
 @Setter
 @Entity
 @Table(name = "connector_instances")
-@EntityListeners(ModelBaseListener.class)
-public class ConnectorInstancePersisted extends ConnectorInstance implements Base {
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+public class ConnectorInstancePersisted extends ConnectorInstance implements Base, TenantBase {
   @Id
   @Column(name = "connector_instance_id")
   @GeneratedValue(generator = "UUID")
@@ -97,7 +96,7 @@ public class ConnectorInstancePersisted extends ConnectorInstance implements Bas
   @JoinColumn(name = "tenant_id")
   @JsonIgnore
   @NotNull
-  private Tenant tenant = new Tenant(DEFAULT_TENANT_UUID);
+  private Tenant tenant;
 
   @Override
   public String getClassName() {

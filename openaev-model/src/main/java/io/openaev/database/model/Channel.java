@@ -1,12 +1,12 @@
 package io.openaev.database.model;
 
-import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static java.time.Instant.now;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -24,8 +24,8 @@ import org.hibernate.annotations.UuidGenerator;
 @Setter
 @Entity
 @Table(name = "channels")
-@EntityListeners(ModelBaseListener.class)
-public class Channel implements Base {
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+public class Channel implements Base, TenantBase {
 
   @Id
   @Column(name = "channel_id")
@@ -95,7 +95,7 @@ public class Channel implements Base {
   @JoinColumn(name = "tenant_id")
   @JsonIgnore
   @NotNull
-  private Tenant tenant = new Tenant(DEFAULT_TENANT_UUID);
+  private Tenant tenant;
 
   @Getter(onMethod_ = @JsonIgnore)
   @Transient

@@ -1,13 +1,12 @@
 package io.openaev.database.model;
 
-import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiModelSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -24,8 +23,8 @@ import org.hibernate.annotations.FetchMode;
 @Getter
 @Entity
 @Table(name = "groups")
-@EntityListeners(ModelBaseListener.class)
-public class Group implements Base {
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+public class Group implements Base, TenantBase {
 
   @Id
   @ControlledUuidGeneration
@@ -84,7 +83,7 @@ public class Group implements Base {
   @JoinColumn(name = "tenant_id")
   @JsonIgnore
   @NotNull
-  private Tenant tenant = new Tenant(DEFAULT_TENANT_UUID);
+  private Tenant tenant;
 
   @Getter(onMethod_ = @JsonIgnore)
   @Transient

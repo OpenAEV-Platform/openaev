@@ -1,12 +1,11 @@
 package io.openaev.database.model;
 
-import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MultiIdSetSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -23,7 +22,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Getter
 @Entity
 @Table(name = "documents")
-@EntityListeners(ModelBaseListener.class)
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @NamedEntityGraphs({
   @NamedEntityGraph(
       name = "Document.tags-scenarios-exercises",
@@ -33,7 +32,7 @@ import org.hibernate.annotations.UuidGenerator;
         @NamedAttributeNode("exercises")
       })
 })
-public class Document implements Base {
+public class Document implements Base, TenantBase {
 
   @Id
   @Column(name = "document_id")
@@ -115,7 +114,7 @@ public class Document implements Base {
   @JoinColumn(name = "tenant_id")
   @JsonIgnore
   @NotNull
-  private Tenant tenant = new Tenant(DEFAULT_TENANT_UUID);
+  private Tenant tenant;
 
   @OneToMany(mappedBy = "document", fetch = FetchType.LAZY)
   @JsonIgnore
