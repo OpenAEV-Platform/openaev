@@ -2,7 +2,6 @@ package io.openaev.database.model;
 
 import static io.openaev.database.model.Grant.GRANT_TYPE.OBSERVER;
 import static io.openaev.database.model.Grant.GRANT_TYPE.PLANNER;
-import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.helper.UserHelper.getUsersByType;
 import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
@@ -13,6 +12,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.Scenario.SEVERITY;
 import io.openaev.helper.InjectStatisticsHelper;
@@ -38,9 +38,9 @@ import org.hibernate.annotations.UuidGenerator;
 @Setter
 @Entity
 @Table(name = "exercises")
-@EntityListeners(ModelBaseListener.class)
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Grantable(Grant.GRANT_RESOURCE_TYPE.SIMULATION)
-public class Exercise implements GrantableBase {
+public class Exercise implements GrantableBase, TenantBase {
 
   @Getter
   @Id
@@ -163,7 +163,7 @@ public class Exercise implements GrantableBase {
   @JoinColumn(name = "tenant_id")
   @JsonIgnore
   @NotNull
-  private Tenant tenant = new Tenant(DEFAULT_TENANT_UUID);
+  private Tenant tenant;
 
   // -- SCENARIO --
 
@@ -472,6 +472,11 @@ public class Exercise implements GrantableBase {
   }
 
   // endregion
+
+  @Override
+  public Tenant getTenant() {
+    return tenant;
+  }
 
   public Optional<Instant> getStart() {
     return ofNullable(start);
