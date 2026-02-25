@@ -209,7 +209,9 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       CatalogConnector catalogConnector = getCatalogConnector();
 
       // Create a collector with a type matching the catalog connector slug
-      collectorComposer.forCollector(CollectorFixture.createDefaultCollector(catalogConnector.getSlug())).persist();
+      collectorComposer
+          .forCollector(CollectorFixture.createDefaultCollector(catalogConnector.getSlug()))
+          .persist();
 
       Map<String, String> composerSettings = new HashMap<>();
       composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
