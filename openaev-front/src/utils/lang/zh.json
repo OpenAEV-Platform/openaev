@@ -1129,6 +1129,7 @@
   "microblogging": "微博",
   "Migrate": "迁移",
   "Migrate a manually-deployed connector to the XTM composer to manage its settings from the interface": "将手动部署的连接器迁移到 XTM 合成器，以便从界面管理其设置",
+  "Migrate to a new connector instance": "迁移到新的连接器实例",
   "Minimum value is 1": "最小值为 1",
   "Minutes": "分钟",
   "Missing content": "缺少内容",

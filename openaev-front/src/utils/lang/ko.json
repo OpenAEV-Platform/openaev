@@ -1129,6 +1129,7 @@
   "microblogging": "마이크로블로그",
   "Migrate": "마이그레이션",
   "Migrate a manually-deployed connector to the XTM composer to manage its settings from the interface": "수동으로 배포된 커넥터를 XTM 컴포저로 마이그레이션하여 인터페이스에서 설정을 관리하세요",
+  "Migrate to a new connector instance": "새 커넥터 인스턴스로 마이그레이션",
   "Minimum value is 1": "최소값은 1입니다",
   "Minutes": "분",
   "Missing content": "누락된 콘텐츠",
