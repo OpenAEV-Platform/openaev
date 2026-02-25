@@ -8,7 +8,7 @@ import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import type {
   CatalogConnector,
-  CreateConnectorInstanceInput,
+  CreateConnectorInstanceInput, JsonNode,
 } from '../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../utils/Environment';
 import { notifyErrorHandler } from '../../../../utils/error/errorHandlerUtil';
@@ -42,7 +42,7 @@ const CreateConnectorInstanceDrawer = ({ open, onClose, catalogConnectorId, cata
     if (migrateFrom) {
       data.connector_instance_configurations?.push({
         configuration_key: connectorType + '_ID',
-        configuration_value: migrateFrom,
+        configuration_value: migrateFrom as unknown as JsonNode,
       });
     }
     createConnectorInstance({

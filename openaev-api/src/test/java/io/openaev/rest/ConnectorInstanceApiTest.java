@@ -204,7 +204,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
     @DisplayName(
         "Given a collector of the same type already exists should throw an error on create")
     void givenCollectorOfSameTypeAlreadyExists_should_throwError() throws Exception {
-      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
+      when(eeService.isLicenseActive(any())).thenReturn(true);
 
       CatalogConnector catalogConnector = getCatalogConnector();
 
@@ -242,7 +242,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
         "Given a collector of the same type already exists should successfully migrate it when COLLECTOR_ID is provided")
     void givenCollectorOfSameTypeAlreadyExists_should_successfullyMigrateWhenCollectorIdProvided()
         throws Exception {
-      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
+      when(eeService.isLicenseActive(any())).thenReturn(true);
       when(xtmComposerEncryptionService.encrypt(any())).thenReturn("fake-encrypted-value");
       Token token = new Token();
       token.setValue("fake-token-value");
