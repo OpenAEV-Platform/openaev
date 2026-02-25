@@ -1,5 +1,7 @@
 package io.openaev.database.model;
 
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -11,6 +13,7 @@ import io.openaev.helper.MultiModelSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -76,6 +79,12 @@ public class Group implements Base {
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("group_roles")
   private List<Role> roles = new ArrayList<>();
+
+  @ManyToOne
+  @JoinColumn(name = "tenant_id")
+  @JsonIgnore
+  @NotNull
+  private Tenant tenant = new Tenant(DEFAULT_TENANT_UUID);
 
   @Getter(onMethod_ = @JsonIgnore)
   @Transient

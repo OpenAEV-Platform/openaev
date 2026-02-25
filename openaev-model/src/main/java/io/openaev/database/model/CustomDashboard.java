@@ -1,5 +1,6 @@
 package io.openaev.database.model;
 
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static jakarta.persistence.FetchType.LAZY;
 import static java.time.Instant.now;
 import static java.util.function.Function.identity;
@@ -67,6 +68,12 @@ public class CustomDashboard implements Base {
   @JsonProperty("custom_dashboard_parameters")
   @OrderBy("id ASC")
   private List<CustomDashboardParameters> parameters = new ArrayList<>();
+
+  @ManyToOne
+  @JoinColumn(name = "tenant_id")
+  @JsonIgnore
+  @NotNull
+  private Tenant tenant = new Tenant(DEFAULT_TENANT_UUID);
 
   public CustomDashboard addParameter(
       @NotBlank final String name, @NotBlank final CustomDashboardParameterType type) {

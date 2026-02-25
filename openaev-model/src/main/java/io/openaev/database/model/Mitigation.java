@@ -1,7 +1,9 @@
 package io.openaev.database.model;
 
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static java.time.Instant.now;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
@@ -85,4 +87,10 @@ public class Mitigation implements Base {
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("mitigation_attack_patterns")
   private List<AttackPattern> attackPatterns = new ArrayList<>();
+
+  @ManyToOne
+  @JoinColumn(name = "tenant_id")
+  @JsonIgnore
+  @NotNull
+  private Tenant tenant = new Tenant(DEFAULT_TENANT_UUID);
 }

@@ -1,5 +1,8 @@
 package io.openaev.database.model;
 
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
@@ -45,6 +48,12 @@ public class ImportMapper implements Base {
   @JoinColumn(name = "importer_mapper_id", nullable = false)
   @JsonProperty("import_mapper_inject_importers")
   private List<InjectImporter> injectImporters = new ArrayList<>();
+
+  @ManyToOne
+  @JoinColumn(name = "tenant_id")
+  @JsonIgnore
+  @NotNull
+  private Tenant tenant = new Tenant(DEFAULT_TENANT_UUID);
 
   @CreationTimestamp
   @Column(name = "mapper_created_at")

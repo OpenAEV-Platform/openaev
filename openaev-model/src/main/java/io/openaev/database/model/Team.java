@@ -1,5 +1,6 @@
 package io.openaev.database.model;
 
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static java.time.Instant.now;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -72,6 +73,12 @@ public class Team implements Base {
   @Schema(description = "Update date of the team", accessMode = Schema.AccessMode.READ_ONLY)
   @UpdateTimestamp
   private Instant updatedAt = now();
+
+  @ManyToOne
+  @JoinColumn(name = "tenant_id")
+  @JsonIgnore
+  @NotNull
+  private Tenant tenant = new Tenant(DEFAULT_TENANT_UUID);
 
   @ArraySchema(
       schema = @Schema(description = "IDs of the tags of the team", implementation = String.class))

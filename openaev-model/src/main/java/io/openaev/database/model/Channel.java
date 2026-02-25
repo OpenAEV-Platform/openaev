@@ -1,5 +1,6 @@
 package io.openaev.database.model;
 
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static java.time.Instant.now;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -89,6 +90,12 @@ public class Channel implements Base {
   @JsonProperty("channel_logo_light")
   @Schema(implementation = String.class)
   private Document logoLight;
+
+  @ManyToOne
+  @JoinColumn(name = "tenant_id")
+  @JsonIgnore
+  @NotNull
+  private Tenant tenant = new Tenant(DEFAULT_TENANT_UUID);
 
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
