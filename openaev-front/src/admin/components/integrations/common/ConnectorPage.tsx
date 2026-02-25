@@ -1,6 +1,6 @@
 import { Alert } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type ReactNode, useContext } from 'react';
+import { type ReactNode, useContext, useState } from 'react';
 import { useOutletContext } from 'react-router';
 
 import Tabs, { type TabsEntry } from '../../../../components/common/tabs/Tabs';
@@ -9,6 +9,7 @@ import { useFormatter } from '../../../../components/i18n';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
 import ConnectorCatalogInfo from './ConnectorCatalogInfo';
 import { ConnectorContext } from './ConnectorContext';
 import type { ConnectorContextLayoutType } from './ConnectorLayout';
@@ -19,10 +20,20 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
   const { t } = useFormatter();
   const theme = useTheme();
 
-  const { connector, instance, catalogConnector, isXtmComposerUp } = useOutletContext<ConnectorContextLayoutType>();
+  const { connector, instance, catalogConnector, isXtmComposerUp, refreshConnector } = useOutletContext<ConnectorContextLayoutType>();
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
   const ability = useContext(AbilityContext);
   const { logoUrl } = useContext(ConnectorContext);
+  const [openCreateConnectorInstanceDrawer, setOpenCreateConnectorInstanceDrawer] = useState(false);
+  const onOpenCreateConnectorInstanceDrawer = () => setOpenCreateConnectorInstanceDrawer(true);
+  const onCloseCreateConnectorInstanceDrawer = () => {
+    setOpenCreateConnectorInstanceDrawer(false);
+    refreshConnector();
+  };
+
+  const onMigrateBtnClick = () => {
+    onOpenCreateConnectorInstanceDrawer();
+  };
 
   const tabEntries: TabsEntry[] = [{
     key: 'overview',
@@ -62,6 +73,8 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
         instanceCurrentStatus={instance?.connector_instance_current_status}
         instanceRequestedStatus={instance?.connector_instance_requested_status}
         showUpdateButtons={ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
+        showMigrateButton={connector.isExternal && !instance && isXtmComposerUp && ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
+        onMigrateBtnClick={onMigrateBtnClick}
         disabledUpdateButtons={!isEnterpriseEdition || (!isXtmComposerUp && catalogConnector?.catalog_connector_manager_supported)}
       />
       <Tabs
@@ -77,6 +90,18 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
       )}
       {currentTab === 'logs' && (
         <ConnectorLogs connectorInstanceId={instance.connector_instance_id} />
+      )}
+      {openCreateConnectorInstanceDrawer && (
+        <CreateConnectorInstanceDrawer
+          open={openCreateConnectorInstanceDrawer}
+          catalogConnectorId={catalogConnector.catalog_connector_id}
+          catalogConnectorSlug={catalogConnector.catalog_connector_slug}
+          onClose={onCloseCreateConnectorInstanceDrawer}
+          connectorType={catalogConnector.catalog_connector_type}
+          disabled={!isXtmComposerUp && catalogConnector.catalog_connector_manager_supported}
+          migrateFrom={connector?.id}
+          disabledMessage={t('Deployment of this {catalogType} requires the installation of our Integration Manager.', { catalogType: catalogConnector.catalog_connector_type.toLowerCase() })}
+        />
       )}
     </>
   );

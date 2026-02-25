@@ -1128,7 +1128,7 @@
   "Metrics Version 3.1": "Метрика Версия 3.1",
   "microblogging": "Микроблоги",
   "Migrate": "Мигрируйте",
-  "Migrate an instance deployed manually to the XTM Composer": "Перенесите экземпляр, развернутый вручную, в XTM Composer",
+  "Migrate a manually-deployed connector to the XTM composer to manage its settings from the interface": "Перенесите развернутый вручную коннектор в XTM composer, чтобы управлять его настройками из интерфейса",
   "Minimum value is 1": "Минимальное значение - 1",
   "Minutes": "Минуты",
   "Missing content": "Отсутствующее содержимое",

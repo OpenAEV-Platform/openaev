@@ -27,7 +27,7 @@ const MigrateButton = ({ onMigrateBtnClick, style = {} }: Props) => {
     }
   };
   return (
-    <Tooltip title={t('Migrate an instance deployed manually to the XTM Composer')}>
+    <Tooltip title={t('Migrate a manually-deployed connector to the XTM composer to manage its settings from the interface')}>
       <div style={{
         ...style,
         position: 'relative',

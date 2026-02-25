@@ -1128,7 +1128,7 @@
   "Metrics Version 3.1": "메트릭 버전 3.1",
   "microblogging": "마이크로블로그",
   "Migrate": "마이그레이션",
-  "Migrate an instance deployed manually to the XTM Composer": "수동으로 배포된 인스턴스를 XTM Composer로 마이그레이션하기",
+  "Migrate a manually-deployed connector to the XTM composer to manage its settings from the interface": "수동으로 배포된 커넥터를 XTM 컴포저로 마이그레이션하여 인터페이스에서 설정을 관리하세요",
   "Minimum value is 1": "최소값은 1입니다",
   "Minutes": "분",
   "Missing content": "누락된 콘텐츠",

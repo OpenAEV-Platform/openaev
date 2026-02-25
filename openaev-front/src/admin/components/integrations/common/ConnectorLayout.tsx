@@ -1,5 +1,5 @@
 import { capitalize } from '@mui/material';
-import { useContext, useState } from 'react';
+import { useCallback, useContext, useState } from 'react';
 import { Outlet, useParams } from 'react-router';
 
 import { fetchConnector, isXtmComposerIsReachable } from '../../../../actions/catalog/catalog-actions';
@@ -27,6 +27,7 @@ export type ConnectorContextLayoutType = {
   instance: ConnectorInstanceOutput;
   catalogConnector: CatalogConnectorOutput;
   isXtmComposerUp: boolean;
+  refreshConnector: () => void;
 };
 
 const ConnectorLayout = () => {
@@ -58,7 +59,7 @@ const ConnectorLayout = () => {
   const { connector: catalogConnector } = useHelper((helper: CatalogConnectorsHelper) => ({ connector: helper.getCatalogConnector(relatedIds?.catalog_connector_id ?? '') }));
   const { instance } = useHelper((helper: ConnectorInstanceHelper) => ({ instance: helper.getConnectorInstance(relatedIds?.connector_instance_id ?? '') }));
 
-  useDataLoader(() => {
+  const loadConnectorData = useCallback(() => {
     isXtmComposerIsReachable().then(({ data }) => setIsXtmComposerUp(data));
 
     if (!connectorId) {
@@ -85,6 +86,10 @@ const ConnectorLayout = () => {
       }
     }).catch(() => setLoading(false));
   }, [connectorId, apiRequest, dispatch]);
+
+  useDataLoader(() => {
+    loadConnectorData();
+  }, [loadConnectorData]);
 
   const breadcrumbElements = connectorId
     ? [
@@ -116,6 +121,7 @@ const ConnectorLayout = () => {
           catalogConnector,
           instance,
           isXtmComposerUp,
+          refreshConnector: loadConnectorData,
         }}
         />
       )}
