@@ -1129,6 +1129,7 @@
   "microblogging": "Microblogging",
   "Migrate": "Migrare",
   "Migrate a manually-deployed connector to the XTM composer to manage its settings from the interface": "Migrare un connettore distribuito manualmente al compositore XTM per gestirne le impostazioni dall'interfaccia",
+  "Migrate to a new connector instance": "Migrare a una nuova istanza del connettore",
   "Minimum value is 1": "Il valore minimo è 1",
   "Minutes": "Minuti",
   "Missing content": "Contenuto mancante",
