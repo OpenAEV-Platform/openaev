@@ -186,7 +186,7 @@ public class ExerciseService {
     getListOfVariables(exerciseDuplicate, exerciseOrigin);
     getObjectives(exerciseDuplicate, exerciseOrigin);
     getLessonsCategories(exerciseDuplicate, exerciseOrigin);
-    return exerciseRepository.save(exercise);
+    return exerciseRepository.save(exerciseDuplicate);
   }
 
   private Exercise copyExercice(Exercise exerciseOrigin) {
