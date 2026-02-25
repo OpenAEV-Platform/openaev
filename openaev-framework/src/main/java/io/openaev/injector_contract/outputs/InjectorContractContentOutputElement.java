@@ -7,8 +7,7 @@ import lombok.Data;
 /**
  * Represents an output element defined in an injector contract.
  *
- * <p>Output elements describe the data produced by an injection execution. This metadata is used
- * to:
+ * <p>Output elements describe the data produced by an inject execution. This metadata is used to:
  *
  * <ul>
  *   <li>Define the structure of execution results

@@ -1,5 +1,5 @@
 import { simplePostCall } from '../../utils/Action';
-import { type WidgetToEntitiesInput } from '../../utils/api-types';
+import { type Pagination, type WidgetToEntitiesInput } from '../../utils/api-types';
 
 export const DASHBOARD_URI = '/api/dashboards';
 
@@ -15,8 +15,11 @@ export const series = (widgetId: string, parameters: Record<string, string | und
   return simplePostCall(`${DASHBOARD_URI}/series/${widgetId}`, parameters);
 };
 
-export const entities = (widgetId: string, parameters: Record<string, string | undefined>) => {
-  return simplePostCall(`${DASHBOARD_URI}/entities/${widgetId}`, parameters);
+export const entities = (widgetId: string, parameters: Record<string, string | undefined>, pagination?: Pagination | null) => {
+  return simplePostCall(`${DASHBOARD_URI}/entities/${widgetId}`, {
+    parameters,
+    pagination,
+  });
 };
 
 export const widgetToEntitiesRuntime = (widgetId: string, input: WidgetToEntitiesInput) => {

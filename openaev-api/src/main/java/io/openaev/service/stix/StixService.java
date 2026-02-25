@@ -1,10 +1,9 @@
 package io.openaev.service.stix;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.SecurityCoverage;
+import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.rest.exception.BadRequestException;
-import io.openaev.stix.parsing.Parser;
 import io.openaev.stix.parsing.ParsingException;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
@@ -18,8 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class StixService {
 
   private final SecurityCoverageService securityCoverageService;
-  private final ObjectMapper objectMapper;
-  private final Parser stixParser;
 
   /**
    * Generate or update a Scenario from Stix bundle
@@ -28,7 +25,8 @@ public class StixService {
    * @return Scenario
    */
   @Transactional(rollbackFor = Exception.class)
-  public Scenario processBundle(String stixJson) throws IOException, ParsingException {
+  public Scenario processBundle(String stixJson)
+      throws IOException, ParsingException, ConnectorError {
 
     try {
       // Update securityCoverage with the last bundle
@@ -38,6 +36,7 @@ public class StixService {
       // Update Scenario using the last SecurityCoverage
       Scenario scenario =
           securityCoverageService.buildScenarioFromSecurityCoverage(securityCoverage);
+      securityCoverageService.pushSecurityCoverageBundleWithExternalURI(scenario);
       return scenario;
     } catch (BadRequestException | ParsingException e) {
       throw e;

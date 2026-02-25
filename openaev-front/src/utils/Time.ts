@@ -1,3 +1,4 @@
+import type { Moment } from 'moment';
 import moment, { type MomentInput } from 'moment-timezone';
 
 export const FIVE_SECONDS = 5000;
@@ -50,4 +51,12 @@ export const secondsFromToNow = (date: Date | string | number) => {
   const timestamp = Math.floor((date instanceof Date ? date.getTime() : new Date(date).getTime()) / 1000);
   const now = Math.floor(Date.now() / 1000);
   return now - timestamp;
+};
+
+export const parse = (date: Moment) => moment(date);
+
+export const daysBetweenDates = (startDate: Moment, endDate: Moment) => {
+  const start = parse(startDate);
+  const end = parse(endDate);
+  return end.diff(start, 'days') + 1;
 };

@@ -1,6 +1,7 @@
 package io.openaev.database.model;
 
 import static io.openaev.database.model.CollectExecutionStatus.COLLECTING;
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.database.specification.InjectSpecification.VALID_TESTABLE_TYPES;
 import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
@@ -306,6 +307,12 @@ public class Inject implements GrantableBase, Injection {
   @Getter
   @OneToMany(mappedBy = "inject", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<Finding> findings = new ArrayList<>();
+
+  @ManyToOne
+  @JoinColumn(name = "tenant_id")
+  @JsonIgnore
+  @NotNull
+  private Tenant tenant = new Tenant(DEFAULT_TENANT_UUID);
 
   @Getter @Setter @Transient private boolean isListened = true;
 

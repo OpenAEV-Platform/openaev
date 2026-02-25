@@ -12,8 +12,8 @@ import { type SearchOptionsConfig } from '../../../../components/common/queryabl
 import {
   type CustomDashboard,
   type EsAttackPath, type EsAvgs,
-  type EsBase, type EsCountInterval,
-  type EsSeries,
+  type EsCountInterval, type EsEntities,
+  type EsSeries, type Pagination,
   type WidgetToEntitiesInput, type WidgetToEntitiesOutput,
 } from '../../../../utils/api-types';
 import { type WidgetDataDrawerConf } from './widgetDataDrawer/WidgetDataDrawer';
@@ -32,7 +32,7 @@ export interface CustomDashboardContextType {
   fetchAverage: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsAvgs>>;
   fetchCount: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsCountInterval>>;
   fetchSeries: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsSeries[]>>;
-  fetchEntities: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsBase[]>>;
+  fetchEntities: (widgetId: string, params: Record<string, string | undefined>, pagination?: Pagination) => Promise<AxiosResponse<EsEntities>>;
   fetchEntitiesRuntime: (widgetId: string, input: WidgetToEntitiesInput) => Promise<AxiosResponse<WidgetToEntitiesOutput>>;
   fetchAttackPaths: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsAttackPath[]>>;
   contextId?: string;

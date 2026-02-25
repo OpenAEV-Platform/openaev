@@ -1,5 +1,6 @@
 package io.openaev.database.model;
 
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static java.time.Instant.now;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -50,6 +51,12 @@ public class Executor extends BaseConnectorEntity {
   @Column(name = "executor_background_color")
   @JsonProperty("executor_background_color")
   private String backgroundColor;
+
+  @ManyToOne
+  @JoinColumn(name = "tenant_id")
+  @JsonIgnore
+  @NotNull
+  private Tenant tenant = new Tenant(DEFAULT_TENANT_UUID);
 
   @Column(name = "executor_created_at")
   @JsonProperty("executor_created_at")

@@ -1,6 +1,7 @@
 package io.openaev.database.model;
 
 import static io.openaev.database.model.Tag.*;
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -8,6 +9,7 @@ import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -56,6 +58,12 @@ public class TagRule implements Base {
   @Queryable(filterable = true, sortable = true, path = "assetGroups.name")
   @JsonProperty("tag_rule_asset_groups")
   private List<AssetGroup> assetGroups = new ArrayList<>();
+
+  @ManyToOne
+  @JoinColumn(name = "tenant_id")
+  @JsonIgnore
+  @NotNull
+  private Tenant tenant = new Tenant(DEFAULT_TENANT_UUID);
 
   @Getter(onMethod_ = @JsonIgnore)
   @Transient

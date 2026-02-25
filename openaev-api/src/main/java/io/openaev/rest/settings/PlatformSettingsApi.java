@@ -5,20 +5,17 @@ import io.openaev.aop.UserRoleDescription;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.ResourceType;
-import io.openaev.engine.model.EsBase;
-import io.openaev.engine.query.EsAttackPath;
-import io.openaev.engine.query.EsAvgs;
-import io.openaev.engine.query.EsCountInterval;
-import io.openaev.engine.query.EsSeries;
+import io.openaev.engine.query.*;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
-import io.openaev.rest.dashboard.model.WidgetToEntitiesInput;
-import io.openaev.rest.dashboard.model.WidgetToEntitiesOutput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.settings.form.*;
 import io.openaev.rest.settings.response.CalderaSettings;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.CalderaSettingsService;
 import io.openaev.service.PlatformSettingsService;
+import io.openaev.utils.es.EntitiesPaginationInput;
+import io.openaev.utils.es.WidgetToEntitiesInput;
+import io.openaev.utils.es.WidgetToEntitiesOutput;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -167,10 +164,10 @@ public class PlatformSettingsApi extends RestBehavior {
 
   @PostMapping("/home-dashboard/entities/{widgetId}")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
-  public List<EsBase> homeDashboardEntities(
+  public EsEntities homeDashboardEntities(
       @PathVariable final String widgetId,
-      @RequestBody(required = false) Map<String, String> parameters) {
-    return customDashboardService.homeDashboardEntities(widgetId, parameters);
+      @RequestBody(required = false) EntitiesPaginationInput input) {
+    return customDashboardService.homeDashboardEntities(widgetId, input);
   }
 
   @PostMapping("/home-dashboard/entities-runtime/{widgetId}")

@@ -2,6 +2,7 @@ package io.openaev.utils.fixtures;
 
 import static io.openaev.database.model.InjectorContract.CONTRACT_CONTENT_FIELDS;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
+import static io.openaev.executors.Executor.CMD;
 import static io.openaev.injector_contract.ContractCardinality.Multiple;
 import static io.openaev.injector_contract.ContractDef.contractBuilder;
 import static io.openaev.injector_contract.fields.ContractAsset.assetField;
@@ -9,6 +10,7 @@ import static io.openaev.injector_contract.fields.ContractAssetGroup.assetGroupF
 import static io.openaev.injector_contract.fields.ContractSelect.selectFieldWithDefault;
 import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openaev.injectors.email.EmailContract.EMAIL_GLOBAL;
+import static io.openaev.injectors.manual.ManualContract.MANUAL_DEFAULT;
 import static io.openaev.utils.fixtures.InjectorFixture.createDefaultPayloadInjector;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -28,6 +30,7 @@ import io.openaev.injector_contract.fields.ContractSelect;
 import io.openaev.injector_contract.fields.ContractTargetedAsset;
 import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
+import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -42,6 +45,7 @@ public class InjectorContractFixture {
 
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
+  @Autowired private ManualInjectorIntegrationFactory manualInjectorIntegrationFactory;
 
   public InjectorContract getWellKnownSingleEmailContract() {
     Optional<InjectorContract> injectorContract =
@@ -149,11 +153,16 @@ public class InjectorContractFixture {
     return createPayloadInjectorContractWithFieldsContent(injector, payloadCommand, List.of());
   }
 
-  public static InjectorContract createPayloadInjectorContractWithObfuscator()
+  public static InjectorContract createPayloadInjectorContractWithObfuscator(String executor)
       throws JsonProcessingException {
     ContractSelect obfuscatorSelect =
         new ContractSelect("obfuscator", "Obfuscators", ContractCardinality.One);
-    obfuscatorSelect.setChoices(Map.of("plain-text", "plain-text", "base64", "base64"));
+
+    if (CMD.equals(executor)) {
+      obfuscatorSelect.setChoices(Map.of("plain-text", "plain-text"));
+    } else {
+      obfuscatorSelect.setChoices(Map.of("plain-text", "plain-text", "base64", "base64"));
+    }
 
     return createPayloadInjectorContractWithFieldsContent(List.of(obfuscatorSelect));
   }
@@ -295,5 +304,20 @@ public class InjectorContractFixture {
     arrayNode.add(objectMapper.valueToTree(targetedAssetField));
     arrayNode.add(objectMapper.valueToTree(targetPropertySelector));
     injectorContract.getConvertedContent().set(CONTRACT_CONTENT_FIELDS, arrayNode);
+  }
+
+  public InjectorContract getWellKnownSingleManualContract() {
+    Optional<InjectorContract> injectorContract =
+        injectorContractRepository.findById(MANUAL_DEFAULT);
+    if (injectorContract.isPresent()) {
+      return injectorContract.get();
+    }
+    try {
+      Manager manager = new Manager(List.of(manualInjectorIntegrationFactory));
+      manager.monitorIntegrations();
+      return injectorContractRepository.findById(MANUAL_DEFAULT).orElseThrow();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 }
