@@ -68,7 +68,7 @@ const CreateConnectorInstanceDrawer = ({ open, onClose, catalogConnectorId, cata
     <Drawer
       open={open}
       handleClose={onClose}
-      title={t('Create a new connector instance')}
+      title={migrateFrom ? t('Migrate to a new connector instance') : t('Create a new connector instance')}
     >
       <>
         {loading && <Loader />}
@@ -81,6 +81,7 @@ const CreateConnectorInstanceDrawer = ({ open, onClose, catalogConnectorId, cata
             onSubmit={onCreateConnectorInstance}
             onClose={onClose}
             disabled={disabled}
+            isMigrating={migrateFrom !== undefined}
           />
         )}
       </>
