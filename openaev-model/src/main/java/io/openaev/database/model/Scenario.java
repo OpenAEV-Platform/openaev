@@ -66,6 +66,7 @@ import org.hibernate.annotations.*;
 @Entity
 @Table(name = "scenarios")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 @NamedEntityGraphs({
   @NamedEntityGraph(
       name = "Scenario.tags-injects",

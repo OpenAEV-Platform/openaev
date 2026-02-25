@@ -18,11 +18,13 @@ import java.util.Set;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import org.hibernate.annotations.Filter;
 
 @Data
 @Entity
 @Table(name = "roles")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 @EqualsAndHashCode
 public class Role implements Base, TenantBase {
 

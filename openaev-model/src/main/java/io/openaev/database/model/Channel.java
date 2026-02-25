@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Objects;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UuidGenerator;
 
 @Getter
@@ -25,6 +26,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Entity
 @Table(name = "channels")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class Channel implements Base, TenantBase {
 
   @Id

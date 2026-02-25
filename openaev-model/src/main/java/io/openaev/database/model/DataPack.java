@@ -8,12 +8,14 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
 
 @Getter
 @Setter
 @Entity
 @Table(name = "datapacks")
 @EntityListeners(TenantBaseListener.class)
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class DataPack implements TenantBase {
   @Id
   @Column(name = "datapack_id", updatable = false, nullable = false)

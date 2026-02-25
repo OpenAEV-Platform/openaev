@@ -10,6 +10,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
@@ -17,6 +18,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Setter
 @Table(name = "notification_rules")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class NotificationRule implements Base, TenantBase {
 
   @Id
