@@ -317,6 +317,65 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "Given a COLLECTOR_ID that does not match any existing collector should throw an error")
+    void givenCollectorIdNotMatchingAnyCollector_should_throwError() throws Exception {
+      when(eeService.isLicenseActive(any())).thenReturn(true);
+
+      CatalogConnectorConfiguration confDef1 =
+          createCatalogConfiguration(
+              "key-string",
+              CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_TYPE.STRING,
+              true,
+              null,
+              null,
+              null);
+      CatalogConnectorConfiguration confDef2 =
+          createCatalogConfiguration(
+              "COLLECTOR_ID",
+              CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_TYPE.STRING,
+              true,
+              null,
+              null,
+              CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT.DEFAULT);
+      CatalogConnector catalogConnector =
+          getCatalogConnectorWithConfiguration(Set.of(confDef1, confDef2));
+
+      Map<String, String> composerSettings = new HashMap<>();
+      composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
+      composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
+      composerSettings.put(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key(), Instant.now().toString());
+      platformSettingsService.saveSettings(composerSettings);
+
+      String fakeCollectorId = "non-existent-collector-id";
+      CreateConnectorInstanceInput input = new CreateConnectorInstanceInput();
+      input.setCatalogConnectorId(catalogConnector.getId());
+      CreateConnectorInstanceInput.ConfigurationInput confInput1 =
+          createConfigurationInput(confDef1.getConnectorConfigurationKey(), "value-string");
+      CreateConnectorInstanceInput.ConfigurationInput confInputCollectorId =
+          createConfigurationInput("COLLECTOR_ID", fakeCollectorId);
+      input.setConfigurations(List.of(confInput1, confInputCollectorId));
+
+      mvc.perform(
+              post(CONNECTOR_INSTANCE_URI)
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().is4xxClientError())
+          .andExpect(
+              result -> {
+                String errorMessage = result.getResolvedException().getMessage();
+                assertTrue(
+                    errorMessage.contains(
+                        "Connector with id " + fakeCollectorId + " does not exist"));
+              });
+
+      List<ConnectorInstancePersisted> instanceDb =
+          connectorInstanceRepository.findAllByCatalogConnectorId(catalogConnector.getId());
+      assertEquals(0, instanceDb.size());
+    }
+
+    @Test
     @DisplayName("Should successfully create a connector instance from a catalog connector")
     void should_successfullyCreateConnectorInstance() throws Exception {
       when(eeService.isLicenseActive(any())).thenReturn(true);

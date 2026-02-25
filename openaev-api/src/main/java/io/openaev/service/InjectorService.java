@@ -17,6 +17,7 @@ import io.openaev.injector_contract.Contract;
 import io.openaev.injector_contract.Contractor;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.domain.DomainService;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector.form.InjectorCreateInput;
 import io.openaev.rest.injector.form.InjectorOutput;
 import io.openaev.rest.injector.response.InjectorConnection;
@@ -132,6 +133,12 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     injector.setId(injectorType + DUMMY_SUFFIX);
     injector.setDependencies(ExternalServiceDependency.fromInjectorType(injectorType));
     return injectorRepository.save(injector);
+  }
+
+  public Injector injector(String id) {
+    return injectorRepository
+        .findById(id)
+        .orElseThrow(() -> new ElementNotFoundException("Injector not found with id: " + id));
   }
 
   /**

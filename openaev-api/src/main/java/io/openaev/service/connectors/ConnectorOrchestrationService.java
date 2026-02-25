@@ -9,6 +9,7 @@ import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
 import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.LicenseRestrictionException;
 import io.openaev.service.InjectorService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -147,6 +148,34 @@ public class ConnectorOrchestrationService {
     throwIfConnectorAlreadyExist(catalogConnectorSlug, catalogConnectorType);
   }
 
+  private void throwIfConnectorIdDoesNotExist(
+      CreateConnectorInstanceInput collectorId, CatalogConnector catalogConnector)
+      throws DataIntegrityViolationException {
+    String connectorId =
+        collectorId.getConfigurations().stream()
+            .filter(
+                configurationInput ->
+                    configurationInput.getKey().equals(catalogConnector.getContainerType() + "_ID"))
+            .findFirst()
+            .map(CreateConnectorInstanceInput.ConfigurationInput::getValue)
+            .orElseThrow(
+                () -> new DataIntegrityViolationException("Connector ID is required for migration"))
+            .asText();
+    try {
+      if (catalogConnector.getContainerType().equals(ConnectorType.COLLECTOR)) {
+        collectorService.collector(connectorId);
+      } else if (catalogConnector.getContainerType().equals(ConnectorType.INJECTOR)) {
+        injectorService.injector(connectorId);
+      } else {
+        executorService.executor(connectorId);
+      }
+    } catch (ElementNotFoundException e) {
+      log.warn(e.getMessage());
+      throw new DataIntegrityViolationException(
+          "Connector with id " + connectorId + " does not exist");
+    }
+  }
+
   private void cleanDummyInjectorsIfItExists(
       String catalogConnectorSlug, ConnectorType catalogConnectorType) {
     if (ConnectorType.INJECTOR.equals(catalogConnectorType)) {
@@ -218,6 +247,9 @@ public class ConnectorOrchestrationService {
           catalogConnectorWithConfigMap.catalogConnector.getId(),
           catalogConnectorWithConfigMap.catalogConnector.getSlug(),
           catalogConnectorWithConfigMap.catalogConnector.getContainerType());
+    } else {
+      // If we have an ID in the input, we check if the collector id already exists
+      throwIfConnectorIdDoesNotExist(input, catalogConnectorWithConfigMap.catalogConnector);
     }
 
     ConnectorInstancePersisted connectorInstance =
