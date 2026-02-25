@@ -151,14 +151,11 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
         queueChainingService.readyStep(finalStepReady, workflowRun);
         return Optional.of(stepReady);
       } catch (IOException e) {
-        log.error(
-            "Failed to push step (READY) into ready queue. Step moved to (END) state. Step ID: {}: {}",
-            stepReady.getId(),
-            e.getMessage(),
-            e); // todo system notif queue fail + system log for step + status FAIL
         stepReady.setStatus(StepStatus.END);
         saveStep(stepReady);
-        return Optional.empty();
+          throw new ChainingException(
+                  "Failed to push step (READY) into ready queue. Step moved to (END) state. Step ID: "+stepReady.getId(),
+                  e);
       }
     }
 

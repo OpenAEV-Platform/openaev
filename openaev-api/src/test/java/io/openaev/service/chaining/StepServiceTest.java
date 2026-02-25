@@ -526,7 +526,7 @@ public class StepServiceTest {
     class QueueChainingIOException {
 
       @Test
-      void shouldWrapIOExceptionIntoLogsAndEmptyOptionalStep() throws Exception {
+      void shouldWrapIOExceptionIntoChainingException() throws Exception {
         // -------- Prepare --------
         Step nextStepTemplateToExecute = mock(Step.class);
         Step persistedTemplate = mock(Step.class);
@@ -563,9 +563,13 @@ public class StepServiceTest {
         doThrow(ioException).when(queueChainingService).readyStep(stepReady, workflowRun);
 
         // -------- Act --------
-        stepService.ready(nextStepTemplateToExecute, workflowRun, input);
+          ChainingException ex =
+                  assertThrows(
+                          ChainingException.class,
+                          () -> stepService.ready(nextStepTemplateToExecute, workflowRun, input));
 
         // -------- Assert --------
+        assertSame(ioException, ex.getCause());
 
         verify(actionStep).ready(persistedTemplate, input, workflowRun);
         verify(stepRepository, times(2)).save(stepReady);
