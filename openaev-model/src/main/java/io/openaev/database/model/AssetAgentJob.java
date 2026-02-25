@@ -13,12 +13,14 @@ import jakarta.validation.constraints.NotNull;
 import java.util.Objects;
 import lombok.Data;
 import lombok.Getter;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UuidGenerator;
 
 @Data
 @Entity
 @Table(name = "asset_agent_jobs")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class AssetAgentJob implements Base, TenantBase {
 
   @Id

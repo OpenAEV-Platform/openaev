@@ -16,12 +16,14 @@ import java.util.Objects;
 import java.util.Set;
 import lombok.Data;
 import lombok.Getter;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UuidGenerator;
 
 @Data
 @Entity
 @Table(name = "tag_rules")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class TagRule implements Base, TenantBase {
   public static Set<String> RESERVED_TAG_NAMES =
       Set.of(

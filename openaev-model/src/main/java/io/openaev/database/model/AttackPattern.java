@@ -16,6 +16,7 @@ import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.jsonapi.BusinessId;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
+import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -24,15 +25,13 @@ import java.util.List;
 import java.util.Objects;
 import lombok.Data;
 import lombok.Getter;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Type;
-import org.hibernate.annotations.UpdateTimestamp;
-import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.annotations.*;
 
 @Data
 @Entity
 @Table(name = "attack_patterns")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class AttackPattern implements Base, TenantBase {
 
   @Id

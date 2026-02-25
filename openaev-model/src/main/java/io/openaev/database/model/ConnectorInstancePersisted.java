@@ -13,6 +13,7 @@ import java.util.HashSet;
 import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
@@ -22,6 +23,7 @@ import org.hibernate.type.SqlTypes;
 @Entity
 @Table(name = "connector_instances")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class ConnectorInstancePersisted extends ConnectorInstance implements Base, TenantBase {
   @Id
   @Column(name = "connector_instance_id")

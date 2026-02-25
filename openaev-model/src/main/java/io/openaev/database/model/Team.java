@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -32,6 +33,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Entity
 @Table(name = "teams")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 @NamedEntityGraphs({
   @NamedEntityGraph(name = "Team.tags", attributeNodes = @NamedAttributeNode("tags"))
 })

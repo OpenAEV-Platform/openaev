@@ -19,6 +19,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -39,6 +40,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Entity
 @Table(name = "tags")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class Tag implements Base, TenantBase {
 
   public static final String OPENCTI_TAG_NAME = "opencti";

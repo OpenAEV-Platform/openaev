@@ -15,6 +15,7 @@ import java.time.Instant;
 import java.util.Objects;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
 
 @Getter
@@ -22,6 +23,7 @@ import org.hibernate.annotations.Type;
 @Entity
 @Table(name = "collectors")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class Collector extends BaseConnectorEntity implements TenantBase {
 
   @Id

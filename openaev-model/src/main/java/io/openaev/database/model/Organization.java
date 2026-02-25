@@ -20,6 +20,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UuidGenerator;
 
 @Getter
@@ -27,6 +28,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Entity
 @Table(name = "organizations")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class Organization implements Base, TenantBase {
 
   @Id
