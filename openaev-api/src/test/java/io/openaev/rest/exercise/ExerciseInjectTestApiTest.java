@@ -42,6 +42,7 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
   private InjectTestStatus injectTestStatus1, injectTestStatus2;
 
   @BeforeAll
+  @Transactional
   void setupData() {
     InjectorContract injectorContract = injectorContractFixture.getWellKnownSingleEmailContract();
 
