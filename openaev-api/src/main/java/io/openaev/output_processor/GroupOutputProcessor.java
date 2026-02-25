@@ -1,5 +1,7 @@
 package io.openaev.output_processor;
 
+import static org.springframework.util.StringUtils.hasText;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.ContractOutputField;
 import io.openaev.database.model.ContractOutputTechnicalType;
@@ -11,40 +13,40 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
-public class CredentialsOutputProcessor extends FindingCapableOutputProcessor {
+public class GroupOutputProcessor extends FindingCapableOutputProcessor {
 
   private static final String ASSET_ID = "asset_id";
-  private static final String USERNAME = "username";
-  private static final String PASSWORD = "password";
-  private static final String HASH = "hash";
+  private static final String GROUP_NAME = "group_name";
+  private static final String MEMBER_COUNT = "member_count";
+  private static final String RID = "rid";
   private static final String HOST = "host";
 
-  public CredentialsOutputProcessor(FindingService findingService) {
+  public GroupOutputProcessor(FindingService findingService) {
     super(
-        ContractOutputType.Credentials,
+        ContractOutputType.Group,
         ContractOutputTechnicalType.Object,
         List.of(
             new ContractOutputField(ASSET_ID, ContractOutputTechnicalType.Text, false),
-            new ContractOutputField(USERNAME, ContractOutputTechnicalType.Text, true),
-            new ContractOutputField(PASSWORD, ContractOutputTechnicalType.Text, false),
-            new ContractOutputField(HASH, ContractOutputTechnicalType.Text, false),
+            new ContractOutputField(GROUP_NAME, ContractOutputTechnicalType.Text, true),
+            new ContractOutputField(MEMBER_COUNT, ContractOutputTechnicalType.Text, false),
+            new ContractOutputField(RID, ContractOutputTechnicalType.Text, false),
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, false)),
         findingService);
   }
 
   @Override
   public boolean validate(JsonNode jsonNode) {
-    return jsonNode.hasNonNull(USERNAME)
-        && (jsonNode.hasNonNull(PASSWORD) || jsonNode.hasNonNull(HASH));
+    return jsonNode.hasNonNull(GROUP_NAME);
   }
 
   @Override
   public String toFindingValue(JsonNode jsonNode) {
-    String username = buildString(jsonNode, USERNAME);
-    if (jsonNode.hasNonNull(PASSWORD)) {
-      return username + ":" + buildString(jsonNode, PASSWORD);
+    String groupName = buildString(jsonNode, GROUP_NAME);
+    String memberCount = buildString(jsonNode, MEMBER_COUNT);
+    if (hasText(memberCount)) {
+      return groupName + " (" + memberCount + " members)";
     }
-    return username + ":" + buildString(jsonNode, HASH);
+    return groupName;
   }
 
   @Override

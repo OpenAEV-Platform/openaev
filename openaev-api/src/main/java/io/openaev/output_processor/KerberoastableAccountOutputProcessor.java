@@ -11,22 +11,20 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
-public class CredentialsOutputProcessor extends FindingCapableOutputProcessor {
+public class KerberoastableAccountOutputProcessor extends FindingCapableOutputProcessor {
 
   private static final String ASSET_ID = "asset_id";
   private static final String USERNAME = "username";
-  private static final String PASSWORD = "password";
   private static final String HASH = "hash";
   private static final String HOST = "host";
 
-  public CredentialsOutputProcessor(FindingService findingService) {
+  public KerberoastableAccountOutputProcessor(FindingService findingService) {
     super(
-        ContractOutputType.Credentials,
+        ContractOutputType.KerberoastableAccount,
         ContractOutputTechnicalType.Object,
         List.of(
             new ContractOutputField(ASSET_ID, ContractOutputTechnicalType.Text, false),
             new ContractOutputField(USERNAME, ContractOutputTechnicalType.Text, true),
-            new ContractOutputField(PASSWORD, ContractOutputTechnicalType.Text, false),
             new ContractOutputField(HASH, ContractOutputTechnicalType.Text, false),
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, false)),
         findingService);
@@ -34,17 +32,12 @@ public class CredentialsOutputProcessor extends FindingCapableOutputProcessor {
 
   @Override
   public boolean validate(JsonNode jsonNode) {
-    return jsonNode.hasNonNull(USERNAME)
-        && (jsonNode.hasNonNull(PASSWORD) || jsonNode.hasNonNull(HASH));
+    return jsonNode.hasNonNull(USERNAME);
   }
 
   @Override
   public String toFindingValue(JsonNode jsonNode) {
-    String username = buildString(jsonNode, USERNAME);
-    if (jsonNode.hasNonNull(PASSWORD)) {
-      return username + ":" + buildString(jsonNode, PASSWORD);
-    }
-    return username + ":" + buildString(jsonNode, HASH);
+    return buildString(jsonNode, USERNAME);
   }
 
   @Override
