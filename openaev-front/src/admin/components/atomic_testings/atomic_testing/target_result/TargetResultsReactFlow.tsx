@@ -176,7 +176,7 @@ const TargetResultsReactFlow = ({ className = '', injectStatusName, targetResult
       labelShowBg: false,
       labelStyle: {
         fill: theme.palette.text?.primary,
-        fontSize: theme.typography.pxToRem(12),
+        fontSize: theme.typography.h3.fontSize,
       },
     };
   };
