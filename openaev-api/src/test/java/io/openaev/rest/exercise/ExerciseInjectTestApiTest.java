@@ -66,6 +66,10 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
     inject1 = injectComposer1.persist().get();
     inject2 = injectComposer2.persist().get();
 
+    // Flush and clear to detach entities
+    entityManager.flush();
+    entityManager.clear();
+
     injectTestStatus1 = injectTestStatusComposer1.persist().get();
     injectTestStatus2 = injectTestStatusComposer2.persist().get();
 
