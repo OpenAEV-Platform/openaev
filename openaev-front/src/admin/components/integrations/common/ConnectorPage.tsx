@@ -1,6 +1,6 @@
 import { Alert } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type ReactNode, useContext, useState } from 'react';
+import { type ReactNode, useContext, useEffect, useState } from 'react';
 import { useOutletContext, useSearchParams } from 'react-router';
 
 import Tabs, { type TabsEntry } from '../../../../components/common/tabs/Tabs';
@@ -23,6 +23,10 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
   const { connector, instance, catalogConnector, isXtmComposerUp, refreshConnector } = useOutletContext<ConnectorContextLayoutType>();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showMigrationAlert, setShowMigrationAlert] = useState(searchParams.get('isMigration') === 'true');
+
+  useEffect(() => {
+    setShowMigrationAlert(searchParams.get('isMigration') === 'true');
+  }, [searchParams]);
 
   const dismissMigrationAlert = () => {
     setShowMigrationAlert(false);
