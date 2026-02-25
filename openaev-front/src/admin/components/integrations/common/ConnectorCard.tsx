@@ -1,4 +1,4 @@
-import { Card, CardActionArea, CardContent, Chip, Typography } from '@mui/material';
+import { Card, CardActionArea, CardContent, Chip, Grid, Typography } from '@mui/material';
 import type { SyntheticEvent } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -104,13 +104,15 @@ const ConnectorCard = ({
       >
         <CardContent className={classes.content}>
           <ConnectorTitle connector={connector} />
-          {connector.connectorDescription && (
-            <Typography className={classes.description}>
-              {connector.connectorDescription}
-            </Typography>
-          )}
-          {onMigrateBtnClick
-            && <MigrateButton onMigrateBtnClick={onMigrateBtnClick} />}
+          <div className={classes.footer}>
+            {connector.connectorDescription && (
+              <Typography className={classes.description}>
+                {connector.connectorDescription}
+              </Typography>
+            )}
+            {onMigrateBtnClick
+              && <MigrateButton onMigrateBtnClick={onMigrateBtnClick} />}
+          </div>
           <div className={classes.footer}>
             <Chip
               variant="outlined"
