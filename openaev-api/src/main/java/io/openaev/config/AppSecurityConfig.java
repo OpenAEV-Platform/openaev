@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.security.OpenSamlConfig;
 import io.openaev.config.security.SecurityService;
 import io.openaev.database.model.User;
-import io.openaev.security.OpenCTIJwtAuthenticationFilter;
 import io.openaev.security.SsoRefererAuthenticationFailureHandler;
 import io.openaev.security.SsoRefererAuthenticationSuccessHandler;
 import io.openaev.security.TokenAuthenticationFilter;
@@ -62,8 +61,6 @@ public class AppSecurityConfig {
   @Bean
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     http.addFilterBefore(tokenAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
-        .addFilterBefore(
-            openCTIJwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
         .requestCache(Customizer.withDefaults())
         .requestCache(cache -> cache.requestCache(new HttpSessionRequestCache()))
         .csrf(AbstractHttpConfigurer::disable)
@@ -132,11 +129,6 @@ public class AppSecurityConfig {
   @Bean
   public TokenAuthenticationFilter tokenAuthenticationFilter() {
     return new TokenAuthenticationFilter();
-  }
-
-  @Bean
-  public OpenCTIJwtAuthenticationFilter openCTIJwtAuthenticationFilter() {
-    return new OpenCTIJwtAuthenticationFilter();
   }
 
   public User userOauth2Management(ClientRegistration clientRegistration, OAuth2User user) {

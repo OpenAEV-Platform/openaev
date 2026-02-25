@@ -39,16 +39,40 @@ public class OpenCTIService {
     }
   }
 
+  public QueryTypeFields.ResponsePayload queryTypeFields(ConnectorBase connector, String typeName)
+      throws IOException, ConnectorError {
+    Response r =
+        openCTIClient.execute(
+            connector.getApiUrl(),
+            classicOpenCTIConfig.getToken(),
+            new QueryTypeFields(connector, typeName));
+    if (r.isError()) {
+      throw new ConnectorError(
+          """
+              Failed to query type fields for type %s with OpenCTI at %s
+              Errors: %s
+              """
+              .formatted(
+                  typeName,
+                  connector.getApiUrl(),
+                  r.getErrors().stream().map(Error::toString).collect(Collectors.joining("\n"))));
+    } else {
+      return mapper.convertValue(r.getData(), QueryTypeFields.ResponsePayload.class);
+    }
+  }
+
   public RegisterConnector.ResponsePayload registerConnector(ConnectorBase connector)
       throws IOException, ConnectorError {
 
     privilegeService.ensurePrivilegedUserExistsForConnector(connector);
 
+    QueryTypeFields.ResponsePayload typeFields = this.queryTypeFields(connector, "Connector");
+
     Response r =
         openCTIClient.execute(
             connector.getApiUrl(),
             classicOpenCTIConfig.getToken(),
-            new RegisterConnector(connector));
+            new RegisterConnector(connector, typeFields.hasJwks()));
     if (r.isError()) {
       throw new ConnectorError(
           """
@@ -82,11 +106,15 @@ public class OpenCTIService {
               .formatted(connector.getName(), connector.getApiUrl()));
     }
 
+    QueryTypeFields.ResponsePayload typeFields = this.queryTypeFields(connector, "Connector");
+
     privilegeService.ensurePrivilegedUserExistsForConnector(connector);
 
     Response r =
         openCTIClient.execute(
-            connector.getApiUrl(), classicOpenCTIConfig.getToken(), new Ping(connector));
+            connector.getApiUrl(),
+            classicOpenCTIConfig.getToken(),
+            new Ping(connector, typeFields.hasJwks()));
     if (r.isError()) {
       throw new ConnectorError(
           """
