@@ -340,7 +340,6 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
               CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT.DEFAULT);
       CatalogConnector catalogConnector =
           getCatalogConnectorWithConfiguration(Set.of(confDef1, confDef2));
-
       Map<String, String> composerSettings = new HashMap<>();
       composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
       composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
