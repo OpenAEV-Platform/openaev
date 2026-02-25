@@ -1,4 +1,4 @@
-import { Card, CardActionArea, CardContent, Chip, Grid, Typography } from '@mui/material';
+import { Card, CardActionArea, CardContent, Chip, Typography } from '@mui/material';
 import type { SyntheticEvent } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
