@@ -6,8 +6,9 @@ import io.openaev.service.AgentService;
 import io.openaev.telemetry.OpenTelemetryConfig;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.telemetry.metric_collectors.AgentMetricCollector;
-import io.openaev.telemetry.metric_collectors.MetricRegistry;
+import io.openaev.telemetry.registry.MetricRegistry;
 import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.logs.Logger;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.MeterProvider;
 import org.mockito.Mockito;
@@ -29,6 +30,11 @@ public class NoOpOpenTelemetryConfig {
   @Bean
   public Meter meter() {
     return MeterProvider.noop().get("noop-meter");
+  }
+
+  @Bean
+  public Logger otelLogger() {
+    return OpenTelemetry.noop().getLogsBridge().loggerBuilder("noop-logger").build();
   }
 
   @Bean

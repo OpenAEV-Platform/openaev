@@ -4,6 +4,7 @@ import io.openaev.database.model.Executor;
 import io.openaev.executors.ExecutorService;
 import io.openaev.service.AgentService;
 import io.openaev.telemetry.OpenTelemetryConfig;
+import io.openaev.telemetry.registry.MetricRegistry;
 import jakarta.annotation.PostConstruct;
 import jakarta.persistence.Tuple;
 import java.time.Duration;

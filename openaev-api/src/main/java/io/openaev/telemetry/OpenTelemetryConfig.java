@@ -9,9 +9,14 @@ import io.openaev.database.model.Setting;
 import io.openaev.database.repository.SettingRepository;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.logs.Logger;
 import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.exporter.logging.otlp.OtlpJsonLoggingLogRecordExporter;
+import io.opentelemetry.exporter.logging.otlp.OtlpJsonLoggingMetricExporter;
 import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.logs.SdkLoggerProvider;
+import io.opentelemetry.sdk.logs.export.SimpleLogRecordProcessor;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
 import io.opentelemetry.sdk.metrics.export.MetricReader;
@@ -53,14 +58,22 @@ public class OpenTelemetryConfig {
   private final SettingRepository settingRepository;
   private final ThreadPoolTaskScheduler taskScheduler;
 
-  @Getter private final Duration collectInterval = Duration.ofMinutes(60);
-  @Getter private final Duration exportInterval = Duration.ofMinutes(6 * 60);
-
   private static final DateTimeFormatter CREATION_DATE_FORMATTER =
       DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss[.n]");
 
   @Value("${openbas.telemetry.enabled:${openaev.telemetry.enabled:true}}")
   private boolean telemetryEnabled;
+
+  @Getter
+  @Value("${openaev.telemetry.collect-interval:PT60M}")
+  private Duration collectInterval;
+
+  @Getter
+  @Value("${openaev.telemetry.export-interval:PT360M}")
+  private Duration exportInterval;
+
+  @Value("${openaev.telemetry.exporter:otlp}")
+  private String telemetryExporter;
 
   @Bean
   public OpenTelemetry openTelemetry() {
@@ -69,10 +82,43 @@ public class OpenTelemetryConfig {
       return OpenTelemetry.noop();
     }
 
+    log.info("Telemetry - Using collect interval: {}", collectInterval);
+    log.info("Telemetry - Using export interval: {}", exportInterval);
+
+    if ("file".equalsIgnoreCase(telemetryExporter)) {
+      return buildFileOpenTelemetry();
+    } else {
+      return buildOtlpOpenTelemetry();
+    }
+  }
+
+  private OpenTelemetry buildFileOpenTelemetry() {
+    log.info("Telemetry exporter: FILE (OTLP JSON via JUL -> Logback)");
+    Resource resource = buildResource();
+
+    MetricReader metricReader =
+        new CustomMetricReader(
+            OtlpJsonLoggingMetricExporter.create(), taskScheduler, collectInterval, exportInterval);
+
+    SdkMeterProvider meterProvider =
+        SdkMeterProvider.builder().setResource(resource).registerMetricReader(metricReader).build();
+
+    SdkLoggerProvider loggerProvider =
+        SdkLoggerProvider.builder()
+            .setResource(resource)
+            .addLogRecordProcessor(
+                SimpleLogRecordProcessor.create(OtlpJsonLoggingLogRecordExporter.create()))
+            .build();
+
+    return OpenTelemetrySdk.builder()
+        .setMeterProvider(meterProvider)
+        .setLoggerProvider(loggerProvider)
+        .build();
+  }
+
+  private OpenTelemetry buildOtlpOpenTelemetry() {
     String endpoint = getOTELEndpoint();
-    log.info("Telemetry enabled - using endpoint: " + endpoint);
-    log.info("Telemetry - Using collect interval: " + collectInterval);
-    log.info("Telemetry - Using export interval: " + exportInterval);
+    log.info("Telemetry exporter: OTLP - endpoint: {}", endpoint);
 
     if (!isEndpointReachable(endpoint)) {
       log.warn("OTLP endpoint not reachable. Falling back to noop OpenTelemetry.");
@@ -81,23 +127,17 @@ public class OpenTelemetryConfig {
 
     Resource resource = buildResource();
 
-    // Set OTLP Exporter
     OtlpHttpMetricExporter otlpExporter =
         OtlpHttpMetricExporter.builder()
-            .setEndpoint(getOTELEndpoint())
+            .setEndpoint(endpoint)
             .setAggregationTemporalitySelector(instrumentType -> AggregationTemporality.DELTA)
             .build();
 
-    // Set Metric Reader
-    MetricReader customMetricReader =
+    MetricReader metricReader =
         new CustomMetricReader(otlpExporter, taskScheduler, collectInterval, exportInterval);
 
-    // Create MeterProvider
     SdkMeterProvider meterProvider =
-        SdkMeterProvider.builder()
-            .setResource(resource)
-            .registerMetricReader(customMetricReader)
-            .build();
+        SdkMeterProvider.builder().setResource(resource).registerMetricReader(metricReader).build();
 
     return OpenTelemetrySdk.builder().setMeterProvider(meterProvider).build();
   }
@@ -105,6 +145,11 @@ public class OpenTelemetryConfig {
   @Bean
   public Meter meter(@NotNull final OpenTelemetry openTelemetry) {
     return openTelemetry.getMeter("openaev-api-meter");
+  }
+
+  @Bean
+  public Logger logger(@NotNull final OpenTelemetry openTelemetry) {
+    return openTelemetry.getLogsBridge().loggerBuilder("openaev-api-events").build();
   }
 
   // -- PRIVATE --

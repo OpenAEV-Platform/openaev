@@ -1,10 +1,13 @@
 package io.openaev.telemetry;
 
-import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.metrics.InstrumentType;
-import io.opentelemetry.sdk.metrics.data.*;
+import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
+import io.opentelemetry.sdk.metrics.data.DoublePointData;
+import io.opentelemetry.sdk.metrics.data.GaugeData;
+import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.export.CollectionRegistration;
+import io.opentelemetry.sdk.metrics.export.MetricExporter;
 import io.opentelemetry.sdk.metrics.export.MetricReader;
 import io.opentelemetry.sdk.metrics.internal.data.ImmutableGaugeData;
 import io.opentelemetry.sdk.metrics.internal.data.ImmutableMetricData;
@@ -18,7 +21,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 @Slf4j
 public class CustomMetricReader implements MetricReader {
-  private final OtlpHttpMetricExporter otlpExporter;
+  private final MetricExporter otlpExporter;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final Duration collectInterval;
   private final Duration exportInterval;
@@ -29,11 +32,11 @@ public class CustomMetricReader implements MetricReader {
   private final AtomicLong collectMetricCount = new AtomicLong(0);
 
   public CustomMetricReader(
-      @NotNull OtlpHttpMetricExporter otlpExporter,
+      @NotNull MetricExporter metricExporter,
       @NotNull ThreadPoolTaskScheduler taskScheduler,
       @NotNull Duration collectIntervalInput,
       @NotNull Duration exportIntervalInput) {
-    this.otlpExporter = otlpExporter;
+    this.otlpExporter = metricExporter;
     this.taskScheduler = taskScheduler;
     this.collectInterval = collectIntervalInput;
     this.exportInterval = exportIntervalInput;

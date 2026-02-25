@@ -2,6 +2,7 @@ package io.openaev.service.user_events;
 
 import static io.openaev.database.model.UserEventType.LOGIN_SUCCESS;
 import static io.openaev.database.model.UserEventType.USER_CREATED;
+import static io.openaev.telemetry.TelemetryAttributes.CREATED_AT;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -9,6 +10,9 @@ import io.openaev.database.model.User;
 import io.openaev.database.model.UserEvent;
 import io.openaev.database.model.UserEventType;
 import io.openaev.database.repository.UserEventRepository;
+import io.openaev.telemetry.registry.LogRegistry;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.common.AttributesBuilder;
 import jakarta.annotation.Resource;
 import java.time.Duration;
 import java.time.Instant;
@@ -31,6 +35,7 @@ public class UserEventService {
 
   @Resource private ObjectMapper mapper;
   private final UserEventRepository userEventRepository;
+  private final LogRegistry logRegistry;
 
   // -- CRUD --
 
@@ -73,6 +78,11 @@ public class UserEventService {
     event.setPayload(payload);
 
     userEventRepository.save(event);
+
+    AttributesBuilder attrsBuilder =
+        Attributes.builder().put(CREATED_AT, event.getCreatedAt().toString());
+
+    logRegistry.emit(type.name(), attrsBuilder.build());
     return CompletableFuture.completedFuture(null);
   }
 

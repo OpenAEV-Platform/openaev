@@ -1,6 +1,7 @@
 package io.openaev.telemetry.metric_collectors;
 
 import io.openaev.injectors.openaev.OpenAEVImplantContract;
+import io.openaev.telemetry.registry.MetricRegistry;
 import jakarta.annotation.PostConstruct;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.RequiredArgsConstructor;

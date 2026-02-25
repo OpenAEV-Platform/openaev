@@ -1,4 +1,4 @@
-package io.openaev.telemetry.metric_collectors;
+package io.openaev.telemetry.registry;
 
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.ObservableDoubleGauge;

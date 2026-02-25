@@ -2,6 +2,7 @@ package io.openaev.telemetry.metric_collectors;
 
 import io.openaev.ee.Ee;
 import io.openaev.service.UserService;
+import io.openaev.telemetry.registry.MetricRegistry;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
