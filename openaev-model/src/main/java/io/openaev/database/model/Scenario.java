@@ -261,7 +261,6 @@ public class Scenario implements GrantableBase {
   @OneToMany(
       mappedBy = "scenario",
       cascade = CascadeType.ALL,
-      orphanRemoval = true,
       fetch = FetchType.LAZY)
   @JsonProperty("scenario_injects")
   @JsonSerialize(using = MultiIdListSerializer.class)

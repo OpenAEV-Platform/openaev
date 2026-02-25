@@ -236,7 +236,6 @@ public class Exercise implements GrantableBase {
   @OneToMany(
       mappedBy = "exercise",
       cascade = CascadeType.ALL,
-      orphanRemoval = true,
       fetch = FetchType.LAZY)
   @JsonProperty("exercise_injects")
   @JsonSerialize(using = MultiIdListSerializer.class)
