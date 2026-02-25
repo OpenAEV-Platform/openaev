@@ -13,17 +13,17 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class HibernateFilterTransactionAspect {
 
-    private final EntityManager entityManager;
+  private final EntityManager entityManager;
 
-    @Before(
-            "@annotation(org.springframework.transaction.annotation.Transactional) || "
-                    + "@annotation(jakarta.transaction.Transactional)")
-    public void enableFilters() {
-        Session session = entityManager.unwrap(Session.class);
-        if (session.getEnabledFilter("tenantFilter") == null) {
-            session
-                    .enableFilter("tenantFilter")
-                    .setParameter("tenantId", TenantContext.getCurrentTenant());
-        }
+  @Before(
+      "@annotation(org.springframework.transaction.annotation.Transactional) || "
+          + "@annotation(jakarta.transaction.Transactional)")
+  public void enableFilters() {
+    Session session = entityManager.unwrap(Session.class);
+    if (session.getEnabledFilter("tenantFilter") == null) {
+      session
+          .enableFilter("tenantFilter")
+          .setParameter("tenantId", TenantContext.getCurrentTenant());
     }
+  }
 }
