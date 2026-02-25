@@ -6,6 +6,7 @@ import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.FilterUtilsRuntime.computeFilterGroupRuntime;
 import static java.time.Instant.now;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawAssetGroup;
 import io.openaev.database.repository.AssetGroupRepository;
@@ -96,8 +97,8 @@ public class AssetGroupService {
     return computeDynamicAssets(assetGroup);
   }
 
-  public Optional<AssetGroup> findByExternalReference(String externalReference) {
-    return this.assetGroupRepository.findByExternalReference(externalReference);
+  public Optional<AssetGroup> findByExternalReference(String externalReference, String tenantId) {
+    return this.assetGroupRepository.findByExternalReferenceAndTenant(externalReference, new Tenant(tenantId));
   }
 
   public AssetGroup updateAssetGroup(@NotNull final AssetGroup assetGroup) {
@@ -224,11 +225,11 @@ public class AssetGroupService {
     List<Object[]> results;
 
     if (trimmedSourceId == null) {
-      results = assetGroupRepository.findAllByNameLinkedToFindings(trimmedSearchText, pageable);
+      results = assetGroupRepository.findAllByNameLinkedToFindings(trimmedSearchText, TenantContext.getCurrentTenant(), pageable);
     } else {
       results =
           assetGroupRepository.findAllByNameLinkedToFindingsWithContext(
-              trimmedSourceId, trimmedSearchText, pageable);
+              trimmedSourceId, trimmedSearchText, TenantContext.getCurrentTenant(), pageable);
     }
 
     return results.stream()

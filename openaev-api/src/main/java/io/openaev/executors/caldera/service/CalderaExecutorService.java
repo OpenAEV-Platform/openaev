@@ -227,6 +227,7 @@ public class CalderaExecutorService implements Runnable {
               input.setExecutedByUser(agent.getUsername());
               input.setLastSeen(toInstant(agent.getLast_seen()));
               input.setProcessName(agent.getExe_name());
+              input.setTenantId(executor.getTenant().getId());
               return input;
             })
         .collect(Collectors.toList());

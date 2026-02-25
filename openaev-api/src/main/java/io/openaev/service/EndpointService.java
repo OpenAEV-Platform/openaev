@@ -19,6 +19,7 @@ import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.AssetGroupRepository;
@@ -470,6 +471,7 @@ public class EndpointService {
               input.getInstallationDirectory(),
               input.getServiceName()));
       assetAgentJob.setAgent(agent);
+      assetAgentJob.setTenant(agent.getTenant());
       assetAgentJobRepository.save(assetAgentJob);
     }
     return endpoint;
@@ -612,6 +614,7 @@ public class EndpointService {
     agentInput.setInstallationMode(input.getInstallationMode());
     agentInput.setInstallationDirectory(input.getInstallationDirectory());
     agentInput.setServiceName(input.getServiceName());
+    agentInput.setTenantId(TenantContext.getCurrentTenant());
     return agentInput;
   }
 

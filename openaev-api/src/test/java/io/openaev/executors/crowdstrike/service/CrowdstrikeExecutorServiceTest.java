@@ -74,7 +74,8 @@ public class CrowdstrikeExecutorServiceTest {
     crowdStrikeExecutorService.run();
     // Asserts
     ArgumentCaptor<String> executorTypeCaptor = ArgumentCaptor.forClass(String.class);
-    verify(agentService).getAgentsByExecutorType(executorTypeCaptor.capture());
+    ArgumentCaptor<String> tenantId = ArgumentCaptor.forClass(String.class);
+    verify(agentService).getAgentsByExecutorType(executorTypeCaptor.capture(), tenantId.capture());
     assertEquals(crowdstrikeExecutor.getType(), executorTypeCaptor.getValue());
 
     ArgumentCaptor<List<AgentRegisterInput>> inputsCaptor = ArgumentCaptor.forClass(List.class);
