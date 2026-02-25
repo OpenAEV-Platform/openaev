@@ -260,7 +260,7 @@ public class Scenario implements GrantableBase {
   @Schema(implementation = String[].class)
   @OneToMany(
       mappedBy = "scenario",
-      cascade = CascadeType.REMOVE,
+      cascade = CascadeType.ALL,
       orphanRemoval = true,
       fetch = FetchType.LAZY)
   @JsonProperty("scenario_injects")

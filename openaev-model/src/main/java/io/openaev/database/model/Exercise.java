@@ -235,7 +235,7 @@ public class Exercise implements GrantableBase {
   @Schema(implementation = String[].class)
   @OneToMany(
       mappedBy = "exercise",
-      cascade = CascadeType.REMOVE,
+      cascade = CascadeType.ALL,
       orphanRemoval = true,
       fetch = FetchType.LAZY)
   @JsonProperty("exercise_injects")
