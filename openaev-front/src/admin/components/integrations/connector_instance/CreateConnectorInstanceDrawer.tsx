@@ -51,7 +51,8 @@ const CreateConnectorInstanceDrawer = ({ open, onClose, catalogConnectorId, cata
     }).then(({ data }) => {
       const connectorId = data.connector_instance_configurations.find(conf => conf.connector_instance_configuration_key === `${connectorType}_ID`)?.connector_instance_configuration_value;
       if (connectorId) {
-        navigate(`/admin/integrations/${connectorType?.toLowerCase()}s/${connectorId}`);
+        const migrationParam = migrateFrom ? '?isMigration=true' : '';
+        navigate(`/admin/integrations/${connectorType?.toLowerCase()}s/${connectorId}${migrationParam}`);
       }
       onClose();
     }).catch((error) => {

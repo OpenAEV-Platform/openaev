@@ -1773,6 +1773,7 @@
   "There is nothing to see here...": "ここには何もない...",
   "Third": "サード",
   "This atomic testing and its previous results will be deleted": "この原子テストと以前の結果は削除される",
+  "This connector has been successfully migrated. You can now stop your manually deployed connector before starting this instance.": "このコネクタは正常に移行されました。このインスタンスを起動する前に、手動でデプロイしたコネクタを停止できるようになりました。",
   "This expectation is handled automatically by the platform and triggered when target reads the articles": "この期待値はプラットフォームによって自動的に処理され、ターゲットが以下の記事を読んだときにトリガーされる。",
   "This expectation is handled automatically by the platform and triggered when the target completes the challenges": "この期待値はプラットフォームによって自動的に処理され、ターゲットが課題を完了したときにトリガーされる",
   "This expression will be used to find a match in the specified column to determine the inject type. Regular Expressions can be used.": "この式は、インジェクトタイプを決定するために、指定されたカラムで一致するものを見つけるために使用されます。正規表現が使用できます。",

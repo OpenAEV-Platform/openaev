@@ -1,7 +1,7 @@
 import { Alert } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type ReactNode, useContext, useState } from 'react';
-import { useOutletContext } from 'react-router';
+import { useOutletContext, useSearchParams } from 'react-router';
 
 import Tabs, { type TabsEntry } from '../../../../components/common/tabs/Tabs';
 import useTabs from '../../../../components/common/tabs/useTabs';
@@ -21,6 +21,14 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
   const theme = useTheme();
 
   const { connector, instance, catalogConnector, isXtmComposerUp, refreshConnector } = useOutletContext<ConnectorContextLayoutType>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [showMigrationAlert, setShowMigrationAlert] = useState(searchParams.get('isMigration') === 'true');
+
+  const dismissMigrationAlert = () => {
+    setShowMigrationAlert(false);
+    searchParams.delete('isMigration');
+    setSearchParams(searchParams, { replace: true });
+  };
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
   const ability = useContext(AbilityContext);
   const { logoUrl } = useContext(ConnectorContext);
@@ -57,6 +65,11 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
             {t('Xtm composer is not reachable', { catalogType: catalogConnector.catalog_connector_type.toLowerCase() })}
           </Alert>
         )}
+      {showMigrationAlert && (
+        <Alert severity="success" onClose={dismissMigrationAlert} style={{ marginBottom: theme.spacing(2) }}>
+          {t('This connector has been successfully migrated. You can now stop your manually deployed connector before starting this instance.')}
+        </Alert>
+      )}
       <ConnectorTitle
         connector={{
           instanceId: instance?.connector_instance_id,
