@@ -677,7 +677,9 @@ public class InjectExpectationService {
       }
 
       for (InjectExpectationResult expectationResult : expectation.getResults()) {
-        if (!notCopiedSourceTypes.contains(expectationResult.getSourceType())) {
+        if (!notCopiedSourceTypes.contains(expectationResult.getSourceType())
+            && expectationResult.getResult() != null
+            && expectationResult.getScore() != null) {
           electedExpectations
               .get(expectation.getType())
               .setResults(
@@ -812,16 +814,45 @@ public class InjectExpectationService {
     }
 
     if (!injectExpectations.isEmpty()) {
-      setupExpectationResults(injectExpectations);
+      setupDefaultExpectationResults(injectExpectations);
       injectExpectationRepository.saveAll(injectExpectations);
     }
   }
 
-  private void setupExpectationResults(@NotNull final List<InjectExpectation> injectExpectations) {
+  /**
+   * Initializes the result field for each injectExpectation in the given list.
+   *
+   * <p>Correct initialization is critical: a simulation is considered finished when all
+   * InjectExpectation.results.result entries have a non-null result value.
+   *
+   * <p>For technical expectations (PREVENTION, DETECTION, VULNERABILITY), results are only set when
+   * an agent is assigned
+   *
+   * <p>So in this function for all expected result we will set injectExpectation.results[*].result
+   * = null
+   *
+   * @param injectExpectations the list of expectations to initialize
+   */
+  private void setupDefaultExpectationResults(
+      @NotNull final List<InjectExpectation> injectExpectations) {
     List<Collector> collectors = collectorService.securityPlatformCollectors();
-    injectExpectations.stream()
-        .filter(ie -> List.of(PREVENTION, DETECTION).contains(ie.getType()))
-        .forEach(
-            injectExpectation -> injectExpectation.setResults(setUpFromCollectors(collectors)));
+
+    injectExpectations.forEach(
+        ie -> {
+          InjectExpectation.EXPECTATION_TYPE type = ie.getType();
+
+          if (List.of(PREVENTION, DETECTION).contains(type) && ie.getAgent() != null) {
+            ie.setResults(setUpFromCollectors(collectors));
+
+          } else if (VULNERABILITY.equals(type) && ie.getAgent() != null) {
+            ie.setResults(List.of(buildDefaultForVulnerabilityManagerInFailed()));
+
+          } else if (MANUAL.equals(type) && ie.getUser() != null) {
+            ie.setResults(List.of(buildDefaultForPlayerManualValidation()));
+
+          } else if (ARTICLE.equals(type) && ie.getUser() != null) {
+            ie.setResults(List.of(buildDefaultForMediaPressure()));
+          }
+        });
   }
 }

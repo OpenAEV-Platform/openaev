@@ -174,29 +174,51 @@ public final class ExpectationResultBuilder {
     expectation.setScore(score);
   }
 
-  public static InjectExpectationResult buildForMediaPressure(
-      @NotNull final InjectExpectation injectExpectation) {
+  private static InjectExpectationResult buildForMediaPressure(
+      @NotNull final String result, @NotNull final Double score) {
     return InjectExpectationResult.builder()
         .sourceId(MEDIA_PRESSURE_SOURCE_ID)
         .sourceType(MEDIA_PRESSURE_SOURCE_TYPE)
         .sourceName(MEDIA_PRESSURE_SOURCE_NAME)
         .sourcePlatform(NOT_APPLICABLE)
-        .result(Instant.now().toString())
+        .result(result)
         .date(Instant.now().toString())
-        .score(injectExpectation.getExpectedScore())
+        .score(score)
         .build();
   }
 
-  public static InjectExpectationResult buildForVulnerabilityManager() {
+  public static InjectExpectationResult buildForMediaPressure(
+      @NotNull final InjectExpectation injectExpectation) {
+    return buildForMediaPressure(Instant.now().toString(), injectExpectation.getExpectedScore());
+  }
+
+  public static InjectExpectationResult buildDefaultForMediaPressure() {
+    return buildForMediaPressure(null, null);
+  }
+
+  public static InjectExpectationResult buildForVulnerabilityManagerInFailed() {
+    return buildForVulnerabilityManager(VULNERABILITY.failureLabel, 0.0);
+  }
+
+  public static InjectExpectationResult buildDefaultForVulnerabilityManagerInFailed() {
+    return buildForVulnerabilityManager(null, null);
+  }
+
+  private static InjectExpectationResult buildForVulnerabilityManager(
+      @NotNull final String result, @NotNull final Double score) {
     return InjectExpectationResult.builder()
         .sourceId(EXPECTATIONS_VULNERABILITY_COLLECTOR_ID)
         .sourceType(EXPECTATIONS_VULNERABILITY_COLLECTOR_TYPE)
         .sourceName(EXPECTATIONS_VULNERABILITY_COLLECTOR_NAME)
         .sourcePlatform(NOT_APPLICABLE)
-        .score(0.0)
-        .result(VULNERABILITY.failureLabel)
+        .score(score)
+        .result(result)
         .date(String.valueOf(Instant.now()))
         .build();
+  }
+
+  public static InjectExpectationResult buildDefaultForPlayerManualValidation() {
+    return buildForPlayerManualValidation(null, null);
   }
 
   public static InjectExpectationResult buildForPlayerManualValidation(

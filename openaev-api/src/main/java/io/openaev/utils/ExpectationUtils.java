@@ -463,6 +463,7 @@ public class ExpectationUtils {
         .filter(ExpectationUtils::isPlayerExpectation)
         .filter(e -> e.getTeam().getId().equals(injectExpectation.getTeam().getId()))
         .filter(e -> e.getType().equals(injectExpectation.getType()))
+        .filter(e -> e.getName().equals(injectExpectation.getName()))
         .toList();
   }
 
