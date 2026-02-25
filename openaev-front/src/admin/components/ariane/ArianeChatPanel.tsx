@@ -59,6 +59,9 @@ interface ArianeChatPanelProps {
   onClose: () => void;
   onModeChange: (mode: ArianeChatMode) => void;
   bannerHeight: number;
+  onWidthChange?: (width: number) => void;
+  onResizeStart?: () => void;
+  onResizeEnd?: () => void;
 }
 
 interface ChatMessage {
@@ -95,6 +98,8 @@ interface XtmAgent {
 const SIDEBAR_WIDTH = 400;
 const FLOATING_WIDTH = 380;
 const FLOATING_HEIGHT = 560;
+const SIDEBAR_WIDTH_STORAGE_KEY = 'arianeChatSidebarWidth';
+const MAX_SIDEBAR_RATIO = 0.4;
 
 const PROMPT_SUGGESTIONS = [
   'Help me create a new simulation scenario',
@@ -114,6 +119,9 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
   onClose,
   onModeChange,
   bannerHeight,
+  onWidthChange,
+  onResizeStart,
+  onResizeEnd,
 }) => {
   const theme = useTheme();
   const { t } = useFormatter();
@@ -144,6 +152,22 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
   const historyLoadedRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const hasUsedToolsRef = useRef(false);
+
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    const stored = localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
+    if (stored) {
+      const parsed = parseInt(stored, 10);
+      if (!Number.isNaN(parsed) && parsed >= SIDEBAR_WIDTH) return parsed;
+    }
+    return SIDEBAR_WIDTH;
+  });
+  const isResizingRef = useRef(false);
+  const sidebarWidthRef = useRef(sidebarWidth);
+  sidebarWidthRef.current = sidebarWidth;
+  const onWidthChangeRef = useRef(onWidthChange);
+  onWidthChangeRef.current = onWidthChange;
+  const onResizeEndRef = useRef(onResizeEnd);
+  onResizeEndRef.current = onResizeEnd;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -192,6 +216,57 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
       })
       .catch(() => {});
   }, [conversationId, selectedAgent]);
+
+  useEffect(() => {
+    if (mode === 'sidebar') onWidthChangeRef.current?.(sidebarWidthRef.current);
+  }, [mode]);
+
+  useEffect(() => {
+    if (mode !== 'sidebar') return undefined;
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizingRef.current) return;
+      e.preventDefault();
+      const newWidth = window.innerWidth - e.clientX;
+      const maxWidth = window.innerWidth * MAX_SIDEBAR_RATIO;
+      const clamped = Math.min(Math.max(newWidth, SIDEBAR_WIDTH), maxWidth);
+      setSidebarWidth(clamped);
+      sidebarWidthRef.current = clamped;
+      onWidthChangeRef.current?.(clamped);
+    };
+    const handleMouseUp = () => {
+      if (!isResizingRef.current) return;
+      isResizingRef.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(sidebarWidthRef.current));
+      onResizeEndRef.current?.();
+    };
+    const handleWindowResize = () => {
+      const maxWidth = window.innerWidth * MAX_SIDEBAR_RATIO;
+      if (sidebarWidthRef.current > maxWidth) {
+        const clamped = Math.max(maxWidth, SIDEBAR_WIDTH);
+        setSidebarWidth(clamped);
+        sidebarWidthRef.current = clamped;
+        onWidthChangeRef.current?.(clamped);
+      }
+    };
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('resize', handleWindowResize);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('resize', handleWindowResize);
+    };
+  }, [mode]);
+
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizingRef.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    onResizeStart?.();
+  };
 
   const firstName = me?.user_firstname || me?.user_email?.split('@')[0] || 'there';
   const agentName = selectedAgent?.name || 'Ariane';
@@ -453,7 +528,7 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
           top: topOffset,
           right: 0,
           bottom: 0,
-          width: SIDEBAR_WIDTH,
+          width: sidebarWidth,
           zIndex: theme.zIndex.drawer,
           display: 'flex',
           flexDirection: 'column' as const,
@@ -1570,6 +1645,36 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
 
   return (
     <Box sx={containerSx}>
+      {mode === 'sidebar' && (
+        <Box
+          onMouseDown={handleResizeStart}
+          sx={{
+            'position': 'absolute',
+            'top': 0,
+            'left': -4,
+            'bottom': 0,
+            'width': 8,
+            'cursor': 'col-resize',
+            'zIndex': 1,
+            '&:hover > div, &:active > div': { opacity: 1 },
+          }}
+        >
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              bottom: 0,
+              width: 2,
+              borderRadius: 1,
+              bgcolor: theme.palette.ai.main,
+              opacity: 0,
+              transition: 'opacity 0.15s',
+            }}
+          />
+        </Box>
+      )}
       {renderHeader()}
       {messages.length === 0 ? renderWelcome() : renderMessages()}
       {renderInput()}
