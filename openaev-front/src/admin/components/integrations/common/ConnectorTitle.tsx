@@ -14,6 +14,7 @@ import { type ConnectorMainInfo } from './ConnectorCard';
 import ConnectorPopover from './ConnectorPopover';
 import ConnectorStatus from './ConnectorStatus';
 import DeployButton from './DeployButton';
+import MigrateButton from './MigrateButton';
 
 const useStyles = makeStyles()(theme => ({
   content: {
@@ -80,7 +81,9 @@ type ConnectorHeaderProps = {
   instanceRequestedStatus?: ConnectorInstanceOutput['connector_instance_requested_status'];
   showDeployButton?: boolean;
   showUpdateButtons?: boolean;
+  showMigrateButton?: boolean;
   onDeployBtnClick?: () => void;
+  onMigrateBtnClick?: () => void;
   disabledUpdateButtons?: boolean;
 };
 
@@ -91,8 +94,11 @@ const ConnectorTitle = ({
   instanceRequestedStatus,
   showDeployButton = false,
   showUpdateButtons = false,
+  showMigrateButton = false,
   disabledUpdateButtons = false,
   onDeployBtnClick = () => {
+  },
+  onMigrateBtnClick = () => {
   },
 }: ConnectorHeaderProps) => {
   // Standard hooks
@@ -195,6 +201,19 @@ const ConnectorTitle = ({
               }
             </div>
           </>
+        )}
+        {showMigrateButton && (
+          <div style={{
+            display: 'flex',
+            gap: theme.spacing(1),
+            alignItems: 'center',
+            marginLeft: 'auto',
+          }}
+          >
+            <MigrateButton
+              onMigrateBtnClick={onMigrateBtnClick}
+            />
+          </div>
         )}
       </div>
 

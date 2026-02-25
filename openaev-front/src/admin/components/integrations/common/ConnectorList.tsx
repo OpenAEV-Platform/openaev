@@ -77,7 +77,7 @@ const ConnectorList = () => {
     ? rawConnectors.map((c: CollectorOutput | ExecutorOutput | InjectorOutput) => normalizeSingle(c))
     : rawConnectors;
 
-  const onDeployBtnClick = (e: SyntheticEvent, connector: ConnectorOutput) => {
+  const onMigrateBtnClick = (e: SyntheticEvent, connector: ConnectorOutput) => {
     e.preventDefault();
     e.stopPropagation();
     setSelectedConnector(connector);
@@ -117,7 +117,7 @@ const ConnectorList = () => {
                 isExternal: connector.isExternal,
                 connectorCurrentStatus: connector.connectorInstance ? connector.connectorInstance.connector_instance_current_status : null,
               }}
-              onMigrateBtnClick={connector.isExternal && connector.connectorInstance == null && isXtmComposerUp ? e => onDeployBtnClick(e, connector) : undefined}
+              onMigrateBtnClick={connector.isExternal && connector.connectorInstance == null && isXtmComposerUp ? e => onMigrateBtnClick(e, connector) : undefined}
               cardActionUrl={routes.detail(connector.id)}
               isNotClickable={connector.catalog === null && connectorType !== 'injector'}
               showStatusOrLastUpdatedAt
