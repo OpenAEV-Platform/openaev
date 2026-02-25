@@ -28,7 +28,7 @@
         <maven-compiler-plugin.version>3.14.1</maven-compiler-plugin.version>
         <jacoco-plugin.version>0.8.14</jacoco-plugin.version>
         <pyroscope.version>2.1.4</pyroscope.version>
-        <spring-security-crypto.version>6.5.7</spring-security-crypto.version>
+        <spring-security-crypto.version>6.5.8</spring-security-crypto.version>
     </properties>
 
     <distributionManagement>
