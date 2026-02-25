@@ -63,6 +63,7 @@ public class CrowdStrikeExecutorService implements Runnable {
     this.executor = executor;
   }
 
+  // TODO multi-tenancy: Multi executors dev
   @Override
   public void run() {
     log.info("Running CrowdStrike executor endpoints gathering...");
@@ -79,7 +80,7 @@ public class CrowdStrikeExecutorService implements Runnable {
       List<CrowdStrikeDevice> devices = this.client.devices(hostGroup);
       if (!devices.isEmpty()) {
         Optional<AssetGroup> existingAssetGroup =
-            assetGroupService.findByExternalReference(hostGroup);
+            assetGroupService.findByExternalReference(hostGroup, executor.getTenant().getId());
         AssetGroup assetGroup;
         if (existingAssetGroup.isPresent()) {
           assetGroup = existingAssetGroup.get();
@@ -99,8 +100,9 @@ public class CrowdStrikeExecutorService implements Runnable {
             endpointService.syncAgentsEndpoints(
                 toAgentEndpoint(devices),
                 agentService.getAgentsByExecutorType(
-                    CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE));
+                    CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE, executor.getTenant().getId()));
         assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
+        assetGroup.setTenant(new Tenant(executor.getTenant().getId()));
         assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
       }
     }
@@ -156,6 +158,7 @@ public class CrowdStrikeExecutorService implements Runnable {
                       ? Agent.ADMIN_SYSTEM_WINDOWS
                       : Agent.ADMIN_SYSTEM_UNIX);
               input.setLastSeen(toInstant(crowdStrikeDevice.getLast_seen()));
+                input.setTenantId(executor.getTenant().getId());
               return input;
             })
         .collect(Collectors.toList());

@@ -55,6 +55,7 @@ public class SentinelOneExecutorService implements Runnable {
     this.assetGroupService = assetGroupService;
   }
 
+  // TODO multi-tenancy: Multi executors dev
   @Override
   public void run() {
     log.info("Running SentinelOne executor endpoints gathering...");
@@ -86,7 +87,7 @@ public class SentinelOneExecutorService implements Runnable {
       List<Agent> agents =
           endpointService.syncAgentsEndpoints(
               toAgentEndpoint(sentinelOneAgents),
-              agentService.getAgentsByExecutorType(SENTINELONE_EXECUTOR_TYPE));
+              agentService.getAgentsByExecutorType(SENTINELONE_EXECUTOR_TYPE, executor.getTenant().getId()));
       // For each sentinel one account/site/group id, create/update the relevant OpenAEV asset group
       Optional<AssetGroup> existingAssetGroup;
       AssetGroup assetGroup;
@@ -94,7 +95,7 @@ public class SentinelOneExecutorService implements Runnable {
           assetGroupIdAgentIdsMap.entrySet()) {
         String assetGroupId = assetGroupIdAgentIds.getKey();
         List<String> agentIds = assetGroupIdAgentIds.getValue();
-        existingAssetGroup = assetGroupService.findByExternalReference(assetGroupId);
+        existingAssetGroup = assetGroupService.findByExternalReference(assetGroupId, executor.getTenant().getId());
         if (existingAssetGroup.isPresent()) {
           assetGroup = existingAssetGroup.get();
         } else {
@@ -107,6 +108,7 @@ public class SentinelOneExecutorService implements Runnable {
                 .filter(agent -> agentIds.contains(agent.getId()))
                 .map(Agent::getAsset)
                 .toList());
+        assetGroup.setTenant(new Tenant(executor.getTenant().getId()));
         assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
       }
     }
@@ -143,6 +145,7 @@ public class SentinelOneExecutorService implements Runnable {
                       ? Agent.ADMIN_SYSTEM_WINDOWS
                       : Agent.ADMIN_SYSTEM_UNIX);
               input.setLastSeen(Instant.parse(sentinelOneAgent.getLastActiveDate()));
+              input.setTenantId(executor.getTenant().getId());
               return input;
             })
         .collect(Collectors.toList());
