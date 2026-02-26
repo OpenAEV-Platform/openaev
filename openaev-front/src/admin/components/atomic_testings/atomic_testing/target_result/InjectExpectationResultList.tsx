@@ -140,7 +140,7 @@ const InjectExpectationResultList = ({
                 </TableCell>
                 <TableCell>
                   <ButtonPopover
-                    disabled={['collector', 'media-pressure', 'challenge'].includes(expectationResult.sourceType ?? 'unknown')}
+                    disabled={['collector', 'media-pressure', 'challenge', 'openaev_expectations_vulnerability_manager'].includes(expectationResult.sourceType ?? 'unknown')}
                     entries={[{
                       label: t('Update'),
                       action: () => onOpenEditInjectExpectationResultResult(expectationResult, injectExpectation),
