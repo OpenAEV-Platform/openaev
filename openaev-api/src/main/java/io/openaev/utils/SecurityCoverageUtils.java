@@ -196,7 +196,9 @@ public class SecurityCoverageUtils {
                       (String) file.get(CommonProperties.URI.toString()).getValue(),
                       (String) file.get(CommonProperties.NAME.toString()).getValue(),
                       (String) file.get(CommonProperties.MIME_TYPE.toString()).getValue());
-              return document != null ? document.getId() : null;
+              return document != null
+                  ? document.getId()
+                  : (String) file.get(CommonProperties.NAME.toString()).getValue();
             })
         .filter(Objects::nonNull)
         .toList();

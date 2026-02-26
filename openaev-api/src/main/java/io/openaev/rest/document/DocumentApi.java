@@ -103,7 +103,7 @@ public class DocumentApi extends RestBehavior {
       List<Tag> inputTags = fromIterable(tagRepository.findAllById(input.getTagIds()));
       tags.addAll(inputTags);
       document.setTags(tags);
-      return documentRepository.save(document);
+      return documentService.save(document);
     } else {
       fileService.uploadFile(fileTarget, file);
       Document document = new Document();
@@ -120,7 +120,7 @@ public class DocumentApi extends RestBehavior {
       }
       document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
       document.setType(file.getContentType());
-      return documentRepository.save(document);
+      return documentService.save(document);
     }
   }
 
@@ -200,7 +200,7 @@ public class DocumentApi extends RestBehavior {
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
     document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    return documentRepository.save(document);
+    return documentService.save(document);
   }
 
   @Transactional(rollbackOn = Exception.class)
@@ -263,7 +263,7 @@ public class DocumentApi extends RestBehavior {
         scenario -> injectService.cleanInjectsDocScenario(scenario.getId(), documentId));
 
     // Save and return
-    return documentRepository.save(document);
+    return documentService.save(document);
   }
 
   @GetMapping(DOCUMENT_API + "/{documentId}/file")

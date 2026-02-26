@@ -6,7 +6,7 @@ import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
-public class File {
+public class ResponseFile {
 
   private long size;
 

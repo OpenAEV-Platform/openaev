@@ -7,8 +7,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.opencti.client.mutations.Mutation;
-import io.openaev.opencti.client.response.File;
 import io.openaev.opencti.client.response.Response;
+import io.openaev.opencti.client.response.ResponseFile;
 import io.openaev.opencti.client.response.fields.Error;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -54,7 +54,7 @@ public class OpenCTIClient {
     return execute(req);
   }
 
-  public File download(String url, String authToken) throws IOException {
+  public ResponseFile download(String url, String authToken) throws IOException {
     try (CloseableHttpClient client = httpClientFactory.httpClientCustom()) {
       HttpGet req = new HttpGet(url);
       req.addHeader(HttpHeaders.AUTHORIZATION, "Bearer %s".formatted(authToken));
@@ -62,7 +62,7 @@ public class OpenCTIClient {
       try (CloseableHttpResponse res = client.execute(req)) {
         int statusCode = res.getCode();
         if (statusCode != 200) {
-          log.error(
+          log.warn(
               String.format("Error downloading file from %s with status code %s", url, statusCode));
           return null;
         }
@@ -70,10 +70,10 @@ public class OpenCTIClient {
         HttpEntity entity = res.getEntity();
         byte[] content = entity.getContent().readAllBytes();
 
-        File file = new File();
-        file.setInputStream(new ByteArrayInputStream(content));
-        file.setSize(entity.getContentLength());
-        return file;
+        ResponseFile responseFile = new ResponseFile();
+        responseFile.setInputStream(new ByteArrayInputStream(content));
+        responseFile.setSize(content.length);
+        return responseFile;
       }
     }
   }

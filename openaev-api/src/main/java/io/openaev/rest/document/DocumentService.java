@@ -99,7 +99,7 @@ public class DocumentService {
       List<Tag> inputTags = fromIterable(tagRepository.findAllById(input.getTagIds()));
       tags.addAll(inputTags);
       document.setTags(tags);
-      return documentRepository.save(document);
+      return save(document);
     } else {
       Optional<Document> existingDocument = documentRepository.findByName(fileName);
       if (existingDocument.isPresent()) {
@@ -130,7 +130,7 @@ public class DocumentService {
         List<Tag> inputTags = fromIterable(tagRepository.findAllById(input.getTagIds()));
         tags.addAll(inputTags);
         document.setTags(tags);
-        return documentRepository.save(document);
+        return save(document);
       } else {
         fileService.uploadFile(
             fileTarget, new ByteArrayInputStream(content), fileSize, fileContentType);
@@ -148,7 +148,7 @@ public class DocumentService {
         }
         document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
         document.setType(fileContentType);
-        return documentRepository.save(document);
+        return save(document);
       }
     }
   }
@@ -245,6 +245,10 @@ public class DocumentService {
 
   public List<Document> findAllDistinctOnInjectsByScenarioId(@NotBlank String scenarioId) {
     return this.documentRepository.findAllDistinctOnInjectsByScenarioId(scenarioId);
+  }
+
+  public boolean documentExists(String documentId) {
+    return this.documentRepository.existsById(documentId);
   }
 
   public Document save(Document document) {

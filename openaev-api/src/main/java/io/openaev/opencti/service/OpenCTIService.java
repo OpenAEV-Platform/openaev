@@ -7,8 +7,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
 import io.openaev.opencti.client.OpenCTIClient;
 import io.openaev.opencti.client.mutations.*;
-import io.openaev.opencti.client.response.File;
 import io.openaev.opencti.client.response.Response;
+import io.openaev.opencti.client.response.ResponseFile;
 import io.openaev.opencti.client.response.fields.Error;
 import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.connectors.ConnectorBase;
@@ -265,40 +265,36 @@ public class OpenCTIService {
    * @return the document created from downloaded file
    */
   public Document downloadAndSaveFile(String uri, String name, String mimeType) {
-    File octiFile = downloadFile(uri);
+    try {
+      ResponseFile octiResponseFile = downloadFile(uri);
 
-    if (octiFile != null) {
-      Tag openCtiTag = getOpenCTITag();
-      DocumentCreateInput documentCreateInput = new DocumentCreateInput();
-      documentCreateInput.setDescription(name);
-      if (openCtiTag != null) {
-        documentCreateInput.setTagIds(new ArrayList<>(Set.of(openCtiTag.getId())));
-      }
+      if (octiResponseFile != null) {
+        Tag openCtiTag = getOpenCTITag();
+        DocumentCreateInput documentCreateInput = new DocumentCreateInput();
+        documentCreateInput.setDescription(name);
+        if (openCtiTag != null) {
+          documentCreateInput.setTagIds(new ArrayList<>(Set.of(openCtiTag.getId())));
+        }
 
-      try {
         return documentService.upsert(
-            name, octiFile.getInputStream(), octiFile.getSize(), mimeType, documentCreateInput);
-      } catch (Exception e) {
-        String errorMessage =
-            String.format(
-                "Error while upserting document from OpenCTI file (uri=%s, name=%s, mimeType=%s)",
-                uri, name, mimeType);
-        log.error(errorMessage, e);
-        throw new RuntimeException(errorMessage, e);
+            name,
+            octiResponseFile.getInputStream(),
+            octiResponseFile.getSize(),
+            mimeType,
+            documentCreateInput);
       }
+    } catch (Exception e) {
+      log.error(String.format(
+              "Error while upserting document from OpenCTI file (uri=%s, name=%s, mimeType=%s)",
+              uri, name, mimeType), e);
     }
     return null;
   }
 
-  private File downloadFile(String uri) {
-    try {
-      return openCTIClient.download(
-          classicOpenCTIConfig.getFormattedUrl() + URLEncoder.encode(uri, StandardCharsets.UTF_8),
-          classicOpenCTIConfig.getToken());
-    } catch (IOException e) {
-      log.error(String.format("Error while downloading file from %s", uri), e);
-      return null;
-    }
+  private ResponseFile downloadFile(String uri) throws IOException {
+    return openCTIClient.download(
+        classicOpenCTIConfig.getFormattedUrl() + URLEncoder.encode(uri, StandardCharsets.UTF_8),
+        classicOpenCTIConfig.getToken());
   }
 
   private Tag getOpenCTITag() {

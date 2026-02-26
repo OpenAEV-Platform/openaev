@@ -101,7 +101,11 @@ public class SecurityCoverageInjectService {
         scenario, securityCoverage.getIndicatorsRefs(), requiredAssetGroupMap);
 
     // 8. Build injects from Artifacts
-    createInjectsByArtifacts(scenario, securityCoverage.getArtifactsRefs(), requiredAssetGroupMap);
+    createInjectsByArtifacts(
+        scenario,
+        securityCoverage.getArtifactsRefs(),
+        requiredAssetGroupMap,
+        contractForInjectPlaceholders);
 
     return injectRepository.findByScenarioId(scenario.getId());
   }
@@ -129,11 +133,13 @@ public class SecurityCoverageInjectService {
    * @param scenario the scenario for which injects are managed
    * @param artifactsRefs the related security coverage providing Artifact references
    * @param assetsFromGroupMap the asset groups to add on new injects
+   * @param contractForPlaceholder to create placeholder on failed download
    */
   private void createInjectsByArtifacts(
       Scenario scenario,
       Set<StixRefToExternalRef> artifactsRefs,
-      Map<AssetGroup, List<Endpoint>> assetsFromGroupMap) {
+      Map<AssetGroup, List<Endpoint>> assetsFromGroupMap,
+      InjectorContract contractForPlaceholder) {
     Set<StixRefToExternalRef> fileDropRefs =
         artifactsRefs.stream()
             .filter(
@@ -173,7 +179,6 @@ public class SecurityCoverageInjectService {
               .getExternalRefs()
               .forEach(
                   documentId -> {
-
                     // 5. Search for existing inject on scenario by document id
                     String existingInjectId =
                         findExistingInjectIdByDocumentId(scenario, documentId);
@@ -182,16 +187,30 @@ public class SecurityCoverageInjectService {
                       return;
                     }
 
-                    // 6. Fetch existing or created FileDrop Payload by document id
+                    // 6. Create placeholders for missing files
+                    if (!this.documentService.documentExists(documentId)) {
+                      Inject inject =
+                          injectAssistantService.buildManualInject(
+                              contractForPlaceholder,
+                              documentId,
+                              null,
+                              null,
+                              FileDrop.FILE_DROP_TYPE);
+                      inject.setScenario(scenario);
+                      this.injectRepository.save(inject);
+                      return;
+                    }
+
+                    // 7. Fetch existing or created FileDrop Payload by document id
                     FileDrop fileDrop =
                         payloadService.getFileDropPayloadByDocument(documentId, scenario);
 
-                    // 7. Create an inject, linked to the scenario for each contract
+                    // 8. Create an inject, linked to the scenario for each contract
                     createInjectsByInjectorContracts(fileDrop, assetsFromGroupMap, scenario);
                   });
         });
 
-    // 8. Delete all previous injects non existing anymore on the OpenCTI report
+    // 9. Delete all previous injects non existing anymore on the OpenCTI report
     Set<String> injectToDelete =
         previousExistingInject.stream()
             .map(Inject::getId)
@@ -386,7 +405,7 @@ public class SecurityCoverageInjectService {
                 vulnerabilityId ->
                     Stream.of(
                         injectAssistantService.buildManualInject(
-                            contractForPlaceholder, vulnerabilityId, null, null)))
+                            contractForPlaceholder, vulnerabilityId, null, null, null)))
             .peek(inject -> inject.setScenario(scenario))
             .toList();
     injectService.saveAll(placeholdersInject);
@@ -504,7 +523,7 @@ public class SecurityCoverageInjectService {
                 attackPatternId ->
                     Stream.of(
                         injectAssistantService.buildManualInject(
-                            contractForPlaceholder, attackPatternId, null, null)))
+                            contractForPlaceholder, attackPatternId, null, null, null)))
             .peek(inject -> inject.setScenario(scenario))
             .toList();
     injectService.saveAll(placeholdersInject);
