@@ -7,6 +7,7 @@ import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
@@ -15,6 +16,7 @@ import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
+import io.openaev.helper.MonoIdDeserializerHelper;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
@@ -122,6 +124,7 @@ public class Payload implements GrantableBase {
       joinColumns = @JoinColumn(name = "payload_id"),
       inverseJoinColumns = @JoinColumn(name = "attack_pattern_id"))
   @JsonSerialize(using = MultiIdListSerializer.class)
+  @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   @JsonProperty("payload_attack_patterns")
   @Queryable(
       filterable = true,
@@ -203,6 +206,7 @@ public class Payload implements GrantableBase {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "payload_collector")
   @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
   @JsonProperty("payload_collector")
   @IncludeOption(key = "exclude from payload export")
   @Schema(implementation = String.class)
@@ -226,6 +230,7 @@ public class Payload implements GrantableBase {
       joinColumns = @JoinColumn(name = "payload_id"),
       inverseJoinColumns = @JoinColumn(name = "tag_id"))
   @JsonSerialize(using = MultiIdSetSerializer.class)
+  @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   @JsonProperty("payload_tags")
   private Set<Tag> tags = new HashSet<>();
 

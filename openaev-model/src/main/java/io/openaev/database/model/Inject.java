@@ -8,11 +8,13 @@ import static java.util.Optional.ofNullable;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.converter.ContentConverter;
+import io.openaev.helper.*;
 import io.openaev.helper.InjectModelHelper;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
@@ -128,6 +130,7 @@ public class Inject implements GrantableBase, Injection {
   @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "inject_exercise")
   @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
   @JsonProperty("inject_exercise")
   @Schema(implementation = String.class)
   private Exercise exercise;
@@ -136,6 +139,7 @@ public class Inject implements GrantableBase, Injection {
   @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "inject_scenario")
   @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
   @JsonProperty("inject_scenario")
   @Schema(implementation = String.class)
   private Scenario scenario;
@@ -147,6 +151,7 @@ public class Inject implements GrantableBase, Injection {
       orphanRemoval = true,
       cascade = CascadeType.ALL)
   @JsonProperty("inject_depends_on")
+  @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   private List<InjectDependency> dependsOn = new ArrayList<>();
 
   // UpdatedAt now used to sync with linked object
@@ -173,6 +178,7 @@ public class Inject implements GrantableBase, Injection {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "inject_user")
   @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
   @JsonProperty("inject_user")
   @Schema(implementation = String.class)
   private User user;
@@ -203,6 +209,7 @@ public class Inject implements GrantableBase, Injection {
       joinColumns = @JoinColumn(name = "inject_id"),
       inverseJoinColumns = @JoinColumn(name = "tag_id"))
   @JsonSerialize(using = MultiIdSetSerializer.class)
+  @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   @JsonProperty("inject_tags")
   @Queryable(filterable = true, dynamicValues = true)
   private Set<Tag> tags = new HashSet<>();
@@ -221,6 +228,7 @@ public class Inject implements GrantableBase, Injection {
       joinColumns = @JoinColumn(name = "inject_id"),
       inverseJoinColumns = @JoinColumn(name = "team_id"))
   @JsonSerialize(using = MultiIdListSerializer.class)
+  @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   @JsonProperty("inject_teams")
   @Queryable(filterable = true, dynamicValues = true, path = "teams.id")
   private List<Team> teams = new ArrayList<>();
@@ -239,6 +247,7 @@ public class Inject implements GrantableBase, Injection {
       joinColumns = @JoinColumn(name = "inject_id"),
       inverseJoinColumns = @JoinColumn(name = "asset_id"))
   @JsonSerialize(using = MultiIdListSerializer.class)
+  @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   @JsonProperty("inject_assets")
   @Queryable(filterable = true, dynamicValues = true, path = "assets.id")
   private List<Asset> assets = new ArrayList<>();
@@ -257,6 +266,7 @@ public class Inject implements GrantableBase, Injection {
       joinColumns = @JoinColumn(name = "inject_id"),
       inverseJoinColumns = @JoinColumn(name = "asset_group_id"))
   @JsonSerialize(using = MultiIdListSerializer.class)
+  @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   @JsonProperty("inject_asset_groups")
   @Queryable(filterable = true, dynamicValues = true, path = "assetGroups.id")
   private List<AssetGroup> assetGroups = new ArrayList<>();
@@ -277,6 +287,7 @@ public class Inject implements GrantableBase, Injection {
       orphanRemoval = true)
   @JsonProperty("inject_documents")
   @JsonSerialize(using = MultiModelSerializer.class)
+  @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   private List<InjectDocument> documents = new ArrayList<>();
 
   // CascadeType.ALL is required here because communications are embedded
@@ -289,6 +300,7 @@ public class Inject implements GrantableBase, Injection {
       orphanRemoval = true)
   @JsonProperty("inject_communications")
   @JsonSerialize(using = MultiModelSerializer.class)
+  @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   private List<Communication> communications = new ArrayList<>();
 
   // CascadeType.ALL is required here because expectations are embedded
@@ -301,6 +313,7 @@ public class Inject implements GrantableBase, Injection {
       orphanRemoval = true)
   @JsonProperty("inject_expectations")
   @JsonSerialize(using = MultiModelSerializer.class)
+  @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   private List<InjectExpectation> expectations = new ArrayList<>();
 
   @JsonIgnore

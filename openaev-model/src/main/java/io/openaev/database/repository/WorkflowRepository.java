@@ -3,6 +3,7 @@ package io.openaev.database.repository;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowStatus;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -24,4 +25,6 @@ public interface WorkflowRepository extends JpaRepository<Workflow, String> {
    * @return the workflow matching the given simulation ID and status, or null if not found
    */
   Workflow findBySimulation_IdAndStatus(String simulationId, WorkflowStatus status);
+
+  Optional<Workflow> findByIdAndStatus(String workflowId, WorkflowStatus status);
 }

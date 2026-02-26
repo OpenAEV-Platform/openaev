@@ -44,6 +44,10 @@ public class InjectStatusService {
 
   private final EntityManager entityManager;
 
+  public List<InjectStatus> findPendingInjectStatusByType(String injectType) {
+    return this.injectStatusRepository.pendingForInjectType(injectType);
+  }
+
   public InjectStatus findInjectStatusByInjectId(final String injectId) {
     if (!hasText(injectId)) {
       throw new IllegalArgumentException("InjectId should not be null");
@@ -338,5 +342,18 @@ public class InjectStatusService {
             .flatMap(i -> i.map(InjectStatus::getId).stream())
             .toList();
     injectStatusRepository.deleteAllByIds(injectStatusIds);
+  }
+
+  /**
+   * Delete all injects statuses for a list of injects
+   *
+   * @param injects the list of injects
+   */
+  public void deleteAllInjectStatusByInjects(List<Inject> injects) {
+    injectStatusRepository.deleteAllById(
+        injects.stream()
+            .map(Inject::getStatus)
+            .map(i -> i.map(InjectStatus::getId).orElse(""))
+            .toList());
   }
 }

@@ -8,9 +8,13 @@ import io.openaev.config.RabbitmqConfig;
 import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -18,7 +22,12 @@ public class BatchQueueService<T extends Queueable> {
   private final RabbitMQSslConfiguration rabbitMQSslConfiguration;
 
   private final Class<T> clazz;
-  private final QueueExecution<T> queueExecution;
+
+  /**
+   * The setter allows changing the queueExecution once the queue service has been created. It can
+   * be used to avoid circular dependencies problems
+   */
+  @Setter private QueueExecution<T> queueExecution;
 
   public static final String ROUTING_KEY = "_push_routing_%s";
   public static final String EXCHANGE_KEY = "_amqp.%s.exchange";
@@ -29,7 +38,7 @@ public class BatchQueueService<T extends Queueable> {
   private final RabbitmqConfig rabbitmqConfig;
 
   private Connection connection;
-  private List<Channel> publisherChannels = new ArrayList<>();
+  private final List<Channel> publisherChannels = new ArrayList<>();
   private final String routingKey;
   private final String exchangeName;
   private final String queueName;
@@ -40,6 +49,7 @@ public class BatchQueueService<T extends Queueable> {
 
   private final QueueConfig queueConfig;
   private final ScheduledExecutorService reconnectionExecutor;
+  private final ScheduledExecutorService scheduledExecutor;
   private final ShutdownListener shutdownListener;
 
   private final List<Channel> consumerChannels = new ArrayList<>();
@@ -92,9 +102,9 @@ public class BatchQueueService<T extends Queueable> {
 
     establishConnection();
 
-    // A scheduler to handle batches that did not reached the critical mass
-    ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
-    scheduledExecutor.scheduleAtFixedRate(
+    // A scheduler to handle batches that did not reach the critical mass
+    this.scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
+    this.scheduledExecutor.scheduleAtFixedRate(
         () -> queue.keySet().forEach(this::processBufferedBatch),
         this.queueConfig.getWorkerFrequency(),
         this.queueConfig.getWorkerFrequency(),
@@ -291,8 +301,51 @@ public class BatchQueueService<T extends Queueable> {
     }
   }
 
+  /** Purge all messages from the queue and reset internal state. */
+  public void purge() throws IOException {
+    // 1. Purge the RabbitMQ server queue (removes messages not yet delivered to consumers)
+    if (!publisherChannels.isEmpty()) {
+      Channel channel = publisherChannels.getFirst();
+      if (channel != null && channel.isOpen()) {
+        channel.queuePurge(queueName);
+      }
+    }
+
+    // 2. Clear the internal buffer (messages consumed but not yet batched)
+    queue.values().forEach(BlockingQueue::clear);
+
+    // 3. Wait for any in-flight batch to finish so it can ack/reject its own messages
+    for (AtomicBoolean inProgress : insertInProgress.values()) {
+      while (inProgress.get()) {
+        try {
+          Thread.sleep(50);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          break;
+        }
+      }
+    }
+
+    // 4. Reject any remaining unacknowledged messages (consumed from RabbitMQ but never batched)
+    //    to free the consumer's prefetch (QOS) slots
+    for (DeliveryContext context : deliveryTable.values()) {
+      try {
+        if (context.getDeliveryChannel().isOpen()) {
+          context.getDeliveryChannel().basicReject(context.getTag(), false);
+        }
+      } catch (Exception e) {
+        log.warn("Failed to reject message during purge: {}", e.getMessage());
+      }
+    }
+    deliveryTable.clear();
+    insertInProgress.values().forEach(a -> a.set(false));
+  }
+
   @PreDestroy
   public void stop() throws IOException, TimeoutException {
+    scheduledExecutor.shutdownNow();
+    executor.shutdownNow();
+    reconnectionExecutor.shutdownNow();
     closeResources();
   }
 
