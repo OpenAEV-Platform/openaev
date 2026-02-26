@@ -152,6 +152,7 @@ public class SecurityCoverageInjectService {
     // 1. Remove Inject and Scenario on Documents with contract related to File Drop if there is no
     // any Artifact to
     // manage
+
     if (fileDropRefs.isEmpty()) {
       injectRepository.deleteAllInjectsWithFileDropContractsByScenarioId(scenario.getId());
       Set<String> allInjectIds =

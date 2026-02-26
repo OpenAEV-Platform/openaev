@@ -284,9 +284,11 @@ public class OpenCTIService {
             documentCreateInput);
       }
     } catch (Exception e) {
-      log.error(String.format(
+      log.error(
+          String.format(
               "Error while upserting document from OpenCTI file (uri=%s, name=%s, mimeType=%s)",
-              uri, name, mimeType), e);
+              uri, name, mimeType),
+          e);
     }
     return null;
   }
