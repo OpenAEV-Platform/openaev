@@ -1,6 +1,6 @@
 package io.openaev.rest.report;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
@@ -27,7 +27,7 @@ public class ReportApi extends RestBehavior {
   private final InjectService injectService;
 
   @GetMapping("/api/reports/{reportId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#reportId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -36,7 +36,7 @@ public class ReportApi extends RestBehavior {
   }
 
   @GetMapping("/api/exercises/{simulationId}/reports/{reportId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -54,7 +54,7 @@ public class ReportApi extends RestBehavior {
   }
 
   @GetMapping("/api/exercises/{exerciseId}/reports")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -63,7 +63,7 @@ public class ReportApi extends RestBehavior {
   }
 
   @PostMapping("/api/exercises/{exerciseId}/reports")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -77,7 +77,7 @@ public class ReportApi extends RestBehavior {
   }
 
   @PutMapping("/api/exercises/{exerciseId}/reports/{reportId}/inject-comments")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -94,7 +94,7 @@ public class ReportApi extends RestBehavior {
   }
 
   @PutMapping("/api/exercises/{exerciseId}/reports/{reportId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -109,7 +109,7 @@ public class ReportApi extends RestBehavior {
   }
 
   @DeleteMapping("/api/exercises/{exerciseId}/reports/{reportId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)

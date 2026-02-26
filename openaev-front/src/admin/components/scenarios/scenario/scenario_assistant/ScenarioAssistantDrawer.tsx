@@ -66,19 +66,19 @@ const ScenarioAssistantDrawer = ({ open, onClose, onSubmit }: Props) => {
   const schema = z.object({
     asset_group_ids: z.string().array().optional(),
     asset_ids: z.string().array().optional(),
-    attack_pattern_ids: z.array(z.string()).min(1, { message: t('Should not be empty') }),
-    inject_by_ttp_number: z.coerce.number().min(0).max(5),
+    attack_pattern_ids: z.array(z.string()).min(1, { error: t('Should not be empty') }),
+    inject_by_ttp_number: z.number().min(0).max(5),
   }).superRefine((data, ctx) => {
     const hasAssetGroupIds = data.asset_group_ids && data.asset_group_ids.length > 0;
     const hasAssetIds = data.asset_ids && data.asset_ids.length > 0;
     if (!hasAssetGroupIds && !hasAssetIds) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         message: t('Should have at least one asset or one asset group'),
         path: ['asset_group_ids'],
       });
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         message: t('Should have at least one asset or one asset group'),
         path: ['asset_ids'],
       });

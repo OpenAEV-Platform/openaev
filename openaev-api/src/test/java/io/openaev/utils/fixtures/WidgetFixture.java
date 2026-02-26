@@ -41,14 +41,12 @@ public class WidgetFixture {
     widget.setType(VERTICAL_BAR_CHART);
     // series
     DateHistogramWidget widgetConfig = new DateHistogramWidget();
-    WidgetConfiguration.Series series = new WidgetConfiguration.Series();
+    WidgetConfigurationWithSeries.Series series = new WidgetConfigurationWithSeries.Series();
     Filters.FilterGroup filterGroup = new Filters.FilterGroup();
     filterGroup.setMode(Filters.FilterMode.and);
-    Filters.Filter filter = new Filters.Filter();
-    filter.setKey("base_entity");
-    filter.setMode(Filters.FilterMode.or);
-    filter.setOperator(Filters.FilterOperator.eq);
-    filter.setValues(List.of(entityName));
+    Filters.Filter filter =
+        createFilter(
+            "base_entity", Filters.FilterMode.or, Filters.FilterOperator.eq, List.of(entityName));
     filterGroup.setFilters(List.of(filter));
     series.setFilter(filterGroup);
     // basic configuration
@@ -66,16 +64,16 @@ public class WidgetFixture {
   private static Filters.Filter createFilter(
       String key, Filters.FilterMode mode, Filters.FilterOperator operator, List<String> value) {
     Filters.Filter filter = new Filters.Filter();
-    filter.setKey("base_entity");
-    filter.setMode(Filters.FilterMode.and);
-    filter.setOperator(Filters.FilterOperator.eq);
-    filter.setValues(List.of("expectation-inject"));
+    filter.setKey(key);
+    filter.setMode(mode);
+    filter.setOperator(operator);
+    filter.setValues(value);
     return filter;
   }
 
-  private static WidgetConfiguration.Series createSecurityCoverageSerie(
+  private static WidgetConfigurationWithSeries.Series createSecurityCoverageSerie(
       InjectExpectation.EXPECTATION_TYPE type, InjectExpectation.EXPECTATION_STATUS status) {
-    WidgetConfiguration.Series serie = new WidgetConfiguration.Series();
+    WidgetConfigurationWithSeries.Series serie = new WidgetConfigurationWithSeries.Series();
     Filters.FilterGroup filterGroup = new Filters.FilterGroup();
     filterGroup.setMode(Filters.FilterMode.and);
     Filters.Filter filterBaseEntity =
@@ -109,14 +107,45 @@ public class WidgetFixture {
     widget.setType(SECURITY_COVERAGE_CHART);
     // series
     StructuralHistogramWidget widgetConfig = new StructuralHistogramWidget();
-    WidgetConfiguration.Series successSeries =
+    WidgetConfigurationWithSeries.Series successSeries =
         createSecurityCoverageSerie(type, InjectExpectation.EXPECTATION_STATUS.SUCCESS);
-    WidgetConfiguration.Series failedSeries =
+    WidgetConfigurationWithSeries.Series failedSeries =
         createSecurityCoverageSerie(type, InjectExpectation.EXPECTATION_STATUS.FAILED);
     // basic configuration
     widgetConfig.setSeries(List.of(successSeries, failedSeries));
     widgetConfig.setTitle("Security coverage");
     widgetConfig.setField("base_attack_patterns_side");
+    widgetConfig.setDateAttribute(dateAttribute);
+    widgetConfig.setTimeRange(timeRange);
+    // widgetConfig.se
+    widget.setWidgetConfiguration(widgetConfig);
+    WidgetLayout widgetLayout = new WidgetLayout();
+    widget.setLayout(widgetLayout);
+    return widget;
+  }
+
+  public static Widget createSecurityDomainWidget(
+      CustomDashboardTimeRange timeRange, String dateAttribute) {
+    Widget widget = new Widget();
+    widget.setType(AVERAGE);
+    // series
+    AverageConfiguration widgetConfig = new AverageConfiguration();
+    WidgetConfigurationWithSeries.Series serie = new WidgetConfigurationWithSeries.Series();
+    Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+    filterGroup.setMode(Filters.FilterMode.and);
+    Filters.Filter filterBaseEntity =
+        createFilter(
+            "base_entity",
+            Filters.FilterMode.or,
+            Filters.FilterOperator.eq,
+            List.of("expectation-inject"));
+
+    filterGroup.setFilters(List.of(filterBaseEntity));
+    serie.setFilter(filterGroup);
+    serie.setName("");
+    widgetConfig.setSeries(List.of(serie));
+    // basic configuration
+    widgetConfig.setTitle("Security domains");
     widgetConfig.setDateAttribute(dateAttribute);
     widgetConfig.setTimeRange(timeRange);
     // widgetConfig.se
@@ -132,7 +161,7 @@ public class WidgetFixture {
     widget.setType(DONUT);
     // series
     StructuralHistogramWidget widgetConfig = new StructuralHistogramWidget();
-    WidgetConfiguration.Series series = new WidgetConfiguration.Series();
+    WidgetConfigurationWithSeries.Series series = new WidgetConfigurationWithSeries.Series();
     Filters.FilterGroup filterGroup = new Filters.FilterGroup();
     filterGroup.setMode(Filters.FilterMode.and);
     Filters.Filter filter = new Filters.Filter();
@@ -158,7 +187,7 @@ public class WidgetFixture {
     Widget widget = new Widget();
     widget.setType(WidgetType.NUMBER);
     // series
-    WidgetConfiguration.Series series = new WidgetConfiguration.Series();
+    WidgetConfigurationWithSeries.Series series = new WidgetConfigurationWithSeries.Series();
     Filters.FilterGroup filterGroup = new Filters.FilterGroup();
     filterGroup.setMode(Filters.FilterMode.and);
     Filters.Filter filter = new Filters.Filter();
@@ -183,7 +212,7 @@ public class WidgetFixture {
     Widget widget = new Widget();
     widget.setType(WidgetType.NUMBER);
     // series
-    WidgetConfiguration.Series series = new WidgetConfiguration.Series();
+    WidgetConfigurationWithSeries.Series series = new WidgetConfigurationWithSeries.Series();
     Filters.FilterGroup filterGroup = new Filters.FilterGroup();
     filterGroup.setMode(Filters.FilterMode.and);
     List<Filters.Filter> filters = new ArrayList<>();
@@ -216,7 +245,7 @@ public class WidgetFixture {
     Widget widget = new Widget();
     widget.setType(WidgetType.NUMBER);
     // series
-    WidgetConfiguration.Series series = new WidgetConfiguration.Series();
+    WidgetConfigurationWithSeries.Series series = new WidgetConfigurationWithSeries.Series();
     Filters.FilterGroup filterGroup = new Filters.FilterGroup();
     filterGroup.setMode(Filters.FilterMode.and);
     Filters.Filter filter = new Filters.Filter();

@@ -17,7 +17,6 @@ import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
 import io.openaev.helper.MultiModelSerializer;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.persistence.CascadeType;
@@ -164,6 +163,11 @@ public class Scenario implements GrantableBase {
   @JsonProperty("scenario_type_affinity")
   private String typeAffinity;
 
+  @Column(name = "scenario_type")
+  @JsonProperty("scenario_type")
+  @Queryable(filterable = true)
+  private String type;
+
   // -- OCTI GENERATION SCENARIO FROM HTTP CALL--
 
   @Column(name = "scenario_external_reference")
@@ -242,7 +246,7 @@ public class Scenario implements GrantableBase {
   @JoinColumn(name = "scenario_custom_dashboard")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("scenario_custom_dashboard")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private CustomDashboard customDashboard;
 
   @Getter
@@ -257,7 +261,7 @@ public class Scenario implements GrantableBase {
   @JsonIgnore
   private List<Grant> grants = new ArrayList<>();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @OneToMany(mappedBy = "scenario", fetch = FetchType.LAZY)
   @JsonProperty("scenario_injects")
   @JsonSerialize(using = MultiIdListSerializer.class)
@@ -270,7 +274,7 @@ public class Scenario implements GrantableBase {
     this.injects = injects;
   }
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "scenarios_teams",
@@ -299,7 +303,7 @@ public class Scenario implements GrantableBase {
   @JsonIgnore
   private List<Objective> objectives = new ArrayList<>();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "scenarios_tags",
@@ -316,7 +320,7 @@ public class Scenario implements GrantableBase {
     this.tags = tags;
   }
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "scenarios_documents",
@@ -326,13 +330,13 @@ public class Scenario implements GrantableBase {
   @JsonProperty("scenario_documents")
   private List<Document> documents = new ArrayList<>();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @OneToMany(mappedBy = "scenario", fetch = FetchType.LAZY)
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("scenario_articles")
   private List<Article> articles = new ArrayList<>();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @OneToMany(mappedBy = "scenario", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("scenario_lessons_categories")
@@ -343,7 +347,7 @@ public class Scenario implements GrantableBase {
   @JsonIgnore
   public List<Variable> variables = new ArrayList<>();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @OneToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "scenarios_exercises",
@@ -387,14 +391,14 @@ public class Scenario implements GrantableBase {
 
   // -- SECURITY --
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @JsonProperty("scenario_planners")
   @JsonSerialize(using = MultiIdListSerializer.class)
   public List<User> getPlanners() {
     return getUsersByType(this.getGrants(), PLANNER);
   }
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @JsonProperty("scenario_observers")
   @JsonSerialize(using = MultiIdListSerializer.class)
   public List<User> getObservers() {
@@ -418,7 +422,7 @@ public class Scenario implements GrantableBase {
     return getTeamUsers().stream().map(ScenarioTeamUser::getUser).distinct().count();
   }
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @JsonProperty("scenario_users")
   @JsonSerialize(using = MultiIdListSerializer.class)
   public List<User> getUsers() {

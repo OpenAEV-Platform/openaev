@@ -5,8 +5,9 @@ import { type Control, Controller, type UseFormSetValue, useWatch } from 'react-
 import { engineSchemas } from '../../../../../../../actions/schema/schema-action';
 import { useFormatter } from '../../../../../../../components/i18n';
 import type { PropertySchemaDTO, Widget } from '../../../../../../../utils/api-types';
+import { type WidgetInputWithoutLayout } from '../../../../../../../utils/api-types-custom';
 import { type GroupOption } from '../../../../../../../utils/Option';
-import { getBaseEntities, type WidgetInputWithoutLayout } from '../../WidgetUtils';
+import { getBaseEntities } from '../../WidgetUtils';
 import WidgetConfigDateAttributeController from '../common/WidgetConfigDateAttributeController';
 import WidgetConfigTimeRangeController from '../common/WidgetConfigTimeRangeController';
 import getEntityPropertiesListOptions from '../EntityPropertiesListOptions';
@@ -134,25 +135,6 @@ const ListWidgetParameters = (props: Props) => {
           >
             {['ASC', 'DESC'].map(dir => <MenuItem key={dir} value={dir}>{t(dir)}</MenuItem>)}
           </TextField>
-        )}
-      />
-      <Controller
-        control={props.control}
-        name="widget_config.limit"
-        render={({ field, fieldState }) => (
-          <TextField
-            {...field}
-            variant="standard"
-            fullWidth
-            type="number"
-            label={t('Number of results')}
-            sx={{ mt: 2 }}
-            value={field.value ?? 100}
-            onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
-            error={!!fieldState.error}
-            helperText={fieldState.error?.message}
-            required
-          />
         )}
       />
 

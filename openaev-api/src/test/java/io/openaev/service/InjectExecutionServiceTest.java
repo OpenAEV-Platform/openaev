@@ -1,7 +1,6 @@
 package io.openaev.service;
 
 import static io.openaev.utils.fixtures.InjectExpectationFixture.createVulnerabilityInjectExpectation;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;

@@ -14,7 +14,7 @@ interface Props {
 
 const LineChart: FunctionComponent<Props> = ({ widgetId, series }) => {
   const theme = useTheme();
-  const { fld } = useFormatter();
+  const { t, fld } = useFormatter();
 
   const { openWidgetDataDrawer } = useContext(CustomDashboardContext);
 
@@ -33,7 +33,7 @@ const LineChart: FunctionComponent<Props> = ({ widgetId, series }) => {
 
     openWidgetDataDrawer({
       widgetId,
-      filter_values: [dataPointIndex?.x ?? ''],
+      filter_values_map: { date: [dataPointIndex?.x ?? ''] },
       series_index: config.seriesIndex,
     });
   }, [series, openWidgetDataDrawer, widgetId]);
@@ -44,6 +44,8 @@ const LineChart: FunctionComponent<Props> = ({ widgetId, series }) => {
     [series],
   );
 
+  const emptyChartText = useMemo(() => t('No data to display'), [t]);
+
   // Memoize chart options
   const options = useMemo(
     () => lineChartOptions({
@@ -51,9 +53,10 @@ const LineChart: FunctionComponent<Props> = ({ widgetId, series }) => {
       isTimeSeries: true,
       xFormatter: fld,
       distributed,
+      emptyChartText,
       onDataPointClick,
     }),
-    [theme, fld, distributed, onDataPointClick],
+    [theme, fld, distributed, emptyChartText, onDataPointClick],
   );
 
   return (

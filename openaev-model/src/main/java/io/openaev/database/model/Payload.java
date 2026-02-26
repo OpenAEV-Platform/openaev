@@ -6,6 +6,7 @@ import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
@@ -14,16 +15,14 @@ import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
+import io.openaev.helper.MonoIdDeserializerHelper;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
 import io.openaev.jsonapi.IncludeOption;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -32,7 +31,10 @@ import java.util.*;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.annotations.Type;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Data
 @Entity
@@ -113,7 +115,7 @@ public class Payload implements GrantableBase {
   @NotEmpty
   private PLATFORM_TYPE[] platforms = new PLATFORM_TYPE[0];
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @Setter
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
@@ -121,6 +123,7 @@ public class Payload implements GrantableBase {
       joinColumns = @JoinColumn(name = "payload_id"),
       inverseJoinColumns = @JoinColumn(name = "attack_pattern_id"))
   @JsonSerialize(using = MultiIdListSerializer.class)
+  @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   @JsonProperty("payload_attack_patterns")
   @Queryable(
       filterable = true,
@@ -196,9 +199,10 @@ public class Payload implements GrantableBase {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "payload_collector")
   @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
   @JsonProperty("payload_collector")
   @IncludeOption(key = "exclude from payload export")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Collector collector;
 
   @OneToMany(
@@ -211,7 +215,7 @@ public class Payload implements GrantableBase {
 
   // -- TAG --
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @Queryable(filterable = true, dynamicValues = true)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
@@ -219,6 +223,7 @@ public class Payload implements GrantableBase {
       joinColumns = @JoinColumn(name = "payload_id"),
       inverseJoinColumns = @JoinColumn(name = "tag_id"))
   @JsonSerialize(using = MultiIdSetSerializer.class)
+  @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   @JsonProperty("payload_tags")
   private Set<Tag> tags = new HashSet<>();
 

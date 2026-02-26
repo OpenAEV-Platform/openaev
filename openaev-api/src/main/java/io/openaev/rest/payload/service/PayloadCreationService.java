@@ -9,7 +9,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.TagRepository;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.payload.PayloadUtils;
@@ -28,7 +28,7 @@ public class PayloadCreationService {
   private final PayloadUtils payloadUtils;
 
   private final PayloadService payloadService;
-  private final Ee eeService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
 
   private final TagRepository tagRepository;
@@ -39,7 +39,8 @@ public class PayloadCreationService {
 
   @Transactional(rollbackOn = Exception.class)
   public Payload createPayload(PayloadCreateInput input) {
-    if (eeService.isEnterpriseLicenseInactive(licenseCacheManager.getEnterpriseEditionInfo())) {
+    if (enterpriseEditionService.isEnterpriseLicenseInactive(
+        licenseCacheManager.getEnterpriseEditionInfo())) {
       input.setDetectionRemediations(null);
     }
     List<AttackPattern> attackPatterns =

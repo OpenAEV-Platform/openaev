@@ -3,7 +3,7 @@ package io.openaev.service.connectors;
 import io.openaev.api.xtm_composer.dto.XtmComposerInstanceOutput;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
@@ -33,7 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ConnectorOrchestrationService {
   private final ConnectorInstanceService connectorInstanceService;
   private final XtmComposerService xtmComposerService;
-  private final Ee eeService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final CatalogConnectorService catalogConnectorService;
 
   private final CollectorService collectorService;
@@ -80,7 +80,7 @@ public class ConnectorOrchestrationService {
   }
 
   private void throwIfEnterpriseLicenseNotActive() throws LicenseRestrictionException {
-    if (!eeService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
+    if (!enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       throw new LicenseRestrictionException("Manage instance is enterprise edition");
     }
   }
@@ -244,17 +244,16 @@ public class ConnectorOrchestrationService {
    * @param xtmComposerId the unique identifier of the XTM composer to validate
    * @param connectorInstanceId the unique identifier of the connector instance to receive the logs
    * @param logs a set of log messages to be pushed to the connector instance
-   * @return the updated ConnectorInstanceLog
    */
-  public ConnectorInstanceLog pushLogsByConnectorInstance(
+  public void pushLogsByConnectorInstance(
       String xtmComposerId, String connectorInstanceId, Set<String> logs) {
     this.xtmComposerService.throwIfInvalidXtmComposerId(xtmComposerId);
     if (logs.isEmpty()) {
-      return null;
+      return;
     }
     ConnectorInstancePersisted instance =
         connectorInstanceService.connectorInstanceById(connectorInstanceId);
-    return connectorInstanceLogService.pushLogByConnectorInstance(
+    connectorInstanceLogService.pushLogByConnectorInstance(
         instance, connectorInstanceLogService.transformRawLogsLineToLog(logs));
   }
 

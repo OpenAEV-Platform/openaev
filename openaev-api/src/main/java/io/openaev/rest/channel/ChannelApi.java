@@ -4,7 +4,7 @@ import static io.openaev.config.OpenAEVAnonymous.ANONYMOUS;
 import static io.openaev.rest.channel.ChannelHelper.enrichArticleWithVirtualPublication;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.*;
@@ -44,13 +44,13 @@ public class ChannelApi extends RestBehavior {
   // -- CHANNELS --
 
   @GetMapping("/api/channels")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.CHANNEL)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.CHANNEL)
   public Iterable<Channel> channels() {
     return channelRepository.findAll();
   }
 
   @GetMapping("/api/channels/{channelId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#channelId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.CHANNEL)
@@ -59,7 +59,7 @@ public class ChannelApi extends RestBehavior {
   }
 
   @PutMapping("/api/channels/{channelId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#channelId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.CHANNEL)
@@ -73,7 +73,7 @@ public class ChannelApi extends RestBehavior {
   }
 
   @PutMapping("/api/channels/{channelId}/logos")
-  @RBAC(
+  @AccessControl(
       resourceId = "#channelId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.CHANNEL)
@@ -95,7 +95,7 @@ public class ChannelApi extends RestBehavior {
   }
 
   @PostMapping("/api/channels")
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.CHANNEL)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.CHANNEL)
   @Transactional(rollbackOn = Exception.class)
   public Channel createChannel(@Valid @RequestBody ChannelCreateInput input) {
     Channel channel = new Channel();
@@ -104,7 +104,7 @@ public class ChannelApi extends RestBehavior {
   }
 
   @DeleteMapping("/api/channels/{channelId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#channelId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.CHANNEL)
@@ -113,7 +113,7 @@ public class ChannelApi extends RestBehavior {
   }
 
   @GetMapping("/api/observer/channels/{exerciseId}/{channelId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -145,7 +145,7 @@ public class ChannelApi extends RestBehavior {
   }
 
   @GetMapping("/api/player/channels/{exerciseId}/{channelId}")
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public ChannelReader playerArticles(
       @PathVariable String exerciseId,
       @PathVariable String channelId,
@@ -160,7 +160,7 @@ public class ChannelApi extends RestBehavior {
   // -- EXERCISES --
 
   @PostMapping("/api/exercises/{exerciseId}/articles")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -198,7 +198,7 @@ public class ChannelApi extends RestBehavior {
   }
 
   @PutMapping("/api/exercises/{exerciseId}/articles/{articleId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -246,7 +246,7 @@ public class ChannelApi extends RestBehavior {
   }
 
   @DeleteMapping("/api/exercises/{exerciseId}/articles/{articleId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -259,7 +259,7 @@ public class ChannelApi extends RestBehavior {
   // -- SCENARIOS --
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/articles")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -296,7 +296,7 @@ public class ChannelApi extends RestBehavior {
   }
 
   @PutMapping(SCENARIO_URI + "/{scenarioId}/articles/{articleId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -344,7 +344,7 @@ public class ChannelApi extends RestBehavior {
   }
 
   @DeleteMapping(SCENARIO_URI + "/{scenarioId}/articles/{articleId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -356,7 +356,7 @@ public class ChannelApi extends RestBehavior {
   }
 
   @GetMapping("/api/channels/{channelId}/documents")
-  @RBAC(
+  @AccessControl(
       resourceId = "#channelId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.CHANNEL)

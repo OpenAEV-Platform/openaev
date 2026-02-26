@@ -3,7 +3,7 @@ package io.openaev.rest.comcheck;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static java.time.Instant.now;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ComcheckRepository;
 import io.openaev.database.repository.ComcheckStatusRepository;
@@ -47,7 +47,7 @@ public class ComcheckApi extends RestBehavior {
   }
 
   @GetMapping("/api/comcheck/{comcheckStatusId}")
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   @Transactional(rollbackOn = Exception.class)
   public ComcheckStatus checkValidation(@PathVariable String comcheckStatusId) {
     ComcheckStatus comcheckStatus =
@@ -71,7 +71,7 @@ public class ComcheckApi extends RestBehavior {
   }
 
   @DeleteMapping("/api/exercises/{exerciseId}/comchecks/{comcheckId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -81,7 +81,7 @@ public class ComcheckApi extends RestBehavior {
   }
 
   @PostMapping("/api/exercises/{exerciseId}/comchecks")
-  @RBAC(
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)

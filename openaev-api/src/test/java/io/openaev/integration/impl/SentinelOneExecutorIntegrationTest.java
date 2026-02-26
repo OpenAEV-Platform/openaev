@@ -8,7 +8,7 @@ import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CatalogConnectorRepository;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
@@ -21,10 +21,7 @@ import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration;
 import io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegrationFactory;
 import io.openaev.integration.migration.SentinelOneExecutorConfigurationMigration;
-import io.openaev.service.AgentService;
-import io.openaev.service.AssetGroupService;
-import io.openaev.service.EndpointService;
-import io.openaev.service.FileService;
+import io.openaev.service.*;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.EncryptionFactory;
@@ -52,7 +49,7 @@ public class SentinelOneExecutorIntegrationTest {
   @Autowired private AgentService agentService;
   @Autowired private AssetGroupService assetGroupService;
   @Autowired private ExecutorService executorService;
-  @Autowired private Ee eeService;
+  @Autowired private EnterpriseEditionService enterpriseEditionService;
   @Autowired private LicenseCacheManager licenseCacheManager;
   @Autowired private ComponentRequestEngine componentRequestEngine;
   @Autowired private ThreadPoolTaskScheduler taskScheduler;
@@ -63,6 +60,7 @@ public class SentinelOneExecutorIntegrationTest {
   @Autowired private EncryptionFactory encryptionFactory;
   @Autowired private HttpClientFactory httpClientFactory;
   @Autowired private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
+  @Autowired private PreviewFeatureService previewFeatureService;
 
   @Autowired
   private SentinelOneExecutorConfigurationMigration sentinelOneExecutorConfigurationMigration;
@@ -79,7 +77,7 @@ public class SentinelOneExecutorIntegrationTest {
         agentService,
         endpointService,
         assetGroupService,
-        eeService,
+        enterpriseEditionService,
         licenseCacheManager,
         taskScheduler,
         fileService,

@@ -23,18 +23,15 @@ import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.fixtures.*;
+import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.composers.AttackPatternComposer;
-import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.servlet.ServletException;
 import jakarta.transaction.Transactional;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import org.json.JSONArray;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -67,6 +64,13 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @Autowired private AssetGroupService assetGroupService;
   @Autowired private EndpointService endpointService;
   @Autowired private ScenarioService scenarioService;
+  @Autowired private InjectComposer injectComposer;
+  @Autowired private ScenarioComposer scenarioComposer;
+  @Autowired private TeamComposer teamComposer;
+  @Autowired private TagComposer tagComposer;
+  @Autowired private EndpointComposer endpointComposer;
+  @Autowired private AssetGroupComposer assetGroupComposer;
+  @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
   @Autowired private ManualInjectorIntegrationFactory manualInjectorIntegrationFactory;
 
@@ -490,6 +494,82 @@ class ScenarioInjectApiTest extends IntegrationTest {
       JSONArray jsonArray = new JSONArray(response);
       assertEquals(2, jsonArray.length());
       assertEquals(2, injects.size());
+    }
+
+    @DisplayName("Retrieve injects simple list for scenario with asset")
+    @Test
+    @Transactional
+    @WithMockUser(isAdmin = true)
+    void retrieveInjectSimpleForScenarioTestWithAsset() throws Exception {
+      // -- PREPARE --
+      ScenarioComposer.Composer composer =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+              .withInject(
+                  injectComposer
+                      .forInject(InjectFixture.getDefaultInject())
+                      .withTeam(teamComposer.forTeam(TeamFixture.getDefaultTeam()))
+                      .withExercise(
+                          exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+                      .withTag(tagComposer.forTag(TagFixture.getTagWithText("test")))
+                      .withEndpoint(endpointComposer.forEndpoint(EndpointFixture.createEndpoint())))
+              .persist();
+
+      // -- EXECUTE --
+      String response =
+          mvc.perform(
+                  get(SCENARIO_URI + "/" + composer.get().getId() + "/injects/simple")
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT --
+      assertNotNull(response);
+      assertEquals(composer.get().getId(), JsonPath.read(response, "$[0].inject_scenario"));
+
+      // -- CLEAN --
+      composer.delete();
+    }
+
+    @DisplayName("Retrieve injects simple list for scenario with asset group")
+    @Test
+    @Transactional
+    @WithMockUser(isAdmin = true)
+    void retrieveInjectSimpleForScenarioTestWithAssetGroup() throws Exception {
+      // -- PREPARE --
+      ScenarioComposer.Composer composer =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+              .withInject(
+                  injectComposer
+                      .forInject(InjectFixture.getDefaultInject())
+                      .withTeam(teamComposer.forTeam(TeamFixture.getDefaultTeam()))
+                      .withExercise(
+                          exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+                      .withTag(tagComposer.forTag(TagFixture.getTagWithText("test")))
+                      .withAssetGroup(
+                          assetGroupComposer.forAssetGroup(
+                              AssetGroupFixture.createDefaultAssetGroup("test"))))
+              .persist();
+
+      // -- EXECUTE --
+      String response =
+          mvc.perform(
+                  get(SCENARIO_URI + "/" + composer.get().getId() + "/injects/simple")
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT --
+      assertNotNull(response);
+      assertEquals(composer.get().getId(), JsonPath.read(response, "$[0].inject_scenario"));
+
+      // -- CLEAN --
+      composer.delete();
     }
   }
 }

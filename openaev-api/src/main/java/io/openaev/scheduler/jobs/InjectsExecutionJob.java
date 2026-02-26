@@ -14,18 +14,23 @@ import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectDependenciesRepository;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.InjectHelper;
 import io.openaev.notification.model.NotificationEvent;
 import io.openaev.notification.model.NotificationEventType;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.scheduler.jobs.exception.ErrorMessagesPreExecutionException;
 import io.openaev.service.NotificationEventService;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.SecurityCoverageSendJobService;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
+import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,11 +41,11 @@ import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.jetbrains.annotations.NotNull;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.EvaluationException;
@@ -74,6 +79,8 @@ public class InjectsExecutionJob implements Job {
   private final NotificationEventService notificationEventService;
   private final SecurityCoverageSendJobService securityCoverageSendJobService;
 
+  private final PreviewFeatureService previewFeatureService;
+
   private final List<ExecutionStatus> executionStatusesNotReady =
       List.of(
           ExecutionStatus.QUEUING,
@@ -84,7 +91,9 @@ public class InjectsExecutionJob implements Job {
   private final List<InjectExpectation.EXPECTATION_STATUS> expectationStatusesSuccess =
       List.of(InjectExpectation.EXPECTATION_STATUS.SUCCESS);
 
+  private final WorkflowService workflowService;
   @Resource protected ObjectMapper mapper;
+  @Autowired private HealthCheckUtils healthCheckUtils;
 
   @PostConstruct
   private void init() {
@@ -111,9 +120,16 @@ public class InjectsExecutionJob implements Job {
             .toList());
   }
 
-  public void handleAutoClosingExercises() {
-    // Change status of finished exercises.
+  public void handleAutoClosingSimulations() {
+    // Change status of finished simulations.
     List<Exercise> mustBeFinishedSimulations = exerciseRepository.thatMustBeFinished();
+    if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)) {
+      // Filter out the simulations using the new chaining engine
+      mustBeFinishedSimulations =
+          mustBeFinishedSimulations.stream()
+              .filter(simulation -> !workflowService.isSimulationChaining(simulation.getId()))
+              .toList();
+    }
     List<Exercise> exercisesFinished =
         exerciseRepository.saveAll(
             mustBeFinishedSimulations.stream()
@@ -181,7 +197,7 @@ public class InjectsExecutionJob implements Job {
     if (ofNullable(executableInject.getExerciseId()).isPresent()) {
       checkErrorMessagesPreExecution(executableInject.getExerciseId(), inject);
     }
-    if (!inject.isReady()) {
+    if (!healthCheckUtils.runContentChecks(inject).isEmpty()) {
       throw new UnsupportedOperationException(
           "The inject is not ready to be executed (missing mandatory fields)");
     }
@@ -418,8 +434,8 @@ public class InjectsExecutionJob implements Job {
                   updateExercise(entry.getKey());
                 }
               });
-      // Change status of finished exercises.
-      handleAutoClosingExercises();
+      // Change status of finished simulations.
+      handleAutoClosingSimulations();
       handlePendingInject();
       handleInjectExpectationCollectStatus();
     } catch (Exception e) {
@@ -441,7 +457,7 @@ public class InjectsExecutionJob implements Job {
       } else {
         List<InjectExpectationResult> results =
             inject.getExpectations().stream().flatMap(ie -> ie.getResults().stream()).toList();
-        if (hasValidResults(results)) {
+        if (results.isEmpty() || hasValidResults(results)) {
           inject.setCollectExecutionStatus(COMPLETED);
           fulfilled.add(inject);
         }

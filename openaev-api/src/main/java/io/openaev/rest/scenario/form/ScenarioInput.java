@@ -37,6 +37,10 @@ public class ScenarioInput {
   private SEVERITY severity;
 
   @Nullable
+  @JsonProperty("scenario_type")
+  private String type;
+
+  @Nullable
   @JsonProperty("scenario_external_reference")
   private String externalReference;
 

@@ -8,18 +8,16 @@ import io.openaev.database.raw.RawUserAuthFlat;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.engine.EngineService;
 import io.openaev.engine.api.*;
-import io.openaev.engine.model.EsBase;
 import io.openaev.engine.model.EsSearch;
-import io.openaev.engine.query.EsAttackPath;
-import io.openaev.engine.query.EsAvgs;
-import io.openaev.engine.query.EsCountInterval;
-import io.openaev.engine.query.EsSeries;
+import io.openaev.engine.query.*;
 import io.openaev.rest.custom_dashboard.WidgetService;
-import io.openaev.rest.dashboard.model.WidgetToEntitiesInput;
-import io.openaev.rest.dashboard.model.WidgetToEntitiesOutput;
 import io.openaev.service.EsAttackPathService;
 import io.openaev.service.EsSecurityDomainService;
+import io.openaev.utils.es.WidgetToEntitiesInput;
+import io.openaev.utils.es.WidgetToEntitiesOutput;
 import io.openaev.utils.mapper.RawUserAuthMapper;
+import io.openaev.utils.pagination.Pagination;
+import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -102,11 +100,14 @@ public class DashboardService {
    *
    * @param widgetContext the context containing widget, user, and parameter information
    * @param config the list configuration defining query parameters
+   * @param pagination pagination passed at runtime
    * @return a list of entities retrieved from the engine service
    */
-  private List<EsBase> executeListQuery(WidgetContext widgetContext, ListConfiguration config) {
+  private EsEntities executeListQuery(
+      WidgetContext widgetContext, ListConfiguration config, @Nullable Pagination pagination) {
     ListRuntime runtime =
-        new ListRuntime(config, widgetContext.parameters(), widgetContext.definitionParameters());
+        new ListRuntime(
+            config, widgetContext.parameters(), widgetContext.definitionParameters(), pagination);
     return engineService.entities(widgetContext.user(), runtime);
   }
 
@@ -115,12 +116,14 @@ public class DashboardService {
    *
    * @param widgetId the id from the {@link Widget} with a list configuration
    * @param parameters parameters passed at runtime (e.g. filters)
-   * @return list of {@link EsBase} entities matching the list widget query
+   * @param pagination pagination passed at runtime
+   * @return list of entities matching the list widget query
    */
-  public List<EsBase> entities(String widgetId, Map<String, String> parameters) {
+  public EsEntities entities(
+      String widgetId, Map<String, String> parameters, @Nullable Pagination pagination) {
     WidgetContext widgetContext = getWidgetContext(widgetId, parameters);
     ListConfiguration config = (ListConfiguration) widgetContext.widget().getWidgetConfiguration();
-    return executeListQuery(widgetContext, config);
+    return executeListQuery(widgetContext, config, pagination);
   }
 
   /**
@@ -145,19 +148,19 @@ public class DashboardService {
       String widgetId, WidgetToEntitiesInput input) {
     WidgetContext widgetContext = getWidgetContext(widgetId, input.getParameters());
     ListConfiguration listConfig;
-    List<EsBase> datas;
+    EsEntities datas;
 
     if (isSecurityCoverageWidget(widgetContext.widget)) {
       listConfig =
           widgetService.convertSecurityCoverageWidgetToListConfiguration(
-              widgetContext.widget, input.getFilterValues());
+              widgetContext.widget, input.getFilterValuesMap());
     } else {
       listConfig =
           widgetService.convertWidgetToListConfiguration(
-              widgetContext.widget, input.getSeriesIndex(), input.getFilterValues());
+              widgetContext.widget, input.getSeriesIndex(), input.getFilterValuesMap());
     }
 
-    datas = executeListQuery(widgetContext, listConfig);
+    datas = executeListQuery(widgetContext, listConfig, input.getPagination());
     return WidgetToEntitiesOutput.builder().listConfiguration(listConfig).esEntities(datas).build();
   }
 

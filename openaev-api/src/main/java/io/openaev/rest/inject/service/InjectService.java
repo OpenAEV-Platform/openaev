@@ -20,10 +20,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
+import io.openaev.database.raw.RawInject;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.InjectSpecification;
 import io.openaev.database.specification.SpecificationUtils;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
@@ -60,6 +61,7 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Subquery;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
 import java.util.function.BiFunction;
@@ -72,7 +74,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.hibernate.Hibernate;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
@@ -90,7 +91,7 @@ public class InjectService {
   private final AssetService assetService;
   private final AssetGroupService assetGroupService;
   private final CollectorService collectorService;
-  private final Ee eeService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final EndpointService endpointService;
   private final InjectRepository injectRepository;
   private final InjectDocumentRepository injectDocumentRepository;
@@ -227,6 +228,19 @@ public class InjectService {
     return this.injectRepository
         .findById(injectId)
         .orElseThrow(() -> new ElementNotFoundException("Inject not found with id: " + injectId));
+  }
+
+  /**
+   * Find an inject or return null value
+   *
+   * @param injectId inject ID to search
+   * @return the inject found or null if none matched the ID
+   */
+  public Inject findInjectOrNull(@NotBlank final String injectId) {
+    if (injectId == null) {
+      return null;
+    }
+    return this.injectRepository.findById(injectId).orElse(null);
   }
 
   /**
@@ -396,11 +410,11 @@ public class InjectService {
   }
 
   public void throwIfInjectNotLaunchable(Inject inject) {
-    if (eeService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
+    if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return;
     }
     List<Agent> agents = this.getAgentsByInject(inject);
-    List<String> eeExecutors = eeService.detectEEExecutors(agents);
+    List<String> eeExecutors = enterpriseEditionService.detectEEExecutors(agents);
 
     if (!eeExecutors.isEmpty()) {
       throw new LicenseRestrictionException(
@@ -653,6 +667,10 @@ public class InjectService {
       @NotBlank final String injectId, @jakarta.validation.constraints.NotNull InjectInput input) {
     Inject inject =
         this.injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
+    // Managing case where input.dependsDuration is null, as the field is marked as NotNull
+    if (input.getDependsDuration() == null) {
+      input.setDependsDuration(inject.getDependsDuration());
+    }
     inject.setUpdateAttributes(input);
 
     // Set dependencies
@@ -1308,7 +1326,38 @@ public class InjectService {
             inject, this.getAgentsAndAgentlessAssetsByInject(inject)));
     healthChecks.addAll(healthCheckUtils.runCollectorChecks(inject, collectors));
     healthChecks.addAll(healthCheckUtils.runAllInjectorChecks(inject, injectors));
+    healthChecks.addAll(healthCheckUtils.runContentChecks(inject));
 
     return healthChecks;
+  }
+
+  /**
+   * Create an inject
+   *
+   * @param inject the inject to save
+   * @return the saved inject
+   */
+  public Inject createInject(Inject inject) {
+    return injectRepository.save(inject);
+  }
+
+  /**
+   * Delete a list of teams from a simulation
+   *
+   * @param simulationId the ID of the simulation
+   * @param teamIds list of team IDs to delete from the simulation
+   */
+  public void removeTeamsForSimulation(String simulationId, final List<String> teamIds) {
+    injectRepository.removeTeamsForExercise(simulationId, teamIds);
+  }
+
+  /**
+   * Find a list of Inject in the Raw format
+   *
+   * @param ids IDs of the inject to fetch
+   * @return the list of matching injects in Raw format
+   */
+  public List<RawInject> findRawByIds(List<String> ids) {
+    return injectRepository.findRawByIds(ids);
   }
 }

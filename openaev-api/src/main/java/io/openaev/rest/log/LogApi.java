@@ -3,7 +3,7 @@ package io.openaev.rest.log;
 import static io.openaev.utils.LogUtils.*;
 import static java.util.logging.Level.*;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.log.form.LogDetailsInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -40,7 +40,7 @@ public class LogApi extends RestBehavior {
             description = "Invalid level",
             content = @Content(mediaType = "application/json"))
       })
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public ResponseEntity<String> logDetails(
       @Parameter(
               description = "Details of the log message, including level, message, and stacktrace.",

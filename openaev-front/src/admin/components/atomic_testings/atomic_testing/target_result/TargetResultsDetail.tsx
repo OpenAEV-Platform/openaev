@@ -168,7 +168,7 @@ const TargetResultsDetail = ({ inject, target, isAgentless }: Props) => {
         lastExecutionEndDate={injectResultOverviewOutput?.inject_status?.tracking_end_date || ''}
       />
 
-      <TabbedView tabs={tabs} externalCurrentTab={activeTab} notifyTabChange={setActiveTab} />
+      <TabbedView key={`${inject.inject_id}-${target.target_id}`} tabs={tabs} externalCurrentTab={activeTab} notifyTabChange={setActiveTab} />
     </Paper>
   );
 };

@@ -6,7 +6,7 @@ import static io.openaev.utils.AgentUtils.AVAILABLE_PLATFORMS;
 import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.database.repository.TokenRepository;
@@ -67,7 +67,7 @@ public class ExecutorApi extends RestBehavior {
   @Resource protected ObjectMapper mapper;
 
   @GetMapping(EXECUTOR_URI)
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
   @Operation(
       summary = "Retrieve executors",
       description = "Retrieve all executors and pending executors if includeNext is true")
@@ -88,7 +88,7 @@ public class ExecutorApi extends RestBehavior {
   }
 
   @GetMapping(EXECUTOR_URI + "/{executorId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#collectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
@@ -97,7 +97,7 @@ public class ExecutorApi extends RestBehavior {
   }
 
   @GetMapping(EXECUTOR_URI + "/{executorId}/related-ids")
-  @RBAC(
+  @AccessControl(
       resourceId = "#executorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
@@ -115,7 +115,7 @@ public class ExecutorApi extends RestBehavior {
   }
 
   @PutMapping(EXECUTOR_URI + "/{executorId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#executorId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.ASSET)
@@ -131,7 +131,7 @@ public class ExecutorApi extends RestBehavior {
       value = EXECUTOR_URI,
       produces = {MediaType.APPLICATION_JSON_VALUE},
       consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.MULTIPART_FORM_DATA_VALUE})
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.ASSET)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.ASSET)
   @Transactional(rollbackOn = Exception.class)
   public Executor registerExecutor(
       @Valid @RequestPart("input") ExecutorCreateInput input,
@@ -191,7 +191,7 @@ public class ExecutorApi extends RestBehavior {
   @GetMapping(
       value = "/api/agent/executable/openaev/{platform}/{architecture}",
       produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getOpenAevAgentExecutable(
       @Parameter(
               description =
@@ -259,7 +259,7 @@ public class ExecutorApi extends RestBehavior {
   @GetMapping(
       value = "/api/agent/package/openaev/{platform}/{architecture}/{installationMode}",
       produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getOpenAevAgentPackage(
       @Parameter(
               description =
@@ -341,7 +341,7 @@ public class ExecutorApi extends RestBehavior {
         @ApiResponse(responseCode = "404", description = "Token not found."),
       })
   @GetMapping(value = "/api/agent/installer/openaev/{platform}/{installationMode}/{token}")
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<String> getOpenAevAgentInstaller(
       @Parameter(
               description =

@@ -8,12 +8,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.payload.form.PayloadCreateInput;
 import io.openaev.rest.payload.form.PayloadUpdateInput;
 import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.rest.payload.output_parser.OutputParserService;
+import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -21,7 +22,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Component;
 
@@ -30,7 +30,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class PayloadUtils {
 
-  private final Ee eeService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final OutputParserService outputParserService;
   private final DetectionRemediationUtils detectionRemediationUtils;
@@ -153,7 +153,7 @@ public class PayloadUtils {
     duplicate.setStatus(Payload.PAYLOAD_STATUS.UNVERIFIED);
     outputParserService.copyOutputParsersFromEntity(origin.getOutputParsers(), duplicate);
 
-    if (eeService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
+    if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       detectionRemediationUtils.copy(origin.getDetectionRemediations(), duplicate, false);
     }
 

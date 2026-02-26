@@ -4,7 +4,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.*;
@@ -43,13 +43,13 @@ public class SecurityPlatformApi {
   private final DocumentService documentService;
 
   @GetMapping(SECURITY_PLATFORM_URI)
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.SECURITY_PLATFORM)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SECURITY_PLATFORM)
   public Iterable<SecurityPlatform> securityPlatforms() {
     return securityPlatformRepository.findAll();
   }
 
   @PostMapping(SECURITY_PLATFORM_URI)
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.SECURITY_PLATFORM)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SECURITY_PLATFORM)
   @Transactional(rollbackFor = Exception.class)
   public SecurityPlatform createSecurityPlatform(
       @Valid @RequestBody final SecurityPlatformInput input) {
@@ -71,7 +71,7 @@ public class SecurityPlatformApi {
   }
 
   @PostMapping(SECURITY_PLATFORM_URI + "/upsert")
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.SECURITY_PLATFORM)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SECURITY_PLATFORM)
   @Transactional(rollbackFor = Exception.class)
   public SecurityPlatform upsertSecurityPlatform(
       @Valid @RequestBody SecurityPlatformUpsertInput input) {
@@ -118,7 +118,7 @@ public class SecurityPlatformApi {
   }
 
   @GetMapping(SECURITY_PLATFORM_URI + "/{securityPlatformId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#securityPlatformId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SECURITY_PLATFORM)
@@ -130,7 +130,7 @@ public class SecurityPlatformApi {
   }
 
   @PostMapping(SECURITY_PLATFORM_URI + "/search")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.SECURITY_PLATFORM)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SECURITY_PLATFORM)
   public Page<SecurityPlatform> securityPlatforms(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return buildPaginationJPA(
@@ -138,7 +138,7 @@ public class SecurityPlatformApi {
   }
 
   @PutMapping(SECURITY_PLATFORM_URI + "/{securityPlatformId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#securityPlatformId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SECURITY_PLATFORM)
@@ -164,7 +164,7 @@ public class SecurityPlatformApi {
   }
 
   @DeleteMapping(SECURITY_PLATFORM_URI + "/{securityPlatformId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#securityPlatformId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SECURITY_PLATFORM)
@@ -174,7 +174,7 @@ public class SecurityPlatformApi {
   }
 
   @GetMapping(SECURITY_PLATFORM_URI + "/{securityPlatformId}/documents")
-  @RBAC(
+  @AccessControl(
       resourceId = "#securityPlatformId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SECURITY_PLATFORM)
@@ -190,7 +190,7 @@ public class SecurityPlatformApi {
   }
 
   @GetMapping(SECURITY_PLATFORM_URI + "/options")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.SECURITY_PLATFORM)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SECURITY_PLATFORM)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText) {
     return securityPlatformRepository.findAllByName(StringUtils.trimToNull(searchText)).stream()
@@ -199,7 +199,7 @@ public class SecurityPlatformApi {
   }
 
   @PostMapping(SECURITY_PLATFORM_URI + "/options")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.SECURITY_PLATFORM)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SECURITY_PLATFORM)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.securityPlatformRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))

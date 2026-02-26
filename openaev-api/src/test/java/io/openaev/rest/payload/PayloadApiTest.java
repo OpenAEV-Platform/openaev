@@ -22,7 +22,7 @@ import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.collector.form.CollectorCreateInput;
@@ -41,9 +41,9 @@ import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @TestInstance(PER_CLASS)
@@ -64,7 +64,7 @@ class PayloadApiTest extends IntegrationTest {
 
   @Resource private ObjectMapper objectMapper;
 
-  @MockBean private Ee eeService;
+  @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 
   @BeforeAll
   void beforeAll() {
@@ -77,8 +77,10 @@ class PayloadApiTest extends IntegrationTest {
 
   @AfterAll
   void afterAll() {
-    this.documentRepository.deleteAll(List.of(EXECUTABLE_FILE));
     this.payloadRepository.deleteAll();
+    if (EXECUTABLE_FILE != null) {
+      this.documentRepository.deleteById(EXECUTABLE_FILE.getId());
+    }
     this.collectorRepository.deleteAll();
   }
 
@@ -188,7 +190,7 @@ class PayloadApiTest extends IntegrationTest {
     void
         given_payload_create_input_with_detection_remediation_should_return_payload_with_detection_remediation()
             throws Exception {
-      when(eeService.isEnterpriseLicenseInactive(any())).thenReturn(false);
+      when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
 
       Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
       PayloadCreateInput input =
@@ -209,7 +211,7 @@ class PayloadApiTest extends IntegrationTest {
     void
         given_payload_update_input_with_detection_remediation_should_return_payload_with_detection_remediation_updated()
             throws Exception {
-      when(eeService.isEnterpriseLicenseInactive(any())).thenReturn(false);
+      when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
       /******* Create *******/
       Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
       PayloadCreateInput input =
@@ -483,7 +485,7 @@ class PayloadApiTest extends IntegrationTest {
   void
       given_payload_update_input_with_detection_remediations_should_return_updated_payload_with_detection_remediations()
           throws Exception {
-    when(eeService.isEnterpriseLicenseInactive(any())).thenReturn(false);
+    when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
 
     Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
     PayloadCreateInput createInput =
@@ -607,7 +609,7 @@ class PayloadApiTest extends IntegrationTest {
   void
       given_payload_upsert_input_with_detection_remediation_should_return_updated_payload_with_detection_remediations()
           throws Exception {
-    when(eeService.isEnterpriseLicenseInactive(any())).thenReturn(false);
+    when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
 
     Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
     PayloadCreateInput input =

@@ -22,7 +22,7 @@ import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawInjectExpectation;
 import io.openaev.database.raw.RawSimulation;
 import io.openaev.database.repository.*;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.document.DocumentService;
@@ -36,7 +36,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.service.ScenarioStatisticService;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
-import io.openaev.service.period.CronService;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.FilterUtilsJpa;
@@ -54,14 +54,15 @@ import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.*;
+import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -80,14 +81,13 @@ public class ExerciseService {
 
   @PersistenceContext private EntityManager entityManager;
 
-  private final Ee eeService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final InjectDuplicateService injectDuplicateService;
   private final TeamService teamService;
   private final VariableService variableService;
   private final TagRuleService tagRuleService;
   private final DocumentService documentService;
   private final InjectService injectService;
-  private final CronService cronService;
   private final UserService userService;
 
   private final ExerciseMapper exerciseMapper;
@@ -104,12 +104,13 @@ public class ExerciseService {
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
   private final ExerciseTeamUserRepository exerciseTeamUserRepository;
-  private final InjectRepository injectRepository;
-  private final LessonsCategoryRepository lessonsCategoryRepository;
+  private final LessonsService lessonsService;
 
   private final InjectExpectationMapper injectExpectationMapper;
 
   private final ScenarioRecurrenceService scenarioRecurrenceService;
+
+  private final WorkflowService workflowService;
 
   // region properties
   @Value("${openaev.mail.imap.enabled}")
@@ -139,6 +140,22 @@ public class ExerciseService {
 
     actionMetricCollector.addSimulationCreatedCount();
     return exerciseRepository.save(exercise);
+  }
+
+  /**
+   * Create a simulation with the chaining enabled OR a normal one
+   *
+   * @param simulation the simulation to create
+   * @param isChaining uses the chaining engine or not
+   * @return the created simulation
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public Exercise createSimulation(@NotNull final Exercise simulation, boolean isChaining) {
+    Exercise savedSimulation = createExercise(simulation);
+    if (isChaining) {
+      workflowService.creationWorkflow(savedSimulation);
+    }
+    return savedSimulation;
   }
 
   // -- READ --
@@ -439,8 +456,48 @@ public class ExerciseService {
     return getExerciseSimples(specificationCount, pageable, result);
   }
 
+  /**
+   * Find a simulation by it's ID
+   *
+   * @param simulationId ID of the simulation to fetch
+   * @return the simulation found
+   * @throws ElementNotFoundException if no simulation matches the given ID
+   */
+  public Exercise findById(String simulationId) {
+    return exerciseRepository.findById(simulationId).orElseThrow(ElementNotFoundException::new);
+  }
+
+  /**
+   * Find all simulations matching a list of IDs
+   *
+   * @param simulationIds list of simulation IDs to search
+   * @return the list of simulations found
+   */
+  public List<Exercise> findAllById(List<String> simulationIds) {
+    return exerciseRepository.findAllById(simulationIds);
+  }
+
+  /**
+   * Save a simulation
+   *
+   * @param simulation simulation to save
+   * @return the saved simulation
+   */
+  public Exercise saveSimulation(Exercise simulation) {
+    return exerciseRepository.save(simulation);
+  }
+
+  /**
+   * Delete a simulation
+   *
+   * @param simulationId ID of the simulation to delete
+   */
+  public void deleteById(String simulationId) {
+    exerciseRepository.deleteById(simulationId);
+  }
+
   public void throwIfExerciseNotLaunchable(Exercise exercise) {
-    if (eeService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
+    if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return;
     }
     exercise.getInjects().forEach(injectService::throwIfInjectNotLaunchable);
@@ -731,9 +788,9 @@ public class ExerciseService {
     // Remove all association between users / exercises / teams
     this.exerciseTeamUserRepository.deleteTeamsFromAllReferences(teamIds);
     // Remove all association between injects and teams
-    this.injectRepository.removeTeamsForExercise(exerciseId, teamIds);
+    this.injectService.removeTeamsForSimulation(exerciseId, teamIds);
     // Remove all association between lessons learned and teams
-    this.lessonsCategoryRepository.removeTeamsForExercise(exerciseId, teamIds);
+    this.lessonsService.removeTeamsForSimulation(exerciseId, teamIds);
     return teamService.find(fromIds(teamIds));
   }
 
@@ -786,32 +843,32 @@ public class ExerciseService {
   /**
    * Update the simulation and each of the injects to add default asset groups
    *
-   * @param exercise
+   * @param simulation simulation to update
    * @param currentTags list of the tags before the update
-   * @return
+   * @return updated simulation
    */
   @Transactional
   public Exercise updateExercice(
-      @NotNull final Exercise exercise, @NotNull final Set<Tag> currentTags, boolean applyRule) {
+      @NotNull final Exercise simulation, @NotNull final Set<Tag> currentTags, boolean applyRule) {
     if (applyRule) {
       // Get asset groups from the TagRule of the added tags
       List<AssetGroup> defaultAssetGroupsToAdd =
           tagRuleService.getAssetGroupsFromTagIds(
-              exercise.getTags().stream()
+              simulation.getTags().stream()
                   .filter(tag -> !currentTags.contains(tag))
                   .map(Tag::getId)
                   .toList());
 
       // Add the default asset groups to the injects
-      exercise.getInjects().stream()
+      simulation.getInjects().stream()
           .filter(inject -> this.injectService.canApplyTargetType(inject, TargetType.ASSETS_GROUPS))
           .forEach(
               inject ->
                   injectService.applyDefaultAssetGroupsToInject(
                       inject.getId(), defaultAssetGroupsToAdd));
     }
-    exercise.setUpdatedAt(now());
-    return exerciseRepository.save(exercise);
+    simulation.setUpdatedAt(now());
+    return exerciseRepository.save(simulation);
   }
 
   public Exercise previousFinishedSimulation(

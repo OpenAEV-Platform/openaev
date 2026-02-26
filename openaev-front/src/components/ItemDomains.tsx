@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { useMemo } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { type DomainHelper } from '../actions/helper';
+import { type DomainHelper } from '../actions/domains/domain-helper';
 import { useHelper } from '../store';
 import { type Domain } from '../utils/api-types';
 import { TO_CLASSIFY } from '../utils/domains/domainUtils';

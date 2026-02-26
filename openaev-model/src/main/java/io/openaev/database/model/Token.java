@@ -34,7 +34,7 @@ public class Token implements Base {
   @JoinColumn(name = "token_user")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("token_user")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private User user;
 
   @Column(name = "token_value")

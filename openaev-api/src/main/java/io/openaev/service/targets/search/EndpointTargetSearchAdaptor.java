@@ -10,9 +10,9 @@ import io.openaev.service.targets.search.specifications.IncludeMembersOfAssetGro
 import io.openaev.service.targets.search.specifications.SearchSpecificationUtils;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;

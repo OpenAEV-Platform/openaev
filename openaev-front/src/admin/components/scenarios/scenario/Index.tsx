@@ -32,6 +32,7 @@ const Tests = lazy(() => import('./tests/ScenarioTests'));
 const Lessons = lazy(() => import('./lessons/ScenarioLessons'));
 const ScenarioFindings = lazy(() => import('./findings/ScenarioFindings'));
 const ScenarioAnalysis = lazy(() => import('./analysis/ScenarioAnalysis'));
+const ScenarioLogic = lazy(() => import('./logic/ScenarioLogic'));
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
@@ -58,9 +59,12 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: Scenario }> = ({ sce
   let tabValue = location.pathname;
   if (location.pathname.includes(`/admin/scenarios/${scenario.scenario_id}/definition`)) {
     tabValue = `/admin/scenarios/${scenario.scenario_id}/definition`;
+  } else if (location.pathname.includes(`/admin/scenarios/${scenario.scenario_id}/logic`)) {
+    tabValue = `/admin/scenarios/${scenario.scenario_id}/logic`;
   } else if (location.pathname.includes(`/admin/scenarios/${scenario.scenario_id}/tests`)) {
     tabValue = `/admin/scenarios/${scenario.scenario_id}/tests`;
   }
+  const isChaining = scenario.scenario_type === 'chaining';
   const [openScenarioRecurringFormDialog, setOpenScenarioRecurringFormDialog] = useState<boolean>(false);
   const [openInstantiateSimulationAndStart, setOpenInstantiateSimulationAndStart] = useState<boolean>(false);
   const [selectRecurring, setSelectRecurring] = useState('noRepeat');
@@ -181,6 +185,14 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: Scenario }> = ({ sce
                 value={`/admin/scenarios/${scenario.scenario_id}/injects`}
                 label={t('Injects')}
               />
+              {isChaining && (
+                <Tab
+                  component={Link}
+                  to={`/admin/scenarios/${scenario.scenario_id}/logic`}
+                  value={`/admin/scenarios/${scenario.scenario_id}/logic`}
+                  label={t('Logic')}
+                />
+              )}
               <Tab
                 component={Link}
                 to={`/admin/scenarios/${scenario.scenario_id}/tests`}
@@ -287,6 +299,7 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: Scenario }> = ({ sce
               <Route path="" element={errorWrapper(ScenarioComponent)({ setOpenInstantiateSimulationAndStart })} />
               <Route path="definition" element={errorWrapper(ScenarioDefinition)()} />
               <Route path="injects" element={errorWrapper(Injects)()} />
+              <Route path="logic" element={errorWrapper(ScenarioLogic)()} />
               <Route path="tests/:statusId?" element={errorWrapper(Tests)()} />
               <Route path="lessons" element={errorWrapper(Lessons)()} />
               <Route path="findings" element={errorWrapper(ScenarioFindings)()} />

@@ -3,7 +3,7 @@ package io.openaev.utils.challenge;
 import io.openaev.database.model.ChallengeAttempt;
 import io.openaev.database.model.ChallengeAttemptId;
 import jakarta.validation.constraints.NotBlank;
-import org.jetbrains.annotations.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 public class ChallengeAttemptUtils {
 

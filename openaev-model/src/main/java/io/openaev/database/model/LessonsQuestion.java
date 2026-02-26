@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -41,7 +40,7 @@ public class LessonsQuestion implements Base {
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("lessons_question_category")
   @NotNull
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private LessonsCategory category;
 
   @Column(name = "lessons_question_created_at")
@@ -70,7 +69,7 @@ public class LessonsQuestion implements Base {
   @OneToMany(mappedBy = "question", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
   @JsonProperty("lessons_question_answers")
   @JsonSerialize(using = MultiIdListSerializer.class)
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   private List<LessonsAnswer> answers = new ArrayList<>();
 
   // region transient

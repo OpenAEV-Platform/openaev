@@ -1,5 +1,6 @@
 import { simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
-import { type WidgetInput, type WidgetLayout } from '../../utils/api-types';
+import { type WidgetLayout } from '../../utils/api-types';
+import { type WidgetInput } from '../../utils/api-types-custom';
 import { CUSTOM_DASHBOARD_URI } from './customdashboard-action';
 
 export const createCustomDashboardWidget = (customDashboardId: string, input: WidgetInput) => {

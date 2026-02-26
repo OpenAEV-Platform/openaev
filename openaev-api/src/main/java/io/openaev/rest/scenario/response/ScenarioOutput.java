@@ -51,6 +51,10 @@ public class ScenarioOutput {
   @Schema(description = "Type affinity of the scenario")
   private String typeAffinity;
 
+  @JsonProperty("scenario_type")
+  @Schema(description = "Type of the scenario: time-based or chaining")
+  private String type;
+
   @JsonProperty("scenario_external_url")
   @Schema(description = "External URL of the scenario")
   private String externalUrl;

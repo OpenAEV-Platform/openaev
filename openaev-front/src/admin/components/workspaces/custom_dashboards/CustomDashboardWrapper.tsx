@@ -7,8 +7,8 @@ import Loader from '../../../../components/Loader';
 import type {
   CustomDashboard,
   EsAttackPath, EsAvgs,
-  EsBase, EsCountInterval,
-  EsSeries,
+  EsCountInterval, EsEntities,
+  EsSeries, Pagination,
   WidgetToEntitiesInput,
   WidgetToEntitiesOutput,
 } from '../../../../utils/api-types';
@@ -30,7 +30,7 @@ interface CustomDashboardConfiguration {
   fetchCount: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsCountInterval>>;
   fetchAverage: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsAvgs>>;
   fetchSeries: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsSeries[]>>;
-  fetchEntities: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsBase[]>>;
+  fetchEntities: (widgetId: string, params: Record<string, string | undefined>, pagination?: Pagination) => Promise<AxiosResponse<EsEntities>>;
   fetchEntitiesRuntime: (widgetId: string, input: WidgetToEntitiesInput) => Promise<AxiosResponse<WidgetToEntitiesOutput>>;
   fetchAttackPaths: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsAttackPath[]>>;
 }
@@ -81,19 +81,17 @@ const CustomDashboardWrapper = ({
       const newParams = new URLSearchParams(prevParams);
       newParams.set('widget_id', conf.widgetId);
       newParams.set('series_index', (conf.series_index ?? '').toString());
-      newParams.set('filter_values', (conf.filter_values ?? []).join(','));
+      if (conf.filter_values_map) {
+        Object.entries(conf.filter_values_map).forEach(([key, value]) => {
+          newParams.set(key, (value ?? []).join(','));
+        });
+      }
       return newParams;
     }, { replace: true });
   };
 
   const handleCloseWidgetDataDrawer = () => {
-    setSearchParams((prevParams) => {
-      const newParams = new URLSearchParams(prevParams);
-      newParams.delete('widget_id');
-      newParams.delete('series_index');
-      newParams.delete('filter_values');
-      return newParams;
-    }, { replace: true });
+    setSearchParams(new URLSearchParams(), { replace: true });
   };
 
   const setDataReadyWithDelay = () => {

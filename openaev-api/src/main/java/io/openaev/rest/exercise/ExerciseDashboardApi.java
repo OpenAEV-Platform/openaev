@@ -2,18 +2,15 @@ package io.openaev.rest.exercise;
 
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.ResourceType;
-import io.openaev.engine.model.EsBase;
-import io.openaev.engine.query.EsAttackPath;
-import io.openaev.engine.query.EsAvgs;
-import io.openaev.engine.query.EsCountInterval;
-import io.openaev.engine.query.EsSeries;
+import io.openaev.engine.query.*;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
-import io.openaev.rest.dashboard.model.WidgetToEntitiesInput;
-import io.openaev.rest.dashboard.model.WidgetToEntitiesOutput;
+import io.openaev.utils.es.EntitiesPaginationInput;
+import io.openaev.utils.es.WidgetToEntitiesInput;
+import io.openaev.utils.es.WidgetToEntitiesOutput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -32,7 +29,7 @@ public class ExerciseDashboardApi {
   private final CustomDashboardService customDashboardService;
 
   @GetMapping(EXERCISE_URI + "/{simulationId}/dashboard")
-  @RBAC(
+  @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -48,7 +45,7 @@ public class ExerciseDashboardApi {
   }
 
   @PostMapping(EXERCISE_URI + "/{simulationId}/dashboard/count/{widgetId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -61,7 +58,7 @@ public class ExerciseDashboardApi {
   }
 
   @PostMapping(EXERCISE_URI + "/{simulationId}/dashboard/average/{widgetId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -74,7 +71,7 @@ public class ExerciseDashboardApi {
   }
 
   @PostMapping(EXERCISE_URI + "/{simulationId}/dashboard/series/{widgetId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
@@ -87,33 +84,32 @@ public class ExerciseDashboardApi {
   }
 
   @PostMapping(EXERCISE_URI + "/{simulationId}/dashboard/entities/{widgetId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  public List<EsBase> dashboardEntities(
+  public EsEntities dashboardEntities(
       @PathVariable final String simulationId,
       @PathVariable final String widgetId,
-      @RequestBody(required = false) Map<String, String> parameters) {
-    return this.customDashboardService.dashboardEntitiesOnResourceId(
-        simulationId, widgetId, parameters);
+      @RequestBody EntitiesPaginationInput input) {
+    return this.customDashboardService.dashboardEntitiesOnResourceId(simulationId, widgetId, input);
   }
 
   @PostMapping(EXERCISE_URI + "/{simulationId}/dashboard/entities-runtime/{widgetId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public WidgetToEntitiesOutput widgetToEntitiesRuntime(
       @PathVariable final String simulationId,
       @PathVariable final String widgetId,
-      @Valid @RequestBody WidgetToEntitiesInput input) {
+      @Valid @RequestBody(required = false) WidgetToEntitiesInput input) {
     return this.customDashboardService.widgetToEntitiesRuntimeOnResourceId(
         simulationId, widgetId, input);
   }
 
   @PostMapping(EXERCISE_URI + "/{simulationId}/dashboard/attack-paths/{widgetId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)

@@ -4,8 +4,8 @@ import static io.openaev.helper.DatabaseHelper.updateRelation;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RBAC;
 import io.openaev.config.SessionManager;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawPlayer;
@@ -41,7 +41,7 @@ public class PlayerApi extends RestBehavior {
   private final PlayerService playerService;
 
   @GetMapping(PLAYER_URI)
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.PLAYER)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackOn = Exception.class)
   public Iterable<RawPlayer> players() {
     List<RawPlayer> players;
@@ -52,20 +52,20 @@ public class PlayerApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping(PLAYER_URI + "/search")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.PLAYER)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PLAYER)
   public Page<PlayerOutput> players(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return this.playerService.playerPagination(searchPaginationInput);
   }
 
   @GetMapping("/api/player/{userId}/communications")
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public Iterable<Communication> playerCommunications(@PathVariable String userId) {
     return communicationRepository.findByUser(userId);
   }
 
   @PostMapping(PLAYER_URI)
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackOn = Exception.class)
   public User createPlayer(@Valid @RequestBody PlayerInput input) {
     User user = new User();
@@ -79,14 +79,17 @@ public class PlayerApi extends RestBehavior {
   }
 
   @PostMapping(PLAYER_URI + "/upsert")
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackOn = Exception.class)
   public User upsertPlayer(@Valid @RequestBody PlayerInput input) {
     return playerService.upsertPlayer(input);
   }
 
   @PutMapping(PLAYER_URI + "/{userId}")
-  @RBAC(resourceId = "#userId", actionPerformed = Action.WRITE, resourceType = ResourceType.PLAYER)
+  @AccessControl(
+      resourceId = "#userId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.PLAYER)
   public User updatePlayer(@PathVariable String userId, @Valid @RequestBody PlayerInput input) {
     User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
     user.setUpdateAttributes(input);
@@ -97,7 +100,10 @@ public class PlayerApi extends RestBehavior {
   }
 
   @DeleteMapping(PLAYER_URI + "/{userId}")
-  @RBAC(resourceId = "#userId", actionPerformed = Action.DELETE, resourceType = ResourceType.PLAYER)
+  @AccessControl(
+      resourceId = "#userId",
+      actionPerformed = Action.DELETE,
+      resourceType = ResourceType.PLAYER)
   public void deletePlayer(@PathVariable String userId) {
     sessionManager.invalidateUserSession(userId);
     userRepository.deleteById(userId);

@@ -13,7 +13,7 @@ import io.openaev.config.RabbitmqConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.SettingRepository;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.ee.License;
 import io.openaev.engine.EngineService;
 import io.openaev.expectation.ExpectationPropertiesConfig;
@@ -29,6 +29,7 @@ import io.openaev.xtmhub.XtmHubConnectivityService;
 import io.openaev.xtmhub.XtmHubRegistererRecord;
 import io.openaev.xtmhub.XtmHubRegistrationStatus;
 import io.openaev.xtmhub.config.XtmHubConfig;
+import io.openaev.xtmone.XtmOneConfig;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -62,9 +63,10 @@ public class PlatformSettingsService {
   private final OpenCTIConfig openCTIConfig;
   private final XtmHubConfig xtmHubConfig;
   private final AiConfig aiConfig;
-  private final Ee eeService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final EngineService engineService;
   private final XtmHubConnectivityService xtmHubConnectivityService;
+  private final XtmOneConfig xtmOneConfig;
 
   @Autowired private TransactionTemplate transactionTemplate;
 
@@ -236,6 +238,9 @@ public class PlatformSettingsService {
       platformSettings.setPlatformAgentUrl(openAEVConfig.getBaseUrlForAgent());
       platformSettings.setXtmOpenctiEnable(openCTIConfig.getEnable());
       platformSettings.setXtmOpenctiUrl(openCTIConfig.getUrl());
+      platformSettings.setXtmOneConfigured(xtmOneConfig.isConfigured());
+      platformSettings.setXtmOneUrl(xtmOneConfig.getUrl());
+      platformSettings.setXtmOneWebToken(xtmOneConfig.getEffectiveWebToken());
       platformSettings.setAiEnabled(aiConfig.isEnabled());
       platformSettings.setAiHasToken(StringUtils.hasText(aiConfig.getToken()));
       platformSettings.setAiType(aiConfig.getType());
@@ -424,7 +429,7 @@ public class PlatformSettingsService {
     List<Setting> settingsToSave = new ArrayList<>();
     String certPem = input.getEnterpriseEdition();
     if (certPem != null && !certPem.isEmpty()) {
-      License license = eeService.verifyCertificate(certPem);
+      License license = enterpriseEditionService.verifyCertificate(certPem);
       if (!license.isLicenseValidated()) {
         throw new BadRequestException("Invalid certificate");
       }

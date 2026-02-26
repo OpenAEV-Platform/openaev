@@ -14,10 +14,11 @@ import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.CustomDashboardTimeRange;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -102,10 +103,14 @@ public class WidgetService {
    * @return a ListConfiguration object configured based on the widget settings
    */
   public ListConfiguration convertWidgetToListConfiguration(
-      Widget widget, Integer seriesIndex, List<String> filterValues) {
+      Widget widget, Integer seriesIndex, Map<String, List<String>> filterValues) {
 
     WidgetConfiguration widgetConfig = widget.getWidgetConfiguration();
-    WidgetConfiguration.Series series = widgetConfig.getSeries().get(seriesIndex);
+    WidgetConfigurationWithSeries.Series series =
+        widgetConfig instanceof WidgetConfigurationWithSeries config
+            ? config.getSeries().get(seriesIndex)
+            : new WidgetConfigurationWithSeries.Series();
+
     String baseEntity = WidgetUtils.getBaseEntityFilterValue(series.getFilter());
 
     ListConfiguration listConfig = new ListConfiguration();
@@ -118,27 +123,27 @@ public class WidgetService {
     perspectives.setName(series.getName());
     perspectives.setFilter(series.getFilter());
 
-    if (WidgetConfigurationType.STRUCTURAL_HISTOGRAM.type.equals(
-            widgetConfig.getConfigurationType().type)
+    if ((WidgetConfigurationType.STRUCTURAL_HISTOGRAM.type.equals(
+                widgetConfig.getConfigurationType().type)
+            || WidgetConfigurationType.AVERAGE.type.equals(
+                widgetConfig.getConfigurationType().type))
         && filterValues != null
         && !filterValues.isEmpty()) {
-      StructuralHistogramWidget structuralHistogramWidgetConfig =
-          (StructuralHistogramWidget) widgetConfig;
-      WidgetUtils.setOrAddFilterByKey(
-          perspectives.getFilter(),
-          structuralHistogramWidgetConfig.getField(),
-          filterValues,
-          Filters.FilterOperator.contains);
-
+      filterValues.forEach(
+          (key, values) -> {
+            WidgetUtils.setOrAddFilterByKey(
+                perspectives.getFilter(), key, values, Filters.FilterOperator.contains);
+          });
     } else if (WidgetConfigurationType.TEMPORAL_HISTOGRAM.type.equals(
             widgetConfig.getConfigurationType().type)
         && filterValues != null
         && !filterValues.isEmpty()) {
       listConfig.setTimeRange(CustomDashboardTimeRange.CUSTOM);
       DateHistogramWidget dateWidgetConfig = (DateHistogramWidget) widgetConfig;
-      listConfig.setStart(filterValues.getFirst());
+      Map.Entry<String, List<String>> entry = filterValues.entrySet().iterator().next();
+      listConfig.setStart(entry.getValue().getFirst());
       listConfig.setEnd(
-          WidgetUtils.calcEndDate(filterValues.getFirst(), dateWidgetConfig.getInterval()));
+          WidgetUtils.calcEndDate(entry.getValue().getFirst(), dateWidgetConfig.getInterval()));
     }
 
     listConfig.setPerspective(perspectives);
@@ -149,13 +154,13 @@ public class WidgetService {
    * Converts a security coverage widget configuration to a list configuration
    *
    * @param widget the source widget containing the configuration to convert
-   * @param attackPatternIds attackPatternIds list of attack pattern IDs to filter by
+   * @param attackPatternFilterValues attackPatternIds list of attack pattern IDs to filter by
    * @return a ListConfiguration object configured based on the widget settings
    */
   public ListConfiguration convertSecurityCoverageWidgetToListConfiguration(
-      Widget widget, List<String> attackPatternIds) {
+      Widget widget, Map<String, List<String>> attackPatternFilterValues) {
     ListConfiguration listInjectExpectationsConfig =
-        this.convertWidgetToListConfiguration(widget, 0, attackPatternIds);
+        this.convertWidgetToListConfiguration(widget, 0, attackPatternFilterValues);
     List<String> statusFilters =
         List.of(
             InjectExpectation.EXPECTATION_STATUS.FAILED.name(),

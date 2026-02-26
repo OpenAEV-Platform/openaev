@@ -14,6 +14,7 @@ import io.openaev.database.model.Filters.FilterMode;
 import io.openaev.database.model.Filters.FilterOperator;
 import io.openaev.schema.PropertySchema;
 import io.openaev.schema.SchemaUtils;
+import jakarta.annotation.Nullable;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Join;
@@ -23,7 +24,6 @@ import java.time.Instant;
 import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import org.jetbrains.annotations.Nullable;
 import org.springframework.data.jpa.domain.Specification;
 
 /**

@@ -50,7 +50,7 @@ class InjectCrudTest extends IntegrationTest {
     assertNotNull(injectCreated);
 
     // -- CLEAN --
-    this.exerciseRepository.delete(exercise);
-    this.injectRepository.delete(inject);
+    this.injectRepository.delete(injectCreated);
+    this.exerciseRepository.delete(exerciseCreated);
   }
 }

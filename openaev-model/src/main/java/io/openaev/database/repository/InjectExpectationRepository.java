@@ -284,4 +284,19 @@ public interface InjectExpectationRepository
     """,
       nativeQuery = true)
   List<RawInjectExpectation> findForIndexing(@Param("from") Instant from);
+
+  /**
+   * Retrieves a set of distinct inject IDs associated with the specified inject expectation IDs.
+   *
+   * @param expectationIds the set of inject expectation IDs to filter by
+   * @return a set of distinct inject IDs linked to the given expectation IDs
+   */
+  @Query(
+      """
+      SELECT DISTINCT ie.inject.id
+      FROM InjectExpectation ie
+      WHERE ie.id IN :expectationIds
+      """)
+  Set<String> findDistinctInjectIdsByInjectExpectationIds(
+      @Param("expectationIds") Set<String> expectationIds);
 }

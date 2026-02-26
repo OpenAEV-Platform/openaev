@@ -4,14 +4,15 @@ import static java.time.Instant.now;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.helper.MonoIdDeserializerHelper;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.jsonapi.BusinessId;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -88,17 +89,19 @@ public class AttackPattern implements Base {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "attack_pattern_parent")
   @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
   @JsonProperty("attack_pattern_parent")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private AttackPattern parent;
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "attack_patterns_kill_chain_phases",
       joinColumns = @JoinColumn(name = "attack_pattern_id"),
       inverseJoinColumns = @JoinColumn(name = "phase_id"))
   @JsonSerialize(using = MultiIdListSerializer.class)
+  @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   @JsonProperty("attack_pattern_kill_chain_phases")
   private List<KillChainPhase> killChainPhases = new ArrayList<>();
 

@@ -52,13 +52,14 @@ const ScenarioForm: FunctionComponent<Props> = ({
         scenario_category: z.string().optional(),
         scenario_main_focus: z.string().optional(),
         scenario_severity: z.enum(['low', 'medium', 'high', 'critical']).optional(),
+        scenario_type: z.enum(['time-based', 'chaining']).optional(),
         scenario_subtitle: z.string().optional(),
         scenario_description: z.string().optional(),
         scenario_tags: z.string().array().optional(),
         scenario_external_reference: z.string().optional(),
         scenario_external_url: z.string().optional(),
-        scenario_mail_from: z.string().email(t('Should be a valid email address')).optional(),
-        scenario_mails_reply_to: z.array(z.string().email(t('Should be a valid email address'))).optional(),
+        scenario_mail_from: z.email(t('Should be a valid email address')).optional(),
+        scenario_mails_reply_to: z.array(z.email(t('Should be a valid email address'))).optional(),
         scenario_message_header: z.string().optional(),
         scenario_message_footer: z.string().optional(),
         scenario_custom_dashboard: z.string().optional(),
@@ -177,6 +178,21 @@ const ScenarioForm: FunctionComponent<Props> = ({
               </MenuItem>
               <MenuItem key="critical" value="critical">
                 {t('Critical')}
+              </MenuItem>
+            </SelectField>
+            <SelectField
+              variant="standard"
+              fullWidth={true}
+              name="scenario_type"
+              label={t('Scenario type')}
+              control={control}
+              defaultValue={initialValues.scenario_type ?? 'time-based'}
+            >
+              <MenuItem key="time-based" value="time-based">
+                {t('Time-based')}
+              </MenuItem>
+              <MenuItem key="chaining" value="chaining">
+                {t('Chaining')}
               </MenuItem>
             </SelectField>
             <TextField

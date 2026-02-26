@@ -29,8 +29,8 @@ public class TeamQueryHelper {
     Expression<String[]> userIdsExpression = createJoinArrayAggOnId(cb, teamRoot, "users");
     Expression<String[]> exerciseIdsExpression = createJoinArrayAggOnId(cb, teamRoot, "exercises");
     Expression<String[]> scenarioIdsExpression = createJoinArrayAggOnId(cb, teamRoot, "scenarios");
-    Expression<String[]> organizationIdExpression =
-        createLeftJoin(teamRoot, "organization").get("id");
+    Expression<String> organizationIdExpression =
+        cb.function("max", String.class, createLeftJoin(teamRoot, "organization").get("id"));
 
     // Multiselect
     cq.multiselect(

@@ -83,14 +83,14 @@ public class SecurityPlatform extends Asset implements StixDomainObjectConvertib
   @JoinColumn(name = "security_platform_logo_light")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("security_platform_logo_light")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Document logoLight;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "security_platform_logo_dark")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("security_platform_logo_dark")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Document logoDark;
 
   @Getter(onMethod_ = @JsonIgnore)

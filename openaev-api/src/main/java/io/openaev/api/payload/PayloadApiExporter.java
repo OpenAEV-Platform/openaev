@@ -1,6 +1,6 @@
 package io.openaev.api.payload;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.ResourceType;
@@ -35,7 +35,7 @@ public class PayloadApiExporter extends RestBehavior {
       description = "Exports a payload in JSON:API format, optionally including related entities.")
   @GetMapping(value = "/{payloadId}/export", produces = "application/zip")
   @Transactional(readOnly = true)
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PAYLOAD)
   public ResponseEntity<byte[]> export(@PathVariable @NotBlank final String payloadId)
       throws IOException {
     Map<String, Boolean> opts = new HashMap<>();

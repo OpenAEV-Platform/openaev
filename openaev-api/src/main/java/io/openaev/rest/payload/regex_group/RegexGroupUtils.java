@@ -1,7 +1,7 @@
 package io.openaev.rest.payload.regex_group;
 
 import io.openaev.database.model.RegexGroup;
-import org.jetbrains.annotations.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 public class RegexGroupUtils {
 

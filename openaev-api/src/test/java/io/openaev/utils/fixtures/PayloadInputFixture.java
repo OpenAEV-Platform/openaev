@@ -14,11 +14,11 @@ import io.openaev.rest.payload.contract_output_element.ContractOutputElementInpu
 import io.openaev.rest.payload.form.*;
 import io.openaev.rest.payload.output_parser.OutputParserInput;
 import io.openaev.rest.payload.regex_group.RegexGroupInput;
+import jakarta.validation.constraints.NotNull;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.jetbrains.annotations.NotNull;
 
 public class PayloadInputFixture {
 

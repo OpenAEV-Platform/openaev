@@ -1,6 +1,6 @@
 package io.openaev.rest.finding;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.ResourceType;
@@ -24,13 +24,16 @@ public class FindingApi extends RestBehavior {
   // -- CRUD --
 
   @GetMapping("/{id}")
-  @RBAC(resourceId = "#id", actionPerformed = Action.READ, resourceType = ResourceType.FINDING)
+  @AccessControl(
+      resourceId = "#id",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.FINDING)
   public ResponseEntity<Finding> finding(@PathVariable @NotNull final String id) {
     return ResponseEntity.ok(this.findingService.finding(id));
   }
 
   @PostMapping
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.FINDING)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.FINDING)
   public ResponseEntity<Finding> createFinding(
       @RequestBody @Valid @NotNull final FindingInput input) {
     return ResponseEntity.ok(
@@ -38,7 +41,10 @@ public class FindingApi extends RestBehavior {
   }
 
   @PutMapping("/{id}")
-  @RBAC(resourceId = "#id", actionPerformed = Action.WRITE, resourceType = ResourceType.FINDING)
+  @AccessControl(
+      resourceId = "#id",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.FINDING)
   public ResponseEntity<Finding> updateFinding(
       @PathVariable @NotNull final String id,
       @RequestBody @Valid @NotNull final FindingInput input) {
@@ -49,7 +55,10 @@ public class FindingApi extends RestBehavior {
   }
 
   @DeleteMapping("/{id}")
-  @RBAC(resourceId = "#id", actionPerformed = Action.DELETE, resourceType = ResourceType.FINDING)
+  @AccessControl(
+      resourceId = "#id",
+      actionPerformed = Action.DELETE,
+      resourceType = ResourceType.FINDING)
   public ResponseEntity<Void> deleteFinding(@PathVariable @NotNull final String id) {
     this.findingService.deleteFinding(id);
     return ResponseEntity.noContent().build();
