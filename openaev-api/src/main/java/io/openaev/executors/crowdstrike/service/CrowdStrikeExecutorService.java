@@ -2,6 +2,7 @@ package io.openaev.executors.crowdstrike.service;
 
 import static io.openaev.utils.time.TimeUtils.toInstant;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
@@ -96,13 +97,15 @@ public class CrowdStrikeExecutorService implements Runnable {
                 + devices.size()
                 + " assets for the host group "
                 + assetGroup.getName());
+        // For the agents, assets and asset groups saved after
+        TenantContext.setCurrentTenant(executor.getTenant().getId());
         List<Agent> agents =
             endpointService.syncAgentsEndpoints(
                 toAgentEndpoint(devices),
                 agentService.getAgentsByExecutorType(
-                    CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE, executor.getTenant().getId()));
+                    CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE,
+                    executor.getTenant().getId()));
         assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
-        assetGroup.setTenant(new Tenant(executor.getTenant().getId()));
         assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
       }
     }
@@ -158,7 +161,6 @@ public class CrowdStrikeExecutorService implements Runnable {
                       ? Agent.ADMIN_SYSTEM_WINDOWS
                       : Agent.ADMIN_SYSTEM_UNIX);
               input.setLastSeen(toInstant(crowdStrikeDevice.getLast_seen()));
-                input.setTenantId(executor.getTenant().getId());
               return input;
             })
         .collect(Collectors.toList());

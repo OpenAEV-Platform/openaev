@@ -28,7 +28,6 @@ public class AgentRegisterInput {
   private String installationMode;
   private String installationDirectory;
   private String serviceName;
-  private String tenantId;
 
   public void setMacAddresses(String[] macAddresses) {
     this.macAddresses = EndpointMapper.setMacAddresses(macAddresses);

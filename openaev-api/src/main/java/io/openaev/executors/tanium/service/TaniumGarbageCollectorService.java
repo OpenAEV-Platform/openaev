@@ -36,7 +36,8 @@ public class TaniumGarbageCollectorService implements Runnable {
   @Override
   public void run() {
     List<io.openaev.database.model.Agent> agents =
-        this.agentService.getAgentsByExecutorType(TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE, TenantContext.getCurrentTenant());
+        this.agentService.getAgentsByExecutorType(
+            TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE, TenantContext.getCurrentTenant());
     if (!agents.isEmpty()) {
       log.info("Running Tanium executor garbage collector on " + agents.size() + " agents");
       List<TaniumAction> actions = new ArrayList<>();

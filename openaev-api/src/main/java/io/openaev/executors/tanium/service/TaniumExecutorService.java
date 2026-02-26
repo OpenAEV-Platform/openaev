@@ -2,6 +2,7 @@ package io.openaev.executors.tanium.service;
 
 import static io.openaev.utils.time.TimeUtils.toInstant;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.executors.tanium.client.TaniumExecutorClient;
@@ -62,7 +63,7 @@ public class TaniumExecutorService implements Runnable {
     this.assetGroupService = assetGroupService;
   }
 
-    // TODO multi-tenancy: Multi executors dev
+  // TODO multi-tenancy: Multi executors dev
   @Override
   public void run() {
     log.info("Running Tanium executor endpoints gathering...");
@@ -74,7 +75,8 @@ public class TaniumExecutorService implements Runnable {
       List<NodeEndpoint> nodeEndpoints = this.client.endpoints(computerGroupId);
       if (!nodeEndpoints.isEmpty()) {
         Optional<AssetGroup> existingAssetGroup =
-            assetGroupService.findByExternalReference(computerGroupId, executor.getTenant().getId());
+            assetGroupService.findByExternalReference(
+                computerGroupId, executor.getTenant().getId());
         AssetGroup assetGroup;
         if (existingAssetGroup.isPresent()) {
           assetGroup = existingAssetGroup.get();
@@ -88,13 +90,14 @@ public class TaniumExecutorService implements Runnable {
                 + nodeEndpoints.size()
                 + " assets for the computer group "
                 + assetGroup.getName());
+        // For the agents, assets and asset groups saved after
+        TenantContext.setCurrentTenant(executor.getTenant().getId());
         List<Agent> agents =
             endpointService.syncAgentsEndpoints(
                 toAgentEndpoint(nodeEndpoints),
                 agentService.getAgentsByExecutorType(
                     TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE, executor.getTenant().getId()));
         assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
-        assetGroup.setTenant(new Tenant(executor.getTenant().getId()));
         assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
       }
     }
@@ -124,7 +127,6 @@ public class TaniumExecutorService implements Runnable {
                       : Agent.ADMIN_SYSTEM_UNIX);
               input.setArch(toArch(taniumEndpoint.getProcessor().getArchitecture()));
               input.setLastSeen(toInstant(taniumEndpoint.getEidLastSeen()));
-              input.setTenantId(executor.getTenant().getId());
               return input;
             })
         .collect(Collectors.toList());
