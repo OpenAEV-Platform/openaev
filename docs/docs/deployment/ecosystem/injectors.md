@@ -53,7 +53,7 @@ For instance, to enable the HTTP query injector, you can add a new service to yo
 Note: Injector images and available versions can be found on Docker Hub.
 
 ##### Launch a standalone collector
-To launch standalone injector, you can use the `docker-compose.yml` file of the injector itself. Just download the latest [release](https://github.com/OpenAEV-Platform/injectors/releases) and start the injector:
+To launch a standalone injector, you can use the `docker-compose.yml` file of the injector itself. Just download the latest [release](https://github.com/OpenAEV-Platform/injectors/releases) and start the injector:
 
 ```
 $ wget https://github.com/OpenAEV-Platform/injectors/archive/{RELEASE_VERSION}.zip
@@ -111,7 +111,7 @@ $ python3 openaev_http.py
 
 #### Configuration
 
-All external injectors have to be able to access the OpenAEV API. To allow this connection, they have 2 mandatory configuration parameters, the `OPENAEV_URL` and the `OPENAEV_TOKEN`. In addition to these 2 parameters, injectors have other mandatory parameters that need to be set in order to get them work.
+All external injectors have to be able to access the OpenAEV API. To allow this connection, they have 2 mandatory configuration parameters, the `OPENAEV_URL` and the `OPENAEV_TOKEN`. In addition to these 2 parameters, injectors have other mandatory parameters that need to be set in order to make them work.
 
 !!! info "Injector tokens"
 

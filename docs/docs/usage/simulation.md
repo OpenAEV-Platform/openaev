@@ -5,7 +5,7 @@
     We are doing our best to complete this page. If you want to participate, don't hesitate to join the [Filigran Community on Slack](https://community.filigran.io) or submit your pull request on the [Github doc repository](https://github.com/OpenAEV-Platform/docs).
 
 
-When clicking on Simulations in the left menu, you access to the list of all Simulations ever launched in the platform. You can filter by tag (for example to only display simulation related to a specific threat actor) and sort them (chronologically, by status, etc.).
+When clicking on Simulations in the left menu, you access the list of all Simulations ever launched in the platform. You can filter by tag (for example to only display simulation related to a specific threat actor) and sort them (chronologically, by status, etc.).
 
 From this screen, you can easily see last global scores and access ongoing Simulations at platform level.
 
@@ -30,7 +30,7 @@ The Overview regroups everything you need to know to follow your Simulation by i
 
 The top of the Simulation screen give you the ability to Start, stop and Reset the Simulation, delay the launch time.
 
-<!-- to complete when Samuel finish the screen --> 
+<!-- to complete when Samuel finishes the screen --> 
 
 <!-- screenshot of the Overview of a Simulation having run -->
 
@@ -56,7 +56,7 @@ The Simulation logs is an interface for the animation team to collaborate during
 
 ## Lessons learned
 
-In the Lesson Learned tab of a Simulation, you can manage the collection and concatenation of customizable surveys. It helps you in conducting the most underestimated part of a Breach and Attack simulation involving real people, by automating it and complete your Simulation's Results with qualitative feedback.
+In the Lessons Learned tab of a Simulation, you can manage the collection and concatenation of customizable surveys. It helps you in conducting the most underestimated part of a breach and attack simulation involving real people, by automating it and complete your simulation's results with qualitative feedback.
 
 <!-- to be completed -->
 

@@ -331,6 +331,6 @@ If you continue to experience issues:
 1. **Check the logs** with debug level enabled
 2. **Review the configuration** for any misconfigurations
 3. **Verify network connectivity** between all components
-4. **Consult the openAEV community** for additional support
+4. **Consult the OpenAEV community** for additional support
 
 For bug reports and feature requests, visit the [GitHub repository](https://github.com/FiligranHQ/xtm-composer.git).

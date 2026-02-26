@@ -62,7 +62,7 @@ $ docker compose up
 ```
 
 ### Manual deployment
-If you want to manually launch collector without docker, you just have to install Python 3 and pip3 for dependencies:
+If you want to manually launch a collector without docker, you just have to install Python 3 and pip3 for dependencies:
 
 ```
 $ apt install python3 python3-pip

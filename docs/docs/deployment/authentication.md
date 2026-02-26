@@ -12,7 +12,7 @@ This documentation provides details on setting up and utilizing the authenticati
 
 ### Local users
 
-OpenAEV use this strategy as the default, but it's not the one we recommend for security reasons.
+OpenAEV uses this strategy as the default, but it's not the one we recommend for security reasons.
 
 | Parameter                 | Environment variable      | Default value         | Description                                                   |
 |:--------------------------|:--------------------------|:----------------------|:--------------------------------------------------------------|
@@ -20,7 +20,7 @@ OpenAEV use this strategy as the default, but it's not the one we recommend for 
 
 ### OpenID
 
-This method allows to use the [OpenID Connect Protocol](https://openid.net/connect) to handle the authentication.
+This method allows using the [OpenID Connect Protocol](https://openid.net/connect) to handle the authentication.
 
 | Parameter                      | Environment variable       | Default value         | Description                                                   |
 |:-------------------------------|:---------------------------|:----------------------|:--------------------------------------------------------------|

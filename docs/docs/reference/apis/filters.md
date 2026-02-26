@@ -39,8 +39,7 @@ click, changing the logic of your filtering.
 
 ## Filters format
 
-The OpenAEV platform uses a filter format called `FilterGroup`. The `FilterGroup` model enables
-to do complex filters imbrication with different boolean operators, which extends greatly the filtering capabilities in
+The OpenAEV platform uses a filter format called `FilterGroup`. The `FilterGroup` model enables complex filter nesting with different boolean operators, which extends greatly the filtering capabilities in
 every part of the platform.
 
 ### Structure

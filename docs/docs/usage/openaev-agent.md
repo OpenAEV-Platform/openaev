@@ -3,7 +3,7 @@
 ## Introduction
 
 The OpenAEV Agent is an application whose primary role is to enroll an Asset on the OpenAEV platform, retrieve jobs or
-scripts to be executed, and transmit this information to Implants (subject to come) for execution on the host Asset.
+scripts to be executed, and transmit this information to Implants (subject to change) for execution on the host Asset.
 
 The Agent does **not perform direct actions** on the Asset itself, in order to remain neutral with respect to antivirus
 solutions and ensure the full execution of simulations.

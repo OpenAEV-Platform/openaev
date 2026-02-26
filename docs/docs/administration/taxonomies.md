@@ -19,7 +19,7 @@ and responding to threats.
 
 OpenAEV supports the following kill chain models:
 
-- **MITRE ATT&CK Framework (Entreprise, PRE, Mobile and ICS)**
+- **MITRE ATT&CK Framework (Enterprise, PRE, Mobile and ICS)**
 
 You can add, edit, or delete kill chain phases in the settings page, and assign them to attack patterns in the platform.
 Additionally, you can filter data by kill chains phases, visualize relationships between kill chain phases and

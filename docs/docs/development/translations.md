@@ -9,7 +9,7 @@ You can find translations management scripts in the package.json file.
 - extract-translation : will fetch all the files and add new translations keys in en.json 
 - auto-translation:fr : will translate all the elements of the en.json in french and add them in the fr.json
 - auto-translation:cn : will translate all the elements of the en.json in chinese and add them in the zh.json
-- auto-translation: all : will translate all the elements of the en.json in all the app's supoorted languages and add them in the respective files
+- auto-translation:all : will translate all the elements of the en.json in all the app's supported languages and add them in the respective files
 - sort-translation : will sort the translation files
 
 You can generate your subscription key on Deepl and add it in the configurations of your scripts in your IDE. You need to add the subscription key for auto-translation:all, auto-translation:fr and auto-translation:cn.

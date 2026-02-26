@@ -12,7 +12,7 @@ From the left menu, you can choose the custom dashboards option to see all the c
 
 **Actions panel**
 
-You can realise actions on a dashboard using the button located at the end of each line:
+You can perform actions on a dashboard using the button located at the end of each line:
 
 - update
 - delete
@@ -68,5 +68,5 @@ last year. The default value for this parameter is **last three months**.
 
 !!! note
 
-    When the **All time** time range is set, datas are displayed without any time limit. When the **Custom range** is set,
+    When the **All time** time range is set, data is displayed without any time limit. When the **Custom range** is set,
     two more pickers are displayed, allowing the user to choose a start date and an end date.

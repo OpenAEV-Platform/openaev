@@ -10,7 +10,7 @@ specified in the GitHub license file:
 
 - The OpenAEV Community Edition is licensed under the Apache License, Version 2.0 (the “Apache License”).
 - The OpenAEV Enterprise Edition is licensed under the OpenAEV Enterprise Edition License (the “Enterprise Edition
-  Licensee”).
+  License”).
 
 The source files in this repository have a header indicating which license they are under. If no such header is
 provided, this means that the file belongs to the Community Edition under the Apache License, Version 2.0.
@@ -30,7 +30,7 @@ can [generate a trial license](https://filigran.io/enterprise-editions-trial/).
 As a reminder:
 
 - Filigran is the only company producing and providing OpenAEV Enterprise Edition license keys.
-- Filigran can provide free-to-use OpenAEV Enterprise Edition licenses for development and research purposes (e.g. connector development purposes, integrations with technical partners, etc...) as well as for non-governmental charity organizations.
+- Filigran can provide free-to-use OpenAEV Enterprise Edition licenses for development and research purposes (e.g. connector development, integrations with technical partners, etc...) as well as for non-governmental charity organizations.
 - OpenAEV Enterprise Edition licenses are automatically provided to all Filigran SaaS customers.
 - **For all other usages including On-Premise deployments, OpenAEV Enterprise Edition is reserved to organizations that have signed a Filigran Enterprise agreement.**
 

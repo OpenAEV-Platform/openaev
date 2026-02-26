@@ -66,7 +66,7 @@ The inject associated with this type is referred to as `Publish challenges`.
 
 ## HTTP requests
 
-HTTP request injects are used to forge HTTP requests to a third party services in order to perform actions outside the
+HTTP request injects are used to forge HTTP requests to third-party services in order to perform actions outside the
 platform (e.g. API call to an EDR). These injects enable the platform to communicate with external services, gather
 information, or trigger specific actions via HTTP protocols.
 

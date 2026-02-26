@@ -1,6 +1,6 @@
 # Scenario
 
-When clicking on Scenarios in the left menu, you access to the list of all Scenarios defined in the platform. Scenarios act as templates that translate threat contexts into meaningful events to simulate.
+When clicking on Scenarios in the left menu, you access the list of all Scenarios defined in the platform. Scenarios act as templates that translate threat contexts into meaningful events to simulate.
 
 Scenarios can be grouped by defining categories, main focus, severity and tags. It is then possible to filter the Scenarios list based on these attributes. Quick filters are available by default at the top of the screen to filter Scenario on most used categories.
 
@@ -11,7 +11,7 @@ It is also possible to search Scenarios by their names using the search bar.
 
 ## Create a scenario
 
-To create a scenario, hit the + button on the bottom right of the screen and define general metadata that make sense for you.
+To create a scenario, hit the + button on the bottom right of the screen and define general metadata that makes sense for you.
 
 ![Create a scenario](./scenario/assets/create-scenario.png)
 
@@ -59,7 +59,7 @@ In the "Definition" tab, you can add various elements to construct events:
 
 <!-- screenshot of the Definition screen with elements inside -->
 
-Once you have added all the elements you need, you can go to the "Injects" tab to begin to create the chain of events that will shape your scenario.
+Once you have added all the elements you need, you can go to the "Injects" tab to begin creating the chain of events that will shape your scenario.
 
 By clicking on the + button at the bottom right of the screen, you enter the [inject creation workflow](inject-overview.md#inject-creation-process).
 

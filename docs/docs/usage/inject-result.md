@@ -9,7 +9,7 @@ Results are broken down into:
 
 - Prevention: the ability of your security posture to prevent the inject
 - Detection: the ability of your security posture to detect the inject
-- Human response: the ability of your security teams to react as intented facing the inject
+- Human response: the ability of your security teams to react as intended facing the inject
 - Vulnerability: the ability of your security posture to detect common vulnerabilities and exposures (CVEs)
 
 At the top, big metrics summarize how all targets performed. On the left, a list of targets lets you quickly check
@@ -30,7 +30,7 @@ filter findings by name, type, creation date, target, value, or tag.
 
 This screen shows the full trace of the inject’s execution, including logs and status information.
 
-![Execution trace of a successfull atomic testing](assets/atomic_testing_execution_details.png)
+![Execution trace of a successful atomic testing](assets/atomic_testing_execution_details.png)
 
 ### Payload info
 
@@ -58,7 +58,7 @@ Remediation statuses:
 - Remediation written by a human:
   ![Detection Remediations-human](assets/atomic_testing_detection_remediation_human.png)
 
-- Remediation generate with Ariane
+- Remediation generated with Ariane
   ![Detection Remediations-ariane](assets/atomic_testing_detection_remediation_use_ariane.png)
 
 - Remediation outdated

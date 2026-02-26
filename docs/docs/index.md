@@ -15,7 +15,7 @@ Welcome to the OpenAEV Documentation space. Here you will be able to find all do
 
 ## Introduction
 
-OpenAEV is an open source platform allowing organizations to plan, schedule and conduct cyber adversary simulation campaign and tests.
+OpenAEV is an open source platform allowing organizations to plan, schedule and conduct cyber adversary simulation campaigns and tests.
 
 !!! tip "Docker deployment of the full XTM suite (OpenCTI - OpenAEV - OpenGRC)"
 

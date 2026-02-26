@@ -4,7 +4,7 @@
 
 ### Introduction
 
-This guide explains how to implement an **OpenAEV collector for a EDR/XDR**, to retrieve security events and compare
+This guide explains how to implement an **OpenAEV collector for an EDR/XDR**, to retrieve security events and compare
 them against injected expectations in OpenAEV.
 
 ### Prerequisites

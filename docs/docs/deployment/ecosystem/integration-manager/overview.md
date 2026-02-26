@@ -35,7 +35,7 @@ To learn more about Xtm Composer architecture, refer to the [dedicated documenta
 
     - **Built-in connectors**: Connectors which are internally implemented.  
       This category includes:
-        - **Auto-start connectors**, which are natively integrated into the core platform no additional deployment required. These connectors are automatically started and cannot be managed on the UI, even though they are still visible in the dedicated pages.
+        - **Auto-start connectors**, which are natively integrated into the core platform — no additional deployment required. These connectors are automatically started and cannot be managed on the UI, even though they are still visible in the dedicated pages.
         - **Standard built-in connectors**, which are also automatically started but can be started and stopped by the user through the UI.
     - **External connectors**: These are deployed and configured by the user.
     In the catalog, only external connectors can be retrieved. The following sections focus on how to deploy, configure, and manage these **external** connectors.
@@ -74,7 +74,7 @@ To learn more about Xtm Composer architecture, refer to the [dedicated documenta
 
 - Different injector, collector or executor types are identified in the catalog:   
      - External : Injector, collector or executor managed by the integration manager  
-     - built-in : Injector, collector or executor natively integrated into the core platform no additional deployment required
+     - built-in : Injector, collector or executor natively integrated into the core platform — no additional deployment required
 - Instances statuses:
       - Managed instances: *Started* or *Stopped*.
 - Only **managed instances** can be started/stopped from the UI. They are also the only ones that provide logs in the interface.

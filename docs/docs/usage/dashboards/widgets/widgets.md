@@ -34,7 +34,7 @@ Parameters allow further customization of your widget. Based on the selected vis
 - Set the widget title
 - Choose which elements to display from the filtered dataset
 - Select the data reference date
-- Select a time range for the datas
+- Select a time range for the data
 - Configure additional settings specific to each visualization type
 
 Two mode are available:

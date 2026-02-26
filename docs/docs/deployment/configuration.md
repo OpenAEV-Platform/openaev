@@ -77,7 +77,7 @@ certificates in the folder are public PEM-armoured (*.pem), DER-encoded X509 cer
 |:------------------------------------|:------------------------------------|:--------------|:--------------------------------------------------------------------------------------------------------------------------------------|
 | openaev.xtm.opencti.enable          | OPENAEV_XTM_OPENCTI_ENABLE          | false         | Enable integration with OpenCTI                                                                                                       |
 | openaev.xtm.opencti.url             | OPENAEV_XTM_OPENCTI_URL             |               | OpenCTI URL                                                                                                                           |
-| openaev.xtm.opencti.api_url         | OPENAEV_XTM_OPENCTI_API_URL         |               | OpenCTI API URL, it will completly override the OpenCTI URL, otherwise the default url will be `openaev.xtm.opencti.url` + '/graphql' |
+| openaev.xtm.opencti.api_url         | OPENAEV_XTM_OPENCTI_API_URL         |               | OpenCTI API URL, it will completely override the OpenCTI URL, otherwise the default url will be `openaev.xtm.opencti.url` + '/graphql' |
 | openaev.xtm.opencti.token           | OPENAEV_XTM_OPENCTI_TOKEN           |               | OpenCTI token                                                                                                                         |
 | openaev.xtm.opencti.disable-display | OPENAEV_XTM_OPENCTI_DISABLE-DISPLAY | `false`       | Disable OpenCTI in the UI                                                                                                             |
 
@@ -108,7 +108,7 @@ certificates in the folder are public PEM-armoured (*.pem), DER-encoded X509 cer
 | engine.engine-selector | ENGINE_ENGINE_SELECTOR | elk                   | Engine to use for storage and search (`elk` for ElasticSearch and `opensearch` for OpenSearch) |
 | engine.url             | ENGINE_URL             | http://localhost:9200 | URL of the ElasticSearch database                                                              |
 | engine.username        | ENGINE_USERNAME        |                       | This parameter is optional. Login for the database                                             |
-| engine.password        | ENGINE_PASSWORD        |                       | This parameter is optional. Password for the dat                                               |
+| engine.password        | ENGINE_PASSWORD        |                       | This parameter is optional. Password for the database                                               |
 
 If you switch your engine selector, you’ll need to delete the `indexing_status` table in PostgreSQL to trigger a full
 reindex.

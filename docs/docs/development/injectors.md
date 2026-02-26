@@ -35,7 +35,7 @@ internally to access the parameter values.
 #### 2. Define the internal logic
 
 The next step is to implement the internal logic based on the parameters defined in the contract.
-When the inject executes an inject based on its contract, it will retrieve the parameters provided by the end user and
+When the injector executes an inject based on its contract, it will retrieve the parameters provided by the end user and
 use them within its internal logic to perform the necessary actions.
 
 ### Use it

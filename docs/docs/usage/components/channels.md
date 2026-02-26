@@ -8,11 +8,11 @@ It helps give shape to your Scenario context and events.
 
 First step is to click on the + button at the bottom right and give your new Channel a type (Newspaper, Microblogging, TV Channel), a name and a subtitle.
 
-Once done, click on the Channel in the list to access its overview. Here you can define how media content associated to this Chennel will be displayed to Players.
+Once done, click on the Channel in the list to access its overview. Here you can define how media content associated to this Channel will be displayed to Players.
 
 You can define primary and secondary colors, choose logos and define how the header is presented.
 
-On the right, a mock up of the overview is displayed to give you the look and fill of it.
+On the right, a mock up of the overview is displayed to give you the look and feel of it.
 
 ![Channel creation](./assets/channel-update.png)
 

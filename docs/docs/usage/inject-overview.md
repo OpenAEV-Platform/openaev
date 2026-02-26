@@ -235,7 +235,7 @@ compute the agent status.
 
 **Alert Details**
 
-Once an inject have been executed, it is possible to access the alerts' details on the different security platforms
+Once an inject has been executed, it is possible to access the alerts' details on the different security platforms
 (SIEM or EDR) linked to the EDRs present on the tested assets.
 
 ![Inject execution traces details](assets/inject-expectation-traces-1.png)

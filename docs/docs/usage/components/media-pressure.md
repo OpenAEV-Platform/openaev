@@ -2,11 +2,11 @@
 !!! tip "Under construction"
 
     We are doing our best to complete this page. 
-    If you want to participae, dont hesitate to join the [Filigran Community on Slack](https://community.filigran.io) 
+    If you want to participate, don't hesitate to join the [Filigran Community on Slack](https://community.filigran.io) 
     or submit your pull request on the [Github doc repository](https://github.com/OpenAEV-Platform/docs).
 
 
-Media pressure are Articles or web contents you create to give more shape to your Scenario, or to simulate contextual pressure on your Teams and Players.
+Media pressure consists of articles or web contents you create to give more shape to your Scenario, or to simulate contextual pressure on your Teams and Players.
 
 For example, you can create an Article about the data leakage your organization is said to be affected by during the Scenario, and simulate its publishing by a large coverage media outlet with a "Publish channel pressure" inject.
 
@@ -23,7 +23,7 @@ A media pressure Article is defined by:
 - To simulate social network engagement, you can define number of comments, Shares and Likes of the Articles.
 - Documents: you can attach file to the Article. It can be useful if you want to simulate the publication of a large report you don't want to craft inside OpenAEV, like a pdf security report for example.
 
-Once created, Articles appears as cards in the definition screen of the Scenario or Simulation they have been created into. Note that if an article is not yet used in the Scenario or Simulation (probably because it does not have been used in a "Publish channel pressure" inject), it is mentioned into the Article's card.
+Once created, Articles appears as cards in the definition screen of the Scenario or Simulation they have been created into. Note that if an article is not yet used in the Scenario or Simulation (probably because it has not been used in a "Publish channel pressure" inject), it is mentioned into the Article's card.
 
 <!-- Capture of the Article creation screen -->
 

@@ -14,7 +14,7 @@ manual [installation packages](https://github.com/OpenAEV-Platform/openaev/relea
     ---
 
     Deploy OpenAEV using Docker and the default `docker-compose.yml` provided
-    in the [docker](https://github.com/OpenAEV-Platform/docker).
+    in the [docker repository](https://github.com/OpenAEV-Platform/docker).
 
     [:octicons-arrow-right-24:{ .middle } Setup](#using-docker)
 

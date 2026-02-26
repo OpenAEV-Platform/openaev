@@ -7,7 +7,7 @@ entities are the targets for injects during your [simulations](simulation.md) an
 
 ## Players
 
-Players are the users that may take part into your scenarios, to be tested against attack or contextual events.
+Players are the users that may take part in your scenarios, to be tested against attack or contextual events.
 
 Players can be created manually with the + button at the bottom right, but we encourage you to activate an integration
 allowing to import them from your IT environment, like with Microsoft Entra integration.
@@ -31,7 +31,7 @@ This list of players can be exported by clicking on the export button, at the to
 ## Teams
 
 Teams group players into units that can be targeted by injects during simulations or atomic testing. They serve as a way
-to represent different security teams (e.g., CSIRT, SOC, VOC) and other relevant teams that might be involved into your
+to represent different security teams (e.g., CSIRT, SOC, VOC) and other relevant teams that might be involved in your
 scenario (e.g., legal department, communication department).
 
 Teams are defined by:

@@ -111,7 +111,7 @@ Imagine you deployed an OpenAEV agent on a Linux endpoint named `endpoint-lin-01
 
    ```
    echo "OpenAEV Atomic Test"
-   ````
+   ```
 
 ### Step 2 — Build the inject
 

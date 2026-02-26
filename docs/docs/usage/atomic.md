@@ -3,7 +3,7 @@
 When clicking on Atomic testing in the left menu, you access to the list of all atomic testings ever launched in the
 platform.
 
-Atomic testing is a great way to simulate a singular attack technique you are particulary interested in, and test
+Atomic testing is a great way to simulate a singular attack technique you are particularly interested in, and test
 immediately your capability to prevent and detect it.
 
 The presented list allows you to easily see global scores of all your recent atomic testings.
@@ -20,12 +20,12 @@ Assets, Assets Group) with assorted expectations.
 
 By clicking on the + button at the bottom right of the screen, you enter the atomic testing creation workflow.
 
-On the left of the creation screen is the list of all available Inject you can play for atomic testing. Logos on the
+On the left of the creation screen is the list of all available injects you can play for atomic testing. Logos on the
 left of each line indicates which Injector is associated with each inject.
 
 Depending on your integrations, this list can be long. You can filter the list by kill chain phase, injector, compatible
-platforms or Mitre Att&ck tactics.By clicking on the "Att&CK" logo near the search bar, you can also filter by selecting
-a precise Mitre Att&ck techniques.
+platforms or MITRE ATT&CK tactics. By clicking on the "Att&CK" logo near the search bar, you can also filter by selecting
+a precise MITRE ATT&CK techniques.
 
 When selecting an inject on the left, the form on the right populates itself with a by-default title and propose you to
 define when the inject should be played after the launch of the atomic testing. You can keep it to 0.

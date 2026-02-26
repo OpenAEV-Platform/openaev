@@ -395,7 +395,7 @@ Endpoint on the OpenAEV endpoint page.
 ---
 ## Caldera Agent
 
-The Caldera agent can be leveraged to execute implants as detached processes that will the execute payloads according to
+The Caldera agent can be leveraged to execute implants as detached processes that will then execute payloads according to
 the [OpenAEV architecture](https://docs.openaev.io/latest/deployment/overview/#architecture).
 
 !!! note "Caldera already installed"
