@@ -66,8 +66,7 @@ class ExerciseTeamUserServiceTest extends IntegrationTest {
     ExerciseTeamUser source2 = createExerciseTeamUser(sourceExercise, team, user2);
 
     // -- ACT --
-    exerciseTeamUserService.duplicateTeamUsers(
-        targetExercise, List.of(source1, source2), Map.of());
+    exerciseTeamUserService.duplicateTeamUsers(targetExercise, List.of(source1, source2), Map.of());
 
     // -- ASSERT --
     verify(exerciseTeamUserRepository, times(2)).save(teamUserCaptor.capture());

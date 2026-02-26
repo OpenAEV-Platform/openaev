@@ -35,7 +35,8 @@ public class ExerciseTeamUserService {
     sourceTeamUsers.forEach(
         sourceTeamUser -> {
           Team resolvedTeam =
-              contextualTeams.getOrDefault(sourceTeamUser.getTeam().getId(), sourceTeamUser.getTeam());
+              contextualTeams.getOrDefault(
+                  sourceTeamUser.getTeam().getId(), sourceTeamUser.getTeam());
           createExerciseTeamUser(target, resolvedTeam, sourceTeamUser.getUser());
         });
   }

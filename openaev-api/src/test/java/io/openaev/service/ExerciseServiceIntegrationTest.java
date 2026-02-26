@@ -17,7 +17,6 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.service.period.CronService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.ResultUtils;
