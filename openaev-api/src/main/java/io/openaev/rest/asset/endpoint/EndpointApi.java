@@ -5,6 +5,7 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.AssetAgentJob;
@@ -270,7 +271,10 @@ public class EndpointApi extends RestBehavior {
       case ALL_INJECTS:
         {
           options =
-              endpointRepository.findAllEndpointsForAtomicTestingsSimulationsAndScenarios().stream()
+              endpointRepository
+                  .findAllEndpointsForAtomicTestingsSimulationsAndScenarios(
+                      TenantContext.getCurrentTenant())
+                  .stream()
                   .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
                   .toList();
           break;
@@ -287,7 +291,9 @@ public class EndpointApi extends RestBehavior {
           options =
               endpointRepository
                   .findAllBySimulationOrScenarioIdAndName(
-                      StringUtils.trimToNull(sourceId), StringUtils.trimToNull(searchText))
+                      StringUtils.trimToNull(sourceId),
+                      StringUtils.trimToNull(searchText),
+                      TenantContext.getCurrentTenant())
                   .stream()
                   .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
                   .toList();
