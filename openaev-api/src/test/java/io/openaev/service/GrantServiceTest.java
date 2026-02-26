@@ -17,6 +17,8 @@ import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -34,6 +36,8 @@ class GrantServiceTest extends IntegrationTest {
   @Mock private GrantRepository grantRepository;
 
   @InjectMocks private GrantService grantService;
+
+  @Captor private ArgumentCaptor<Grant> grantCaptor;
 
   @Test
   void test_hasReadGrant_WHEN_has_read_grant() {
@@ -107,13 +111,15 @@ class GrantServiceTest extends IntegrationTest {
     Group group = createGroup();
 
     // -- ACT --
-    Grant saved = grantService.createGrant(PLANNER, group, RESOURCE_ID, SIMULATION);
+    grantService.createGrant(PLANNER, group, RESOURCE_ID, SIMULATION);
 
     // -- ASSERT --
-    assertEquals(PLANNER, saved.getName());
-    assertEquals(group, saved.getGroup());
-    assertEquals(RESOURCE_ID, saved.getResourceId());
-    assertEquals(SIMULATION, saved.getGrantResourceType());
+    verify(grantRepository).save(grantCaptor.capture());
+    Grant captured = grantCaptor.getValue();
+    assertEquals(PLANNER, captured.getName());
+    assertEquals(group, captured.getGroup());
+    assertEquals(RESOURCE_ID, captured.getResourceId());
+    assertEquals(SIMULATION, captured.getGrantResourceType());
   }
 
   @Test

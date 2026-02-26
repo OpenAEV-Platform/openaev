@@ -15,8 +15,8 @@ import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.ExerciseTeamUserRepository;
 import io.openaev.utilstest.RabbitMQTestListener;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
@@ -68,7 +68,8 @@ class ExerciseTeamUserServiceTest extends IntegrationTest {
     ExerciseTeamUser source2 = createExerciseTeamUser(sourceExercise, team, user2);
 
     // -- ACT --
-    exerciseTeamUserService.duplicateTeamUsers(targetExercise, List.of(source1, source2), Map.of());
+    exerciseTeamUserService.duplicateTeamUsers(
+        targetExercise, List.of(source1, source2), new HashMap<>());
 
     // -- ASSERT --
     verify(exerciseTeamUserRepository, times(2)).save(teamUserCaptor.capture());
