@@ -4,9 +4,11 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.SecurityCoverage;
 import io.openaev.database.model.StixRefToExternalRef;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.attack_pattern.form.AnalysisResultFromTTPExtractionAIWebserviceOutput;
@@ -142,7 +144,8 @@ public class AttackPatternService {
     if (ids.isEmpty()) {
       return Collections.emptyList();
     }
-    return this.attackPatternRepository.findAllByExternalIdInIgnoreCase(new ArrayList<>(ids));
+    return this.attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenant(
+        new ArrayList<>(ids), new Tenant(TenantContext.getCurrentTenant()));
   }
 
   private List<AttackPattern> getAttackPatternsByInternalIds(Set<String> ids) {

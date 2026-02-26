@@ -6,6 +6,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawAttackPattern;
 import io.openaev.database.repository.AttackPatternRepository;
@@ -52,7 +53,7 @@ public class AttackPatternApi extends RestBehavior {
   @GetMapping("/api/attack_patterns")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ATTACK_PATTERN)
   public List<RawAttackPattern> attackPatterns() {
-    return attackPatternRepository.rawAll();
+    return attackPatternRepository.rawAll(TenantContext.getCurrentTenant());
   }
 
   @PostMapping("/api/attack_patterns/search")
@@ -140,7 +141,8 @@ public class AttackPatternApi extends RestBehavior {
         attackPatternInput -> {
           String attackPatternExternalId = attackPatternInput.getExternalId();
           Optional<AttackPattern> optionalAttackPattern =
-              attackPatternRepository.findByExternalId(attackPatternExternalId);
+              attackPatternRepository.findByExternalIdAndTenant(
+                  attackPatternExternalId, new Tenant(TenantContext.getCurrentTenant()));
           List<KillChainPhase> killChainPhases =
               attackPatternInput.getKillChainPhasesIds() != null
                       && !attackPatternInput.getKillChainPhasesIds().isEmpty()
@@ -151,7 +153,9 @@ public class AttackPatternApi extends RestBehavior {
           AttackPattern attackPatternParent =
               attackPatternInput.getParentId() != null
                   ? attackPatternRepository
-                      .findByStixId(attackPatternInput.getParentId())
+                      .findByStixIdAndTenant(
+                          attackPatternInput.getParentId(),
+                          new Tenant(TenantContext.getCurrentTenant()))
                       .orElseThrow(ElementNotFoundException::new)
                   : null;
           if (optionalAttackPattern.isEmpty()) {

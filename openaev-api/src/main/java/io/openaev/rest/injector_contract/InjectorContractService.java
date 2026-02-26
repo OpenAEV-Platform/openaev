@@ -304,8 +304,9 @@ public class InjectorContractService {
     if (target.getAttackPatterns().isEmpty() && !source.getAttackPatternsExternalIds().isEmpty()) {
       List<AttackPattern> attackPatterns =
           fromIterable(
-              attackPatternRepository.findAllByExternalIdInIgnoreCase(
-                  source.getAttackPatternsExternalIds()));
+              attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenant(
+                  source.getAttackPatternsExternalIds(),
+                  new Tenant(target.getInjector().getTenant().getId())));
       target.setAttackPatterns(attackPatterns);
     } else {
       target.setAttackPatterns(new ArrayList<>());
@@ -580,8 +581,8 @@ public class InjectorContractService {
     if (!in.getAttackPatternsExternalIds().isEmpty()) {
       List<AttackPattern> attackPatterns =
           fromIterable(
-              attackPatternRepository.findAllByExternalIdInIgnoreCase(
-                  in.getAttackPatternsExternalIds()));
+              attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenant(
+                  in.getAttackPatternsExternalIds(), new Tenant(injector.getTenant().getId())));
       injectorContract.setAttackPatterns(attackPatterns);
     } else {
       injectorContract.setAttackPatterns(new ArrayList<>());

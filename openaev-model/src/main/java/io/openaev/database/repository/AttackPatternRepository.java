@@ -1,6 +1,7 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.AttackPattern;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.raw.RawAttackPattern;
 import io.openaev.utils.Constants;
 import jakarta.validation.constraints.NotNull;
@@ -22,18 +23,20 @@ public interface AttackPatternRepository
 
   List<AttackPattern> findAllByIdIn(List<String> externalIds);
 
-  Optional<AttackPattern> findByExternalId(@NotNull String externalId);
+  Optional<AttackPattern> findByExternalIdAndTenant(
+      @NotNull String externalId, @NotNull Tenant tenant);
 
-  List<AttackPattern> findAllByExternalIdInIgnoreCase(List<String> externalIds);
+  List<AttackPattern> findAllByExternalIdInIgnoreCaseAndTenant(
+      List<String> externalIds, Tenant tenant);
 
-  Optional<AttackPattern> findByStixId(@NotNull String stixId);
+  Optional<AttackPattern> findByStixIdAndTenant(@NotNull String stixId, @NotNull Tenant tenant);
 
   @Query(
       value =
           "select ap.*, array_remove(array_agg(apphase.phase_id), NULL) as attack_pattern_kill_chain_phases from attack_patterns ap "
-              + "left join attack_patterns_kill_chain_phases apphase ON ap.attack_pattern_id = apphase.attack_pattern_id GROUP BY ap.attack_pattern_id",
+              + "left join attack_patterns_kill_chain_phases apphase ON ap.attack_pattern_id = apphase.attack_pattern_id WHERE ap.tenant_id = :tenantId GROUP BY ap.attack_pattern_id",
       nativeQuery = true)
-  List<RawAttackPattern> rawAll();
+  List<RawAttackPattern> rawAll(String tenantId);
 
   // -- INDEXING --
 
