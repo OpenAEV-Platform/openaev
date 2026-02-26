@@ -34,6 +34,7 @@ import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.service.ScenarioStatisticService;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.chaining.WorkflowService;
@@ -111,6 +112,7 @@ public class ExerciseService {
   private final ScenarioRecurrenceService scenarioRecurrenceService;
 
   private final WorkflowService workflowService;
+  private final PreviewFeatureService previewFeatureService;
 
   // region properties
   @Value("${openaev.mail.imap.enabled}")
@@ -152,7 +154,7 @@ public class ExerciseService {
   @Transactional(rollbackFor = Exception.class)
   public Exercise createSimulation(@NotNull final Exercise simulation, boolean isChaining) {
     Exercise savedSimulation = createExercise(simulation);
-    if (isChaining) {
+    if (isChaining && previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)) {
       workflowService.creationWorkflow(savedSimulation);
     }
     return savedSimulation;
