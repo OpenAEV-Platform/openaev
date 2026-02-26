@@ -1306,6 +1306,8 @@ public class V1_DataImporter implements Importer {
     injectorContract.setAtomicTesting(
         importNode.get("injector_contract_atomic_testing").booleanValue());
     injectorContract.setManual(importNode.get("injector_contract_manual").booleanValue());
+    injectorContract.setNeedsExecutor(
+        importNode.get("injector_contract_needs_executor").booleanValue());
     injectorContract.setPlatforms(
         Endpoint.PLATFORM_TYPE.fromJsonNode(importNode.get("injector_contract_platforms")));
     injectorContract.setLabels(
