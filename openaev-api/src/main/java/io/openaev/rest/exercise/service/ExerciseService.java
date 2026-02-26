@@ -464,8 +464,10 @@ public class ExerciseService {
    * @throws ElementNotFoundException if no simulation matches the given ID
    */
   public Exercise findById(String simulationId) {
-    return exerciseRepository.findById(simulationId).orElseThrow(
-            ()->new ElementNotFoundException("Simulation not found with ID: " + simulationId));
+    return exerciseRepository
+        .findById(simulationId)
+        .orElseThrow(
+            () -> new ElementNotFoundException("Simulation not found with ID: " + simulationId));
   }
 
   /**

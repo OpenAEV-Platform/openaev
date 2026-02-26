@@ -563,10 +563,10 @@ public class StepServiceTest {
         doThrow(ioException).when(queueChainingService).readyStep(stepReady, workflowRun);
 
         // -------- Act --------
-          ChainingException ex =
-                  assertThrows(
-                          ChainingException.class,
-                          () -> stepService.ready(nextStepTemplateToExecute, workflowRun, input));
+        ChainingException ex =
+            assertThrows(
+                ChainingException.class,
+                () -> stepService.ready(nextStepTemplateToExecute, workflowRun, input));
 
         // -------- Assert --------
         assertSame(ioException, ex.getCause());

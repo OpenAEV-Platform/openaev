@@ -2,13 +2,12 @@ package io.openaev.service.chaining;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
+import io.openaev.rest.exception.ChainingException;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
-
-import io.openaev.rest.exception.ChainingException;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -136,7 +135,8 @@ public class ConditionService {
    *     delayed "AFTER" condition has been scheduled
    */
   public List<Condition> checkCondition(
-      Step nextStepTemplateToExecute, String input, Workflow workflowRun, StepService stepService) throws ChainingException {
+      Step nextStepTemplateToExecute, String input, Workflow workflowRun, StepService stepService)
+      throws ChainingException {
     List<Condition> conditionTemplate =
         findAllConditionsByStepId(nextStepTemplateToExecute.getId());
     // No condition means direct execution:
@@ -176,7 +176,8 @@ public class ConditionService {
           queueChainingService.delayStep(nextStepTemplateToExecute, workflowRun, delay);
         } catch (IOException e) {
           throw new ChainingException(
-              "Failed to push step (TEMPLATE) into delay queue. Step ID: "+nextStepTemplateToExecute.getId(),
+              "Failed to push step (TEMPLATE) into delay queue. Step ID: "
+                  + nextStepTemplateToExecute.getId(),
               e);
         }
         return null;

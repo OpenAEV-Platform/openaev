@@ -5,13 +5,12 @@ import static org.mockito.Mockito.*;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
+import io.openaev.rest.exception.ChainingException;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Stream;
-
-import io.openaev.rest.exception.ChainingException;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -269,7 +268,8 @@ public class ConditionServiceTest {
 
     @ParameterizedTest(name = "{index} => templates={0}")
     @MethodSource("noConditionTemplates")
-    void shouldReturnEmptyList_whenNoConditionTemplates(List<Condition> templates) throws ChainingException {
+    void shouldReturnEmptyList_whenNoConditionTemplates(List<Condition> templates)
+        throws ChainingException {
       // -------- Prepare --------
       Step stepTemplate = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
@@ -402,7 +402,8 @@ public class ConditionServiceTest {
           .delayStep(any(Step.class), any(Workflow.class), anyLong());
 
       // -------- Act --------
-      assertThrows(ChainingException.class,
+      assertThrows(
+          ChainingException.class,
           () ->
               conditionService.checkCondition(
                   stepTemplate, "{\"in\":1}", workflowRun, stepService));

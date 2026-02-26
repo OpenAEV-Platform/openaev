@@ -127,8 +127,8 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
             nextStepTemplateToExecutePersisted, input, workflowRun, this);
 
     // List<Condition> conditionExecution:
-    // 1. null      : push in delay queue or exced limit execution or condition invalid  -> no execution
-    // 2. empty     : no condition                                                      -> direct execution
+    // 1. null  : push in delay queue or exced limit execution or condition invalid  -> no execution
+    // 2. empty  : no condition                                                  -> direct execution
     // 3. not empty : all conditions are valid (will be saved as condition execution)   -> execution
     if (conditionExecution != null) {
       Step stepReady;
@@ -153,9 +153,10 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
       } catch (IOException e) {
         stepReady.setStatus(StepStatus.END);
         saveStep(stepReady);
-          throw new ChainingException(
-                  "Failed to push step (READY) into ready queue. Step moved to (END) state. Step ID: "+stepReady.getId(),
-                  e);
+        throw new ChainingException(
+            "Failed to push step (READY) into ready queue. Step moved to (END) state. Step ID: "
+                + stepReady.getId(),
+            e);
       }
     }
 
@@ -873,15 +874,18 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
    */
   @Override
   public void handleExternalUpdateEvent(ExternalUpdateEvent stepEvent) {
-    Step stepRun ;
-      try{
-          stepRun = findByIdAndStatus(stepEvent.getStepId(), StepStatus.RUN);
-      } catch (ElementNotFoundException e) {
-          // Todo: system notif queue fail + system log for step + status FAIL
-          log.error("Update consume: Step (RUN) not found. Step ID: {} {}",
-                  stepEvent.getStepId(), e.getMessage(), e);
-          return;
-      }
+    Step stepRun;
+    try {
+      stepRun = findByIdAndStatus(stepEvent.getStepId(), StepStatus.RUN);
+    } catch (ElementNotFoundException e) {
+      // Todo: system notif queue fail + system log for step + status FAIL
+      log.error(
+          "Update consume: Step (RUN) not found. Step ID: {} {}",
+          stepEvent.getStepId(),
+          e.getMessage(),
+          e);
+      return;
+    }
     Optional<Step> stepUpdatedOpt;
 
     try {
