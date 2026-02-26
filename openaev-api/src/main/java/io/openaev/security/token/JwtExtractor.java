@@ -3,7 +3,7 @@ package io.openaev.security.token;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Jwks;
-import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
+import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.opencti.errors.ConnectorError;
 import java.util.Optional;
@@ -19,8 +19,7 @@ public class JwtExtractor implements ExtractorBase {
 
   @Override
   public String extractToken(String value) throws ConnectorError, JwtException {
-    Optional<SecurityCoverageConnector> openCTIConnector =
-        openCTIConnectorService.getConnectorBase();
+    Optional<ConnectorBase> openCTIConnector = openCTIConnectorService.getConnectorBase();
     if (openCTIConnector.isEmpty()) {
       throw new ConnectorError("Connector not found");
     }
