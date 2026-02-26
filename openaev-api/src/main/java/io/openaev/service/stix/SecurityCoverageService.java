@@ -322,6 +322,10 @@ public class SecurityCoverageService {
    */
   public void pushSecurityCoverageBundleWithExternalURI(Scenario scenario)
       throws ParsingException, ConnectorError, IOException {
+    if (openCTIConnectorService.getConnectorBase().isEmpty()) {
+      return;
+    }
+
     SecurityCoverage coverage = scenario.getSecurityCoverage();
     String externalLink = openAEVConfig.getBaseUrl() + "/admin/scenarios/" + scenario.getId();
 

@@ -42,10 +42,12 @@ public class QueryTypeFields implements Mutation {
     @JsonProperty("__type")
     private TypeContent typeContent;
 
+    @Data
     public static class TypeContent {
       @JsonProperty("fields")
       private List<FieldContent> fields;
 
+      @Data
       public static class FieldContent {
         @JsonProperty("name")
         private String name;

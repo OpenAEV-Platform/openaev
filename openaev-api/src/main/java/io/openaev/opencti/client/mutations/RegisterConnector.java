@@ -43,7 +43,9 @@ public class RegisterConnector implements Mutation {
     }
     """;
 
-  @Getter private final String queryText = mutationMask.formatted(withJwks ? "jwks" : "");
+  public String getQueryText() {
+    return mutationMask.formatted(withJwks ? "jwks" : "");
+  }
 
   public RegisterConnector(ConnectorBase connector, Boolean withJwks) {
     this.connector = connector;
