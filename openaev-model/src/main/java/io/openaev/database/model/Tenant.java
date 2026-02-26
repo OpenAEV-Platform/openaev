@@ -21,6 +21,9 @@ import org.hibernate.annotations.UuidGenerator;
 @EntityListeners(ModelBaseListener.class)
 public class Tenant implements Base {
 
+  // Same default ID for XTM HUB and OpenAEV instances
+  public static String DEFAULT_TENANT_UUID = "2cffad3a-0001-4078-b0e2-ef74274022c3";
+
   @Id
   @GeneratedValue(generator = "UUID")
   @UuidGenerator
@@ -55,4 +58,14 @@ public class Tenant implements Base {
   @NotNull
   @JsonProperty("tenant_updated_at")
   private Instant updatedAt = now();
+
+  @Column(name = "tenant_deleted_at")
+  @JsonProperty("tenant_deleted_at")
+  private Instant deletedAt;
+
+  public Tenant() {}
+
+  public Tenant(String id) {
+    this.id = id;
+  }
 }

@@ -1,5 +1,6 @@
 package io.openaev.database.model;
 
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static java.time.Instant.now;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -96,6 +97,12 @@ public class Challenge implements Base {
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("challenge_documents")
   private List<Document> documents = new ArrayList<>();
+
+  @ManyToOne
+  @JoinColumn(name = "tenant_id")
+  @JsonIgnore
+  @NotNull
+  private Tenant tenant = new Tenant(DEFAULT_TENANT_UUID);
 
   @Transient private List<String> exerciseIds = new ArrayList<>();
 

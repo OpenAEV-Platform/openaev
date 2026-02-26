@@ -1,5 +1,7 @@
 package io.openaev.database.model;
 
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.Queryable;
@@ -61,6 +63,12 @@ public class NotificationRule implements Base {
   @ManyToOne(fetch = FetchType.LAZY)
   @Queryable(searchable = true, filterable = true, path = "owner.id")
   private User owner;
+
+  @ManyToOne
+  @JoinColumn(name = "tenant_id")
+  @JsonIgnore
+  @NotNull
+  private Tenant tenant = new Tenant(DEFAULT_TENANT_UUID);
 
   @Getter(onMethod_ = @JsonIgnore)
   @Transient

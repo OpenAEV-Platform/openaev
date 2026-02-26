@@ -1,5 +1,6 @@
 package io.openaev.database.model;
 
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static java.time.Instant.now;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -143,6 +144,13 @@ public class Agent implements Base {
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
   private final ResourceType resourceType = ResourceType.AGENT;
+
+  // Ignore json and not null
+  @ManyToOne
+  @JoinColumn(name = "tenant_id")
+  @JsonIgnore
+  @NotNull
+  private Tenant tenant = new Tenant(DEFAULT_TENANT_UUID);
 
   @Override
   public int hashCode() {
