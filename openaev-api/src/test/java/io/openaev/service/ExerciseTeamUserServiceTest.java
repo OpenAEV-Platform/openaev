@@ -45,12 +45,14 @@ class ExerciseTeamUserServiceTest extends IntegrationTest {
     User user = getUser();
 
     // -- ACT --
-    ExerciseTeamUser created = exerciseTeamUserService.createExerciseTeamUser(exercise, team, user);
+    exerciseTeamUserService.createExerciseTeamUser(exercise, team, user);
 
     // -- ASSERT --
-    assertEquals(exercise, created.getExercise());
-    assertEquals(team, created.getTeam());
-    assertEquals(user, created.getUser());
+    verify(exerciseTeamUserRepository).save(teamUserCaptor.capture());
+    ExerciseTeamUser captured = teamUserCaptor.getValue();
+    assertEquals(exercise, captured.getExercise());
+    assertEquals(team, captured.getTeam());
+    assertEquals(user, captured.getUser());
   }
 
   @Test
