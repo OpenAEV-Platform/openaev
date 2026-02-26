@@ -54,16 +54,20 @@ public class MinioDriver {
         BucketExistsArgs.builder().bucket(minioConfig.getBucket()).build();
     boolean found = minioClient.bucketExists(bucketExistsArgs);
     if (found && bucketExistsArgs.bucket().equals(minioConfig.getBucket())) {
-      moveDefaultTenantFiles(minioClient,bucketExistsArgs);
+      moveDefaultTenantFiles(minioClient, bucketExistsArgs);
     }
     if (!found) {
-      minioClient.makeBucket(MakeBucketArgs.builder().bucket(minioConfig.getBucket()+"-"+ TenantContext.getCurrentTenant()).build());
+      minioClient.makeBucket(
+          MakeBucketArgs.builder()
+              .bucket(minioConfig.getBucket() + "-" + TenantContext.getCurrentTenant())
+              .build());
     }
     return minioClient;
   }
 
   /**
    * Moves the default tenant files to another one with the correct name
+   *
    * @param minioClient
    * @param bucketExistsArgs
    * @throws Exception
@@ -71,13 +75,13 @@ public class MinioDriver {
   private void moveDefaultTenantFiles(MinioClient minioClient, BucketExistsArgs bucketExistsArgs)
       throws Exception {
 
-    minioClient.makeBucket(MakeBucketArgs.builder().bucket(minioConfig.getBucket()+"-"+ TenantContext.getCurrentTenant()).build());
-    Iterable<Result<Item>> objects = minioClient.listObjects(
-        ListObjectsArgs.builder()
-            .bucket(bucketExistsArgs.bucket())
-            .recursive(true)
-            .build()
-    );
+    minioClient.makeBucket(
+        MakeBucketArgs.builder()
+            .bucket(minioConfig.getBucket() + "-" + TenantContext.getCurrentTenant())
+            .build());
+    Iterable<Result<Item>> objects =
+        minioClient.listObjects(
+            ListObjectsArgs.builder().bucket(bucketExistsArgs.bucket()).recursive(true).build());
 
     for (Result<Item> result : objects) {
       Item item = result.get();
@@ -85,32 +89,25 @@ public class MinioDriver {
 
       minioClient.copyObject(
           CopyObjectArgs.builder()
-              .bucket(minioConfig.getBucket()+"-"+ TenantContext.getCurrentTenant())
+              .bucket(minioConfig.getBucket() + "-" + TenantContext.getCurrentTenant())
               .object(objectName)
-              .source(CopySource.builder()
-                  .bucket(bucketExistsArgs.bucket())
-                  .object(objectName)
-                  .build())
-              .build()
-      );
+              .source(
+                  CopySource.builder().bucket(bucketExistsArgs.bucket()).object(objectName).build())
+              .build());
     }
 
-    for (Result<Item> result : minioClient.listObjects(
-        ListObjectsArgs.builder()
-            .bucket(bucketExistsArgs.bucket())
-            .recursive(true)
-            .build())) {
+    for (Result<Item> result :
+        minioClient.listObjects(
+            ListObjectsArgs.builder().bucket(bucketExistsArgs.bucket()).recursive(true).build())) {
 
       Item item = result.get();
       minioClient.removeObject(
           RemoveObjectArgs.builder()
               .bucket(bucketExistsArgs.bucket())
               .object(item.objectName())
-              .build()
-      );
+              .build());
     }
 
     minioClient.removeBucket(RemoveBucketArgs.builder().bucket(bucketExistsArgs.bucket()).build());
   }
-
 }

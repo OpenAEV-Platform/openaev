@@ -8,9 +8,7 @@ import io.openaev.multitenancy.DependenciesManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-/**
- * Service to create and delete minIO buckets
- */
+/** Service to create and delete minIO buckets */
 @Service
 public class MinioService implements DependenciesManager {
 
@@ -19,6 +17,7 @@ public class MinioService implements DependenciesManager {
 
   /**
    * Sets the MinIO configuration.
+   *
    * @param minioConfig
    */
   @Autowired
@@ -28,6 +27,7 @@ public class MinioService implements DependenciesManager {
 
   /**
    * Sets the MinIO client.
+   *
    * @param minioClient
    */
   @Autowired
@@ -37,23 +37,26 @@ public class MinioService implements DependenciesManager {
 
   /**
    * Create a bucket depending on the tenant uid
+   *
    * @param uid
    * @throws Exception
    */
   @Override
   public void createDependency(String uid) throws Exception {
-    minioClient.makeBucket(MakeBucketArgs.builder().bucket(minioConfig.getBucket()+"-"+uid).build());
+    minioClient.makeBucket(
+        MakeBucketArgs.builder().bucket(minioConfig.getBucket() + "-" + uid).build());
   }
 
   /**
    * Delete a bucket depending on the tenant uid
+   *
    * @param uid
    * @throws Exception
    */
   @Override
   public void deleteDependency(String uid) throws Exception {
-    RemoveBucketArgs removeBucketArgs = RemoveBucketArgs.builder().bucket(minioConfig.getBucket()+"-"+uid).build();
+    RemoveBucketArgs removeBucketArgs =
+        RemoveBucketArgs.builder().bucket(minioConfig.getBucket() + "-" + uid).build();
     minioClient.removeBucket(removeBucketArgs);
   }
-
 }

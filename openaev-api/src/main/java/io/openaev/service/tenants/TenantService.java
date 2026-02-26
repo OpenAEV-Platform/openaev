@@ -7,7 +7,6 @@ import io.openaev.database.repository.TenantRepository;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityNotFoundException;
-
 import java.util.List;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +21,6 @@ public class TenantService {
 
   private final TenantRepository tenantRepository;
   private final List<DependenciesManager> dependencies;
-
 
   // -- CREATE --
 
