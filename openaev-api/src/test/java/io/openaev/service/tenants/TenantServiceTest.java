@@ -28,7 +28,7 @@ class TenantServiceTest extends IntegrationTest {
   @Autowired protected EntityManager entityManager;
 
   @Test
-  void should_create_and_find_tenant() {
+  void should_create_and_find_tenant() throws Exception {
     // -- ARRANGE --
     Tenant tenant = getTenant();
 
@@ -101,7 +101,7 @@ class TenantServiceTest extends IntegrationTest {
   }
 
   @Test
-  void should_delete_tenant() {
+  void should_delete_tenant() throws Exception {
     // -- ARRANGE --
     Tenant tenant = getTenant("Tenant A");
     tenantComposer.forTenant(tenant).persist();
