@@ -39,9 +39,21 @@ const ContractOutputElementCard = ({ prefixName, index, remove }: Props) => {
   const { t } = useFormatter();
 
   const defaultFields = {
-    credentials: ['username', 'password'],
+    credentials: ['username', 'password', 'hash'],
     portscan: ['host', 'port', 'service'],
     cve: ['id', 'host', 'severity'],
+    username: ['username', 'domain', 'host'],
+    share: ['share_name', 'permissions', 'host'],
+    admin_username: ['username', 'host'],
+    group: ['group_name', 'member_count', 'host'],
+    computer: ['computer_name', 'host'],
+    password_policy: ['key', 'value', 'host'],
+    delegation: ['account', 'delegation_type', 'rights_to', 'host'],
+    sid: ['sid', 'host'],
+    vulnerability: ['name', 'status', 'details', 'host'],
+    account_with_password_not_required: ['account', 'status', 'host'],
+    asreproastable_account: ['username', 'hash', 'host'],
+    kerberoastable_account: ['username', 'hash', 'host'],
   };
 
   const selectedContractOutputElementType = watch(`${prefixName}.${index}.contract_output_element_type`) as keyof typeof defaultFields | undefined;
@@ -54,6 +66,9 @@ const ContractOutputElementCard = ({ prefixName, index, remove }: Props) => {
   type ContractOutputElementType = ContractOutputElement['contract_output_element_type'];
   const contractOutputElementTypes: ContractOutputElementType[] = [
     'text', 'number', 'port', 'portscan', 'ipv4', 'ipv6', 'credentials', 'cve',
+    'username', 'share', 'admin_username', 'group', 'computer',
+    'password_policy', 'delegation', 'sid', 'vulnerability',
+    'account_with_password_not_required', 'asreproastable_account', 'kerberoastable_account',
   ];
 
   const outputParserTypeList = contractOutputElementTypes.map(type => ({
