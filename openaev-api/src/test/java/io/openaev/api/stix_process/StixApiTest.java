@@ -10,6 +10,7 @@ import static io.openaev.utils.fixtures.VulnerabilityFixture.CVE_2023_48788;
 import static java.util.Collections.emptyList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
@@ -1098,8 +1099,8 @@ class StixApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Should not create scenario with drop file injects")
-    void shouldNotCreateScenarioWithDropFileInjects() throws Exception {
+    @DisplayName("Should create scenario with placeholder drop file injects")
+    void shouldCreateScenarioWithPlaceholderDropFileInjects() throws Exception {
       // PREPARE
       mockServer
           .when(
@@ -1127,7 +1128,8 @@ class StixApiTest extends IntegrationTest {
       assertThat(createdScenario.getName()).isEqualTo("test failing artifacts");
 
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
-      assertThat(injects).hasSize(0);
+      assertThat(injects).hasSize(1);
+      assertEquals(injects.iterator().next().getTitle(), "[artifact-file-test2.txt] Placeholder");
     }
   }
 
