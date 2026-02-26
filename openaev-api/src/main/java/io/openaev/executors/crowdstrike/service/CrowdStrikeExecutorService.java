@@ -2,6 +2,7 @@ package io.openaev.executors.crowdstrike.service;
 
 import static io.openaev.utils.time.TimeUtils.toInstant;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
@@ -29,8 +30,7 @@ public class CrowdStrikeExecutorService implements Runnable {
   private final EndpointService endpointService;
   private final AgentService agentService;
   private final AssetGroupService assetGroupService;
-
-  private Executor executor = null;
+  @VisibleForTesting public Executor executor;
 
   public static Endpoint.PLATFORM_TYPE toPlatform(@NotBlank final String platform) {
     return switch (platform) {

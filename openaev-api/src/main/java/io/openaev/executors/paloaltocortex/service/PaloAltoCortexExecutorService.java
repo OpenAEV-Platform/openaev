@@ -2,6 +2,7 @@ package io.openaev.executors.paloaltocortex.service;
 
 import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_TYPE;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.executors.model.AgentRegisterInput;
@@ -25,8 +26,7 @@ public class PaloAltoCortexExecutorService implements Runnable {
   private final EndpointService endpointService;
   private final AgentService agentService;
   private final AssetGroupService assetGroupService;
-
-  private Executor executor = null;
+  @VisibleForTesting public Executor executor;
 
   public static Endpoint.PLATFORM_TYPE toPlatform(@NotBlank final String platform) {
     return switch (platform.toLowerCase()) {
