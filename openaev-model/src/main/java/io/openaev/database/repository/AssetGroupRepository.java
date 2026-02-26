@@ -2,7 +2,6 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Tenant;
-import io.openaev.database.raw.RawAssetGroup;
 import io.openaev.database.raw.RawAssetGroupDynamicFilter;
 import io.openaev.database.raw.RawAssetGroupIndexing;
 import io.openaev.utils.Constants;
@@ -140,7 +139,8 @@ public interface AssetGroupRepository
     AND ag.tenant_id = :tenantId;
     """,
       nativeQuery = true)
-  List<Object[]> findAllByNameLinkedToFindings(@Param("name") String name, @Param("tenantId") String tenantId, Pageable pageable);
+  List<Object[]> findAllByNameLinkedToFindings(
+      @Param("name") String name, @Param("tenantId") String tenantId, Pageable pageable);
 
   @Query(
       value =
@@ -160,7 +160,10 @@ public interface AssetGroupRepository
     """,
       nativeQuery = true)
   List<Object[]> findAllByNameLinkedToFindingsWithContext(
-      @Param("sourceId") String sourceId, @Param("name") String name, @Param("tenantId") String tenantId, Pageable pageable);
+      @Param("sourceId") String sourceId,
+      @Param("name") String name,
+      @Param("tenantId") String tenantId,
+      Pageable pageable);
 
   @Query(
       value =

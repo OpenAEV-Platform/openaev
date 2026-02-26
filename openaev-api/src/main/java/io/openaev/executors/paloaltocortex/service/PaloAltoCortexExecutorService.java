@@ -2,6 +2,7 @@ package io.openaev.executors.paloaltocortex.service;
 
 import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_TYPE;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.executors.paloaltocortex.client.PaloAltoCortexExecutorClient;
@@ -51,7 +52,7 @@ public class PaloAltoCortexExecutorService implements Runnable {
     this.assetGroupService = assetGroupService;
   }
 
-    // TODO multi-tenancy: Multi executors dev
+  // TODO multi-tenancy: Multi executors dev
   @Override
   public void run() {
     log.info("Running Palo Alto Cortex executor endpoints gathering...");
@@ -75,12 +76,14 @@ public class PaloAltoCortexExecutorService implements Runnable {
                 + paloAltoCortexEndpoints.size()
                 + " assets for the group "
                 + assetGroup.getName());
+        // For the agents, assets and asset groups saved after
+        TenantContext.setCurrentTenant(executor.getTenant().getId());
         List<Agent> agents =
             endpointService.syncAgentsEndpoints(
                 toAgentEndpoint(paloAltoCortexEndpoints),
-                agentService.getAgentsByExecutorType(PALOALTOCORTEX_EXECUTOR_TYPE, executor.getTenant().getId()));
+                agentService.getAgentsByExecutorType(
+                    PALOALTOCORTEX_EXECUTOR_TYPE, executor.getTenant().getId()));
         assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
-        assetGroup.setTenant(new Tenant(executor.getTenant().getId()));
         assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
       }
     }
@@ -107,7 +110,6 @@ public class PaloAltoCortexExecutorService implements Runnable {
                       ? Agent.ADMIN_SYSTEM_WINDOWS
                       : Agent.ADMIN_SYSTEM_UNIX);
               input.setLastSeen(Instant.ofEpochMilli(paloAltoCortexEndpoint.getLast_seen()));
-                input.setTenantId(executor.getTenant().getId());
               return input;
             })
         .collect(Collectors.toList());

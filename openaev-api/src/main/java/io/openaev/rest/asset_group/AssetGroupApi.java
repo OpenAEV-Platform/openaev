@@ -197,7 +197,8 @@ public class AssetGroupApi extends RestBehavior {
         {
           options =
               assetGroupRepository
-                  .findAllAssetGroupsForAtomicTestingsSimulationsAndScenarios(TenantContext.getCurrentTenant())
+                  .findAllAssetGroupsForAtomicTestingsSimulationsAndScenarios(
+                      TenantContext.getCurrentTenant())
                   .stream()
                   .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
                   .distinct()
@@ -216,7 +217,9 @@ public class AssetGroupApi extends RestBehavior {
           options =
               assetGroupRepository
                   .findAllBySimulationOrScenarioIdAndName(
-                      StringUtils.trimToNull(sourceId), StringUtils.trimToNull(searchText), TenantContext.getCurrentTenant())
+                      StringUtils.trimToNull(sourceId),
+                      StringUtils.trimToNull(searchText),
+                      TenantContext.getCurrentTenant())
                   .stream()
                   .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
                   .toList();

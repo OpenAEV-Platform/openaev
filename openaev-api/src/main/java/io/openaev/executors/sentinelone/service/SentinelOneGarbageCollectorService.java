@@ -36,7 +36,9 @@ public class SentinelOneGarbageCollectorService implements Runnable {
   // TODO multi-tenancy: Multi executors dev
   @Override
   public void run() {
-    List<Agent> agents = this.agentService.getAgentsByExecutorType(SENTINELONE_EXECUTOR_TYPE, TenantContext.getCurrentTenant());
+    List<Agent> agents =
+        this.agentService.getAgentsByExecutorType(
+            SENTINELONE_EXECUTOR_TYPE, TenantContext.getCurrentTenant());
     if (!agents.isEmpty()) {
       List<SentinelOneAction> actions = new ArrayList<>();
       log.info("Running SentinelOne executor garbage collector on " + agents.size() + " agents");

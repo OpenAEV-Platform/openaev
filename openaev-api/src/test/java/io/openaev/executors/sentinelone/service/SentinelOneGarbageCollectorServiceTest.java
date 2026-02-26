@@ -34,7 +34,8 @@ public class SentinelOneGarbageCollectorServiceTest {
     // Init datas
     Agent agent = AgentFixture.createDefaultAgentService();
     agent.setAsset(EndpointFixture.createEndpoint());
-    when(agentService.getAgentsByExecutorType(SENTINELONE_EXECUTOR_TYPE, TenantContext.getCurrentTenant()))
+    when(agentService.getAgentsByExecutorType(
+            SENTINELONE_EXECUTOR_TYPE, TenantContext.getCurrentTenant()))
         .thenReturn(List.of(agent));
     when(config.getWindowsScriptId()).thenReturn("test script");
     // Run method to test

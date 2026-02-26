@@ -2,6 +2,7 @@ package io.openaev.executors.sentinelone.service;
 
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
@@ -83,11 +84,14 @@ public class SentinelOneExecutorService implements Runnable {
             .add(agentId);
         assetGroupIdNameMap.putIfAbsent(agent.getGroupId(), groupName);
       }
+      // For the agents, assets and asset groups saved after
+      TenantContext.setCurrentTenant(executor.getTenant().getId());
       // Sync all sentinel one agents to become OpenAEV agents/endpoints
       List<Agent> agents =
           endpointService.syncAgentsEndpoints(
               toAgentEndpoint(sentinelOneAgents),
-              agentService.getAgentsByExecutorType(SENTINELONE_EXECUTOR_TYPE, executor.getTenant().getId()));
+              agentService.getAgentsByExecutorType(
+                  SENTINELONE_EXECUTOR_TYPE, executor.getTenant().getId()));
       // For each sentinel one account/site/group id, create/update the relevant OpenAEV asset group
       Optional<AssetGroup> existingAssetGroup;
       AssetGroup assetGroup;
@@ -95,7 +99,8 @@ public class SentinelOneExecutorService implements Runnable {
           assetGroupIdAgentIdsMap.entrySet()) {
         String assetGroupId = assetGroupIdAgentIds.getKey();
         List<String> agentIds = assetGroupIdAgentIds.getValue();
-        existingAssetGroup = assetGroupService.findByExternalReference(assetGroupId, executor.getTenant().getId());
+        existingAssetGroup =
+            assetGroupService.findByExternalReference(assetGroupId, executor.getTenant().getId());
         if (existingAssetGroup.isPresent()) {
           assetGroup = existingAssetGroup.get();
         } else {
@@ -108,7 +113,6 @@ public class SentinelOneExecutorService implements Runnable {
                 .filter(agent -> agentIds.contains(agent.getId()))
                 .map(Agent::getAsset)
                 .toList());
-        assetGroup.setTenant(new Tenant(executor.getTenant().getId()));
         assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
       }
     }
@@ -145,7 +149,6 @@ public class SentinelOneExecutorService implements Runnable {
                       ? Agent.ADMIN_SYSTEM_WINDOWS
                       : Agent.ADMIN_SYSTEM_UNIX);
               input.setLastSeen(Instant.parse(sentinelOneAgent.getLastActiveDate()));
-              input.setTenantId(executor.getTenant().getId());
               return input;
             })
         .collect(Collectors.toList());
