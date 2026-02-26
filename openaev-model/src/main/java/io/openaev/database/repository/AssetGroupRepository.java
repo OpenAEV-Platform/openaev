@@ -120,7 +120,7 @@ public interface AssetGroupRepository
       value =
           "SELECT ag.* "
               + "FROM asset_groups ag "
-              + "INNER JOIN injects_asset_groups iag ON ag.asset_group_id = iag.asset_group_id"
+              + "INNER JOIN injects_asset_groups iag ON ag.asset_group_id = iag.asset_group_id "
               + "WHERE ag.tenant_id = :tenantId",
       nativeQuery = true)
   List<AssetGroup> findAllAssetGroupsForAtomicTestingsSimulationsAndScenarios(String tenantId);
@@ -156,7 +156,7 @@ public interface AssetGroupRepository
         LEFT JOIN scenarios_exercises se ON se.exercise_id = i.inject_exercise
         WHERE i.inject_id = :sourceId OR i.inject_exercise = :sourceId OR se.scenario_id = :sourceId OR fa.asset_id = :sourceId
     ) AND (:name IS NULL OR LOWER(ag.asset_group_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
-        AND ag.tenant_id = :tenantId;
+      AND ag.tenant_id = :tenantId;
     """,
       nativeQuery = true)
   List<Object[]> findAllByNameLinkedToFindingsWithContext(

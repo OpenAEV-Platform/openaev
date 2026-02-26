@@ -19,6 +19,7 @@ import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.AssetGroupRepository;
@@ -138,26 +139,35 @@ public class EndpointService {
 
   public List<Endpoint> findEndpointByHostnameAndAtLeastOneIp(
       @NotBlank final String hostname, @NotNull final String[] ips) {
-    return this.endpointRepository.findByHostnameAndAtleastOneIp(hostname, ips);
+    return this.endpointRepository.findByHostnameAndAtleastOneIp(
+        hostname, ips, TenantContext.getCurrentTenant());
   }
 
   public List<Endpoint> findEndpointByHostnameAndAtLeastOneMacAddress(
       @NotBlank final String hostname, @NotNull final String[] macAddresses) {
-    return this.endpointRepository.findByHostnameAndAtleastOneMacAddress(hostname, macAddresses);
+    return this.endpointRepository.findByHostnameAndAtleastOneMacAddress(
+        hostname, macAddresses, TenantContext.getCurrentTenant());
   }
 
   public Optional<Endpoint> findEndpointByExternalReference(
       @NotNull final String externalReference) {
-    return this.endpointRepository.findByExternalReference(externalReference).stream().findFirst();
+    return this.endpointRepository
+        .findByExternalReference(externalReference, TenantContext.getCurrentTenant())
+        .stream()
+        .findFirst();
   }
 
   public Optional<Endpoint> findEndpointByAtLeastOneMacAddress(
       @NotNull final String[] macAddresses) {
-    return this.endpointRepository.findByAtleastOneMacAddress(macAddresses).stream().findFirst();
+    return this.endpointRepository
+        .findByAtleastOneMacAddress(macAddresses, TenantContext.getCurrentTenant())
+        .stream()
+        .findFirst();
   }
 
   public List<Endpoint> findEndpointsByMacAddresses(final String[] macAddresses) {
-    return this.endpointRepository.findByAtleastOneMacAddress(macAddresses);
+    return this.endpointRepository.findByAtleastOneMacAddress(
+        macAddresses, TenantContext.getCurrentTenant());
   }
 
   public List<Endpoint> endpoints() {
@@ -791,11 +801,13 @@ public class EndpointService {
     List<Object[]> results;
 
     if (trimmedSourceId == null) {
-      results = endpointRepository.findAllByNameLinkedToFindings(trimmedSearchText, pageable);
+      results =
+          endpointRepository.findAllByNameLinkedToFindings(
+              trimmedSearchText, TenantContext.getCurrentTenant(), pageable);
     } else {
       results =
           endpointRepository.findAllByNameLinkedToFindingsWithContext(
-              trimmedSourceId, trimmedSearchText, pageable);
+              trimmedSourceId, trimmedSearchText, TenantContext.getCurrentTenant(), pageable);
     }
 
     return results.stream()

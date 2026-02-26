@@ -24,34 +24,39 @@ public interface EndpointRepository
 
   @Query(
       value =
-          "select e.* from assets e where e.endpoint_hostname = :hostname and e.endpoint_ips && cast(:ips as text[])",
+          "select e.* from assets e where e.endpoint_hostname = :hostname and e.endpoint_ips && cast(:ips as text[]) and e.tenant_id = :tenantId",
       nativeQuery = true)
   List<Endpoint> findByHostnameAndAtleastOneIp(
       @NotBlank final @Param("hostname") String hostname,
-      @NotNull final @Param("ips") String[] ips);
+      @NotNull final @Param("ips") String[] ips,
+      @NotNull final @Param("tenantId") String tenantId);
 
   @Query(
       value =
-          "select e.* from assets e where LOWER(e.endpoint_hostname) = LOWER(:hostname) "
+          "select e.* from assets e where LOWER(e.endpoint_hostname) = LOWER(:hostname) and e.tenant_id = :tenantId "
               + "and exists (select 1 from unnest(e.endpoint_mac_addresses) as mac "
               + "where mac = any(select LOWER(REPLACE(REPLACE(m, ':', ''), '-', '')) from unnest(cast(:macAddresses as text[])) as m))",
       nativeQuery = true)
   List<Endpoint> findByHostnameAndAtleastOneMacAddress(
-      @Param("hostname") String hostname, @Param("macAddresses") String[] macAddresses);
+      @Param("hostname") String hostname,
+      @Param("macAddresses") String[] macAddresses,
+      @Param("tenantId") String tenantId);
 
   @Query(
       value =
-          "select e.* from assets e where e.endpoint_mac_addresses && cast(:macAddresses as text[]) order by e.asset_id",
+          "select e.* from assets e where e.endpoint_mac_addresses && cast(:macAddresses as text[]) and e.tenant_id = :tenantId order by e.asset_id",
       nativeQuery = true)
   List<Endpoint> findByAtleastOneMacAddress(
-      @NotNull final @Param("macAddresses") String[] macAddresses);
+      @NotNull final @Param("macAddresses") String[] macAddresses,
+      @NotNull final @Param("tenantId") String tenantId);
 
   @Query(
       value =
-          "select e.* from assets e where e.asset_external_reference = :externalReference order by e.asset_id",
+          "select e.* from assets e where e.asset_external_reference = :externalReference and e.tenant_id = :tenantId order by e.asset_id",
       nativeQuery = true)
   List<Endpoint> findByExternalReference(
-      @NotNull final @Param("externalReference") String externalReference);
+      @NotNull final @Param("externalReference") String externalReference,
+      @NotNull final @Param("tenantId") String tenantId);
 
   @Override
   @Query(
@@ -74,16 +79,19 @@ public interface EndpointRepository
           + "   :simulationOrScenarioId is NULL AND i.exercise.id is NULL AND i.scenario.id IS NULL"
           + "   OR (i.exercise.id = :simulationOrScenarioId"
           + "   OR i.scenario.id = :simulationOrScenarioId)"
-          + " ) AND (:name IS NULL OR lower(a.name) LIKE lower(concat('%', cast(coalesce(:name, '') as string), '%')))")
-  List<Endpoint> findAllBySimulationOrScenarioIdAndName(String simulationOrScenarioId, String name);
+          + " ) AND (:name IS NULL OR lower(a.name) LIKE lower(concat('%', cast(coalesce(:name, '') as string), '%')))"
+          + " AND i.tenant.id = :tenantId")
+  List<Endpoint> findAllBySimulationOrScenarioIdAndName(
+      String simulationOrScenarioId, String name, String tenantId);
 
   @Query(
       value =
           "SELECT DISTINCT e.* "
               + "FROM assets e "
-              + "INNER JOIN injects_assets ia ON e.asset_id = ia.asset_id",
+              + "INNER JOIN injects_assets ia ON e.asset_id = ia.asset_id "
+              + "WHERE e.tenant_id = :tenantId",
       nativeQuery = true)
-  List<Endpoint> findAllEndpointsForAtomicTestingsSimulationsAndScenarios();
+  List<Endpoint> findAllEndpointsForAtomicTestingsSimulationsAndScenarios(String tenantId);
 
   @Query(
       value =
@@ -94,10 +102,12 @@ public interface EndpointRepository
                   SELECT DISTINCT fa.asset_id
                   FROM findings f
                   LEFT JOIN findings_assets fa ON fa.finding_id = f.finding_id
-              ) AND (:name IS NULL OR LOWER(a.asset_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')));
+              ) AND (:name IS NULL OR LOWER(a.asset_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
+              AND ag.tenant_id = :tenantId;
               """,
       nativeQuery = true)
-  List<Object[]> findAllByNameLinkedToFindings(@Param("name") String name, Pageable pageable);
+  List<Object[]> findAllByNameLinkedToFindings(
+      @Param("name") String name, @Param("tenantId") String tenantId, Pageable pageable);
 
   @Query(
       value =
@@ -119,11 +129,15 @@ public interface EndpointRepository
                   )
                   AND fa2.asset_id != :sourceId
               )
-              AND (:name IS NULL OR LOWER(a.asset_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')));
+              AND (:name IS NULL OR LOWER(a.asset_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
+              AND ag.tenant_id = :tenantId;
               """,
       nativeQuery = true)
   List<Object[]> findAllByNameLinkedToFindingsWithContext(
-      @Param("sourceId") String sourceId, @Param("name") String name, Pageable pageable);
+      @Param("sourceId") String sourceId,
+      @Param("name") String name,
+      @Param("tenantId") String tenantId,
+      Pageable pageable);
 
   @Query(
       value =
