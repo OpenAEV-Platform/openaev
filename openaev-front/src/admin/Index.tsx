@@ -75,6 +75,15 @@ const Index = () => {
   const [arianeChatMode, setArianeChatMode] = useState<ArianeChatMode>(
     () => (localStorage.getItem('arianeChatMode') as ArianeChatMode) || 'sidebar',
   );
+  const [arianeSidebarWidth, setArianeSidebarWidth] = useState(() => {
+    const stored = localStorage.getItem('arianeChatSidebarWidth');
+    if (stored) {
+      const parsed = parseInt(stored, 10);
+      if (!Number.isNaN(parsed) && parsed >= 400) return parsed;
+    }
+    return 400;
+  });
+  const [isResizingSidebar, setIsResizingSidebar] = useState(false);
 
   useEffect(() => {
     if (!isXtmOneConfigured) return undefined;
@@ -96,11 +105,13 @@ const Index = () => {
   const boxSx = {
     flexGrow: 1,
     padding: 3,
-    marginRight: sidebarPush ? '400px' : 0,
-    transition: theme.transitions.create(['width', 'margin-right'], {
-      easing: theme.transitions.easing.easeInOut,
-      duration: theme.transitions.duration.enteringScreen,
-    }),
+    marginRight: sidebarPush ? `${arianeSidebarWidth}px` : 0,
+    transition: isResizingSidebar
+      ? 'none'
+      : theme.transitions.create(['width', 'margin-right'], {
+          easing: theme.transitions.easing.easeInOut,
+          duration: theme.transitions.duration.enteringScreen,
+        }),
     overflowX: 'hidden',
     overflowY: 'hidden',
   };
@@ -275,6 +286,9 @@ const Index = () => {
             localStorage.setItem('arianeChatMode', mode);
           }}
           bannerHeight={bannerHeight ? parseInt(String(bannerHeight), 10) || 0 : 0}
+          onWidthChange={setArianeSidebarWidth}
+          onResizeStart={() => setIsResizingSidebar(true)}
+          onResizeEnd={() => setIsResizingSidebar(false)}
         />
       )}
     </Box>

@@ -1,5 +1,6 @@
 package io.openaev.database.model;
 
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static java.time.Instant.now;
 import static lombok.AccessLevel.NONE;
 
@@ -56,6 +57,12 @@ public class AssetGroup implements Base {
   @Column(name = "asset_group_external_reference")
   @JsonProperty("asset_group_external_reference")
   private String externalReference;
+
+  @ManyToOne
+  @JoinColumn(name = "tenant_id")
+  @JsonIgnore
+  @NotNull
+  private Tenant tenant = new Tenant(DEFAULT_TENANT_UUID);
 
   // -- ASSET --
 
