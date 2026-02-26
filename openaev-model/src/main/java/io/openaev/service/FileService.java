@@ -5,6 +5,7 @@ import io.minio.messages.DeleteError;
 import io.minio.messages.DeleteObject;
 import io.minio.messages.Item;
 import io.openaev.config.MinioConfig;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Document;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -79,6 +80,7 @@ public class FileService {
     this.minioClient = minioClient;
   }
 
+
   /**
    * Uploads a file from an input stream to MinIO.
    *
@@ -91,7 +93,7 @@ public class FileService {
   public void uploadFile(String name, InputStream data, long size, String contentType)
       throws Exception {
     minioClient.putObject(
-        PutObjectArgs.builder().bucket(minioConfig.getBucket()).object(name).stream(data, size, -1)
+        PutObjectArgs.builder().bucket(minioConfig.getBucket()+"-"+ TenantContext.getCurrentTenant()).object(name).stream(data, size, -1)
             .contentType(contentType)
             .build());
   }
@@ -109,7 +111,7 @@ public class FileService {
     String file = path + "/" + name;
     minioClient.putObject(
         PutObjectArgs.builder()
-            .bucket(minioConfig.getBucket())
+            .bucket(minioConfig.getBucket()+"-"+ TenantContext.getCurrentTenant())
             .object(file)
             .userMetadata(Map.of("filename", name))
             .stream(data, data.available(), -1)
@@ -125,7 +127,7 @@ public class FileService {
    */
   public void deleteFile(String name) throws Exception {
     minioClient.removeObject(
-        RemoveObjectArgs.builder().bucket(minioConfig.getBucket()).object(name).build());
+        RemoveObjectArgs.builder().bucket(minioConfig.getBucket()+"-"+ TenantContext.getCurrentTenant()).object(name).build());
   }
 
   /**
@@ -140,7 +142,7 @@ public class FileService {
     Iterable<Result<Item>> files =
         minioClient.listObjects(
             ListObjectsArgs.builder()
-                .bucket(minioConfig.getBucket())
+                .bucket(minioConfig.getBucket()+"-"+ TenantContext.getCurrentTenant())
                 .recursive(true)
                 .prefix(directory)
                 .build());
@@ -157,7 +159,7 @@ public class FileService {
     Iterable<Result<DeleteError>> removedObjects =
         minioClient.removeObjects(
             RemoveObjectsArgs.builder()
-                .bucket(minioConfig.getBucket())
+                .bucket(minioConfig.getBucket()+"-"+ TenantContext.getCurrentTenant())
                 .objects(deleteObjects)
                 .build());
     for (Result<DeleteError> result : removedObjects) {
@@ -192,7 +194,7 @@ public class FileService {
     try {
       GetObjectResponse objectStream =
           minioClient.getObject(
-              GetObjectArgs.builder().bucket(minioConfig.getBucket()).object(name).build());
+              GetObjectArgs.builder().bucket(minioConfig.getBucket()+"-"+ TenantContext.getCurrentTenant()).object(name).build());
       InputStreamResource streamResource = new InputStreamResource(objectStream);
       return Optional.of(streamResource.getInputStream());
     } catch (Exception e) {
@@ -271,7 +273,7 @@ public class FileService {
     try {
       StatObjectResponse response =
           minioClient.statObject(
-              StatObjectArgs.builder().bucket(minioConfig.getBucket()).object(fileTarget).build());
+              StatObjectArgs.builder().bucket(minioConfig.getBucket()+"-"+ TenantContext.getCurrentTenant()).object(fileTarget).build());
       String filename = response.userMetadata().get("filename");
       Optional<InputStream> inputStream = getFilePath(fileTarget);
       FileContainer fileContainer =
