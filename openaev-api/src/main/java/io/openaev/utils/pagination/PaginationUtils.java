@@ -59,7 +59,9 @@ public class PaginationUtils {
         PageRequest.of(input.getPage(), input.getSize(), toSortJpa(input.getSorts(), clazz));
 
     return findAll.apply(
-        filterSpecifications.and(searchSpecifications), filterSpecificationsForCount, pageable);
+        filterSpecifications.and(searchSpecifications),
+        filterSpecificationsForCount.and(searchSpecifications),
+        pageable);
   }
 
   public static <T, U> Page<U> buildPaginationCriteriaBuilder(
