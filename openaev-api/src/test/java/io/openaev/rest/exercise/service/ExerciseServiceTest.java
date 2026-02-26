@@ -21,11 +21,7 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exercise.form.ExercisesGlobalScoresInput;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.service.TagRuleService;
-import io.openaev.service.TeamService;
-import io.openaev.service.UserService;
-import io.openaev.service.VariableService;
-import io.openaev.service.period.CronService;
+import io.openaev.service.*;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
@@ -80,7 +76,8 @@ class ExerciseServiceTest extends IntegrationTest {
   @Mock private ExerciseTeamUserRepository exerciseTeamUserRepository;
   @Mock private InjectRepository injectRepository;
   @Mock private LessonsCategoryRepository lessonsCategoryRepository;
-  @Mock private CronService cronService;
+  @Mock private GrantService grantService;
+  @Mock private ExerciseTeamUserService exerciseTeamUserService;
 
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private ExerciseComposer exerciseComposer;
@@ -103,8 +100,9 @@ class ExerciseServiceTest extends IntegrationTest {
             tagRuleService,
             documentService,
             injectService,
-            cronService,
             userService,
+            grantService,
+            exerciseTeamUserService,
             exerciseMapper,
             injectMapper,
             resultUtils,

@@ -7,7 +7,6 @@ import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectRepository;
-import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.List;
@@ -27,7 +26,6 @@ class InjectCrudTest extends IntegrationTest {
 
   @Autowired private ExerciseRepository exerciseRepository;
 
-  @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectorContractFixture injectorContractFixture;
 
   @DisplayName("Test inject creation with non null depends duration")

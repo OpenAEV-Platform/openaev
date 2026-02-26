@@ -25,7 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class ScenarioToExerciseService {
 
   private final ExerciseRepository exerciseRepository;
-  private final GrantRepository grantRepository;
   private final TeamRepository teamRepository;
   private final ExerciseTeamUserRepository exerciseTeamUserRepository;
   private final ObjectiveRepository objectiveRepository;
@@ -37,6 +36,7 @@ public class ScenarioToExerciseService {
   private final InjectDocumentRepository injectDocumentRepository;
   private final VariableService variableService;
   private final TeamService teamService;
+  private final GrantService grantService;
   private final PlatformSettingsService platformSettingsService;
   private final CustomDashboardService customDashboardService;
   @Resource protected ObjectMapper mapper;
@@ -77,20 +77,8 @@ public class ScenarioToExerciseService {
     Exercise exerciseSaved = this.exerciseRepository.save(exercise);
 
     // Grants
-    Grant.GRANT_RESOURCE_TYPE grantResourceTypeForSimulation =
-        GrantableBase.getGrantResourceType(Exercise.class);
     List<Grant> exerciseGrants =
-        scenario.getGrants().stream()
-            .map(
-                scenarioGrant -> {
-                  Grant grant = new Grant();
-                  grant.setName(scenarioGrant.getName());
-                  grant.setGroup(scenarioGrant.getGroup());
-                  grant.setResourceId(exerciseSaved.getId());
-                  grant.setGrantResourceType(grantResourceTypeForSimulation);
-                  return this.grantRepository.save(grant);
-                })
-            .toList();
+        grantService.duplicateGrants(scenario.getGrants(), exerciseSaved.getId());
     exerciseSaved.setGrants(exerciseGrants);
 
     // Teams

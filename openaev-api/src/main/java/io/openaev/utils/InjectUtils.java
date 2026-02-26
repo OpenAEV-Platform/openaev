@@ -292,18 +292,18 @@ public class InjectUtils {
       throw new RuntimeException(e);
     }
     duplicatedInject.setAllTeams(injectOrigin.isAllTeams());
-    duplicatedInject.setTeams(injectOrigin.getTeams().stream().toList());
+    duplicatedInject.setTeams(new ArrayList<>(injectOrigin.getTeams()));
     duplicatedInject.setEnabled(injectOrigin.isEnabled());
     duplicatedInject.setDependsDuration(injectOrigin.getDependsDuration());
     if (injectOrigin.getDependsOn() != null) {
-      duplicatedInject.setDependsOn(injectOrigin.getDependsOn().stream().toList());
+      duplicatedInject.setDependsOn(new ArrayList<>(injectOrigin.getDependsOn()));
     }
     duplicatedInject.setCountry(injectOrigin.getCountry());
     duplicatedInject.setCity(injectOrigin.getCity());
     duplicatedInject.setInjectorContract(injectOrigin.getInjectorContract().orElse(null));
-    duplicatedInject.setAssetGroups(injectOrigin.getAssetGroups().stream().toList());
-    duplicatedInject.setAssets(injectOrigin.getAssets().stream().toList());
-    duplicatedInject.setCommunications(injectOrigin.getCommunications().stream().toList());
+    duplicatedInject.setAssetGroups(new ArrayList<>(injectOrigin.getAssetGroups()));
+    duplicatedInject.setAssets(new ArrayList<>(injectOrigin.getAssets()));
+    duplicatedInject.setCommunications(new ArrayList<>(injectOrigin.getCommunications()));
     duplicatedInject.setTags(new HashSet<>(injectOrigin.getTags()));
 
     duplicatedInject.setExercise(injectOrigin.getExercise());
