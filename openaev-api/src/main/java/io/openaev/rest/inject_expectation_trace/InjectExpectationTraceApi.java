@@ -103,6 +103,9 @@ public class InjectExpectationTraceApi extends RestBehavior {
           collectorRepository
               .findById(sourceId)
               .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
+      if (collector.getSecurityPlatform() == null) {
+        throw new ElementNotFoundException("Collector has no security platform");
+      }
       return this.injectExpectationTraceService.getInjectExpectationTracesFromCollector(
           injectExpectationId, collector.getSecurityPlatform().getId());
     } catch (ElementNotFoundException e) {
