@@ -8,6 +8,7 @@ import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
@@ -54,12 +55,14 @@ public class SentinelOneExecutorServiceTest {
     sentinelOneExecutor = new Executor();
     sentinelOneExecutor.setName(SENTINELONE_EXECUTOR_NAME);
     sentinelOneExecutor.setType(SENTINELONE_EXECUTOR_TYPE);
+    sentinelOneExecutor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
   }
 
   @Test
   void test_run_sentinelone() {
     // Init datas
     when(client.agents()).thenReturn(Set.of(sentinelOneAgent));
+    sentinelOneExecutorService.executor = sentinelOneExecutor;
     // Run method to test
     sentinelOneExecutorService.run();
     // Asserts
