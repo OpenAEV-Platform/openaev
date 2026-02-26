@@ -2,6 +2,7 @@ package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.Ipv4OrIpv6Constraint;
@@ -11,6 +12,7 @@ import io.openaev.helper.MultiModelSerializer;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
+import java.util.stream.StreamSupport;
 import lombok.*;
 import org.hibernate.annotations.Type;
 
@@ -57,6 +59,33 @@ public class Endpoint extends Asset {
     /** Returns all enum constant names as strings. */
     public static List<String> getAllNamesAsStrings() {
       return Arrays.stream(values()).map(Enum::name).toList();
+    }
+
+    /**
+     * Convert and return all enum from a list of String
+     *
+     * @param node to convert
+     * @return converted list
+     */
+    public static PLATFORM_TYPE[] fromJsonNode(JsonNode node) {
+      if (node == null || !node.isArray()) {
+        return new PLATFORM_TYPE[] {Unknown};
+      }
+      PLATFORM_TYPE[] result =
+          StreamSupport.stream(node.spliterator(), false)
+              .map(JsonNode::asText)
+              .map(
+                  value -> {
+                    try {
+                      return PLATFORM_TYPE.valueOf(value);
+                    } catch (IllegalArgumentException e) {
+                      return null;
+                    }
+                  })
+              .filter(Objects::nonNull)
+              .toArray(PLATFORM_TYPE[]::new);
+
+      return result.length == 0 ? new PLATFORM_TYPE[] {Unknown} : result;
     }
   }
 

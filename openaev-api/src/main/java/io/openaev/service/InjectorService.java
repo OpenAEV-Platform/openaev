@@ -47,7 +47,7 @@ import org.springframework.web.multipart.MultipartFile;
 @Service("coreInjectorService")
 // TODO needs to be merged with integrations/InjectorService
 public class InjectorService extends AbstractConnectorService<Injector, InjectorOutput> {
-  private static final String DUMMY_SUFFIX = "_dummy";
+  public static final String DUMMY_SUFFIX = "_dummy";
 
   @Resource private RabbitmqConfig rabbitmqConfig;
   private final InjectorRepository injectorRepository;
@@ -421,6 +421,16 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     }
 
     log.info("Successfully registered injector '{}' (type: {})", name, contractor.getType());
+  }
+
+  /**
+   * Found Injector by type
+   *
+   * @param type to find
+   * @return found injector
+   */
+  public Optional<Injector> findByType(@NotBlank String type) {
+    return this.injectorRepository.findByType(type);
   }
 
   private void deleteDummyInjectorIfItExists(
