@@ -38,7 +38,7 @@ public class CalderaExecutorService implements Runnable {
   private final PlatformSettingsService platformSettingsService;
   private final AgentService agentService;
 
-  private Executor executor = null;
+  private Executor executor;
 
   public static Endpoint.PLATFORM_TYPE toPlatform(@NotBlank final String platform) {
     return switch (platform) {
