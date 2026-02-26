@@ -434,7 +434,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   }
 
   private void deleteDummyInjectorIfItExists(
-      @NotBlank final String injectorType, @NotBlank final Injector newInjector) {
+      @NotBlank final String injectorType, final Injector newInjector) {
     injectorRepository
         .findById(injectorType + DUMMY_SUFFIX)
         .ifPresent(
