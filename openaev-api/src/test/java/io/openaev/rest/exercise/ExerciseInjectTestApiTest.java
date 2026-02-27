@@ -66,15 +66,17 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
     inject1 = injectComposer1.persist().get();
     inject2 = injectComposer2.persist().get();
 
-    injectTestStatus1 = injectTestStatusComposer1.get();
-    injectTestStatus2 = injectTestStatusComposer2.get();
-
     simulation =
         simulationComposer
             .forExercise(ExerciseFixture.createDefaultExercise())
             .withInjects(List.of(injectComposer1, injectComposer2))
             .persist()
             .get();
+
+    List<Inject> persistedInjects = simulation.getInjects().stream().toList();
+
+    inject1 = persistedInjects.get(0);
+    inject2 = persistedInjects.get(1);
   }
 
   @Nested
