@@ -90,7 +90,6 @@
     "@types/react": "19.2.7",
     "@types/react-csv": "1.1.10",
     "@types/react-dom": "19.2.3",
-    "@types/react-grid-layout": "^2.0.0",
     "@types/react-syntax-highlighter": "15",
     "@typescript-eslint/utils": "8.48.0",
     "@vitejs/plugin-react": "5.1.1",
