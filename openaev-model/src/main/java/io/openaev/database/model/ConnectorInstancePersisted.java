@@ -24,7 +24,7 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "connector_instances")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class ConnectorInstancePersisted extends ConnectorInstance implements Base, TenantBase {
+public class ConnectorInstancePersisted extends ConnectorInstance implements TenantBase {
   @Id
   @Column(name = "connector_instance_id")
   @GeneratedValue(generator = "UUID")
@@ -95,9 +95,8 @@ public class ConnectorInstancePersisted extends ConnectorInstance implements Bas
   private Set<ConnectorInstanceConfiguration> configurations = new HashSet<>();
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
-  @NotNull
   private Tenant tenant;
 
   @Override

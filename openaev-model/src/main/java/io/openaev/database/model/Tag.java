@@ -41,7 +41,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Table(name = "tags")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class Tag implements Base, TenantBase {
+public class Tag implements TenantBase {
 
   public static final String OPENCTI_TAG_NAME = "opencti";
   public static final String SECURITY_COVERAGE_LINUX_TAG_NAME = "security coverage: linux";
@@ -104,9 +104,10 @@ public class Tag implements Base, TenantBase {
   private Instant updatedAt = now();
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
-  @NotNull
+  @Getter
+  @Setter
   private Tenant tenant;
 
   @Getter(onMethod_ = @JsonIgnore)
@@ -130,16 +131,6 @@ public class Tag implements Base, TenantBase {
 
   public void setColor(String color) {
     this.color = color != null ? color.toLowerCase() : null;
-  }
-
-  @Override
-  public Tenant getTenant() {
-    return tenant;
-  }
-
-  @Override
-  public void setTenant(Tenant tenant) {
-    this.tenant = tenant;
   }
 
   @Override

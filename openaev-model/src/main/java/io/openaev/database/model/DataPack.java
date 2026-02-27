@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.audit.TenantBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Filter;
@@ -24,8 +23,7 @@ public class DataPack implements TenantBase {
   private String id;
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
-  @NotNull
   private Tenant tenant;
 }

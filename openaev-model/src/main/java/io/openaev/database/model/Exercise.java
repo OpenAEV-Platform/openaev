@@ -160,9 +160,9 @@ public class Exercise implements GrantableBase, TenantBase {
   private boolean lessonsAnonymized = false;
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
-  @NotNull
+  @Getter
   private Tenant tenant;
 
   // -- SCENARIO --
@@ -472,11 +472,6 @@ public class Exercise implements GrantableBase, TenantBase {
   }
 
   // endregion
-
-  @Override
-  public Tenant getTenant() {
-    return tenant;
-  }
 
   public Optional<Instant> getStart() {
     return ofNullable(start);

@@ -75,9 +75,8 @@ public class Collector extends BaseConnectorEntity implements TenantBase {
   private ObjectNode state;
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
-  @NotNull
   private Tenant tenant;
 
   @Getter(onMethod_ = @JsonIgnore)

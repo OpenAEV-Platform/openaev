@@ -371,9 +371,8 @@ public class Scenario implements GrantableBase, TenantBase {
   private boolean lessonsAnonymized = false;
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
-  @NotNull
   private Tenant tenant;
 
   @Getter(onMethod_ = @JsonIgnore)

@@ -33,7 +33,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Table(name = "custom_dashboards")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class CustomDashboard implements Base, TenantBase {
+public class CustomDashboard implements TenantBase {
 
   @Id
   @Column(name = "custom_dashboard_id", updatable = false, nullable = false)
@@ -72,9 +72,8 @@ public class CustomDashboard implements Base, TenantBase {
   private List<CustomDashboardParameters> parameters = new ArrayList<>();
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
-  @NotNull
   private Tenant tenant;
 
   public CustomDashboard addParameter(

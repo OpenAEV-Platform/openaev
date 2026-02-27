@@ -30,7 +30,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Table(name = "challenges")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class Challenge implements Base, TenantBase {
+public class Challenge implements TenantBase {
 
   @Id
   @Column(name = "challenge_id")
@@ -101,9 +101,8 @@ public class Challenge implements Base, TenantBase {
   private List<Document> documents = new ArrayList<>();
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
-  @NotNull
   private Tenant tenant;
 
   @Transient private List<String> exerciseIds = new ArrayList<>();

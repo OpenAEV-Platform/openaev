@@ -91,9 +91,8 @@ public class Injector extends BaseConnectorEntity implements TenantBase {
   private List<InjectorContract> contracts = new ArrayList<>();
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
-  @NotNull
   private Tenant tenant;
 
   @Getter(onMethod_ = @JsonIgnore)

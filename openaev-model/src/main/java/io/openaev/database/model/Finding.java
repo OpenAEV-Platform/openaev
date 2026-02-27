@@ -29,7 +29,7 @@ import org.hibernate.annotations.*;
 @Table(name = "findings")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class Finding implements Base, TenantBase {
+public class Finding implements TenantBase {
 
   @Id
   @Column(name = "finding_id", updatable = false, nullable = false)
@@ -81,9 +81,10 @@ public class Finding implements Base, TenantBase {
   private Set<Tag> tags = new HashSet<>();
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
-  @NotNull
+  // The tenant here must be set automatically with the inject tenant when the finding is created by
+  // the inject
   private Tenant tenant;
 
   // -- RELATION --

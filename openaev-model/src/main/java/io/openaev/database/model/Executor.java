@@ -55,9 +55,8 @@ public class Executor extends BaseConnectorEntity implements TenantBase {
   private String backgroundColor;
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
-  @NotNull
   private Tenant tenant;
 
   @Column(name = "executor_created_at")

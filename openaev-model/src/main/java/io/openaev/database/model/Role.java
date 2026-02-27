@@ -26,7 +26,7 @@ import org.hibernate.annotations.Filter;
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 @EqualsAndHashCode
-public class Role implements Base, TenantBase {
+public class Role implements TenantBase {
 
   @Id
   @ControlledUuidGeneration
@@ -71,8 +71,7 @@ public class Role implements Base, TenantBase {
   private Instant updatedAt = now();
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
-  @NotNull
   private Tenant tenant;
 }

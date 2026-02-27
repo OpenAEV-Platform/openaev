@@ -27,7 +27,7 @@ import org.hibernate.annotations.Filter;
 @Table(name = "agents")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class Agent implements Base, TenantBase {
+public class Agent implements TenantBase {
 
   public static final String ADMIN_SYSTEM_WINDOWS = "nt authority\\system";
   public static final String ADMIN_SYSTEM_UNIX = "root";
@@ -149,9 +149,8 @@ public class Agent implements Base, TenantBase {
 
   // Ignore json and not null
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
-  @NotNull
   private Tenant tenant;
 
   @Override

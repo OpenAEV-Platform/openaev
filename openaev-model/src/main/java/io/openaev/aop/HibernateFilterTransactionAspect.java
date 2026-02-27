@@ -1,4 +1,4 @@
-package io.openaev.config;
+package io.openaev.aop;
 
 import io.openaev.context.TenantContext;
 import jakarta.persistence.EntityManager;
@@ -20,10 +20,6 @@ public class HibernateFilterTransactionAspect {
           + "@annotation(jakarta.transaction.Transactional)")
   public void enableFilters() {
     Session session = entityManager.unwrap(Session.class);
-    if (session.getEnabledFilter("tenantFilter") == null) {
-      session
-          .enableFilter("tenantFilter")
-          .setParameter("tenantId", TenantContext.getCurrentTenant());
-    }
+    session.enableFilter("tenantFilter").setParameter("tenantId", TenantContext.getCurrentTenant());
   }
 }

@@ -24,7 +24,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Table(name = "import_mappers")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class ImportMapper implements Base, TenantBase {
+public class ImportMapper implements TenantBase {
 
   @Id
   @Column(name = "mapper_id")
@@ -51,9 +51,8 @@ public class ImportMapper implements Base, TenantBase {
   private List<InjectImporter> injectImporters = new ArrayList<>();
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
-  @NotNull
   private Tenant tenant;
 
   @CreationTimestamp

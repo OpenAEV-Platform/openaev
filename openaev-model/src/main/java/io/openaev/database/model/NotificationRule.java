@@ -19,7 +19,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Table(name = "notification_rules")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class NotificationRule implements Base, TenantBase {
+public class NotificationRule implements TenantBase {
 
   @Id
   @GeneratedValue(generator = "UUID")
@@ -66,9 +66,8 @@ public class NotificationRule implements Base, TenantBase {
   private User owner;
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
-  @NotNull
   private Tenant tenant;
 
   @Getter(onMethod_ = @JsonIgnore)

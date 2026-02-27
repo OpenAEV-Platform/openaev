@@ -18,7 +18,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,7 +31,7 @@ import org.hibernate.annotations.*;
 @Table(name = "attack_patterns")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class AttackPattern implements Base, TenantBase {
+public class AttackPattern implements TenantBase {
 
   @Id
   @Column(name = "attack_pattern_id")
@@ -107,9 +106,8 @@ public class AttackPattern implements Base, TenantBase {
   private List<KillChainPhase> killChainPhases = new ArrayList<>();
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
-  @NotNull
   private Tenant tenant;
 
   @Getter(onMethod_ = @JsonIgnore)

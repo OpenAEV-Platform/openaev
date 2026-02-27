@@ -1,9 +1,6 @@
 package io.openaev.database.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
-@JsonIgnoreProperties(ignoreUnknown = true)
-public interface TenantBase {
+public interface TenantBase extends Base {
   Tenant getTenant();
 
   void setTenant(Tenant tenant);

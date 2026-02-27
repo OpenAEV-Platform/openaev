@@ -9,7 +9,6 @@ import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -24,7 +23,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Table(name = "tag_rules")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class TagRule implements Base, TenantBase {
+public class TagRule implements TenantBase {
   public static Set<String> RESERVED_TAG_NAMES =
       Set.of(
           OPENCTI_TAG_NAME,
@@ -62,9 +61,8 @@ public class TagRule implements Base, TenantBase {
   private List<AssetGroup> assetGroups = new ArrayList<>();
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
-  @NotNull
   private Tenant tenant;
 
   @Getter(onMethod_ = @JsonIgnore)

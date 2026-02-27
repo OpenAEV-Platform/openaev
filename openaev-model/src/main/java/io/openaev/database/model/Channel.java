@@ -27,7 +27,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Table(name = "channels")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class Channel implements Base, TenantBase {
+public class Channel implements TenantBase {
 
   @Id
   @Column(name = "channel_id")
@@ -94,9 +94,8 @@ public class Channel implements Base, TenantBase {
   private Document logoLight;
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
-  @NotNull
   private Tenant tenant;
 
   @Getter(onMethod_ = @JsonIgnore)

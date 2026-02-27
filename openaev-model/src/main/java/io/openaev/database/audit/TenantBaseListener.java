@@ -13,8 +13,15 @@ import org.springframework.stereotype.Component;
 public class TenantBaseListener<T extends TenantBase> {
 
   @PrePersist
-  @PreUpdate
   private void manageTenant(T tenant) {
     tenant.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+  }
+
+  @PreUpdate
+  private void assertTenant(T entity) {
+    if (entity.getTenant() != null
+        && !TenantContext.getCurrentTenant().equals(entity.getTenant().getId())) {
+      throw new IllegalStateException("Tenant is immutable");
+    }
   }
 }

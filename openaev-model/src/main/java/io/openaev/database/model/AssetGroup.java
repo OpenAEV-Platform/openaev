@@ -37,7 +37,7 @@ import org.hibernate.annotations.UpdateTimestamp;
       name = "AssetGroup.tags-assets",
       attributeNodes = {@NamedAttributeNode("tags"), @NamedAttributeNode("assets")})
 })
-public class AssetGroup implements Base, TenantBase {
+public class AssetGroup implements TenantBase {
   @Id
   @ControlledUuidGeneration
   @Column(name = "asset_group_id")
@@ -61,9 +61,8 @@ public class AssetGroup implements Base, TenantBase {
   private String externalReference;
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
-  @NotNull
   private Tenant tenant;
 
   // -- ASSET --

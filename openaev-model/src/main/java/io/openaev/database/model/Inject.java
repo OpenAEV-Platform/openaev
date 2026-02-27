@@ -322,9 +322,9 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   private List<Finding> findings = new ArrayList<>();
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
-  @NotNull
+  @Getter
   private Tenant tenant;
 
   @Getter @Setter @Transient private boolean isListened = true;
@@ -538,11 +538,6 @@ public class Inject implements GrantableBase, Injection, TenantBase {
         this.getInjectorContract().isPresent()
             ? this.getInjectorContract().get().getPayload()
             : null);
-  }
-
-  @Override
-  public Tenant getTenant() {
-    return tenant;
   }
 
   @Override

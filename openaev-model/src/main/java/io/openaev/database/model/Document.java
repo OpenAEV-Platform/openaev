@@ -10,7 +10,6 @@ import io.openaev.helper.MultiIdSetSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
@@ -34,7 +33,7 @@ import org.hibernate.annotations.UuidGenerator;
         @NamedAttributeNode("exercises")
       })
 })
-public class Document implements Base, TenantBase {
+public class Document implements TenantBase {
 
   @Id
   @Column(name = "document_id")
@@ -113,9 +112,8 @@ public class Document implements Base, TenantBase {
   private Set<Challenge> challenges = new HashSet<>();
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
-  @NotNull
   private Tenant tenant;
 
   @OneToMany(mappedBy = "document", fetch = FetchType.LAZY)

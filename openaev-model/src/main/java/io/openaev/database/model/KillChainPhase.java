@@ -23,7 +23,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Table(name = "kill_chain_phases")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class KillChainPhase implements Base, TenantBase {
+public class KillChainPhase implements TenantBase {
 
   @Id
   @Column(name = "phase_id")
@@ -82,9 +82,8 @@ public class KillChainPhase implements Base, TenantBase {
   private Instant updatedAt = now();
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
-  @NotNull
   private Tenant tenant;
 
   @Getter(onMethod_ = @JsonIgnore)

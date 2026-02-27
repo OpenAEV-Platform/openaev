@@ -12,7 +12,6 @@ import io.openaev.helper.MultiModelSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -26,7 +25,7 @@ import org.hibernate.annotations.Filter;
 @Table(name = "groups")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class Group implements Base, TenantBase {
+public class Group implements TenantBase {
 
   @Id
   @ControlledUuidGeneration
@@ -82,9 +81,8 @@ public class Group implements Base, TenantBase {
   private List<Role> roles = new ArrayList<>();
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
-  @NotNull
   private Tenant tenant;
 
   @Getter(onMethod_ = @JsonIgnore)

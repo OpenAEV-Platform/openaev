@@ -27,7 +27,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Table(name = "mitigations")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class Mitigation implements Base, TenantBase {
+public class Mitigation implements TenantBase {
 
   @Id
   @Column(name = "mitigation_id")
@@ -91,8 +91,7 @@ public class Mitigation implements Base, TenantBase {
   private List<AttackPattern> attackPatterns = new ArrayList<>();
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
-  @NotNull
   private Tenant tenant;
 }

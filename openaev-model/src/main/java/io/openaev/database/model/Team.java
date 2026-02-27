@@ -37,7 +37,7 @@ import org.hibernate.annotations.UuidGenerator;
 @NamedEntityGraphs({
   @NamedEntityGraph(name = "Team.tags", attributeNodes = @NamedAttributeNode("tags"))
 })
-public class Team implements Base, TenantBase {
+public class Team implements TenantBase {
 
   @Id
   @Column(name = "team_id")
@@ -77,9 +77,8 @@ public class Team implements Base, TenantBase {
   private Instant updatedAt = now();
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
-  @NotNull
   private Tenant tenant;
 
   @ArraySchema(

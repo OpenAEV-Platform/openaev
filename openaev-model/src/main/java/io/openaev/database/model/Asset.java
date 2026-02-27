@@ -34,7 +34,7 @@ import org.hibernate.annotations.UuidGenerator;
 @DiscriminatorColumn(name = "asset_type", discriminatorType = STRING)
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class Asset implements Base, TenantBase {
+public class Asset implements TenantBase {
 
   @Id
   @Column(name = "asset_id")
@@ -67,9 +67,8 @@ public class Asset implements Base, TenantBase {
   private String externalReference;
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
-  @NotNull
   private Tenant tenant;
 
   // -- TAG --

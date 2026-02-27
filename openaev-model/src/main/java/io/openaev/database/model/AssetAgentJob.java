@@ -9,7 +9,6 @@ import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import java.util.Objects;
 import lombok.Data;
 import lombok.Getter;
@@ -21,7 +20,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Table(name = "asset_agent_jobs")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class AssetAgentJob implements Base, TenantBase {
+public class AssetAgentJob implements TenantBase {
 
   @Id
   @Column(name = "asset_agent_id")
@@ -54,9 +53,8 @@ public class AssetAgentJob implements Base, TenantBase {
   private String command;
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
-  @NotNull
   private Tenant tenant;
 
   @Override
