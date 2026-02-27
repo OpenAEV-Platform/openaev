@@ -241,7 +241,8 @@ public class Exercise implements GrantableBase {
   // UpdatedAt now used to sync with linked object
   public void setInjects(List<Inject> injects) {
     this.updatedAt = now();
-    this.injects = injects;
+    this.injects.clear();
+    this.injects.addAll(injects);
   }
 
   @Getter

@@ -267,7 +267,8 @@ public class Scenario implements GrantableBase {
   // UpdatedAt now used to sync with linked object
   public void setInjects(Set<Inject> injects) {
     this.updatedAt = now();
-    this.injects = injects;
+    this.injects.clear();
+    this.injects.addAll(injects);
   }
 
   @Schema(implementation = String[].class)
