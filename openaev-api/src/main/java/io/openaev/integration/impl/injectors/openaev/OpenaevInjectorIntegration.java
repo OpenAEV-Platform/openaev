@@ -115,36 +115,24 @@ public class OpenaevInjectorIntegration extends IntegrationInMemory {
         "unsecured_certificate=\"" + cfg.isUnsecuredCertificate() + "\"";
     String withProxyVar = "with_proxy=\"" + cfg.isWithProxy() + "\"";
     if (previewFeatureService.isFeatureEnabled(PreviewFeature.PALO_ALTO_CORTEX_EXECUTOR)) {
-      commands.put(
-          Endpoint.PLATFORM_TYPE.Windows.name() + "." + Endpoint.PLATFORM_ARCH.x86_64,
-          "[Net.ServicePointManager]::SecurityProtocol += [Net.SecurityProtocolType]::Tls12;$x=\"#{location}\";$location=$x.Replace(\"\\oaev-agent-caldera.exe\", \"\");[Environment]::CurrentDirectory = $location;$filename=\"oaev-implant-#{inject}-agent-#{agent}.exe\";$"
-              + tokenVar
-              + ";$"
-              + serverVar
-              + ";$"
-              + unsecuredCertificateVar
-              + ";$"
-              + withProxyVar
-              + ";$"
-              + maxSizeVar
-              + ";"
-              + dlVar(cfg, "windows", "x86_64")
-              + ";$wc=New-Object System.Net.WebClient;$data=$wc.DownloadData($url);[io.file]::WriteAllBytes($filename,$data) | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\" -Direction Inbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\" -Direction Outbound -Program \"$location\\$filename\" -Action Allow | Out-Null;$psi = New-Object System.Diagnostics.ProcessStartInfo;$psi.FileName = \"$location\\$filename\";$psi.Arguments = \"--uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject}\";$psi.UseShellExecute = $false;$psi.RedirectStandardError = $true;$psi.RedirectStandardOutput = $true;$psi.RedirectStandardInput = $true;$proc = [System.Diagnostics.Process]::Start($psi);$stdout = $proc.StandardOutput.ReadToEndAsync();$stderr = $proc.StandardError.ReadToEndAsync();$proc.WaitForExit();exit $proc.ExitCode;");
-      commands.put(
-          Endpoint.PLATFORM_TYPE.Windows.name() + "." + Endpoint.PLATFORM_ARCH.arm64,
-          "[Net.ServicePointManager]::SecurityProtocol += [Net.SecurityProtocolType]::Tls12;$x=\"#{location}\";$location=$x.Replace(\"\\oaev-agent-caldera.exe\", \"\");[Environment]::CurrentDirectory = $location;$filename=\"oaev-implant-#{inject}-agent-#{agent}.exe\";$"
-              + tokenVar
-              + ";$"
-              + serverVar
-              + ";$"
-              + unsecuredCertificateVar
-              + ";$"
-              + withProxyVar
-              + ";$"
-              + maxSizeVar
-              + ";"
-              + dlVar(cfg, "windows", "arm64")
-              + ";$wc=New-Object System.Net.WebClient;$data=$wc.DownloadData($url);[io.file]::WriteAllBytes($filename,$data) | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\" -Direction Inbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\" -Direction Outbound -Program \"$location\\$filename\" -Action Allow | Out-Null;$psi = New-Object System.Diagnostics.ProcessStartInfo;$psi.FileName = \"$location\\$filename\";$psi.Arguments = \"--uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject}\";$psi.UseShellExecute = $false;$psi.RedirectStandardError = $true;$psi.RedirectStandardOutput = $true;$psi.RedirectStandardInput = $true;$proc = [System.Diagnostics.Process]::Start($psi);$stdout = $proc.StandardOutput.ReadToEndAsync();$stderr = $proc.StandardError.ReadToEndAsync();$proc.WaitForExit();exit $proc.ExitCode;");
+      this.buildWindowsCommand(
+          Endpoint.PLATFORM_ARCH.x86_64,
+          cfg,
+          commands,
+          tokenVar,
+          serverVar,
+          unsecuredCertificateVar,
+          withProxyVar,
+          maxSizeVar);
+      this.buildWindowsCommand(
+          Endpoint.PLATFORM_ARCH.arm64,
+          cfg,
+          commands,
+          tokenVar,
+          serverVar,
+          unsecuredCertificateVar,
+          withProxyVar,
+          maxSizeVar);
     } else {
       commands.put(
           Endpoint.PLATFORM_TYPE.Windows.name() + "." + Endpoint.PLATFORM_ARCH.x86_64,
@@ -263,5 +251,61 @@ public class OpenaevInjectorIntegration extends IntegrationInMemory {
         "x=\"#{location}\";location=$(echo \"$x\" | sed \"s#/openaev-caldera-agent##\");cd \"$location\"; rm *implant*");
 
     return clear;
+  }
+
+  /**
+   * Build a Windows command
+   *
+   * @param arch targeted windows architecture
+   * @param cfg OpenAEV configuration
+   * @param commands list of commands to append the new command to
+   * @param tokenVar token variable
+   * @param serverVar serer URL variable
+   * @param unsecuredCertificateVar enable unsecured certificate variable
+   * @param withProxyVar enable proxy variable
+   * @param maxSizeVar max size variable
+   */
+  private void buildWindowsCommand(
+      Endpoint.PLATFORM_ARCH arch,
+      OpenAEVConfig cfg,
+      Map<String, String> commands,
+      String tokenVar,
+      String serverVar,
+      String unsecuredCertificateVar,
+      String withProxyVar,
+      String maxSizeVar) {
+    commands.put(
+        Endpoint.PLATFORM_TYPE.Windows.name() + "." + arch.name(),
+        "[Net.ServicePointManager]::SecurityProtocol += [Net.SecurityProtocolType]::Tls12;$x=\"#{location}\";$location=$x.Replace(\"\\oaev-agent-caldera.exe\", \"\");[Environment]::CurrentDirectory = $location;$filename=\"oaev-implant-#{inject}-agent-#{agent}.exe\";$"
+            + tokenVar
+            + ";$"
+            + serverVar
+            + ";$"
+            + unsecuredCertificateVar
+            + ";$"
+            + withProxyVar
+            + ";$"
+            + maxSizeVar
+            + ";"
+            + dlVar(cfg, "windows", arch.name())
+            + ";$wc=New-Object System.Net.WebClient;$data=$wc.DownloadData($url);[io.file]::WriteAllBytes($filename,$data) | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\" -Direction Inbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\" -Direction Outbound -Program \"$location\\$filename\" -Action Allow | Out-Null;"
+            + "$taskName = 'OpenAEV-Inject-#{inject}-Agent-#{agent}';"
+            + "$taskDescription = 'OpenAEV EDR validation task - inject #{inject} - agent #{agent} - safe to ignore - will self-delete after execution';"
+            + "$implantArgs = '--uri ' + $server + ' --token ' + $token + ' --unsecured-certificate ' + $unsecured_certificate + ' --with-proxy ' + $with_proxy + ' --agent-id #{agent} --inject-id #{inject}';"
+            + "$action = New-ScheduledTaskAction -Execute \"$location\\$filename\" -Argument $implantArgs;"
+            + "$principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest;"
+            + "$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Hours 0);"
+            + "Register-ScheduledTask -TaskName $taskName -Description $taskDescription -Action $action -Principal $principal -Settings $settings -Force | Out-Null;"
+            + "Start-ScheduledTask -TaskName $taskName;"
+            + "$timeout = 300; $elapsed = 0;"
+            + "while($elapsed -lt $timeout) {"
+            + "  $state = (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue).State;"
+            + "  if($state -eq 'Ready') { break }"
+            + "  Start-Sleep -Seconds 1; $elapsed++;"
+            + "}"
+            + "$info = Get-ScheduledTaskInfo -TaskName $taskName -ErrorAction SilentlyContinue;"
+            + "$exitCode = $info.LastTaskResult;"
+            + "Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue;"
+            + "exit $exitCode;");
   }
 }
