@@ -63,9 +63,6 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
             .forInject(InjectFixture.getInjectForEmailContract(injectorContract))
             .withInjectTestStatus(injectTestStatusComposer2);
 
-    inject1 = injectComposer1.persist().get();
-    inject2 = injectComposer2.persist().get();
-
     simulation =
         simulationComposer
             .forExercise(ExerciseFixture.createDefaultExercise())
