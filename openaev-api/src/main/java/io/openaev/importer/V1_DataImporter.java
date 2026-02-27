@@ -554,6 +554,7 @@ public class V1_DataImporter implements Importer {
     // need to get real database-bound ids for tags
     List<String> tagIds =
         resolveJsonIds(nodeDoc, "document_tags").stream()
+            .filter(baseIds::containsKey)
             .map(tid -> baseIds.get(tid).getId())
             .toList();
     document.setTags(iterableToSet(tagRepository.findAllById(tagIds)));
@@ -1105,7 +1106,8 @@ public class V1_DataImporter implements Importer {
           }
 
           if (injectorContractId == null) {
-            if (scenario.getDependencies() != null
+            if (scenario != null
+                && scenario.getDependencies() != null
                 && Arrays.asList(scenario.getDependencies())
                     .contains(Scenario.Dependency.STARTERPACK)) {
               // if we are importing the starter pack, we will create the injector contract so the
@@ -1338,6 +1340,7 @@ public class V1_DataImporter implements Importer {
     importTags(node, "contract_output_element_tags", baseIds);
     outputElement.setTagIds(
         resolveJsonIds(node, "contract_output_element_tags").stream()
+            .filter(baseIds::containsKey)
             .map(tid -> baseIds.get(tid).getId())
             .toList());
     ArrayNode regexGroupNodes = (ArrayNode) node.get("contract_output_element_regex_groups");
