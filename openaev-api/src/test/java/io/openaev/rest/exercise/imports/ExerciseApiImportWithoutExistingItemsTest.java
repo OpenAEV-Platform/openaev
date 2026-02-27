@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
@@ -1059,7 +1060,11 @@ public class ExerciseApiImportWithoutExistingItemsTest extends IntegrationTest {
 
     for (Challenge expected : challengeComposer.generatedItems) {
       Optional<Challenge> challengeFromDb =
-          challengeRepository.findByNameIgnoreCase(expected.getName()).stream().findFirst();
+          challengeRepository
+              .findByNameIgnoreCaseAndTenant(
+                  expected.getName(), new Tenant(TenantContext.getCurrentTenant()))
+              .stream()
+              .findFirst();
       if (challengeFromDb.isEmpty()) {
         Assertions.fail("Challenge " + expected.getName() + " not found");
       }
@@ -1112,7 +1117,11 @@ public class ExerciseApiImportWithoutExistingItemsTest extends IntegrationTest {
         findImportedExerciseFromDb(exerciseWrapper.get().getName()).getInjects();
     for (Challenge expected : challengeComposer.generatedItems) {
       Optional<Challenge> challengeFromDb =
-          challengeRepository.findByNameIgnoreCase(expected.getName()).stream().findFirst();
+          challengeRepository
+              .findByNameIgnoreCaseAndTenant(
+                  expected.getName(), new Tenant(TenantContext.getCurrentTenant()))
+              .stream()
+              .findFirst();
       if (challengeFromDb.isEmpty()) {
         Assertions.fail("Challenge " + expected.getName() + " not found");
       }

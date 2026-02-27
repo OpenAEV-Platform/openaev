@@ -761,7 +761,8 @@ public class V1_DataImporter implements Importer {
               String name = nodeChallenge.get("challenge_name").textValue();
 
               List<Challenge> existingChallenges =
-                  this.challengeRepository.findByNameIgnoreCase(name);
+                  this.challengeRepository.findByNameIgnoreCaseAndTenant(
+                      name, new Tenant(TenantContext.getCurrentTenant()));
               if (!existingChallenges.isEmpty()) {
                 baseIds.put(id, existingChallenges.getFirst());
               } else {

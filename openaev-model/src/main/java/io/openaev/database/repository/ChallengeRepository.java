@@ -1,6 +1,7 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.Challenge;
+import io.openaev.database.model.Tenant;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Optional;
@@ -16,5 +17,6 @@ public interface ChallengeRepository
   Optional<Challenge> findById(@NotNull final String id);
 
   @NotNull
-  List<Challenge> findByNameIgnoreCase(@NotNull final String name);
+  List<Challenge> findByNameIgnoreCaseAndTenant(
+      @NotNull final String name, @NotNull final Tenant tenant);
 }
