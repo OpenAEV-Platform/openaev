@@ -1232,6 +1232,7 @@
   "No injects to send in this platform.": "이 플랫폼에 보낼 인젝트가 없습니다.",
   "No log for the moment.": "현재 로그가 없습니다.",
   "No logs available": "사용 가능한 로그가 없습니다",
+  "No match found in OpenAEV": "OpenAEV에서 일치하는 항목이 없습니다",
   "No media pressure article available in this simulation yet.": "이 시뮬레이션에서 아직 사용할 수 있는 미디어 압력 기사가 없습니다.",
   "No media pressure entry in this channel yet.": "이 채널에 아직 미디어 압력 항목이 없습니다.",
   "No objectives in this ${source.type}.": "이 ${source.type}에 목표가 없습니다.",

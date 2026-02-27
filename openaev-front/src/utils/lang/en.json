@@ -1232,6 +1232,7 @@
   "No injects to send in this platform.": "No injects to send in this platform.",
   "No log for the moment.": "No log for the moment.",
   "No logs available": "No logs available",
+  "No match found in OpenAEV": "No match found in OpenAEV",
   "No media pressure article available in this simulation yet.": "No media pressure article available in this simulation yet.",
   "No media pressure entry in this channel yet.": "No media pressure entry in this channel yet.",
   "No objectives in this ${source.type}.": "No objectives in this ${source.type}.",

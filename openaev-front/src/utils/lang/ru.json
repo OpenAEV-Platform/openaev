@@ -1232,6 +1232,7 @@
   "No injects to send in this platform.": "Нет инъекций для отправки в этой платформе.",
   "No log for the moment.": "На данный момент журнал отсутствует.",
   "No logs available": "Журналы отсутствуют",
+  "No match found in OpenAEV": "Не найдено ни одного совпадения в OpenAEV",
   "No media pressure article available in this simulation yet.": "В этой симуляции пока нет статьи о давлении в СМИ.",
   "No media pressure entry in this channel yet.": "В этом канале пока нет записей о давлении среды.",
   "No objectives in this ${source.type}.": "Нет целей в этом ${source.type}.",

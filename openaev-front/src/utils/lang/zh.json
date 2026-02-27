@@ -1232,6 +1232,7 @@
   "No injects to send in this platform.": "平台中没有要发送的注入.",
   "No log for the moment.": "暂时没有日志。",
   "No logs available": "无可用日志",
+  "No match found in OpenAEV": "在 OpenAEV 中未发现匹配项",
   "No media pressure article available in this simulation yet.": "此模擬中尚無可用嘅媒體壓力文章。",
   "No media pressure entry in this channel yet.": "这个频道中还没有媒体项.",
   "No objectives in this ${source.type}.": "此 ${source.type} 中没有目标。",

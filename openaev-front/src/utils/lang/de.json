@@ -1232,6 +1232,7 @@
   "No injects to send in this platform.": "Keine Injektionen in dieser Plattform zu senden.",
   "No log for the moment.": "Im Moment kein Protokoll.",
   "No logs available": "Keine Logs verfügbar",
+  "No match found in OpenAEV": "Keine Übereinstimmung in OpenAEV gefunden",
   "No media pressure article available in this simulation yet.": "In dieser Simulation ist noch kein Mediendruckartikel verfügbar.",
   "No media pressure entry in this channel yet.": "Noch kein Mediendruckeintrag in diesem Kanal.",
   "No objectives in this ${source.type}.": "Keine Ziele in diesem ${source.type}.",
