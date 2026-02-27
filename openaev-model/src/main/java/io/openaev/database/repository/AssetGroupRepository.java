@@ -1,7 +1,6 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.AssetGroup;
-import io.openaev.database.model.Tenant;
 import io.openaev.database.raw.RawAssetGroupDynamicFilter;
 import io.openaev.database.raw.RawAssetGroupIndexing;
 import io.openaev.utils.Constants;
@@ -40,7 +39,8 @@ public interface AssetGroupRepository
   @Query("select count(distinct ag) from AssetGroup ag where ag.createdAt > :creationDate")
   long globalCount(@Param("creationDate") Instant creationDate);
 
-  Optional<AssetGroup> findByExternalReferenceAndTenant(String externalReference, Tenant tenant);
+  Optional<AssetGroup> findByExternalReferenceAndTenantId(
+      String externalReference, String tenantId);
 
   @Query(
       "SELECT ag FROM AssetGroup ag "

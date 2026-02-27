@@ -1,7 +1,6 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.Agent;
-import io.openaev.database.model.Tenant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -37,7 +36,7 @@ public interface AgentRepository
   List<Agent> findByExecutorType(
       @Param("executor") String executor, @Param("tenantId") String tenantId);
 
-  List<Agent> findByExternalReferenceAndTenant(String externalReference, Tenant tenant);
+  List<Agent> findByExternalReferenceAndTenantId(String externalReference, String tenantId);
 
   @Modifying
   @Query(value = "DELETE FROM agents agent where agent.agent_id = :agentId;", nativeQuery = true)
