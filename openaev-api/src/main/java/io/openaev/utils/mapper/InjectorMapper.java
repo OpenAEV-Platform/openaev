@@ -5,7 +5,6 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.Injector;
 import io.openaev.rest.injector.form.InjectorOutput;
 import jakarta.annotation.Nullable;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -22,7 +21,6 @@ public class InjectorMapper {
       @Nullable CatalogConnector catalogConnector,
       ConnectorInstance connectorInstance,
       boolean existingInjector) {
-    List.of("Bleh");
     return InjectorOutput.builder()
         .id(injector.getId())
         .name(injector.getName())
