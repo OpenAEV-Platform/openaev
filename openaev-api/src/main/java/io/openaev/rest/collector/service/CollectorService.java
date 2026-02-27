@@ -6,6 +6,7 @@ import static io.openaev.service.FileService.COLLECTORS_IMAGES_BASE_PATH;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
@@ -139,7 +140,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
    * @return an Optional containing the collector if found, empty otherwise
    */
   public Optional<Collector> findCollectorByType(String type) {
-    return collectorRepository.findByType(type);
+    return collectorRepository.findByTypeAndTenantId(type, TenantContext.getCurrentTenant());
   }
 
   public List<Collector> securityPlatformCollectors() {
@@ -164,7 +165,10 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     }
     Collector collector = collectorRepository.findById(id).orElse(null);
     if (collector == null) {
-      Collector collectorChecking = collectorRepository.findByType(type).orElse(null);
+      Collector collectorChecking =
+          collectorRepository
+              .findByTypeAndTenantId(type, TenantContext.getCurrentTenant())
+              .orElse(null);
       if (collectorChecking != null) {
         throw new Exception(
             "The collector "

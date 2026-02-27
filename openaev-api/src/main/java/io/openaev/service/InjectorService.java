@@ -7,6 +7,7 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import io.openaev.asset.QueueService;
 import io.openaev.config.RabbitmqConfig;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
@@ -185,7 +186,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
    * @return an Optional containing the injector if found, empty otherwise
    */
   public Optional<Injector> injectorByType(@NotBlank final String injectorType) {
-    return injectorRepository.findByType(injectorType);
+    return injectorRepository.findByTypeAndTenantId(injectorType, TenantContext.getCurrentTenant());
   }
 
   /**
@@ -215,7 +216,10 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       // We need to support upsert for registration
       Injector injector = injectorRepository.findById(input.getId()).orElse(null);
       if (injector == null) {
-        Injector injectorChecking = injectorRepository.findByType(input.getType()).orElse(null);
+        Injector injectorChecking =
+            injectorRepository
+                .findByTypeAndTenantId(input.getType(), TenantContext.getCurrentTenant())
+                .orElse(null);
       }
       if (injector != null) {
         updateExistingExternalInjector(
@@ -445,7 +449,9 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       throws InjectorRegistrationException {
     Injector existingInjector = injectorRepository.findById(id).orElse(null);
     if (existingInjector == null) {
-      Optional<Injector> conflictingInjector = injectorRepository.findByType(contractor.getType());
+      Optional<Injector> conflictingInjector =
+          injectorRepository.findByTypeAndTenantId(
+              contractor.getType(), TenantContext.getCurrentTenant());
       if (conflictingInjector.isPresent()) {
         throw new InjectorRegistrationException(
             String.format(

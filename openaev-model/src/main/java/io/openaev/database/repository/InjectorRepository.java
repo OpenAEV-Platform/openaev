@@ -16,7 +16,7 @@ public interface InjectorRepository
   Optional<Injector> findById(@NotNull String id);
 
   @NotNull
-  Optional<Injector> findByType(@NotNull String type);
+  Optional<Injector> findByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
 
-  List<Injector> findAllByPayloads(@NotNull Boolean payloads);
+  List<Injector> findAllByPayloadsAndTenantId(@NotNull Boolean payloads, @NotNull String tenantId);
 }

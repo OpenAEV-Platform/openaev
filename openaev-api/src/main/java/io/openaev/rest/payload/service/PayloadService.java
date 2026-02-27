@@ -80,7 +80,8 @@ public class PayloadService {
   private final PayloadUtils payloadUtils;
 
   public void updateInjectorContractsForPayload(Payload payload) {
-    List<Injector> injectors = this.injectorRepository.findAllByPayloads(true);
+    List<Injector> injectors =
+        this.injectorRepository.findAllByPayloadsAndTenantId(true, payload.getTenant().getId());
     injectors.forEach(injector -> updateInjectorContract(injector, payload));
   }
 

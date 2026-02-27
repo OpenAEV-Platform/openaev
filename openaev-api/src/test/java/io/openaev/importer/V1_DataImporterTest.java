@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_METHOD;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.domain.enums.PresetDomain;
@@ -186,7 +187,9 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // dummy injector should be created with 1 associated injector contract
     Injector dummyInjector =
-        this.injectorRepository.findByType(NMAP_DUMMY_INJECTOR_TYPE).orElseThrow();
+        this.injectorRepository
+            .findByTypeAndTenantId(NMAP_DUMMY_INJECTOR_TYPE, TenantContext.getCurrentTenant())
+            .orElseThrow();
     List<InjectorContract> injectorContracts =
         injectorContractRepository.findInjectorContractsByInjector(dummyInjector);
     assertEquals(1, injectorContracts.size());

@@ -18,7 +18,7 @@ public interface CollectorRepository
   Optional<Collector> findById(@NotNull String id);
 
   @NotNull
-  Optional<Collector> findByType(@NotNull String type);
+  Optional<Collector> findByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
 
   @Query(
       """
