@@ -142,36 +142,24 @@ public class OpenaevInjectorIntegration extends IntegrationInMemory {
         "unsecured_certificate=\"" + cfg.isUnsecuredCertificate() + "\"";
     String withProxyVar = "with_proxy=\"" + cfg.isWithProxy() + "\"";
     if (previewFeatureService.isFeatureEnabled(PreviewFeature.PALO_ALTO_CORTEX_EXECUTOR)) {
-      commands.put(
-          Endpoint.PLATFORM_TYPE.Windows.name() + "." + Endpoint.PLATFORM_ARCH.x86_64,
-          "[Net.ServicePointManager]::SecurityProtocol += [Net.SecurityProtocolType]::Tls12;$x=\"#{location}\";$location=$x.Replace(\"\\oaev-agent-caldera.exe\", \"\");[Environment]::CurrentDirectory = $location;$filename=\"oaev-implant-#{inject}-agent-#{agent}.exe\";$"
-              + tokenVar
-              + ";$"
-              + serverVar
-              + ";$"
-              + unsecuredCertificateVar
-              + ";$"
-              + withProxyVar
-              + ";$"
-              + maxSizeVar
-              + ";"
-              + dlVar(cfg, "windows", "x86_64")
-              + ";$wc=New-Object System.Net.WebClient;$data=$wc.DownloadData($url);[io.file]::WriteAllBytes($filename,$data) | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\" -Direction Inbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\" -Direction Outbound -Program \"$location\\$filename\" -Action Allow | Out-Null;$psi = New-Object System.Diagnostics.ProcessStartInfo;$psi.FileName = \"$location\\$filename\";$psi.Arguments = \"--uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject}\";$psi.UseShellExecute = $false;$psi.RedirectStandardError = $true;$psi.RedirectStandardOutput = $true;$psi.RedirectStandardInput = $true;$proc = [System.Diagnostics.Process]::Start($psi);$stdout = $proc.StandardOutput.ReadToEndAsync();$stderr = $proc.StandardError.ReadToEndAsync();$proc.WaitForExit();exit $proc.ExitCode;");
-      commands.put(
-          Endpoint.PLATFORM_TYPE.Windows.name() + "." + Endpoint.PLATFORM_ARCH.arm64,
-          "[Net.ServicePointManager]::SecurityProtocol += [Net.SecurityProtocolType]::Tls12;$x=\"#{location}\";$location=$x.Replace(\"\\oaev-agent-caldera.exe\", \"\");[Environment]::CurrentDirectory = $location;$filename=\"oaev-implant-#{inject}-agent-#{agent}.exe\";$"
-              + tokenVar
-              + ";$"
-              + serverVar
-              + ";$"
-              + unsecuredCertificateVar
-              + ";$"
-              + withProxyVar
-              + ";$"
-              + maxSizeVar
-              + ";"
-              + dlVar(cfg, "windows", "arm64")
-              + ";$wc=New-Object System.Net.WebClient;$data=$wc.DownloadData($url);[io.file]::WriteAllBytes($filename,$data) | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\" -Direction Inbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\" -Direction Outbound -Program \"$location\\$filename\" -Action Allow | Out-Null;$psi = New-Object System.Diagnostics.ProcessStartInfo;$psi.FileName = \"$location\\$filename\";$psi.Arguments = \"--uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject}\";$psi.UseShellExecute = $false;$psi.RedirectStandardError = $true;$psi.RedirectStandardOutput = $true;$psi.RedirectStandardInput = $true;$proc = [System.Diagnostics.Process]::Start($psi);$stdout = $proc.StandardOutput.ReadToEndAsync();$stderr = $proc.StandardError.ReadToEndAsync();$proc.WaitForExit();exit $proc.ExitCode;");
+      this.buildWindowsCommand(
+          Endpoint.PLATFORM_ARCH.x86_64,
+          cfg,
+          commands,
+          tokenVar,
+          serverVar,
+          unsecuredCertificateVar,
+          withProxyVar,
+          maxSizeVar);
+      this.buildWindowsCommand(
+          Endpoint.PLATFORM_ARCH.arm64,
+          cfg,
+          commands,
+          tokenVar,
+          serverVar,
+          unsecuredCertificateVar,
+          withProxyVar,
+          maxSizeVar);
     } else {
       commands.put(
           Endpoint.PLATFORM_TYPE.Windows.name() + "." + Endpoint.PLATFORM_ARCH.x86_64,
@@ -293,34 +281,38 @@ public class OpenaevInjectorIntegration extends IntegrationInMemory {
   }
 
   /**
-   * Build a Palo Alto Windows command
+   * Build a Windows command
    *
-   * @param arch targeted architecture
+   * @param arch targeted windows architecture
    * @param cfg OpenAEV configuration
    * @param commands list of commands to append the new command to
-   * @param vars command variables
+   * @param tokenVar token variable
+   * @param serverVar serer URL variable
+   * @param unsecuredCertificateVar enable unsecured certificate variable
+   * @param withProxyVar enable proxy variable
+   * @param maxSizeVar max size variable
    */
-  private void buildPaloAltoWindowsCommand(
+  private void buildWindowsCommand(
       Endpoint.PLATFORM_ARCH arch,
       OpenAEVConfig cfg,
       Map<String, String> commands,
-      CommandVars vars) {
+      String tokenVar,
+      String serverVar,
+      String unsecuredCertificateVar,
+      String withProxyVar,
+      String maxSizeVar) {
     commands.put(
-        PALOALTOCORTEX_EXECUTOR_NAME
-            + "."
-            + Endpoint.PLATFORM_TYPE.Windows.name()
-            + "."
-            + arch.name(),
+        Endpoint.PLATFORM_TYPE.Windows.name() + "." + arch.name(),
         "[Net.ServicePointManager]::SecurityProtocol += [Net.SecurityProtocolType]::Tls12;$x=\"#{location}\";$location=$x.Replace(\"\\oaev-agent-caldera.exe\", \"\");[Environment]::CurrentDirectory = $location;$filename=\"oaev-implant-#{inject}-agent-#{agent}.exe\";$"
-            + vars.tokenVar()
+            + tokenVar
             + ";$"
-            + vars.serverVar()
+            + serverVar
             + ";$"
-            + vars.unsecuredCertificateVar()
+            + unsecuredCertificateVar
             + ";$"
-            + vars.withProxyVar()
+            + withProxyVar
             + ";$"
-            + vars.maxSizeVar()
+            + maxSizeVar
             + ";"
             + dlVar(cfg, "windows", arch.name())
             + ";$wc=New-Object System.Net.WebClient;$data=$wc.DownloadData($url);[io.file]::WriteAllBytes($filename,$data) | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\" -Direction Inbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\" -Direction Outbound -Program \"$location\\$filename\" -Action Allow | Out-Null;"
@@ -342,97 +334,5 @@ public class OpenaevInjectorIntegration extends IntegrationInMemory {
             + "$exitCode = $info.LastTaskResult;"
             + "Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue;"
             + "exit $exitCode;");
-  }
-
-  /**
-   * Build a generic (working with most executors) Windows command
-   *
-   * @param arch targeted architecture
-   * @param cfg OpenAEV configuration
-   * @param commands list of commands to append the new command to
-   * @param vars command variables
-   */
-  private void buildGenericWindowsCommand(
-      Endpoint.PLATFORM_ARCH arch,
-      OpenAEVConfig cfg,
-      Map<String, String> commands,
-      CommandVars vars) {
-    commands.put(
-        Endpoint.PLATFORM_TYPE.Windows.name() + "." + arch.name(),
-        "[Net.ServicePointManager]::SecurityProtocol += [Net.SecurityProtocolType]::Tls12;$x=\"#{location}\";$location=$x.Replace(\"\\oaev-agent-caldera.exe\", \"\");[Environment]::CurrentDirectory = $location;$filename=\"oaev-implant-#{inject}-agent-#{agent}.exe\";$"
-            + vars.tokenVar()
-            + ";$"
-            + vars.serverVar()
-            + ";$"
-            + vars.unsecuredCertificateVar()
-            + ";$"
-            + vars.withProxyVar()
-            + ";$"
-            + vars.maxSizeVar()
-            + ";"
-            + dlVar(cfg, "windows", arch.name())
-            + ";$wc=New-Object System.Net.WebClient;$data=$wc.DownloadData($url);[io.file]::WriteAllBytes($filename,$data) | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\" -Direction Inbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\" -Direction Outbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Start-Process -FilePath \"$location\\$filename\" -ArgumentList \"--uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject}\" -WindowStyle hidden;");
-  }
-
-  /**
-   * Build a generic (working with most executors) Linux command
-   *
-   * @param arch targeted architecture
-   * @param cfg OpenAEV configuration
-   * @param commands list of commands to append the new command to
-   * @param vars command variables
-   */
-  private void buildGenericLinuxCommand(
-      Endpoint.PLATFORM_ARCH arch,
-      OpenAEVConfig cfg,
-      Map<String, String> commands,
-      CommandVars vars) {
-    commands.put(
-        Endpoint.PLATFORM_TYPE.Linux.name() + "." + arch.name(),
-        "x=\"#{location}\";location=$(echo \"$x\" | sed \"s#/openaev-caldera-agent##\");filename=oaev-implant-#{inject}-agent-#{agent};"
-            + vars.serverVar()
-            + ";"
-            + vars.tokenVar()
-            + ";"
-            + vars.unsecuredCertificateVar()
-            + ";"
-            + vars.withProxyVar()
-            + ";"
-            + vars.maxSizeVar()
-            + ";curl -s -X GET "
-            + dlUri(cfg, "linux", arch.name())
-            + " > $location/$filename;chmod +x $location/$filename;$location/$filename --uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject} &");
-  }
-
-  /**
-   * Build a generic (working with most executors) MacOS command
-   *
-   * @param arch targeted architecture
-   * @param cfg OpenAEV configuration
-   * @param commands list of commands to append the new command to
-   * @param vars command variables
-   */
-  private void buildGenericMacOSCommand(
-      Endpoint.PLATFORM_ARCH arch,
-      OpenAEVConfig cfg,
-      Map<String, String> commands,
-      CommandVars vars) {
-    commands.put(
-        Endpoint.PLATFORM_TYPE.MacOS.name() + "." + arch.name(),
-        "x=\"#{location}\";location=$(echo \"$x\" | sed \"s#/openaev-caldera-agent##\");filename=oaev-implant-#{inject}-agent-#{agent};"
-            + vars.serverVar()
-            + ";"
-            + vars.tokenVar()
-            + ";"
-            + vars.unsecuredCertificateVar()
-            + ";"
-            + vars.withProxyVar()
-            + (Endpoint.PLATFORM_ARCH.x86_64.equals(arch)
-                ? ";"
-                : ";$") // TODO: Should find a way to test on an x86 mac if the diff is necessary
-            + vars.maxSizeVar()
-            + ";curl -s -X GET "
-            + dlUri(cfg, "macos", arch.name())
-            + " > $location/$filename;chmod +x $location/$filename;$location/$filename --uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject} &");
   }
 }
