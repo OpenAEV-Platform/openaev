@@ -15,6 +15,7 @@ import PaginationComponentV2 from '../../../../components/common/queryable/pagin
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
+import CustomTooltip from '../../../../components/CustomTooltip';
 import { useFormatter } from '../../../../components/i18n';
 import ItemBoolean from '../../../../components/ItemBoolean';
 import ItemDomains from '../../../../components/ItemDomains';
@@ -46,7 +47,6 @@ import InjectorContract from './InjectorContract';
 import InjectPopover from './InjectPopover';
 import InjectsListButtons from './InjectsListButtons';
 import UpdateInject from './UpdateInject';
-import CustomTooltip from "../../../../components/CustomTooltip";
 
 const useStyles = makeStyles()(() => ({
   disabled: {
