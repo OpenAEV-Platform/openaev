@@ -1061,8 +1061,7 @@ public class ExerciseApiImportWithoutExistingItemsTest extends IntegrationTest {
     for (Challenge expected : challengeComposer.generatedItems) {
       Optional<Challenge> challengeFromDb =
           challengeRepository
-              .findByNameIgnoreCaseAndTenant(
-                  expected.getName(), new Tenant(TenantContext.getCurrentTenant()))
+              .findByNameIgnoreCaseAndTenantId(expected.getName(), TenantContext.getCurrentTenant())
               .stream()
               .findFirst();
       if (challengeFromDb.isEmpty()) {
@@ -1118,8 +1117,7 @@ public class ExerciseApiImportWithoutExistingItemsTest extends IntegrationTest {
     for (Challenge expected : challengeComposer.generatedItems) {
       Optional<Challenge> challengeFromDb =
           challengeRepository
-              .findByNameIgnoreCaseAndTenant(
-                  expected.getName(), new Tenant(TenantContext.getCurrentTenant()))
+              .findByNameIgnoreCaseAndTenantId(expected.getName(), TenantContext.getCurrentTenant())
               .stream()
               .findFirst();
       if (challengeFromDb.isEmpty()) {
