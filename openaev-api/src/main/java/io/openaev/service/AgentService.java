@@ -63,8 +63,8 @@ public class AgentService {
   }
 
   public List<Agent> findByExternalReference(String externalReference) {
-    return agentRepository.findByExternalReferenceAndTenant(
-        externalReference, new Tenant(TenantContext.getCurrentTenant()));
+    return agentRepository.findByExternalReferenceAndTenantId(
+        externalReference, TenantContext.getCurrentTenant());
   }
 
   // TODO multi-tenancy: Manage all datas for telemetry or datas per tenant ?

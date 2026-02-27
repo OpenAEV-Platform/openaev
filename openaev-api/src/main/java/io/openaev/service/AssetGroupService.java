@@ -98,8 +98,8 @@ public class AssetGroupService {
   }
 
   public Optional<AssetGroup> findByExternalReference(String externalReference, String tenantId) {
-    return this.assetGroupRepository.findByExternalReferenceAndTenant(
-        externalReference, new Tenant(tenantId));
+    return this.assetGroupRepository.findByExternalReferenceAndTenantId(
+        externalReference, tenantId);
   }
 
   public AssetGroup updateAssetGroup(@NotNull final AssetGroup assetGroup) {
