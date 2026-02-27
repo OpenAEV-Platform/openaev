@@ -141,8 +141,8 @@ public class AttackPatternApi extends RestBehavior {
         attackPatternInput -> {
           String attackPatternExternalId = attackPatternInput.getExternalId();
           Optional<AttackPattern> optionalAttackPattern =
-              attackPatternRepository.findByExternalIdAndTenant(
-                  attackPatternExternalId, new Tenant(TenantContext.getCurrentTenant()));
+              attackPatternRepository.findByExternalIdAndTenantId(
+                  attackPatternExternalId, TenantContext.getCurrentTenant());
           List<KillChainPhase> killChainPhases =
               attackPatternInput.getKillChainPhasesIds() != null
                       && !attackPatternInput.getKillChainPhasesIds().isEmpty()
@@ -153,9 +153,8 @@ public class AttackPatternApi extends RestBehavior {
           AttackPattern attackPatternParent =
               attackPatternInput.getParentId() != null
                   ? attackPatternRepository
-                      .findByStixIdAndTenant(
-                          attackPatternInput.getParentId(),
-                          new Tenant(TenantContext.getCurrentTenant()))
+                      .findByStixIdAndTenantId(
+                          attackPatternInput.getParentId(), TenantContext.getCurrentTenant())
                       .orElseThrow(ElementNotFoundException::new)
                   : null;
           if (optionalAttackPattern.isEmpty()) {

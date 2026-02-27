@@ -54,8 +54,8 @@ public class PayloadUpsertService {
       collector = this.collectorService.collector(input.getCollector());
     }
     List<AttackPattern> attackPatterns =
-        attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenant(
-            input.getAttackPatternsExternalIds(), new Tenant(TenantContext.getCurrentTenant()));
+        attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
+            input.getAttackPatternsExternalIds(), TenantContext.getCurrentTenant());
     if (payload.isPresent()) {
       return updatePayloadFromUpsert(input, payload.get(), attackPatterns, collector);
     } else {

@@ -1,7 +1,6 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.AttackPattern;
-import io.openaev.database.model.Tenant;
 import io.openaev.database.raw.RawAttackPattern;
 import io.openaev.utils.Constants;
 import jakarta.validation.constraints.NotNull;
@@ -23,13 +22,13 @@ public interface AttackPatternRepository
 
   List<AttackPattern> findAllByIdIn(List<String> externalIds);
 
-  Optional<AttackPattern> findByExternalIdAndTenant(
-      @NotNull String externalId, @NotNull Tenant tenant);
+  Optional<AttackPattern> findByExternalIdAndTenantId(
+      @NotNull String externalId, @NotNull String tenantId);
 
-  List<AttackPattern> findAllByExternalIdInIgnoreCaseAndTenant(
-      List<String> externalIds, Tenant tenant);
+  List<AttackPattern> findAllByExternalIdInIgnoreCaseAndTenantId(
+      List<String> externalIds, String tenantId);
 
-  Optional<AttackPattern> findByStixIdAndTenant(@NotNull String stixId, @NotNull Tenant tenant);
+  Optional<AttackPattern> findByStixIdAndTenantId(@NotNull String stixId, @NotNull String tenantId);
 
   @Query(
       value =

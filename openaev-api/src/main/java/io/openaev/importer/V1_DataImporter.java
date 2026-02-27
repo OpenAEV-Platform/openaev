@@ -290,8 +290,8 @@ public class V1_DataImporter implements Importer {
               String name = nodeAttackPattern.get("attack_pattern_external_id").textValue();
 
               List<AttackPattern> existingAttackPattern =
-                  this.attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenant(
-                      List.of(name), new Tenant(TenantContext.getCurrentTenant()));
+                  this.attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
+                      List.of(name), TenantContext.getCurrentTenant());
               if (!existingAttackPattern.isEmpty()) {
                 baseIds.put(id, existingAttackPattern.getFirst());
                 attackPatternIds.add(existingAttackPattern.getFirst().getId());
