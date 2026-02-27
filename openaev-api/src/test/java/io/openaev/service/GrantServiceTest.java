@@ -8,27 +8,22 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import io.openaev.IntegrationTest;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GrantRepository;
 import io.openaev.utils.fixtures.UserFixture;
-import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.TestExecutionListeners;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-@SpringBootTest
-@TestExecutionListeners(
-    value = {RabbitMQTestListener.class},
-    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
-class GrantServiceTest extends IntegrationTest {
+@ExtendWith(MockitoExtension.class)
+class GrantServiceTest {
 
   private static final String USER_ID = "userid";
   private static final String RESOURCE_ID = "resourceid";
