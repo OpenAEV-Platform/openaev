@@ -21,16 +21,16 @@ import type {
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSearchAndFilter from '../../../../utils/SortingFiltering';
-import type { CatalogContextType } from '../catalog_connectors/CatalogLayout';
 import ConnectorCard from '../common/ConnectorCard';
 import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
 import { ConnectorContext, type ConnectorOutput } from './ConnectorContext';
+import { type ConnectorContextLayoutType } from './ConnectorLayout';
 
 const ConnectorList = () => {
   // Standard hooks
   const theme = useTheme();
   const dispatch = useAppDispatch();
-  const { isXtmComposerUp } = useOutletContext<CatalogContextType>();
+  const { isXtmComposerUp } = useOutletContext<ConnectorContextLayoutType>();
   const { t } = useFormatter();
   const { connectorType, apiRequest, routes, normalizeSingle, logoUrl } = useContext(ConnectorContext);
 
@@ -44,6 +44,7 @@ const ConnectorList = () => {
 
   useDataLoader(() => {
     dispatch(fetchCatalogConnectors());
+    dispatch(apiRequest.fetchAll());
   });
 
   // Fetching data - hooks must be called at top level unconditionally
@@ -77,6 +78,10 @@ const ConnectorList = () => {
     ? rawConnectors.map((c: CollectorOutput | ExecutorOutput | InjectorOutput) => normalizeSingle(c))
     : rawConnectors;
 
+  const canMigrate = (connector: ConnectorOutput) => {
+    return connector.isExternal && connector.connectorInstance === null && isXtmComposerUp;
+  };
+
   const onMigrateBtnClick = (e: SyntheticEvent, connector: ConnectorOutput) => {
     e.preventDefault();
     e.stopPropagation();
@@ -88,9 +93,6 @@ const ConnectorList = () => {
     onOpenCreateConnectorInstanceDrawer();
   };
 
-  useDataLoader(() => {
-    dispatch(apiRequest.fetchAll());
-  });
   const sortedConnectors = filtering.filterAndSort(connectors);
 
   return (
@@ -117,7 +119,7 @@ const ConnectorList = () => {
                 isExternal: connector.isExternal,
                 connectorCurrentStatus: connector.connectorInstance ? connector.connectorInstance.connector_instance_current_status : null,
               }}
-              onMigrateBtnClick={connector.isExternal && connector.connectorInstance == null && isXtmComposerUp ? e => onMigrateBtnClick(e, connector) : undefined}
+              onMigrateBtnClick={canMigrate(connector) ? e => onMigrateBtnClick(e, connector) : undefined}
               cardActionUrl={routes.detail(connector.id)}
               isNotClickable={connector.catalog === null && connectorType !== 'injector'}
               showStatusOrLastUpdatedAt
@@ -132,7 +134,7 @@ const ConnectorList = () => {
             onClose={onCloseCreateConnectorInstanceDrawer}
             connectorType={selectedCatalogConnector.catalog_connector_type}
             disabled={!isXtmComposerUp && selectedCatalogConnector.catalog_connector_manager_supported}
-            migrateFrom={selectedConnector?.id}
+            migrationSource={selectedConnector?.id}
             disabledMessage={t('Deployment of this {catalogType} requires the installation of our Integration Manager.', { catalogType: selectedCatalogConnector.catalog_connector_type.toLowerCase() })}
           />
         )}

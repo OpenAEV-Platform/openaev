@@ -149,10 +149,10 @@ public class ConnectorOrchestrationService {
   }
 
   private void throwIfConnectorIdDoesNotExist(
-      CreateConnectorInstanceInput collectorId, CatalogConnector catalogConnector)
+      CreateConnectorInstanceInput collectorInput, CatalogConnector catalogConnector)
       throws DataIntegrityViolationException {
     String connectorId =
-        collectorId.getConfigurations().stream()
+        collectorInput.getConfigurations().stream()
             .filter(
                 configurationInput ->
                     configurationInput.getKey().equals(catalogConnector.getContainerType() + "_ID"))
@@ -248,7 +248,7 @@ public class ConnectorOrchestrationService {
           catalogConnectorWithConfigMap.catalogConnector.getSlug(),
           catalogConnectorWithConfigMap.catalogConnector.getContainerType());
     } else {
-      // If we have an ID in the input, we check if the collector id already exists
+      // If we have an ID in the input, we check if the connector already exists
       throwIfConnectorIdDoesNotExist(input, catalogConnectorWithConfigMap.catalogConnector);
     }
 

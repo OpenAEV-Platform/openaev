@@ -100,6 +100,7 @@ public class CatalogConnectorApiTest extends IntegrationTest {
   @Test
   @DisplayName("Should retrieve all catalog connector")
   void should_retrieveAllCatalogConnector() throws Exception {
+    // Arrange
     catalogConnectorComposer
         .forCatalogConnector(createDefaultCatalogConnectorManagedByXtmComposer("Collector1"))
         .persist();
@@ -109,6 +110,8 @@ public class CatalogConnectorApiTest extends IntegrationTest {
             connectorInstanceComposer.forConnectorInstance(
                 ConnectorInstanceFixture.createMigratedInstance()))
         .persist();
+
+    // Act
     String response =
         mvc.perform(
                 get(CATALOG_CONNECTOR_URI)
@@ -119,6 +122,7 @@ public class CatalogConnectorApiTest extends IntegrationTest {
             .getResponse()
             .getContentAsString();
 
+    // Assert
     assertThatJson(response).isArray().size().isEqualTo(2);
     assertThatJson(response)
         .inPath("[*].catalog_connector_title")
@@ -129,6 +133,7 @@ public class CatalogConnectorApiTest extends IntegrationTest {
   @Test
   @DisplayName("Should retrieve all undeployed catalog connector")
   void should_retrieveAllUndeployedCatalogConnector() throws Exception {
+    // Arrange
     catalogConnectorComposer
         .forCatalogConnector(createDefaultCatalogConnectorManagedByXtmComposer("Collector1"))
         .persist();
@@ -138,6 +143,8 @@ public class CatalogConnectorApiTest extends IntegrationTest {
             connectorInstanceComposer.forConnectorInstance(
                 ConnectorInstanceFixture.createMigratedInstance()))
         .persist();
+
+    // Act
     String response =
         mvc.perform(
                 get(CATALOG_CONNECTOR_URI + "/undeployed")
@@ -148,6 +155,7 @@ public class CatalogConnectorApiTest extends IntegrationTest {
             .getResponse()
             .getContentAsString();
 
+    // Assert
     assertThatJson(response).isArray().size().isEqualTo(1);
     assertThatJson(response)
         .inPath("[*].catalog_connector_title")

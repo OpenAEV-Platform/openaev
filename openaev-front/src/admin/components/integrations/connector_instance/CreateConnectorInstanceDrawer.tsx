@@ -22,11 +22,11 @@ interface Props {
   catalogConnectorSlug: string;
   connectorType: CatalogConnector['catalog_connector_type'];
   disabled?: boolean;
-  migrateFrom?: string;
+  migrationSource?: string;
   disabledMessage?: string;
 }
 
-const CreateConnectorInstanceDrawer = ({ open, onClose, catalogConnectorId, catalogConnectorSlug, connectorType, disabled = false, disabledMessage, migrateFrom }: Props) => {
+const CreateConnectorInstanceDrawer = ({ open, onClose, catalogConnectorId, catalogConnectorSlug, connectorType, disabled = false, disabledMessage, migrationSource }: Props) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const navigate = useNavigate();
@@ -39,10 +39,10 @@ const CreateConnectorInstanceDrawer = ({ open, onClose, catalogConnectorId, cata
   );
 
   const onCreateConnectorInstance = (data: Omit<CreateConnectorInstanceInput, 'catalog_connector_id'>) => {
-    if (migrateFrom) {
+    if (migrationSource) {
       data.connector_instance_configurations?.push({
         configuration_key: connectorType + '_ID',
-        configuration_value: migrateFrom as unknown as JsonNode,
+        configuration_value: migrationSource as unknown as JsonNode,
       });
     }
     createConnectorInstance({
@@ -51,7 +51,7 @@ const CreateConnectorInstanceDrawer = ({ open, onClose, catalogConnectorId, cata
     }).then(({ data }) => {
       const connectorId = data.connector_instance_configurations.find(conf => conf.connector_instance_configuration_key === `${connectorType}_ID`)?.connector_instance_configuration_value;
       if (connectorId) {
-        const migrationParam = migrateFrom ? '?isMigration=true' : '';
+        const migrationParam = migrationSource ? '?isMigration=true' : '';
         navigate(`/admin/integrations/${connectorType?.toLowerCase()}s/${connectorId}${migrationParam}`);
       }
       onClose();
@@ -68,7 +68,7 @@ const CreateConnectorInstanceDrawer = ({ open, onClose, catalogConnectorId, cata
     <Drawer
       open={open}
       handleClose={onClose}
-      title={migrateFrom ? t('Migrate to a new connector instance') : t('Create a new connector instance')}
+      title={migrationSource ? t('Migrate to a new connector instance') : t('Create a new connector instance')}
     >
       <>
         {loading && <Loader />}
@@ -81,7 +81,7 @@ const CreateConnectorInstanceDrawer = ({ open, onClose, catalogConnectorId, cata
             onSubmit={onCreateConnectorInstance}
             onClose={onClose}
             disabled={disabled}
-            isMigrating={migrateFrom !== undefined}
+            isMigrating={migrationSource !== undefined}
           />
         )}
       </>

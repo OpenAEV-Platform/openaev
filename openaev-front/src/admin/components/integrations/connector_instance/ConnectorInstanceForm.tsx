@@ -135,7 +135,7 @@ const ConnectorInstanceForm = ({
       .replace(/\b\w/g, char => char.toUpperCase());
   };
 
-  const getCorrectLabel = () => {
+  const getActionLabel = () => {
     if (isEditing) {
       return 'Update';
     }
@@ -330,7 +330,7 @@ const ConnectorInstanceForm = ({
             type="submit"
             disabled={isSubmitting || disabled}
           >
-            {t(getCorrectLabel())}
+            {t(getActionLabel())}
           </Button>
           <Button
             variant="contained"

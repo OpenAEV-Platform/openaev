@@ -37,10 +37,10 @@ public class CatalogConnectorService {
             c ->
                 catalogConnectorMapper.toCatalogConnectorOutput(
                     c,
-                    (int)
+                    Math.toIntExact(
                         instances.stream()
                             .filter(i -> i.getCatalogConnector().getId().equals(c.getId()))
-                            .count()))
+                            .count())))
         .toList();
   }
 

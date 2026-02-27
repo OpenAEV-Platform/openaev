@@ -116,7 +116,7 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
           onClose={onCloseCreateConnectorInstanceDrawer}
           connectorType={catalogConnector.catalog_connector_type}
           disabled={!isXtmComposerUp && catalogConnector.catalog_connector_manager_supported}
-          migrateFrom={connector?.id}
+          migrationSource={connector?.id}
           disabledMessage={t('Deployment of this {catalogType} requires the installation of our Integration Manager.', { catalogType: catalogConnector.catalog_connector_type.toLowerCase() })}
         />
       )}

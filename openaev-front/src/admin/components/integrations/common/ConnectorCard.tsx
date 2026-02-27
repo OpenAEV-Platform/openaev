@@ -58,6 +58,12 @@ const useStyles = makeStyles()(theme => ({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  descriptionContainer: {
+    marginTop: 'auto',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
 }));
 
 export type ConnectorMainInfo = {
@@ -104,7 +110,7 @@ const ConnectorCard = ({
       >
         <CardContent className={classes.content}>
           <ConnectorTitle connector={connector} />
-          <div className={classes.footer}>
+          <div className={classes.descriptionContainer}>
             {connector.connectorDescription && (
               <Typography className={classes.description}>
                 {connector.connectorDescription}
