@@ -236,7 +236,7 @@ class V1_DataImporterTest extends IntegrationTest {
   void testImportScenario_givenPayloadWithMissingArrayFields_shouldImportWithoutError()
       throws IOException {
     // -- PREPARE --
-    // Fixture has no payload_platforms, payload_arguments, payload_prerequisites keys at all.
+    // Fixture has no payload_arguments or payload_prerequisites keys at all
     // buildPayload must fall back to safe empty iterables via safeArray() without NPE.
     ObjectMapper mapper = new ObjectMapper();
     String jsonContent =
@@ -256,7 +256,7 @@ class V1_DataImporterTest extends IntegrationTest {
     assertFalse(payloads.isEmpty(), "Payload should have been created");
     Payload payload = payloads.getFirst();
     assertEquals("echo missing arrays" + Constants.IMPORTED_OBJECT_NAME_SUFFIX, payload.getName());
-    // No NPE: missing arrays should result in empty/null collections, not an exception
+    // No NPE: missing array fields should result in empty/null collections, not an exception
     List<PayloadArgument> arguments = payload.getArguments();
     List<PayloadPrerequisite> prerequisites = payload.getPrerequisites();
     assertTrue(
@@ -272,7 +272,8 @@ class V1_DataImporterTest extends IntegrationTest {
   void testImportScenario_givenPayloadWithExplicitNullArrayFields_shouldImportWithoutError()
       throws IOException {
     // -- PREPARE --
-    // Fixture has payload_platforms, payload_arguments, payload_prerequisites set to JSON null.
+    // Fixture has payload_arguments and payload_prerequisites set to JSON null
+    // (payload_platforms is provided because it is @NotEmpty on the entity).
     // buildPayload must handle null nodes via safeArray() without NPE or ClassCastException.
     ObjectMapper mapper = new ObjectMapper();
     String jsonContent =

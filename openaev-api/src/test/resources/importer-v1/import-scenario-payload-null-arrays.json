@@ -47,7 +47,7 @@
         "payload_execution_arch" : "ALL_ARCHITECTURES",
         "payload_elevation_required" : false,
         "payload_external_id" : "PAYLOAD_NULL_ARRAYS",
-        "payload_platforms" : null,
+        "payload_platforms" : [ "Linux" ],
         "payload_arguments" : null,
         "payload_prerequisites" : null,
         "payload_collector" : null,

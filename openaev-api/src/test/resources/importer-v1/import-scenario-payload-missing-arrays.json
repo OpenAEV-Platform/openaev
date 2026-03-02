@@ -47,6 +47,7 @@
         "payload_execution_arch" : "ALL_ARCHITECTURES",
         "payload_elevation_required" : false,
         "payload_external_id" : "PAYLOAD_MISSING_ARRAYS",
+        "payload_platforms" : [ "Linux" ],
         "payload_collector" : null,
         "payload_tags" : [ ],
         "payload_attack_patterns" : [ ],
