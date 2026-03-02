@@ -32,12 +32,21 @@ public class ExerciseTeamUserService {
       @NotNull Exercise target,
       @NotNull List<ExerciseTeamUser> sourceTeamUsers,
       @NotNull Map<String, Team> contextualTeams) {
-    sourceTeamUsers.forEach(
-        sourceTeamUser -> {
-          Team resolvedTeam =
-              contextualTeams.getOrDefault(
-                  sourceTeamUser.getTeam().getId(), sourceTeamUser.getTeam());
-          createExerciseTeamUser(target, resolvedTeam, sourceTeamUser.getUser());
-        });
+    List<ExerciseTeamUser> newTeamUsers =
+        sourceTeamUsers.stream()
+            .map(
+                sourceTeamUser -> {
+                  Team resolvedTeam =
+                      contextualTeams.getOrDefault(
+                          sourceTeamUser.getTeam().getId(), sourceTeamUser.getTeam());
+                  ExerciseTeamUser exerciseTeamUser = new ExerciseTeamUser();
+                  exerciseTeamUser.setExercise(target);
+                  exerciseTeamUser.setTeam(resolvedTeam);
+                  exerciseTeamUser.setUser(sourceTeamUser.getUser());
+                  return exerciseTeamUser;
+                })
+            .toList();
+
+    exerciseTeamUserRepository.saveAll(newTeamUsers);
   }
 }
