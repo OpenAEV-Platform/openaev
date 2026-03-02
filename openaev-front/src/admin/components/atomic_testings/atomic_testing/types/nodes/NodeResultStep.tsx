@@ -18,6 +18,16 @@ const useStyles = makeStyles()(theme => ({
     height: 110,
     padding: '8px 5px 5px 5px',
   },
+  timestamp: {
+    position: 'absolute',
+    top: -25,
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    fontSize: theme.typography.pxToRem(12),
+    color: theme.palette.text?.primary,
+    whiteSpace: 'nowrap',
+  },
   icon: {
     textAlign: 'center',
     margin: '10px 0 10px 0',
@@ -62,6 +72,7 @@ export type NodeResultStep = Node<{
   key: string;
   label: string | React.JSX.Element;
   description?: string;
+  timestamp?: string;
   end: boolean;
   middle: boolean;
   start: boolean;
@@ -79,6 +90,9 @@ const NodeResultStepComponent = ({ data }: NodeProps<NodeResultStep>) => {
         color: data.color,
       }}
     >
+      {data.timestamp && (
+        <div className={classes.timestamp}>{data.timestamp}</div>
+      )}
       <div className={classes.icon}>
         {renderIcon(data.key)}
       </div>

@@ -27,6 +27,7 @@ interface Steptarget {
   status?: string;
   key?: string;
   type?: string;
+  timestamp?: string;
 }
 
 const TargetResultsReactFlow = ({ className = '', injectStatusName, targetResultsByType, lastExecutionStartDate, lastExecutionEndDate }: Props) => {
@@ -48,9 +49,11 @@ const TargetResultsReactFlow = ({ className = '', injectStatusName, targetResult
   const initialSteps = [{
     label: t('Attack started'),
     key: 'attack-started',
+    timestamp: lastExecutionStartDate,
   }, {
     label: t('Attack ended'),
     key: 'attack-ended',
+    timestamp: lastExecutionEndDate,
   }];
 
   const getColor = (status: string | undefined) => {
@@ -143,6 +146,7 @@ const TargetResultsReactFlow = ({ className = '', injectStatusName, targetResult
       return {
         ...step,
         status,
+        timestamp: step.timestamp ? nsdt(step.timestamp) : undefined,
       };
     });
   };
@@ -154,6 +158,7 @@ const TargetResultsReactFlow = ({ className = '', injectStatusName, targetResult
       data: {
         key: step.key ?? '',
         label: step.label,
+        timestamp: step.timestamp,
         start: index === 0,
         end: index === stepsSize - 1,
         middle: index !== 0 && index !== stepsSize - 1,
@@ -172,12 +177,6 @@ const TargetResultsReactFlow = ({ className = '', injectStatusName, targetResult
       id: `result-${index}->result-${index + 1}`,
       source: `result-${index}`,
       target: `result-${index + 1}`,
-      label: index === 0 ? nsdt(lastExecutionStartDate) : nsdt(lastExecutionEndDate),
-      labelShowBg: false,
-      labelStyle: {
-        fill: theme.palette.text?.primary,
-        fontSize: theme.typography.h3.fontSize,
-      },
     };
   };
 
