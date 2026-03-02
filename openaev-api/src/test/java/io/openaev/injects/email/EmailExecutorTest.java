@@ -183,9 +183,9 @@ public class EmailExecutorTest extends IntegrationTest {
     // InjectExpectation.results.result should be set to null for all user expectation
     List<InjectExpectationResult> teamResults =
         teamExpectations.stream().flatMap(ie -> ie.getResults().stream()).toList();
-    assertTrue(teamResults.stream().allMatch(r -> r.getResult() == null));
+    assertEquals(0, teamResults.size());
     List<InjectExpectationResult> userResults =
-        teamExpectations.stream().flatMap(ie -> ie.getResults().stream()).toList();
+        userExpectations.stream().flatMap(ie -> ie.getResults().stream()).toList();
     assertTrue(userResults.stream().allMatch(r -> r.getResult() == null));
   }
 }

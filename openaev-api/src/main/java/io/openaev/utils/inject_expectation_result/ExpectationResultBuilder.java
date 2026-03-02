@@ -12,6 +12,7 @@ import io.openaev.database.model.InjectExpectationResult;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.service.InjectExpectationUtils;
+import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -50,7 +51,10 @@ public final class ExpectationResultBuilder {
   public static final String TEAM_MANUAL_VALIDATION_SOURCE_ID = "team-manual-validation";
   public static final String TEAM_MANUAL_VALIDATION_SOURCE_TYPE = "team-manual-validation";
   public static final String TEAM_MANUAL_VALIDATION_SOURCE_NAME = "Team Manual Validation";
+
   private static final String NOT_APPLICABLE = null;
+  private static final String NO_RESULT = null;
+  private static final Double NO_SCORE = null;
 
   // -- SCORE --
 
@@ -175,7 +179,7 @@ public final class ExpectationResultBuilder {
   }
 
   private static InjectExpectationResult buildForMediaPressure(
-      @NotNull final String result, @NotNull final Double score) {
+      @Nullable final String result, @Nullable final Double score) {
     return InjectExpectationResult.builder()
         .sourceId(MEDIA_PRESSURE_SOURCE_ID)
         .sourceType(MEDIA_PRESSURE_SOURCE_TYPE)
@@ -196,16 +200,8 @@ public final class ExpectationResultBuilder {
     return buildForMediaPressure(null, null);
   }
 
-  public static InjectExpectationResult buildForVulnerabilityManagerInFailed() {
-    return buildForVulnerabilityManager(VULNERABILITY.failureLabel, 0.0);
-  }
-
-  public static InjectExpectationResult buildDefaultForVulnerabilityManagerInFailed() {
-    return buildForVulnerabilityManager(null, null);
-  }
-
   private static InjectExpectationResult buildForVulnerabilityManager(
-      @NotNull final String result, @NotNull final Double score) {
+      @Nullable final String result, @Nullable final Double score) {
     return InjectExpectationResult.builder()
         .sourceId(EXPECTATIONS_VULNERABILITY_COLLECTOR_ID)
         .sourceType(EXPECTATIONS_VULNERABILITY_COLLECTOR_TYPE)
@@ -217,8 +213,16 @@ public final class ExpectationResultBuilder {
         .build();
   }
 
+  public static InjectExpectationResult buildForVulnerabilityManagerInFailed() {
+    return buildForVulnerabilityManager(VULNERABILITY.failureLabel, 0.0);
+  }
+
+  public static InjectExpectationResult buildDefaultForVulnerabilityManagerInFailed() {
+    return buildForVulnerabilityManager(NO_RESULT, NO_SCORE);
+  }
+
   public static InjectExpectationResult buildDefaultForPlayerManualValidation() {
-    return buildForPlayerManualValidation(null, null);
+    return buildForPlayerManualValidation(NO_RESULT, NO_SCORE);
   }
 
   public static InjectExpectationResult buildForPlayerManualValidation(

@@ -839,19 +839,36 @@ public class InjectExpectationService {
 
     injectExpectations.forEach(
         ie -> {
-          InjectExpectation.EXPECTATION_TYPE type = ie.getType();
-
-          if (List.of(PREVENTION, DETECTION).contains(type) && ie.getAgent() != null) {
-            ie.setResults(setUpFromCollectors(collectors));
-
-          } else if (VULNERABILITY.equals(type) && ie.getAgent() != null) {
-            ie.setResults(List.of(buildDefaultForVulnerabilityManagerInFailed()));
-
-          } else if (MANUAL.equals(type) && ie.getUser() != null) {
-            ie.setResults(List.of(buildDefaultForPlayerManualValidation()));
-
-          } else if (ARTICLE.equals(type) && ie.getUser() != null) {
-            ie.setResults(List.of(buildDefaultForMediaPressure()));
+          switch (ie.getType()) {
+            case PREVENTION, DETECTION -> {
+              if (ie.getAgent() != null) {
+                ie.setResults(setUpFromCollectors(collectors));
+              }
+            }
+            case VULNERABILITY -> {
+              if (ie.getAgent() != null) {
+                ie.setResults(List.of(buildDefaultForVulnerabilityManagerInFailed()));
+              }
+            }
+            case MANUAL -> {
+              if (ie.getUser() != null) {
+                ie.setResults(List.of(buildDefaultForPlayerManualValidation()));
+              }
+            }
+            // TODO : The UI needs to be fixed: when the score and result are initialized to null, the user can no longer validate the flag.
+            // the user can not validate the flag anymore
+            //                case CHALLENGE -> {
+            //                  if (ie.getUser() != null) {
+            //
+            // ie.setResults(List.of(ChallengeExpectationUtils.buildDefaultChallengeInjectExpectationResult()));
+            //                  }
+            //                }
+            case ARTICLE -> {
+              if (ie.getUser() != null) {
+                ie.setResults(List.of(buildDefaultForMediaPressure()));
+              }
+            }
+            default -> {}
           }
         });
   }
