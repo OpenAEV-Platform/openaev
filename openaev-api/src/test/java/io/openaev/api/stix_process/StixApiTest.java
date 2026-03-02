@@ -10,10 +10,11 @@ import static io.openaev.utils.fixtures.VulnerabilityFixture.CVE_2023_48788;
 import static java.util.Collections.emptyList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.verify;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -111,6 +112,8 @@ class StixApiTest extends IntegrationTest {
   private JsonNode stixSecurityCoverageWithoutObjects;
   private JsonNode stixSecurityCoverageOnlyVulns;
   private JsonNode stixSecurityCoverageWithDomainName;
+  private JsonNode stixSecurityCoverageWithArtifact;
+  private JsonNode stixSecurityCoverageWithFailingArtifact;
 
   private static ClientAndServer mockServer;
 
@@ -179,6 +182,14 @@ class StixApiTest extends IntegrationTest {
         loadJsonWithStixObjects(
             "src/test/resources/stix-bundles/security-coverage-with-domain-name.json");
 
+    stixSecurityCoverageWithArtifact =
+        loadJsonWithStixObjects(
+            "src/test/resources/stix-bundles/security-coverage-with-artifact.json");
+
+    stixSecurityCoverageWithFailingArtifact =
+        loadJsonWithStixObjects(
+            "src/test/resources/stix-bundles/security-coverage-with-failing-artifact.json");
+
     attackPatternComposer
         .forAttackPattern(AttackPatternFixture.createAttackPatternsWithExternalId(T_1003))
         .persist();
@@ -240,15 +251,24 @@ class StixApiTest extends IntegrationTest {
                 .withHeader("Content-Type", "application/json")
                 .withBody(
                     """
-                {
-                  "data": {}
-                }
-            """));
+                                  {
+                                    "data": {}
+                                  }
+                              """));
     openCTIConnectorService.registerOrPingAllConnectors();
 
     mockServer
         .when(request().withMethod("POST").withPath("graphql"))
-        .respond(response().withStatusCode(200));
+        .respond(
+            response()
+                .withStatusCode(200)
+                .withHeader("Content-Type", "application/json")
+                .withBody(
+                    """
+                                          {
+                                            "data": {}
+                                          }
+                                      """));
   }
 
   @Nested
@@ -271,6 +291,7 @@ class StixApiTest extends IntegrationTest {
               .andReturn()
               .getResponse()
               .getContentAsString();
+
       verify(securityCoverageService).pushSecurityCoverageBundleWithExternalURI(any());
       assertThat(response).isNotBlank();
       String scenarioId = JsonPath.read(response, "$.scenarioId");
@@ -433,7 +454,6 @@ class StixApiTest extends IntegrationTest {
     @DisplayName(
         "Should create the scenario from stix bundle and not set recurrence end if not specified")
     void shouldCreateScenarioNoEnd() throws Exception {
-
       String response =
           mvc.perform(
                   post(STIX_URI + "/process-bundle")
@@ -546,19 +566,21 @@ class StixApiTest extends IntegrationTest {
       assertThat(createdScenario.getSecurityCoverage().getAttackPatternRefs()).hasSize(3);
 
       StixRefToExternalRef stixRef1 =
-          new StixRefToExternalRef("attack-pattern--a24d97e6-401c-51fc-be24-8f797a35d1f1", T_1531);
+          new StixRefToExternalRef(
+              "attack-pattern--a24d97e6-401c-51fc-be24-8f797a35d1f1", List.of(T_1531));
       StixRefToExternalRef stixRef2 =
-          new StixRefToExternalRef("attack-pattern--033921be-85df-5f05-8bc0-d3d9fc945db9", T_1003);
+          new StixRefToExternalRef(
+              "attack-pattern--033921be-85df-5f05-8bc0-d3d9fc945db9", List.of(T_1003));
       StixRefToExternalRef stixRef3 =
           new StixRefToExternalRef(
-              "attack-pattern--c1fad538-bb66-4e3f-97f5-9a9a15fd34b1", "Attack!");
+              "attack-pattern--c1fad538-bb66-4e3f-97f5-9a9a15fd34b1", List.of("Attack!"));
 
       // -- Vulnerabilities --
       assertThat(createdScenario.getSecurityCoverage().getVulnerabilitiesRefs()).hasSize(1);
 
       StixRefToExternalRef stixRefVuln =
           new StixRefToExternalRef(
-              "vulnerability--de1172d3-a3e8-51a8-9014-30e572f3b975", CVE_2023_48788);
+              "vulnerability--de1172d3-a3e8-51a8-9014-30e572f3b975", List.of(CVE_2023_48788));
 
       assertTrue(
           createdScenario
@@ -1050,6 +1072,84 @@ class StixApiTest extends IntegrationTest {
               inject ->
                   inject.getPayload().isPresent()
                       && inject.getPayload().get() instanceof DnsResolution);
+    }
+
+    @Test
+    @DisplayName("Should create scenario with drop file injects")
+    void shouldCreateScenarioWithDropFileInjects() throws Exception {
+      // PREPARE
+      byte[] fileContent =
+          getClass().getResourceAsStream("/stix-bundles/artifact-file-test.txt").readAllBytes();
+
+      mockServer
+          .when(
+              request()
+                  .withMethod("GET")
+                  .withPath(
+                      "/%2Fstorage%2Fget%2Fimport%2FArtifact%2Fc0cbb7ff-5a68-47cb-8db6-3da247d8d6cf%2Fartifact-file-test.txt")
+                  .withHeader("Authorization", "Bearer .*"))
+          .respond(response().withStatusCode(200).withBody(fileContent));
+
+      // EXECUTE
+      String createdResponse =
+          mvc.perform(
+                  post(STIX_URI + "/process-bundle")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(mapper.writeValueAsString(stixSecurityCoverageWithArtifact)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // VERIFY
+      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      assertThat(createdScenario.getName()).isEqualTo("test artifacts");
+
+      Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
+      assertThat(injects).hasSize(1);
+      assertThat(injects)
+          .anyMatch(
+              inject ->
+                  inject.getPayload().isPresent()
+                      && inject.getPayload().get() instanceof FileDrop
+                      && "artifact-file-test.txt"
+                          .equals(
+                              ((FileDrop) inject.getPayload().get()).getFileDropFile().getName()));
+    }
+
+    @Test
+    @DisplayName("Should create scenario with placeholder drop file injects")
+    void shouldCreateScenarioWithPlaceholderDropFileInjects() throws Exception {
+      // PREPARE
+      mockServer
+          .when(
+              request()
+                  .withMethod("GET")
+                  .withPath(
+                      "/%2Fstorage%2Fget%2Fimport%2FArtifact%2Fc0cbb7ff-5a68-47cb-8db6-3da247d8d6cf%2Fartifact-file-test2.txt")
+                  .withHeader("Authorization", "Bearer .*"))
+          .respond(response().withStatusCode(404));
+
+      // EXECUTE
+      String createdResponse =
+          mvc.perform(
+                  post(STIX_URI + "/process-bundle")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(mapper.writeValueAsString(stixSecurityCoverageWithFailingArtifact)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // VERIFY
+      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      assertThat(createdScenario.getName()).isEqualTo("test failing artifacts");
+
+      Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
+      assertThat(injects).hasSize(1);
+      assertEquals(injects.iterator().next().getTitle(), "[artifact-file-test2.txt] Placeholder");
     }
   }
 

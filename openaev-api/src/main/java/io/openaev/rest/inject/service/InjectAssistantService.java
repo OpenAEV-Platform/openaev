@@ -248,7 +248,8 @@ public class InjectAssistantService {
             contractForPlaceholder,
             attackPattern.getExternalId(),
             "[any platform]",
-            "[any architecture]"));
+            "[any architecture]",
+            null));
   }
 
   // -- Vulnerabilities --
@@ -332,7 +333,8 @@ public class InjectAssistantService {
 
     if (injectorContracts.isEmpty()) {
       return Set.of(
-          buildManualInject(contractForPlaceholder, vulnerability.getExternalId(), null, null));
+          buildManualInject(
+              contractForPlaceholder, vulnerability.getExternalId(), null, null, null));
     }
     Set<Inject> injects = new HashSet<>();
     for (InjectorContract ic : injectorContracts) {
@@ -480,7 +482,11 @@ public class InjectAssistantService {
                   key -> {
                     String[] parts = key.split(":");
                     return buildManualInject(
-                        contractForPlaceholder, attackPattern.getExternalId(), parts[0], parts[1]);
+                        contractForPlaceholder,
+                        attackPattern.getExternalId(),
+                        parts[0],
+                        parts[1],
+                        null);
                   });
           inject.setAssets(value.stream().map(Asset.class::cast).toList());
         });
@@ -581,7 +587,11 @@ public class InjectAssistantService {
                 k -> {
                   String[] parts = k.split(":");
                   return buildManualInject(
-                      contractForPlaceholder, attackPattern.getExternalId(), parts[0], parts[1]);
+                      contractForPlaceholder,
+                      attackPattern.getExternalId(),
+                      parts[0],
+                      parts[1],
+                      null);
                 });
         inject.getAssetGroups().add(group);
       }
@@ -660,11 +670,12 @@ public class InjectAssistantService {
       InjectorContract contractForPlaceholder,
       String identifier,
       String platform,
-      String architecture) {
+      String architecture,
+      String whishedPayloadType) {
     return injectService.buildInject(
         contractForPlaceholder,
         formatTitle(identifier, platform, architecture),
-        formatDescription(identifier, platform, architecture),
+        formatDescription(identifier, platform, architecture, whishedPayloadType),
         false);
   }
 
@@ -675,7 +686,8 @@ public class InjectAssistantService {
     return String.format("[%s] Placeholder", identifier);
   }
 
-  private String formatDescription(String identifier, String platform, String architecture) {
+  private String formatDescription(
+      String identifier, String platform, String architecture, String whishedPayloadType) {
     String base = "This placeholder is disabled because the %s is currently not covered. %s";
 
     if (platform != null && architecture != null) {
@@ -685,6 +697,10 @@ public class InjectAssistantService {
           String.format(
               "Please create the payloads for platform %s and architecture %s.",
               platform, architecture));
+    } else if (FileDrop.FILE_DROP_TYPE.equals(whishedPayloadType)) {
+      return String.format(
+          "Artifact %s could not be downloaded from OpenCTI. Check file permissions or availability",
+          identifier);
     } else {
       return String.format(
           base,

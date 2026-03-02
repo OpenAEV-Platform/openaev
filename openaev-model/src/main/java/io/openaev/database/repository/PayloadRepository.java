@@ -1,6 +1,7 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.DetectionRemediation;
+import io.openaev.database.model.FileDrop;
 import io.openaev.database.model.Payload;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -39,12 +40,15 @@ public interface PayloadRepository
 
   @Query(
       """
-    SELECT dr
-    FROM Inject inj
-    JOIN inj.injectorContract ic
-    JOIN ic.payload p
-    JOIN DetectionRemediation dr ON dr.payload = p
-    WHERE inj.id = :injectId
-""")
+          SELECT dr
+          FROM Inject inj
+          JOIN inj.injectorContract ic
+          JOIN ic.payload p
+          JOIN DetectionRemediation dr ON dr.payload = p
+          WHERE inj.id = :injectId
+      """)
   List<DetectionRemediation> fetchDetectionRemediationsByInjectId(String injectId);
+
+  @Query("select fd from FileDrop fd where fd.fileDropFile.id = :documentId")
+  Optional<FileDrop> findByDocumentId(@Param("documentId") final String documentId);
 }

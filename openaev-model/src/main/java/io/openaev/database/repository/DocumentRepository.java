@@ -233,4 +233,14 @@ public interface DocumentRepository
               + ")",
       nativeQuery = true)
   List<Document> findAllDistinctBySimulationId(@Param("simulationId") String simulationId);
+
+  @Query(
+      value =
+          "SELECT DISTINCT d.* FROM documents d "
+              + "LEFT JOIN payloads p ON p.file_drop_file = d.document_id "
+              + "LEFT JOIN injectors_contracts ic ON ic.injector_contract_payload = p.payload_id "
+              + "LEFT JOIN injects i ON i.inject_injector_contract = ic.injector_contract_id "
+              + "WHERE i.inject_scenario = :scenarioId ",
+      nativeQuery = true)
+  List<Document> findAllDistinctOnInjectsByScenarioId(@Param("scenarioId") String scenarioId);
 }

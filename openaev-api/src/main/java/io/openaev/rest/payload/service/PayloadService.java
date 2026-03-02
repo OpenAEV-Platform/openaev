@@ -38,8 +38,10 @@ import io.openaev.injector_contract.ContractTargetedProperty;
 import io.openaev.injector_contract.fields.*;
 import io.openaev.injectors.openaev.util.OpenAEVObfuscationMap;
 import io.openaev.model.inject.form.Expectation;
+import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
+import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.UserService;
@@ -48,7 +50,6 @@ import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
@@ -75,6 +76,7 @@ public class PayloadService {
   private final UserService userService;
   private final DomainService domainService;
   private final TagService tagService;
+  private final DocumentService documentService;
   private final PayloadUtils payloadUtils;
 
   public void updateInjectorContractsForPayload(Payload payload) {
@@ -296,7 +298,7 @@ public class PayloadService {
       List<String> payloadExternalIds, List<String> processedPayloadExternalIds) {
     return payloadExternalIds.stream()
         .filter(externalId -> !processedPayloadExternalIds.contains(externalId))
-        .collect(Collectors.toList());
+        .toList();
   }
 
   /**
@@ -321,6 +323,59 @@ public class PayloadService {
   }
 
   /**
+   * Retrieve the existing FileDrop Payload linked to the document id, or create a new one if it
+   * doesn't exist
+   *
+   * @param documentId to filter
+   * @param scenario to add to document if file drop is created
+   * @return retrieved or created FileDrop
+   */
+  public FileDrop getFileDropPayloadByDocument(String documentId, Scenario scenario) {
+    FileDrop fileDrop =
+        payloadRepository
+            .findByDocumentId(documentId)
+            .orElseGet(() -> this.createFileDropPayload(documentId));
+    fileDrop.getFileDropFile().getScenarios().add(scenario);
+    this.documentService.save(fileDrop.getFileDropFile());
+    return fileDrop;
+  }
+
+  /**
+   * Create a FileDrop Payload with linked provided document id
+   *
+   * @param documentId to link to FileDrop Payload
+   * @return created file drop payload
+   */
+  public FileDrop createFileDropPayload(String documentId) {
+    Document document = this.documentService.document(documentId);
+
+    FileDrop fileDrop = new FileDrop();
+    fileDrop.setFileDropFile(document);
+    fileDrop.setName(String.format("Drop %s file", document.getName()));
+    fileDrop.setDescription(
+        String.format("Drop of %s file into the specified endpoint", document.getName()));
+    fileDrop.setStatus(Payload.PAYLOAD_STATUS.VERIFIED);
+    fileDrop.setSource(Payload.PAYLOAD_SOURCE.FILIGRAN);
+    fileDrop.setType(FileDrop.FILE_DROP_TYPE);
+    fileDrop.setPlatforms(ALL_PLATFORMS);
+    fileDrop.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
+    fileDrop.setDomains(
+        domainService.upserts(Set.of(InjectorContractDomainDTO.fromDomain(PresetDomain.ENDPOINT))));
+
+    fileDrop.setExpectations(
+        new InjectExpectation.EXPECTATION_TYPE[] {
+          InjectExpectation.EXPECTATION_TYPE.PREVENTION,
+          InjectExpectation.EXPECTATION_TYPE.DETECTION
+        });
+
+    fileDrop.setTags(tagService.findOrCreateTagsFromNames(new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
+
+    FileDrop saved = payloadRepository.save(fileDrop);
+    updateInjectorContractsForPayload(saved);
+    return saved;
+  }
+
+  /**
    * Upsert for the Dynamic DNS Resolution payload, who run DNS Resolution by domain name given by
    * argument
    *
@@ -329,7 +384,7 @@ public class PayloadService {
   public DnsResolution getDynamicDnsResolutionPayload() {
     return payloadRepository
         .findById(DYNAMIC_DNS_RESOLUTION_UUID)
-        .map(payload -> (DnsResolution) payload)
+        .map(DnsResolution.class::cast)
         .orElseGet(this::createDynamicDnsResolutionPayload);
   }
 

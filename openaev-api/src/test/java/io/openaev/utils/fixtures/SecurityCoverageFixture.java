@@ -6,10 +6,7 @@ import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.SecurityCoverage;
 import io.openaev.database.model.StixRefToExternalRef;
 import io.openaev.database.model.Vulnerability;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class SecurityCoverageFixture {
@@ -35,14 +32,16 @@ public class SecurityCoverageFixture {
             .map(
                 ap ->
                     new StixRefToExternalRef(
-                        "attack-pattern--%s".formatted(ap.getId()), ap.getExternalId()))
+                        "attack-pattern--%s".formatted(ap.getId()),
+                        new ArrayList<>(Collections.singleton(ap.getExternalId()))))
             .collect(Collectors.toSet());
     Set<StixRefToExternalRef> vulnerabilitiesRefs =
         vulnerabilities.stream()
             .map(
                 ap ->
                     new StixRefToExternalRef(
-                        "vulnerability--%s".formatted(ap.getId()), ap.getExternalId()))
+                        "vulnerability--%s".formatted(ap.getId()),
+                        new ArrayList<>(Collections.singleton(ap.getExternalId()))))
             .collect(Collectors.toSet());
 
     SecurityCoverage securityCoverage = createDefaultSecurityCoverage();
