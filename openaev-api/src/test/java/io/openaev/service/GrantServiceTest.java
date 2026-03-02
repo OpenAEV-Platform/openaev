@@ -128,7 +128,7 @@ class GrantServiceTest {
 
     // -- ACT --
     List<Grant> result =
-        grantService.duplicateGrants(List.of(sourceGrant1, sourceGrant2), targetResourceId);
+        grantService.duplicateGrants(List.of(sourceGrant1, sourceGrant2), targetResourceId, SIMULATION);
 
     // -- ASSERT --
     assertEquals(2, result.size());

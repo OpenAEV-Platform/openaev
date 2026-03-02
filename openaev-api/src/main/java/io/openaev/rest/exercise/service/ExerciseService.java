@@ -403,7 +403,9 @@ public class ExerciseService {
   }
 
   private void duplicateGrants(@NotNull Exercise target, @NotNull Exercise source) {
-    List<Grant> duplicatedGrants = grantService.duplicateGrants(source.getGrants(), target.getId());
+    List<Grant> duplicatedGrants =
+        grantService.duplicateGrants(
+            source.getGrants(), target.getId(), Grant.GRANT_RESOURCE_TYPE.SIMULATION);
     target.setGrants(duplicatedGrants);
   }
 

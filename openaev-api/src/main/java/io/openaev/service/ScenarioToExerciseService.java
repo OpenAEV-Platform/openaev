@@ -78,7 +78,8 @@ public class ScenarioToExerciseService {
 
     // Grants
     List<Grant> exerciseGrants =
-        grantService.duplicateGrants(scenario.getGrants(), exerciseSaved.getId());
+        grantService.duplicateGrants(
+            scenario.getGrants(), exerciseSaved.getId(), Grant.GRANT_RESOURCE_TYPE.SIMULATION);
     exerciseSaved.setGrants(exerciseGrants);
 
     // Teams
