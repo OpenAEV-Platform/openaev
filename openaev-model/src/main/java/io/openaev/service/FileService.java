@@ -1,7 +1,6 @@
 package io.openaev.service;
 
 import io.openaev.config.MinioConfig;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Document;
 import java.io.InputStream;
 import java.util.Optional;
@@ -64,8 +63,7 @@ public class FileService {
   public void uploadFile(String name, InputStream data, long size, String contentType)
       throws Exception {
 
-    minioService.uploadFileInTenantBucket(
-        TenantContext.getCurrentTenant(), name, data, size, contentType);
+    minioService.uploadFileInTenantBucket(name, data, size, contentType);
   }
 
   /**
@@ -79,7 +77,7 @@ public class FileService {
    */
   public String uploadStream(String path, String name, InputStream data) throws Exception {
     String file = path + "/" + name;
-    minioService.uploadStreamInTenantBucket(TenantContext.getCurrentTenant(), file, name, data);
+    minioService.uploadStreamInTenantBucket(file, name, data);
     return file;
   }
 
@@ -90,7 +88,7 @@ public class FileService {
    * @throws Exception if the deletion fails
    */
   public void deleteFile(String name) throws Exception {
-    minioService.deleteFileInTenantBucket(TenantContext.getCurrentTenant(), name);
+    minioService.deleteFileInTenantBucket(name);
   }
 
   /**
@@ -102,7 +100,7 @@ public class FileService {
    * @param directory the directory prefix to delete
    */
   public void deleteDirectory(String directory) {
-    minioService.deleteDirectoryInTenantBucket(TenantContext.getCurrentTenant(), directory);
+    minioService.deleteDirectoryInTenantBucket(directory);
   }
 
   /**
@@ -124,7 +122,7 @@ public class FileService {
    *     occurs
    */
   private Optional<InputStream> getFilePath(String name) {
-    return minioService.getFilePathInTenant(TenantContext.getCurrentTenant(), name);
+    return minioService.getFilePathInTenant(name);
   }
 
   /**
@@ -194,6 +192,6 @@ public class FileService {
    * @return an Optional containing the FileContainer with filename, content type, and stream
    */
   public Optional<FileContainer> getFileContainer(String fileTarget) {
-    return minioService.getFileContainerInTenant(TenantContext.getCurrentTenant(), fileTarget);
+    return minioService.getFileContainerInTenant(fileTarget);
   }
 }

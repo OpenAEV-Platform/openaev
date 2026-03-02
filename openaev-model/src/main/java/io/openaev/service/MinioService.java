@@ -5,6 +5,7 @@ import io.minio.messages.DeleteError;
 import io.minio.messages.DeleteObject;
 import io.minio.messages.Item;
 import io.openaev.config.MinioConfig;
+import io.openaev.context.TenantContext;
 import io.openaev.multitenancy.DependenciesManager;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -50,39 +51,35 @@ public class MinioService implements DependenciesManager {
     minioClient.removeBucket(removeBucketArgs);
   }
 
-  public void uploadFileInTenantBucket(
-      String uid, String name, InputStream data, long size, String contentType) throws Exception {
+  public void uploadFileInTenantBucket(String name, InputStream data, long size, String contentType)
+      throws Exception {
     minioClient.putObject(
-        PutObjectArgs.builder().bucket(minioConfig.getBucket() + "-" + uid).object(name).stream(
-                data, size, -1)
+        PutObjectArgs.builder().bucket(getCurrentBucket()).object(name).stream(data, size, -1)
             .contentType(contentType)
             .build());
   }
 
-  public void uploadStreamInTenantBucket(String uid, String file, String name, InputStream data)
+  public void uploadStreamInTenantBucket(String file, String name, InputStream data)
       throws Exception {
     minioClient.putObject(
         PutObjectArgs.builder()
-            .bucket(minioConfig.getBucket() + "-" + uid)
+            .bucket(getCurrentBucket())
             .object(file)
             .userMetadata(Map.of("filename", name))
             .stream(data, data.available(), -1)
             .build());
   }
 
-  public void deleteFileInTenantBucket(String uid, String name) throws Exception {
+  public void deleteFileInTenantBucket(String name) throws Exception {
     minioClient.removeObject(
-        RemoveObjectArgs.builder()
-            .bucket(minioConfig.getBucket() + "-" + uid)
-            .object(name)
-            .build());
+        RemoveObjectArgs.builder().bucket(getCurrentBucket()).object(name).build());
   }
 
-  public void deleteDirectoryInTenantBucket(String uid, String directory) {
+  public void deleteDirectoryInTenantBucket(String directory) {
     Iterable<Result<Item>> files =
         minioClient.listObjects(
             ListObjectsArgs.builder()
-                .bucket(minioConfig.getBucket() + "-" + uid)
+                .bucket(getCurrentBucket())
                 .recursive(true)
                 .prefix(directory)
                 .build());
@@ -98,10 +95,7 @@ public class MinioService implements DependenciesManager {
         });
     Iterable<Result<DeleteError>> removedObjects =
         minioClient.removeObjects(
-            RemoveObjectsArgs.builder()
-                .bucket(minioConfig.getBucket() + "-" + uid)
-                .objects(deleteObjects)
-                .build());
+            RemoveObjectsArgs.builder().bucket(getCurrentBucket()).objects(deleteObjects).build());
     for (Result<DeleteError> result : removedObjects) {
       try {
         DeleteError error = result.get();
@@ -112,14 +106,11 @@ public class MinioService implements DependenciesManager {
     }
   }
 
-  public Optional<InputStream> getFilePathInTenant(String uid, String name) {
+  public Optional<InputStream> getFilePathInTenant(String name) {
     try {
       GetObjectResponse objectStream =
           minioClient.getObject(
-              GetObjectArgs.builder()
-                  .bucket(minioConfig.getBucket() + "-" + uid)
-                  .object(name)
-                  .build());
+              GetObjectArgs.builder().bucket(getCurrentBucket()).object(name).build());
       InputStreamResource streamResource = new InputStreamResource(objectStream);
       return Optional.of(streamResource.getInputStream());
     } catch (Exception e) {
@@ -128,16 +119,13 @@ public class MinioService implements DependenciesManager {
     }
   }
 
-  public Optional<FileContainer> getFileContainerInTenant(String uid, String fileTarget) {
+  public Optional<FileContainer> getFileContainerInTenant(String fileTarget) {
     try {
       StatObjectResponse response =
           minioClient.statObject(
-              StatObjectArgs.builder()
-                  .bucket(minioConfig.getBucket() + "-" + uid)
-                  .object(fileTarget)
-                  .build());
+              StatObjectArgs.builder().bucket(getCurrentBucket()).object(fileTarget).build());
       String filename = response.userMetadata().get("filename");
-      Optional<InputStream> inputStream = getFilePathInTenant(uid, fileTarget);
+      Optional<InputStream> inputStream = getFilePathInTenant(fileTarget);
       FileContainer fileContainer =
           new FileContainer(filename, response.contentType(), inputStream.orElseThrow());
       return Optional.of(fileContainer);
@@ -173,5 +161,9 @@ public class MinioService implements DependenciesManager {
       minioClient.removeObjects(
           RemoveObjectsArgs.builder().bucket(bucket).objects(objectsToDelete).build());
     }
+  }
+
+  private String getCurrentBucket() {
+    return minioConfig.getBucket() + "-" + TenantContext.getCurrentTenant();
   }
 }
