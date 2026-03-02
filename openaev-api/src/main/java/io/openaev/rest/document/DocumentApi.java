@@ -9,6 +9,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.raw.RawPaginationDocument;
@@ -79,7 +80,8 @@ public class DocumentApi extends RestBehavior {
       throws Exception {
     String extension = FilenameUtils.getExtension(file.getOriginalFilename());
     String fileTarget = DigestUtils.md5Hex(file.getInputStream()) + "." + extension;
-    Optional<Document> targetDocument = documentRepository.findByTarget(fileTarget);
+    Optional<Document> targetDocument =
+        documentRepository.findByTargetAndTenantId(fileTarget, TenantContext.getCurrentTenant());
     if (targetDocument.isPresent()) {
       Document document = targetDocument.get();
       // Compute exercises
@@ -142,7 +144,7 @@ public class DocumentApi extends RestBehavior {
   @GetMapping("/api/documents")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOCUMENT)
   public List<RawDocument> documents() {
-    return documentRepository.rawAllDocuments();
+    return documentRepository.rawAllDocuments(TenantContext.getCurrentTenant());
   }
 
   @PostMapping(DOCUMENT_API + "/search")

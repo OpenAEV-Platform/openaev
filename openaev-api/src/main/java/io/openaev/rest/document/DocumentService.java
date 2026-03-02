@@ -6,6 +6,7 @@ import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.*;
@@ -74,7 +75,7 @@ public class DocumentService {
     byte[] content = fileIS.readAllBytes();
     String extension = FilenameUtils.getExtension(fileName);
     String fileTarget = DigestUtils.md5Hex(new ByteArrayInputStream(content)) + "." + extension;
-    Optional<Document> targetDocument = documentRepository.findByTarget(fileTarget);
+    Optional<Document> targetDocument = documentRepository.findByTargetAndTenantId(fileTarget, TenantContext.getCurrentTenant());
     // Document already exists by hash
     if (targetDocument.isPresent()) {
       Document document = targetDocument.get();
@@ -101,7 +102,7 @@ public class DocumentService {
       document.setTags(tags);
       return save(document);
     } else {
-      Optional<Document> existingDocument = documentRepository.findByName(fileName);
+      Optional<Document> existingDocument = documentRepository.findByNameAndTenantId(fileName, TenantContext.getCurrentTenant());
       if (existingDocument.isPresent()) {
         Document document = existingDocument.get();
         // Update doc
