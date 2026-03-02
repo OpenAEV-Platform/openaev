@@ -112,7 +112,7 @@ public class Document implements TenantBase {
   private Set<Challenge> challenges = new HashSet<>();
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id", nullable = false)
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
   private Tenant tenant;
 

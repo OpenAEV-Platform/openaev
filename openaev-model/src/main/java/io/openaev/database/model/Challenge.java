@@ -101,7 +101,7 @@ public class Challenge implements TenantBase {
   private List<Document> documents = new ArrayList<>();
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id", nullable = false)
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
   private Tenant tenant;
 

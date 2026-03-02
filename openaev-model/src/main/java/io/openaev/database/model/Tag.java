@@ -104,7 +104,7 @@ public class Tag implements TenantBase {
   private Instant updatedAt = now();
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id", nullable = false)
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
   @Getter
   @Setter

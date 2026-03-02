@@ -81,7 +81,7 @@ public class Finding implements TenantBase {
   private Set<Tag> tags = new HashSet<>();
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id", nullable = false)
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
   // The tenant here must be set automatically with the inject tenant when the finding is created by
   // the inject

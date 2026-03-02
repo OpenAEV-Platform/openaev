@@ -66,7 +66,7 @@ public class NotificationRule implements TenantBase {
   private User owner;
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id", nullable = false)
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
   private Tenant tenant;
 

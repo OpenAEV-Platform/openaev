@@ -322,7 +322,7 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   private List<Finding> findings = new ArrayList<>();
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id", nullable = false)
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
   @Getter
   private Tenant tenant;
