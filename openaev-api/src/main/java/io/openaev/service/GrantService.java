@@ -89,7 +89,9 @@ public class GrantService {
   }
 
   public List<Grant> duplicateGrants(
-      @NotNull List<Grant> sourceGrants, @NotBlank String targetResourceId) {
+      @NotNull List<Grant> sourceGrants,
+      @NotBlank String targetResourceId,
+      @NotNull GRANT_RESOURCE_TYPE targetResourceType) {
     return new ArrayList<>(
         sourceGrants.stream()
             .map(
@@ -98,7 +100,7 @@ public class GrantService {
                         originalGrant.getName(),
                         originalGrant.getGroup(),
                         targetResourceId,
-                        originalGrant.getGrantResourceType()))
+                        targetResourceType))
             .toList());
   }
 }

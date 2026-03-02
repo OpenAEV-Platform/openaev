@@ -2,6 +2,7 @@ package io.openaev.rest.exercise.service;
 
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
+import static io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE.SIMULATION;
 import static io.openaev.database.specification.ExerciseSpecification.*;
 import static io.openaev.database.specification.TeamSpecification.fromIds;
 import static io.openaev.helper.StreamHelper.fromIterable;
@@ -403,7 +404,8 @@ public class ExerciseService {
   }
 
   private void duplicateGrants(@NotNull Exercise target, @NotNull Exercise source) {
-    List<Grant> duplicatedGrants = grantService.duplicateGrants(source.getGrants(), target.getId());
+    List<Grant> duplicatedGrants =
+        grantService.duplicateGrants(source.getGrants(), target.getId(), SIMULATION);
     target.setGrants(duplicatedGrants);
   }
 

@@ -1,5 +1,7 @@
 package io.openaev.service;
 
+import static io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE.SIMULATION;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
@@ -78,7 +80,7 @@ public class ScenarioToExerciseService {
 
     // Grants
     List<Grant> exerciseGrants =
-        grantService.duplicateGrants(scenario.getGrants(), exerciseSaved.getId());
+        grantService.duplicateGrants(scenario.getGrants(), exerciseSaved.getId(), SIMULATION);
     exerciseSaved.setGrants(exerciseGrants);
 
     // Teams
