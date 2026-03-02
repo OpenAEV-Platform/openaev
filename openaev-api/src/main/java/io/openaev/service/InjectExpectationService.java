@@ -855,7 +855,8 @@ public class InjectExpectationService {
                 ie.setResults(List.of(buildDefaultForPlayerManualValidation()));
               }
             }
-            // TODO : The UI needs to be fixed: when the score and result are initialized to null, the user can no longer validate the flag.
+            // TODO : The UI needs to be fixed: when the score and result are initialized to null,
+            // the user can no longer validate the flag.
             // the user can not validate the flag anymore
             //                case CHALLENGE -> {
             //                  if (ie.getUser() != null) {
