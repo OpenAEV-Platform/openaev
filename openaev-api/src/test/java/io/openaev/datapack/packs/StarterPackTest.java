@@ -7,6 +7,7 @@ import static org.mockito.Mockito.doThrow;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
@@ -508,13 +509,16 @@ public class StarterPackTest extends IntegrationTest {
     long dashboardCount = customDashboardRepository.count();
     assertEquals(3, dashboardCount);
 
-    Optional<CustomDashboard> dashboardTest = customDashboardRepository.findByName("Test 1");
+    Optional<CustomDashboard> dashboardTest =
+        customDashboardRepository.findByNameAndTenantId("Test 1", TenantContext.getCurrentTenant());
     assertTrue(dashboardTest.isPresent());
 
-    Optional<CustomDashboard> dashboardTest2 = customDashboardRepository.findByName("Test 2");
+    Optional<CustomDashboard> dashboardTest2 =
+        customDashboardRepository.findByNameAndTenantId("Test 2", TenantContext.getCurrentTenant());
     assertTrue(dashboardTest2.isPresent());
 
-    Optional<CustomDashboard> dashboardTest3 = customDashboardRepository.findByName("Test 3");
+    Optional<CustomDashboard> dashboardTest3 =
+        customDashboardRepository.findByNameAndTenantId("Test 3", TenantContext.getCurrentTenant());
     assertTrue(dashboardTest3.isPresent());
   }
 
@@ -524,7 +528,8 @@ public class StarterPackTest extends IntegrationTest {
   }
 
   private void verifyDefaultHomeDashboardParameterExist() {
-    Optional<CustomDashboard> dashboardTest = customDashboardRepository.findByName("Test 1");
+    Optional<CustomDashboard> dashboardTest =
+        customDashboardRepository.findByNameAndTenantId("Test 1", TenantContext.getCurrentTenant());
     assertTrue(dashboardTest.isPresent());
 
     Optional<Setting> staticsParameters = settingRepository.findByKey("platform_home_dashboard");
@@ -533,7 +538,8 @@ public class StarterPackTest extends IntegrationTest {
   }
 
   private void verifyDefaultScenarioDashboardParameterExist() {
-    Optional<CustomDashboard> dashboardTest = customDashboardRepository.findByName("Test 2");
+    Optional<CustomDashboard> dashboardTest =
+        customDashboardRepository.findByNameAndTenantId("Test 2", TenantContext.getCurrentTenant());
     assertTrue(dashboardTest.isPresent());
 
     Optional<Setting> staticsParameters =
@@ -543,7 +549,8 @@ public class StarterPackTest extends IntegrationTest {
   }
 
   private void verifyDefaultSimulationDashboardParameterExist() {
-    Optional<CustomDashboard> dashboardTest = customDashboardRepository.findByName("Test 3");
+    Optional<CustomDashboard> dashboardTest =
+        customDashboardRepository.findByNameAndTenantId("Test 3", TenantContext.getCurrentTenant());
     assertTrue(dashboardTest.isPresent());
 
     Optional<Setting> staticsParameters =

@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.Setting;
 import io.openaev.database.repository.CustomDashboardRepository;
@@ -60,7 +61,8 @@ class CustomDashboardApiTest extends IntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.custom_dashboard_name").value(name));
 
-    assertThat(repository.findByName(name)).isPresent();
+    assertThat(repository.findByNameAndTenantId(name, TenantContext.getCurrentTenant()))
+        .isPresent();
   }
 
   @Test
