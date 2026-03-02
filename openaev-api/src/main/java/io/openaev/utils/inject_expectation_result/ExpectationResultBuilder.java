@@ -197,7 +197,7 @@ public final class ExpectationResultBuilder {
   }
 
   public static InjectExpectationResult buildDefaultForMediaPressure() {
-    return buildForMediaPressure(null, null);
+    return buildForMediaPressure(NO_RESULT, NO_SCORE);
   }
 
   private static InjectExpectationResult buildForVulnerabilityManager(
