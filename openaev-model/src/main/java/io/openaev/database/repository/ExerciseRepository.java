@@ -82,9 +82,10 @@ public interface ExerciseRepository
               + "FROM exercises ex "
               + "LEFT JOIN injects_expectations ie ON ex.exercise_id = ie.exercise_id "
               + "LEFT JOIN exercises_tags et ON et.exercise_id = ex.exercise_id "
+              + "WHERE ex.tenant_id = :tenantId "
               + "GROUP BY ex.exercise_id ;",
       nativeQuery = true)
-  List<RawExerciseSimple> rawAll();
+  List<RawExerciseSimple> rawAll(String tenantId);
 
   /**
    * Get the raw version of the exercises in the list in param
@@ -138,9 +139,11 @@ public interface ExerciseRepository
               + "INNER JOIN groups ON grants.grant_group = groups.group_id "
               + "INNER JOIN users_groups ON groups.group_id = users_groups.group_id "
               + "WHERE users_groups.user_id = :userId "
+              + "AND ex.tenant_id = :tenantId "
               + "GROUP BY ex.exercise_id ;",
       nativeQuery = true)
-  List<RawExerciseSimple> rawAllGranted(@Param("userId") String userId);
+  List<RawExerciseSimple> rawAllGranted(
+      @Param("userId") String userId, @Param("tenantId") String tenantId);
 
   /**
    * Get the raw version of the exercises a user can see by exercise ids
@@ -276,10 +279,12 @@ public interface ExerciseRepository
         INNER JOIN findings f ON f.finding_inject_id = i.inject_id
         INNER JOIN exercises e ON i.inject_exercise = e.exercise_id
         WHERE (:name IS NULL OR LOWER(e.exercise_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
+        AND i.tenant_id = :tenantId
         ORDER BY e.exercise_created_at DESC;
     """,
       nativeQuery = true)
-  List<Object[]> findAllOptionByNameLinkedToFindings(@Param("name") String name, Pageable pageable);
+  List<Object[]> findAllOptionByNameLinkedToFindings(
+      @Param("name") String name, @Param("tenantId") String tenantId, Pageable pageable);
 
   @Query(
       value =
@@ -292,11 +297,15 @@ public interface ExerciseRepository
         LEFT JOIN scenarios_exercises se ON se.exercise_id = e.exercise_id
         WHERE (se.scenario_id = :sourceId OR fa.asset_id = :sourceId)
         AND (:name IS NULL OR LOWER(e.exercise_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
+        AND i.tenant_id = :tenantId
         ORDER BY e.exercise_created_at DESC;
     """,
       nativeQuery = true)
   List<Object[]> findAllOptionByNameLinkedToFindingsWithContext(
-      @Param("sourceId") String sourceId, @Param("name") String name, Pageable pageable);
+      @Param("sourceId") String sourceId,
+      @Param("name") String name,
+      @Param("tenantId") String tenantId,
+      Pageable pageable);
 
   // -- INDEXING --
 

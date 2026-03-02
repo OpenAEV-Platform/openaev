@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawInjectExpectation;
@@ -427,8 +428,9 @@ public class ExerciseService {
     List<RawExerciseSimple> exercises =
         currentUser.isAdminOrBypass()
                 || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)
-            ? exerciseRepository.rawAll()
-            : exerciseRepository.rawAllGranted(currentUser().getId());
+            ? exerciseRepository.rawAll(TenantContext.getCurrentTenant())
+            : exerciseRepository.rawAllGranted(
+                currentUser().getId(), TenantContext.getCurrentTenant());
     return exerciseMapper.getExerciseSimples(exercises);
   }
 
@@ -573,11 +575,16 @@ public class ExerciseService {
     List<Object[]> results;
 
     if (trimmedSimulationOrScenarioId == null) {
-      results = exerciseRepository.findAllOptionByNameLinkedToFindings(trimmedSearchText, pageable);
+      results =
+          exerciseRepository.findAllOptionByNameLinkedToFindings(
+              trimmedSearchText, TenantContext.getCurrentTenant(), pageable);
     } else {
       results =
           exerciseRepository.findAllOptionByNameLinkedToFindingsWithContext(
-              trimmedSimulationOrScenarioId, trimmedSearchText, pageable);
+              trimmedSimulationOrScenarioId,
+              trimmedSearchText,
+              TenantContext.getCurrentTenant(),
+              pageable);
     }
     return results.stream()
         .map(i -> new FilterUtilsJpa.Option((String) i[0], (String) i[1]))
