@@ -16,7 +16,8 @@ import org.springframework.stereotype.Repository;
 public interface CustomDashboardRepository
     extends CrudRepository<CustomDashboard, String>, JpaSpecificationExecutor<CustomDashboard> {
 
-  Optional<CustomDashboard> findByName(@NotBlank final String name);
+  Optional<CustomDashboard> findByNameAndTenantId(
+      @NotBlank final String name, @NotBlank final String tenantId);
 
   /**
    * Get the raw version of the custom dashboards
@@ -27,9 +28,10 @@ public interface CustomDashboardRepository
       value =
           " SELECT cd.custom_dashboard_id, "
               + "cd.custom_dashboard_name "
-              + "FROM custom_dashboards cd;",
+              + "FROM custom_dashboards cd "
+              + "WHERE cd.tenant_id = :tenantId;",
       nativeQuery = true)
-  List<RawCustomDashboard> rawAll();
+  List<RawCustomDashboard> rawAll(String tenantId);
 
   @Query(
       value =
@@ -45,6 +47,7 @@ public interface CustomDashboardRepository
       nativeQuery = true)
   Optional<CustomDashboard> findByResourceId(String resourceId);
 
+  // TODO multi-tenancy: add tenant_id on parameters?
   @Query(
       """
   SELECT d FROM CustomDashboard d
