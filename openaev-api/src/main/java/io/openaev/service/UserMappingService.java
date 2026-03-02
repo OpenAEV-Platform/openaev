@@ -4,6 +4,7 @@ import static io.openaev.config.security.SecurityService.OPENAEV_PROVIDER_PATH_P
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
@@ -41,7 +42,8 @@ public class UserMappingService {
       boolean autoCreate = mapping.isAutoCreate();
       for (String role : groupsFromToken) {
         if (idpGroup.equals(role)) {
-          Optional<Group> groupOptional = groupRepository.findByName(userGroup);
+          Optional<Group> groupOptional =
+              groupRepository.findByNameAndTenantId(userGroup, TenantContext.getCurrentTenant());
           if (groupOptional.isPresent()) {
             List<Group> userGroups = user.getGroups();
             List<Group> existing =

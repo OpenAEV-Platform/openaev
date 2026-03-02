@@ -19,5 +19,5 @@ public interface GroupRepository
   @NotNull
   List<Group> findAllByRoles(Role role);
 
-  Optional<Group> findByName(String name);
+  Optional<Group> findByNameAndTenantId(String name, String tenantId);
 }
