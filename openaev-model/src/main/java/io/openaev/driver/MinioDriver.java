@@ -56,7 +56,12 @@ public class MinioDriver {
     if (found && bucketExistsArgs.bucket().equals(minioConfig.getBucket())) {
       moveDefaultTenantFiles(minioClient, bucketExistsArgs);
     }
-    if (!found) {
+    BucketExistsArgs defaultTenantBucketExistsArgs =
+        BucketExistsArgs.builder()
+            .bucket(minioConfig.getBucket() + "-" + TenantContext.getCurrentTenant())
+            .build();
+    boolean defaultTenantBucket = minioClient.bucketExists(defaultTenantBucketExistsArgs);
+    if (!defaultTenantBucket) {
       minioClient.makeBucket(
           MakeBucketArgs.builder()
               .bucket(minioConfig.getBucket() + "-" + TenantContext.getCurrentTenant())
@@ -79,6 +84,15 @@ public class MinioDriver {
         MakeBucketArgs.builder()
             .bucket(minioConfig.getBucket() + "-" + TenantContext.getCurrentTenant())
             .build());
+    if (!minioClient.bucketExists(
+        BucketExistsArgs.builder()
+            .bucket(minioConfig.getBucket() + "-" + TenantContext.getCurrentTenant())
+            .build())) {
+      minioClient.makeBucket(
+          MakeBucketArgs.builder()
+              .bucket(minioConfig.getBucket() + "-" + TenantContext.getCurrentTenant())
+              .build());
+    }
     Iterable<Result<Item>> objects =
         minioClient.listObjects(
             ListObjectsArgs.builder().bucket(bucketExistsArgs.bucket()).recursive(true).build());

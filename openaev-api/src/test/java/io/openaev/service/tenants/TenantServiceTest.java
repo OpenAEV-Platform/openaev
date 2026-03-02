@@ -2,10 +2,12 @@ package io.openaev.service.tenants;
 
 import static io.openaev.utils.fixtures.tenants.TenantFixture.TENANT_NAME;
 import static io.openaev.utils.fixtures.tenants.TenantFixture.getTenant;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.*;
 
+import io.minio.BucketExistsArgs;
+import io.minio.MinioClient;
 import io.openaev.IntegrationTest;
+import io.openaev.config.MinioConfig;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -26,6 +28,8 @@ class TenantServiceTest extends IntegrationTest {
 
   @Autowired private TenantComposer tenantComposer;
   @Autowired protected EntityManager entityManager;
+  @Autowired private MinioConfig minioConfig;
+  @Autowired private MinioClient minioClient;
 
   @Test
   void should_create_and_find_tenant() throws Exception {
@@ -34,10 +38,13 @@ class TenantServiceTest extends IntegrationTest {
 
     // -- ACT --
     Tenant created = tenantService.create(tenant);
+    BucketExistsArgs bucketExistsArgs =
+        BucketExistsArgs.builder().bucket(minioConfig.getBucket() + "-" + created.getId()).build();
 
     // -- ASSERT --
     assertThat(created.getId()).isNotNull();
     assertThat(created.getName()).isEqualTo(TENANT_NAME);
+    assertThat(minioClient.bucketExists(bucketExistsArgs)).isTrue();
 
     Tenant exists = tenantService.findById(created.getId());
     assertThat(exists.getName()).isEqualTo(TENANT_NAME);
@@ -104,16 +111,19 @@ class TenantServiceTest extends IntegrationTest {
   void should_delete_tenant() throws Exception {
     // -- ARRANGE --
     Tenant tenant = getTenant("Tenant A");
-    tenantComposer.forTenant(tenant).persist();
+    Tenant created = tenantService.create(tenant);
 
     // -- ACT --
-    tenantService.delete(tenant.getId());
+    BucketExistsArgs bucketExistsArgs =
+        BucketExistsArgs.builder().bucket(minioConfig.getBucket() + "-" + created.getId()).build();
+    tenantService.delete(created.getId());
     entityManager.flush();
     entityManager.clear();
 
     // -- ASSERT --
     assertThatThrownBy(() -> tenantService.findById(tenant.getId()))
         .isInstanceOf(EntityNotFoundException.class);
+    assertThat(minioClient.bucketExists(bucketExistsArgs)).isFalse();
   }
 
   @Test

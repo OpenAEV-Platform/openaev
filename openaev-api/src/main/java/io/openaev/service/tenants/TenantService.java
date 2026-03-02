@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
+@Transactional(rollbackFor = Exception.class)
 public class TenantService {
 
   private final TenantRepository tenantRepository;
@@ -31,7 +31,7 @@ public class TenantService {
     Tenant createdTenant = tenantRepository.save(tenant);
 
     for (DependenciesManager dependenciesManager : dependencies) {
-      dependenciesManager.createDependency(createdTenant.getId());
+      dependenciesManager.createDependencyForTenant(createdTenant.getId());
     }
 
     return createdTenant;
@@ -66,7 +66,7 @@ public class TenantService {
       throw new EntityNotFoundException("Tenant not found: " + tenantId);
     }
     for (DependenciesManager dependenciesManager : dependencies) {
-      dependenciesManager.deleteDependency(tenantId);
+      dependenciesManager.deleteDependencyForTenant(tenantId);
     }
     tenantRepository.deleteByIdNative(tenantId);
   }
