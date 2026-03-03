@@ -131,7 +131,7 @@ const DetectionPreventionExpectationsValidationForm: FunctionComponent<FormProps
         type="number"
         error={!!errors.expectation_score}
         helperText={errors.expectation_score && errors.expectation_score?.message ? errors.expectation_score?.message : `${t('Expected score:')} ${expectation.inject_expectation_expected_score}`}
-        inputProps={register('expectation_score')}
+        slotProps={{ htmlInput: { ...register('expectation_score', { valueAsNumber: true }) } }}
       />
 
       <div className={classes.buttons}>

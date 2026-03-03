@@ -132,7 +132,7 @@ const ManualExpectationsValidationForm: FunctionComponent<FormProps> = ({ expect
               error={!!errors.expectation_score}
               disabled={isDisabled}
               helperText={errors.expectation_score && errors.expectation_score?.message ? errors.expectation_score?.message : `${t('Expected score:')} ${expectation.inject_expectation_expected_score}`}
-              {...register('expectation_score')}
+              {...register('expectation_score', { valueAsNumber: true })}
               InputProps={{
                 inputProps: {
                   min: 0,
