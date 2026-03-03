@@ -103,7 +103,7 @@ public interface EndpointRepository
                   FROM findings f
                   LEFT JOIN findings_assets fa ON fa.finding_id = f.finding_id
               ) AND (:name IS NULL OR LOWER(a.asset_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
-              AND ag.tenant_id = :tenantId;
+              AND a.tenant_id = :tenantId;
               """,
       nativeQuery = true)
   List<Object[]> findAllByNameLinkedToFindings(
@@ -130,7 +130,7 @@ public interface EndpointRepository
                   AND fa2.asset_id != :sourceId
               )
               AND (:name IS NULL OR LOWER(a.asset_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
-              AND ag.tenant_id = :tenantId;
+              AND a.tenant_id = :tenantId;
               """,
       nativeQuery = true)
   List<Object[]> findAllByNameLinkedToFindingsWithContext(
