@@ -805,6 +805,157 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_short_description?: string;
 }
 
+export interface ChainingConfiguration {
+  /** @format date-time */
+  chaining_configuration_created_at?: string;
+  chaining_configuration_enable_safe_mode?: boolean;
+  /** @minLength 1 */
+  chaining_configuration_id: string;
+  chaining_configuration_rate_limit?: ChainingRateLimit;
+  chaining_configuration_time_out?: ChainingTimeOut;
+  /** @format date-time */
+  chaining_configuration_updated_at?: string;
+  listened?: boolean;
+  safeMode?: boolean;
+}
+
+/** Input for creating or updating a chaining configuration on a scenario. */
+export interface ChainingConfigurationInput {
+  /**
+   * If safe mode is enabled, exploits that could crash the customer environment will not be executed.
+   * @default true
+   */
+  chaining_configuration_enable_safe_mode?: boolean;
+  /** Controls how often an attack step is executed. Useful for simulating brute-force or slow, stealthy attacks. */
+  chaining_configuration_rate_limit?: ChainingRateLimitInput;
+  /** Maximum total runtime for the entire attack chaining scenario. Execution stops automatically once the timeout is reached. */
+  chaining_configuration_time_out?: ChainingTimeOutInput;
+  safeMode?: boolean;
+}
+
+export interface ChainingConfigurationOutput {
+  /**
+   * If safe mode is enabled, exploits that could crash the customer environment will not be executed.
+   * @default true
+   */
+  chaining_configuration_enable_safe_mode?: boolean;
+  /** Controls how often an attack step is executed. Useful for simulating brute-force or slow, stealthy attacks. */
+  chaining_configuration_rate_limit?: ChainingRateLimitOutput;
+  /** Maximum total runtime for the entire attack chaining scenario. Execution stops automatically once the timeout is reached. */
+  chaining_configuration_time_out?: ChainingTimeOutOutput;
+  safeMode?: boolean;
+}
+
+export interface ChainingRateLimit {
+  chaining_enable_rate_limit?: boolean;
+  /**
+   * @format int32
+   * @min 1
+   * @max 99
+   */
+  chaining_max_attempts?: number;
+  /**
+   * @format int32
+   * @min 1
+   * @max 59
+   */
+  chaining_max_temporal_rate_minutes?: number;
+  rateLimit?: boolean;
+}
+
+/** Input for configuring rate limiting on a chaining scenario. */
+export interface ChainingRateLimitInput {
+  /** Indicates whether the rate limiting feature is enabled. */
+  chaining_enable_rate_limit?: boolean;
+  /**
+   * Maximum number of attempts allowed before the temporal rate limit kicks in. Useful for simulating brute-force or slow, stealthy attacks.
+   * @format int32
+   * @min 1
+   * @max 99
+   */
+  chaining_max_attempts?: number;
+  /**
+   * Number of minutes to wait before allowing the next attempt. Useful for simulating brute-force or slow, stealthy attacks.
+   * @format int32
+   * @min 1
+   * @max 59
+   */
+  chaining_max_temporal_rate_minutes?: number;
+  rateLimit?: boolean;
+}
+
+export interface ChainingRateLimitOutput {
+  /** Indicates whether the rate limiting feature is enabled for this chaining scenario. */
+  chaining_enable_rate_limit?: boolean;
+  /**
+   * Maximum number of attempts allowed before the temporal rate limit kicks in. Useful for simulating brute-force or slow, stealthy attacks.
+   * @format int32
+   * @min 0
+   * @default 1
+   */
+  chaining_max_attempts?: number;
+  /**
+   * Number of seconds to wait before allowing the next attempt for the execution of an attack. Useful for simulating brute-force or slow, stealthy attacks.
+   * @format int32
+   * @min 0
+   * @default 3600
+   */
+  chaining_max_temporal_rate_minutes?: number;
+  rateLimit?: boolean;
+}
+
+export interface ChainingTimeOut {
+  chaining_enable_time_out?: boolean;
+  /**
+   * @format int32
+   * @min 0
+   * @max 86400
+   */
+  chaining_time_out_seconds?: number;
+  timeOut?: boolean;
+}
+
+/** Input for configuring the timeout on a chaining scenario. */
+export interface ChainingTimeOutInput {
+  /** Indicates whether the timeout feature is enabled for this chaining scenario. */
+  chaining_enable_time_out?: boolean;
+  /**
+   * Number of hours for the timeout of the attack chaining scenario.
+   * @format int32
+   * @min 0
+   * @max 24
+   */
+  chaining_time_out_hours?: number;
+  /**
+   * Number of minutes for the timeout of the attack chaining scenario.
+   * @format int32
+   * @min 0
+   * @max 59
+   */
+  chaining_time_out_minutes?: number;
+  timeOut?: boolean;
+}
+
+export interface ChainingTimeOutOutput {
+  /** Indicates whether the timeout feature is enabled for this chaining scenario. */
+  chaining_enable_time_out?: boolean;
+  /**
+   * Maximum number of hours allowed for the entire attack chaining scenario to run. Must be zero or greater.
+   * @format int32
+   * @min 0
+   * @max 24
+   */
+  chaining_time_out_hours?: number;
+  /**
+   * Maximum total runtime in minutes for the entire attack chaining scenario. Execution stops automatically once this timeout is reached. Must be zero or greater.
+   * @format int32
+   * @min 0
+   * @max 59
+   */
+  chaining_time_out_minutes?: number;
+  timeOut?: boolean;
+}
+
 export interface Challenge {
   challenge_category?: string;
   challenge_content?: string;
@@ -6414,6 +6565,7 @@ export interface Scenario {
   scenario_all_users_number?: number;
   scenario_articles?: string[];
   scenario_category?: string;
+  scenario_chaining_configuration?: ChainingConfiguration;
   /** @format int64 */
   scenario_communications_number?: number;
   /** @format date-time */
@@ -6429,6 +6581,7 @@ export interface Scenario {
   scenario_id: string;
   scenario_injects?: string[];
   scenario_injects_statistics?: Record<string, number>;
+  scenario_is_chaining?: boolean;
   scenario_kill_chain_phases?: KillChainPhase[];
   scenario_lessons_anonymized?: boolean;
   scenario_lessons_categories?: string[];

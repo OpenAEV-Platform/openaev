@@ -380,6 +380,9 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   // -- CHAINING --
   @Column(name = "scenario_is_chaining")
   @JsonProperty("scenario_is_chaining")
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("scenario_is_chaininggi"))
   private boolean isChaining = false;
 
   @OneToOne(mappedBy = "scenario")
