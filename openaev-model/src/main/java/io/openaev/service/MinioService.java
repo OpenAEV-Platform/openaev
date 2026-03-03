@@ -90,6 +90,10 @@ public class MinioService implements DependenciesManager {
             Item item = itemResult.get();
             deleteObjects.add(new DeleteObject(item.objectName()));
           } catch (Exception e) {
+            log.warn(
+                "[MINIO_CLEANUP_FAILED] exerciseId={} - Potential orphan files, manual cleanup required",
+                directory,
+                e);
             // Dont care
           }
         });
