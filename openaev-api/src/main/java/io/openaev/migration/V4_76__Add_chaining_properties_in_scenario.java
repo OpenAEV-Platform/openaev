@@ -22,6 +22,8 @@ public class V4_76__Add_chaining_properties_in_scenario extends BaseJavaMigratio
 
       stmt.execute(
           "CREATE INDEX idx_chaining_scenario ON chaining_configurations(chaining_configuration_scenario);");
+
+      stmt.execute("ALTER TABLE scenarios ADD COLUMN scenario_is_chaining boolean DEFAULT false");
     }
   }
 }

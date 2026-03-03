@@ -21,6 +21,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import io.openaev.api.chaining.ChainingConfigurationInput;
+import io.openaev.api.chaining.dto.ChainingConfigurationOutput;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
@@ -58,6 +60,7 @@ import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
@@ -1019,4 +1022,21 @@ public class ScenarioService {
 
     return healthChecks;
   }
+
+  public ChainingConfiguration fetchChainingConfiguration(@NotBlank String scenarioId) {
+    Scenario scenario = this.scenario(scenarioId);
+    if (scenario.getChainingConfiguration() == null) {
+      throw new ElementNotFoundException(
+          "Chaining configuration not found for this scenario: " + scenarioId);
+    }
+    return scenario.getChainingConfiguration();
+  }
+
+  public ChainingConfigurationOutput createChainingConfiguration(
+      @NotBlank String scenarioId, @Valid ChainingConfigurationInput input) {
+    return null;
+  }
+
+  public ChainingConfigurationOutput updateChainingConfiguration(
+      @NotBlank String scenarioId, @Valid ChainingConfigurationInput input) {}
 }

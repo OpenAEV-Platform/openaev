@@ -15,6 +15,6 @@ public class ChainingTimeOut {
 
   @JsonProperty("chaining_time_out_seconds")
   @Min(0)
-  @Max(86400)
+  @Max(86400) // 24h
   private Integer timeOutSeconds;
 }
