@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawInject;
 import io.openaev.database.repository.*;
@@ -952,11 +953,16 @@ public class InjectService {
     List<Object[]> results;
 
     if (trimmedSimulationOrScenarioId == null) {
-      results = injectRepository.findAllByTitleLinkedToFindings(trimmedSearchText, pageable);
+      results =
+          injectRepository.findAllByTitleLinkedToFindings(
+              trimmedSearchText, TenantContext.getCurrentTenant(), pageable);
     } else {
       results =
           injectRepository.findAllByTitleLinkedToFindingsWithContext(
-              trimmedSimulationOrScenarioId, trimmedSearchText, pageable);
+              trimmedSimulationOrScenarioId,
+              trimmedSearchText,
+              TenantContext.getCurrentTenant(),
+              pageable);
     }
 
     return results.stream()

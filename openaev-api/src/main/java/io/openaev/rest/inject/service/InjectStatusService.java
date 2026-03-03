@@ -43,10 +43,6 @@ public class InjectStatusService {
 
   private final EntityManager entityManager;
 
-  public List<InjectStatus> findPendingInjectStatusByType(String injectType) {
-    return this.injectStatusRepository.pendingForInjectType(injectType);
-  }
-
   public InjectStatus findInjectStatusByInjectId(final String injectId) {
     if (!hasText(injectId)) {
       throw new IllegalArgumentException("InjectId should not be null");
