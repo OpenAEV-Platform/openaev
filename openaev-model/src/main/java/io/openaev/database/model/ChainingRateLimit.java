@@ -9,6 +9,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class ChainingRateLimit {
+
   @JsonProperty("chaining_enable_rate_limit")
   private boolean isRateLimit;
 
@@ -17,8 +18,8 @@ public class ChainingRateLimit {
   @Max(99)
   private Integer maxAttempts;
 
-  @JsonProperty("chaining_max_temporal_rate_seconds")
+  @JsonProperty("chaining_max_temporal_rate_minutes")
   @Min(1)
   @Max(59)
-  private Integer maxTemporalRateSeconds;
+  private Integer maxTemporalRateMinutes;
 }
