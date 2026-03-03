@@ -377,6 +377,15 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   @JsonProperty("scenario_lessons_anonymized")
   private boolean lessonsAnonymized = false;
 
+  // -- CHAINING --
+  @Column(name = "scenario_is_chaining")
+  @JsonProperty("scenario_is_chaining")
+  private boolean isChaining;
+
+  @OneToOne(mappedBy = "scenario")
+  @JsonProperty("scenario_chaining_configuration")
+  private ChainingConfiguration chainingConfiguration;
+
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
