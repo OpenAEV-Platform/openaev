@@ -1,6 +1,5 @@
 package io.openaev.database.model;
 
-import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static jakarta.persistence.DiscriminatorType.STRING;
 import static java.time.Instant.now;
 import static lombok.AccessLevel.NONE;
@@ -10,6 +9,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MultiIdSetSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -23,6 +23,7 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -31,8 +32,9 @@ import org.hibernate.annotations.UuidGenerator;
 @Table(name = "assets")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "asset_type", discriminatorType = STRING)
-@EntityListeners(ModelBaseListener.class)
-public class Asset implements Base {
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+public class Asset implements TenantBase {
 
   @Id
   @Column(name = "asset_id")
@@ -65,10 +67,9 @@ public class Asset implements Base {
   private String externalReference;
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
-  @NotNull
-  private Tenant tenant = new Tenant(DEFAULT_TENANT_UUID);
+  private Tenant tenant;
 
   // -- TAG --
 

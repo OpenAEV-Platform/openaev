@@ -158,7 +158,8 @@ public class FindingService {
         inject.getId(),
         contractOutputContext.name(),
         asset.getId(),
-        contractOutputContext.tagIds());
+        tagIds,
+        inject.getTenant().getId());
   }
 
   private Optional<Asset> resolveAssetFromStructuredOutput(

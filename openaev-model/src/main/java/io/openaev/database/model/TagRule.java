@@ -1,28 +1,29 @@
 package io.openaev.database.model;
 
 import static io.openaev.database.model.Tag.*;
-import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import lombok.Data;
 import lombok.Getter;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UuidGenerator;
 
 @Data
 @Entity
 @Table(name = "tag_rules")
-@EntityListeners(ModelBaseListener.class)
-public class TagRule implements Base {
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+public class TagRule implements TenantBase {
   public static Set<String> RESERVED_TAG_NAMES =
       Set.of(
           OPENCTI_TAG_NAME,
@@ -60,10 +61,9 @@ public class TagRule implements Base {
   private List<AssetGroup> assetGroups = new ArrayList<>();
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
-  @NotNull
-  private Tenant tenant = new Tenant(DEFAULT_TENANT_UUID);
+  private Tenant tenant;
 
   @Getter(onMethod_ = @JsonIgnore)
   @Transient

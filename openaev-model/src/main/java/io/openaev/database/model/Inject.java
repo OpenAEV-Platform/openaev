@@ -1,7 +1,6 @@
 package io.openaev.database.model;
 
 import static io.openaev.database.model.CollectExecutionStatus.COLLECTING;
-import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.database.specification.InjectSpecification.VALID_TESTABLE_TYPES;
 import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
@@ -13,6 +12,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.converter.ContentConverter;
 import io.openaev.helper.*;
 import io.openaev.helper.InjectModelHelper;
@@ -22,6 +22,8 @@ import io.openaev.helper.MultiIdSetSerializer;
 import io.openaev.helper.MultiModelSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Table;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -31,18 +33,16 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.SQLRestriction;
-import org.hibernate.annotations.UpdateTimestamp;
-import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.annotations.*;
 
 @Setter
 @Entity
 @Table(name = "injects")
-@EntityListeners(ModelBaseListener.class)
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 @Slf4j
 @Grantable(Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING)
-public class Inject implements GrantableBase, Injection {
+public class Inject implements GrantableBase, Injection, TenantBase {
 
   public static final int SPEED_STANDARD = 1; // Standard speed define by the user.
   public static final String ID_COLUMN_NAME = "inject_id";
@@ -322,10 +322,10 @@ public class Inject implements GrantableBase, Injection {
   private List<Finding> findings = new ArrayList<>();
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
-  @NotNull
-  private Tenant tenant = new Tenant(DEFAULT_TENANT_UUID);
+  @Getter
+  private Tenant tenant;
 
   @Getter @Setter @Transient private boolean isListened = true;
 

@@ -54,10 +54,10 @@ public interface FindingRepository
         WITH inserted_finding AS (
           INSERT INTO findings
             (finding_id, finding_field, finding_type, finding_value,
-             finding_labels, finding_inject_id, finding_name)
+             finding_labels, finding_inject_id, finding_name, tenant_id)
           VALUES
             (gen_random_uuid(), :findingField, :findingType, :findingValue,
-             :findingLabels, :findingInjectId, :findingName)
+             :findingLabels, :findingInjectId, :findingName, :tenantId)
           ON CONFLICT (finding_inject_id, finding_field, finding_type, finding_value)
           DO UPDATE SET finding_name = EXCLUDED.finding_name
           RETURNING finding_id
@@ -87,5 +87,6 @@ public interface FindingRepository
       @Param("findingInjectId") String injectId,
       @Param("findingName") String name,
       @Param("assetId") String assetId,
-      @Param("tagIds") String[] tagIds);
+      @Param("tagIds") String[] tagIds,
+      @Param("tenantId") String tenantId);
 }

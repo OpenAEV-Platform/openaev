@@ -2,7 +2,6 @@ package io.openaev.database.model;
 
 import static io.openaev.database.model.Grant.GRANT_TYPE.OBSERVER;
 import static io.openaev.database.model.Grant.GRANT_TYPE.PLANNER;
-import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.helper.UserHelper.getUsersByType;
 import static java.time.Instant.now;
 import static lombok.AccessLevel.NONE;
@@ -12,6 +11,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.helper.InjectStatisticsHelper;
 import io.openaev.helper.MonoIdSerializer;
@@ -65,14 +65,15 @@ import org.hibernate.annotations.*;
 @Data
 @Entity
 @Table(name = "scenarios")
-@EntityListeners(ModelBaseListener.class)
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 @NamedEntityGraphs({
   @NamedEntityGraph(
       name = "Scenario.tags-injects",
       attributeNodes = {@NamedAttributeNode("tags"), @NamedAttributeNode("injects")})
 })
 @Grantable(Grant.GRANT_RESOURCE_TYPE.SCENARIO)
-public class Scenario implements GrantableBase {
+public class Scenario implements GrantableBase, TenantBase {
 
   /** Status of scenario recurrence scheduling. */
   public enum RECURRENCE_STATUS {
@@ -370,10 +371,9 @@ public class Scenario implements GrantableBase {
   private boolean lessonsAnonymized = false;
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
-  @NotNull
-  private Tenant tenant = new Tenant(DEFAULT_TENANT_UUID);
+  private Tenant tenant;
 
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
