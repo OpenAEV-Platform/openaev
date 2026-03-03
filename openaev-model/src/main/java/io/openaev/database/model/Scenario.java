@@ -380,11 +380,13 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   // -- CHAINING --
   @Column(name = "scenario_is_chaining")
   @JsonProperty("scenario_is_chaining")
-  private boolean isChaining;
+  private boolean isChaining = false;
 
   @OneToOne(mappedBy = "scenario")
   @JsonProperty("scenario_chaining_configuration")
   private ChainingConfiguration chainingConfiguration;
+
+  // -- TENANT --
 
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)

@@ -22,12 +22,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.openaev.api.chaining.ChainingConfigurationInput;
-import io.openaev.api.chaining.dto.ChainingConfigurationOutput;
+import io.openaev.api.chaining.ChainingConfigurationMapper;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.*;
 import io.openaev.database.repository.*;
+import io.openaev.database.repository.ChainingConfigurationRepository;
 import io.openaev.database.specification.ScenarioSpecification;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.export.Mixins;
@@ -131,9 +132,12 @@ public class ScenarioService {
   private final HealthCheckUtils healthCheckUtils;
 
   private final ScenarioMapper scenarioMapper;
+  private final ChainingConfigurationMapper chainingConfigurationMapper;
+  private final ChainingConfigurationRepository chainingConfigurationRepository;
 
   @Transactional
   public Scenario createScenario(@NotNull final Scenario scenario) {
+    // Check FF, EE
     computeEmails(scenario);
     this.actionMetricCollector.addScenarioCreatedCount();
     return this.scenarioRepository.save(scenario);
@@ -1032,11 +1036,29 @@ public class ScenarioService {
     return scenario.getChainingConfiguration();
   }
 
-  public ChainingConfigurationOutput createChainingConfiguration(
+  @Transactional
+  public ChainingConfiguration createChainingConfiguration(
       @NotBlank String scenarioId, @Valid ChainingConfigurationInput input) {
-    return null;
+    Scenario scenario = this.scenario(scenarioId);
+
+    ChainingConfiguration configuration = new ChainingConfiguration();
+    configuration.setRateLimit(chainingConfigurationMapper.toRateLimit(input.getRateLimit()));
+    configuration.setTimeOut(chainingConfigurationMapper.toTimeOut(input.getTimeOut()));
+    configuration.setSafeMode(input.isSafeMode());
+    configuration.setScenario(scenario);
+    scenario.setChainingConfiguration(configuration);
+    this.scenarioRepository.save(scenario);
+
+    return configuration;
   }
 
-  public ChainingConfigurationOutput updateChainingConfiguration(
-      @NotBlank String scenarioId, @Valid ChainingConfigurationInput input) {}
+  @Transactional
+  public ChainingConfiguration updateChainingConfiguration(
+      @NotBlank String scenarioId, @Valid ChainingConfigurationInput input) {
+    ChainingConfiguration configuration = fetchChainingConfiguration(scenarioId);
+    configuration.setRateLimit(chainingConfigurationMapper.toRateLimit(input.getRateLimit()));
+    configuration.setTimeOut(chainingConfigurationMapper.toTimeOut(input.getTimeOut()));
+    configuration.setSafeMode(input.isSafeMode());
+    return chainingConfigurationRepository.save(configuration);
+  }
 }
