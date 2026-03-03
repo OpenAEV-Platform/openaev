@@ -255,7 +255,7 @@ class V1_DataImporterTest extends IntegrationTest {
     payloadRepository.findAll().forEach(payloads::add);
     assertFalse(payloads.isEmpty(), "Payload should have been created");
     Payload payload = payloads.getFirst();
-    assertEquals("echo missing arrays" + Constants.IMPORTED_OBJECT_NAME_SUFFIX, payload.getName());
+    assertEquals("echo missing arrays", payload.getName());
     // No NPE: missing array fields should result in empty/null collections, not an exception
     List<PayloadArgument> arguments = payload.getArguments();
     List<PayloadPrerequisite> prerequisites = payload.getPrerequisites();
@@ -292,7 +292,7 @@ class V1_DataImporterTest extends IntegrationTest {
     payloadRepository.findAll().forEach(payloads::add);
     assertFalse(payloads.isEmpty(), "Payload should have been created");
     Payload payload = payloads.getFirst();
-    assertEquals("echo null arrays" + Constants.IMPORTED_OBJECT_NAME_SUFFIX, payload.getName());
+    assertEquals("echo null arrays", payload.getName());
     // No NPE/ClassCastException: explicit null arrays should result in empty/null collections
     List<PayloadArgument> arguments = payload.getArguments();
     List<PayloadPrerequisite> prerequisites = payload.getPrerequisites();
