@@ -1,0 +1,49 @@
+name: Move Closed Issue to Release Milestone
+
+on:
+  issues:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to move (for testing)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  move_to_release_milestone:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.issue.milestone && github.event.issue.milestone.title == 'Next Minor')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Get or create next minor milestone
+        id: milestone
+        uses: ./.github/actions/get-or-create-next-minor-milestone
+
+      - name: Assign issue to release milestone
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const milestoneNumber = parseInt('${{ steps.milestone.outputs.milestone_number }}');
+            const milestoneTitle = '${{ steps.milestone.outputs.milestone_title }}';
+            const issueNumber = context.eventName === 'workflow_dispatch'
+              ? parseInt('${{ inputs.issue_number }}')
+              : context.payload.issue.number;
+
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              milestone: milestoneNumber,
+            });
+
+            core.info(`Issue #${issueNumber} moved to "${milestoneTitle}"`);
