@@ -128,7 +128,9 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   public Injector createOrGetDummyInjector(
       @NotBlank final String injectorType, @NotBlank final String injectorName) {
     Injector injector =
-        injectorRepository.findByType(injectorType + DUMMY_SUFFIX).orElse(new Injector());
+        injectorRepository
+            .findByTypeAndTenantId(injectorType + DUMMY_SUFFIX, TenantContext.getCurrentTenant())
+            .orElse(new Injector());
     if (injector.getName() == null) {
       injector.setName("Dummy " + injectorName);
       injector.setType(injectorType + DUMMY_SUFFIX);
