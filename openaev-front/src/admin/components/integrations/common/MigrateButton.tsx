@@ -1,4 +1,4 @@
-import { Badge, Button, Tooltip } from '@mui/material';
+import { Button, Tooltip } from '@mui/material';
 import { type CSSProperties, type SyntheticEvent } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -45,14 +45,6 @@ const MigrateButton = ({ onMigrateBtnClick, style = {} }: Props) => {
         >
           {t('Migrate')}
         </Button>
-        <Badge
-          color="warning"
-          sx={{
-            position: 'absolute',
-            top: '10px',
-            right: 0,
-          }}
-        />
       </div>
     </Tooltip>
 

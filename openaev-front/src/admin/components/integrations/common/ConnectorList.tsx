@@ -8,6 +8,7 @@ import { type CatalogConnectorsHelper } from '../../../../actions/catalog/catalo
 import { type CollectorHelper } from '../../../../actions/collectors/collector-helper';
 import type { ExecutorHelper } from '../../../../actions/executors/executor-helper';
 import { type InjectorHelper } from '../../../../actions/injectors/injector-helper';
+import useDialog from '../../../../components/common/dialog/useDialog';
 import { useFormatter } from '../../../../components/i18n';
 import SearchFilter from '../../../../components/SearchFilter';
 import { useHelper } from '../../../../store';
@@ -55,9 +56,7 @@ const ConnectorList = () => {
 
   const [selectedCatalogConnector, setSelectedCatalogConnector] = useState<CatalogConnectorOutput>();
   const [selectedConnector, setSelectedConnector] = useState<ConnectorOutput>();
-  const [openCreateConnectorInstanceDrawer, setOpenCreateConnectorInstanceDrawer] = useState(false);
-  const onOpenCreateConnectorInstanceDrawer = () => setOpenCreateConnectorInstanceDrawer(true);
-  const onCloseCreateConnectorInstanceDrawer = () => setOpenCreateConnectorInstanceDrawer(false);
+  const createInstanceDrawer = useDialog();
 
   // Select the appropriate connectors based on connector type
   const getRawConnectors = (): (CollectorOutput | ExecutorOutput | InjectorOutput)[] => {
@@ -90,7 +89,7 @@ const ConnectorList = () => {
       (catalogConnector: CatalogConnectorOutput) => catalogConnector.catalog_connector_id === connector.catalog?.catalog_connector_id,
     );
     setSelectedCatalogConnector(catalogConnector);
-    onOpenCreateConnectorInstanceDrawer();
+    createInstanceDrawer.handleOpen();
   };
 
   const sortedConnectors = filtering.filterAndSort(connectors);
@@ -126,18 +125,16 @@ const ConnectorList = () => {
             />
           </Grid>
         ))}
-        {selectedCatalogConnector && openCreateConnectorInstanceDrawer && (
-          <CreateConnectorInstanceDrawer
-            open={openCreateConnectorInstanceDrawer}
-            catalogConnectorId={selectedCatalogConnector.catalog_connector_id}
-            catalogConnectorSlug={selectedCatalogConnector.catalog_connector_slug}
-            onClose={onCloseCreateConnectorInstanceDrawer}
-            connectorType={selectedCatalogConnector.catalog_connector_type}
-            disabled={!isXtmComposerUp && selectedCatalogConnector.catalog_connector_manager_supported}
-            migrationSource={selectedConnector?.id}
-            disabledMessage={t('Deployment of this {catalogType} requires the installation of our Integration Manager.', { catalogType: selectedCatalogConnector.catalog_connector_type.toLowerCase() })}
-          />
-        )}
+        <CreateConnectorInstanceDrawer
+          open={createInstanceDrawer.open}
+          catalogConnectorId={selectedCatalogConnector ? selectedCatalogConnector.catalog_connector_id : ''}
+          catalogConnectorSlug={selectedCatalogConnector ? selectedCatalogConnector.catalog_connector_slug : ''}
+          onClose={createInstanceDrawer.handleClose}
+          connectorType={selectedCatalogConnector?.catalog_connector_type}
+          disabled={!isXtmComposerUp && selectedCatalogConnector?.catalog_connector_manager_supported}
+          migrationSource={selectedConnector?.id}
+          disabledMessage={t('Deployment of this {catalogType} requires the installation of our Integration Manager.', { catalogType: selectedCatalogConnector ? selectedCatalogConnector.catalog_connector_type.toLowerCase() : '' })}
+        />
       </Grid>
     </>
   );
