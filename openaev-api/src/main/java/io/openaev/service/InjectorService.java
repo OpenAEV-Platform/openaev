@@ -117,21 +117,26 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   }
 
   /**
-   * Create a dummmy injector, that is used when importing the starter pack before the real
+   * Create or get a dummmy injector, that is used when importing the starter pack before the real
    * injectors are registered
    *
    * @param injectorType
    * @param injectorName
    * @return
    */
-  public Injector createDummyInjector(
+  public Injector createOrGetDummyInjector(
       @NotBlank final String injectorType, @NotBlank final String injectorName) {
-    Injector injector = new Injector();
-    injector.setName("Dummy " + injectorName);
-    injector.setType(injectorType + DUMMY_SUFFIX);
-    injector.setId(injectorType + DUMMY_SUFFIX);
-    injector.setDependencies(ExternalServiceDependency.fromInjectorType(injectorType));
-    return injectorRepository.save(injector);
+    Injector injector =
+        injectorRepository.findByType(injectorType + DUMMY_SUFFIX).orElse(new Injector());
+    if (injector.getName() == null) {
+      injector.setName("Dummy " + injectorName);
+      injector.setType(injectorType + DUMMY_SUFFIX);
+      injector.setId(injectorType + DUMMY_SUFFIX);
+      injector.setDependencies(ExternalServiceDependency.fromInjectorType(injectorType));
+      return injectorRepository.save(injector);
+    } else {
+      return injector;
+    }
   }
 
   /**
