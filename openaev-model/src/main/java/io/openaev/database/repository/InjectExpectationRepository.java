@@ -15,6 +15,7 @@ import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+// TODO multi-tenancy: Multi executors dev
 @Repository
 public interface InjectExpectationRepository
     extends CrudRepository<InjectExpectation, String>, JpaSpecificationExecutor<InjectExpectation> {
@@ -80,24 +81,6 @@ public interface InjectExpectationRepository
   List<InjectExpectation> findAllByInjectAndPlayer(
       @Param("injectId") @NotBlank final String injectId,
       @Param("playerId") @NotBlank final String playerId);
-
-  @Query(
-      "select ie from InjectExpectation ie "
-          + "where ie.inject.id = :injectId "
-          + "and ie.team.id = :teamId "
-          + "and ie.name = :expectationName "
-          + "ORDER BY ie.type, ie.createdAt")
-  List<InjectExpectation> findAllByInjectAndTeamAndExpectationName(
-      final String injectId, final String teamId, final String expectationName);
-
-  @Query(
-      "select ie from InjectExpectation ie "
-          + "where ie.inject.id = :injectId "
-          + "and ie.team.id = :teamId "
-          + "and ie.name = :expectationName "
-          + "and ie.user is not null")
-  List<InjectExpectation> findAllByInjectAndTeamAndExpectationNameAndUserIsNotNull(
-      final String injectId, final String teamId, final String expectationName);
 
   // -- RETRIEVE EXPECTATIONS FOR TEAM AND NOT FOR PLAYERS
   @Query(
