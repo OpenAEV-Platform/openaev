@@ -5,7 +5,6 @@ import static io.openaev.utils.fixtures.ExerciseTeamUserFixture.createExerciseTe
 import static io.openaev.utils.fixtures.TeamFixture.getDefaultTeam;
 import static io.openaev.utils.fixtures.UserFixture.getUser;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import io.openaev.IntegrationTest;
@@ -36,6 +35,8 @@ class ExerciseTeamUserServiceTest extends IntegrationTest {
   @InjectMocks private ExerciseTeamUserService exerciseTeamUserService;
 
   @Captor private ArgumentCaptor<ExerciseTeamUser> teamUserCaptor;
+
+  @Captor private ArgumentCaptor<List<ExerciseTeamUser>> teamUserListCaptor;
 
   @Test
   void given_validParameters_should_createExerciseTeamUserSuccessfully() {
@@ -72,8 +73,8 @@ class ExerciseTeamUserServiceTest extends IntegrationTest {
         targetExercise, List.of(source1, source2), new HashMap<>());
 
     // -- ASSERT --
-    verify(exerciseTeamUserRepository, times(2)).save(teamUserCaptor.capture());
-    List<ExerciseTeamUser> captured = teamUserCaptor.getAllValues();
+    verify(exerciseTeamUserRepository).saveAll(teamUserListCaptor.capture());
+    List<ExerciseTeamUser> captured = teamUserListCaptor.getValue();
     assertEquals(2, captured.size());
     captured.forEach(etu -> assertEquals(targetExercise, etu.getExercise()));
     assertEquals(user1, captured.get(0).getUser());
