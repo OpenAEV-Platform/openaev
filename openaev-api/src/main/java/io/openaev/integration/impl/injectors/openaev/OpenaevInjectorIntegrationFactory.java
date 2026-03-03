@@ -14,7 +14,6 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.lang.reflect.InvocationTargetException;
@@ -33,7 +32,6 @@ public class OpenaevInjectorIntegrationFactory extends IntegrationFactory {
   private final AssetGroupService assetGroupService;
   private final InjectExpectationService injectExpectationService;
   private final InjectService injectService;
-  private final PreviewFeatureService previewFeatureService;
 
   public OpenaevInjectorIntegrationFactory(
       ComponentRequestEngine componentRequestEngine,
@@ -46,8 +44,7 @@ public class OpenaevInjectorIntegrationFactory extends IntegrationFactory {
       InjectorContext injectorContext,
       AssetGroupService assetGroupService,
       InjectExpectationService injectExpectationService,
-      InjectService injectService,
-      PreviewFeatureService previewFeatureService) {
+      InjectService injectService) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.componentRequestEngine = componentRequestEngine;
     this.connectorInstanceService = connectorInstanceService;
@@ -58,7 +55,6 @@ public class OpenaevInjectorIntegrationFactory extends IntegrationFactory {
     this.assetGroupService = assetGroupService;
     this.injectExpectationService = injectExpectationService;
     this.injectService = injectService;
-    this.previewFeatureService = previewFeatureService;
   }
 
   @Override
@@ -102,7 +98,6 @@ public class OpenaevInjectorIntegrationFactory extends IntegrationFactory {
         injectorContext,
         assetGroupService,
         injectExpectationService,
-        injectService,
-        previewFeatureService);
+        injectService);
   }
 }
