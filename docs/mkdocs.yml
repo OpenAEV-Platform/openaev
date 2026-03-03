@@ -116,6 +116,7 @@ nav:
       - Overview: deployment/platform/overview.md
       - Installation: deployment/installation.md
       - Configuration: deployment/configuration.md
+      - Certificate validation: deployment/certificate-validation.md
       - Authentication: deployment/authentication.md
       - Upgrade: deployment/upgrade.md
     - Ecosystem:
@@ -217,6 +218,3 @@ nav:
     - Injectors: development/injectors.md
     - REST API: development/api-usage.md
     - Best Practices: development/translations.md
-
-
-
