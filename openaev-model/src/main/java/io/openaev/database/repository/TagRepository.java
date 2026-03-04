@@ -20,9 +20,13 @@ public interface TagRepository extends CrudRepository<Tag, String>, JpaSpecifica
   Optional<Tag> findById(@NotNull String id);
 
   @NotNull
+  @Query(
+      "SELECT t FROM Tag t WHERE t.name = :name AND t.tenant.id = :#{#tenantContext.currentTenant}")
   Optional<Tag> findByName(@NotNull final String name);
 
   @NotNull
+  @Query(
+      "SELECT t FROM Tag t WHERE LOWER(t.name) = LOWER(:name) AND t.tenant.id = :#{#tenantContext.currentTenant}")
   List<Tag> findByNameIgnoreCase(@NotNull final String name);
 
   @Query(
