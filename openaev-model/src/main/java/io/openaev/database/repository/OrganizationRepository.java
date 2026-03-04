@@ -18,7 +18,8 @@ public interface OrganizationRepository
   Optional<Organization> findById(@NotNull String id);
 
   @NotNull
-  List<Organization> findByNameIgnoreCase(@NotNull final String name);
+  List<Organization> findByNameIgnoreCaseAndTenantId(
+      @NotNull final String name, @NotNull final String tenantId);
 
   @Query(
       value =
@@ -32,6 +33,7 @@ public interface OrganizationRepository
               + "LEFT JOIN users_teams ON users.user_id = users_teams.user_id "
               + "LEFT JOIN injects_teams ON injects_teams.team_id = users_teams.team_id "
               + "LEFT JOIN injects ON injects.inject_id = injects_teams.inject_id OR injects.inject_all_teams "
+              + "WHERE org.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY org.organization_id",
       nativeQuery = true)
   List<RawOrganization> rawAll();

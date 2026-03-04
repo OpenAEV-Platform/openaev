@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_METHOD;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.domain.enums.PresetDomain;
@@ -114,7 +115,8 @@ class V1_DataImporterTest extends IntegrationTest {
     assertEquals(1, user.get().getTags().size());
 
     List<Organization> organization =
-        this.organizationRepository.findByNameIgnoreCase(ORGANIZATION_NAME);
+        this.organizationRepository.findByNameIgnoreCaseAndTenantId(
+            ORGANIZATION_NAME, TenantContext.getCurrentTenant());
     assertFalse(organization.isEmpty());
     assertEquals(ORGANIZATION_NAME, organization.getFirst().getName());
 

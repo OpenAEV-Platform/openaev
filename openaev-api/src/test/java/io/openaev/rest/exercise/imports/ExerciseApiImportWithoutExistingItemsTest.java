@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
@@ -379,7 +380,10 @@ public class ExerciseApiImportWithoutExistingItemsTest extends IntegrationTest {
 
     for (Organization expected : organizationComposer.generatedItems) {
       Optional<Organization> orgFromDb =
-          organizationRepository.findByNameIgnoreCase(expected.getName()).stream().findFirst();
+          organizationRepository
+              .findByNameIgnoreCaseAndTenantId(expected.getName(), TenantContext.getCurrentTenant())
+              .stream()
+              .findFirst();
       if (orgFromDb.isEmpty()) {
         Assertions.fail("Organization " + expected.getName() + " not found");
       }

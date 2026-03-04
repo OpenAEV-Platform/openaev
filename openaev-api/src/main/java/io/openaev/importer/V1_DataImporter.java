@@ -578,7 +578,8 @@ public class V1_DataImporter implements Importer {
               String name = nodeOrganization.get("organization_name").textValue();
 
               List<Organization> existingOrganizations =
-                  this.organizationRepository.findByNameIgnoreCase(name);
+                  this.organizationRepository.findByNameIgnoreCaseAndTenantId(
+                      name, TenantContext.getCurrentTenant());
 
               if (!existingOrganizations.isEmpty()) {
                 baseIds.put(id, existingOrganizations.getFirst());
