@@ -43,6 +43,10 @@ export const useQueryParameter = (parameters: string[]): (string | null)[] => {
   return parameters.map(p => query.get(p));
 };
 
+// TODO: Replace these hardcoded URLs with environment variables
+export const DEMO_PLATFORM_URL = 'https://demo.openaev.io';
+export const XTM_HUB_DEFAULT_URL = 'https://hub.filigran.io';
+
 // Network
 const isEmptyPath = R.isNil(window.BASE_PATH) || R.isEmpty(window.BASE_PATH);
 const contextPath = isEmptyPath || window.BASE_PATH === '/' ? '' : window.BASE_PATH;
