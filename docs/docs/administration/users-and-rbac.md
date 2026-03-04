@@ -55,12 +55,62 @@ To create a new role in OpenAEV:
 
 1. Go to **Settings → Security → Roles**.
 2. Click on **Create role**. Enter a **name** and an optional **description** for the role
-3. Select the **capabilities** that should be included in this role, such as:
-    - Access assets
-    - Manage dashboards
-    - Delete documents
-    - ...
+3. Select the **capabilities** that should be included in this role.
 4. Save the role.
+
+### Capabilities
+
+Capabilities in OpenAEV are organized hierarchically. A parent capability (e.g. `Access assessment`) must be granted before its children (e.g. `Manage assessment`, `Delete assessment`) can be assigned. Indentation below reflects this hierarchy.
+
+Below is a full list of capabilities in OpenAEV
+
+| Capability | Description |
+|:-----------|:------------|
+| `Bypass (user has all rights)` | Grants unconditional access to all platform features, bypassing every individual capability check and any data segregation enforcement. |
+| **Assessments: Scenarios, simulations and atomic testings** | |
+| `Access assessment` | Read-only access to assessments, including scenarios, simulations and atomic tests. |
+| &nbsp;&nbsp;`Manage assessment` | Create and update assessments (scenarios, simulations, atomic tests). Requires *Access assessment*. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete assessment` | Permanently delete assessments. Requires *Manage assessment*. |
+| &nbsp;&nbsp;`Launch assessment` | Execute / run an assessment against defined targets. Requires *Access assessment*. |
+| **Targets** | |
+| `Access teams & players` | Read-only access to teams and player definitions used as assessment targets. |
+| &nbsp;&nbsp;`Manage teams & players` | Create and update teams and players. Requires *Access teams & players*. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete teams & players` | Permanently delete teams and players. Requires *Manage teams & players*. |
+| `Access assets` | Read-only access to asset inventory (hosts, endpoints, and other infrastructure targets). |
+| &nbsp;&nbsp;`Manage assets` | Create and update assets in the inventory. Requires *Access assets*. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete assets` | Permanently delete assets from the inventory. Requires *Manage assets*. |
+| `Access security platforms` | Read-only access to integrated security platform configurations (e.g. SIEM, EDR, firewall connectors). |
+| &nbsp;&nbsp;`Manage security platforms` | Create and update security platform integrations. Requires *Access security platforms*. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete security platforms` | Permanently delete security platform integrations. Requires *Manage security platforms*. |
+| **Payloads** | |
+| `Access payloads` | Read-only access to the payload library (attack scripts, tools, and techniques used in simulations). |
+| &nbsp;&nbsp;`Manage payloads` | Create and update payloads in the library. Requires *Access payloads*. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete payloads` | Permanently delete payloads from the library. Requires *Manage payloads*. |
+| **Dashboards** | |
+| `Access dashboards` | Read-only access to platform dashboards and their visualizations. |
+| &nbsp;&nbsp;`Manage dashboards` | Create, update, and configure dashboards. Requires *Access dashboards*. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete dashboards` | Permanently delete dashboards. Requires *Manage dashboards*. |
+| **Findings** | |
+| `Access findings` | Read-only access to assessment findings and results generated from simulations and atomic tests. |
+| **Content** | |
+| `Access documents` | Read-only access to documents stored in the platform (reports, attachments, playbooks). |
+| &nbsp;&nbsp;`Manage documents` | Upload, create, and update documents. Requires *Access documents*. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete documents` | Permanently delete documents. Requires *Manage documents*. |
+| `Access channels` | Read-only access to communication channels used to deliver exercise injects to players. |
+| &nbsp;&nbsp;`Manage channels` | Create and update channels. Requires *Access channels*. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete channels` | Permanently delete channels. Requires *Manage channels*. |
+| `Access challenges` | Read-only access to challenges (CTF-style tasks or objectives assigned to players during exercises). |
+| &nbsp;&nbsp;`Manage challenges` | Create and update challenges. Requires *Access challenges*. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete challenges` | Permanently delete challenges. Requires *Manage challenges*. |
+| `Access lessons learned` | Read-only access to lessons learned records captured after assessments or exercises. |
+| &nbsp;&nbsp;`Manage lessons learned` | Create and update lessons learned entries. Requires *Access lessons learned*. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete lessons learned` | Permanently delete lessons learned entries. Requires *Manage lessons learned*. |
+| **Platform Settings** | |
+| `Access Platform Settings` | Read-only access to platform-wide configuration and administration settings. |
+| &nbsp;&nbsp;`Manage platform settings` | Modify platform-wide settings including security configuration, integrations, and system parameters. Requires *Access Platform Settings*. |
+
+
+
 
 !!! info "Hierarchical permissions"
 
@@ -78,7 +128,9 @@ To create a new role in OpenAEV:
 
 Once the role is created, it can be assigned to a **group**. All users in that group will automatically inherit the role’s permissions.
 
-### Example : Crisis content creator
+
+
+## Example : Creating a Crisis content creator role
 
 > Role : Crisis content creator
 
