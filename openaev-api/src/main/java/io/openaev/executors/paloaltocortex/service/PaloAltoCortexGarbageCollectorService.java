@@ -4,7 +4,6 @@ import static io.openaev.executors.ExecutorHelper.*;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
 import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_TYPE;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Endpoint;
 import io.openaev.executors.paloaltocortex.config.PaloAltoCortexExecutorConfig;
@@ -37,9 +36,7 @@ public class PaloAltoCortexGarbageCollectorService implements Runnable {
   // TODO multi-tenancy: Multi executors dev
   @Override
   public void run() {
-    List<Agent> agents =
-        this.agentService.getAgentsByExecutorType(
-            PALOALTOCORTEX_EXECUTOR_TYPE, TenantContext.getCurrentTenant());
+    List<Agent> agents = this.agentService.getAgentsByExecutorType(PALOALTOCORTEX_EXECUTOR_TYPE);
     if (!agents.isEmpty()) {
       log.info(
           "Running Palo Alto Cortex executor garbage collector on " + agents.size() + " agents");

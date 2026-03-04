@@ -7,7 +7,6 @@ import static org.mockito.Mockito.doThrow;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
@@ -466,7 +465,7 @@ public class StarterPackTest extends IntegrationTest {
 
     List<Endpoint> endpoints =
         endpointRepository.findByHostnameAndAtleastOneIp(
-            "honey.scanme.sh", new String[] {"67.205.158.113"}, TenantContext.getCurrentTenant());
+            "honey.scanme.sh", new String[] {"67.205.158.113"});
     assertNotNull(endpoints);
     assertEquals(1, endpoints.size());
 

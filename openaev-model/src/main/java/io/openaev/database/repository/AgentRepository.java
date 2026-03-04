@@ -31,10 +31,9 @@ public interface AgentRepository
   @Query(
       value =
           "SELECT a.* FROM agents a left join executors ex on a.agent_executor = ex.executor_id "
-              + "where ex.executor_type = :executor and a.tenant_id = :tenantId",
+              + "where ex.executor_type = :executor and a.tenant_id = :#{#tenantContext.currentTenant}",
       nativeQuery = true)
-  List<Agent> findByExecutorType(
-      @Param("executor") String executor, @Param("tenantId") String tenantId);
+  List<Agent> findByExecutorType(@Param("executor") String executor);
 
   List<Agent> findByExternalReferenceAndTenantId(String externalReference, String tenantId);
 

@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Agent;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeAction;
@@ -34,8 +33,7 @@ public class CrowdstrikeGarbageCollectorServiceTest {
     // Init datas
     Agent agent = AgentFixture.createDefaultAgentService();
     agent.setAsset(EndpointFixture.createEndpoint());
-    when(agentService.getAgentsByExecutorType(
-            CROWDSTRIKE_EXECUTOR_TYPE, TenantContext.getCurrentTenant()))
+    when(agentService.getAgentsByExecutorType(CROWDSTRIKE_EXECUTOR_TYPE))
         .thenReturn(List.of(agent));
     when(config.getWindowsScriptName()).thenReturn("test script");
     // Run method to test

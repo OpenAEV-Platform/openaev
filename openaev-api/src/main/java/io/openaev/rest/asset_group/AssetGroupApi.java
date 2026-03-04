@@ -6,7 +6,6 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Endpoint;
@@ -197,8 +196,7 @@ public class AssetGroupApi extends RestBehavior {
         {
           options =
               assetGroupRepository
-                  .findAllAssetGroupsForAtomicTestingsSimulationsAndScenarios(
-                      TenantContext.getCurrentTenant())
+                  .findAllAssetGroupsForAtomicTestingsSimulationsAndScenarios()
                   .stream()
                   .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
                   .distinct()
@@ -217,9 +215,7 @@ public class AssetGroupApi extends RestBehavior {
           options =
               assetGroupRepository
                   .findAllBySimulationOrScenarioIdAndName(
-                      StringUtils.trimToNull(sourceId),
-                      StringUtils.trimToNull(searchText),
-                      TenantContext.getCurrentTenant())
+                      StringUtils.trimToNull(sourceId), StringUtils.trimToNull(searchText))
                   .stream()
                   .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
                   .toList();

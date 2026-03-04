@@ -5,7 +5,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
@@ -147,9 +146,7 @@ class EndpointServiceTest {
       // -------- Prepare --------
       Endpoint ep = new Endpoint();
       String[] ips = {"10.0.0.1"};
-      when(endpointRepository.findByHostnameAndAtleastOneIp(
-              "host1", ips, TenantContext.getCurrentTenant()))
-          .thenReturn(List.of(ep));
+      when(endpointRepository.findByHostnameAndAtleastOneIp("host1", ips)).thenReturn(List.of(ep));
 
       // -------- Act --------
       List<Endpoint> result = endpointService.findEndpointByHostnameAndAtLeastOneIp("host1", ips);
@@ -163,8 +160,7 @@ class EndpointServiceTest {
       // -------- Prepare --------
       Endpoint ep = new Endpoint();
       String[] macs = {"AA:BB:CC:DD:EE:FF"};
-      when(endpointRepository.findByHostnameAndAtleastOneMacAddress(
-              "host1", macs, TenantContext.getCurrentTenant()))
+      when(endpointRepository.findByHostnameAndAtleastOneMacAddress("host1", macs))
           .thenReturn(List.of(ep));
 
       // -------- Act --------
@@ -179,8 +175,7 @@ class EndpointServiceTest {
     void shouldFindByExternalReference() {
       // -------- Prepare --------
       Endpoint ep = new Endpoint();
-      when(endpointRepository.findByExternalReference("ext-ref", TenantContext.getCurrentTenant()))
-          .thenReturn(List.of(ep));
+      when(endpointRepository.findByExternalReference("ext-ref")).thenReturn(List.of(ep));
 
       // -------- Act --------
       Optional<Endpoint> result = endpointService.findEndpointByExternalReference("ext-ref");
@@ -194,8 +189,7 @@ class EndpointServiceTest {
       // -------- Prepare --------
       Endpoint ep = new Endpoint();
       String[] macs = {"AA:BB:CC:DD:EE:FF"};
-      when(endpointRepository.findByAtleastOneMacAddress(macs, TenantContext.getCurrentTenant()))
-          .thenReturn(List.of(ep));
+      when(endpointRepository.findByAtleastOneMacAddress(macs)).thenReturn(List.of(ep));
 
       // -------- Act --------
       Optional<Endpoint> result = endpointService.findEndpointByAtLeastOneMacAddress(macs);
@@ -208,8 +202,7 @@ class EndpointServiceTest {
     void shouldReturnEmptyOptional_whenNoMacAddressMatch() {
       // -------- Prepare --------
       String[] macs = {"00:00:00:00:00:00"};
-      when(endpointRepository.findByAtleastOneMacAddress(macs, TenantContext.getCurrentTenant()))
-          .thenReturn(Collections.emptyList());
+      when(endpointRepository.findByAtleastOneMacAddress(macs)).thenReturn(Collections.emptyList());
 
       // -------- Act --------
       Optional<Endpoint> result = endpointService.findEndpointByAtLeastOneMacAddress(macs);

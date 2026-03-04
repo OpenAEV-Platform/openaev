@@ -90,8 +90,7 @@ public class SentinelOneExecutorService implements Runnable {
       List<Agent> agents =
           endpointService.syncAgentsEndpoints(
               toAgentEndpoint(sentinelOneAgents),
-              agentService.getAgentsByExecutorType(
-                  SENTINELONE_EXECUTOR_TYPE, executor.getTenant().getId()));
+              agentService.getAgentsByExecutorType(SENTINELONE_EXECUTOR_TYPE));
       // For each sentinel one account/site/group id, create/update the relevant OpenAEV asset group
       Optional<AssetGroup> existingAssetGroup;
       AssetGroup assetGroup;

@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Agent;
 import io.openaev.executors.paloaltocortex.config.PaloAltoCortexExecutorConfig;
 import io.openaev.executors.paloaltocortex.model.PaloAltoCortexAction;
@@ -36,8 +35,7 @@ public class PaloAltoCortexGarbageCollectorServiceTest {
     Agent agent = AgentFixture.createDefaultAgentService();
     agent.setExternalReference("agent_external_reference");
     agent.setAsset(EndpointFixture.createEndpoint());
-    when(agentService.getAgentsByExecutorType(
-            PALOALTOCORTEX_EXECUTOR_TYPE, TenantContext.getCurrentTenant()))
+    when(agentService.getAgentsByExecutorType(PALOALTOCORTEX_EXECUTOR_TYPE))
         .thenReturn(List.of(agent));
     when(config.getWindowsScriptUid()).thenReturn("test script");
     // Run method to test

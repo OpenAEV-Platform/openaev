@@ -6,7 +6,6 @@ import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.FilterUtilsRuntime.computeFilterGroupRuntime;
 import static java.time.Instant.now;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawAssetGroup;
 import io.openaev.database.repository.AssetGroupRepository;
@@ -226,13 +225,11 @@ public class AssetGroupService {
     List<Object[]> results;
 
     if (trimmedSourceId == null) {
-      results =
-          assetGroupRepository.findAllByNameLinkedToFindings(
-              trimmedSearchText, TenantContext.getCurrentTenant(), pageable);
+      results = assetGroupRepository.findAllByNameLinkedToFindings(trimmedSearchText, pageable);
     } else {
       results =
           assetGroupRepository.findAllByNameLinkedToFindingsWithContext(
-              trimmedSourceId, trimmedSearchText, TenantContext.getCurrentTenant(), pageable);
+              trimmedSourceId, trimmedSearchText, pageable);
     }
 
     return results.stream()

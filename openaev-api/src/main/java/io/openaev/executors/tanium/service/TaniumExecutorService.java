@@ -96,7 +96,7 @@ public class TaniumExecutorService implements Runnable {
             endpointService.syncAgentsEndpoints(
                 toAgentEndpoint(nodeEndpoints),
                 agentService.getAgentsByExecutorType(
-                    TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE, executor.getTenant().getId()));
+                    TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE));
         assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
         assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
       }

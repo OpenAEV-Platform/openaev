@@ -112,18 +112,18 @@ public interface AssetGroupRepository
           + "   OR (i.exercise.id = :simulationOrScenarioId"
           + "   OR i.scenario.id = :simulationOrScenarioId)"
           + " ) AND (:name IS NULL OR lower(ag.name) LIKE lower(concat('%', cast(coalesce(:name, '') as string), '%')))"
-          + " AND i.tenant.id = :tenantId")
+          + " AND i.tenant.id = :#{#tenantContext.currentTenant}")
   List<AssetGroup> findAllBySimulationOrScenarioIdAndName(
-      String simulationOrScenarioId, String name, String tenantId);
+      String simulationOrScenarioId, String name);
 
   @Query(
       value =
           "SELECT ag.* "
               + "FROM asset_groups ag "
               + "INNER JOIN injects_asset_groups iag ON ag.asset_group_id = iag.asset_group_id "
-              + "WHERE ag.tenant_id = :tenantId",
+              + "WHERE ag.tenant_id = :#{#tenantContext.currentTenant}",
       nativeQuery = true)
-  List<AssetGroup> findAllAssetGroupsForAtomicTestingsSimulationsAndScenarios(String tenantId);
+  List<AssetGroup> findAllAssetGroupsForAtomicTestingsSimulationsAndScenarios();
 
   @Query(
       value =
@@ -136,11 +136,10 @@ public interface AssetGroupRepository
         INNER JOIN findings f ON f.finding_inject_id = i.inject_id
         INNER JOIN injects_asset_groups iag ON iag.inject_id = i.inject_id
     ) AND (:name IS NULL OR LOWER(ag.asset_group_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
-    AND ag.tenant_id = :tenantId;
+    AND ag.tenant_id = :#{#tenantContext.currentTenant};
     """,
       nativeQuery = true)
-  List<Object[]> findAllByNameLinkedToFindings(
-      @Param("name") String name, @Param("tenantId") String tenantId, Pageable pageable);
+  List<Object[]> findAllByNameLinkedToFindings(@Param("name") String name, Pageable pageable);
 
   @Query(
       value =
@@ -156,14 +155,11 @@ public interface AssetGroupRepository
         LEFT JOIN scenarios_exercises se ON se.exercise_id = i.inject_exercise
         WHERE i.inject_id = :sourceId OR i.inject_exercise = :sourceId OR se.scenario_id = :sourceId OR fa.asset_id = :sourceId
     ) AND (:name IS NULL OR LOWER(ag.asset_group_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
-      AND ag.tenant_id = :tenantId;
+      AND ag.tenant_id = :#{#tenantContext.currentTenant};
     """,
       nativeQuery = true)
   List<Object[]> findAllByNameLinkedToFindingsWithContext(
-      @Param("sourceId") String sourceId,
-      @Param("name") String name,
-      @Param("tenantId") String tenantId,
-      Pageable pageable);
+      @Param("sourceId") String sourceId, @Param("name") String name, Pageable pageable);
 
   @Query(
       value =

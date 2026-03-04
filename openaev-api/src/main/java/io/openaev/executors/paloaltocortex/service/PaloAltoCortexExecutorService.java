@@ -81,8 +81,7 @@ public class PaloAltoCortexExecutorService implements Runnable {
         List<Agent> agents =
             endpointService.syncAgentsEndpoints(
                 toAgentEndpoint(paloAltoCortexEndpoints),
-                agentService.getAgentsByExecutorType(
-                    PALOALTOCORTEX_EXECUTOR_TYPE, executor.getTenant().getId()));
+                agentService.getAgentsByExecutorType(PALOALTOCORTEX_EXECUTOR_TYPE));
         assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
         assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
       }
