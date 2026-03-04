@@ -89,7 +89,7 @@ public interface ScenarioRepository
               + "LEFT JOIN scenarios s ON se.scenario_id = s.scenario_id "
               + "LEFT JOIN exercises_tags et ON et.exercise_id = ex.exercise_id "
               + "LEFT JOIN injects_expectations ie ON ex.exercise_id = ie.exercise_id "
-              + "WHERE s.scenario_external_reference = :externalReference "
+              + "WHERE s.scenario_external_reference = :externalReference AND s.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY ex.exercise_id ;",
       nativeQuery = true)
   List<RawExerciseSimple> rawAllByExternalReference(
@@ -111,23 +111,13 @@ public interface ScenarioRepository
 
   @Query(
       value =
-          "SELECT scenario_category, COUNT(*) AS category_count "
-              + "FROM scenarios "
-              + "GROUP BY scenario_category "
-              + "ORDER BY category_count DESC "
-              + "LIMIT :limit",
-      nativeQuery = true)
-  List<Object[]> findTopCategories(@Param("limit") @NotNull final int limit);
-
-  @Query(
-      value =
           "SELECT sce.scenario_id, sce.scenario_name, sce.scenario_subtitle, array_agg(sct.tag_id) FILTER (WHERE sct.tag_id IS NOT NULL) as scenario_tags "
               + "FROM scenarios sce "
               + "LEFT JOIN scenarios_tags sct ON sct.scenario_id = sce.scenario_id "
               + "INNER JOIN grants ON grants.grant_resource = sce.scenario_id AND grants.grant_resource_type = 'SCENARIO' "
               + "INNER JOIN groups ON grants.grant_group = groups.group_id "
               + "INNER JOIN users_groups ON groups.group_id = users_groups.group_id "
-              + "WHERE users_groups.user_id = :userId "
+              + "WHERE users_groups.user_id = :userId AND sce.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
   List<RawScenarioSimple> rawAllGranted(@Param("userId") String userId);
@@ -152,6 +142,7 @@ public interface ScenarioRepository
           "SELECT sce.scenario_id, sce.scenario_name, sce.scenario_subtitle, array_agg(sct.tag_id) FILTER (WHERE sct.tag_id IS NOT NULL) as scenario_tags "
               + "FROM scenarios sce "
               + "LEFT JOIN scenarios_tags sct ON sct.scenario_id = sce.scenario_id "
+              + "WHERE sce.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
   List<RawScenarioSimple> rawAll();
@@ -241,7 +232,7 @@ public interface ScenarioRepository
   // -- CATEGORY --
 
   @Query(
-      "SELECT DISTINCT s.category FROM Scenario s WHERE LOWER(s.category) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
+      "SELECT DISTINCT s.category FROM Scenario s WHERE LOWER(s.category) LIKE LOWER(CONCAT('%', :searchTerm, '%')) AND s.tenant.id = :#{#tenantContext.currentTenant}")
   List<String> findDistinctCategoriesBySearchTerm(
       @Param("searchTerm") final String searchTerm, Pageable pageable);
 
