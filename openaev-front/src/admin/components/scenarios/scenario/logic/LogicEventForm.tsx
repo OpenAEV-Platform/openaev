@@ -1,5 +1,5 @@
 import { Add } from '@mui/icons-material';
-import { Button, Divider, MenuItem, TextField, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import { Alert, Button, Divider, TextField, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect, useState } from 'react';
 
@@ -14,12 +14,13 @@ interface Props {
   handleClose: () => void;
   onSubmit: (data: {
     label: string;
-    targetStepId: string;
+    description: string;
     conditions: ConditionRule[];
     logicOperator: 'AND' | 'OR';
   }) => void;
   editingStep?: WorkflowStep | null;
   allSteps: WorkflowStep[];
+  parentActionStepId?: string | null;
 }
 
 const LogicEventForm: FunctionComponent<Props> = ({
@@ -28,21 +29,25 @@ const LogicEventForm: FunctionComponent<Props> = ({
   onSubmit,
   editingStep,
   allSteps,
+  parentActionStepId,
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
 
   const [label, setLabel] = useState('');
-  const [targetStepId, setTargetStepId] = useState('');
+  const [description, setDescription] = useState('');
   const [logicOperator, setLogicOperator] = useState<'AND' | 'OR'>('AND');
   const [conditions, setConditions] = useState<ConditionRule[]>([]);
 
   useEffect(() => {
     if (editingStep) {
       setLabel(getStepLabel(editingStep));
-      // Try to extract target step from conditions
-      const firstCondition = editingStep.step_conditions[0];
-      setTargetStepId(firstCondition?.step_from_id ?? '');
+      try {
+        const data = JSON.parse(editingStep.step_data ?? '{}');
+        setDescription(data.event_description ?? '');
+      } catch {
+        setDescription('');
+      }
       setConditions(
         editingStep.step_conditions
           .filter(c => c.condition_key)
@@ -55,7 +60,7 @@ const LogicEventForm: FunctionComponent<Props> = ({
       );
     } else {
       setLabel('');
-      setTargetStepId('');
+      setDescription('');
       setLogicOperator('AND');
       setConditions([]);
     }
@@ -76,15 +81,12 @@ const LogicEventForm: FunctionComponent<Props> = ({
   const handleSubmit = () => {
     onSubmit({
       label,
-      targetStepId,
+      description,
       conditions,
       logicOperator,
     });
     handleClose();
   };
-
-  // Available steps for the "target action" dropdown (steps without conditions = root actions)
-  const availableTargetSteps = allSteps.filter(s => s.step_conditions.length === 0);
 
   return (
     <Drawer
@@ -110,28 +112,29 @@ const LogicEventForm: FunctionComponent<Props> = ({
         />
 
         <TextField
-          select
-          label={t('Target action (step from)')}
+          label={t('Description')}
           fullWidth
-          value={targetStepId}
-          onChange={e => setTargetStepId(e.target.value)}
+          value={description}
+          onChange={e => setDescription(e.target.value)}
           variant="standard"
-        >
-          <MenuItem value="">
-            <em>{t('None')}</em>
-          </MenuItem>
-          {availableTargetSteps.map(step => (
-            <MenuItem key={step.step_id} value={step.step_id}>
-              {getStepLabel(step)}
-            </MenuItem>
-          ))}
-        </TextField>
+          multiline
+          rows={2}
+        />
 
         <Divider />
+
+        {parentActionStepId && (
+          <Alert severity="info" sx={{ mb: 1 }}>
+            {t('Conditions below evaluate the output of the parent action.')}
+          </Alert>
+        )}
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="subtitle2">
             {t('Trigger conditions')}
+            <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+              ({t('at least one required')})
+            </Typography>
           </Typography>
           <ToggleButtonGroup
             value={logicOperator}
@@ -148,6 +151,7 @@ const LogicEventForm: FunctionComponent<Props> = ({
           <LogicConditionRuleRow
             key={index}
             rule={rule}
+            index={index}
             onChange={updated => updateCondition(index, updated)}
             onDelete={() => removeCondition(index)}
             allSteps={allSteps}
@@ -171,7 +175,7 @@ const LogicEventForm: FunctionComponent<Props> = ({
             variant="contained"
             color="secondary"
             onClick={handleSubmit}
-            disabled={!label}
+            disabled={!label || (conditions.length === 0 && !editingStep)}
           >
             {editingStep ? t('Update') : t('Create')}
           </Button>

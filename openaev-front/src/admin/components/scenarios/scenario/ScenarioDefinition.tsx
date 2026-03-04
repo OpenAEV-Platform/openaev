@@ -18,6 +18,7 @@ const ScenarioDefinition = () => {
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
   // Fetching data
   const { scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(scenarioId) }));
+  const isChaining = scenario?.scenario_type === 'chaining';
   return (
     <div style={{
       display: 'grid',
@@ -27,15 +28,19 @@ const ScenarioDefinition = () => {
     >
       <ScenarioTeams scenarioTeamsUsers={scenario.scenario_teams_users} />
       <ScenarioVariables />
-      <div style={{ gridColumn: '1 / span 2' }}>
-        <ScenarioArticles />
-      </div>
-      <div style={{ gridColumn: '1 / span 2' }}>
-        <Typography variant="h4" style={{ float: 'left' }}>
-          {t('Used challenges (in injects)')}
-        </Typography>
-        <ScenarioChallenges />
-      </div>
+      {!isChaining && (
+        <div style={{ gridColumn: '1 / span 2' }}>
+          <ScenarioArticles />
+        </div>
+      )}
+      {!isChaining && (
+        <div style={{ gridColumn: '1 / span 2' }}>
+          <Typography variant="h4" style={{ float: 'left' }}>
+            {t('Used challenges (in injects)')}
+          </Typography>
+          <ScenarioChallenges />
+        </div>
+      )}
     </div>
   );
 };

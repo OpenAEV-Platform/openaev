@@ -1,19 +1,15 @@
 package io.openaev.output_processor;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.mock;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.rest.finding.FindingService;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class GroupOutputProcessorTest {
 
-  private final FindingService findingService = mock(FindingService.class);
-  private final GroupOutputProcessor processor = new GroupOutputProcessor(findingService);
+  private final GroupOutputProcessor processor = new GroupOutputProcessor();
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   @Test

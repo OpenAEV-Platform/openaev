@@ -38,7 +38,7 @@ public class ScenarioInput {
 
   @Nullable
   @JsonProperty("scenario_type")
-  private String type;
+  private String scenarioType;
 
   @Nullable
   @JsonProperty("scenario_external_reference")

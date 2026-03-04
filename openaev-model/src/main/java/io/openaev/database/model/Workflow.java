@@ -94,4 +94,10 @@ public class Workflow implements Base {
   @JsonIgnore
   @Schema(description = "Simulation associated with this workflow")
   private Exercise simulation;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "workflow_scenario_id")
+  @JsonIgnore
+  @Schema(description = "Scenario associated with this workflow")
+  private Scenario scenario;
 }

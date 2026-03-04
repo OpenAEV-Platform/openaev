@@ -89,6 +89,7 @@ public class ScenarioMapper {
         .dependencies(rawScenario.getScenario_dependencies())
         .severity(rawScenario.getScenario_severity())
         .typeAffinity(rawScenario.getScenario_type_affinity())
+        .scenarioType(rawScenario.getScenario_type())
         .exercises(rawScenario.getScenario_exercises())
         .killChainPhases(killChainPhases)
         .platforms(rawScenario.getScenario_platforms())

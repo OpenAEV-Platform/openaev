@@ -33,8 +33,8 @@ public class Condition implements Base {
   @Schema(description = "ID of the condition")
   private String id;
 
-  @OneToOne
-  @JoinColumn(name = "step_from_id", unique = true)
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "step_from_id")
   @JsonIgnore
   @Schema(description = "Source step for this condition")
   private Step stepFrom;
@@ -56,8 +56,8 @@ public class Condition implements Base {
   @Schema(description = "Type")
   private ConditionType type;
 
-  @OneToOne
-  @JoinColumn(name = "step_id", unique = true, nullable = false)
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "step_id", nullable = false)
   @JsonIgnore
   @Schema(description = "Step to which this condition belongs")
   private Step step;

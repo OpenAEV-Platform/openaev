@@ -40,17 +40,16 @@ public class ScenarioWorkflowApi extends RestBehavior {
   public WorkflowOutputDto getOrCreateWorkflow(
       @PathVariable @NotBlank final String scenarioId) {
     Scenario scenario = scenarioService.scenario(scenarioId);
-    // The workflow is linked to the scenario's exercises (simulations).
-    // For template/POC, we use a dedicated workflow per scenario.
     Workflow workflow =
-        workflowService
-            .findWorkflowTemplateBySimulationId(scenarioId)
+        workflowRepository
+            .findByScenario_IdAndStatus(scenarioId, WorkflowStatus.TEMPLATE)
             .orElseGet(
                 () -> {
                   Workflow newWorkflow =
                       Workflow.builder()
                           .version(0)
                           .status(WorkflowStatus.TEMPLATE)
+                          .scenario(scenario)
                           .build();
                   return workflowRepository.save(newWorkflow);
                 });
@@ -232,8 +231,8 @@ public class ScenarioWorkflowApi extends RestBehavior {
   // -- HELPERS --
 
   private Workflow getWorkflowForScenario(String scenarioId) {
-    return workflowService
-        .findWorkflowTemplateBySimulationId(scenarioId)
+    return workflowRepository
+        .findByScenario_IdAndStatus(scenarioId, WorkflowStatus.TEMPLATE)
         .orElseThrow(
             () ->
                 new ElementNotFoundException(

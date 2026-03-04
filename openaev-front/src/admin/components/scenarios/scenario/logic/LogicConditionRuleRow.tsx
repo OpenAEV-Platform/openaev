@@ -1,12 +1,13 @@
 import { DeleteOutlined } from '@mui/icons-material';
-import { Autocomplete, Checkbox, FormControlLabel, IconButton, MenuItem, TextField } from '@mui/material';
+import { Autocomplete, IconButton, MenuItem, Switch, TextField, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
 import FindingIcon from '../../../../../components/FindingIcon';
 import { useFormatter } from '../../../../../components/i18n';
 import type { ConditionType, WorkflowStep } from '../../../../../utils/api-types-custom';
-import { getActionsProvisioningField, getStepLabel } from './logicUtils';
+import InjectIcon from '../../../common/injects/InjectIcon';
+import { getActionsProvisioningField, getStepLabel, getStepInjectorType } from './logicUtils';
 
 const FINDING_TYPES = [
   'text', 'number', 'port', 'portscan', 'ipv4', 'ipv6',
@@ -38,12 +39,13 @@ interface ConditionRule {
 
 interface Props {
   rule: ConditionRule;
+  index: number;
   onChange: (rule: ConditionRule) => void;
   onDelete: () => void;
   allSteps: WorkflowStep[];
 }
 
-const LogicConditionRuleRow: FunctionComponent<Props> = ({ rule, onChange, onDelete, allSteps }) => {
+const LogicConditionRuleRow: FunctionComponent<Props> = ({ rule, index, onChange, onDelete, allSteps }) => {
   const { t } = useFormatter();
   const theme = useTheme();
 
@@ -59,6 +61,9 @@ const LogicConditionRuleRow: FunctionComponent<Props> = ({ rule, onChange, onDel
         marginBottom: theme.spacing(1),
       }}
     >
+      <Typography variant="body2" sx={{ fontWeight: 'bold', whiteSpace: 'nowrap', minWidth: 28 }}>
+        {`# ${index + 1}`}
+      </Typography>
       <TextField
         select
         label={t('Field to inspect')}
@@ -92,33 +97,45 @@ const LogicConditionRuleRow: FunctionComponent<Props> = ({ rule, onChange, onDel
         ))}
       </TextField>
 
-      <Autocomplete
-        freeSolo
-        options={providerSuggestions}
-        value={rule.value}
-        onInputChange={(_e, newValue) => onChange({ ...rule, value: newValue })}
-        renderInput={params => (
-          <TextField
-            {...params}
-            label={t('Expected value')}
-            size="small"
-            sx={{ minWidth: 200 }}
-          />
+      <div style={{ flex: 1, minWidth: 200 }}>
+        <Autocomplete
+          freeSolo
+          options={providerSuggestions}
+          value={rule.value}
+          onInputChange={(_e, newValue) => onChange({ ...rule, value: newValue })}
+          renderInput={params => (
+            <TextField
+              {...params}
+              label={t('Expected value')}
+              size="small"
+            />
+          )}
+        />
+        {providers.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2, flexWrap: 'wrap' }}>
+            <Typography variant="caption" color="text.secondary">
+              {t('Provided by')}
+            </Typography>
+            {providers.map(provider => (
+              <div key={provider.step_id} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                <InjectIcon type={getStepInjectorType(provider) ?? undefined} size="small" variant="inline" />
+                <Typography variant="caption" color="text.secondary">
+                  {getStepLabel(provider)}
+                </Typography>
+              </div>
+            ))}
+          </div>
         )}
-        sx={{ flex: 1 }}
-      />
+      </div>
 
-      <FormControlLabel
-        control={(
-          <Checkbox
-            checked={rule.caseSensitive}
-            onChange={e => onChange({ ...rule, caseSensitive: e.target.checked })}
-            size="small"
-          />
-        )}
-        label={t('Case sensitive')}
-        sx={{ whiteSpace: 'nowrap' }}
+      <Switch
+        checked={rule.caseSensitive}
+        onChange={e => onChange({ ...rule, caseSensitive: e.target.checked })}
+        size="small"
       />
+      <Typography variant="caption" sx={{ whiteSpace: 'nowrap' }}>
+        {t('Case sensitive')}
+      </Typography>
 
       <IconButton size="small" onClick={onDelete} color="error">
         <DeleteOutlined fontSize="small" />

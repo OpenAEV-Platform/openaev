@@ -4,9 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.ContractOutputField;
 import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
-import io.openaev.rest.finding.FindingService;
-import io.openaev.rest.inject.service.ContractOutputContext;
-import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -20,9 +17,7 @@ public class ShareOutputProcessor extends AbstractOutputProcessor {
   private static final String PERMISSIONS = "permissions";
   private static final String HOST = "host";
 
-  private final FindingService findingService;
-
-  public ShareOutputProcessor(FindingService findingService) {
+  public ShareOutputProcessor() {
     super(
         ContractOutputType.Share,
         ContractOutputTechnicalType.Object,
@@ -32,28 +27,11 @@ public class ShareOutputProcessor extends AbstractOutputProcessor {
             new ContractOutputField(PERMISSIONS, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, false)),
         true);
-    this.findingService = findingService;
   }
 
   @Override
   public boolean validate(JsonNode jsonNode) {
     return jsonNode.hasNonNull(SHARE_NAME) && jsonNode.hasNonNull(PERMISSIONS);
-  }
-
-  @Override
-  public void process(
-      ExecutionProcessingContext executionContext,
-      ContractOutputContext contractOutputContext,
-      JsonNode structuredOutputNode) {
-    findingService.generateFindings(
-        executionContext,
-        contractOutputContext,
-        structuredOutputNode,
-        this::validate,
-        this::toFindingValue,
-        this::toFindingAssets,
-        this::toFindingTeams,
-        this::toFindingUsers);
   }
 
   @Override

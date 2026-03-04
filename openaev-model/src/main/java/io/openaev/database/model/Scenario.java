@@ -166,7 +166,7 @@ public class Scenario implements GrantableBase {
   @Column(name = "scenario_type")
   @JsonProperty("scenario_type")
   @Queryable(filterable = true)
-  private String type;
+  private String scenarioType;
 
   // -- OCTI GENERATION SCENARIO FROM HTTP CALL--
 

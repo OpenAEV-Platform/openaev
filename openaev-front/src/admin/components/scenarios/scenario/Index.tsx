@@ -177,13 +177,7 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: Scenario }> = ({ sce
                 component={Link}
                 to={`/admin/scenarios/${scenario.scenario_id}/definition`}
                 value={`/admin/scenarios/${scenario.scenario_id}/definition`}
-                label={t('Definition')}
-              />
-              <Tab
-                component={Link}
-                to={`/admin/scenarios/${scenario.scenario_id}/injects`}
-                value={`/admin/scenarios/${scenario.scenario_id}/injects`}
-                label={t('Injects')}
+                label={isChaining ? t('Scope definition') : t('Definition')}
               />
               {isChaining && (
                 <Tab
@@ -193,30 +187,46 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: Scenario }> = ({ sce
                   label={t('Logic')}
                 />
               )}
-              <Tab
-                component={Link}
-                to={`/admin/scenarios/${scenario.scenario_id}/tests`}
-                value={`/admin/scenarios/${scenario.scenario_id}/tests`}
-                label={t('Tests')}
-              />
-              <Tab
-                component={Link}
-                to={`/admin/scenarios/${scenario.scenario_id}/lessons`}
-                value={`/admin/scenarios/${scenario.scenario_id}/lessons`}
-                label={t('Lessons learned')}
-              />
-              <Tab
-                component={Link}
-                to={`/admin/scenarios/${scenario.scenario_id}/findings`}
-                value={`/admin/scenarios/${scenario.scenario_id}/findings`}
-                label={t('Findings')}
-              />
-              <Tab
-                component={Link}
-                to={`/admin/scenarios/${scenario.scenario_id}/analysis`}
-                value={`/admin/scenarios/${scenario.scenario_id}/analysis`}
-                label={t('Analysis')}
-              />
+              {!isChaining && (
+                <Tab
+                  component={Link}
+                  to={`/admin/scenarios/${scenario.scenario_id}/injects`}
+                  value={`/admin/scenarios/${scenario.scenario_id}/injects`}
+                  label={t('Injects')}
+                />
+              )}
+              {!isChaining && (
+                <Tab
+                  component={Link}
+                  to={`/admin/scenarios/${scenario.scenario_id}/tests`}
+                  value={`/admin/scenarios/${scenario.scenario_id}/tests`}
+                  label={t('Tests')}
+                />
+              )}
+              {!isChaining && (
+                <Tab
+                  component={Link}
+                  to={`/admin/scenarios/${scenario.scenario_id}/lessons`}
+                  value={`/admin/scenarios/${scenario.scenario_id}/lessons`}
+                  label={t('Lessons learned')}
+                />
+              )}
+              {!isChaining && (
+                <Tab
+                  component={Link}
+                  to={`/admin/scenarios/${scenario.scenario_id}/findings`}
+                  value={`/admin/scenarios/${scenario.scenario_id}/findings`}
+                  label={t('Findings')}
+                />
+              )}
+              {!isChaining && (
+                <Tab
+                  component={Link}
+                  to={`/admin/scenarios/${scenario.scenario_id}/analysis`}
+                  value={`/admin/scenarios/${scenario.scenario_id}/analysis`}
+                  label={t('Analysis')}
+                />
+              )}
             </Tabs>
             <div style={{
               display: 'flex',

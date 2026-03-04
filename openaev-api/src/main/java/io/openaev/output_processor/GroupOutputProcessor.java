@@ -6,9 +6,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.ContractOutputField;
 import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
-import io.openaev.rest.finding.FindingService;
-import io.openaev.rest.inject.service.ContractOutputContext;
-import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -23,9 +20,7 @@ public class GroupOutputProcessor extends AbstractOutputProcessor {
   private static final String RID = "rid";
   private static final String HOST = "host";
 
-  private final FindingService findingService;
-
-  public GroupOutputProcessor(FindingService findingService) {
+  public GroupOutputProcessor() {
     super(
         ContractOutputType.Group,
         ContractOutputTechnicalType.Object,
@@ -36,28 +31,11 @@ public class GroupOutputProcessor extends AbstractOutputProcessor {
             new ContractOutputField(RID, ContractOutputTechnicalType.Text, false),
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, false)),
         true);
-    this.findingService = findingService;
   }
 
   @Override
   public boolean validate(JsonNode jsonNode) {
     return jsonNode.hasNonNull(GROUP_NAME);
-  }
-
-  @Override
-  public void process(
-      ExecutionProcessingContext executionContext,
-      ContractOutputContext contractOutputContext,
-      JsonNode structuredOutputNode) {
-    findingService.generateFindings(
-        executionContext,
-        contractOutputContext,
-        structuredOutputNode,
-        this::validate,
-        this::toFindingValue,
-        this::toFindingAssets,
-        this::toFindingTeams,
-        this::toFindingUsers);
   }
 
   @Override

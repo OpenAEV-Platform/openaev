@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Autocomplete, Button, Checkbox, Chip, FormControlLabel, MenuItem, TextField as MuiTextField } from '@mui/material';
+import { LinkOutlined, ScheduleOutlined } from '@mui/icons-material';
+import { Autocomplete, Button, Card, CardActionArea, CardContent, Checkbox, Chip, FormControlLabel, MenuItem, TextField as MuiTextField, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -32,11 +33,13 @@ const ScenarioForm: FunctionComponent<Props> = ({
   disabled,
   isCreation = false,
 }) => {
-  // Standard hooks
   const theme = useTheme();
   const { t } = useFormatter();
   const [inputValue, setInputValue] = useState('');
   const [isScenarioAssistantChecked, setIsScenarioAssistantChecked] = useState(false);
+  const [selectedType, setSelectedType] = useState<'time-based' | 'chaining' | null>(
+    editing ? (initialValues.scenario_type as 'time-based' | 'chaining' ?? 'time-based') : null,
+  );
 
   const {
     register,
@@ -68,6 +71,11 @@ const ScenarioForm: FunctionComponent<Props> = ({
     defaultValues: initialValues,
   });
 
+  const handleTypeSelect = (type: 'time-based' | 'chaining') => {
+    setSelectedType(type);
+    setValue('scenario_type', type, { shouldDirty: true });
+  };
+
   const tabEntries: TabsEntry[] = [{
     key: 'General',
     label: t('General'),
@@ -77,6 +85,64 @@ const ScenarioForm: FunctionComponent<Props> = ({
   }];
   const { currentTab, handleChangeTab } = useTabs(tabEntries[0].key);
 
+  // Step 1: Type selection (only in creation mode, before type is chosen)
+  if (isCreation && selectedType === null) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: theme.spacing(3),
+          padding: theme.spacing(2),
+        }}
+      >
+        <Typography variant="body1" color="text.secondary">
+          {t('Select the type of scenario you want to create.')}
+        </Typography>
+        <div style={{ display: 'flex', gap: theme.spacing(2) }}>
+          <Card
+            variant="outlined"
+            sx={{ flex: 1, '&:hover': { borderColor: theme.palette.primary.main } }}
+          >
+            <CardActionArea onClick={() => handleTypeSelect('chaining')} sx={{ height: '100%' }}>
+              <CardContent sx={{ textAlign: 'center', py: 4 }}>
+                <LinkOutlined sx={{ fontSize: 48, color: theme.palette.primary.main, mb: 1 }} />
+                <Typography variant="h6" gutterBottom>
+                  {t('Chaining Scenario')}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {t('Event-driven attack chain with conditional logic between actions.')}
+                </Typography>
+              </CardContent>
+            </CardActionArea>
+          </Card>
+          <Card
+            variant="outlined"
+            sx={{ flex: 1, '&:hover': { borderColor: theme.palette.primary.main } }}
+          >
+            <CardActionArea onClick={() => handleTypeSelect('time-based')} sx={{ height: '100%' }}>
+              <CardContent sx={{ textAlign: 'center', py: 4 }}>
+                <ScheduleOutlined sx={{ fontSize: 48, color: theme.palette.primary.main, mb: 1 }} />
+                <Typography variant="h6" gutterBottom>
+                  {t('Time-based Scenario')}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {t('Scheduled inject execution based on a timeline.')}
+                </Typography>
+              </CardContent>
+            </CardActionArea>
+          </Card>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Button variant="contained" onClick={handleClose}>
+            {t('Cancel')}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 2: Form (shown after type selection, or always when editing)
   return (
     <>
       <Tabs
@@ -92,7 +158,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
           marginTop: theme.spacing(2),
         }}
         id="scenarioForm"
-        onSubmit={handleSubmit((data: ScenarioInput) => onSubmit(data, isScenarioAssistantChecked))}
+        onSubmit={handleSubmit((data: ScenarioInput) => onSubmit({ ...data, scenario_type: selectedType ?? initialValues.scenario_type ?? undefined }, isScenarioAssistantChecked))}
       >
         {currentTab === 'General' && (
           <>
@@ -108,12 +174,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
               setValue={setValue}
               askAi={true}
             />
-            <div style={{
-              display: 'flex',
-              flexDirection: 'row',
-              gap: 20,
-            }}
-            >
+            <div style={{ display: 'flex', flexDirection: 'row', gap: 20 }}>
               <SelectField
                 variant="standard"
                 fullWidth={true}
@@ -138,24 +199,12 @@ const ScenarioForm: FunctionComponent<Props> = ({
                 control={control}
                 defaultValue={initialValues.scenario_main_focus}
               >
-                <MenuItem key="endpoint-protection" value="endpoint-protection">
-                  {t('Endpoint Protection')}
-                </MenuItem>
-                <MenuItem key="web-filtering" value="web-filtering">
-                  {t('Web Filtering')}
-                </MenuItem>
-                <MenuItem key="incident-response" value="incident-response">
-                  {t('Incident Response')}
-                </MenuItem>
-                <MenuItem key="standard-operating-procedure" value="standard-operating-procedure">
-                  {t('Standard Operating Procedures')}
-                </MenuItem>
-                <MenuItem key="crisis-communication" value="crisis-communication">
-                  {t('Crisis Communication')}
-                </MenuItem>
-                <MenuItem key="strategic-reaction" value="strategic-reaction">
-                  {t('Strategic Reaction')}
-                </MenuItem>
+                <MenuItem key="endpoint-protection" value="endpoint-protection">{t('Endpoint Protection')}</MenuItem>
+                <MenuItem key="web-filtering" value="web-filtering">{t('Web Filtering')}</MenuItem>
+                <MenuItem key="incident-response" value="incident-response">{t('Incident Response')}</MenuItem>
+                <MenuItem key="standard-operating-procedure" value="standard-operating-procedure">{t('Standard Operating Procedures')}</MenuItem>
+                <MenuItem key="crisis-communication" value="crisis-communication">{t('Crisis Communication')}</MenuItem>
+                <MenuItem key="strategic-reaction" value="strategic-reaction">{t('Strategic Reaction')}</MenuItem>
               </SelectField>
             </div>
             <SelectField
@@ -167,33 +216,10 @@ const ScenarioForm: FunctionComponent<Props> = ({
               control={control}
               defaultValue={initialValues.scenario_severity}
             >
-              <MenuItem key="low" value="low">
-                {t('Low')}
-              </MenuItem>
-              <MenuItem key="medium" value="medium">
-                {t('Medium')}
-              </MenuItem>
-              <MenuItem key="high" value="high">
-                {t('High')}
-              </MenuItem>
-              <MenuItem key="critical" value="critical">
-                {t('Critical')}
-              </MenuItem>
-            </SelectField>
-            <SelectField
-              variant="standard"
-              fullWidth={true}
-              name="scenario_type"
-              label={t('Scenario type')}
-              control={control}
-              defaultValue={initialValues.scenario_type ?? 'time-based'}
-            >
-              <MenuItem key="time-based" value="time-based">
-                {t('Time-based')}
-              </MenuItem>
-              <MenuItem key="chaining" value="chaining">
-                {t('Chaining')}
-              </MenuItem>
+              <MenuItem key="low" value="low">{t('Low')}</MenuItem>
+              <MenuItem key="medium" value="medium">{t('Medium')}</MenuItem>
+              <MenuItem key="high" value="high">{t('High')}</MenuItem>
+              <MenuItem key="critical" value="critical">{t('Critical')}</MenuItem>
             </SelectField>
             <TextField
               variant="standard"
@@ -244,9 +270,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
                 errors.scenario_mail_from
                   ? errors.scenario_mail_from?.message
                   : (
-                      <span
-                        style={{ color: theme.palette.warning.main }}
-                      >
+                      <span style={{ color: theme.palette.warning.main }}>
                         {t('If you remove the default email address, the email reception for this simulation / scenario will be disabled.')}
                       </span>
                     )
@@ -326,17 +350,16 @@ const ScenarioForm: FunctionComponent<Props> = ({
             />
           </>
         )}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          gap: theme.spacing(1),
-        }}
-        >
-          <Button
-            variant="contained"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: theme.spacing(1) }}>
+          {isCreation && (
+            <Button
+              variant="text"
+              onClick={() => setSelectedType(null)}
+            >
+              {t('Back')}
+            </Button>
+          )}
+          <Button variant="contained" onClick={handleClose} disabled={isSubmitting}>
             {t('Cancel')}
           </Button>
           <Button
@@ -351,8 +374,6 @@ const ScenarioForm: FunctionComponent<Props> = ({
       </form>
     </>
   );
-}
-;
+};
 
 export default ScenarioForm;
-;

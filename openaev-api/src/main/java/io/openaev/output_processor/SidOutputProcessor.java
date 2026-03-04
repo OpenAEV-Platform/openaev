@@ -4,9 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.ContractOutputField;
 import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
-import io.openaev.rest.finding.FindingService;
-import io.openaev.rest.inject.service.ContractOutputContext;
-import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -19,9 +16,7 @@ public class SidOutputProcessor extends AbstractOutputProcessor {
   private static final String SID = "sid";
   private static final String HOST = "host";
 
-  private final FindingService findingService;
-
-  public SidOutputProcessor(FindingService findingService) {
+  public SidOutputProcessor() {
     super(
         ContractOutputType.Sid,
         ContractOutputTechnicalType.Object,
@@ -30,28 +25,11 @@ public class SidOutputProcessor extends AbstractOutputProcessor {
             new ContractOutputField(SID, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, false)),
         true);
-    this.findingService = findingService;
   }
 
   @Override
   public boolean validate(JsonNode jsonNode) {
     return jsonNode.hasNonNull(SID);
-  }
-
-  @Override
-  public void process(
-      ExecutionProcessingContext executionContext,
-      ContractOutputContext contractOutputContext,
-      JsonNode structuredOutputNode) {
-    findingService.generateFindings(
-        executionContext,
-        contractOutputContext,
-        structuredOutputNode,
-        this::validate,
-        this::toFindingValue,
-        this::toFindingAssets,
-        this::toFindingTeams,
-        this::toFindingUsers);
   }
 
   @Override
