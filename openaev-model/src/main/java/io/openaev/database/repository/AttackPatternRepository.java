@@ -20,7 +20,7 @@ public interface AttackPatternRepository
   @NotNull
   Optional<AttackPattern> findById(@NotNull String id);
 
-  List<AttackPattern> findAllByIdIn(List<String> externalIds);
+  List<AttackPattern> findAllByIdIn(List<String> ids);
 
   Optional<AttackPattern> findByExternalIdAndTenantId(
       @NotNull String externalId, @NotNull String tenantId);
