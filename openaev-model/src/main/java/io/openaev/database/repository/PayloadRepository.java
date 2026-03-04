@@ -19,10 +19,8 @@ public interface PayloadRepository
   @NotNull
   Optional<Payload> findById(@NotNull String id);
 
-  @Query("select p from Payload p where p.type IN :types")
-  List<Payload> findByType(@Param("types") final List<String> types);
-
-  Optional<Payload> findByExternalId(@NotNull String externalId);
+  Optional<Payload> findByExternalIdAndTenantId(
+      @NotNull String externalId, @NotNull String tenantId);
 
   @Query(
       value = "SELECT payload_external_id FROM payloads WHERE payload_collector = :collectorId",
@@ -32,7 +30,7 @@ public interface PayloadRepository
   @Modifying
   @Query(
       value =
-          "UPDATE payloads SET payload_status = :payloadStatus WHERE payload_external_id IN :payloadExternalIds",
+          "UPDATE payloads SET payload_status = :payloadStatus WHERE payload_external_id IN :payloadExternalIds AND tenant_id = :#{#tenantContext.currentTenant}",
       nativeQuery = true)
   void setPayloadStatusByExternalIds(
       @Param("payloadStatus") String payloadStatus,
