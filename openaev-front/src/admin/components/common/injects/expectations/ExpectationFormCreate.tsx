@@ -180,18 +180,18 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
             type="number"
             label={t('Days')}
             style={{ width: '20%' }}
-            inputProps={register('expiration_time_days')}
+            slotProps={{ htmlInput: { ...register('expiration_time_days', { valueAsNumber: true }) } }}
           />
           <TextField
             variant="standard"
-            inputProps={register('expiration_time_hours')}
+            slotProps={{ htmlInput: { ...register('expiration_time_hours', { valueAsNumber: true }) } }}
             type="number"
             label={t('Hours')}
             style={{ width: '20%' }}
           />
           <TextField
             variant="standard"
-            inputProps={register('expiration_time_minutes')}
+            slotProps={{ htmlInput: { ...register('expiration_time_minutes', { valueAsNumber: true }) } }}
             type="number"
             label={t('Minutes')}
             style={{ width: '20%' }}
@@ -214,8 +214,9 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
           errors.expectation_score && errors.expectation_score?.message
         }
         {...register('expectation_score')}
-        InputProps={{
-          inputProps: {
+        slotProps={{
+          htmlInput: {
+            ...register('expectation_score', { valueAsNumber: true }),
             min: 0,
             max: 100,
           },
