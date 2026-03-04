@@ -53,7 +53,7 @@ public class AttackPatternApi extends RestBehavior {
   @GetMapping("/api/attack_patterns")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ATTACK_PATTERN)
   public List<RawAttackPattern> attackPatterns() {
-    return attackPatternRepository.rawAll(TenantContext.getCurrentTenant());
+    return attackPatternRepository.rawAll();
   }
 
   @PostMapping("/api/attack_patterns/search")

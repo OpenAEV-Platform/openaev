@@ -33,9 +33,9 @@ public interface AttackPatternRepository
   @Query(
       value =
           "select ap.*, array_remove(array_agg(apphase.phase_id), NULL) as attack_pattern_kill_chain_phases from attack_patterns ap "
-              + "left join attack_patterns_kill_chain_phases apphase ON ap.attack_pattern_id = apphase.attack_pattern_id WHERE ap.tenant_id = :tenantId GROUP BY ap.attack_pattern_id",
+              + "left join attack_patterns_kill_chain_phases apphase ON ap.attack_pattern_id = apphase.attack_pattern_id WHERE ap.tenant_id = :#{#tenantContext.currentTenant} GROUP BY ap.attack_pattern_id",
       nativeQuery = true)
-  List<RawAttackPattern> rawAll(String tenantId);
+  List<RawAttackPattern> rawAll();
 
   // -- INDEXING --
 
