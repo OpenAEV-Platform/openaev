@@ -5,7 +5,6 @@ import static io.openaev.database.specification.CustomDashboardSpecification.byN
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.Setting;
 import io.openaev.database.model.SettingKeys;
@@ -96,8 +95,7 @@ public class CustomDashboardService {
    */
   @Transactional(readOnly = true)
   public List<CustomDashboardOutput> customDashboards() {
-    List<RawCustomDashboard> customDashboards =
-        customDashboardRepository.rawAll(TenantContext.getCurrentTenant());
+    List<RawCustomDashboard> customDashboards = customDashboardRepository.rawAll();
     return customDashboardMapper.getCustomDashboardOutputs(customDashboards);
   }
 

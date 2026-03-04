@@ -29,9 +29,9 @@ public interface CustomDashboardRepository
           " SELECT cd.custom_dashboard_id, "
               + "cd.custom_dashboard_name "
               + "FROM custom_dashboards cd "
-              + "WHERE cd.tenant_id = :tenantId;",
+              + "WHERE cd.tenant_id = :#{#tenantContext.currentTenant};",
       nativeQuery = true)
-  List<RawCustomDashboard> rawAll(String tenantId);
+  List<RawCustomDashboard> rawAll();
 
   @Query(
       value =
