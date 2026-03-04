@@ -18,11 +18,13 @@ public interface TagRuleRepository
   Optional<TagRule> findById(@NotNull String id);
 
   @NotNull
-  Optional<TagRule> findTagRuleByTagName(@NotNull String name);
+  Optional<TagRule> findTagRuleByTagNameAndTenantId(@NotNull String name, @NotNull String tenantId);
 
   @Query("select tr from TagRule tr where tr.tag.id IN :tagids")
   List<TagRule> findByTags(@Param("tagids") List<String> tagIds);
 
-  @Query("select tr from TagRule tr " + "where tr.tag.name IN :tagnames")
+  @Query(
+      "select tr from TagRule tr "
+          + "where tr.tag.name IN :tagnames AND tr.tenant.id = :#{#tenantContext.currentTenant}")
   List<TagRule> findByTagNames(@Param("tagnames") List<String> tagNames);
 }

@@ -554,7 +554,9 @@ public class StarterPackTest extends IntegrationTest {
   }
 
   private void verifyTagRuleExist() {
-    Optional<TagRule> tagRule = this.tagRuleRepository.findTagRuleByTagName("opencti");
+    Optional<TagRule> tagRule =
+        this.tagRuleRepository.findTagRuleByTagNameAndTenantId(
+            "opencti", TenantContext.getCurrentTenant());
     assertTrue(tagRule.isPresent());
   }
 }
