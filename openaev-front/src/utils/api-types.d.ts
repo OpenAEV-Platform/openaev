@@ -805,20 +805,6 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_short_description?: string;
 }
 
-export interface ChainingConfiguration {
-  /** @format date-time */
-  chaining_configuration_created_at?: string;
-  chaining_configuration_enable_safe_mode?: boolean;
-  /** @minLength 1 */
-  chaining_configuration_id: string;
-  chaining_configuration_rate_limit?: ChainingRateLimit;
-  chaining_configuration_time_out?: ChainingTimeOut;
-  /** @format date-time */
-  chaining_configuration_updated_at?: string;
-  listened?: boolean;
-  safeMode?: boolean;
-}
-
 /** Input for creating or updating a chaining configuration on a scenario. */
 export interface ChainingConfigurationInput {
   /**
@@ -844,23 +830,6 @@ export interface ChainingConfigurationOutput {
   /** Maximum total runtime for the entire attack chaining scenario. Execution stops automatically once the timeout is reached. */
   chaining_configuration_time_out?: ChainingTimeOutOutput;
   safeMode?: boolean;
-}
-
-export interface ChainingRateLimit {
-  chaining_enable_rate_limit?: boolean;
-  /**
-   * @format int32
-   * @min 1
-   * @max 99
-   */
-  chaining_max_attempts?: number;
-  /**
-   * @format int32
-   * @min 1
-   * @max 59
-   */
-  chaining_max_temporal_rate_minutes?: number;
-  rateLimit?: boolean;
 }
 
 /** Input for configuring rate limiting on a chaining scenario. */
@@ -902,17 +871,6 @@ export interface ChainingRateLimitOutput {
    */
   chaining_max_temporal_rate_minutes?: number;
   rateLimit?: boolean;
-}
-
-export interface ChainingTimeOut {
-  chaining_enable_time_out?: boolean;
-  /**
-   * @format int32
-   * @min 0
-   * @max 86400
-   */
-  chaining_time_out_seconds?: number;
-  timeOut?: boolean;
 }
 
 /** Input for configuring the timeout on a chaining scenario. */
@@ -6565,7 +6523,6 @@ export interface Scenario {
   scenario_all_users_number?: number;
   scenario_articles?: string[];
   scenario_category?: string;
-  scenario_chaining_configuration?: ChainingConfiguration;
   /** @format int64 */
   scenario_communications_number?: number;
   /** @format date-time */
@@ -6581,7 +6538,6 @@ export interface Scenario {
   scenario_id: string;
   scenario_injects?: string[];
   scenario_injects_statistics?: Record<string, number>;
-  scenario_is_chaining?: boolean;
   scenario_kill_chain_phases?: KillChainPhase[];
   scenario_lessons_anonymized?: boolean;
   scenario_lessons_categories?: string[];

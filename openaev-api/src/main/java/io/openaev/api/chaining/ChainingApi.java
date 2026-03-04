@@ -1,13 +1,11 @@
 package io.openaev.api.chaining;
 
-import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
-
 import io.openaev.aop.AccessControl;
 import io.openaev.api.chaining.dto.ChainingConfigurationOutput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.service.scenario.ScenarioService;
+import io.openaev.service.chaining.WorkflowService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -15,7 +13,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
@@ -25,65 +22,41 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Chaining API", description = "Operations related to Chaining")
 public class ChainingApi extends RestBehavior {
 
-  public static final String CHAINING_API = "/api/chaining";
+  public static final String CHAINING_API = "/api/chainings";
+  public static final String WORKFLOW_URI = "/api/workflows";
 
-  private final ScenarioService scenarioService;
   private final ChainingConfigurationMapper chainingConfigurationMapper;
+  private final WorkflowService workflowService;
 
   @Operation(
-      summary = "Fetch chaining configuration for a scenario",
+      summary = "Fetch chaining configuration for a workflow",
       description =
-          "Fetch the chaining configuration for a given scenario, including time-out, rate-limit, safe-mode and scope rules.")
+          "Fetch the chaining configuration for a given workflow, including time-out, rate-limit, safe-mode and scope rules.")
   @ApiResponse(responseCode = "200", description = "Chaining configuration retrieved successfully")
   @ApiResponse(
       responseCode = "404",
-      description = "Chaining configuration not found for the specified scenario")
+      description = "Chaining configuration not found for the specified workflow")
   @ApiResponse(responseCode = "500", description = "Unexpected server error")
-  @GetMapping(SCENARIO_URI + "/{scenarioId}/chaining-configuration")
-  @AccessControl(
-      resourceId = "#scenarioId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.SCENARIO)
+  @GetMapping(WORKFLOW_URI + "/{workflowId}/chaining-configuration")
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   public ChainingConfigurationOutput fetchChainingConfiguration(
-      @PathVariable @NotBlank final String scenarioId) {
+      @PathVariable @NotBlank final String workflowId) {
     return chainingConfigurationMapper.toOutput(
-        scenarioService.fetchChainingConfiguration(scenarioId));
+        workflowService.fetchChainingConfiguration(workflowId));
   }
 
   @Operation(
-      summary = "Create chaining configuration for a scenario",
-      description = "Create a chaining configuration for a given scenario.")
-  @ApiResponse(responseCode = "201", description = "Chaining configuration created successfully")
-  @ApiResponse(responseCode = "404", description = "Scenario not found")
-  @ApiResponse(responseCode = "500", description = "Unexpected server error")
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/chaining-configuration")
-  @ResponseStatus(HttpStatus.CREATED)
-  @AccessControl(
-      resourceId = "#scenarioId",
-      actionPerformed = Action.WRITE,
-      resourceType = ResourceType.SCENARIO)
-  public ChainingConfigurationOutput createChainingConfiguration(
-      @PathVariable @NotBlank final String scenarioId,
-      @Valid @RequestBody final ChainingConfigurationInput input) {
-    return chainingConfigurationMapper.toOutput(
-        scenarioService.createChainingConfiguration(scenarioId, input));
-  }
-
-  @Operation(
-      summary = "Update chaining configuration for a scenario",
-      description = "Update chaining configuration for a given scenario.")
+      summary = "Update chaining configuration for a workflow",
+      description = "Update chaining configuration for a given workflow.")
   @ApiResponse(responseCode = "200", description = "Chaining configuration updated successfully")
-  @ApiResponse(responseCode = "404", description = "Scenario or chaining configuration not found")
+  @ApiResponse(responseCode = "404", description = "Workflow or chaining configuration not found")
   @ApiResponse(responseCode = "500", description = "Unexpected server error")
-  @PutMapping(SCENARIO_URI + "/{scenarioId}/chaining-configuration")
-  @AccessControl(
-      resourceId = "#scenarioId",
-      actionPerformed = Action.WRITE,
-      resourceType = ResourceType.SCENARIO)
+  @PutMapping(WORKFLOW_URI + "/{workflowId}/chaining-configuration")
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   public ChainingConfigurationOutput updateChainingConfiguration(
-      @PathVariable @NotBlank final String scenarioId,
+      @PathVariable @NotBlank final String workflowId,
       @Valid @RequestBody final ChainingConfigurationInput input) {
     return chainingConfigurationMapper.toOutput(
-        scenarioService.updateChainingConfiguration(scenarioId, input));
+        workflowService.updateChainingConfiguration(workflowId, input));
   }
 }

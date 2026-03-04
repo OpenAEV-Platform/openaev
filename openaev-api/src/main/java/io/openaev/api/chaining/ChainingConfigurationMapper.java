@@ -26,7 +26,7 @@ public class ChainingConfigurationMapper {
       return null;
     }
     ChainingRateLimit rateLimit = new ChainingRateLimit();
-    rateLimit.setRateLimit(input.isRateLimit());
+    rateLimit.setEnableRateLimit(input.isRateLimit());
     rateLimit.setMaxAttempts(input.getMaxAttempts());
     rateLimit.setMaxTemporalRateMinutes(input.getMaxTemporalRateMinutes());
     return rateLimit;
@@ -46,7 +46,7 @@ public class ChainingConfigurationMapper {
     int hours = input.getTimeOutHours() != null ? input.getTimeOutHours() : 0;
     int minutes = input.getTimeOutMinutes() != null ? input.getTimeOutMinutes() : 0;
     ChainingTimeOut timeOut = new ChainingTimeOut();
-    timeOut.setTimeOut(input.isTimeOut());
+    timeOut.setEnableTimeOut(input.isTimeOut());
     timeOut.setTimeOutSeconds(hours * 3600 + minutes * 60);
     return timeOut;
   }
@@ -78,7 +78,7 @@ public class ChainingConfigurationMapper {
       return null;
     }
     return ChainingRateLimitOutput.builder()
-        .isRateLimit(rateLimit.isRateLimit())
+        .isRateLimit(rateLimit.isEnableRateLimit())
         .maxAttempts(rateLimit.getMaxAttempts())
         .maxTemporalRateMinutes(rateLimit.getMaxTemporalRateMinutes())
         .build();
@@ -97,7 +97,7 @@ public class ChainingConfigurationMapper {
     }
     Integer seconds = timeOut.getTimeOutSeconds();
     return ChainingTimeOutOutput.builder()
-        .isTimeOut(timeOut.isTimeOut())
+        .isTimeOut(timeOut.isEnableTimeOut())
         .timeOutHours(seconds != null ? seconds / 3600 : null)
         .timeOutMinutes(seconds != null ? (seconds % 3600) / 60 : null)
         .build();

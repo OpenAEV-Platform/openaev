@@ -55,7 +55,7 @@ public class ChainingConfiguration implements Base {
   private Instant updatedAt;
 
   @OneToOne
-  @JoinColumn(name = "chaining_configuration_scenario")
+  @JoinColumn(name = "chaining_configuration_workflow", referencedColumnName = "workflow_id")
   @JsonIgnore
-  private Scenario scenario;
+  private Workflow workflow;
 }

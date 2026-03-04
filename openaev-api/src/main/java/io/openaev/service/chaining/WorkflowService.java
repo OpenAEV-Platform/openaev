@@ -1,23 +1,27 @@
 package io.openaev.service.chaining;
 
-import io.openaev.database.model.Exercise;
-import io.openaev.database.model.Workflow;
-import io.openaev.database.model.WorkflowStatus;
+import io.openaev.api.chaining.ChainingConfigurationInput;
+import io.openaev.api.chaining.ChainingConfigurationMapper;
+import io.openaev.database.model.*;
+import io.openaev.database.repository.ChainingConfigurationRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
 public class WorkflowService {
   private final WorkflowRepository workflowRepository;
+  private final ChainingConfigurationRepository chainingConfigurationRepository;
+  private final ChainingConfigurationMapper chainingConfigurationMapper;
 
   // -- READ --
-
   /**
    * Retrieves a workflow by its ID.
    *
@@ -51,6 +55,17 @@ public class WorkflowService {
             .simulation(simulation)
             .build();
     workflowRepository.save(workflow);
+    // Create chaining configuration
+    createDefaultChainingConfiguration();
+  }
+
+  /** Creates a default chaining configuration for a scenario. */
+  private void createDefaultChainingConfiguration() {
+    ChainingConfiguration configuration = new ChainingConfiguration();
+    configuration.getRateLimit().setEnableRateLimit(false);
+    configuration.getTimeOut().setEnableTimeOut(false);
+    configuration.setSafeMode(true);
+    this.chainingConfigurationRepository.save(configuration);
   }
 
   /**
@@ -135,5 +150,37 @@ public class WorkflowService {
    */
   public void deleteWorkflow(String workflowId) {
     workflowRepository.deleteById(workflowId);
+  }
+
+  public ChainingConfiguration fetchChainingConfiguration(@NotBlank String workflowId) {
+    Workflow workflow = this.getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
+    if (workflow.getChainingConfiguration() == null) {
+      throw new ElementNotFoundException(
+          "Chaining configuration not found for this workflow: " + workflowId);
+    }
+    return workflow.getChainingConfiguration();
+  }
+
+  @Transactional
+  public ChainingConfiguration createChainingConfiguration(
+      @NotBlank String workflowId, @Valid ChainingConfigurationInput input) {
+    Workflow workflow = this.getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
+
+    ChainingConfiguration configuration = new ChainingConfiguration();
+    configuration.setRateLimit(chainingConfigurationMapper.toRateLimit(input.getRateLimit()));
+    configuration.setTimeOut(chainingConfigurationMapper.toTimeOut(input.getTimeOut()));
+    configuration.setSafeMode(input.isSafeMode());
+
+    return configuration;
+  }
+
+  @Transactional
+  public ChainingConfiguration updateChainingConfiguration(
+      @NotBlank String scenarioId, @Valid ChainingConfigurationInput input) {
+    ChainingConfiguration configuration = fetchChainingConfiguration(scenarioId);
+    configuration.setRateLimit(chainingConfigurationMapper.toRateLimit(input.getRateLimit()));
+    configuration.setTimeOut(chainingConfigurationMapper.toTimeOut(input.getTimeOut()));
+    configuration.setSafeMode(input.isSafeMode());
+    return chainingConfigurationRepository.save(configuration);
   }
 }

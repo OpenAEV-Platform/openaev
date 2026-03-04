@@ -11,7 +11,7 @@ import lombok.Setter;
 public class ChainingRateLimit {
 
   @JsonProperty("chaining_enable_rate_limit")
-  private boolean isRateLimit;
+  private boolean enableRateLimit;
 
   @JsonProperty("chaining_max_attempts")
   @Min(1)

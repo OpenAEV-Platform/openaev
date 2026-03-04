@@ -21,14 +21,11 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import io.openaev.api.chaining.ChainingConfigurationInput;
-import io.openaev.api.chaining.ChainingConfigurationMapper;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.*;
 import io.openaev.database.repository.*;
-import io.openaev.database.repository.ChainingConfigurationRepository;
 import io.openaev.database.specification.ScenarioSpecification;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.export.Mixins;
@@ -61,7 +58,6 @@ import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
@@ -132,12 +128,9 @@ public class ScenarioService {
   private final HealthCheckUtils healthCheckUtils;
 
   private final ScenarioMapper scenarioMapper;
-  private final ChainingConfigurationMapper chainingConfigurationMapper;
-  private final ChainingConfigurationRepository chainingConfigurationRepository;
 
   @Transactional
   public Scenario createScenario(@NotNull final Scenario scenario) {
-    // Check FF, EE
     computeEmails(scenario);
     this.actionMetricCollector.addScenarioCreatedCount();
     return this.scenarioRepository.save(scenario);
@@ -1025,40 +1018,5 @@ public class ScenarioService {
     healthChecks.addAll(healthCheckUtils.runTeamsChecks(scenario));
 
     return healthChecks;
-  }
-
-  public ChainingConfiguration fetchChainingConfiguration(@NotBlank String scenarioId) {
-    Scenario scenario = this.scenario(scenarioId);
-    if (scenario.getChainingConfiguration() == null) {
-      throw new ElementNotFoundException(
-          "Chaining configuration not found for this scenario: " + scenarioId);
-    }
-    return scenario.getChainingConfiguration();
-  }
-
-  @Transactional
-  public ChainingConfiguration createChainingConfiguration(
-      @NotBlank String scenarioId, @Valid ChainingConfigurationInput input) {
-    Scenario scenario = this.scenario(scenarioId);
-
-    ChainingConfiguration configuration = new ChainingConfiguration();
-    configuration.setRateLimit(chainingConfigurationMapper.toRateLimit(input.getRateLimit()));
-    configuration.setTimeOut(chainingConfigurationMapper.toTimeOut(input.getTimeOut()));
-    configuration.setSafeMode(input.isSafeMode());
-    configuration.setScenario(scenario);
-    scenario.setChainingConfiguration(configuration);
-    this.scenarioRepository.save(scenario);
-
-    return configuration;
-  }
-
-  @Transactional
-  public ChainingConfiguration updateChainingConfiguration(
-      @NotBlank String scenarioId, @Valid ChainingConfigurationInput input) {
-    ChainingConfiguration configuration = fetchChainingConfiguration(scenarioId);
-    configuration.setRateLimit(chainingConfigurationMapper.toRateLimit(input.getRateLimit()));
-    configuration.setTimeOut(chainingConfigurationMapper.toTimeOut(input.getTimeOut()));
-    configuration.setSafeMode(input.isSafeMode());
-    return chainingConfigurationRepository.save(configuration);
   }
 }

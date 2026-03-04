@@ -79,6 +79,39 @@ class WorkflowServiceTest {
           "Workflow TEMPLATE not found. Workflow ID : " + workflowId, exception.getMessage());
       verify(workflowRepository).findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
     }
+
+    @Test
+    @DisplayName("should return workflow by id when found")
+    void shouldReturnWorkflowByIdWhenFound() {
+      // Prepare
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow = mock(Workflow.class);
+      when(workflowRepository.findById(workflowId)).thenReturn(Optional.of(workflow));
+
+      // Act
+      Workflow result = workflowService.getWorkflowById(workflowId);
+
+      // Assert
+      verify(workflowRepository).findById(workflowIdCaptor.capture());
+      assertEquals(workflowId, workflowIdCaptor.getValue());
+      assertNotNull(result);
+      assertEquals(workflow, result);
+    }
+
+    @Test
+    @DisplayName("should throw ElementNotFoundException by id when not found")
+    void shouldThrowExceptionByIdWhenNotFound() {
+      // Prepare
+      String workflowId = UUID.randomUUID().toString();
+      when(workflowRepository.findById(workflowId)).thenReturn(Optional.empty());
+
+      // Act & Assert
+      ElementNotFoundException exception =
+          assertThrows(
+              ElementNotFoundException.class, () -> workflowService.getWorkflowById(workflowId));
+      assertEquals("Workflow not found. Workflow ID : " + workflowId, exception.getMessage());
+      verify(workflowRepository).findById(workflowId);
+    }
   }
 
   // ========================================================================

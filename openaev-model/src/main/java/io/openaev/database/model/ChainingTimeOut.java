@@ -11,7 +11,7 @@ import lombok.Setter;
 public class ChainingTimeOut {
 
   @JsonProperty("chaining_enable_time_out")
-  private boolean isTimeOut;
+  private boolean enableTimeOut;
 
   @JsonProperty("chaining_time_out_seconds")
   @Min(0)
