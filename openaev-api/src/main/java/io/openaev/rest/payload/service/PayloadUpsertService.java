@@ -3,6 +3,7 @@ package io.openaev.rest.payload.service;
 import static io.openaev.rest.payload.PayloadUtils.validateArchitecture;
 
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.PayloadRepository;
@@ -53,8 +54,8 @@ public class PayloadUpsertService {
       collector = this.collectorService.collector(input.getCollector());
     }
     List<AttackPattern> attackPatterns =
-        attackPatternRepository.findAllByExternalIdInIgnoreCase(
-            input.getAttackPatternsExternalIds());
+        attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
+            input.getAttackPatternsExternalIds(), TenantContext.getCurrentTenant());
     if (payload.isPresent()) {
       return updatePayloadFromUpsert(input, payload.get(), attackPatterns, collector);
     } else {

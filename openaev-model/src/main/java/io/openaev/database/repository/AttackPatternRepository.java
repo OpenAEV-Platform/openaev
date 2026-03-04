@@ -20,18 +20,20 @@ public interface AttackPatternRepository
   @NotNull
   Optional<AttackPattern> findById(@NotNull String id);
 
-  List<AttackPattern> findAllByIdIn(List<String> externalIds);
+  List<AttackPattern> findAllByIdIn(List<String> ids);
 
-  Optional<AttackPattern> findByExternalId(@NotNull String externalId);
+  Optional<AttackPattern> findByExternalIdAndTenantId(
+      @NotNull String externalId, @NotNull String tenantId);
 
-  List<AttackPattern> findAllByExternalIdInIgnoreCase(List<String> externalIds);
+  List<AttackPattern> findAllByExternalIdInIgnoreCaseAndTenantId(
+      List<String> externalIds, String tenantId);
 
-  Optional<AttackPattern> findByStixId(@NotNull String stixId);
+  Optional<AttackPattern> findByStixIdAndTenantId(@NotNull String stixId, @NotNull String tenantId);
 
   @Query(
       value =
           "select ap.*, array_remove(array_agg(apphase.phase_id), NULL) as attack_pattern_kill_chain_phases from attack_patterns ap "
-              + "left join attack_patterns_kill_chain_phases apphase ON ap.attack_pattern_id = apphase.attack_pattern_id GROUP BY ap.attack_pattern_id",
+              + "left join attack_patterns_kill_chain_phases apphase ON ap.attack_pattern_id = apphase.attack_pattern_id WHERE ap.tenant_id = :#{#tenantContext.currentTenant} GROUP BY ap.attack_pattern_id",
       nativeQuery = true)
   List<RawAttackPattern> rawAll();
 

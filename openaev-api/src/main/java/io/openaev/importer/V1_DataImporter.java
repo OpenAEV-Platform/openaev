@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Scenario.SEVERITY;
 import io.openaev.database.repository.*;
@@ -290,7 +291,8 @@ public class V1_DataImporter implements Importer {
               String name = nodeAttackPattern.get("attack_pattern_external_id").textValue();
 
               List<AttackPattern> existingAttackPattern =
-                  this.attackPatternRepository.findAllByExternalIdInIgnoreCase(List.of(name));
+                  this.attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
+                      List.of(name), TenantContext.getCurrentTenant());
               if (!existingAttackPattern.isEmpty()) {
                 baseIds.put(id, existingAttackPattern.getFirst());
                 attackPatternIds.add(existingAttackPattern.getFirst().getId());
