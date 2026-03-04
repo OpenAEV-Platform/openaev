@@ -32,6 +32,7 @@ const XtmHubTab: React.FC = () => {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const { settings } = useAuth();
   const isEnterpriseEdition = settings.platform_license?.license_is_validated === true;
+  const isDemoMode = settings.platform_base_url === 'https://demo.openaev.io';
   const registrationHubUrl = settings?.xtm_hub_url ?? 'https://hub.filigran.io';
   const [processStep, setProcessStep] = useState<ProcessSteps>(
     ProcessSteps.INSTRUCTIONS,
@@ -113,6 +114,8 @@ const XtmHubTab: React.FC = () => {
     onMessage: handleTabMessage,
     onClosingTab: handleClosingTab,
   });
+
+  if (isDemoMode) return null;
 
   const handleOpenDialog = () => {
     setOperationType(
