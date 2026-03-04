@@ -144,7 +144,7 @@ public class DocumentApi extends RestBehavior {
   @GetMapping("/api/documents")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOCUMENT)
   public List<RawDocument> documents() {
-    return documentRepository.rawAllDocuments(TenantContext.getCurrentTenant());
+    return documentRepository.rawAllDocuments();
   }
 
   @PostMapping(DOCUMENT_API + "/search")

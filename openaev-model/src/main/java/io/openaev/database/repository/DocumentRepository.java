@@ -42,11 +42,11 @@ public interface DocumentRepository
               + "left join scenarios sc on sc.scenario_id = scdoc.scenario_id "
               + "left join documents_tags tagdoc on d.document_id = tagdoc.document_id "
               + "left join tags tg on tg.tag_id = tagdoc.tag_id "
-              + "where d.tenant_id = :tenantId "
+              + "where d.tenant_id = :#{#tenantContext.currentTenant} "
               + "group by d.document_id "
               + "order by document_id desc ",
       nativeQuery = true)
-  List<RawDocument> rawAllDocuments(String tenantId);
+  List<RawDocument> rawAllDocuments();
 
   @Query(
       value =
