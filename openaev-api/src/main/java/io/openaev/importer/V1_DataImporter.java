@@ -17,7 +17,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Scenario.SEVERITY;
 import io.openaev.database.repository.*;
@@ -1140,8 +1139,7 @@ public class V1_DataImporter implements Importer {
                 enabled,
                 exercise.getId(),
                 dependsDuration,
-                content,
-                TenantContext.getCurrentTenant());
+                content);
           } else if (scenario != null) {
             injectRepository.importSaveForScenario(
                 injectId,
@@ -1154,8 +1152,7 @@ public class V1_DataImporter implements Importer {
                 enabled,
                 scenario.getId(),
                 dependsDuration,
-                content,
-                TenantContext.getCurrentTenant());
+                content);
           } else {
             injectRepository.importSaveStandAlone(
                 injectId,
@@ -1167,8 +1164,7 @@ public class V1_DataImporter implements Importer {
                 allTeams,
                 enabled,
                 dependsDuration,
-                content,
-                TenantContext.getCurrentTenant());
+                content);
           }
           baseIds.put(id, new BaseHolder(injectId));
           originalIds.add(id);
