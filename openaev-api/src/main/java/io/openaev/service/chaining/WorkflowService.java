@@ -56,15 +56,19 @@ public class WorkflowService {
             .build();
     workflowRepository.save(workflow);
     // Create chaining configuration
-    createDefaultChainingConfiguration();
+    createDefaultChainingConfiguration(workflow);
   }
 
   /** Creates a default chaining configuration for a scenario. */
-  private void createDefaultChainingConfiguration() {
+  private void createDefaultChainingConfiguration(Workflow workflow) {
     ChainingConfiguration configuration = new ChainingConfiguration();
+    configuration.setRateLimit(new ChainingRateLimit());
     configuration.getRateLimit().setEnableRateLimit(false);
+    configuration.setTimeOut(new ChainingTimeOut());
     configuration.getTimeOut().setEnableTimeOut(false);
     configuration.setSafeMode(true);
+    configuration.setWorkflow(workflow);
+    workflow.setChainingConfiguration(configuration);
     this.chainingConfigurationRepository.save(configuration);
   }
 
@@ -117,7 +121,45 @@ public class WorkflowService {
             .workflowTemplate(workflowTemplate)
             .build();
 
-    return saveWorkflowRun(run);
+    Workflow savedWorkflowRun = saveWorkflowRun(run);
+    saveChainingConfiguration(workflowTemplate, savedWorkflowRun);
+    return savedWorkflowRun;
+  }
+
+  private void saveChainingConfiguration(Workflow workflowTemplate, Workflow workflowRun) {
+    ChainingConfiguration templateConfiguration = workflowTemplate.getChainingConfiguration();
+    if (templateConfiguration == null) {
+      return;
+    }
+
+    ChainingConfiguration runConfiguration = new ChainingConfiguration();
+    runConfiguration.setSafeMode(templateConfiguration.isSafeMode());
+    runConfiguration.setRateLimit(copyRateLimit(templateConfiguration.getRateLimit()));
+    runConfiguration.setTimeOut(copyTimeOut(templateConfiguration.getTimeOut()));
+    runConfiguration.setWorkflow(workflowRun);
+    workflowRun.setChainingConfiguration(runConfiguration);
+    this.chainingConfigurationRepository.save(runConfiguration);
+  }
+
+  private ChainingRateLimit copyRateLimit(ChainingRateLimit rateLimit) {
+    if (rateLimit == null) {
+      return null;
+    }
+    ChainingRateLimit copy = new ChainingRateLimit();
+    copy.setEnableRateLimit(rateLimit.isEnableRateLimit());
+    copy.setMaxAttempts(rateLimit.getMaxAttempts());
+    copy.setMaxTemporalRateMinutes(rateLimit.getMaxTemporalRateMinutes());
+    return copy;
+  }
+
+  private ChainingTimeOut copyTimeOut(ChainingTimeOut timeOut) {
+    if (timeOut == null) {
+      return null;
+    }
+    ChainingTimeOut copy = new ChainingTimeOut();
+    copy.setEnableTimeOut(timeOut.isEnableTimeOut());
+    copy.setTimeOutSeconds(timeOut.getTimeOutSeconds());
+    return copy;
   }
 
   /**
@@ -159,19 +201,6 @@ public class WorkflowService {
           "Chaining configuration not found for this workflow: " + workflowId);
     }
     return workflow.getChainingConfiguration();
-  }
-
-  @Transactional
-  public ChainingConfiguration createChainingConfiguration(
-      @NotBlank String workflowId, @Valid ChainingConfigurationInput input) {
-    Workflow workflow = this.getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
-
-    ChainingConfiguration configuration = new ChainingConfiguration();
-    configuration.setRateLimit(chainingConfigurationMapper.toRateLimit(input.getRateLimit()));
-    configuration.setTimeOut(chainingConfigurationMapper.toTimeOut(input.getTimeOut()));
-    configuration.setSafeMode(input.isSafeMode());
-
-    return configuration;
   }
 
   @Transactional

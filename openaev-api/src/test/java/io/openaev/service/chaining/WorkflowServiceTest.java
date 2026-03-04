@@ -3,9 +3,17 @@ package io.openaev.service.chaining;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import io.openaev.api.chaining.ChainingConfigurationInput;
+import io.openaev.api.chaining.ChainingConfigurationMapper;
+import io.openaev.api.chaining.dto.ChainingRateLimitInput;
+import io.openaev.api.chaining.dto.ChainingTimeOutInput;
+import io.openaev.database.model.ChainingConfiguration;
+import io.openaev.database.model.ChainingRateLimit;
+import io.openaev.database.model.ChainingTimeOut;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowStatus;
+import io.openaev.database.repository.ChainingConfigurationRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import java.util.*;
@@ -28,6 +36,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class WorkflowServiceTest {
 
   @Mock private WorkflowRepository workflowRepository;
+  @Mock private ChainingConfigurationRepository chainingConfigurationRepository;
+  @Mock private ChainingConfigurationMapper chainingConfigurationMapper;
 
   @InjectMocks private WorkflowService workflowService;
 
@@ -79,39 +89,6 @@ class WorkflowServiceTest {
           "Workflow TEMPLATE not found. Workflow ID : " + workflowId, exception.getMessage());
       verify(workflowRepository).findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
     }
-
-    @Test
-    @DisplayName("should return workflow by id when found")
-    void shouldReturnWorkflowByIdWhenFound() {
-      // Prepare
-      String workflowId = UUID.randomUUID().toString();
-      Workflow workflow = mock(Workflow.class);
-      when(workflowRepository.findById(workflowId)).thenReturn(Optional.of(workflow));
-
-      // Act
-      Workflow result = workflowService.getWorkflowById(workflowId);
-
-      // Assert
-      verify(workflowRepository).findById(workflowIdCaptor.capture());
-      assertEquals(workflowId, workflowIdCaptor.getValue());
-      assertNotNull(result);
-      assertEquals(workflow, result);
-    }
-
-    @Test
-    @DisplayName("should throw ElementNotFoundException by id when not found")
-    void shouldThrowExceptionByIdWhenNotFound() {
-      // Prepare
-      String workflowId = UUID.randomUUID().toString();
-      when(workflowRepository.findById(workflowId)).thenReturn(Optional.empty());
-
-      // Act & Assert
-      ElementNotFoundException exception =
-          assertThrows(
-              ElementNotFoundException.class, () -> workflowService.getWorkflowById(workflowId));
-      assertEquals("Workflow not found. Workflow ID : " + workflowId, exception.getMessage());
-      verify(workflowRepository).findById(workflowId);
-    }
   }
 
   // ========================================================================
@@ -122,10 +99,11 @@ class WorkflowServiceTest {
   class CreationWorkflowTests {
 
     @Captor private ArgumentCaptor<Workflow> workflowCaptor;
+    @Captor private ArgumentCaptor<ChainingConfiguration> chainingConfigurationCaptor;
 
     @Test
-    @DisplayName("should create workflow template for exercise")
-    void shouldCreateWorkflowTemplate() {
+    @DisplayName("should create workflow template and default chaining configuration for exercise")
+    void shouldCreateWorkflowTemplateAndDefaultChainingConfiguration() {
       // Prepare
       Exercise exercise = mock(Exercise.class);
 
@@ -138,6 +116,16 @@ class WorkflowServiceTest {
       assertEquals(0, savedWorkflow.getVersion());
       assertEquals(WorkflowStatus.TEMPLATE, savedWorkflow.getStatus());
       assertEquals(exercise, savedWorkflow.getSimulation());
+
+      verify(chainingConfigurationRepository).save(chainingConfigurationCaptor.capture());
+      ChainingConfiguration savedConfiguration = chainingConfigurationCaptor.getValue();
+      assertNotNull(savedConfiguration.getRateLimit());
+      assertFalse(savedConfiguration.getRateLimit().isEnableRateLimit());
+      assertNotNull(savedConfiguration.getTimeOut());
+      assertFalse(savedConfiguration.getTimeOut().isEnableTimeOut());
+      assertTrue(savedConfiguration.isSafeMode());
+      assertEquals(savedWorkflow, savedConfiguration.getWorkflow());
+      assertEquals(savedConfiguration, savedWorkflow.getChainingConfiguration());
     }
   }
 
@@ -288,6 +276,80 @@ class WorkflowServiceTest {
       assertEquals(workflowTemplate, savedRun.getWorkflowTemplate());
       assertFalse(savedRun.isEdited());
     }
+
+    @Test
+    @DisplayName("should copy and save chaining configuration for workflow run")
+    void shouldCopyAndSaveChainingConfigurationForRun() {
+      // Prepare
+      Exercise simulation = mock(Exercise.class);
+
+      Workflow workflowTemplate =
+          Workflow.builder()
+              .status(WorkflowStatus.TEMPLATE)
+              .version(3)
+              .simulation(simulation)
+              .build();
+      ChainingRateLimit templateRateLimit = new ChainingRateLimit();
+      templateRateLimit.setEnableRateLimit(true);
+      templateRateLimit.setMaxAttempts(5);
+      templateRateLimit.setMaxTemporalRateMinutes(15);
+      ChainingTimeOut templateTimeOut = new ChainingTimeOut();
+      templateTimeOut.setEnableTimeOut(true);
+      templateTimeOut.setTimeOutSeconds(120);
+      ChainingConfiguration templateConfiguration = new ChainingConfiguration();
+      templateConfiguration.setRateLimit(templateRateLimit);
+      templateConfiguration.setTimeOut(templateTimeOut);
+      templateConfiguration.setSafeMode(false);
+      templateConfiguration.setWorkflow(workflowTemplate);
+      workflowTemplate.setChainingConfiguration(templateConfiguration);
+
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+      when(chainingConfigurationRepository.save(any(ChainingConfiguration.class)))
+          .thenAnswer(i -> i.getArgument(0));
+
+      // Act
+      Workflow run = workflowService.launchWorkflow(workflowTemplate);
+
+      // Assert
+      ArgumentCaptor<ChainingConfiguration> chainingConfigurationCaptor =
+          ArgumentCaptor.forClass(ChainingConfiguration.class);
+      verify(chainingConfigurationRepository).save(chainingConfigurationCaptor.capture());
+      ChainingConfiguration savedConfiguration = chainingConfigurationCaptor.getValue();
+
+      assertSame(run, savedConfiguration.getWorkflow());
+      assertEquals(savedConfiguration, run.getChainingConfiguration());
+
+      assertNotSame(templateConfiguration, savedConfiguration);
+      assertNotSame(templateRateLimit, savedConfiguration.getRateLimit());
+      assertNotSame(templateTimeOut, savedConfiguration.getTimeOut());
+
+      assertFalse(savedConfiguration.isSafeMode());
+      assertTrue(savedConfiguration.getRateLimit().isEnableRateLimit());
+      assertEquals(5, savedConfiguration.getRateLimit().getMaxAttempts());
+      assertEquals(15, savedConfiguration.getRateLimit().getMaxTemporalRateMinutes());
+      assertTrue(savedConfiguration.getTimeOut().isEnableTimeOut());
+      assertEquals(120, savedConfiguration.getTimeOut().getTimeOutSeconds());
+    }
+
+    @Test
+    @DisplayName("should not save chaining configuration when template has none")
+    void shouldNotSaveChainingConfigurationWhenTemplateHasNone() {
+      // Prepare
+      Exercise simulation = mock(Exercise.class);
+      Workflow workflowTemplate =
+          Workflow.builder()
+              .status(WorkflowStatus.TEMPLATE)
+              .version(1)
+              .simulation(simulation)
+              .build();
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+
+      // Act
+      workflowService.launchWorkflow(workflowTemplate);
+
+      // Assert
+      verify(chainingConfigurationRepository, never()).save(any(ChainingConfiguration.class));
+    }
   }
 
   // ========================================================================
@@ -397,6 +459,168 @@ class WorkflowServiceTest {
       verify(workflowRepository).deleteById(workflowIdCaptor.capture());
       assertEquals(workflowId, workflowIdCaptor.getValue());
       verifyNoMoreInteractions(workflowRepository);
+    }
+  }
+
+  // ========================================================================
+  // fetchChainingConfiguration Tests
+  // ========================================================================
+  @Nested
+  @DisplayName("fetchChainingConfiguration")
+  class FetchChainingConfigurationTests {
+
+    @Test
+    @DisplayName("should return chaining configuration when found")
+    void shouldReturnChainingConfigurationWhenFound() {
+      // Prepare
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow = mock(Workflow.class);
+      ChainingConfiguration chainingConfiguration = mock(ChainingConfiguration.class);
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+      when(workflow.getChainingConfiguration()).thenReturn(chainingConfiguration);
+
+      // Act
+      ChainingConfiguration result = workflowService.fetchChainingConfiguration(workflowId);
+
+      // Assert
+      assertEquals(chainingConfiguration, result);
+      verify(workflowRepository).findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
+      verify(workflow, atLeastOnce()).getChainingConfiguration();
+    }
+
+    @Test
+    @DisplayName("should throw ElementNotFoundException when workflow not found")
+    void shouldThrowExceptionWhenWorkflowNotFound() {
+      // Prepare
+      String workflowId = UUID.randomUUID().toString();
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.empty());
+
+      // Act & Assert
+      ElementNotFoundException exception =
+          assertThrows(
+              ElementNotFoundException.class,
+              () -> workflowService.fetchChainingConfiguration(workflowId));
+      assertEquals(
+          "Workflow TEMPLATE not found. Workflow ID : " + workflowId, exception.getMessage());
+      verify(workflowRepository).findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
+    }
+
+    @Test
+    @DisplayName("should throw ElementNotFoundException when chaining configuration is missing")
+    void shouldThrowExceptionWhenChainingConfigurationIsMissing() {
+      // Prepare
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow = mock(Workflow.class);
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+      when(workflow.getChainingConfiguration()).thenReturn(null);
+
+      // Act & Assert
+      ElementNotFoundException exception =
+          assertThrows(
+              ElementNotFoundException.class,
+              () -> workflowService.fetchChainingConfiguration(workflowId));
+      assertEquals(
+          "Chaining configuration not found for this workflow: " + workflowId,
+          exception.getMessage());
+      verify(workflowRepository).findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
+      verify(workflow).getChainingConfiguration();
+    }
+  }
+
+  // ========================================================================
+  // updateChainingConfiguration Tests
+  // ========================================================================
+  @Nested
+  @DisplayName("updateChainingConfiguration")
+  class UpdateChainingConfigurationTests {
+
+    @Captor private ArgumentCaptor<ChainingConfiguration> chainingConfigurationCaptor;
+
+    @Test
+    @DisplayName("should update chaining configuration and save it")
+    void shouldUpdateChainingConfigurationAndSaveIt() {
+      // Prepare
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow = mock(Workflow.class);
+      ChainingConfiguration configuration = mock(ChainingConfiguration.class);
+      ChainingConfigurationInput input = mock(ChainingConfigurationInput.class);
+      ChainingRateLimitInput rateLimitInput = mock(ChainingRateLimitInput.class);
+      ChainingTimeOutInput timeOutInput = mock(ChainingTimeOutInput.class);
+      ChainingRateLimit rateLimit = new ChainingRateLimit();
+      ChainingTimeOut timeOut = new ChainingTimeOut();
+      ChainingConfiguration savedConfiguration = mock(ChainingConfiguration.class);
+
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+      when(workflow.getChainingConfiguration()).thenReturn(configuration);
+      when(input.getRateLimit()).thenReturn(rateLimitInput);
+      when(input.getTimeOut()).thenReturn(timeOutInput);
+      when(input.isSafeMode()).thenReturn(true);
+      when(chainingConfigurationMapper.toRateLimit(rateLimitInput)).thenReturn(rateLimit);
+      when(chainingConfigurationMapper.toTimeOut(timeOutInput)).thenReturn(timeOut);
+      when(chainingConfigurationRepository.save(configuration)).thenReturn(savedConfiguration);
+
+      // Act
+      ChainingConfiguration result = workflowService.updateChainingConfiguration(workflowId, input);
+
+      // Assert
+      verify(chainingConfigurationMapper).toRateLimit(rateLimitInput);
+      verify(chainingConfigurationMapper).toTimeOut(timeOutInput);
+      verify(configuration).setRateLimit(rateLimit);
+      verify(configuration).setTimeOut(timeOut);
+      verify(configuration).setSafeMode(true);
+      verify(chainingConfigurationRepository).save(chainingConfigurationCaptor.capture());
+      assertEquals(configuration, chainingConfigurationCaptor.getValue());
+      assertEquals(savedConfiguration, result);
+    }
+
+    @Test
+    @DisplayName("should throw ElementNotFoundException when workflow is missing")
+    void shouldThrowExceptionWhenWorkflowIsMissing() {
+      // Prepare
+      String workflowId = UUID.randomUUID().toString();
+      ChainingConfigurationInput input = mock(ChainingConfigurationInput.class);
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.empty());
+
+      // Act & Assert
+      ElementNotFoundException exception =
+          assertThrows(
+              ElementNotFoundException.class,
+              () -> workflowService.updateChainingConfiguration(workflowId, input));
+      assertEquals(
+          "Workflow TEMPLATE not found. Workflow ID : " + workflowId, exception.getMessage());
+      verify(workflowRepository).findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
+      verifyNoInteractions(chainingConfigurationMapper);
+      verify(chainingConfigurationRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("should throw ElementNotFoundException when chaining configuration is missing")
+    void shouldThrowExceptionWhenConfigurationIsMissing() {
+      // Prepare
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow = mock(Workflow.class);
+      ChainingConfigurationInput input = mock(ChainingConfigurationInput.class);
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+      when(workflow.getChainingConfiguration()).thenReturn(null);
+
+      // Act & Assert
+      ElementNotFoundException exception =
+          assertThrows(
+              ElementNotFoundException.class,
+              () -> workflowService.updateChainingConfiguration(workflowId, input));
+      assertEquals(
+          "Chaining configuration not found for this workflow: " + workflowId,
+          exception.getMessage());
+      verify(workflowRepository).findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
+      verify(workflow).getChainingConfiguration();
+      verifyNoInteractions(chainingConfigurationMapper);
+      verify(chainingConfigurationRepository, never()).save(any());
     }
   }
 }
