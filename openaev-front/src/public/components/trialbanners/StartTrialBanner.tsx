@@ -2,7 +2,7 @@ import { useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../components/i18n';
 import type { PlatformSettings } from '../../../utils/api-types';
-import { DEMO_PLATFORM_URL } from '../../../utils/Environment';
+import { isDemoInstance } from '../../../utils/Environment';
 import { isEmptyField } from '../../../utils/utils';
 import TopBanner from './TopBanner';
 
@@ -10,7 +10,7 @@ const StartTrialBanner = (settings: { settings: PlatformSettings }) => {
   const { t } = useFormatter();
   const theme = useTheme();
 
-  if (!settings || isEmptyField(settings.settings?.xtm_hub_url) || settings.settings.platform_base_url !== DEMO_PLATFORM_URL) return <></>;
+  if (!settings || isEmptyField(settings.settings?.xtm_hub_url) || !isDemoInstance(settings.settings.platform_base_url)) return <></>;
 
   // REMOVE WHEN REMOVING FEATURE FLAG OPENAEV_TRIALS_XTMHUB
   const freeTrialsEnabled = settings.settings?.enabled_dev_features?.includes('OPENAEV_TRIALS_XTMHUB') ?? false;
