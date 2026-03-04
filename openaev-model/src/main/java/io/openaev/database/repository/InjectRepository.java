@@ -341,12 +341,11 @@ public interface InjectRepository
     FROM injects i
     INNER JOIN findings f ON f.finding_inject_id = i.inject_id
     WHERE (:title IS NULL OR LOWER(i.inject_title) LIKE LOWER(CONCAT('%', COALESCE(:title, ''), '%')))
-      AND i.tenant_id = :tenantId
+      AND i.tenant_id = :#{#tenantContext.currentTenant}
       ORDER BY i.inject_created_at DESC;
     """,
       nativeQuery = true)
-  List<Object[]> findAllByTitleLinkedToFindings(
-      @Param("title") String title, @Param("tenantId") String tenantId, Pageable pageable);
+  List<Object[]> findAllByTitleLinkedToFindings(@Param("title") String title, Pageable pageable);
 
   @Query(
       value =
@@ -358,15 +357,12 @@ public interface InjectRepository
     LEFT JOIN scenarios_exercises se ON se.exercise_id = i.inject_exercise
     WHERE (i.inject_exercise = :sourceId OR se.scenario_id = :sourceId OR fa.asset_id = :sourceId)
       AND (:title IS NULL OR LOWER(i.inject_title) LIKE LOWER(CONCAT('%', COALESCE(:title, ''), '%')))
-      AND i.tenant_id = :tenantId
+      AND i.tenant_id = :#{#tenantContext.currentTenant}
       ORDER BY i.inject_created_at DESC;
     """,
       nativeQuery = true)
   List<Object[]> findAllByTitleLinkedToFindingsWithContext(
-      @Param("sourceId") String sourceId,
-      @Param("title") String title,
-      @Param("tenantId") String tenantId,
-      Pageable pageable);
+      @Param("sourceId") String sourceId, @Param("title") String title, Pageable pageable);
 
   @Query(
       value = "SELECT i.inject_content FROM injects i WHERE i.inject_id IN :injectIds",
