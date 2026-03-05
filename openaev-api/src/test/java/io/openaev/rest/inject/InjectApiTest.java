@@ -1395,7 +1395,7 @@ class InjectApiTest extends IntegrationTest {
       /** Wraps stdout content in the expected JSON envelope used by the implant callback. */
       private InjectExecutionInput buildStdoutInput(String stdoutContent) {
         InjectExecutionInput input = new InjectExecutionInput();
-        input.setMessage("{\"stdout\":\"" + stdoutContent.replace("\\", "\\\\") + "\"}");
+        input.setMessage("{\"stdout\":\"" + stdoutContent + "\"}");
         input.setAction(InjectExecutionAction.command_execution);
         input.setStatus("SUCCESS");
         return input;
@@ -1413,10 +1413,13 @@ class InjectApiTest extends IntegrationTest {
         Inject cveInject = (Inject) setup[0];
         String agentId = (String) setup[1];
 
-        String rawOutput =
-            "[CVE-2025-25241] [http] [critical] http://192.168.1.10/\\n"
-                + "[CVE-2025-99999] [http] [high] http://192.168.1.20/\\n";
-        InjectExecutionInput input = buildStdoutInput(rawOutput);
+        // Build message directly, same format as given_targetedAsset_should_linkFindingToIt
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage(
+            "{\"stdout\":\"[CVE-2025-25241] [http] [critical] http://192.168.1.10/\\n"
+                + "[CVE-2025-99999] [http] [high] http://192.168.1.20/\\n\"}");
+        input.setAction(InjectExecutionAction.command_execution);
+        input.setStatus("SUCCESS");
 
         // -- EXECUTE --
         performCallbackRequest(agentId, cveInject.getId(), input);
@@ -1426,9 +1429,9 @@ class InjectApiTest extends IntegrationTest {
             .atMost(15, TimeUnit.SECONDS)
             .with()
             .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> findingRepository.findAllByInjectId(cveInject.getId()).size() >= 2);
+            .until(() -> injectTestHelper.findFindingsByInjectId(cveInject.getId()).size() >= 2);
 
-        List<Finding> cveFindings = findingRepository.findAllByInjectId(cveInject.getId());
+        List<Finding> cveFindings = injectTestHelper.findFindingsByInjectId(cveInject.getId());
         assertEquals(2, cveFindings.size());
         assertTrue(
             cveFindings.stream().anyMatch(f -> f.getValue().contains("CVE-2025-25241")),
@@ -1456,12 +1459,12 @@ class InjectApiTest extends IntegrationTest {
 
         // -- ASSERT --
         Awaitility.await()
-            .atMost(8, TimeUnit.SECONDS)
+            .atMost(15, TimeUnit.SECONDS)
             .with()
             .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> true);
+            .until(() -> injectTestHelper.hasInjectStatusTrace(cveInject.getId()));
         assertTrue(
-            findingRepository.findAllByInjectId(cveInject.getId()).isEmpty(),
+            injectTestHelper.findFindingsByInjectId(cveInject.getId()).isEmpty(),
             "No findings expected when output has no CVE match");
       }
 
@@ -1498,9 +1501,9 @@ class InjectApiTest extends IntegrationTest {
             .atMost(15, TimeUnit.SECONDS)
             .with()
             .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> findingRepository.findAllByInjectId(credInject.getId()).size() >= 2);
+            .until(() -> injectTestHelper.findFindingsByInjectId(credInject.getId()).size() >= 2);
 
-        List<Finding> credFindings = findingRepository.findAllByInjectId(credInject.getId());
+        List<Finding> credFindings = injectTestHelper.findFindingsByInjectId(credInject.getId());
         assertEquals(2, credFindings.size());
         assertTrue(
             credFindings.stream().anyMatch(f -> f.getValue().contains("alice:secret123")),
@@ -1535,11 +1538,11 @@ class InjectApiTest extends IntegrationTest {
 
         // -- ASSERT --
         Awaitility.await()
-            .atMost(8, TimeUnit.SECONDS)
+            .atMost(15, TimeUnit.SECONDS)
             .with()
             .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> true);
-        assertTrue(findingRepository.findAllByInjectId(credInject.getId()).isEmpty());
+            .until(() -> injectTestHelper.hasInjectStatusTrace(credInject.getId()));
+        assertTrue(injectTestHelper.findFindingsByInjectId(credInject.getId()).isEmpty());
       }
 
       // PortScan
@@ -1548,13 +1551,13 @@ class InjectApiTest extends IntegrationTest {
       @DisplayName("Should create a finding for each open port/service extracted from raw output")
       void shouldCreateFindingForEachOpenPortServiceExtractedFromRawOutput() throws Exception {
         // -- PREPARE --
-        RegexGroup hostGroup = OutputParserFixture.getRegexGroup("host", "$2");
-        RegexGroup portGroup = OutputParserFixture.getRegexGroup("port", "$3");
-        RegexGroup serviceGroup = OutputParserFixture.getRegexGroup("service", "$4");
+        RegexGroup hostGroup = OutputParserFixture.getRegexGroup("host", "$1");
+        RegexGroup portGroup = OutputParserFixture.getRegexGroup("port", "$2");
+        RegexGroup serviceGroup = OutputParserFixture.getRegexGroup("service", "$3");
         ContractOutputElement portScanElement =
             OutputParserFixture.getContractOutputElement(
                 ContractOutputType.PortsScan,
-                "^\\s*(TCP|UDP)\\s+([\\d\\.]+|\\*)?:?(\\d+)\\s+\\S+\\s+(\\S+)",
+                "(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}):(\\d+)\\s+\\S+\\s+(LISTENING)",
                 Set.of(hostGroup, portGroup, serviceGroup),
                 true);
         OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(portScanElement));
@@ -1562,10 +1565,12 @@ class InjectApiTest extends IntegrationTest {
         Inject portScanInject = (Inject) setup[0];
         String agentId = (String) setup[1];
 
-        String rawOutput =
-            "  TCP    192.168.1.10:135            0.0.0.0:0              LISTENING\\n"
-                + "  TCP    10.0.0.5:443            0.0.0.0:0              LISTENING\\n";
-        InjectExecutionInput input = buildStdoutInput(rawOutput);
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage(
+            "{\"stdout\":\"192.168.1.10:135 0.0.0.0:0 LISTENING\\n"
+                + "10.0.0.5:443 0.0.0.0:0 LISTENING\\n\"}");
+        input.setAction(InjectExecutionAction.command_execution);
+        input.setStatus("SUCCESS");
 
         // -- EXECUTE --
         performCallbackRequest(agentId, portScanInject.getId(), input);
@@ -1575,10 +1580,11 @@ class InjectApiTest extends IntegrationTest {
             .atMost(15, TimeUnit.SECONDS)
             .with()
             .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> findingRepository.findAllByInjectId(portScanInject.getId()).size() >= 2);
+            .until(
+                () -> injectTestHelper.findFindingsByInjectId(portScanInject.getId()).size() >= 2);
 
         List<Finding> portScanFindings =
-            findingRepository.findAllByInjectId(portScanInject.getId());
+            injectTestHelper.findFindingsByInjectId(portScanInject.getId());
         assertEquals(2, portScanFindings.size());
         assertTrue(
             portScanFindings.stream().anyMatch(f -> f.getValue().contains("192.168.1.10")),
@@ -1593,13 +1599,13 @@ class InjectApiTest extends IntegrationTest {
       @DisplayName("Should not create PortScan findings when raw output has no port scan matches")
       void shouldNotCreatePortScanFindingsWhenRawOutputHasNoPortScanMatches() throws Exception {
         // -- PREPARE --
-        RegexGroup hostGroup = OutputParserFixture.getRegexGroup("host", "$2");
-        RegexGroup portGroup = OutputParserFixture.getRegexGroup("port", "$3");
-        RegexGroup serviceGroup = OutputParserFixture.getRegexGroup("service", "$4");
+        RegexGroup hostGroup = OutputParserFixture.getRegexGroup("host", "$1");
+        RegexGroup portGroup = OutputParserFixture.getRegexGroup("port", "$2");
+        RegexGroup serviceGroup = OutputParserFixture.getRegexGroup("service", "$3");
         ContractOutputElement portScanElement =
             OutputParserFixture.getContractOutputElement(
                 ContractOutputType.PortsScan,
-                "^\\s*(TCP|UDP)\\s+([\\d\\.]+|\\*)?:?(\\d+)\\s+\\S+\\s+(\\S+)",
+                "(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}):(\\d+)\\s+\\S+\\s+(LISTENING)",
                 Set.of(hostGroup, portGroup, serviceGroup),
                 true);
         OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(portScanElement));
@@ -1614,11 +1620,11 @@ class InjectApiTest extends IntegrationTest {
 
         // -- ASSERT --
         Awaitility.await()
-            .atMost(8, TimeUnit.SECONDS)
+            .atMost(15, TimeUnit.SECONDS)
             .with()
             .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> true);
-        assertTrue(findingRepository.findAllByInjectId(portScanInject.getId()).isEmpty());
+            .until(() -> injectTestHelper.hasInjectStatusTrace(portScanInject.getId()));
+        assertTrue(injectTestHelper.findFindingsByInjectId(portScanInject.getId()).isEmpty());
       }
 
       // Port
@@ -1652,9 +1658,9 @@ class InjectApiTest extends IntegrationTest {
             .atMost(15, TimeUnit.SECONDS)
             .with()
             .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> findingRepository.findAllByInjectId(portInject.getId()).size() >= 2);
+            .until(() -> injectTestHelper.findFindingsByInjectId(portInject.getId()).size() >= 2);
 
-        List<Finding> portFindings = findingRepository.findAllByInjectId(portInject.getId());
+        List<Finding> portFindings = injectTestHelper.findFindingsByInjectId(portInject.getId());
         assertEquals(2, portFindings.size());
         assertTrue(
             portFindings.stream().anyMatch(f -> f.getValue().equals("8080")),
@@ -1688,11 +1694,11 @@ class InjectApiTest extends IntegrationTest {
 
         // -- ASSERT --
         Awaitility.await()
-            .atMost(8, TimeUnit.SECONDS)
+            .atMost(15, TimeUnit.SECONDS)
             .with()
             .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> true);
-        assertTrue(findingRepository.findAllByInjectId(portInject.getId()).isEmpty());
+            .until(() -> injectTestHelper.hasInjectStatusTrace(portInject.getId()));
+        assertTrue(injectTestHelper.findFindingsByInjectId(portInject.getId()).isEmpty());
       }
 
       // Text
@@ -1721,9 +1727,9 @@ class InjectApiTest extends IntegrationTest {
             .atMost(15, TimeUnit.SECONDS)
             .with()
             .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> !findingRepository.findAllByInjectId(textInject.getId()).isEmpty());
+            .until(() -> !injectTestHelper.findFindingsByInjectId(textInject.getId()).isEmpty());
 
-        List<Finding> textFindings = findingRepository.findAllByInjectId(textInject.getId());
+        List<Finding> textFindings = injectTestHelper.findFindingsByInjectId(textInject.getId());
         assertFalse(textFindings.isEmpty(), "Expected at least one text finding");
         textFindings.forEach(f -> assertEquals(ContractOutputType.Text, f.getType()));
       }
@@ -1748,11 +1754,11 @@ class InjectApiTest extends IntegrationTest {
 
         // -- ASSERT --
         Awaitility.await()
-            .atMost(8, TimeUnit.SECONDS)
+            .atMost(15, TimeUnit.SECONDS)
             .with()
             .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> true);
-        assertTrue(findingRepository.findAllByInjectId(textInject.getId()).isEmpty());
+            .until(() -> injectTestHelper.hasInjectStatusTrace(textInject.getId()));
+        assertTrue(injectTestHelper.findFindingsByInjectId(textInject.getId()).isEmpty());
       }
 
       // Number
@@ -1781,9 +1787,10 @@ class InjectApiTest extends IntegrationTest {
             .atMost(15, TimeUnit.SECONDS)
             .with()
             .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> findingRepository.findAllByInjectId(numberInject.getId()).size() >= 2);
+            .until(() -> injectTestHelper.findFindingsByInjectId(numberInject.getId()).size() >= 2);
 
-        List<Finding> numberFindings = findingRepository.findAllByInjectId(numberInject.getId());
+        List<Finding> numberFindings =
+            injectTestHelper.findFindingsByInjectId(numberInject.getId());
         assertEquals(2, numberFindings.size());
         assertTrue(numberFindings.stream().anyMatch(f -> f.getValue().equals("1234")));
         assertTrue(numberFindings.stream().anyMatch(f -> f.getValue().equals("5678")));
@@ -1810,11 +1817,11 @@ class InjectApiTest extends IntegrationTest {
 
         // -- ASSERT --
         Awaitility.await()
-            .atMost(8, TimeUnit.SECONDS)
+            .atMost(15, TimeUnit.SECONDS)
             .with()
             .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> true);
-        assertTrue(findingRepository.findAllByInjectId(numberInject.getId()).isEmpty());
+            .until(() -> injectTestHelper.hasInjectStatusTrace(numberInject.getId()));
+        assertTrue(injectTestHelper.findFindingsByInjectId(numberInject.getId()).isEmpty());
       }
 
       // IPv4
@@ -1848,9 +1855,9 @@ class InjectApiTest extends IntegrationTest {
             .atMost(15, TimeUnit.SECONDS)
             .with()
             .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> !findingRepository.findAllByInjectId(ipv4Inject.getId()).isEmpty());
+            .until(() -> !injectTestHelper.findFindingsByInjectId(ipv4Inject.getId()).isEmpty());
 
-        List<Finding> ipv4Findings = findingRepository.findAllByInjectId(ipv4Inject.getId());
+        List<Finding> ipv4Findings = injectTestHelper.findFindingsByInjectId(ipv4Inject.getId());
         assertFalse(ipv4Findings.isEmpty(), "Expected at least one IPv4 finding");
         assertTrue(
             ipv4Findings.stream().anyMatch(f -> f.getValue().equals("192.168.1.10")),
@@ -1886,11 +1893,11 @@ class InjectApiTest extends IntegrationTest {
 
         // -- ASSERT --
         Awaitility.await()
-            .atMost(8, TimeUnit.SECONDS)
+            .atMost(15, TimeUnit.SECONDS)
             .with()
             .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> true);
-        assertTrue(findingRepository.findAllByInjectId(ipv4Inject.getId()).isEmpty());
+            .until(() -> injectTestHelper.hasInjectStatusTrace(ipv4Inject.getId()));
+        assertTrue(injectTestHelper.findFindingsByInjectId(ipv4Inject.getId()).isEmpty());
       }
 
       // IPv6
@@ -1921,9 +1928,9 @@ class InjectApiTest extends IntegrationTest {
             .atMost(15, TimeUnit.SECONDS)
             .with()
             .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> findingRepository.findAllByInjectId(ipv6Inject.getId()).size() >= 2);
+            .until(() -> injectTestHelper.findFindingsByInjectId(ipv6Inject.getId()).size() >= 2);
 
-        List<Finding> ipv6Findings = findingRepository.findAllByInjectId(ipv6Inject.getId());
+        List<Finding> ipv6Findings = injectTestHelper.findFindingsByInjectId(ipv6Inject.getId());
         assertEquals(2, ipv6Findings.size());
         assertTrue(
             ipv6Findings.stream().anyMatch(f -> f.getValue().contains("fe80::1b03:a1ff:ccdb:b464")),
@@ -1955,11 +1962,11 @@ class InjectApiTest extends IntegrationTest {
 
         // -- ASSERT --
         Awaitility.await()
-            .atMost(8, TimeUnit.SECONDS)
+            .atMost(15, TimeUnit.SECONDS)
             .with()
             .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> true);
-        assertTrue(findingRepository.findAllByInjectId(ipv6Inject.getId()).isEmpty());
+            .until(() -> injectTestHelper.hasInjectStatusTrace(ipv6Inject.getId()));
+        assertTrue(injectTestHelper.findFindingsByInjectId(ipv6Inject.getId()).isEmpty());
       }
     }
   }
