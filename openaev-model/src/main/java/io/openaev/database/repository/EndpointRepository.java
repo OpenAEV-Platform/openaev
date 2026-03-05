@@ -53,20 +53,6 @@ public interface EndpointRepository
   List<Endpoint> findByExternalReference(
       @NotNull final @Param("externalReference") String externalReference);
 
-  @Override
-  @Query(
-      "select COUNT(DISTINCT a) from Inject i "
-          + "join i.assets as a "
-          + "join i.exercise as e "
-          + "join e.grants as grant "
-          + "join grant.group.users as user "
-          + "where user.id = :userId and i.createdAt > :creationDate")
-  long userCount(@Param("userId") String userId, @Param("creationDate") Instant creationDate);
-
-  @Override
-  @Query("select count(distinct e) from Endpoint e where e.createdAt > :creationDate")
-  long globalCount(@Param("creationDate") Instant creationDate);
-
   @Query(
       "SELECT a FROM Inject i"
           + " JOIN i.assets a"

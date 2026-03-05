@@ -25,20 +25,6 @@ public interface AssetGroupRepository
         StatisticRepository,
         JpaSpecificationExecutor<AssetGroup> {
 
-  @Override
-  @Query(
-      "select COUNT(DISTINCT ag) from Inject i "
-          + "join i.assetGroups as ag "
-          + "join i.exercise as e "
-          + "join e.grants as grant "
-          + "join grant.group.users as user "
-          + "where user.id = :userId and i.createdAt > :creationDate")
-  long userCount(@Param("userId") String userId, @Param("creationDate") Instant creationDate);
-
-  @Override
-  @Query("select count(distinct ag) from AssetGroup ag where ag.createdAt > :creationDate")
-  long globalCount(@Param("creationDate") Instant creationDate);
-
   Optional<AssetGroup> findByExternalReferenceAndTenantId(
       String externalReference, String tenantId);
 
