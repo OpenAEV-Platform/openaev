@@ -965,6 +965,45 @@ class InjectApiTest extends IntegrationTest {
           .getContentAsString();
     }
 
+    /**
+     * Builds a pending inject backed by a Command payload that carries the given output parser, and
+     * returns {@code [inject, agentId]}.
+     */
+    private Object[] buildInjectWithOutputParser(OutputParser outputParser) throws Exception {
+      Domain domain = injectTestHelper.forceSaveDomain(DomainFixture.getRandomDomain());
+      Command command =
+          PayloadFixture.createCommand(
+              "bash", "echo test", null, null, new HashSet<>(Set.of(domain)));
+      command.setOutputParsers(Set.of(outputParser));
+      Payload payloadSaved = injectTestHelper.forceSavePayload(command);
+
+      Injector injector = InjectorFixture.createDefaultPayloadInjector();
+      injectTestHelper.forceSaveInjector(injector);
+
+      InjectorContract injectorContract =
+          InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
+              injector, payloadSaved, List.of());
+      injectorContract.setContent(injectorContract.getConvertedContent().toString());
+      InjectorContract injectorContractSaved =
+          injectTestHelper.forceSaveInjectorContract(injectorContract);
+
+      Inject inject = getPendingInjectWithAssets();
+      inject.setInjectorContract(injectorContractSaved);
+      injectTestHelper.forceSaveInject(inject);
+
+      String agentId = ((Endpoint) inject.getAssets().getFirst()).getAgents().getFirst().getId();
+      return new Object[] {inject, agentId};
+    }
+
+    /** Wraps stdout content in the expected JSON envelope used by the implant callback. */
+    private InjectExecutionInput buildStdoutInput(String stdoutContent) {
+      InjectExecutionInput input = new InjectExecutionInput();
+      input.setMessage("{\"stdout\":\"" + stdoutContent + "\"}");
+      input.setAction(InjectExecutionAction.command_execution);
+      input.setStatus("SUCCESS");
+      return input;
+    }
+
     @Nested
     @DisplayName("Action Handling:")
     @KeepRabbit
@@ -1362,45 +1401,6 @@ class InjectApiTest extends IntegrationTest {
         assertEquals(endpointSaved.getId(), findings.getLast().getAssets().getFirst().getId());
       }
 
-      /**
-       * Builds a pending inject backed by a Command payload that carries the given output parser,
-       * and returns {@code [inject, agentId]}.
-       */
-      private Object[] buildInjectWithOutputParser(OutputParser outputParser) throws Exception {
-        Domain domain = injectTestHelper.forceSaveDomain(DomainFixture.getRandomDomain());
-        Command command =
-            PayloadFixture.createCommand(
-                "bash", "echo test", null, null, new HashSet<>(Set.of(domain)));
-        command.setOutputParsers(Set.of(outputParser));
-        Payload payloadSaved = injectTestHelper.forceSavePayload(command);
-
-        Injector injector = InjectorFixture.createDefaultPayloadInjector();
-        injectTestHelper.forceSaveInjector(injector);
-
-        InjectorContract injectorContract =
-            InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
-                injector, payloadSaved, List.of());
-        injectorContract.setContent(injectorContract.getConvertedContent().toString());
-        InjectorContract injectorContractSaved =
-            injectTestHelper.forceSaveInjectorContract(injectorContract);
-
-        Inject inject = getPendingInjectWithAssets();
-        inject.setInjectorContract(injectorContractSaved);
-        injectTestHelper.forceSaveInject(inject);
-
-        String agentId = ((Endpoint) inject.getAssets().getFirst()).getAgents().getFirst().getId();
-        return new Object[] {inject, agentId};
-      }
-
-      /** Wraps stdout content in the expected JSON envelope used by the implant callback. */
-      private InjectExecutionInput buildStdoutInput(String stdoutContent) {
-        InjectExecutionInput input = new InjectExecutionInput();
-        input.setMessage("{\"stdout\":\"" + stdoutContent + "\"}");
-        input.setAction(InjectExecutionAction.command_execution);
-        input.setStatus("SUCCESS");
-        return input;
-      }
-
       // CVE
 
       @Test
@@ -1413,7 +1413,6 @@ class InjectApiTest extends IntegrationTest {
         Inject cveInject = (Inject) setup[0];
         String agentId = (String) setup[1];
 
-        // Build message directly, same format as given_targetedAsset_should_linkFindingToIt
         InjectExecutionInput input = new InjectExecutionInput();
         input.setMessage(
             "{\"stdout\":\"[CVE-2025-25241] [http] [critical] http://192.168.1.10/\\n"
@@ -1885,7 +1884,7 @@ class InjectApiTest extends IntegrationTest {
         Inject ipv4Inject = (Inject) setup[0];
         String agentId = (String) setup[1];
 
-        // 999.x.x.x is not a valid IPv4 — the processor's validate() rejects it
+        // 999.x.x.x is not a valid IPv4, the processor's validate() rejects it
         InjectExecutionInput input = buildStdoutInput("host 999.999.999.999 is unknown");
 
         // -- EXECUTE --
