@@ -1,6 +1,5 @@
 package io.openaev.api.chaining;
 
-import static io.openaev.api.chaining.WorkflowApi.CHAINING_API;
 import static io.openaev.api.chaining.WorkflowApi.WORKFLOW_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.*;
@@ -14,12 +13,7 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ChainingRateLimitInput;
 import io.openaev.api.chaining.dto.ChainingTimeOutInput;
-import io.openaev.database.model.ChainingConfiguration;
-import io.openaev.database.model.ChainingRateLimit;
-import io.openaev.database.model.ChainingTimeOut;
-import io.openaev.database.model.Exercise;
-import io.openaev.database.model.Workflow;
-import io.openaev.database.model.WorkflowStatus;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.ChainingConfigurationRepository;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.WorkflowFixture;
@@ -53,10 +47,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE --
     String response =
         mockMvc
-            .perform(
-                get(
-                    CHAINING_API + WORKFLOW_URI + "/{workflowId}/chaining-configuration",
-                    workflow.getId()))
+            .perform(get(WORKFLOW_URI + "/{workflowId}/chaining-configuration", workflow.getId()))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
@@ -87,10 +78,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE --
     String response =
         mockMvc
-            .perform(
-                get(
-                    CHAINING_API + WORKFLOW_URI + "/{workflowId}/chaining-configuration",
-                    workflowId))
+            .perform(get(WORKFLOW_URI + "/{workflowId}/chaining-configuration", workflowId))
             .andExpect(status().isNotFound())
             .andReturn()
             .getResponse()
@@ -131,9 +119,7 @@ class WorkflowApiTest extends IntegrationTest {
     String response =
         mockMvc
             .perform(
-                put(
-                        CHAINING_API + WORKFLOW_URI + "/{workflowId}/chaining-configuration",
-                        workflow.getId())
+                put(WORKFLOW_URI + "/{workflowId}/chaining-configuration", workflow.getId())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(asJsonString(input))
                     .accept(MediaType.APPLICATION_JSON))
@@ -197,9 +183,7 @@ class WorkflowApiTest extends IntegrationTest {
     String response =
         mockMvc
             .perform(
-                put(
-                        CHAINING_API + WORKFLOW_URI + "/{workflowId}/chaining-configuration",
-                        workflow.getId())
+                put(WORKFLOW_URI + "/{workflowId}/chaining-configuration", workflow.getId())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(asJsonString(input))
                     .accept(MediaType.APPLICATION_JSON))
@@ -213,6 +197,245 @@ class WorkflowApiTest extends IntegrationTest {
         "Element not found: Chaining configuration not found for this workflow: "
             + workflow.getId(),
         JsonPath.read(response, "$.message"));
+  }
+
+  @Test
+  @DisplayName(
+      "Update Chaining Configuration should return 400 when rate limit max attempts is below minimum")
+  void updateChainingConfiguration_shouldReturnBadRequestWhenMaxAttemptsBelowMin()
+      throws Exception {
+    // -- PREPARE --
+    Workflow workflow = createTemplateWorkflow();
+    attachChainingConfiguration(workflow, false, 1, 5, true, 120);
+    ChainingConfigurationInput input =
+        ChainingConfigurationInput.builder()
+            .rateLimit(
+                ChainingRateLimitInput.builder()
+                    .isRateLimit(true)
+                    .maxAttempts(0) // below @Min(1)
+                    .maxTemporalRateMinutes(10)
+                    .build())
+            .timeOut(ChainingTimeOutInput.builder().isTimeOut(false).build())
+            .isSafeMode(true)
+            .build();
+
+    // -- EXECUTE & ASSERT --
+    mockMvc
+        .perform(
+            put(WORKFLOW_URI + "/{workflowId}/chaining-configuration", workflow.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(input))
+                .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName(
+      "Update Chaining Configuration should return 400 when rate limit max attempts exceeds maximum")
+  void updateChainingConfiguration_shouldReturnBadRequestWhenMaxAttemptsAboveMax()
+      throws Exception {
+    // -- PREPARE --
+    Workflow workflow = createTemplateWorkflow();
+    attachChainingConfiguration(workflow, false, 1, 5, true, 120);
+    ChainingConfigurationInput input =
+        ChainingConfigurationInput.builder()
+            .rateLimit(
+                ChainingRateLimitInput.builder()
+                    .isRateLimit(true)
+                    .maxAttempts(100) // above @Max(99)
+                    .maxTemporalRateMinutes(10)
+                    .build())
+            .timeOut(ChainingTimeOutInput.builder().isTimeOut(false).build())
+            .isSafeMode(true)
+            .build();
+
+    // -- EXECUTE & ASSERT --
+    mockMvc
+        .perform(
+            put(WORKFLOW_URI + "/{workflowId}/chaining-configuration", workflow.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(input))
+                .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName(
+      "Update Chaining Configuration should return 400 when rate limit temporal rate minutes is below minimum")
+  void updateChainingConfiguration_shouldReturnBadRequestWhenTemporalRateMinutesBelowMin()
+      throws Exception {
+    // -- PREPARE --
+    Workflow workflow = createTemplateWorkflow();
+    attachChainingConfiguration(workflow, false, 1, 5, true, 120);
+    ChainingConfigurationInput input =
+        ChainingConfigurationInput.builder()
+            .rateLimit(
+                ChainingRateLimitInput.builder()
+                    .isRateLimit(true)
+                    .maxAttempts(3)
+                    .maxTemporalRateMinutes(0) // below @Min(1)
+                    .build())
+            .timeOut(ChainingTimeOutInput.builder().isTimeOut(false).build())
+            .isSafeMode(true)
+            .build();
+
+    // -- EXECUTE & ASSERT --
+    mockMvc
+        .perform(
+            put(WORKFLOW_URI + "/{workflowId}/chaining-configuration", workflow.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(input))
+                .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName(
+      "Update Chaining Configuration should return 400 when rate limit temporal rate minutes exceeds maximum")
+  void updateChainingConfiguration_shouldReturnBadRequestWhenTemporalRateMinutesAboveMax()
+      throws Exception {
+    // -- PREPARE --
+    Workflow workflow = createTemplateWorkflow();
+    attachChainingConfiguration(workflow, false, 1, 5, true, 120);
+    ChainingConfigurationInput input =
+        ChainingConfigurationInput.builder()
+            .rateLimit(
+                ChainingRateLimitInput.builder()
+                    .isRateLimit(true)
+                    .maxAttempts(3)
+                    .maxTemporalRateMinutes(60) // above @Max(59)
+                    .build())
+            .timeOut(ChainingTimeOutInput.builder().isTimeOut(false).build())
+            .isSafeMode(true)
+            .build();
+
+    // -- EXECUTE & ASSERT --
+    mockMvc
+        .perform(
+            put(WORKFLOW_URI + "/{workflowId}/chaining-configuration", workflow.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(input))
+                .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName(
+      "Update Chaining Configuration should return 400 when timeout is enabled with both hours and minutes set to zero")
+  void
+      updateChainingConfiguration_shouldReturnBadRequestWhenTimeOutEnabledWithBothHoursAndMinutesZero()
+          throws Exception {
+    // -- PREPARE --
+    Workflow workflow = createTemplateWorkflow();
+    attachChainingConfiguration(workflow, false, 1, 5, true, 120);
+    ChainingConfigurationInput input =
+        ChainingConfigurationInput.builder()
+            .rateLimit(ChainingRateLimitInput.builder().isRateLimit(false).build())
+            .timeOut(
+                ChainingTimeOutInput.builder()
+                    .isTimeOut(true)
+                    .timeOutHours(0) // both 0 while enabled → @ValidTimeOutDuration
+                    .timeOutMinutes(0)
+                    .build())
+            .isSafeMode(true)
+            .build();
+
+    // -- EXECUTE & ASSERT --
+    mockMvc
+        .perform(
+            put(WORKFLOW_URI + "/{workflowId}/chaining-configuration", workflow.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(input))
+                .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName("Update Chaining Configuration should return 400 when timeout hours exceed maximum")
+  void updateChainingConfiguration_shouldReturnBadRequestWhenTimeOutHoursAboveMax()
+      throws Exception {
+    // -- PREPARE --
+    Workflow workflow = createTemplateWorkflow();
+    attachChainingConfiguration(workflow, false, 1, 5, true, 120);
+    ChainingConfigurationInput input =
+        ChainingConfigurationInput.builder()
+            .rateLimit(ChainingRateLimitInput.builder().isRateLimit(false).build())
+            .timeOut(
+                ChainingTimeOutInput.builder()
+                    .isTimeOut(true)
+                    .timeOutHours(24) // above @Max(23)
+                    .timeOutMinutes(0)
+                    .build())
+            .isSafeMode(true)
+            .build();
+
+    // -- EXECUTE & ASSERT --
+    mockMvc
+        .perform(
+            put(WORKFLOW_URI + "/{workflowId}/chaining-configuration", workflow.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(input))
+                .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName(
+      "Update Chaining Configuration should return 400 when timeout minutes exceed maximum")
+  void updateChainingConfiguration_shouldReturnBadRequestWhenTimeOutMinutesAboveMax()
+      throws Exception {
+    // -- PREPARE --
+    Workflow workflow = createTemplateWorkflow();
+    attachChainingConfiguration(workflow, false, 1, 5, true, 120);
+    ChainingConfigurationInput input =
+        ChainingConfigurationInput.builder()
+            .rateLimit(ChainingRateLimitInput.builder().isRateLimit(false).build())
+            .timeOut(
+                ChainingTimeOutInput.builder()
+                    .isTimeOut(true)
+                    .timeOutHours(0)
+                    .timeOutMinutes(60) // above @Max(59)
+                    .build())
+            .isSafeMode(true)
+            .build();
+
+    // -- EXECUTE & ASSERT --
+    mockMvc
+        .perform(
+            put(WORKFLOW_URI + "/{workflowId}/chaining-configuration", workflow.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(input))
+                .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName("Update Chaining Configuration should return 400 when timeout minutes are negative")
+  void updateChainingConfiguration_shouldReturnBadRequestWhenTimeOutMinutesNegative()
+      throws Exception {
+    // -- PREPARE --
+    Workflow workflow = createTemplateWorkflow();
+    attachChainingConfiguration(workflow, false, 1, 5, true, 120);
+    ChainingConfigurationInput input =
+        ChainingConfigurationInput.builder()
+            .rateLimit(ChainingRateLimitInput.builder().isRateLimit(false).build())
+            .timeOut(
+                ChainingTimeOutInput.builder()
+                    .isTimeOut(true)
+                    .timeOutHours(1)
+                    .timeOutMinutes(-1) // below @Min(0)
+                    .build())
+            .isSafeMode(true)
+            .build();
+
+    // -- EXECUTE & ASSERT --
+    mockMvc
+        .perform(
+            put(WORKFLOW_URI + "/{workflowId}/chaining-configuration", workflow.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(input))
+                .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isBadRequest());
   }
 
   private Workflow createTemplateWorkflow() {

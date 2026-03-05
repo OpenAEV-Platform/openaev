@@ -1,6 +1,7 @@
 package io.openaev.api.chaining.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.api.chaining.annotation.ValidTimeOutDuration;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -17,6 +18,7 @@ import lombok.Setter;
 @AllArgsConstructor
 @NoArgsConstructor
 @Schema(description = "Input for configuring the timeout on a chaining scenario.")
+@ValidTimeOutDuration
 public class ChainingTimeOutInput {
 
   /** Whether the timeout feature is enabled. */

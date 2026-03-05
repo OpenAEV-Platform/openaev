@@ -51,7 +51,7 @@ public class ChainingConfigurationMapper {
     return timeOut;
   }
 
-  // -- Entity → Output --
+  // -- Entity -> Output --
 
   /**
    * Maps a {@link ChainingConfiguration} entity to its {@link ChainingConfigurationOutput} DTO.
