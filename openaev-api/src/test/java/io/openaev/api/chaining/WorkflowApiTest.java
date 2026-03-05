@@ -1,7 +1,7 @@
 package io.openaev.api.chaining;
 
-import static io.openaev.api.chaining.ChainingApi.CHAINING_API;
-import static io.openaev.api.chaining.ChainingApi.WORKFLOW_URI;
+import static io.openaev.api.chaining.WorkflowApi.CHAINING_API;
+import static io.openaev.api.chaining.WorkflowApi.WORKFLOW_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -36,7 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Chaining API integration tests")
-class ChainingApiTest extends IntegrationTest {
+class WorkflowApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mockMvc;
   @Autowired private WorkflowComposer workflowComposer;
@@ -44,7 +44,7 @@ class ChainingApiTest extends IntegrationTest {
   @Autowired private ChainingConfigurationRepository chainingConfigurationRepository;
 
   @Test
-  @DisplayName("fetchChainingConfiguration should return configuration for a template workflow")
+  @DisplayName("Fetch Chaining Configuration should return configuration for a template workflow")
   void fetchChainingConfiguration_shouldReturnConfiguration() throws Exception {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
@@ -79,7 +79,7 @@ class ChainingApiTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("fetchChainingConfiguration should return 404 when workflow does not exist")
+  @DisplayName("Fetch Chaining Configuration should return 404 when workflow does not exist")
   void fetchChainingConfiguration_shouldReturnNotFoundWhenWorkflowMissing() throws Exception {
     // -- PREPARE --
     String workflowId = "missing-workflow-id";
@@ -103,7 +103,7 @@ class ChainingApiTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("updateChainingConfiguration should update and persist configuration")
+  @DisplayName("Update Chaining Configuration should update and persist configuration")
   void updateChainingConfiguration_shouldUpdateAndPersistConfiguration() throws Exception {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
@@ -172,7 +172,7 @@ class ChainingApiTest extends IntegrationTest {
 
   @Test
   @DisplayName(
-      "updateChainingConfiguration should return 404 when chaining configuration is missing")
+      "Update Chaining Configuration should return 404 when chaining configuration is missing")
   void updateChainingConfiguration_shouldReturnNotFoundWhenConfigurationMissing() throws Exception {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();

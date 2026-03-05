@@ -18,11 +18,10 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping(ChainingApi.CHAINING_API)
-@Tag(name = "Chaining API", description = "Operations related to Chaining")
-public class ChainingApi extends RestBehavior {
+@RequestMapping(WorkflowApi.WORKFLOW_URI)
+@Tag(name = "Workflow API", description = "Operations related to Chaining")
+public class WorkflowApi extends RestBehavior {
 
-  public static final String CHAINING_API = "/api/chainings";
   public static final String WORKFLOW_URI = "/api/workflows";
 
   private final ChainingConfigurationMapper chainingConfigurationMapper;
@@ -37,7 +36,7 @@ public class ChainingApi extends RestBehavior {
       responseCode = "404",
       description = "Chaining configuration not found for the specified workflow")
   @ApiResponse(responseCode = "500", description = "Unexpected server error")
-  @GetMapping(WORKFLOW_URI + "/{workflowId}/chaining-configuration")
+  @GetMapping("/{workflowId}/chaining-configuration")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   public ChainingConfigurationOutput fetchChainingConfiguration(
       @PathVariable @NotBlank final String workflowId) {
@@ -51,7 +50,7 @@ public class ChainingApi extends RestBehavior {
   @ApiResponse(responseCode = "200", description = "Chaining configuration updated successfully")
   @ApiResponse(responseCode = "404", description = "Workflow or chaining configuration not found")
   @ApiResponse(responseCode = "500", description = "Unexpected server error")
-  @PutMapping(WORKFLOW_URI + "/{workflowId}/chaining-configuration")
+  @PutMapping("/{workflowId}/chaining-configuration")
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   public ChainingConfigurationOutput updateChainingConfiguration(
       @PathVariable @NotBlank final String workflowId,
