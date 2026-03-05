@@ -312,8 +312,9 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
                 if (!current.get().getAttackPatternsExternalIds().isEmpty()) {
                   List<AttackPattern> attackPatterns =
                       fromIterable(
-                          attackPatternRepository.findAllByExternalIdInIgnoreCase(
-                              current.get().getAttackPatternsExternalIds()));
+                          attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
+                              current.get().getAttackPatternsExternalIds(),
+                              injector.getTenant().getId()));
                   contract.setAttackPatterns(attackPatterns);
                 } else {
                   contract.setAttackPatterns(new ArrayList<>());

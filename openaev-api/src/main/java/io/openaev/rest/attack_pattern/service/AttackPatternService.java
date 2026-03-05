@@ -4,6 +4,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.SecurityCoverage;
 import io.openaev.database.model.StixRefToExternalRef;
@@ -142,7 +143,8 @@ public class AttackPatternService {
     if (ids.isEmpty()) {
       return Collections.emptyList();
     }
-    return this.attackPatternRepository.findAllByExternalIdInIgnoreCase(new ArrayList<>(ids));
+    return this.attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
+        new ArrayList<>(ids), TenantContext.getCurrentTenant());
   }
 
   private List<AttackPattern> getAttackPatternsByInternalIds(Set<String> ids) {
