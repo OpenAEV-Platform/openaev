@@ -1361,6 +1361,606 @@ class InjectApiTest extends IntegrationTest {
         assertEquals(1, findings.getLast().getAssets().size());
         assertEquals(endpointSaved.getId(), findings.getLast().getAssets().getFirst().getId());
       }
+
+      /**
+       * Builds a pending inject backed by a Command payload that carries the given output parser,
+       * and returns {@code [inject, agentId]}.
+       */
+      private Object[] buildInjectWithOutputParser(OutputParser outputParser) throws Exception {
+        Domain domain = injectTestHelper.forceSaveDomain(DomainFixture.getRandomDomain());
+        Command command =
+            PayloadFixture.createCommand(
+                "bash", "echo test", null, null, new HashSet<>(Set.of(domain)));
+        command.setOutputParsers(Set.of(outputParser));
+        Payload payloadSaved = injectTestHelper.forceSavePayload(command);
+
+        Injector injector = InjectorFixture.createDefaultPayloadInjector();
+        injectTestHelper.forceSaveInjector(injector);
+
+        InjectorContract injectorContract =
+            InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
+                injector, payloadSaved, List.of());
+        injectorContract.setContent(injectorContract.getConvertedContent().toString());
+        InjectorContract injectorContractSaved =
+            injectTestHelper.forceSaveInjectorContract(injectorContract);
+
+        Inject inject = getPendingInjectWithAssets();
+        inject.setInjectorContract(injectorContractSaved);
+        injectTestHelper.forceSaveInject(inject);
+
+        String agentId = ((Endpoint) inject.getAssets().getFirst()).getAgents().getFirst().getId();
+        return new Object[] {inject, agentId};
+      }
+
+      /** Wraps stdout content in the expected JSON envelope used by the implant callback. */
+      private InjectExecutionInput buildStdoutInput(String stdoutContent) {
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage("{\"stdout\":\"" + stdoutContent.replace("\\", "\\\\") + "\"}");
+        input.setAction(InjectExecutionAction.command_execution);
+        input.setStatus("SUCCESS");
+        return input;
+      }
+
+      // CVE
+
+      @Test
+      @DisplayName("Should create findings for each CVE extracted from raw output")
+      void shouldCreateFindingsForEachCveExtractedFromRawOutput() throws Exception {
+        // -- PREPARE --
+        ContractOutputElement cveElement = OutputParserFixture.getCVEOutputElement();
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(cveElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject cveInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        String rawOutput =
+            "[CVE-2025-25241] [http] [critical] http://192.168.1.10/\\n"
+                + "[CVE-2025-99999] [http] [high] http://192.168.1.20/\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, cveInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> findingRepository.findAllByInjectId(cveInject.getId()).size() >= 2);
+
+        List<Finding> cveFindings = findingRepository.findAllByInjectId(cveInject.getId());
+        assertEquals(2, cveFindings.size());
+        assertTrue(
+            cveFindings.stream().anyMatch(f -> f.getValue().contains("CVE-2025-25241")),
+            "Expected finding for CVE-2025-25241");
+        assertTrue(
+            cveFindings.stream().anyMatch(f -> f.getValue().contains("CVE-2025-99999")),
+            "Expected finding for CVE-2025-99999");
+        cveFindings.forEach(f -> assertEquals(ContractOutputType.CVE, f.getType()));
+      }
+
+      @Test
+      @DisplayName("Should not create CVE findings when raw output contains no CVE matches")
+      void shouldNotCreateCveFindingsWhenRawOutputContainsNoCveMatches() throws Exception {
+        // -- PREPARE --
+        ContractOutputElement cveElement = OutputParserFixture.getCVEOutputElement();
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(cveElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject cveInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = buildStdoutInput("no vulnerabilities found");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, cveInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(8, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> true);
+        assertTrue(
+            findingRepository.findAllByInjectId(cveInject.getId()).isEmpty(),
+            "No findings expected when output has no CVE match");
+      }
+
+      // Credentials
+
+      @Test
+      @DisplayName("Should create a finding for each credential pair extracted from raw output")
+      void shouldCreateFindingForEachCredentialPairExtractedFromRawOutput() throws Exception {
+        // -- PREPARE --
+        RegexGroup usernameGroup = OutputParserFixture.getRegexGroup("username", "$2");
+        RegexGroup passwordGroup = OutputParserFixture.getRegexGroup("password", "$3");
+        ContractOutputElement credElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Credentials,
+                "(\\S+)\\\\(\\S+):(\\S+)",
+                Set.of(usernameGroup, passwordGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(credElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject credInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        // domain\\user:pass format — each line produces one finding
+        String rawOutput =
+            "SMB 192.168.11.23 445 SERVER [+] WORKGROUP\\\\alice:secret123 (Pwn3d!)\\n"
+                + "SMB 192.168.11.23 445 SERVER [+] WORKGROUP\\\\bob:hunter2 (Pwn3d!)\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, credInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> findingRepository.findAllByInjectId(credInject.getId()).size() >= 2);
+
+        List<Finding> credFindings = findingRepository.findAllByInjectId(credInject.getId());
+        assertEquals(2, credFindings.size());
+        assertTrue(
+            credFindings.stream().anyMatch(f -> f.getValue().contains("alice:secret123")),
+            "Expected finding for alice:secret123");
+        assertTrue(
+            credFindings.stream().anyMatch(f -> f.getValue().contains("bob:hunter2")),
+            "Expected finding for bob:hunter2");
+        credFindings.forEach(f -> assertEquals(ContractOutputType.Credentials, f.getType()));
+      }
+
+      @Test
+      @DisplayName("Should not create credentials findings when raw output contains no credentials")
+      void shouldNotCreateCredentialsFindingsWhenRawOutputContainsNoCredentials() throws Exception {
+        // -- PREPARE --
+        RegexGroup usernameGroup = OutputParserFixture.getRegexGroup("username", "$2");
+        RegexGroup passwordGroup = OutputParserFixture.getRegexGroup("password", "$3");
+        ContractOutputElement credElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Credentials,
+                "(\\S+)\\\\(\\S+):(\\S+)",
+                Set.of(usernameGroup, passwordGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(credElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject credInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = buildStdoutInput("no credentials here");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, credInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(8, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> true);
+        assertTrue(findingRepository.findAllByInjectId(credInject.getId()).isEmpty());
+      }
+
+      // PortScan
+
+      @Test
+      @DisplayName("Should create a finding for each open port/service extracted from raw output")
+      void shouldCreateFindingForEachOpenPortServiceExtractedFromRawOutput() throws Exception {
+        // -- PREPARE --
+        RegexGroup hostGroup = OutputParserFixture.getRegexGroup("host", "$2");
+        RegexGroup portGroup = OutputParserFixture.getRegexGroup("port", "$3");
+        RegexGroup serviceGroup = OutputParserFixture.getRegexGroup("service", "$4");
+        ContractOutputElement portScanElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.PortsScan,
+                "^\\s*(TCP|UDP)\\s+([\\d\\.]+|\\*)?:?(\\d+)\\s+\\S+\\s+(\\S+)",
+                Set.of(hostGroup, portGroup, serviceGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(portScanElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject portScanInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        String rawOutput =
+            "  TCP    192.168.1.10:135            0.0.0.0:0              LISTENING\\n"
+                + "  TCP    10.0.0.5:443            0.0.0.0:0              LISTENING\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, portScanInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> findingRepository.findAllByInjectId(portScanInject.getId()).size() >= 2);
+
+        List<Finding> portScanFindings =
+            findingRepository.findAllByInjectId(portScanInject.getId());
+        assertEquals(2, portScanFindings.size());
+        assertTrue(
+            portScanFindings.stream().anyMatch(f -> f.getValue().contains("192.168.1.10")),
+            "Expected finding for 192.168.1.10:135");
+        assertTrue(
+            portScanFindings.stream().anyMatch(f -> f.getValue().contains("10.0.0.5")),
+            "Expected finding for 10.0.0.5:443");
+        portScanFindings.forEach(f -> assertEquals(ContractOutputType.PortsScan, f.getType()));
+      }
+
+      @Test
+      @DisplayName("Should not create PortScan findings when raw output has no port scan matches")
+      void shouldNotCreatePortScanFindingsWhenRawOutputHasNoPortScanMatches() throws Exception {
+        // -- PREPARE --
+        RegexGroup hostGroup = OutputParserFixture.getRegexGroup("host", "$2");
+        RegexGroup portGroup = OutputParserFixture.getRegexGroup("port", "$3");
+        RegexGroup serviceGroup = OutputParserFixture.getRegexGroup("service", "$4");
+        ContractOutputElement portScanElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.PortsScan,
+                "^\\s*(TCP|UDP)\\s+([\\d\\.]+|\\*)?:?(\\d+)\\s+\\S+\\s+(\\S+)",
+                Set.of(hostGroup, portGroup, serviceGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(portScanElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject portScanInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = buildStdoutInput("nothing to scan");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, portScanInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(8, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> true);
+        assertTrue(findingRepository.findAllByInjectId(portScanInject.getId()).isEmpty());
+      }
+
+      // Port
+
+      @Test
+      @DisplayName("Should create a finding for each port number extracted from raw output")
+      void shouldCreateFindingForEachPortNumberExtractedFromRawOutput() throws Exception {
+        // -- PREPARE --
+        RegexGroup portGroup = OutputParserFixture.getRegexGroup("port", "$1");
+        ContractOutputElement portElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Port,
+                "(?:TCP|UDP)\\s+[\\d\\.]+:(\\d+)",
+                Set.of(portGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(portElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject portInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        String rawOutput =
+            "  TCP    192.168.1.10:8080            0.0.0.0:0              LISTENING\\n"
+                + "  TCP    192.168.1.10:443            0.0.0.0:0              LISTENING\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, portInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> findingRepository.findAllByInjectId(portInject.getId()).size() >= 2);
+
+        List<Finding> portFindings = findingRepository.findAllByInjectId(portInject.getId());
+        assertEquals(2, portFindings.size());
+        assertTrue(
+            portFindings.stream().anyMatch(f -> f.getValue().equals("8080")),
+            "Expected finding for port 8080");
+        assertTrue(
+            portFindings.stream().anyMatch(f -> f.getValue().equals("443")),
+            "Expected finding for port 443");
+        portFindings.forEach(f -> assertEquals(ContractOutputType.Port, f.getType()));
+      }
+
+      @Test
+      @DisplayName("Should not create Port findings when raw output contains no port matches")
+      void shouldNotCreatePortFindingsWhenRawOutputContainsNoPortMatches() throws Exception {
+        // -- PREPARE --
+        RegexGroup portGroup = OutputParserFixture.getRegexGroup("port", "$1");
+        ContractOutputElement portElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Port,
+                "(?:TCP|UDP)\\s+[\\d\\.]+:(\\d+)",
+                Set.of(portGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(portElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject portInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = buildStdoutInput("no ports here");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, portInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(8, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> true);
+        assertTrue(findingRepository.findAllByInjectId(portInject.getId()).isEmpty());
+      }
+
+      // Text
+
+      @Test
+      @DisplayName("Should create findings for each text value extracted from raw output")
+      void shouldCreateFindingsForEachTextValueExtractedFromRawOutput() throws Exception {
+        // -- PREPARE --
+        RegexGroup textGroup = OutputParserFixture.getRegexGroup("text", "$0");
+        ContractOutputElement textElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Text, "^(\\S+)", Set.of(textGroup), true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(textElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject textInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        String rawOutput = "System\\nRegistry\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, textInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> !findingRepository.findAllByInjectId(textInject.getId()).isEmpty());
+
+        List<Finding> textFindings = findingRepository.findAllByInjectId(textInject.getId());
+        assertFalse(textFindings.isEmpty(), "Expected at least one text finding");
+        textFindings.forEach(f -> assertEquals(ContractOutputType.Text, f.getType()));
+      }
+
+      @Test
+      @DisplayName("Should not create Text findings when raw output contains no matches")
+      void shouldNotCreateTextFindingsWhenRawOutputContainsNoMatches() throws Exception {
+        // -- PREPARE --
+        RegexGroup textGroup = OutputParserFixture.getRegexGroup("text", "$1");
+        ContractOutputElement textElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Text, "IMPOSSIBLE_PATTERN_XYZ_123", Set.of(textGroup), true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(textElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject textInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = buildStdoutInput("some random text");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, textInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(8, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> true);
+        assertTrue(findingRepository.findAllByInjectId(textInject.getId()).isEmpty());
+      }
+
+      // Number
+
+      @Test
+      @DisplayName("Should create findings for each number extracted from raw output")
+      void shouldCreateFindingsForEachNumberExtractedFromRawOutput() throws Exception {
+        // -- PREPARE --
+        RegexGroup numberGroup = OutputParserFixture.getRegexGroup("number", "$1");
+        ContractOutputElement numberElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Number, "(\\d{4,})", Set.of(numberGroup), true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(numberElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject numberInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        String rawOutput = "Process 1234 used 5678 bytes\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, numberInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> findingRepository.findAllByInjectId(numberInject.getId()).size() >= 2);
+
+        List<Finding> numberFindings = findingRepository.findAllByInjectId(numberInject.getId());
+        assertEquals(2, numberFindings.size());
+        assertTrue(numberFindings.stream().anyMatch(f -> f.getValue().equals("1234")));
+        assertTrue(numberFindings.stream().anyMatch(f -> f.getValue().equals("5678")));
+        numberFindings.forEach(f -> assertEquals(ContractOutputType.Number, f.getType()));
+      }
+
+      @Test
+      @DisplayName("Should not create Number findings when raw output contains no numeric matches")
+      void shouldNotCreateNumberFindingsWhenRawOutputContainsNoNumericMatches() throws Exception {
+        // -- PREPARE --
+        RegexGroup numberGroup = OutputParserFixture.getRegexGroup("number", "$1");
+        ContractOutputElement numberElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Number, "(\\d{4,})", Set.of(numberGroup), true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(numberElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject numberInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = buildStdoutInput("no big numbers here");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, numberInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(8, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> true);
+        assertTrue(findingRepository.findAllByInjectId(numberInject.getId()).isEmpty());
+      }
+
+      // IPv4
+
+      @Test
+      @DisplayName("Should create a finding for each valid IPv4 address extracted from raw output")
+      void shouldCreateFindingForEachValidIPv4AddressExtractedFromRawOutput() throws Exception {
+        // -- PREPARE --
+        RegexGroup ipv4Group = OutputParserFixture.getRegexGroup("ipv4", "$0");
+        ContractOutputElement ipv4Element =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.IPv4,
+                "\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b",
+                Set.of(ipv4Group),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(ipv4Element));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject ipv4Inject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        String rawOutput =
+            "  TCP    192.168.1.10:135            0.0.0.0:0              LISTENING\\n"
+                + "  TCP    10.0.0.5:443            0.0.0.0:0              LISTENING\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, ipv4Inject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> !findingRepository.findAllByInjectId(ipv4Inject.getId()).isEmpty());
+
+        List<Finding> ipv4Findings = findingRepository.findAllByInjectId(ipv4Inject.getId());
+        assertFalse(ipv4Findings.isEmpty(), "Expected at least one IPv4 finding");
+        assertTrue(
+            ipv4Findings.stream().anyMatch(f -> f.getValue().equals("192.168.1.10")),
+            "Expected finding for 192.168.1.10");
+        assertTrue(
+            ipv4Findings.stream().anyMatch(f -> f.getValue().equals("10.0.0.5")),
+            "Expected finding for 10.0.0.5");
+        ipv4Findings.forEach(f -> assertEquals(ContractOutputType.IPv4, f.getType()));
+      }
+
+      @Test
+      @DisplayName(
+          "Should not create IPv4 findings when raw output contains no valid IPv4 addresses")
+      void shouldNotCreateIPv4FindingsWhenRawOutputContainsNoValidIPv4Addresses() throws Exception {
+        // -- PREPARE --
+        RegexGroup ipv4Group = OutputParserFixture.getRegexGroup("ipv4", "$0");
+        ContractOutputElement ipv4Element =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.IPv4,
+                "\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b",
+                Set.of(ipv4Group),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(ipv4Element));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject ipv4Inject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        // 999.x.x.x is not a valid IPv4 — the processor's validate() rejects it
+        InjectExecutionInput input = buildStdoutInput("host 999.999.999.999 is unknown");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, ipv4Inject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(8, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> true);
+        assertTrue(findingRepository.findAllByInjectId(ipv4Inject.getId()).isEmpty());
+      }
+
+      // IPv6
+
+      @Test
+      @DisplayName("Should create a finding for each valid IPv6 address extracted from raw output")
+      void shouldCreateFindingForEachValidIPv6AddressExtractedFromRawOutput() throws Exception {
+        // -- PREPARE --
+        RegexGroup ipv6Group = OutputParserFixture.getRegexGroup("ipv6", "$1");
+        String ipv6Regex = "\\[([a-fA-F0-9:]+(?:%[a-zA-Z0-9]+)?)\\]:\\d+";
+        ContractOutputElement ipv6Element =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.IPv6, ipv6Regex, Set.of(ipv6Group), true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(ipv6Element));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject ipv6Inject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        String rawOutput =
+            " UDP [fe80::1b03:a1ff:ccdb:b464%66]:1900 *:*\\n" + " UDP [2001:db8::1]:8080 *:*\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, ipv6Inject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> findingRepository.findAllByInjectId(ipv6Inject.getId()).size() >= 2);
+
+        List<Finding> ipv6Findings = findingRepository.findAllByInjectId(ipv6Inject.getId());
+        assertEquals(2, ipv6Findings.size());
+        assertTrue(
+            ipv6Findings.stream().anyMatch(f -> f.getValue().contains("fe80::1b03:a1ff:ccdb:b464")),
+            "Expected finding for fe80::1b03:a1ff:ccdb:b464");
+        assertTrue(
+            ipv6Findings.stream().anyMatch(f -> f.getValue().contains("2001:db8::1")),
+            "Expected finding for 2001:db8::1");
+        ipv6Findings.forEach(f -> assertEquals(ContractOutputType.IPv6, f.getType()));
+      }
+
+      @Test
+      @DisplayName("Should not create IPv6 findings when raw output contains no IPv6 addresses")
+      void shouldNotCreateIPv6FindingsWhenRawOutputContainsNoIPv6Addresses() throws Exception {
+        // -- PREPARE --
+        RegexGroup ipv6Group = OutputParserFixture.getRegexGroup("ipv6", "$1");
+        String ipv6Regex = "\\[([a-fA-F0-9:]+(?:%[a-zA-Z0-9]+)?)\\]:\\d+";
+        ContractOutputElement ipv6Element =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.IPv6, ipv6Regex, Set.of(ipv6Group), true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(ipv6Element));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject ipv6Inject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = buildStdoutInput("no ipv6 addresses");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, ipv6Inject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(8, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> true);
+        assertTrue(findingRepository.findAllByInjectId(ipv6Inject.getId()).isEmpty());
+      }
     }
   }
 
