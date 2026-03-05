@@ -2,6 +2,8 @@ package io.openaev.execution;
 
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE;
+import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_TYPE;
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
 import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME;
@@ -59,6 +61,9 @@ public class ExecutionExecutorService {
     agents.removeAll(sentineloneAgents);
     Set<Agent> taniumAgents = executorUtils.findAgentsByExecutorType(agents, TANIUM_EXECUTOR_TYPE);
     agents.removeAll(taniumAgents);
+    Set<Agent> cortexAgents =
+        executorUtils.findAgentsByExecutorType(agents, PALOALTOCORTEX_EXECUTOR_TYPE);
+    agents.removeAll(cortexAgents);
 
     AtomicBoolean atLeastOneExecution = new AtomicBoolean(false);
     // Manage inactive agents
@@ -74,6 +79,9 @@ public class ExecutionExecutorService {
     // Manage Tanium agents for batch execution
     launchBatchExecutorContextForAgent(
         taniumAgents, TANIUM_EXECUTOR_NAME, inject, injectStatus, atLeastOneExecution);
+    // Manage Palo Alto Cortex agents for batch execution
+    launchBatchExecutorContextForAgent(
+        cortexAgents, PALOALTOCORTEX_EXECUTOR_NAME, inject, injectStatus, atLeastOneExecution);
     // Manage remaining agents
     agents.forEach(
         agent -> {
