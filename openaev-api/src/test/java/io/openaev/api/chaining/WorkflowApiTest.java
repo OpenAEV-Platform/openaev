@@ -47,7 +47,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE --
     String response =
         mockMvc
-            .perform(get(WORKFLOW_URI + "/{workflowId}/chaining-configuration", workflow.getId()))
+            .perform(get(WORKFLOW_URI + "/" + workflow.getId() + "/chaining-configuration"))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
@@ -78,7 +78,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE --
     String response =
         mockMvc
-            .perform(get(WORKFLOW_URI + "/{workflowId}/chaining-configuration", workflowId))
+            .perform(get(WORKFLOW_URI + "/" + workflowId + "/chaining-configuration"))
             .andExpect(status().isNotFound())
             .andReturn()
             .getResponse()
@@ -119,7 +119,7 @@ class WorkflowApiTest extends IntegrationTest {
     String response =
         mockMvc
             .perform(
-                put(WORKFLOW_URI + "/{workflowId}/chaining-configuration", workflow.getId())
+                put(WORKFLOW_URI + "/" + workflow.getId() + "/chaining-configuration")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(asJsonString(input))
                     .accept(MediaType.APPLICATION_JSON))
@@ -183,7 +183,7 @@ class WorkflowApiTest extends IntegrationTest {
     String response =
         mockMvc
             .perform(
-                put(WORKFLOW_URI + "/{workflowId}/chaining-configuration", workflow.getId())
+                put(WORKFLOW_URI + "/" + workflow.getId() + "/chaining-configuration")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(asJsonString(input))
                     .accept(MediaType.APPLICATION_JSON))
@@ -222,7 +222,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE & ASSERT --
     mockMvc
         .perform(
-            put(WORKFLOW_URI + "/{workflowId}/chaining-configuration", workflow.getId())
+            put(WORKFLOW_URI + "/" + workflow.getId() + "/chaining-configuration")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
                 .accept(MediaType.APPLICATION_JSON))
@@ -252,7 +252,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE & ASSERT --
     mockMvc
         .perform(
-            put(WORKFLOW_URI + "/{workflowId}/chaining-configuration", workflow.getId())
+            put(WORKFLOW_URI + "/" + workflow.getId() + "/chaining-configuration")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
                 .accept(MediaType.APPLICATION_JSON))
@@ -282,7 +282,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE & ASSERT --
     mockMvc
         .perform(
-            put(WORKFLOW_URI + "/{workflowId}/chaining-configuration", workflow.getId())
+            put(WORKFLOW_URI + "/" + workflow.getId() + "/chaining-configuration")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
                 .accept(MediaType.APPLICATION_JSON))
@@ -312,7 +312,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE & ASSERT --
     mockMvc
         .perform(
-            put(WORKFLOW_URI + "/{workflowId}/chaining-configuration", workflow.getId())
+            put(WORKFLOW_URI + "/" + workflow.getId() + "/chaining-configuration")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
                 .accept(MediaType.APPLICATION_JSON))
@@ -343,7 +343,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE & ASSERT --
     mockMvc
         .perform(
-            put(WORKFLOW_URI + "/{workflowId}/chaining-configuration", workflow.getId())
+            put(WORKFLOW_URI + "/" + workflow.getId() + "/chaining-configuration")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
                 .accept(MediaType.APPLICATION_JSON))
@@ -372,7 +372,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE & ASSERT --
     mockMvc
         .perform(
-            put(WORKFLOW_URI + "/{workflowId}/chaining-configuration", workflow.getId())
+            put(WORKFLOW_URI + "/" + workflow.getId() + "/chaining-configuration")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
                 .accept(MediaType.APPLICATION_JSON))
@@ -402,7 +402,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE & ASSERT --
     mockMvc
         .perform(
-            put(WORKFLOW_URI + "/{workflowId}/chaining-configuration", workflow.getId())
+            put(WORKFLOW_URI + "/" + workflow.getId() + "/chaining-configuration")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
                 .accept(MediaType.APPLICATION_JSON))
@@ -431,7 +431,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE & ASSERT --
     mockMvc
         .perform(
-            put(WORKFLOW_URI + "/{workflowId}/chaining-configuration", workflow.getId())
+            put(WORKFLOW_URI + "/" + workflow.getId() + "/chaining-configuration")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
                 .accept(MediaType.APPLICATION_JSON))
@@ -442,6 +442,8 @@ class WorkflowApiTest extends IntegrationTest {
     Workflow workflow = WorkflowFixture.getDefaultWorkflowTemplate();
     workflow.setStatus(WorkflowStatus.TEMPLATE);
     Exercise exercise = ExerciseFixture.getExercise();
+    exercise.setFrom("exercise@mail.fr");
+
     return workflowComposer
         .forWorkflow(workflow)
         .withSimulation(exerciseComposer.forExercise(exercise))
