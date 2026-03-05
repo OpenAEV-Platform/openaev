@@ -78,7 +78,7 @@ public class ChainingConfigurationMapper {
       return null;
     }
     return ChainingRateLimitOutput.builder()
-        .isRateLimit(rateLimit.isEnableRateLimit())
+        .enableRateLimit(rateLimit.isEnableRateLimit())
         .maxAttempts(rateLimit.getMaxAttempts())
         .maxTemporalRateMinutes(rateLimit.getMaxTemporalRateMinutes())
         .build();
@@ -97,7 +97,7 @@ public class ChainingConfigurationMapper {
     }
     Integer seconds = timeOut.getTimeOutSeconds();
     return ChainingTimeOutOutput.builder()
-        .isTimeOut(timeOut.isEnableTimeOut())
+        .enableTimeOut(timeOut.isEnableTimeOut())
         .timeOutHours(seconds != null ? seconds / 3600 : null)
         .timeOutMinutes(seconds != null ? (seconds % 3600) / 60 : null)
         .build();

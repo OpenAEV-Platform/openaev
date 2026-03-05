@@ -14,7 +14,7 @@ public class ChainingTimeOutOutput {
   @Schema(
       description = "Indicates whether the timeout feature is enabled for this chaining scenario.")
   @JsonProperty("chaining_enable_time_out")
-  private boolean isTimeOut;
+  private boolean enableTimeOut;
 
   @Schema(
       description =

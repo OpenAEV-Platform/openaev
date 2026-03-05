@@ -14,7 +14,7 @@ public class ChainingRateLimitOutput {
       description =
           "Indicates whether the rate limiting feature is enabled for this chaining scenario.")
   @JsonProperty("chaining_enable_rate_limit")
-  private boolean isRateLimit;
+  private boolean enableRateLimit;
 
   @Schema(
       description =
