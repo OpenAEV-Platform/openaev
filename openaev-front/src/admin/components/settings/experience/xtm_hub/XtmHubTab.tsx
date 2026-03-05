@@ -32,7 +32,7 @@ const XtmHubTab: React.FC = () => {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const { settings } = useAuth();
   const isEnterpriseEdition = settings.platform_license?.license_is_validated === true;
-  const isDemoMode = isDemoInstance(settings.platform_base_url);
+  const isDemoMode = isDemoInstance(settings);
   const registrationHubUrl = settings?.xtm_hub_url ?? XTM_HUB_DEFAULT_URL;
   const [processStep, setProcessStep] = useState<ProcessSteps>(
     ProcessSteps.INSTRUCTIONS,

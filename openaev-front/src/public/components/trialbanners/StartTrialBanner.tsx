@@ -10,7 +10,7 @@ const StartTrialBanner = (settings: { settings: PlatformSettings }) => {
   const { t } = useFormatter();
   const theme = useTheme();
 
-  if (!settings || isEmptyField(settings.settings?.xtm_hub_url) || !isDemoInstance(settings.settings.platform_base_url)) return <></>;
+  if (!settings || isEmptyField(settings.settings?.xtm_hub_url) || !isDemoInstance(settings.settings)) return <></>;
 
   // REMOVE WHEN REMOVING FEATURE FLAG OPENAEV_TRIALS_XTMHUB
   const freeTrialsEnabled = settings.settings?.enabled_dev_features?.includes('OPENAEV_TRIALS_XTMHUB') ?? false;

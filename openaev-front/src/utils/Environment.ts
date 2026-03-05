@@ -4,6 +4,8 @@ import { useLocation } from 'react-router';
 import { Subject, timer } from 'rxjs';
 import { debounce } from 'rxjs/operators';
 
+import type { PlatformSettings } from './api-types';
+
 export interface Message {
   type: 'error' | 'message';
   text: ReactNode;
@@ -43,9 +45,11 @@ export const useQueryParameter = (parameters: string[]): (string | null)[] => {
   return parameters.map(p => query.get(p));
 };
 
-// TODO: Replace this hardcoded URL check with an environment variable (e.g. DEMO_MODE=true)
 const DEMO_PLATFORM_URL = 'https://demo.openaev.io';
-export const isDemoInstance = (platformBaseUrl?: string) => platformBaseUrl === DEMO_PLATFORM_URL;
+export const isDemoInstance = (settings: PlatformSettings) => {
+  // TODO: Replace this hardcoded URL check with checking a platform setting (e.g. DEMO_MODE=true)
+  return settings.platform_base_url === DEMO_PLATFORM_URL;
+};
 
 export const XTM_HUB_DEFAULT_URL = 'https://hub.filigran.io';
 
