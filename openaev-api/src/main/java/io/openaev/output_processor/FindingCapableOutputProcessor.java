@@ -51,8 +51,6 @@ public abstract class FindingCapableOutputProcessor extends AbstractOutputProces
   /**
    * Hook called after findings are generated. Override to perform additional processing such as
    * expectation matching without needing to override {@link #process} entirely.
-   *
-   * <p>Default implementation does nothing.
    */
   protected void afterFindings(
       ExecutionProcessingContext executionContext, JsonNode structuredOutputNode) {
