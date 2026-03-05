@@ -32,7 +32,7 @@ public class ChainingTimeOutInput {
       maximum = "23")
   @JsonProperty("chaining_time_out_hours")
   @Min(value = 0, message = "Timeout hours must be zero or greater")
-  @Max(value = 24, message = "Timeout hours must be at most 23")
+  @Max(value = 23, message = "Timeout hours must be at most 23")
   private Integer timeOutHours;
 
   /** Number of minutes for the timeout. Between 0 and 59. */
