@@ -870,7 +870,6 @@ export interface ChainingRateLimitOutput {
    * @default 3600
    */
   chaining_max_temporal_rate_minutes?: number;
-  rateLimit?: boolean;
 }
 
 /** Input for configuring the timeout on a chaining scenario. */
@@ -881,7 +880,7 @@ export interface ChainingTimeOutInput {
    * Number of hours for the timeout of the attack chaining scenario.
    * @format int32
    * @min 0
-   * @max 24
+   * @max 23
    */
   chaining_time_out_hours?: number;
   /**
@@ -911,7 +910,6 @@ export interface ChainingTimeOutOutput {
    * @max 59
    */
   chaining_time_out_minutes?: number;
-  timeOut?: boolean;
 }
 
 export interface Challenge {
