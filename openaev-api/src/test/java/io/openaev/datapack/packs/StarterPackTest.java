@@ -25,7 +25,6 @@ import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -455,18 +454,30 @@ public class StarterPackTest extends IntegrationTest {
   }
 
   private void verifyInjectorContracts() {
-    Iterable<InjectorContract> injectorContractsIterable = this.injectorContractRepository.findAll();
+    Iterable<InjectorContract> injectorContractsIterable =
+        this.injectorContractRepository.findAll();
     List<InjectorContract> injectorContracts = Lists.newArrayList(injectorContractsIterable);
     assertEquals(15, injectorContracts.size());
 
-    InjectorContract injectorContractsDummyNuclei = injectorContracts.stream().filter(c -> "2e7fc079-4531-4444-4444-928fe4a2fc0b".equals(c.getId())).findFirst().orElse(null);
+    InjectorContract injectorContractsDummyNuclei =
+        injectorContracts.stream()
+            .filter(c -> "2e7fc079-4531-4444-4444-928fe4a2fc0b".equals(c.getId()))
+            .findFirst()
+            .orElse(null);
     assertNotNull(injectorContractsDummyNuclei);
     assertEquals("Dummy Nuclei", injectorContractsDummyNuclei.getInjector().getName());
     assertTrue(injectorContractsDummyNuclei.isAtomicTesting());
     assertFalse(injectorContractsDummyNuclei.getNeedsExecutor());
 
-
-    InjectorContract injectorContractsBeaconPayload = injectorContracts.stream().filter(c -> c.getPayload() != null && "Download beacon to target with some masquerading - Salt Typhoon Style".equals(c.getPayload().getName())).findFirst().orElse(null);
+    InjectorContract injectorContractsBeaconPayload =
+        injectorContracts.stream()
+            .filter(
+                c ->
+                    c.getPayload() != null
+                        && "Download beacon to target with some masquerading - Salt Typhoon Style"
+                            .equals(c.getPayload().getName()))
+            .findFirst()
+            .orElse(null);
     assertNotNull(injectorContractsBeaconPayload);
     assertNotNull(injectorContractsBeaconPayload.getPayload());
     assertTrue(injectorContractsBeaconPayload.isAtomicTesting());
