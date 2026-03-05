@@ -2,10 +2,14 @@ package io.openaev.config;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.context.TenantContext;
 import lombok.Data;
+import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
+
+import static lombok.AccessLevel.NONE;
 
 /**
  * Configuration properties for RabbitMQ connection.
@@ -28,8 +32,13 @@ public class RabbitmqConfig {
 
   /** Prefix for queue and exchange names to namespace the platform's queues. */
   @JsonProperty("rabbitmq_prefix")
+  @Getter(NONE)
   @Value("${openbas.rabbitmq.prefix:${openaev.rabbitmq.prefix:#{null}}}")
   private String prefix;
+
+  public String getPrefix() {
+    return prefix+"-"+TenantContext.getCurrentTenant();
+  }
 
   /** The hostname of the RabbitMQ server. */
   @JsonProperty("rabbitmq_hostname")

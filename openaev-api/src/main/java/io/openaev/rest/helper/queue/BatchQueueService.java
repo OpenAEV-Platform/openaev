@@ -5,6 +5,7 @@ import com.rabbitmq.client.*;
 import io.openaev.config.QueueConfig;
 import io.openaev.config.RabbitMQSslConfiguration;
 import io.openaev.config.RabbitmqConfig;
+import io.openaev.multitenancy.DependenciesManager;
 import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -18,7 +19,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class BatchQueueService<T extends Queueable> {
+public class BatchQueueService<T extends Queueable> implements DependenciesManager {
   private final RabbitMQSslConfiguration rabbitMQSslConfiguration;
 
   private final Class<T> clazz;
@@ -74,7 +75,7 @@ public class BatchQueueService<T extends Queueable> {
       ObjectMapper mapper,
       QueueConfig queueConfig,
       RabbitMQSslConfiguration rabbitMQSslConfiguration)
-      throws IOException, TimeoutException {
+      throws Exception {
     this.clazz = clazz;
     this.queueExecution = queueExecution;
     this.mapper = mapper;
@@ -120,7 +121,7 @@ public class BatchQueueService<T extends Queueable> {
    * @throws IOException in case of issue while connecting to the server
    * @throws TimeoutException in case of issue while connecting to the server
    */
-  private void establishConnection() throws IOException, TimeoutException {
+  private void establishConnection() throws Exception {
     // Init a Connection factory
     ConnectionFactory factory = new ConnectionFactory();
     factory.setHost(rabbitmqConfig.getHostname());
@@ -152,7 +153,7 @@ public class BatchQueueService<T extends Queueable> {
     connection.addShutdownListener(shutdownListener);
 
     // Create consumers that will handle the processing
-    createChannels();
+    createDependencyForTenant("");
   }
 
   /**
@@ -458,5 +459,15 @@ public class BatchQueueService<T extends Queueable> {
       return element.getUniqueElementKey().hashCode() % queueConfig.getWorkerNumber();
     }
     return 0;
+  }
+
+  @Override
+  public void createDependencyForTenant(String uid) throws Exception {
+    createChannels();
+  }
+
+  @Override
+  public void deleteDependencyForTenant(String uid) throws Exception {
+
   }
 }
