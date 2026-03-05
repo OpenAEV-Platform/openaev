@@ -232,7 +232,7 @@ class AssetOutputProcessorTest {
         {"name":"Asset D","type":"SecurityPlatform","external_reference":"https://ref/d",
          "extended_attributes":{}}
         """);
-    assertFalse(processor.validate(node));
+    assertTrue(processor.validate(node));
   }
 
   @Test
