@@ -1562,6 +1562,7 @@
   "Scope": "Ambito di applicazione",
   "Score": "Punteggio",
   "Score details": "Dettagli del punteggio",
+  "Score must be a valid number": "Il punteggio deve essere un numero valido",
   "Score must be a whole number": "Il punteggio deve essere un numero intero",
   "Score must be greater than 0": "Il punteggio deve essere maggiore di 0",
   "Score must be less than or equal to 100": "Il punteggio deve essere inferiore o uguale a 100",

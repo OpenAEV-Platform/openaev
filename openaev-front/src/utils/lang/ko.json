@@ -1562,6 +1562,7 @@
   "Scope": "범위",
   "Score": "점수",
   "Score details": "점수 세부 정보",
+  "Score must be a valid number": "점수는 유효한 숫자여야 합니다",
   "Score must be a whole number": "점수는 정수여야 합니다",
   "Score must be greater than 0": "점수는 0보다 커야 합니다",
   "Score must be less than or equal to 100": "점수는 100보다 작거나 같아야 합니다",

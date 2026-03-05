@@ -93,7 +93,7 @@ const ManualExpectationsValidationForm: FunctionComponent<FormProps> = ({ expect
     formState: { errors, isSubmitting },
   } = useForm<{ expectation_score: number }>({
     mode: 'onTouched',
-    resolver: zodResolver(zodImplement<{ expectation_score: number }>().with({ expectation_score: z.number().min(1, t('Score must be greater than 0')).max(100, t('Score must be less than or equal to 100')).int(t('Score must be a whole number')) })),
+    resolver: zodResolver(zodImplement<{ expectation_score: number }>().with({ expectation_score: z.number({ error: t('Score must be a valid number') }).min(1, t('Score must be greater than 0')).max(100, t('Score must be less than or equal to 100')).int(t('Score must be a whole number')) })),
     defaultValues: { expectation_score: expectation.inject_expectation_score ?? expectation.inject_expectation_expected_score ?? 0 },
   });
   useEffect(() => {

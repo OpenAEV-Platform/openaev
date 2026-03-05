@@ -1562,6 +1562,7 @@
   "Scope": "Portée",
   "Score": "Score",
   "Score details": "Details des scores",
+  "Score must be a valid number": "Le score doit être un nombre valide",
   "Score must be a whole number": "Le score doit être un nombre entier",
   "Score must be greater than 0": "Le score doit être supérieur à 0",
   "Score must be less than or equal to 100": "Le score doit être inférieur ou égal à 100",

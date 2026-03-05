@@ -1562,6 +1562,7 @@
   "Scope": "范围",
   "Score": "分数",
   "Score details": "分数详情",
+  "Score must be a valid number": "分数必须是有效数字",
   "Score must be a whole number": "分数必须是整数",
   "Score must be greater than 0": "分数必须大于0",
   "Score must be less than or equal to 100": "分数必须小于或等于100",

@@ -1562,6 +1562,7 @@
   "Scope": "スコープ",
   "Score": "スコア",
   "Score details": "スコア詳細",
+  "Score must be a valid number": "スコアは有効な数字でなければならない",
   "Score must be a whole number": "スコアは整数でなければならない",
   "Score must be greater than 0": "スコアは0点以上でなければならない",
   "Score must be less than or equal to 100": "100点以下であること",

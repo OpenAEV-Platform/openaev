@@ -1562,6 +1562,7 @@
   "Scope": "Сфера деятельности",
   "Score": "Оценка",
   "Score details": "Детали оценки",
+  "Score must be a valid number": "Очко должно быть действительным числом",
   "Score must be a whole number": "Оценка должна быть целым числом",
   "Score must be greater than 0": "Балл должен быть больше 0",
   "Score must be less than or equal to 100": "Балл должен быть меньше или равен 100",

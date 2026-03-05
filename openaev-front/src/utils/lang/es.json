@@ -1562,6 +1562,7 @@
   "Scope": "Alcance",
   "Score": "Puntuación",
   "Score details": "Detalles de puntuación",
+  "Score must be a valid number": "La puntuación debe ser un número válido",
   "Score must be a whole number": "La puntuación debe ser un número entero",
   "Score must be greater than 0": "La puntuación debe ser superior a 0",
   "Score must be less than or equal to 100": "La puntuación debe ser inferior o igual a 100",
