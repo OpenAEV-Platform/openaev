@@ -72,7 +72,7 @@ public class TaniumExecutorServiceTest {
     when(config.getComputerGroupId()).thenReturn(HOST_GROUP_TANIUM);
     when(client.computerGroup(HOST_GROUP_TANIUM)).thenReturn(dataComputerGroup);
     when(client.endpoints(HOST_GROUP_TANIUM)).thenReturn(List.of(taniumEndpoint));
-    taniumExecutorService.executor = taniumExecutor;
+    taniumExecutorService.setExecutor(taniumExecutor);
     // Run method to test
     taniumExecutorService.run();
     // Asserts

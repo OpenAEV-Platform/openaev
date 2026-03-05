@@ -62,7 +62,7 @@ public class SentinelOneExecutorServiceTest {
   void test_run_sentinelone() {
     // Init datas
     when(client.agents()).thenReturn(Set.of(sentinelOneAgent));
-    sentinelOneExecutorService.executor = sentinelOneExecutor;
+    sentinelOneExecutorService.setExecutor(sentinelOneExecutor);
     // Run method to test
     sentinelOneExecutorService.run();
     // Asserts

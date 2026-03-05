@@ -72,7 +72,7 @@ public class CrowdstrikeExecutorServiceTest {
     when(config.getHostGroup()).thenReturn(HOST_GROUP_CS);
     when(client.hostGroup(HOST_GROUP_CS)).thenReturn(resourcesGroups);
     when(client.devices(HOST_GROUP_CS)).thenReturn(List.of(crowdstrikeAgent));
-    crowdStrikeExecutorService.executor = crowdstrikeExecutor;
+    crowdStrikeExecutorService.setExecutor(crowdstrikeExecutor);
     // Run method to test
     crowdStrikeExecutorService.run();
     // Asserts

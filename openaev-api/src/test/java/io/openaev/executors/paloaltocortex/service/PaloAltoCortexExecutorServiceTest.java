@@ -64,7 +64,7 @@ public class PaloAltoCortexExecutorServiceTest {
     // Init datas
     when(config.getGroupName()).thenReturn("groupName");
     when(client.endpoints("groupName")).thenReturn(List.of(paloAltoCortexEndpoint));
-    paloAltoCortexExecutorService.executor = paloAltoCortexExecutor;
+    paloAltoCortexExecutorService.setExecutor(paloAltoCortexExecutor);
     // Run method to test
     paloAltoCortexExecutorService.run();
     // Asserts
