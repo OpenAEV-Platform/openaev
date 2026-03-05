@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
@@ -91,6 +92,7 @@ class InjectExpectationServiceTest {
   }
 
   @Test
+  @DisplayName("Should return all prevention expectations when none expired")
   void shouldReturnAllPreventionExpectationsWhenNoneExpired() {
     InjectExpectation expectation1 =
         InjectExpectationFixture.createPreventionInjectExpectation(inject, null);
@@ -109,6 +111,7 @@ class InjectExpectationServiceTest {
   }
 
   @Test
+  @DisplayName("Should return all detection expectations when none expired")
   void shouldReturnAllDetectionExpectationsWhenNoneExpired() {
     InjectExpectation expectation1 =
         InjectExpectationFixture.createDetectionInjectExpectation(inject, null);
@@ -127,6 +130,7 @@ class InjectExpectationServiceTest {
   }
 
   @Test
+  @DisplayName("Should return all manual expectations when none expired")
   void shouldReturnAllManualExpectationsWhenNoneExpired() {
     InjectExpectation expectation1 =
         InjectExpectationFixture.createManualInjectExpectation(null, inject);
@@ -145,6 +149,7 @@ class InjectExpectationServiceTest {
   }
 
   @Test
+  @DisplayName("Should set not vulnerable when no output parsers")
   void shouldSetNotVulnerableWhenNoOutputParsers() throws JsonProcessingException {
     try (MockedStatic<ExpectationUtils> mocked = Mockito.mockStatic(ExpectationUtils.class)) {
       setupInjectWithOutputParser(null);
@@ -158,6 +163,7 @@ class InjectExpectationServiceTest {
   }
 
   @Test
+  @DisplayName("Should set not vulnerable when structured output is empty")
   void shouldSetNotVulnerableWhenEmptyStructuredOutput() {
     try (MockedStatic<ExpectationUtils> mocked = Mockito.mockStatic(ExpectationUtils.class)) {
       setupVulnerabilityExpectation();
@@ -170,6 +176,7 @@ class InjectExpectationServiceTest {
   }
 
   @Test
+  @DisplayName("Should set not vulnerable when structured output has no CVE type")
   void shouldSetNotVulnerableWhenNoCveType() throws JsonProcessingException {
     ObjectNode structuredOutput = mapper.createObjectNode();
     structuredOutput
@@ -193,6 +200,7 @@ class InjectExpectationServiceTest {
   }
 
   @Test
+  @DisplayName("Should set vulnerable when structured output has CVE type and CVE data")
   void shouldSetVulnerableWhenHasCveTypeAndCveData() {
     ObjectNode structuredOutput = mapper.createObjectNode();
     structuredOutput
@@ -218,6 +226,7 @@ class InjectExpectationServiceTest {
   }
 
   @Test
+  @DisplayName("Should set not vulnerable when structured output is an empty array")
   void shouldSetNotVulnerableWhenStructuredOutputIsEmptyArray() {
     // isArray()=true but size()=0 -> not vulnerable
     ArrayNode structuredOutput = mapper.createArrayNode();
@@ -233,6 +242,7 @@ class InjectExpectationServiceTest {
   }
 
   @Test
+  @DisplayName("Should set vulnerable when structured output is a non-empty array")
   void shouldSetVulnerableWhenStructuredOutputIsNonEmptyArray() {
     // isArray()=true and size()>0 -> vulnerable
     ArrayNode structuredOutput = mapper.createArrayNode();
@@ -249,6 +259,7 @@ class InjectExpectationServiceTest {
   }
 
   @Test
+  @DisplayName("Should do nothing when no vulnerability expectations match the agent")
   void shouldDoNothingWhenNoVulnerabilityExpectationsForAgent() {
     // Expectation belongs to a different agent -> filtered out -> early return
     Agent otherAgent = AgentFixture.createDefaultAgentService();
@@ -268,6 +279,7 @@ class InjectExpectationServiceTest {
   }
 
   @Test
+  @DisplayName("Should do nothing when expectations are not of vulnerability type")
   void shouldDoNothingWhenExpectationsAreNotVulnerabilityType() {
     // Only non-VULNERABILITY expectations -> filtered out -> early return
     InjectExpectation prevention =
@@ -287,6 +299,7 @@ class InjectExpectationServiceTest {
   }
 
   @Test
+  @DisplayName("Should do nothing when expectation has a null agent")
   void shouldDoNothingWhenExpectationHasNullAgent() {
     // exp.getAgent() == null -> filtered out -> early return
     InjectExpectation expectationWithNullAgent = createVulnerabilityInjectExpectation(inject, null);
@@ -303,6 +316,7 @@ class InjectExpectationServiceTest {
   }
 
   @Test
+  @DisplayName("Should do nothing when inject has no expectations")
   void shouldDoNothingWhenInjectHasNoExpectations() {
     inject.setExpectations(List.of());
 
@@ -317,6 +331,7 @@ class InjectExpectationServiceTest {
   }
 
   @Test
+  @DisplayName("Should save all expectations after processing")
   void shouldSaveAllExpectationsAfterProcessing() {
     setupVulnerabilityExpectation();
 
@@ -329,6 +344,7 @@ class InjectExpectationServiceTest {
   }
 
   @Test
+  @DisplayName("Should call update for each vulnerability expectation")
   void shouldCallUpdateForEachVulnerabilityExpectation() {
     // Two vulnerability expectations for the same agent
     InjectExpectation exp1 = createVulnerabilityInjectExpectation(inject, agent);
