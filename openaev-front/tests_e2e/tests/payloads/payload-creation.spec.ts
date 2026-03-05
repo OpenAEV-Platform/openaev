@@ -194,6 +194,7 @@ test.describe('Payload form', () => {
     await payloadForm.save();
     await expect(page.getByText('The element has been successfully updated')).toBeVisible();
     await expect(payloadList.addButton).toBeVisible();
+    await payloadList.searchPayload(payloadName);
     await expect(payloadList.getItem(1)).toContainText(payloadName);
   });
 });

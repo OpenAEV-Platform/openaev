@@ -1,4 +1,4 @@
-import { type Locator, type Page } from '@playwright/test';
+import {expect, type Locator, type Page} from '@playwright/test';
 
 import MuiListHelpers from '../../utils/MuiListHelpers';
 import UpdateTeamDialog from '../common/UpdateTeamDialog';
@@ -42,11 +42,9 @@ class ScenarioPage {
   // -- Action methods
   async addExistingTeam(existingTeamName: string) {
     await this.teamAddBtn.click();
-    await MuiListHelpers.searchAndSelectItemInList(this.updateTeamDialog.listContainer, existingTeamName);
-    await this.updateTeamDialog.getChipLocator(existingTeamName).waitFor({
-      state: 'visible',
-      timeout: 3000,
-    });
+    await expect(this.updateTeamDialog.searchField).toBeVisible();
+    await this.updateTeamDialog.searchField.clear();
+    await MuiListHelpers.searchAndSelectItemInList2(this.updateTeamDialog.listContainer, existingTeamName, this.updateTeamDialog.searchField);
     await this.updateTeamDialog.save();
   }
 

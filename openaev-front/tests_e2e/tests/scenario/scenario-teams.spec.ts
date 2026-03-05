@@ -20,7 +20,7 @@ test.describe('Scenario - Teams management', () => {
 
   test.describe('Team CRUD Operations in scenario', () => {
     test('should add and remove existing team', async ({ page, createTeam }) => {
-      const team = await createTeam('Default team');
+      const team = await createTeam(`Default team ${Date.now()}-${Math.random()}`);
       // Add team
       await scenarioPage.addExistingTeam(team.team_name);
       await expect(scenarioPage.getAllTeamItems()).toHaveCount(1);
@@ -57,12 +57,12 @@ test.describe('Scenario - Teams management', () => {
   test.describe('Player Management', () => {
     test('should be able to activate and deactivate player', async ({ page, createTeamWithMultiplePlayers, createPlayer }) => {
       const players = await Promise.all([
-        createPlayer('aude@test.io'),
-        createPlayer('mia@test.io'),
-        createPlayer('mike@test.io'),
+        createPlayer(`aude-test1@test.io`),
+        createPlayer(`mia-test1@test.io`),
+        createPlayer(`make-test1@test.io`),
       ]);
       const teamWithMultiplePlayers = await createTeamWithMultiplePlayers(
-        'Team with players',
+        `Team with players ${Date.now()}-${Math.random()}`,
         players.map(p => p.user_id),
       );
 
@@ -87,9 +87,9 @@ test.describe('Scenario - Teams management', () => {
   test.describe('Teams in Injects', () => {
     test('should only show scenario teams in inject form', async ({ page, createTeam }) => {
       const [team1, team2, team3] = await Promise.all([
-        createTeam(`Team 1 ${Date.now()}`),
-        createTeam(`Team 2 ${Date.now()}`),
-        createTeam(`Team 3 ${Date.now()}`),
+        createTeam(`Team 1-${Date.now()}-${Math.random()}`),
+        createTeam(`Team 2-${Date.now()}-${Math.random()}`),
+        createTeam(`Team 3-${Date.now()}-${Math.random()}`),
       ]);
 
       // Add team1 and team2 to scenario context
@@ -137,11 +137,11 @@ test.describe('Scenario - Teams management', () => {
 
     test('should show correct player count in teams', async ({ page, createPlayer, createTeamWithMultiplePlayers }) => {
       const [player1, player2, player3] = await Promise.all([
-        createPlayer('tony@test.io'),
-        createPlayer('lena@test.io'),
-        createPlayer('anna@test.io'),
+        createPlayer(`tony-test2-${Date.now()}@test.io`),
+        createPlayer(`lena-test2-${Date.now()}@test.io`),
+        createPlayer(`anna-test2-${Date.now()}@test.io`),
       ]);
-      const nameTeam = `Team ${Date.now()}`;
+      const nameTeam = `Team1-${Date.now()}-${Math.random()}`;
       const team = await createTeamWithMultiplePlayers(nameTeam, [player1.user_id, player2.user_id, player3.user_id]);
       // Add team to scenario
       await expect(scenarioPage.teamAddBtn).toBeVisible();
@@ -176,14 +176,14 @@ test.describe('Scenario - Teams management', () => {
     });
     test('should be able to add all the scenario teams', async ({ page, createPlayer, createTeamWithMultiplePlayers }) => {
       const [player1, player2, player3, player4, player5] = await Promise.all([
-        createPlayer('tony@test.io'),
-        createPlayer('lena@test.io'),
-        createPlayer('alex@test.io'),
-        createPlayer('jade@test.io'),
-        createPlayer('anna@test.io'),
+        createPlayer(`tony-test3-${Date.now()}@test.io`),
+        createPlayer(`lena-test3-${Date.now()}@test.io`),
+        createPlayer(`alex-test3-${Date.now()}@test.io`),
+        createPlayer(`jade-test3-${Date.now()}@test.io`),
+        createPlayer(`anna-test3-${Date.now()}@test.io`),
       ]);
-      const team1 = await createTeamWithMultiplePlayers(`Team1 ${Date.now()}`, [player1.user_id, player2.user_id, player3.user_id]);
-      const team2 = await createTeamWithMultiplePlayers(`Team2 ${Date.now()}`, [player4.user_id, player5.user_id]);
+      const team1 = await createTeamWithMultiplePlayers(`Team1 ${Date.now()}-${Math.random()}`, [player1.user_id, player2.user_id, player3.user_id]);
+      const team2 = await createTeamWithMultiplePlayers(`Team2 ${Date.now()}-${Math.random()}`, [player4.user_id, player5.user_id]);
       // Add team to scenario
       await expect(scenarioPage.teamAddBtn).toBeVisible();
       await scenarioPage.addExistingTeam(team1.team_name);
