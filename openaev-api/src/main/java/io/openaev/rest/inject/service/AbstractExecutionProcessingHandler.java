@@ -17,9 +17,6 @@ public abstract class AbstractExecutionProcessingHandler implements ExecutionPro
    * Dispatches each contract output context to its corresponding processor, if one exists, using
    * values extracted from the given structured output node.
    *
-   * <p>A contract output is skipped silently when no processor is registered for its type or when
-   * the key is absent from the structured output.
-   *
    * @param executionContext the current execution context
    * @param contractOutputContexts the list of contract output contexts to dispatch
    * @param structuredOutput the structured output node to read values from
