@@ -36,7 +36,7 @@ public class OutputProcessorFactory {
    * Retrieves the {@link OutputProcessor} for the given output type.
    *
    * @param type the contract output type
-   * @return the corresponding OutputProcessor
+   * @return an optional of the corresponding OutputProcessor
    * @throws IllegalArgumentException if no processor is found for the given type
    */
   public Optional<OutputProcessor> getProcessor(ContractOutputType type) {
