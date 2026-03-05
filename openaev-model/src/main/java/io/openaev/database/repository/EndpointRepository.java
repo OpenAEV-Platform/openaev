@@ -18,17 +18,16 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface EndpointRepository
-    extends CrudRepository<Endpoint, String>,
-        StatisticRepository,
-        JpaSpecificationExecutor<Endpoint> {
+    extends CrudRepository<Endpoint, String>, JpaSpecificationExecutor<Endpoint> {
 
   @Query(
       value =
-          "select e.* from assets e where e.endpoint_hostname = :hostname and e.endpoint_ips && cast(:ips as text[]) and e.tenant_id = :#{#tenantContext.currentTenant}",
+          "select e.* from assets e where e.endpoint_hostname = :hostname and e.endpoint_ips && cast(:ips as text[]) and e.tenant_id = :tenantId",
       nativeQuery = true)
   List<Endpoint> findByHostnameAndAtleastOneIp(
       @NotBlank final @Param("hostname") String hostname,
-      @NotNull final @Param("ips") String[] ips);
+      @NotNull final @Param("ips") String[] ips,
+      @NotNull final @Param("tenantId") String tenantId);
 
   @Query(
       value =

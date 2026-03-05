@@ -21,9 +21,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface AssetGroupRepository
-    extends CrudRepository<AssetGroup, String>,
-        StatisticRepository,
-        JpaSpecificationExecutor<AssetGroup> {
+    extends CrudRepository<AssetGroup, String>, JpaSpecificationExecutor<AssetGroup> {
 
   Optional<AssetGroup> findByExternalReferenceAndTenantId(
       String externalReference, String tenantId);

@@ -19,6 +19,7 @@ import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.AssetGroupRepository;
@@ -137,8 +138,10 @@ public class EndpointService {
   }
 
   public List<Endpoint> findEndpointByHostnameAndAtLeastOneIp(
-      @NotBlank final String hostname, @NotNull final String[] ips) {
-    return this.endpointRepository.findByHostnameAndAtleastOneIp(hostname, ips);
+      @NotBlank final String hostname,
+      @NotNull final String[] ips,
+      @NotNull final String tenantId) {
+    return this.endpointRepository.findByHostnameAndAtleastOneIp(hostname, ips, tenantId);
   }
 
   public List<Endpoint> findEndpointByHostnameAndAtLeastOneMacAddress(
@@ -426,7 +429,8 @@ public class EndpointService {
     Agent agent;
     // Check if agents exist (because we can find X openaev agent on an endpoint)
     List<Agent> existingAgents =
-        agentService.findByExternalReference(agentInput.getExternalReference());
+        agentService.findByExternalReference(
+            agentInput.getExternalReference(), TenantContext.getCurrentTenant());
     if (!existingAgents.isEmpty()) {
       // Check if this specific agent exist
       Agent.DEPLOYMENT_MODE deploymentMode =
@@ -572,6 +576,7 @@ public class EndpointService {
     endpoint.setIps(input.getIps());
     endpoint.setSeenIp(input.getSeenIp());
     endpoint.setMacAddresses(input.getMacAddresses());
+    endpoint.setTenant(input.getExecutor().getTenant());
     addSourceTagToEndpoint(endpoint, input);
     createEndpoint(endpoint);
     Agent agent = new Agent();
@@ -592,6 +597,7 @@ public class EndpointService {
         input.isService() ? Agent.DEPLOYMENT_MODE.service : Agent.DEPLOYMENT_MODE.session);
     agent.setExecutedByUser(input.getExecutedByUser());
     agent.setExecutor(input.getExecutor());
+    agent.setTenant(input.getExecutor().getTenant());
   }
 
   private AgentRegisterInput toAgentEndpoint(EndpointRegisterInput input) {

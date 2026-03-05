@@ -6,7 +6,6 @@ import static io.openaev.utils.time.TimeUtils.toInstant;
 import static java.time.Instant.now;
 
 import com.cronutils.utils.VisibleForTesting;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Agent.DEPLOYMENT_MODE;
 import io.openaev.database.model.Agent.PRIVILEGE;
@@ -80,8 +79,6 @@ public class CalderaExecutorService implements Runnable {
   public void run() {
     try {
       log.info("Running Caldera executor endpoints gathering...");
-      // For the agents, assets and asset groups saved after
-      TenantContext.setCurrentTenant(executor.getTenant().getId());
       // The executor only retrieve "main" agents (without the keyword "executor")
       // This is NOT a standard behaviour, this is because we are using Caldera as an executor and
       // we should not
@@ -104,7 +101,9 @@ public class CalderaExecutorService implements Runnable {
 
   private void registerAgentEndpoint(AgentRegisterInput input) {
     // Check if agent exists (only 1 agent can be found for Caldera)
-    List<Agent> existingAgents = agentService.findByExternalReference(input.getExternalReference());
+    List<Agent> existingAgents =
+        agentService.findByExternalReference(
+            input.getExternalReference(), executor.getTenant().getId());
     if (!existingAgents.isEmpty()) {
       Agent existingAgent = existingAgents.getFirst();
       if (input.isActive()) {
@@ -117,7 +116,7 @@ public class CalderaExecutorService implements Runnable {
       // Check if endpoint exists
       List<Endpoint> existingEndpoints =
           endpointService.findEndpointByHostnameAndAtLeastOneIp(
-              input.getHostname(), input.getIps());
+              input.getHostname(), input.getIps(), executor.getTenant().getId());
       if (existingEndpoints.size() == 1) {
         updateExistingEndpointAndManageAgent(existingEndpoints.getFirst(), input);
       } else {
@@ -169,6 +168,7 @@ public class CalderaExecutorService implements Runnable {
     agent.setDeploymentMode(input.isService() ? DEPLOYMENT_MODE.service : DEPLOYMENT_MODE.session);
     agent.setExecutedByUser(input.getExecutedByUser());
     agent.setExecutor(input.getExecutor());
+    agent.setTenant(executor.getTenant());
   }
 
   private void updateExistingEndpointAndManageAgent(Endpoint endpoint, AgentRegisterInput input) {
@@ -204,6 +204,7 @@ public class CalderaExecutorService implements Runnable {
     endpoint.setArch(input.getArch());
     endpoint.setHostname(input.getHostname());
     endpoint.setIps(input.getIps());
+    endpoint.setTenant(executor.getTenant());
     endpointService.createEndpoint(endpoint);
     Agent agent = new Agent();
     setUpdatedAgentAttributes(agent, input, endpoint);

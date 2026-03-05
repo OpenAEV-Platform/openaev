@@ -181,7 +181,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     executor.setBackgroundColor(backgroundColor);
     executor.setPlatforms(platforms);
 
-    executorRepository.save(executor);
+    executor = executorRepository.save(executor);
     return executor;
   }
 

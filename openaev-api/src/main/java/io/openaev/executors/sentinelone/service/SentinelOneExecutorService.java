@@ -3,7 +3,6 @@ package io.openaev.executors.sentinelone.service;
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
 
 import com.google.common.annotations.VisibleForTesting;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
@@ -84,13 +83,12 @@ public class SentinelOneExecutorService implements Runnable {
             .add(agentId);
         assetGroupIdNameMap.putIfAbsent(agent.getGroupId(), groupName);
       }
-      // For the agents, assets and asset groups saved after
-      TenantContext.setCurrentTenant(executor.getTenant().getId());
       // Sync all sentinel one agents to become OpenAEV agents/endpoints
       List<Agent> agents =
           endpointService.syncAgentsEndpoints(
               toAgentEndpoint(sentinelOneAgents),
-              agentService.getAgentsByExecutorType(SENTINELONE_EXECUTOR_TYPE));
+              agentService.getAgentsByExecutorType(
+                  SENTINELONE_EXECUTOR_TYPE, executor.getTenant().getId()));
       // For each sentinel one account/site/group id, create/update the relevant OpenAEV asset group
       Optional<AssetGroup> existingAssetGroup;
       AssetGroup assetGroup;
@@ -105,6 +103,7 @@ public class SentinelOneExecutorService implements Runnable {
         } else {
           assetGroup = new AssetGroup();
           assetGroup.setExternalReference(assetGroupId);
+          assetGroup.setTenant(executor.getTenant());
         }
         assetGroup.setName(assetGroupIdNameMap.get(assetGroupId));
         assetGroup.setAssets(

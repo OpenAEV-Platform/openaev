@@ -1,6 +1,5 @@
 package io.openaev.service;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AgentRepository;
 import jakarta.persistence.EntityManager;
@@ -35,8 +34,8 @@ public class AgentService {
         assetId, user, deploymentMode.name(), privilege.name(), executor);
   }
 
-  public List<Agent> getAgentsByExecutorType(String executor) {
-    return agentRepository.findByExecutorType(executor);
+  public List<Agent> getAgentsByExecutorType(String executor, String tenantId) {
+    return agentRepository.findByExecutorType(executor, tenantId);
   }
 
   public Agent createOrUpdateAgent(@NotNull final Agent agent) {
@@ -62,9 +61,8 @@ public class AgentService {
     this.agentRepository.deleteByAgentId(agentId);
   }
 
-  public List<Agent> findByExternalReference(String externalReference) {
-    return agentRepository.findByExternalReferenceAndTenantId(
-        externalReference, TenantContext.getCurrentTenant());
+  public List<Agent> findByExternalReference(String externalReference, String tenantId) {
+    return agentRepository.findByExternalReferenceAndTenantId(externalReference, tenantId);
   }
 
   // TODO multi-tenancy: Manage all datas for telemetry or datas per tenant ?
