@@ -1,132 +1,61 @@
-import { CheckCircleOutlined, PersonOutlined } from '@mui/icons-material';
+import { PersonOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import { useState } from 'react';
-import { useSearchParams } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
+import { type CSSProperties, useMemo } from 'react';
 
-import { fetchOrganizations } from '../../../../actions/Organization';
-import { searchUsers } from '../../../../actions/users/User';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import ExportButton from '../../../../components/common/ExportButton';
-import { initSorting } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../components/i18n';
-import ItemTags from '../../../../components/ItemTags';
-import { type User, type UserOutput } from '../../../../utils/api-types';
-import { useAppDispatch } from '../../../../utils/hooks';
-import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import PaginatedList from '../../../../components/common/list/PaginatedList';
+import PaginatedListLoader from '../../../../components/PaginatedListLoader';
+import type { UserOutput } from '../../../../utils/api-types';
 import { Can } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import SecurityMenu from '../SecurityMenu';
 import CreateUser from './CreateUser';
 import UserPopover from './UserPopover';
-
-const useStyles = makeStyles()(() => ({
-  container: {
-    margin: 0,
-    padding: '0 200px 50px 0',
-  },
-  itemHead: {
-    paddingLeft: 10,
-    textTransform: 'uppercase',
-    cursor: 'pointer',
-  },
-  item: {
-    paddingLeft: 10,
-    height: 50,
-  },
-  bodyItems: {
-    display: 'flex',
-    alignItems: 'center',
-  },
-  bodyItem: {
-    fontSize: 13,
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    paddingRight: 10,
-  },
-}));
-
-const inlineStyles = {
-  user_email: { width: '20%' },
-  user_firstname: { width: '15%' },
-  user_lastname: { width: '15%' },
-  user_organization: {
-    width: '15%',
-    cursor: 'default',
-  },
-  user_admin: { width: '10%' },
-  user_tags: { width: '25%' },
-};
+import useTenantUsers from './hooks/useTenantUsers';
+import {
+  ENTITY_TENANT_USER_PREFIX,
+  FIELD_EMAIL,
+  FIELD_FIRSTNAME,
+  FIELD_LASTNAME,
+  FIELD_ORGANIZATION,
+  FIELD_TAGS,
+  getTenantUserHeaders,
+  LOCAL_STORAGE_KEY_TENANT_USER,
+  TENANT_USER_FILTERS,
+  TENANT_USER_SORTS,
+} from './tenantUsers.queryable';
 
 const Users = () => {
-  // Standard hooks
-  const { classes } = useStyles();
-  const dispatch = useAppDispatch();
   const { t } = useFormatter();
 
-  useDataLoader(() => {
-    dispatch(fetchOrganizations());
-  });
+  const {
+    tenantUsers,
+    setTenantUserList,
+    loading,
+    fetchTenantUsers,
+    addTenantUser,
+    updateTenantUserInList,
+    removeTenantUser,
+  } = useTenantUsers();
 
-  // Headers
-  const headers = [
-    {
-      field: 'user_email',
-      label: 'Email address',
-      isSortable: true,
-    },
-    {
-      field: 'user_firstname',
-      label: 'Firstname',
-      isSortable: true,
-    },
-    {
-      field: 'user_lastname',
-      label: 'Lastname',
-      isSortable: true,
-    },
-    {
-      field: 'user_organization',
-      label: 'Organization',
-      isSortable: false,
-    },
-    {
-      field: 'user_admin',
-      label: 'Administrator',
-      isSortable: true,
-    },
-    {
-      field: 'user_tags',
-      label: 'Tags',
-      isSortable: true,
-    },
-  ];
+  const {
+    queryableHelpers,
+    searchPaginationInput,
+  } = useQueryableWithLocalStorage(LOCAL_STORAGE_KEY_TENANT_USER, buildSearchPagination({ sorts: TENANT_USER_SORTS }));
 
-  // Query param
-  const [searchParams] = useSearchParams();
-  const [search] = searchParams.getAll('search');
+  const headers = useMemo(() => getTenantUserHeaders(t), [t]);
 
-  const [users, setUsers] = useState<UserOutput[]>([]);
-  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('users', buildSearchPagination({
-    sorts: initSorting('user_firstname'),
-    textSearch: search,
-  }));
-
-  // Export
-  const exportProps = {
-    exportType: 'tags',
-    exportKeys: [
-      'user_email',
-      'user_firstname',
-      'user_lastname',
-    ],
-    exportData: users,
-    exportFileName: `${t('Users')}.csv`,
+  const itemWidth: Record<string, CSSProperties> = {
+    [FIELD_EMAIL]: { width: '20%' },
+    [FIELD_FIRSTNAME]: { width: '15%' },
+    [FIELD_LASTNAME]: { width: '15%' },
+    [FIELD_ORGANIZATION]: { width: '20%' },
+    [FIELD_TAGS]: { width: '30%' },
   };
 
   return (
@@ -140,91 +69,54 @@ const Users = () => {
           }]}
         />
         <PaginationComponentV2
-          disableFilters
-          fetch={searchUsers}
+          fetch={fetchTenantUsers}
           searchPaginationInput={searchPaginationInput}
-          setContent={setUsers}
-          entityPrefix="user"
+          setContent={setTenantUserList}
+          entityPrefix={ENTITY_TENANT_USER_PREFIX}
+          availableFilterNames={TENANT_USER_FILTERS}
           queryableHelpers={queryableHelpers}
-          topBarButtons={
-            <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
-          }
         />
         <List>
           <ListItem
-            classes={{ root: classes.itemHead }}
             divider={false}
-            style={{ paddingTop: 0 }}
             secondaryAction={<>&nbsp;</>}
+            style={{ paddingTop: 0 }}
           >
-            <ListItemIcon>
-              <span
-                style={{
-                  padding: '0 8px 0 8px',
-                  fontWeight: 700,
-                  fontSize: 12,
-                }}
-              >
-              &nbsp;
-              </span>
-            </ListItemIcon>
+            <ListItemIcon />
             <ListItemText
+              style={{ textTransform: 'uppercase' }}
               primary={(
                 <SortHeadersComponentV2
                   headers={headers}
-                  inlineStylesHeaders={inlineStyles}
                   sortHelpers={queryableHelpers.sortHelpers}
+                  inlineStylesHeaders={itemWidth}
                 />
               )}
             />
           </ListItem>
-          {users.map(user => (
-            <ListItem
-              key={user.user_id}
-              classes={{ root: classes.item }}
-              divider={true}
-              secondaryAction={(
-                <UserPopover
-                  user={user}
-                  onUpdate={(result: User) => setUsers(users.map(u => (u.user_id !== result.user_id ? u : result)))}
-                  onDelete={(result: string) => setUsers(users.filter(u => (u.user_id !== result)))}
-                />
-              )}
-            >
-              <ListItemIcon>
-                <PersonOutlined color="primary" />
-              </ListItemIcon>
-              <ListItemText
-                primary={(
-                  <div className={classes.bodyItems}>
-                    <div className={classes.bodyItem} style={inlineStyles.user_email}>
-                      {user.user_email}
-                    </div>
-                    <div className={classes.bodyItem} style={inlineStyles.user_firstname}>
-                      {user.user_firstname}
-                    </div>
-                    <div className={classes.bodyItem} style={inlineStyles.user_lastname}>
-                      {user.user_lastname}
-                    </div>
-                    <div className={classes.bodyItem} style={inlineStyles.user_organization}>
-                      {user.user_organization_name}
-                    </div>
-                    <div className={classes.bodyItem} style={inlineStyles.user_admin}>
-                      {user.user_admin ? (<CheckCircleOutlined fontSize="small" />) : ('-')}
-                    </div>
-                    <div className={classes.bodyItem} style={inlineStyles.user_tags}>
-                      <ItemTags variant="list" tags={user.user_tags} />
-                    </div>
-                  </div>
+          {loading
+            ? <PaginatedListLoader Icon={PersonOutlined} headers={headers} headerStyles={itemWidth} />
+            : (
+              <PaginatedList<UserOutput>
+                Icon={PersonOutlined}
+                secondaryAction={user => (
+                  <UserPopover
+                    inList
+                    user={user}
+                    actions={['Update', 'Delete']}
+                    onUpdate={updateTenantUserInList}
+                    onDelete={removeTenantUser}
+                  />
                 )}
+                headers={headers}
+                items={tenantUsers}
+                rowKey="user_id"
+                itemWidth={itemWidth}
               />
-            </ListItem>
-          ))}
+            )}
         </List>
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
-          <CreateUser
-            onCreate={(result: User) => setUsers([result, ...users])}
-          />
+          <CreateUser onCreate={addTenantUser} />
         </Can>
       </div>
       <SecurityMenu />

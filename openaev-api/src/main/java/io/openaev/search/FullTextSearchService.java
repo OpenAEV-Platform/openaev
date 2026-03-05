@@ -7,7 +7,7 @@ import static org.springframework.util.StringUtils.hasText;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.SpecificationUtils;
-import io.openaev.service.UserService;
+import io.openaev.service.UserAuthService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.PostConstruct;
 import jakarta.validation.constraints.NotBlank;
@@ -37,7 +37,7 @@ public class FullTextSearchService<T extends Base> {
   private final OrganizationRepository organizationRepository;
   private final ScenarioRepository scenarioRepository;
   private final ExerciseRepository exerciseRepository;
-  private final UserService userService;
+  private final UserAuthService userAuthService;
 
   private Map<Class<T>, JpaSpecificationExecutor<T>> repositoryMap;
 
@@ -129,7 +129,7 @@ public class FullTextSearchService<T extends Base> {
             .orElseThrow(
                 () -> new IllegalArgumentException(clazz + " is not handle by full text search"));
 
-    User currentUser = userService.currentUser();
+    User currentUser = userAuthService.currentUser();
     // Check if the principal has the right to search this class
     Capability capaForClass = capaByClassMap.get(clazzT).orElse(Capability.BYPASS);
     boolean isGrantable = clazzT.getAnnotation(Grantable.class) != null;
@@ -258,7 +258,7 @@ public class FullTextSearchService<T extends Base> {
     Map<Class<T>, FullTextSearchCountResult> results = new HashMap<>();
     String finalSearchTerm = getFinalSearchTerm(searchTerm);
 
-    User currentUser = userService.currentUser();
+    User currentUser = userAuthService.currentUser();
     // Only search classes that the user has access to
     Set<Class<T>> classesToSearch;
     if (currentUser.isAdminOrBypass()) {

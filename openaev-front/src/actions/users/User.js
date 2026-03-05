@@ -11,7 +11,7 @@ export const updatePlayer = (userId, data) => dispatch => putReferential(schema.
 export const deletePlayer = userId => dispatch => delReferential(`/api/players/${userId}`, 'users', userId)(dispatch);
 // endregion
 
-// region users
+// region users (legacy — kept for GroupManageUsers and other consumers)
 export const fetchUsers = () => dispatch => getReferential(schema.arrayOfUsers, '/api/users')(dispatch);
 
 export const searchUsers = (paginationInput) => {
@@ -25,14 +25,6 @@ export const findUsers = (userIds) => {
   const uri = '/api/users/find';
   return simplePostCall(uri, data);
 };
-
-export const addUser = data => dispatch => postReferential(schema.user, '/api/users', data)(dispatch);
-
-export const updateUserPassword = (userId, data) => dispatch => putReferential(schema.user, `/api/users/${userId}/password`, data)(dispatch);
-
-export const updateUser = (userId, data) => dispatch => putReferential(schema.user, `/api/users/${userId}`, data)(dispatch);
-
-export const deleteUser = userId => dispatch => delReferential(`/api/users/${userId}`, 'users', userId)(dispatch);
 // endregion
 
 // region me

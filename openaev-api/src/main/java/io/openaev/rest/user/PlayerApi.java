@@ -14,7 +14,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.user.form.player.PlayerInput;
 import io.openaev.rest.user.form.player.PlayerOutput;
-import io.openaev.service.UserService;
+import io.openaev.service.UserAuthService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
@@ -36,7 +36,7 @@ public class PlayerApi extends RestBehavior {
   private final OrganizationRepository organizationRepository;
   private final UserRepository userRepository;
   private final TagRepository tagRepository;
-  private final UserService userService;
+  private final UserAuthService userAuthService;
   private final TeamRepository teamRepository;
   private final PlayerService playerService;
 
@@ -45,7 +45,7 @@ public class PlayerApi extends RestBehavior {
   @Transactional(rollbackOn = Exception.class)
   public Iterable<RawPlayer> players() {
     List<RawPlayer> players;
-    User currentUser = userService.currentUser();
+    User currentUser = userAuthService.currentUser();
     players = fromIterable(userRepository.rawAllPlayers());
     return players;
   }
@@ -74,7 +74,7 @@ public class PlayerApi extends RestBehavior {
     user.setOrganization(
         updateRelation(input.getOrganizationId(), user.getOrganization(), organizationRepository));
     User savedUser = userRepository.save(user);
-    userService.createUserToken(savedUser);
+    userAuthService.createUserToken(savedUser);
     return savedUser;
   }
 

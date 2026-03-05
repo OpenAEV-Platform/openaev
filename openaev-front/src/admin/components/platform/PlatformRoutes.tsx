@@ -15,6 +15,12 @@ const PlatformRoutes = (
         checks={[{
           action: ACTIONS.ACCESS,
           subject: SUBJECTS.PLATFORM_SETTINGS,
+        }, {
+          action: ACTIONS.ACCESS,
+          subject: SUBJECTS.TENANTS,
+        }, {
+          action: ACTIONS.ACCESS,
+          subject: SUBJECTS.PLATFORM_GROUPS_AND_ROLES,
         }]}
         Component={errorWrapper(PlatformIndex)()}
       />

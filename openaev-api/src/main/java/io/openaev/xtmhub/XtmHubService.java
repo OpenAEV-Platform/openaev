@@ -3,7 +3,7 @@ package io.openaev.xtmhub;
 import io.openaev.database.model.User;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
-import io.openaev.service.UserService;
+import io.openaev.service.UserAuthService;
 import io.openaev.utils.LicenseUtils;
 import io.openaev.xtmhub.config.XtmHubConfig;
 import jakarta.validation.constraints.NotBlank;
@@ -22,13 +22,13 @@ public class XtmHubService {
   private static final long CONNECTIVITY_EMAIL_THRESHOLD_HOURS = 24;
 
   private final PlatformSettingsService platformSettingsService;
-  private final UserService userService;
+  private final UserAuthService userAuthService;
   private final XtmHubConfig xtmHubConfig;
   private final XtmHubClient xtmHubClient;
   private final XtmHubEmailService xtmHubEmailService;
 
   public PlatformSettings register(@NotBlank final String token) {
-    User currentUser = userService.currentUser();
+    User currentUser = userAuthService.currentUser();
     return this.platformSettingsService.updateXTMHubRegistration(
         token,
         LocalDateTime.now(),

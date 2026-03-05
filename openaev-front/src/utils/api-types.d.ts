@@ -675,6 +675,24 @@ export interface CalderaSettings {
   executor_caldera_public_url?: string;
 }
 
+/** A capability node in the capability tree */
+export interface CapabilityOutput {
+  /** Whether this capability can be assigned to a role */
+  capability_checkable: boolean;
+  /** Child capabilities */
+  capability_children: CapabilityOutput[];
+  /**
+   * Scopes where this capability applies (PLATFORM, TENANT)
+   * @uniqueItems true
+   */
+  capability_scopes: string[];
+  /**
+   * Enum key of the capability or group
+   * @minLength 1
+   */
+  capability_value: string;
+}
+
 export interface CatalogConnector {
   /** Connector class name */
   catalog_connector_class_name?: string;
@@ -1402,27 +1420,6 @@ export interface CreateNotificationRuleInput {
   subject: string;
   trigger: string;
   type: string;
-}
-
-export interface CreateUserInput {
-  /** True if the user is admin */
-  user_admin?: boolean;
-  /**
-   * The email of the user
-   * @format email
-   * @minLength 1
-   */
-  user_email: string;
-  /** First name of the user */
-  user_firstname?: string;
-  /** Last name of the user */
-  user_lastname?: string;
-  /** Organization of the user */
-  user_organization?: string;
-  /** Password of the user as plain text */
-  user_plain_password?: string;
-  /** Tags of the user */
-  user_tags?: string[];
 }
 
 export interface CustomDashboard {
@@ -5254,6 +5251,44 @@ export interface PagePayload {
   totalPages?: number;
 }
 
+export interface PagePlatformGroupOutput {
+  content?: PlatformGroupOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PagePlatformRoleOutput {
+  content?: PlatformRoleOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
 export interface PagePlayerOutput {
   content?: PlayerOutput[];
   empty?: boolean;
@@ -5743,6 +5778,140 @@ export interface PayloadUpsertInput {
 export interface PayloadsDeprecateInput {
   collector_id: string;
   payload_external_ids: string[];
+}
+
+export interface PlatformGroupInput {
+  platform_group_description?: string;
+  /** @minLength 1 */
+  platform_group_name: string;
+}
+
+export interface PlatformGroupOutput {
+  platform_group_description?: string;
+  /** @minLength 1 */
+  platform_group_id: string;
+  /** @minLength 1 */
+  platform_group_name: string;
+}
+
+export interface PlatformGroupUpdateRolesInput {
+  platform_group_platform_roles?: string[];
+}
+
+export interface PlatformGroupUpdateUsersInput {
+  platform_group_users?: string[];
+}
+
+export interface PlatformRoleInput {
+  /** @uniqueItems true */
+  platform_role_capabilities?: (
+    | "BYPASS"
+    | "ACCESS_ASSESSMENT"
+    | "MANAGE_ASSESSMENT"
+    | "DELETE_ASSESSMENT"
+    | "LAUNCH_ASSESSMENT"
+    | "ACCESS_TEAMS_AND_PLAYERS"
+    | "MANAGE_TEAMS_AND_PLAYERS"
+    | "DELETE_TEAMS_AND_PLAYERS"
+    | "ACCESS_ASSETS"
+    | "MANAGE_ASSETS"
+    | "DELETE_ASSETS"
+    | "ACCESS_PAYLOADS"
+    | "MANAGE_PAYLOADS"
+    | "DELETE_PAYLOADS"
+    | "ACCESS_DASHBOARDS"
+    | "MANAGE_DASHBOARDS"
+    | "DELETE_DASHBOARDS"
+    | "ACCESS_FINDINGS"
+    | "MANAGE_FINDINGS"
+    | "DELETE_FINDINGS"
+    | "ACCESS_DOCUMENTS"
+    | "MANAGE_DOCUMENTS"
+    | "DELETE_DOCUMENTS"
+    | "ACCESS_CHANNELS"
+    | "MANAGE_CHANNELS"
+    | "DELETE_CHANNELS"
+    | "ACCESS_CHALLENGES"
+    | "MANAGE_CHALLENGES"
+    | "DELETE_CHALLENGES"
+    | "ACCESS_LESSONS_LEARNED"
+    | "MANAGE_LESSONS_LEARNED"
+    | "DELETE_LESSONS_LEARNED"
+    | "ACCESS_SECURITY_PLATFORMS"
+    | "MANAGE_SECURITY_PLATFORMS"
+    | "DELETE_SECURITY_PLATFORMS"
+    | "ACCESS_PLATFORM_SETTINGS"
+    | "MANAGE_PLATFORM_SETTINGS"
+    | "ACCESS_TENANTS"
+    | "MANAGE_TENANTS"
+    | "DELETE_TENANTS"
+    | "ACCESS_PLATFORM_GROUPS_AND_ROLES"
+    | "MANAGE_PLATFORM_GROUPS_AND_ROLES"
+    | "DELETE_PLATFORM_GROUPS_AND_ROLES"
+    | "MANAGE_STIX_BUNDLE"
+  )[];
+  platform_role_description?: string;
+  /** @minLength 1 */
+  platform_role_name: string;
+}
+
+export interface PlatformRoleOutput {
+  /** @uniqueItems true */
+  platform_role_capabilities?: (
+    | "BYPASS"
+    | "ACCESS_ASSESSMENT"
+    | "MANAGE_ASSESSMENT"
+    | "DELETE_ASSESSMENT"
+    | "LAUNCH_ASSESSMENT"
+    | "ACCESS_TEAMS_AND_PLAYERS"
+    | "MANAGE_TEAMS_AND_PLAYERS"
+    | "DELETE_TEAMS_AND_PLAYERS"
+    | "ACCESS_ASSETS"
+    | "MANAGE_ASSETS"
+    | "DELETE_ASSETS"
+    | "ACCESS_PAYLOADS"
+    | "MANAGE_PAYLOADS"
+    | "DELETE_PAYLOADS"
+    | "ACCESS_DASHBOARDS"
+    | "MANAGE_DASHBOARDS"
+    | "DELETE_DASHBOARDS"
+    | "ACCESS_FINDINGS"
+    | "MANAGE_FINDINGS"
+    | "DELETE_FINDINGS"
+    | "ACCESS_DOCUMENTS"
+    | "MANAGE_DOCUMENTS"
+    | "DELETE_DOCUMENTS"
+    | "ACCESS_CHANNELS"
+    | "MANAGE_CHANNELS"
+    | "DELETE_CHANNELS"
+    | "ACCESS_CHALLENGES"
+    | "MANAGE_CHALLENGES"
+    | "DELETE_CHALLENGES"
+    | "ACCESS_LESSONS_LEARNED"
+    | "MANAGE_LESSONS_LEARNED"
+    | "DELETE_LESSONS_LEARNED"
+    | "ACCESS_SECURITY_PLATFORMS"
+    | "MANAGE_SECURITY_PLATFORMS"
+    | "DELETE_SECURITY_PLATFORMS"
+    | "ACCESS_PLATFORM_SETTINGS"
+    | "MANAGE_PLATFORM_SETTINGS"
+    | "ACCESS_TENANTS"
+    | "MANAGE_TENANTS"
+    | "DELETE_TENANTS"
+    | "ACCESS_PLATFORM_GROUPS_AND_ROLES"
+    | "MANAGE_PLATFORM_GROUPS_AND_ROLES"
+    | "DELETE_PLATFORM_GROUPS_AND_ROLES"
+    | "MANAGE_STIX_BUNDLE"
+  )[];
+  /** @format date-time */
+  platform_role_created_at: string;
+  platform_role_description?: string;
+  /** @minLength 1 */
+  platform_role_id: string;
+  /** @minLength 1 */
+  platform_role_name: string;
+  /** @format date-time */
+  platform_role_updated_at: string;
 }
 
 export interface PlatformSettings {
@@ -6327,6 +6496,7 @@ export interface RoleInput {
     | "MANAGE_ASSESSMENT"
     | "DELETE_ASSESSMENT"
     | "LAUNCH_ASSESSMENT"
+    | "ACCESS_TEAMS_AND_PLAYERS"
     | "MANAGE_TEAMS_AND_PLAYERS"
     | "DELETE_TEAMS_AND_PLAYERS"
     | "ACCESS_ASSETS"
@@ -6358,6 +6528,12 @@ export interface RoleInput {
     | "DELETE_SECURITY_PLATFORMS"
     | "ACCESS_PLATFORM_SETTINGS"
     | "MANAGE_PLATFORM_SETTINGS"
+    | "ACCESS_TENANTS"
+    | "MANAGE_TENANTS"
+    | "DELETE_TENANTS"
+    | "ACCESS_PLATFORM_GROUPS_AND_ROLES"
+    | "MANAGE_PLATFORM_GROUPS_AND_ROLES"
+    | "DELETE_PLATFORM_GROUPS_AND_ROLES"
     | "MANAGE_STIX_BUNDLE"
   )[];
   role_description?: string;
@@ -7313,36 +7489,6 @@ export interface UpdateUserInfoInput {
   user_phone?: string;
 }
 
-export interface UpdateUserInput {
-  /**
-   * Secondary phone of the user
-   * @pattern ^\+[\d\s\-.()]+$
-   */
-  user_phone2?: string;
-  /** True if the user is admin */
-  user_admin?: boolean;
-  /**
-   * The email of the user
-   * @format email
-   */
-  user_email?: string;
-  /** First name of the user */
-  user_firstname?: string;
-  /** Last name of the user */
-  user_lastname?: string;
-  /** Organization of the user */
-  user_organization?: string;
-  /** PGP key of the user */
-  user_pgp_key?: string;
-  /**
-   * Phone of the user
-   * @pattern ^\+[\d\s\-.()]+$
-   */
-  user_phone?: string;
-  /** Tags of the user */
-  user_tags?: string[];
-}
-
 export interface UpdateUsersTeamInput {
   /** The list of users the team contains */
   team_users?: string[];
@@ -7362,6 +7508,7 @@ export interface User {
     | "MANAGE_ASSESSMENT"
     | "DELETE_ASSESSMENT"
     | "LAUNCH_ASSESSMENT"
+    | "ACCESS_TEAMS_AND_PLAYERS"
     | "MANAGE_TEAMS_AND_PLAYERS"
     | "DELETE_TEAMS_AND_PLAYERS"
     | "ACCESS_ASSETS"
@@ -7393,6 +7540,12 @@ export interface User {
     | "DELETE_SECURITY_PLATFORMS"
     | "ACCESS_PLATFORM_SETTINGS"
     | "MANAGE_PLATFORM_SETTINGS"
+    | "ACCESS_TENANTS"
+    | "MANAGE_TENANTS"
+    | "DELETE_TENANTS"
+    | "ACCESS_PLATFORM_GROUPS_AND_ROLES"
+    | "MANAGE_PLATFORM_GROUPS_AND_ROLES"
+    | "DELETE_PLATFORM_GROUPS_AND_ROLES"
     | "MANAGE_STIX_BUNDLE"
   )[];
   /** City of the user */
@@ -7462,31 +7615,41 @@ export interface User {
   user_updated_at: string;
 }
 
-export interface UserOutput {
-  /** True if the user is admin */
-  user_admin?: boolean;
+export interface UserInput {
+  /** @pattern ^\+[\d\s\-.()]+$ */
+  user_phone2?: string;
   /**
-   * Email of the user
+   * @format email
    * @minLength 1
    */
   user_email: string;
-  /** First name of the user */
   user_firstname?: string;
+  user_lastname?: string;
+  user_organization?: string;
+  user_pgp_key?: string;
+  /** @pattern ^\+[\d\s\-.()]+$ */
+  user_phone?: string;
+  user_plain_password?: string;
+  user_tags?: string[];
+}
+
+export interface UserOutput {
   /**
-   * User ID
+   * @format email
    * @minLength 1
    */
+  user_email: string;
+  user_firstname?: string;
+  user_has_password?: boolean;
+  user_has_pgp_key?: boolean;
+  /** @minLength 1 */
   user_id: string;
-  /** Last name of the user */
   user_lastname?: string;
-  /** Organization of the user */
   user_organization_id?: string;
-  /** Organization of the user */
   user_organization_name?: string;
-  /**
-   * Tags of the user
-   * @uniqueItems true
-   */
+  user_phone?: string;
+  user_phone2?: string;
+  /** @uniqueItems true */
   user_tags?: string[];
 }
 
@@ -7540,15 +7703,6 @@ export interface VariableInput {
    */
   variable_key: string;
   variable_value?: string;
-}
-
-export interface ViolationErrorBag {
-  /** The error */
-  error?: string;
-  /** The message of the error */
-  message?: string;
-  /** The type of error */
-  type?: string;
 }
 
 export interface VulnerabilityBulkInsertInput {

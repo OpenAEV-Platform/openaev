@@ -23,7 +23,7 @@ import io.openaev.opencti.connectors.Constants;
 import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.service.GroupService;
 import io.openaev.service.RoleService;
-import io.openaev.service.UserService;
+import io.openaev.service.UserAuthService;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.types.Identifier;
 import io.openaev.utils.fixtures.GroupFixture;
@@ -58,7 +58,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
   @Autowired private ObjectMapper mapper;
   @Autowired private RoleService roleService;
   @Autowired private GroupService groupService;
-  @Autowired private UserService userService;
+  @Autowired private UserAuthService userAuthService;
   @Autowired private EntityManager entityManager;
   @Autowired private RoleComposer roleComposer;
   @Autowired private GroupComposer groupComposer;
@@ -469,7 +469,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<User> user = userService.findByToken(testConnector.getToken());
+        Optional<User> user = userAuthService.findByToken(testConnector.getToken());
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
@@ -509,7 +509,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<User> user = userService.findByToken(testConnector.getToken());
+        Optional<User> user = userAuthService.findByToken(testConnector.getToken());
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
@@ -662,7 +662,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<User> user = userService.findByToken(testConnector.getToken());
+        Optional<User> user = userAuthService.findByToken(testConnector.getToken());
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
@@ -702,7 +702,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<User> user = userService.findByToken(testConnector.getToken());
+        Optional<User> user = userAuthService.findByToken(testConnector.getToken());
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())

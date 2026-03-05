@@ -2,45 +2,41 @@
 applyTo: "**/*"
 ---
 
-When reviewing code, focus on:
+When reviewing code, check for these categories of issues:
 
-## Security Critical Issues
-- Check for hardcoded secrets, API keys, or credentials
-- Look for SQL injection and XSS vulnerabilities
-- Verify proper input validation and sanitization
-- Review authentication and authorization logic
+## Security
+- Hardcoded secrets, credentials, API keys
+- Missing `@AccessControl` on endpoints
+- Native `@Query` without `WHERE tenant_id` (bypasses tenant filter)
+- `tenant_id` exposed in API responses
+- Raw error messages / stack traces sent to clients
 
-## Performance Red Flags
-- Identify N+1 database query problems
-- Spot inefficient loops and algorithmic issues
-- Check for memory leaks and resource cleanup
-- Review caching opportunities for expensive operations
+## Performance
+- N+1 queries (missing `@Fetch(FetchMode.SUBSELECT)`)
+- `deleteById()` on heavy entities without native `@Query` alternative
+- Immutable collections on JPA entities (`List.of()` instead of `new ArrayList<>()`)
 
-## Code Quality Essentials
-- Functions should be focused and appropriately sized
-- Use clear, descriptive naming conventions
-- Ensure proper error handling throughout
+## Architecture
+- Repository injected in a controller instead of going through a Service
+- Business logic in controller instead of service
+- JPA entity returned directly from new controller (should use DTO)
+- `@Transactional` on self-call (Spring proxy bypassed)
+- New code added to `openaev-framework` (deprecated)
+
+## Test Quality
+- Missing `@Nested` + `@DisplayName` grouping
+- Method not following `given_X_should_Y` naming
+- Missing AAA comments (`// Arrange` / `// Act` / `// Assert`)
+- Using Spring's `@WithMockUser` instead of OpenAEV's custom one
+- Inline test data instead of Fixture class + Composer
+
+## Frontend
+- MUI used for layout (`Box`, `Grid`) instead of native HTML
+- `makeStyles` / `withStyles` instead of `sx` prop
+- `t()` called deep in component tree instead of early
+- Manual types instead of auto-generated `api-types.d.ts`
 
 ## Review Style
-- Be specific and actionable in feedback
-- Explain the "why" behind recommendations
-- Acknowledge good patterns when you see them
-- Ask clarifying questions when code intent is unclear
-
-Always prioritize security vulnerabilities and performance issues that could impact users.
-
-Always suggest changes to improve readability. For example, this suggestion seeks to make the code more readable and also makes the validation logic reusable and testable.
-
-// Instead of:
-if (user.email && user.email.includes('@') && user.email.length > 5) {
-  submitButton.enabled = true;
-} else {
-  submitButton.enabled = false;
-}
-
-// Consider:
-function isValidEmail(email) {
-  return email && email.includes('@') && email.length > 5;
-}
-
-submitButton.enabled = isValidEmail(user.email);
+- Use **conventional comments**: `suggestion:`, `issue:`, `todo:`, `nitpick:`, `praise:`
+- Add `(blocking)` or `(non-blocking)` decoration
+- Be specific, actionable, explain the "why"

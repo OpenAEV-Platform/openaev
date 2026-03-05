@@ -33,6 +33,7 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.AssetService;
 import io.openaev.service.InjectorService;
+import io.openaev.service.UserAuthService;
 import io.openaev.service.UserService;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
@@ -92,7 +93,7 @@ class InjectServiceTest {
 
   @Mock private InjectorContractService injectorContractService;
 
-  @Mock private UserService userService;
+  @Mock private UserAuthService userAuthService;
 
   @Mock private TagService tagService;
 
@@ -191,7 +192,7 @@ class InjectServiceTest {
     input.getSearchPaginationInput().setFilterGroup(new Filters.FilterGroup());
     input.getSearchPaginationInput().setTextSearch("test");
 
-    when(userService.currentUser()).thenReturn(new User());
+    when(userAuthService.currentUser()).thenReturn(new User());
 
     // Act
     Specification<Inject> specification =
@@ -208,7 +209,7 @@ class InjectServiceTest {
     InjectBulkProcessingInput input = new InjectBulkProcessingInput();
     input.setInjectIDsToProcess(List.of("id1", "id2"));
 
-    when(userService.currentUser()).thenReturn(new User());
+    when(userAuthService.currentUser()).thenReturn(new User());
 
     // Act
     Specification<Inject> specification =
@@ -226,7 +227,7 @@ class InjectServiceTest {
     input.setInjectIDsToProcess(List.of("id1", "id2"));
     input.setInjectIDsToIgnore(List.of("id3"));
 
-    when(userService.currentUser()).thenReturn(new User());
+    when(userAuthService.currentUser()).thenReturn(new User());
 
     // Act
     Specification<Inject> specification =
@@ -399,7 +400,7 @@ class InjectServiceTest {
     //noinspection unchecked
     when(injectRepository.findAll(any(Specification.class))).thenReturn(injects);
 
-    when(userService.currentUser()).thenReturn(new User());
+    when(userAuthService.currentUser()).thenReturn(new User());
 
     // Act
     List<Inject> result =
@@ -419,7 +420,7 @@ class InjectServiceTest {
 
     List<Inject> injects = List.of(new Inject(), new Inject());
 
-    when(userService.currentUser()).thenReturn(new User());
+    when(userAuthService.currentUser()).thenReturn(new User());
 
     //noinspection unchecked
     when(injectRepository.findAll(any(Specification.class))).thenReturn(injects);
@@ -441,7 +442,7 @@ class InjectServiceTest {
     input.setInjectIDsToProcess(List.of("id1", "id2"));
     input.setInjectIDsToIgnore(List.of("id3"));
 
-    when(userService.currentUser()).thenReturn(new User());
+    when(userAuthService.currentUser()).thenReturn(new User());
 
     List<Inject> injects = List.of(new Inject(), new Inject());
 

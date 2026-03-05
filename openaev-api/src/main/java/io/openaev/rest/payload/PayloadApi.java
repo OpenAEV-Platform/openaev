@@ -13,7 +13,7 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.payload.form.*;
 import io.openaev.rest.payload.service.*;
 import io.openaev.service.ImportService;
-import io.openaev.service.UserService;
+import io.openaev.service.UserAuthService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -50,7 +50,7 @@ public class PayloadApi extends RestBehavior {
   private final PayloadExportService payloadExportService;
   private final DocumentService documentService;
   private final CollectorService collectorsService;
-  private final UserService userService;
+  private final UserAuthService userAuthService;
 
   @PostMapping(PAYLOAD_URI + "/search")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PAYLOAD)
@@ -131,7 +131,7 @@ public class PayloadApi extends RestBehavior {
       HttpServletResponse response)
       throws IOException {
     List<String> targetIds = payloadExportRequestInput.getTargetsIds();
-    User currentUser = userService.currentUser();
+    User currentUser = userAuthService.currentUser();
 
     List<Payload> payloads =
         payloadRepository.findAll(

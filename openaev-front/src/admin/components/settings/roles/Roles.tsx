@@ -80,7 +80,6 @@ const Roles = () => {
 
       </div>
       <SecurityMenu />
-
     </div>
   );
 };

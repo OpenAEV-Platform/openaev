@@ -10,7 +10,7 @@ import io.openaev.rest.notification_rule.form.NotificationRuleMapper;
 import io.openaev.rest.notification_rule.form.NotificationRuleOutput;
 import io.openaev.rest.notification_rule.form.UpdateNotificationRuleInput;
 import io.openaev.service.NotificationRuleService;
-import io.openaev.service.UserService;
+import io.openaev.service.UserAuthService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -38,17 +38,17 @@ public class NotificationRuleApi {
   public static final String NOTIFICATION_RULE_URI = "/api/notification-rules";
 
   private final NotificationRuleService notificationRuleService;
-  private final UserService userService;
+  private final UserAuthService userAuthService;
   private final NotificationRuleMapper notificationRuleMapper;
 
   public NotificationRuleApi(
       NotificationRuleService notificationRuleService,
       NotificationRuleMapper notificationRuleMapper,
-      UserService userService) {
+      UserAuthService userAuthService) {
     super();
     this.notificationRuleService = notificationRuleService;
     this.notificationRuleMapper = notificationRuleMapper;
-    this.userService = userService;
+    this.userAuthService = userAuthService;
   }
 
   @LogExecutionTime
@@ -78,7 +78,7 @@ public class NotificationRuleApi {
           @Schema(description = "Resource id of the resource associated with the notification rule")
           final String resourceId) {
     return notificationRuleService
-        .findNotificationRuleByResourceAndUser(resourceId, userService.currentUser().getId())
+        .findNotificationRuleByResourceAndUser(resourceId, userAuthService.currentUser().getId())
         .stream()
         .map(notificationRuleMapper::toNotificationRuleOutput)
         .collect(Collectors.toList());

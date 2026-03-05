@@ -3,9 +3,9 @@ package io.openaev.rest.user.helper;
 import static io.openaev.utils.JpaUtils.createJoinArrayAggOnId;
 import static io.openaev.utils.JpaUtils.createLeftJoin;
 
+import io.openaev.api.users.dto.UserOutput;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.User;
-import io.openaev.rest.user.form.user.UserOutput;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
@@ -24,6 +24,17 @@ public class UserQueryHelper {
     // Array aggregations
     Expression<String[]> tagIdsExpression = createJoinArrayAggOnId(cb, userRoot, "tags");
 
+    // Boolean expressions for sensitive fields
+    Expression<Boolean> hasPasswordExpression = cb.selectCase()
+        .when(cb.and(cb.isNotNull(userRoot.get("password")), cb.notEqual(cb.trim(userRoot.get("password")), "")), true)
+        .otherwise(false)
+        .as(Boolean.class);
+
+    Expression<Boolean> hasPgpKeyExpression = cb.selectCase()
+        .when(cb.and(cb.isNotNull(userRoot.get("pgpKey")), cb.notEqual(cb.trim(userRoot.get("pgpKey")), "")), true)
+        .otherwise(false)
+        .as(Boolean.class);
+
     // Multiselect
     cq.multiselect(
             userRoot.get("id").alias("user_id"),
@@ -31,6 +42,8 @@ public class UserQueryHelper {
             userRoot.get("lastname").alias("user_lastname"),
             userRoot.get("email").alias("user_email"),
             userRoot.get("admin").alias("user_admin"),
+            hasPasswordExpression.alias("user_has_password"),
+            hasPgpKeyExpression.alias("user_has_pgp_key"),
             organizationJoin.get("name").alias("user_organization_name"),
             organizationJoin.get("id").alias("user_organization_id"),
             tagIdsExpression.alias("user_tags"))
@@ -45,17 +58,18 @@ public class UserQueryHelper {
   public static List<UserOutput> execution(TypedQuery<Tuple> query) {
     return query.getResultList().stream()
         .map(
-            tuple ->
-                UserOutput.builder()
-                    .id(tuple.get("user_id", String.class))
-                    .firstname(tuple.get("user_firstname", String.class))
-                    .lastname(tuple.get("user_lastname", String.class))
-                    .email(tuple.get("user_email", String.class))
-                    .admin(tuple.get("user_admin", boolean.class))
-                    .organizationName(tuple.get("user_organization_name", String.class))
-                    .organizationId(tuple.get("user_organization_id", String.class))
-                    .tags(Set.of((tuple.get("user_tags", String[].class))))
-                    .build())
+            tuple -> new UserOutput(
+                    tuple.get("user_id", String.class),
+                    tuple.get("user_email", String.class),
+                    tuple.get("user_firstname", String.class),
+                    tuple.get("user_lastname", String.class),
+                    null,
+                    null,
+                    tuple.get("user_organization_id", String.class),
+                    tuple.get("user_organization_name", String.class),
+                    Set.of((tuple.get("user_tags", String[].class))),
+                    Boolean.TRUE.equals(tuple.get("user_has_password", Boolean.class)),
+                    Boolean.TRUE.equals(tuple.get("user_has_pgp_key", Boolean.class))))
         .toList();
   }
 }

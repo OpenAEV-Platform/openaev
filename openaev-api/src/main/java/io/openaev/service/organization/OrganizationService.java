@@ -7,7 +7,7 @@ import io.openaev.database.model.Capability;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.OrganizationRepository;
-import io.openaev.service.UserService;
+import io.openaev.service.UserAuthService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -22,11 +22,11 @@ public class OrganizationService {
 
   private final OrganizationRepository organizationRepository;
 
-  private final UserService userService;
+  private final UserAuthService userAuthService;
 
   public Page<Organization> organizationPagination(
       @NotNull SearchPaginationInput searchPaginationInput) {
-    User currentUser = userService.currentUser();
+    User currentUser = userAuthService.currentUser();
     if (currentUser.isAdminOrBypass()
         || currentUser.getCapabilities().contains(Capability.ACCESS_PLATFORM_SETTINGS)) {
       return buildPaginationJPA(

@@ -11,6 +11,7 @@ import io.openaev.rest.user.form.user.CreateUserInput;
 import io.openaev.rest.user.form.user.UpdateUserInput;
 import io.openaev.service.GroupService;
 import io.openaev.service.RoleService;
+import io.openaev.service.UserAuthService;
 import io.openaev.service.UserService;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,14 +28,15 @@ public class PrivilegeService {
   private final RoleService roleService;
   private final GroupService groupService;
   private final UserService userService;
+  private final UserAuthService userAuthService;
 
   @Transactional
   public void ensurePrivilegedUserExistsForConnector(ConnectorBase connector) {
     Group group = createWellKnownGroupWithRole(createWellKnownRole());
 
-    Optional<User> connectorUser = userService.findByToken(connector.getToken());
+    Optional<User> connectorUser = userAuthService.findByToken(connector.getToken());
     Optional<User> existingEmailUser =
-        userService.findByEmailIgnoreCase(
+        userAuthService.findByEmailIgnoreCase(
             "connector-%s@openaev.invalid".formatted(connector.getId()));
 
     if (connectorUser.isEmpty()) {
@@ -48,7 +50,7 @@ public class PrivilegeService {
             .setTokens(
                 new ArrayList<>(
                     List.of(
-                        userService.createUserToken(
+                        userAuthService.createUserToken(
                             existingEmailUser.get(), connector.getToken()))));
         existingEmailUser.get().setGroups(new ArrayList<>(List.of(group)));
         userService.updateUser(existingEmailUser.get());

@@ -27,6 +27,7 @@ interface Props {
   type?: 'number' | 'text' | 'password';
   defaultValue?: string;
   noHelperText?: boolean;
+  helperText?: string;
   writeOnly?: boolean;
 }
 
@@ -48,6 +49,7 @@ const TextFieldController = ({
   type = 'text',
   defaultValue = '',
   noHelperText = false,
+  helperText,
   writeOnly = false,
 }: Props) => {
   const { control } = useFormContext();
@@ -88,7 +90,7 @@ const TextFieldController = ({
             fullWidth
             onChange={handleChange}
             error={!!error}
-            helperText={!noHelperText && error ? error.message : null}
+            helperText={!noHelperText && error ? error.message : (helperText ?? null)}
             multiline={multiline}
             rows={rows}
             aria-label={label}

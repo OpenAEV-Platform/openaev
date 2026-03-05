@@ -22,7 +22,7 @@ import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.AssetService;
 import io.openaev.service.TeamService;
-import io.openaev.service.UserService;
+import io.openaev.service.UserAuthService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.AssetFixture;
@@ -42,7 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class InjectExecutionStepTest {
   @MockBean private InjectorContractService injectorContractService;
-  @MockBean private UserService userService;
+  @MockBean private UserAuthService userAuthService;
   @MockBean private TeamService teamService;
   @MockBean private AssetService assetService;
   @MockBean private TagService tagService;
@@ -68,7 +68,7 @@ public class InjectExecutionStepTest {
     InjectorContract injectorContractSaved = injectorContractRepository.save(injectorContract);
 
     doReturn(injectorContractSaved).when(injectorContractService).injectorContract(any());
-    doReturn(new User()).when(userService).currentUser();
+    doReturn(new User()).when(userAuthService).currentUser();
     doReturn(new ArrayList<>()).when(teamService).getTeamsByIds(any());
     doReturn(new ArrayList<>()).when(assetService).assets(any());
     doReturn(new HashSet<>()).when(tagService).tagSet(any());

@@ -26,11 +26,6 @@ import org.hibernate.annotations.UuidGenerator;
 @Entity
 @Table(name = "users")
 @EntityListeners(ModelBaseListener.class)
-@NamedEntityGraphs({
-  @NamedEntityGraph(
-      name = "Player.tags-organization",
-      attributeNodes = {@NamedAttributeNode("tags"), @NamedAttributeNode("organization")})
-})
 public class User implements Base {
 
   public static final String ADMIN_UUID = "89206193-dbfb-4513-a186-d72c037dda4c";
@@ -251,6 +246,16 @@ public class User implements Base {
   @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
   @JsonIgnore
   private List<Token> tokens = new ArrayList<>();
+
+  @Setter
+  @ManyToMany(fetch = FetchType.LAZY)
+  @JoinTable(
+      name = "users_tenants",
+      joinColumns = @JoinColumn(name = "user_id"),
+      inverseJoinColumns = @JoinColumn(name = "tenant_id"))
+  @JsonIgnore
+  private Set<Tenant> tenants = new HashSet<>();
+
 
   @Getter(onMethod_ = @JsonIgnore)
   @Transient

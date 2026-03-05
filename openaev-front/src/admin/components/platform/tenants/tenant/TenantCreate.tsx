@@ -1,8 +1,9 @@
-import { type FunctionComponent, useCallback, useState } from 'react';
+import { type FunctionComponent, useCallback } from 'react';
 
-import { addTenant } from '../../../../../actions/tenants/tenant-actions';
+import { addTenant } from '../../../../../actions/platform/tenants/tenant-action';
 import ButtonCreate from '../../../../../components/common/ButtonCreate';
 import Drawer from '../../../../../components/common/Drawer';
+import useDialog from '../../../../../components/common/dialog/useDialog';
 import { useFormatter } from '../../../../../components/i18n';
 import { type TenantInput, type TenantOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
@@ -11,18 +12,9 @@ import TenantForm from './TenantForm';
 interface Props { onCreate: (result: TenantOutput) => void }
 
 const TenantCreate: FunctionComponent<Props> = ({ onCreate }) => {
-  // Standard hooks
-  const [open, setOpen] = useState(false);
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-
-  const handleOpen = useCallback(() => {
-    setOpen(true);
-  }, []);
-
-  const handleClose = useCallback(() => {
-    setOpen(false);
-  }, []);
+  const { open, handleOpen, handleClose } = useDialog();
 
   const handleSubmit = useCallback(
     async (data: TenantInput) => {
@@ -34,11 +26,11 @@ const TenantCreate: FunctionComponent<Props> = ({ onCreate }) => {
 
       const createdTenant = result.entities.tenants[result.result];
       onCreate(createdTenant);
-      setOpen(false);
+      handleClose();
 
       return result;
     },
-    [dispatch, onCreate],
+    [dispatch, onCreate, handleClose],
   );
 
   return (

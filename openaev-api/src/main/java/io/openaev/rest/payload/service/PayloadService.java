@@ -44,7 +44,7 @@ import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.tag.TagService;
-import io.openaev.service.UserService;
+import io.openaev.service.UserAuthService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
@@ -73,7 +73,7 @@ public class PayloadService {
   private final InjectorContractRepository injectorContractRepository;
   private final AttackPatternRepository attackPatternRepository;
   private final ExpectationBuilderService expectationBuilderService;
-  private final UserService userService;
+  private final UserAuthService userAuthService;
   private final DomainService domainService;
   private final TagService tagService;
   private final DocumentService documentService;
@@ -311,7 +311,7 @@ public class PayloadService {
    * @return a paginated list of Payloads
    */
   public Page<Payload> searchPayloads(@NotNull final SearchPaginationInput searchPaginationInput) {
-    User currentUser = userService.currentUser();
+    User currentUser = userAuthService.currentUser();
     return buildPaginationJPA(
         SpecificationUtils.withGrantFilter(
             this.payloadRepository,

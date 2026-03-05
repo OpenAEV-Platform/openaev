@@ -23,6 +23,8 @@ public interface UserRepository
   @NotNull
   Optional<User> findById(@NotNull String id);
 
+  long countByIdIn(Set<String> ids);
+
   Optional<User> findByEmailIgnoreCase(String email);
 
   List<User> findAllByEmailInIgnoreCase(List<String> emails);
@@ -180,9 +182,31 @@ public interface UserRepository
   // -- PAGINATION --
 
   @NotNull
-  @EntityGraph(value = "Player.tags-organization", type = EntityGraph.EntityGraphType.LOAD)
   Page<User> findAll(@NotNull Specification<User> spec, @NotNull Pageable pageable);
 
   @Query("SELECT u FROM User u JOIN Token t ON u.id = t.user.id WHERE t.value = :token")
   Optional<User> findByToken(@Param("token") String token);
+
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query(value = "DELETE FROM users u WHERE u.user_id = :userId", nativeQuery = true)
+  int deleteByIdNative(@Param("userId") String userId);
+
+  // -- TENANT --
+
+  @Modifying
+  @Query(
+      value = "INSERT INTO users_tenants (user_id, tenant_id) VALUES (:userId, :tenantId) ON CONFLICT DO NOTHING",
+      nativeQuery = true)
+  void addUserToTenant(@Param("userId") String userId, @Param("tenantId") String tenantId);
+
+  @Modifying
+  @Query(
+      value = "DELETE FROM users_tenants WHERE user_id = :userId AND tenant_id = :tenantId",
+      nativeQuery = true)
+  void removeUserFromTenant(@Param("userId") String userId, @Param("tenantId") String tenantId);
+
+  @Query(
+      value = "SELECT EXISTS(SELECT 1 FROM users_tenants WHERE user_id = :userId AND tenant_id = :tenantId)",
+      nativeQuery = true)
+  boolean isUserInTenant(@Param("userId") String userId, @Param("tenantId") String tenantId);
 }

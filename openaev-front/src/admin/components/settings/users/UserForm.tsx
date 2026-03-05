@@ -1,173 +1,123 @@
-import { Button } from '@mui/material';
-import { Form } from 'react-final-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useTheme } from '@mui/material/styles';
+import { type FunctionComponent, useMemo } from 'react';
+import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { type UserInputForm } from '../../../../actions/users/users-helper';
-import OldSwitchField from '../../../../components/fields/OldSwitchField';
-import OldTextField from '../../../../components/fields/OldTextField';
+import TextFieldController from '../../../../components/fields/TextFieldController';
+import TagFieldController from '../../../../components/fields/TagFieldController';
+import OrganizationFieldController from '../../../../components/fields/OrganizationFieldController';
+import type { UserInput } from '../../../../utils/api-types';
 import { useFormatter } from '../../../../components/i18n';
-import OrganizationField from '../../../../components/OrganizationField';
-import TagField from '../../../../components/TagField';
-import { schemaValidator } from '../../../../utils/Zod';
+import ActionButtons from '../../../../components/common/ActionButtons';
 
-interface UserFormProps {
-  onSubmit: (data: UserInputForm) => void;
-  initialValues?: Partial<UserInputForm>;
-  editing: boolean;
-  handleClose: () => void;
+interface Props {
+  onSubmit: SubmitHandler<UserInput>;
+  onCancel: () => void;
+  editing?: boolean;
+  hasPassword?: boolean;
+  hasPgpKey?: boolean;
+  initialValues?: UserInput;
 }
 
-const UserForm = ({ onSubmit, initialValues = {}, editing, handleClose }: UserFormProps) => {
+const UserForm: FunctionComponent<Props> = ({
+  onSubmit,
+  onCancel,
+  editing,
+  hasPassword,
+  hasPgpKey,
+  initialValues = {
+    user_email: '',
+    user_firstname: '',
+    user_lastname: '',
+    user_pgp_key: '',
+    user_phone: '',
+    user_phone2: '',
+    user_organization: '',
+    user_tags: [],
+    user_plain_password: '',
+  },
+}) => {
   const { t } = useFormatter();
+  const theme = useTheme();
 
-  const requiredFields = editing
-    ? ['user_email']
-    : ['user_email', 'user_plain_password'];
+  const schema = useMemo(
+    () =>
+      z.object({
+        user_email: z.email().min(1, { message: t('Should not be empty') }),
+        user_firstname: z.string().optional(),
+        user_lastname: z.string().optional(),
+        user_pgp_key: z.string().optional(),
+        user_phone: z.string().regex(/^\+[\d\s\-.()]+$/, { message: t('Phone number must start with + and contain only digits') }).optional().or(z.literal('')),
+        user_phone2: z.string().regex(/^\+[\d\s\-.()]+$/, { message: t('Phone number must start with + and contain only digits') }).optional().or(z.literal('')),
+        user_organization: z.string().optional(),
+        user_tags: z.string().array().optional(),
+        user_plain_password: z.string().optional(),
+      }).superRefine((data, ctx) => {
+        if (!editing && (!data.user_plain_password || data.user_plain_password.length === 0)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: t('Should not be empty'),
+            path: ['user_plain_password'],
+          });
+        }
+      }),
+    [t, editing],
+  );
 
-  const phoneRegex = /^\+\d+$/;
-
-  const userFormSchemaValidation = z.object({
-    user_email: z.email(t('Should be a valid email address'))
-      .nonempty(t('This field is required.')),
-    ...(requiredFields.includes('user_plain_password') && {
-      user_plain_password: z
-        .string()
-        .nonempty(t('This field is required.')),
-    }),
-    user_phone: z
-      .string()
-      .nullable()
-      .optional()
-      .refine(
-        val => !val || phoneRegex.test(val),
-        t('Phone number must start with + and contain only digits'),
-      ),
-
-    user_phone2: z
-      .string()
-      .nullable()
-      .optional()
-      .refine(
-        val => !val || phoneRegex.test(val),
-        t('Phone number must start with + and contain only digits'),
-      ),
+  const methods = useForm<UserInput>({
+    mode: 'onTouched',
+    resolver: zodResolver(schema),
+    defaultValues: initialValues,
   });
 
+  const {
+    formState: { isDirty, isSubmitting },
+    handleSubmit,
+  } = methods;
+
   return (
-    <Form
-      keepDirtyOnReinitialize
-      initialValues={initialValues}
-      onSubmit={onSubmit}
-      validate={schemaValidator(userFormSchemaValidation)}
-      mutators={{
-        setValue: ([field, value], state, { changeValue }) => {
-          changeValue(state, field, () => value);
-        },
-      }}
-    >
-      {({ handleSubmit, form, values, submitting, pristine }) => (
-        <form id="userForm" onSubmit={handleSubmit}>
-          <OldTextField
-            name="user_email"
-            fullWidth
-            label={t('Email address')}
-            disabled={initialValues.user_email === 'admin@openaev.io'}
-            style={{ marginTop: 10 }}
+    <FormProvider {...methods}>
+      <form
+        id="tenantUserFormId"
+        onSubmit={handleSubmit(onSubmit)}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: '100%',
+          gap: theme.spacing(2),
+        }}
+      >
+        <TextFieldController name="user_email" label={t('Email address')} required />
+        <TextFieldController name="user_firstname" label={t('Firstname')} />
+        <TextFieldController name="user_lastname" label={t('Lastname')} />
+        <OrganizationFieldController name="user_organization" label={t('Organization')} />
+        <TextFieldController
+          name="user_plain_password"
+          label={editing ? t('New password') : t('Password')}
+          required={!editing}
+          helperText={editing && hasPassword ? t('A password is already set. Fill this field only to replace it.') : undefined}
+        />
+        <TextFieldController name="user_phone" label={t('Phone number (mobile)')} />
+        <TextFieldController name="user_phone2" label={t('Phone number (landline)')} />
+        <TextFieldController
+          name="user_pgp_key"
+          label={editing && hasPgpKey ? t('New PGP public key') : t('PGP public key')}
+          multiline rows={5}
+          helperText={editing && hasPgpKey ? t('A PGP key is already set. Fill this field only to replace it.') : undefined}
+        />
+        <TagFieldController name="user_tags" label={t('Tags')} />
+        <div style={{ alignSelf: 'flex-end' }}>
+          <ActionButtons
+            onCancel={onCancel}
+            cancelLabel={t('Cancel')}
+            submitLabel={editing ? t('Update') : t('Create')}
+            disabled={!isDirty}
+            submitting={isSubmitting}
           />
-          <OldTextField
-            name="user_firstname"
-            fullWidth
-            label={t('Firstname')}
-            style={{ marginTop: 20 }}
-          />
-          <OldTextField
-            name="user_lastname"
-            fullWidth
-            label={t('Lastname')}
-            style={{ marginTop: 20 }}
-          />
-          <OrganizationField
-            name="user_organization"
-            values={values}
-            setFieldValue={form.mutators.setValue}
-          />
-          {!editing && (
-            <OldTextField
-              variant="standard"
-              name="user_plain_password"
-              fullWidth
-              type="password"
-              label={t('Password')}
-              style={{ marginTop: 20 }}
-            />
-          )}
-          {editing && (
-            <OldTextField
-              variant="standard"
-              name="user_phone"
-              fullWidth
-              label={t('Phone number (mobile)')}
-              style={{ marginTop: 20 }}
-            />
-          )}
-          {editing && (
-            <OldTextField
-              variant="standard"
-              name="user_phone2"
-              fullWidth
-              label={t('Phone number (landline)')}
-              style={{ marginTop: 20 }}
-            />
-          )}
-          {editing && (
-            <OldTextField
-              variant="standard"
-              name="user_pgp_key"
-              fullWidth
-              multiline
-              rows={5}
-              label={t('PGP public key')}
-              style={{ marginTop: 20 }}
-            />
-          )}
-          <TagField
-            name="user_tags"
-            label={t('Tags')}
-            values={values}
-            setFieldValue={form.mutators.setValue}
-            style={{ marginTop: 20 }}
-          />
-          <OldSwitchField
-            name="user_admin"
-            label={t('Administrator')}
-            style={{ marginTop: 20 }}
-            disabled={initialValues.user_email === 'admin@openaev.io'}
-          />
-          <div style={{
-            float: 'right',
-            marginTop: 20,
-          }}
-          >
-            <Button
-              variant="contained"
-              onClick={handleClose}
-              style={{ marginRight: 10 }}
-              disabled={submitting}
-            >
-              {t('Cancel')}
-            </Button>
-            <Button
-              variant="contained"
-              color="secondary"
-              type="submit"
-              disabled={pristine || submitting}
-            >
-              {editing ? t('Update') : t('Create')}
-            </Button>
-          </div>
-        </form>
-      )}
-    </Form>
+        </div>
+      </form>
+    </FormProvider>
   );
 };
 

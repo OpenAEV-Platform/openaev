@@ -18,7 +18,7 @@ import io.openaev.rest.user.form.me.UpdateMePasswordInput;
 import io.openaev.rest.user.form.me.UpdateProfileInput;
 import io.openaev.rest.user.form.user.RenewTokenInput;
 import io.openaev.rest.user.form.user.UpdateUserInfoInput;
-import io.openaev.service.UserService;
+import io.openaev.service.UserAuthService;
 import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
@@ -39,7 +39,7 @@ public class MeApi extends RestBehavior {
   private OrganizationRepository organizationRepository;
   private TokenRepository tokenRepository;
   private UserRepository userRepository;
-  private UserService userService;
+  private UserAuthService userService;
 
   @Autowired
   public void setOrganizationRepository(OrganizationRepository organizationRepository) {
@@ -47,7 +47,7 @@ public class MeApi extends RestBehavior {
   }
 
   @Autowired
-  public void setUserService(UserService userService) {
+  public void setUserService(UserAuthService userService) {
     this.userService = userService;
   }
 

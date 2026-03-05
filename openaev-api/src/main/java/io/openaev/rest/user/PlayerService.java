@@ -19,7 +19,7 @@ import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.user.form.player.PlayerInput;
 import io.openaev.rest.user.form.player.PlayerOutput;
-import io.openaev.service.UserService;
+import io.openaev.service.UserAuthService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -53,12 +53,12 @@ public class PlayerService {
   @PersistenceContext private EntityManager entityManager;
 
   private final UserRepository userRepository;
-  private final UserService userService;
+  private final UserAuthService userAuthService;
 
   public Page<PlayerOutput> playerPagination(@NotNull SearchPaginationInput searchPaginationInput) {
     TriFunction<Specification<User>, Specification<User>, Pageable, Page<PlayerOutput>>
         playersFunction;
-    User currentUser = userService.currentUser();
+    User currentUser = userAuthService.currentUser();
     playersFunction = this::paginate;
     return buildPaginationCriteriaBuilder(playersFunction, searchPaginationInput, User.class);
   }
@@ -141,7 +141,7 @@ public class PlayerService {
               input.getOrganizationId(), newUser.getOrganization(), organizationRepository));
       newUser.setTeams(fromIterable(teamRepository.findAllById(input.getTeamIds())));
       User savedUser = userRepository.save(newUser);
-      userService.createUserToken(savedUser);
+      userAuthService.createUserToken(savedUser);
       return savedUser;
     }
   }

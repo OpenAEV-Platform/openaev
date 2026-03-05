@@ -10,7 +10,7 @@ import io.openaev.database.repository.TokenRepository;
 import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.security.token.JwtExtractor;
 import io.openaev.security.token.PlainTokenExtractor;
-import io.openaev.service.UserService;
+import io.openaev.service.UserAuthService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
@@ -30,7 +30,7 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
   private static final String HEADER_NAME = "Authorization";
   private static final String BEARER_PREFIX = "bearer ";
   private TokenRepository tokenRepository;
-  private UserService userService;
+  private UserAuthService userService;
   private JwtExtractor jwtExtractor;
   private PlainTokenExtractor plainTokenExtractor;
 
@@ -40,7 +40,7 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
   }
 
   @Autowired
-  public void setUserService(UserService userService) {
+  public void setUserService(UserAuthService userService) {
     this.userService = userService;
   }
 
