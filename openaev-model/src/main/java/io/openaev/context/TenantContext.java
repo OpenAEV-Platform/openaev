@@ -20,6 +20,10 @@ public class TenantContext implements EvaluationContextExtension {
     CURRENT_TENANT.set(tenant);
   }
 
+  public static void clearCurrentTenant() {
+    CURRENT_TENANT.remove();
+  }
+
   @Override
   public String getExtensionId() {
     return "tenantContext";
