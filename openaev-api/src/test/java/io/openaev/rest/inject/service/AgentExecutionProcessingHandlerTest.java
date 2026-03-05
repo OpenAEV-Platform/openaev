@@ -1,6 +1,7 @@
 package io.openaev.rest.inject.service;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.JsonNode;
