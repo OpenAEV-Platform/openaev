@@ -1400,6 +1400,229 @@ class InjectApiTest extends IntegrationTest {
         assertEquals(endpointSaved.getId(), findings.getLast().getAssets().getFirst().getId());
       }
 
+      // Deduplication
+
+      @Test
+      @DisplayName(
+          "Should consolidate duplicate CVE findings when structured output contains multiple entries with the same id")
+      void shouldConsolidateDuplicateCveFindingsWhenStructuredOutputContainsDuplicates()
+          throws Exception {
+        // -- PREPARE --
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage("Duplicate CVE findings test");
+        input.setOutputStructured(
+            """
+                {
+                  "cve": [
+                    {"id": "CVE-2025-99999", "host": "192.168.1.10", "severity": "critical"},
+                    {"id": "CVE-2025-99999", "host": "192.168.1.20", "severity": "critical"}
+                  ]
+                }
+                """);
+        input.setAction(InjectExecutionAction.complete);
+        input.setStatus("SUCCESS");
+
+        Inject inject = getPendingInjectWithAssets();
+        Injector injector = InjectorFixture.createDefaultPayloadInjector();
+        injectTestHelper.forceSaveInjector(injector);
+
+        ObjectNode convertedContent =
+            (ObjectNode)
+                mapper.readTree(
+                    """
+                        {
+                          "outputs": [
+                            {
+                              "field": "cve",
+                              "isFindingCompatible": true,
+                              "isMultiple": true,
+                              "labels": [],
+                              "type": "cve"
+                            }
+                          ]
+                        }
+                        """);
+        convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
+        InjectorContract injectorContract =
+            InjectorContractFixture.createInjectorContract(convertedContent);
+        injectorContract.setInjector(injector);
+        InjectorContract injectorContractSaved =
+            injectTestHelper.forceSaveInjectorContract(injectorContract);
+        inject.setInjectorContract(injectorContractSaved);
+        inject.setContent(convertedContent);
+        injectTestHelper.forceSaveInject(inject);
+
+        // -- EXECUTE --
+        performAgentlessCallbackRequest(inject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> !injectTestHelper.findFindingsByInjectId(inject.getId()).isEmpty());
+
+        List<Finding> findings = findingRepository.findAllByInjectId(inject.getId());
+        assertEquals(
+            1,
+            findings.size(),
+            "Duplicate CVE findings with the same id must be consolidated into one");
+        assertEquals(ContractOutputType.CVE, findings.getFirst().getType());
+        assertEquals("CVE-2025-99999", findings.getFirst().getValue());
+      }
+
+      @Test
+      @DisplayName(
+          "Should consolidate duplicate Port findings when two scanned hosts both have the same port open")
+      void shouldConsolidateDuplicatePortFindingsWhenTwoHostsHaveSamePortOpen() throws Exception {
+        // -- PREPARE --
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage("nmap TCP connect scan");
+        input.setOutputStructured(
+            """
+                {
+                  "ports": [22, 8080, 8080]
+                }
+                """);
+        input.setAction(InjectExecutionAction.complete);
+        input.setStatus("SUCCESS");
+
+        Inject inject = getPendingInjectWithAssets();
+        Injector injector = InjectorFixture.createDefaultPayloadInjector();
+        injectTestHelper.forceSaveInjector(injector);
+
+        ObjectNode convertedContent =
+            (ObjectNode)
+                mapper.readTree(
+                    """
+                        {
+                          "outputs": [
+                            {
+                              "field": "ports",
+                              "isFindingCompatible": true,
+                              "isMultiple": true,
+                              "labels": ["scan"],
+                              "type": "port"
+                            }
+                          ]
+                        }
+                        """);
+        convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
+        InjectorContract injectorContract =
+            InjectorContractFixture.createInjectorContract(convertedContent);
+        injectorContract.setInjector(injector);
+        InjectorContract injectorContractSaved =
+            injectTestHelper.forceSaveInjectorContract(injectorContract);
+        inject.setInjectorContract(injectorContractSaved);
+        inject.setContent(convertedContent);
+        injectTestHelper.forceSaveInject(inject);
+
+        // -- EXECUTE --
+        performAgentlessCallbackRequest(inject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.findFindingsByInjectId(inject.getId()).size() >= 2);
+
+        List<Finding> findings = findingRepository.findAllByInjectId(inject.getId());
+        assertEquals(
+            2,
+            findings.size(),
+            "Port 22 and port 8080 (deduplicated) must produce exactly 2 findings");
+        assertTrue(
+            findings.stream().anyMatch(f -> f.getValue().equals("22")),
+            "Expected finding for port 22");
+        assertTrue(
+            findings.stream().anyMatch(f -> f.getValue().equals("8080")),
+            "Expected deduplicated finding for port 8080");
+        findings.forEach(f -> assertEquals(ContractOutputType.Port, f.getType()));
+      }
+
+      @Test
+      @DisplayName(
+          "Should merge assets of duplicate PortsScan findings when two assets expose the same host/port/service")
+      void shouldMergeAssetsOfDuplicatePortScanFindingsWhenTwoAssetsHaveSameHostPortService()
+          throws Exception {
+        // -- PREPARE --
+        Endpoint endpointA = EndpointFixture.createEndpoint();
+        Endpoint endpointASaved = injectTestHelper.forceSaveEndpoint(endpointA);
+        Endpoint endpointB = EndpointFixture.createEndpoint();
+        Endpoint endpointBSaved = injectTestHelper.forceSaveEndpoint(endpointB);
+
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage("nmap scan_results two assets both expose 192.168.1.10:8080/http");
+        input.setOutputStructured(
+            String.format(
+                """
+                    {
+                      "scan_results": [
+                        {"asset_id": "%s", "host": "192.168.1.10", "port": "8080", "service": "http"},
+                        {"asset_id": "%s", "host": "192.168.1.10", "port": "8080", "service": "http"}
+                      ]
+                    }
+                    """,
+                endpointASaved.getId(), endpointBSaved.getId()));
+        input.setAction(InjectExecutionAction.complete);
+        input.setStatus("SUCCESS");
+
+        Inject inject = getPendingInjectWithAssets();
+        Injector injector = InjectorFixture.createDefaultPayloadInjector();
+        injectTestHelper.forceSaveInjector(injector);
+
+        ObjectNode convertedContent =
+            (ObjectNode)
+                mapper.readTree(
+                    """
+                        {
+                          "outputs": [
+                            {
+                              "field": "scan_results",
+                              "isFindingCompatible": true,
+                              "isMultiple": true,
+                              "labels": ["scan"],
+                              "type": "portscan"
+                            }
+                          ]
+                        }
+                        """);
+        convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
+        InjectorContract injectorContract =
+            InjectorContractFixture.createInjectorContract(convertedContent);
+        injectorContract.setInjector(injector);
+        InjectorContract injectorContractSaved =
+            injectTestHelper.forceSaveInjectorContract(injectorContract);
+        inject.setInjectorContract(injectorContractSaved);
+        inject.setContent(convertedContent);
+        injectTestHelper.forceSaveInject(inject);
+
+        // -- EXECUTE --
+        performAgentlessCallbackRequest(inject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> !injectTestHelper.findFindingsByInjectId(inject.getId()).isEmpty());
+
+        List<Finding> findings = findingRepository.findAllByInjectId(inject.getId());
+        assertEquals(
+            1,
+            findings.size(),
+            "Two PortsScan entries with same host/port/service must be consolidated into one finding");
+        Finding merged = findings.getFirst();
+        assertEquals(ContractOutputType.PortsScan, merged.getType());
+        assertEquals("192.168.1.10:8080 (http)", merged.getValue());
+        List<String> assetIds = merged.getAssets().stream().map(Asset::getId).toList();
+        assertTrue(
+            assetIds.contains(endpointASaved.getId()), "Merged finding must be linked to asset A");
+        assertTrue(
+            assetIds.contains(endpointBSaved.getId()), "Merged finding must be linked to asset B");
+      }
+
       // CVE
 
       @Test

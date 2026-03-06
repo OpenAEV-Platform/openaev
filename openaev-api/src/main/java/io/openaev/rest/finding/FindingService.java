@@ -218,7 +218,67 @@ public class FindingService {
       @NotNull final List<Finding> findings, @NotBlank final String injectId) {
     Inject inject = injectService.inject(injectId);
     findings.forEach(finding -> finding.setInject(inject));
-    findingRepository.saveAll(findings);
+    List<Finding> deduplicatedFindings = deduplicateFindings(findings);
+    findingRepository.saveAll(deduplicatedFindings);
+  }
+
+  /**
+   * Deduplicates a list of findings based on the unique constraint keys: value, type, and field.
+   * When duplicates are found, their assets, teams and users are merged into the first occurrence
+   * finding_field)}.
+   *
+   * @param findings the raw list of findings, potentially containing duplicates
+   * @return a deduplicated list with associations merged
+   */
+  private List<Finding> deduplicateFindings(@NotNull final List<Finding> findings) {
+    Map<String, Finding> seen = new java.util.LinkedHashMap<>();
+    for (Finding finding : findings) {
+      String key = finding.getValue() + "|" + finding.getType() + "|" + finding.getField();
+      Finding existing = seen.get(key);
+      if (existing == null) {
+        seen.put(key, finding);
+      } else {
+        log.debug(
+            "Duplicate finding detected (value={}, type={}, field={}): merging associations",
+            finding.getValue(),
+            finding.getType(),
+            finding.getField());
+        if (finding.getAssets() != null) {
+          List<Asset> merged =
+              new ArrayList<>(existing.getAssets() != null ? existing.getAssets() : List.of());
+          finding
+              .getAssets()
+              .forEach(
+                  a -> {
+                    if (!merged.contains(a)) merged.add(a);
+                  });
+          existing.setAssets(merged);
+        }
+        if (finding.getTeams() != null) {
+          List<Team> merged =
+              new ArrayList<>(existing.getTeams() != null ? existing.getTeams() : List.of());
+          finding
+              .getTeams()
+              .forEach(
+                  t -> {
+                    if (!merged.contains(t)) merged.add(t);
+                  });
+          existing.setTeams(merged);
+        }
+        if (finding.getUsers() != null) {
+          List<User> merged =
+              new ArrayList<>(existing.getUsers() != null ? existing.getUsers() : List.of());
+          finding
+              .getUsers()
+              .forEach(
+                  u -> {
+                    if (!merged.contains(u)) merged.add(u);
+                  });
+          existing.setUsers(merged);
+        }
+      }
+    }
+    return new ArrayList<>(seen.values());
   }
 
   public List<Finding> buildFindings(
