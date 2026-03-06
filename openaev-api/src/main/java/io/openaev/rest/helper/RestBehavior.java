@@ -11,6 +11,7 @@ import io.openaev.aop.lock.LockAcquisitionException;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.*;
+import io.openaev.stix.parsing.ParsingException;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -91,6 +92,24 @@ public class RestBehavior {
     ValidationError errors = new ValidationError();
     Map<String, ValidationContent> errorsBag = new HashMap<>();
     errorsBag.put(ex.getField(), new ValidationContent(ex.getMessage()));
+    errors.setChildren(errorsBag);
+    bag.setErrors(errors);
+    return bag;
+  }
+
+  /**
+   * Method to automatically handle a STIX Parsing error as a BAD REQUEST
+   *
+   * @param ex the STIX parsing exception object
+   * @return Validation bag error structure
+   */
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  @ExceptionHandler(ParsingException.class)
+  public ValidationErrorBag handleInputValidationExceptions(ParsingException ex) {
+    ValidationErrorBag bag = new ValidationErrorBag();
+    ValidationError errors = new ValidationError();
+    Map<String, ValidationContent> errorsBag = new HashMap<>();
+    errorsBag.put("STIX Bundle", new ValidationContent(ex.getMessage()));
     errors.setChildren(errorsBag);
     bag.setErrors(errors);
     return bag;

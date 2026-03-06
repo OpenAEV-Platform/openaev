@@ -3,6 +3,7 @@ package io.openaev.utils;
 import static io.openaev.utils.constants.StixConstants.*;
 
 import io.openaev.database.model.StixRefToExternalRef;
+import io.openaev.service.stix.error.BundleValidationError;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.objects.ObjectBase;
 import io.openaev.stix.objects.constants.CommonProperties;
@@ -11,7 +12,6 @@ import io.openaev.stix.objects.constants.ObjectTypes;
 import io.openaev.stix.types.Dictionary;
 import java.util.*;
 import java.util.stream.Collectors;
-import org.apache.coyote.BadRequestException;
 
 /**
  * Utility class for processing security coverage data from STIX bundles.
@@ -41,12 +41,12 @@ public class SecurityCoverageUtils {
    *
    * @param bundle the STIX bundle to search
    * @return the extracted {@code x-security-coverage} object
-   * @throws BadRequestException if the bundle does not contain exactly one such object
+   * @throws BundleValidationError if the bundle does not contain exactly one such object
    */
-  public static ObjectBase extractAndValidateCoverage(Bundle bundle) throws BadRequestException {
+  public static ObjectBase extractAndValidateCoverage(Bundle bundle) throws BundleValidationError {
     List<ObjectBase> coverages = bundle.findByType(ObjectTypes.SECURITY_COVERAGE);
     if (coverages.size() != 1) {
-      throw new BadRequestException("STIX bundle must contain exactly one security-coverage");
+      throw new BundleValidationError("STIX bundle must contain exactly one security-coverage");
     }
     return coverages.getFirst();
   }
