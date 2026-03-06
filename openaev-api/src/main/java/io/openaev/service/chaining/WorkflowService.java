@@ -205,11 +205,12 @@ public class WorkflowService {
 
   @Transactional
   public ChainingConfiguration updateChainingConfiguration(
-      @NotBlank String scenarioId, @Valid ChainingConfigurationInput input) {
-    ChainingConfiguration configuration = fetchChainingConfiguration(scenarioId);
+      @NotBlank String workflowId, @Valid ChainingConfigurationInput input) {
+    ChainingConfiguration configuration = fetchChainingConfiguration(workflowId);
     configuration.setRateLimit(chainingConfigurationMapper.toRateLimit(input.getRateLimit()));
     configuration.setTimeOut(chainingConfigurationMapper.toTimeOut(input.getTimeOut()));
     configuration.setSafeMode(input.isSafeMode());
+    this.updateWorkflowTemplate(workflowId);
     return chainingConfigurationRepository.save(configuration);
   }
 }
