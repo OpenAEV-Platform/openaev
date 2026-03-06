@@ -2,6 +2,7 @@ package io.openaev.executors.sentinelone.service;
 
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.openaev.database.model.*;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
@@ -22,8 +23,7 @@ public class SentinelOneExecutorService implements Runnable {
   private final EndpointService endpointService;
   private final AgentService agentService;
   private final AssetGroupService assetGroupService;
-
-  private Executor executor = null;
+  private Executor executor;
 
   public static Endpoint.PLATFORM_TYPE toPlatform(@NotBlank final String platform) {
     return switch (platform.toLowerCase()) {
@@ -55,6 +55,7 @@ public class SentinelOneExecutorService implements Runnable {
     this.assetGroupService = assetGroupService;
   }
 
+  // TODO multi-tenancy: Multi executors dev
   @Override
   public void run() {
     log.info("Running SentinelOne executor endpoints gathering...");
@@ -86,7 +87,8 @@ public class SentinelOneExecutorService implements Runnable {
       List<Agent> agents =
           endpointService.syncAgentsEndpoints(
               toAgentEndpoint(sentinelOneAgents),
-              agentService.getAgentsByExecutorType(SENTINELONE_EXECUTOR_TYPE));
+              agentService.getAgentsByExecutorType(
+                  SENTINELONE_EXECUTOR_TYPE, executor.getTenant().getId()));
       // For each sentinel one account/site/group id, create/update the relevant OpenAEV asset group
       Optional<AssetGroup> existingAssetGroup;
       AssetGroup assetGroup;
@@ -94,12 +96,14 @@ public class SentinelOneExecutorService implements Runnable {
           assetGroupIdAgentIdsMap.entrySet()) {
         String assetGroupId = assetGroupIdAgentIds.getKey();
         List<String> agentIds = assetGroupIdAgentIds.getValue();
-        existingAssetGroup = assetGroupService.findByExternalReference(assetGroupId);
+        existingAssetGroup =
+            assetGroupService.findByExternalReference(assetGroupId, executor.getTenant().getId());
         if (existingAssetGroup.isPresent()) {
           assetGroup = existingAssetGroup.get();
         } else {
           assetGroup = new AssetGroup();
           assetGroup.setExternalReference(assetGroupId);
+          assetGroup.setTenant(executor.getTenant());
         }
         assetGroup.setName(assetGroupIdNameMap.get(assetGroupId));
         assetGroup.setAssets(
@@ -146,5 +150,10 @@ public class SentinelOneExecutorService implements Runnable {
               return input;
             })
         .collect(Collectors.toList());
+  }
+
+  @VisibleForTesting
+  protected void setExecutor(Executor executor) {
+    this.executor = executor;
   }
 }

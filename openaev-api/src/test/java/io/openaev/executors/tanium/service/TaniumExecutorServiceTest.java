@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
@@ -57,6 +58,7 @@ public class TaniumExecutorServiceTest {
     taniumExecutor = new Executor();
     taniumExecutor.setName(TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME);
     taniumExecutor.setType(TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE);
+    taniumExecutor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
   }
 
   @Test
@@ -70,11 +72,14 @@ public class TaniumExecutorServiceTest {
     when(config.getComputerGroupId()).thenReturn(HOST_GROUP_TANIUM);
     when(client.computerGroup(HOST_GROUP_TANIUM)).thenReturn(dataComputerGroup);
     when(client.endpoints(HOST_GROUP_TANIUM)).thenReturn(List.of(taniumEndpoint));
+    taniumExecutorService.setExecutor(taniumExecutor);
     // Run method to test
     taniumExecutorService.run();
     // Asserts
     ArgumentCaptor<String> executorTypeCaptor = ArgumentCaptor.forClass(String.class);
-    verify(agentService).getAgentsByExecutorType(executorTypeCaptor.capture());
+    ArgumentCaptor<String> tenantIdCaptor = ArgumentCaptor.forClass(String.class);
+    verify(agentService)
+        .getAgentsByExecutorType(executorTypeCaptor.capture(), tenantIdCaptor.capture());
     assertEquals(taniumExecutor.getType(), executorTypeCaptor.getValue());
 
     ArgumentCaptor<List<AgentRegisterInput>> inputsCaptor = ArgumentCaptor.forClass(List.class);

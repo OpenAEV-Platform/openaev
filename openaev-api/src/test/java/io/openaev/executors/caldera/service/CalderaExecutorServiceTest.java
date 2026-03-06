@@ -7,8 +7,10 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Executor;
+import io.openaev.database.model.Tenant;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.caldera.client.CalderaExecutorClient;
 import io.openaev.executors.caldera.config.CalderaExecutorConfig;
@@ -84,9 +86,11 @@ public class CalderaExecutorServiceTest {
     calderaExecutor = new Executor();
     calderaExecutor.setName(CALDERA_EXECUTOR_NAME);
     calderaExecutor.setType(CALDERA_EXECUTOR_TYPE);
+    calderaExecutor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     randomExecutor = new Executor();
     randomExecutor.setName("NAME");
     randomExecutor.setType("TYPE");
+    randomExecutor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     calderaExecutorService.setExecutor(calderaExecutor);
 
     calderaAgent =

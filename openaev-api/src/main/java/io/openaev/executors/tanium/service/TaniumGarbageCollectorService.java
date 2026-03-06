@@ -4,6 +4,7 @@ import static io.openaev.executors.ExecutorHelper.UNIX_CLEAN_PAYLOADS_COMMAND;
 import static io.openaev.executors.ExecutorHelper.WINDOWS_CLEAN_PAYLOADS_COMMAND;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Endpoint;
 import io.openaev.executors.tanium.config.TaniumExecutorConfig;
@@ -31,10 +32,12 @@ public class TaniumGarbageCollectorService implements Runnable {
     this.agentService = agentService;
   }
 
+  // TODO multi-tenancy: Multi executors dev
   @Override
   public void run() {
     List<io.openaev.database.model.Agent> agents =
-        this.agentService.getAgentsByExecutorType(TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE);
+        this.agentService.getAgentsByExecutorType(
+            TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE, TenantContext.getCurrentTenant());
     if (!agents.isEmpty()) {
       log.info("Running Tanium executor garbage collector on " + agents.size() + " agents");
       List<TaniumAction> actions = new ArrayList<>();

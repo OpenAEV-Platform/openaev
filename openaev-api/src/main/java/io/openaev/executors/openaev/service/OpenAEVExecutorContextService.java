@@ -53,6 +53,7 @@ public class OpenAEVExecutorContextService extends ExecutorContextService {
     assetAgentJob.setCommand(computeCommand(inject, agent.getId(), platform, arch));
     assetAgentJob.setAgent(agent);
     assetAgentJob.setInject(inject);
+    assetAgentJob.setTenant(inject.getTenant());
     assetAgentJobRepository.save(assetAgentJob);
   }
 

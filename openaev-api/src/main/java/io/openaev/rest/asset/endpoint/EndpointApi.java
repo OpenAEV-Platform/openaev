@@ -4,6 +4,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.AssetAgentJob;
 import io.openaev.database.model.Endpoint;
@@ -62,7 +63,52 @@ public class EndpointApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
   public Endpoint upsertAgentLessEndpoint(@Valid @RequestBody final EndpointInput input) {
-    return this.endpointService.upsertEndpoint(input);
+    Optional<Endpoint> endpoint = Optional.empty();
+    if (input.getExternalReference() != null) {
+      endpoint = this.endpointService.findEndpointByExternalReference(input.getExternalReference());
+    }
+    if (endpoint.isEmpty() && input.getIps() != null) {
+      List<Endpoint> endpoints =
+          this.endpointService.findEndpointByHostnameAndAtLeastOneIp(
+              input.getHostname(), input.getIps(), TenantContext.getCurrentTenant());
+      if (!endpoints.isEmpty()) {
+        endpoint = Optional.of(endpoints.getFirst());
+      }
+    }
+    if (endpoint.isEmpty() && input.getMacAddresses() != null) {
+      List<Endpoint> endpoints =
+          this.endpointService.findEndpointByHostnameAndAtLeastOneMacAddress(
+              input.getHostname(), input.getMacAddresses());
+      if (!endpoints.isEmpty()) {
+        endpoint = Optional.of(endpoints.getFirst());
+      }
+    }
+    if (endpoint.isPresent()) {
+      Endpoint endpointToUpdate = endpoint.get();
+      // Mandatory fields
+      endpointToUpdate.setName(input.getName());
+      Iterable<String> tags =
+          Stream.concat(
+                  endpointToUpdate.getTags().stream().map(Tag::getId).toList().stream(),
+                  input.getTagIds().stream())
+              .distinct()
+              .toList();
+      endpointToUpdate.setTags(iterableToSet(tagRepository.findAllById(tags)));
+      endpointToUpdate.setArch(input.getArch());
+      endpointToUpdate.setPlatform(input.getPlatform());
+      // Optional fields
+      if (input.getIps() != null) {
+        endpointToUpdate.setIps(EndpointMapper.setIps(input.getIps()));
+      }
+      if (input.getHostname() != null) {
+        endpointToUpdate.setHostname(input.getHostname());
+      }
+      if (input.getMacAddresses() != null) {
+        endpointToUpdate.setMacAddresses(input.getMacAddresses());
+      }
+      return this.endpointService.updateEndpoint(endpointToUpdate);
+    }
+    return this.endpointService.createEndpoint(input);
   }
 
   @PostMapping(ENDPOINT_URI + "/register")

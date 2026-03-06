@@ -8,6 +8,7 @@ import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
@@ -54,17 +55,21 @@ public class SentinelOneExecutorServiceTest {
     sentinelOneExecutor = new Executor();
     sentinelOneExecutor.setName(SENTINELONE_EXECUTOR_NAME);
     sentinelOneExecutor.setType(SENTINELONE_EXECUTOR_TYPE);
+    sentinelOneExecutor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
   }
 
   @Test
   void test_run_sentinelone() {
     // Init datas
     when(client.agents()).thenReturn(Set.of(sentinelOneAgent));
+    sentinelOneExecutorService.setExecutor(sentinelOneExecutor);
     // Run method to test
     sentinelOneExecutorService.run();
     // Asserts
     ArgumentCaptor<String> executorTypeCaptor = ArgumentCaptor.forClass(String.class);
-    verify(agentService).getAgentsByExecutorType(executorTypeCaptor.capture());
+    ArgumentCaptor<String> tenantIdCaptor = ArgumentCaptor.forClass(String.class);
+    verify(agentService)
+        .getAgentsByExecutorType(executorTypeCaptor.capture(), tenantIdCaptor.capture());
     assertEquals(sentinelOneExecutor.getType(), executorTypeCaptor.getValue());
 
     ArgumentCaptor<List<AgentRegisterInput>> inputsCaptor = ArgumentCaptor.forClass(List.class);

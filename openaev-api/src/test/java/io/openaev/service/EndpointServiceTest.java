@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
@@ -146,10 +147,14 @@ class EndpointServiceTest {
       // -------- Prepare --------
       Endpoint ep = new Endpoint();
       String[] ips = {"10.0.0.1"};
-      when(endpointRepository.findByHostnameAndAtleastOneIp("host1", ips)).thenReturn(List.of(ep));
+      when(endpointRepository.findByHostnameAndAtleastOneIp(
+              "host1", ips, TenantContext.getCurrentTenant()))
+          .thenReturn(List.of(ep));
 
       // -------- Act --------
-      List<Endpoint> result = endpointService.findEndpointByHostnameAndAtLeastOneIp("host1", ips);
+      List<Endpoint> result =
+          endpointService.findEndpointByHostnameAndAtLeastOneIp(
+              "host1", ips, TenantContext.getCurrentTenant());
 
       // -------- Assert --------
       assertEquals(1, result.size());
