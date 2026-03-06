@@ -3,7 +3,6 @@ package io.openaev.service;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import com.cronutils.utils.VisibleForTesting;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.TagRule;
@@ -38,8 +37,7 @@ public class TagRuleService {
   }
 
   public Optional<TagRule> findByTagName(String name) {
-    return tagRuleRepository.findTagRuleByTagNameAndTenantId(
-        name, TenantContext.getCurrentTenant());
+    return tagRuleRepository.findTagRuleByTagName(name);
   }
 
   public List<TagRule> findAll() {

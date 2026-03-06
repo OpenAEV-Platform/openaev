@@ -7,7 +7,6 @@ import static org.mockito.Mockito.doThrow;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
@@ -554,9 +553,7 @@ public class StarterPackTest extends IntegrationTest {
   }
 
   private void verifyTagRuleExist() {
-    Optional<TagRule> tagRule =
-        this.tagRuleRepository.findTagRuleByTagNameAndTenantId(
-            "opencti", TenantContext.getCurrentTenant());
+    Optional<TagRule> tagRule = this.tagRuleRepository.findTagRuleByTagName("opencti");
     assertTrue(tagRule.isPresent());
   }
 }
