@@ -1708,7 +1708,7 @@ class InjectApiTest extends IntegrationTest {
         Inject credInject = (Inject) setup[0];
         String agentId = (String) setup[1];
 
-        // domain\\user:pass format — each line produces one finding
+        // domain\\user:pass format, each line produces one finding
         String rawOutput =
             "SMB 192.168.11.23 445 SERVER [+] WORKGROUP\\\\alice:secret123 (Pwn3d!)\\n"
                 + "SMB 192.168.11.23 445 SERVER [+] WORKGROUP\\\\bob:hunter2 (Pwn3d!)\\n";
