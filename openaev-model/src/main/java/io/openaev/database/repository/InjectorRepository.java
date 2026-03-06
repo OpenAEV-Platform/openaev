@@ -15,6 +15,7 @@ public interface InjectorRepository
   @NotNull
   Optional<Injector> findById(@NotNull String id);
 
+  // TODO multi-tenancy: Multi executors dev
   @NotNull
   Optional<Injector> findByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
 
