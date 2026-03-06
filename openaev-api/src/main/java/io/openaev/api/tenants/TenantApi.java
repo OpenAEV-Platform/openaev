@@ -34,7 +34,7 @@ public class TenantApi {
       isEnterpriseEdition = true)
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
-  public TenantOutput create(@Valid @RequestBody TenantInput input) throws Exception {
+  public TenantOutput create(@Valid @RequestBody TenantInput input) {
     return toOutput(tenantService.create(TenantMapper.fromInput(null, input)));
   }
 
@@ -92,7 +92,7 @@ public class TenantApi {
       isEnterpriseEdition = true)
   @DeleteMapping("/{tenantId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void delete(@PathVariable String tenantId) throws Exception {
+  public void delete(@PathVariable String tenantId) {
     tenantService.delete(tenantId);
   }
 }
