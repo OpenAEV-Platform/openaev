@@ -22,13 +22,12 @@ public interface AttackPatternRepository
 
   List<AttackPattern> findAllByIdIn(List<String> ids);
 
-  Optional<AttackPattern> findByExternalIdAndTenantId(
-      @NotNull String externalId, @NotNull String tenantId);
+  Optional<AttackPattern> findByExternalId(@NotNull String externalId);
 
   List<AttackPattern> findAllByExternalIdInIgnoreCaseAndTenantId(
       List<String> externalIds, String tenantId);
 
-  Optional<AttackPattern> findByStixIdAndTenantId(@NotNull String stixId, @NotNull String tenantId);
+  Optional<AttackPattern> findByStixId(@NotNull String stixId);
 
   @Query(
       value =
