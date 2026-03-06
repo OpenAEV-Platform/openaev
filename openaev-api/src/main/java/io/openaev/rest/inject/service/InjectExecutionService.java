@@ -16,7 +16,6 @@ import io.openaev.service.InjectExpectationService;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,7 +33,9 @@ public class InjectExecutionService {
   private final AgentRepository agentRepository;
   private final InjectStatusService injectStatusService;
   private final InjectService injectService;
-  public final List<ExecutionProcessingHandler> executionProcessingHandlers;
+
+  private final AgentExecutionProcessingHandler agentExecutionProcessingHandler;
+  private final InjectorExecutionProcessingHandler injectorExecutionProcessingHandler;
 
   @Resource protected ObjectMapper mapper;
 
@@ -68,10 +69,23 @@ public class InjectExecutionService {
             "Cannot complete inject that is not in PENDING state");
       }
       Agent agent = loadAgentIfPresent(agentId);
-      processInjectExecution(inject, agent, input);
+      if (agent == null) {
+        processInjectExecutionWithInjector(inject, input);
+      } else {
+        processInjectExecutionWithAgent(inject, agent, input);
+      }
     } catch (ElementNotFoundException e) {
       handleInjectExecutionError(inject, e);
     }
+  }
+
+  public void processInjectExecutionWithAgent(
+      Inject inject, Agent agent, InjectExecutionInput input) {
+    processInjectExecution(inject, agent, input, agentExecutionProcessingHandler);
+  }
+
+  public void processInjectExecutionWithInjector(Inject inject, InjectExecutionInput input) {
+    processInjectExecution(inject, null, input, injectorExecutionProcessingHandler);
   }
 
   /**
@@ -84,16 +98,18 @@ public class InjectExecutionService {
    * @param input the execution input containing action, status, and output data
    * @throws RuntimeException if the output structured cannot be parsed
    */
-  public void processInjectExecution(
-      Inject inject, @Nullable Agent agent, InjectExecutionInput input) {
+  private void processInjectExecution(
+      Inject inject,
+      @Nullable Agent agent,
+      InjectExecutionInput input,
+      AbstractExecutionProcessingHandler handler) {
     try {
       Map<String, Endpoint> valueTargetedAssetsMap = injectService.getValueTargetedAssetMap(inject);
       // Build the context encapsulating all execution data and conditions (success, action, source)
       ExecutionProcessingContext executionContext =
           new ExecutionProcessingContext(inject, agent, input, valueTargetedAssetsMap);
       // Delegate to the appropriate handler (injector or agent) to process output execution
-      ObjectNode resolvedStructured =
-          resolveExecutionContext(executionContext).processContext(executionContext).orElse(null);
+      ObjectNode resolvedStructured = handler.processContext(executionContext).orElse(null);
 
       injectStatusService.updateInjectStatus(inject, agent, input, resolvedStructured);
       addEndDateInjectExpectationTimeSignatureIfNeeded(inject, agent, input);
@@ -101,31 +117,6 @@ public class InjectExecutionService {
     } catch (JsonProcessingException e) {
       throw new RuntimeException("Failed to process inject execution for inject", e);
     }
-  }
-
-  /**
-   * Resolves the appropriate execution processing handler based on the execution context. Expects
-   * exactly one handler to support the given context, otherwise throws an exception.
-   *
-   * @param executionContext
-   * @return
-   */
-  public ExecutionProcessingHandler resolveExecutionContext(
-      ExecutionProcessingContext executionContext) {
-    List<ExecutionProcessingHandler> matchingHandlers =
-        executionProcessingHandlers.stream().filter(h -> h.supports(executionContext)).toList();
-
-    if (matchingHandlers.isEmpty()) {
-      throw new IllegalStateException(
-          "No handler found for execution context: " + executionContext);
-    }
-
-    if (matchingHandlers.size() > 1) {
-      throw new IllegalStateException(
-          "Multiple handlers matched execution context: " + matchingHandlers);
-    }
-
-    return matchingHandlers.getFirst();
   }
 
   /**

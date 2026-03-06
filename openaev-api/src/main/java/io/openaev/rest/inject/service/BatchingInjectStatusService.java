@@ -131,8 +131,13 @@ public class BatchingInjectStatusService {
                     .orElse(null);
 
             // Process the execution trace
-            injectExecutionService.processInjectExecution(
-                inject, agent, callback.getInjectExecutionInput());
+            if (agent == null) {
+              injectExecutionService.processInjectExecutionWithInjector(
+                  inject, callback.getInjectExecutionInput());
+            } else {
+              injectExecutionService.processInjectExecutionWithAgent(
+                  inject, agent, callback.getInjectExecutionInput());
+            }
             successfullyProcessedCallbacks.add(callback);
           } catch (ElementNotFoundException e) {
             injectExecutionService.handleInjectExecutionError(inject, e);

@@ -35,17 +35,6 @@ public class InjectorExecutionProcessingHandler extends AbstractExecutionProcess
   }
 
   /**
-   * Determines if this handler supports the given execution context (injector execution).
-   *
-   * @param executionContext the execution context to check
-   * @return true if the context is for an injector execution, false otherwise
-   */
-  @Override
-  public boolean supports(ExecutionProcessingContext executionContext) {
-    return executionContext.isInjectorExecution();
-  }
-
-  /**
    * Processes the execution context, generating structured output and handling additional
    * capabilities such as findings extraction, expectation matching, or asset creation.
    *

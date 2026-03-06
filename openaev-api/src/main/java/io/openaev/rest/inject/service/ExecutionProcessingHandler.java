@@ -13,14 +13,6 @@ import java.util.Optional;
  */
 public interface ExecutionProcessingHandler {
   /**
-   * Determines if this handler supports the given execution context.
-   *
-   * @param executionContext the execution context to check
-   * @return true if supported, false otherwise
-   */
-  boolean supports(ExecutionProcessingContext executionContext);
-
-  /**
    * Processes the execution context, generating structured output and handling additional
    * capabilities.
    *

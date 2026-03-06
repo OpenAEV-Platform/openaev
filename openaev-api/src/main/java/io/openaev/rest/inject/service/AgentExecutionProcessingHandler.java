@@ -31,17 +31,6 @@ public class AgentExecutionProcessingHandler extends AbstractExecutionProcessing
   }
 
   /**
-   * Determines if this handler supports the given execution context (agent execution).
-   *
-   * @param executionContext the execution context to check
-   * @return true if the context is for an agent execution, false otherwise
-   */
-  @Override
-  public boolean supports(ExecutionProcessingContext executionContext) {
-    return executionContext.isAgentExecution();
-  }
-
-  /**
    * Processes the execution context, generating structured output and handling additional
    * capabilities such as findings extraction, expectation matching, or asset creation.
    *
