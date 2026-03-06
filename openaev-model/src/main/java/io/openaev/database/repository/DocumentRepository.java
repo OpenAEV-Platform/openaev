@@ -144,7 +144,6 @@ public interface DocumentRepository
   // -- PAGINATION --
 
   @NotNull
-  @EntityGraph(value = "Document.tags-scenarios-exercises", type = EntityGraph.EntityGraphType.LOAD)
   Page<Document> findAll(@NotNull Specification<Document> spec, @NotNull Pageable pageable);
 
   @Query(
