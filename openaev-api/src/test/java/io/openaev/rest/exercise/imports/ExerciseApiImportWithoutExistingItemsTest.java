@@ -7,7 +7,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
@@ -832,9 +831,7 @@ public class ExerciseApiImportWithoutExistingItemsTest extends IntegrationTest {
     entityManager.clear();
 
     for (Document expected : documentComposer.generatedItems) {
-      Optional<Document> docFromDb =
-          documentRepository.findByNameAndTenantId(
-              expected.getName(), TenantContext.getCurrentTenant());
+      Optional<Document> docFromDb = documentRepository.findByName(expected.getName());
       if (docFromDb.isEmpty()) {
         Assertions.fail("Document " + expected.getName() + " not found");
       }

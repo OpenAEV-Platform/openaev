@@ -17,7 +17,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Scenario.SEVERITY;
 import io.openaev.database.repository.*;
@@ -498,8 +497,7 @@ public class V1_DataImporter implements Importer {
       Scenario savedScenario,
       Map<String, Base> baseIds) {
     String contentType = new MimetypesFileTypeMap().getContentType(entry.getEntry().getName());
-    Optional<Document> targetDocument =
-        this.documentRepository.findByTargetAndTenantId(target, TenantContext.getCurrentTenant());
+    Optional<Document> targetDocument = this.documentRepository.findByTarget(target);
 
     if (targetDocument.isPresent()) {
       updateExistingDocument(nodeDoc, targetDocument.get(), savedExercise, savedScenario, baseIds);

@@ -25,10 +25,10 @@ public interface DocumentRepository
   List<Document> removeById(@NotNull String id);
 
   @NotNull
-  Optional<Document> findByTargetAndTenantId(@NotNull String target, @NotNull String tenantId);
+  Optional<Document> findByTarget(@NotNull String target);
 
   @NotNull
-  Optional<Document> findByNameAndTenantId(@NotNull String name, @NotNull String tenantId);
+  Optional<Document> findByName(@NotNull String name);
 
   @Query(
       value =
