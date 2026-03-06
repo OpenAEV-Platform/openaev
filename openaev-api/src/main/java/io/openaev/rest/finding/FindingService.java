@@ -224,8 +224,7 @@ public class FindingService {
 
   /**
    * Deduplicates a list of findings based on the unique constraint keys: value, type, and field.
-   * When duplicates are found, their assets, teams and users are merged into the first occurrence
-   * finding_field)}.
+   * When duplicates are found, their assets, teams and users are merged into the first occurrence.
    *
    * @param findings the raw list of findings, potentially containing duplicates
    * @return a deduplicated list with associations merged
