@@ -16,8 +16,7 @@ import org.springframework.stereotype.Repository;
 public interface CustomDashboardRepository
     extends CrudRepository<CustomDashboard, String>, JpaSpecificationExecutor<CustomDashboard> {
 
-  Optional<CustomDashboard> findByNameAndTenantId(
-      @NotBlank final String name, @NotBlank final String tenantId);
+  Optional<CustomDashboard> findByName(@NotBlank final String name);
 
   /**
    * Get the raw version of the custom dashboards
