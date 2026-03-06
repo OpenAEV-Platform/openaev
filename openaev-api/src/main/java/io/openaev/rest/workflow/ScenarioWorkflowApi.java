@@ -9,8 +9,9 @@ import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.rest.workflow.form.StepInput;
 import io.openaev.rest.workflow.form.ConditionInput;
+import io.openaev.rest.workflow.form.ScopeInput;
+import io.openaev.rest.workflow.form.StepInput;
 import io.openaev.rest.workflow.form.WorkflowOutputDto;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
@@ -59,6 +60,23 @@ public class ScenarioWorkflowApi extends RestBehavior {
             .flatMap(step -> conditionRepository.findAllByStep_Id(step.getId()).stream())
             .toList();
     return WorkflowOutputDto.from(workflow, steps, conditions);
+  }
+
+  // -- SCOPE --
+
+  @PutMapping(SCENARIO_URI + "/{scenarioId}/workflow/scope")
+  @AccessControl(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.SCENARIO)
+  public WorkflowOutputDto updateScope(
+      @PathVariable @NotBlank final String scenarioId,
+      @Valid @RequestBody final ScopeInput input) {
+    Workflow workflow = getWorkflowForScenario(scenarioId);
+    workflow.setScope(input.getWorkflowScope());
+    workflow.setTimeout(input.getWorkflowTimeout());
+    workflowRepository.save(workflow);
+    return buildWorkflowOutput(workflow);
   }
 
   // -- STEPS --
@@ -169,6 +187,7 @@ public class ScenarioWorkflowApi extends RestBehavior {
             .step(step)
             .stepFrom(stepFrom)
             .key(input.getKey())
+            .field(input.getField())
             .value(input.getValue())
             .type(input.getType())
             .conditionParent(parentCondition)
@@ -195,6 +214,7 @@ public class ScenarioWorkflowApi extends RestBehavior {
             .orElseThrow(
                 () -> new ElementNotFoundException("Condition not found: " + conditionId));
     condition.setKey(input.getKey());
+    condition.setField(input.getField());
     condition.setValue(input.getValue());
     condition.setType(input.getType());
     if (input.getStepFromId() != null) {

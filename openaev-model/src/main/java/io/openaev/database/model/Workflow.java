@@ -95,6 +95,17 @@ public class Workflow implements Base {
   @Schema(description = "Simulation associated with this workflow")
   private Exercise simulation;
 
+  @Column(name = "workflow_scope", columnDefinition = "jsonb")
+  @JsonProperty("workflow_scope")
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Schema(description = "JSON scope definition (whitelist/blacklist of endpoints and manual entries)")
+  private String scope;
+
+  @Column(name = "workflow_timeout")
+  @JsonProperty("workflow_timeout")
+  @Schema(description = "Simulation timeout in seconds")
+  private Long timeout;
+
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "workflow_scenario_id")
   @JsonIgnore

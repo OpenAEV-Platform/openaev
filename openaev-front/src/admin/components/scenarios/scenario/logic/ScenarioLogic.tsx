@@ -249,7 +249,8 @@ const ScenarioLogic: FunctionComponent = () => {
         chain = chain.then(() => {
           const childCondition: ConditionCreateInput = {
             condition_key: rule.key,
-            condition_value: rule.value,
+            condition_field: rule.field || undefined,
+            condition_value: rule.value || undefined,
             condition_type: rule.operator,
             condition_parent_id: rootCond.condition_id,
           };

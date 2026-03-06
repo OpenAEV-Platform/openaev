@@ -53,6 +53,7 @@ const LogicEventForm: FunctionComponent<Props> = ({
           .filter(c => c.condition_key)
           .map(c => ({
             key: c.condition_key ?? '',
+            field: c.condition_field ?? '',
             operator: c.condition_type as ConditionType,
             value: c.condition_value ?? '',
             caseSensitive: false,
@@ -67,7 +68,7 @@ const LogicEventForm: FunctionComponent<Props> = ({
   }, [editingStep, open]);
 
   const addCondition = () => {
-    setConditions(prev => [...prev, { key: '', operator: 'EQ', value: '', caseSensitive: false }]);
+    setConditions(prev => [...prev, { key: '', field: '', operator: 'IS_NOT_NULL', value: '', caseSensitive: false }]);
   };
 
   const updateCondition = (index: number, rule: ConditionRule) => {

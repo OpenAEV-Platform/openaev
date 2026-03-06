@@ -18,6 +18,10 @@ public class OutputProcessorFactory {
         handlers.stream().collect(Collectors.toMap(OutputProcessor::getType, Function.identity()));
   }
 
+  public Map<ContractOutputType, OutputProcessor> getAllHandlers() {
+    return outputProcessorHandlerMap;
+  }
+
   public OutputProcessor getHandler(ContractOutputType type) {
     return Optional.ofNullable(outputProcessorHandlerMap.get(type))
         .orElseThrow(

@@ -41,12 +41,17 @@ public class Condition implements Base {
 
   @Column(name = "condition_key")
   @JsonProperty("condition_key")
-  @Schema(description = "Key")
+  @Schema(description = "Finding type to filter on (e.g. credentials, portscan)")
   private String key;
+
+  @Column(name = "condition_field")
+  @JsonProperty("condition_field")
+  @Schema(description = "Sub-field within the finding type (e.g. username, port). Null for type-level checks.")
+  private String field;
 
   @Column(name = "condition_value")
   @JsonProperty("condition_value")
-  @Schema(description = "Value")
+  @Schema(description = "Value to compare against")
   private String value;
 
   @Column(name = "condition_type")

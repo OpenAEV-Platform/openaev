@@ -29,6 +29,12 @@ public class WorkflowOutputDto {
   @JsonProperty("workflow_updated_at")
   private Instant updatedAt;
 
+  @JsonProperty("workflow_scope")
+  private String scope;
+
+  @JsonProperty("workflow_timeout")
+  private Long timeout;
+
   @JsonProperty("workflow_steps")
   private List<StepOutputDto> steps;
 
@@ -77,6 +83,9 @@ public class WorkflowOutputDto {
     @JsonProperty("condition_key")
     private String key;
 
+    @JsonProperty("condition_field")
+    private String field;
+
     @JsonProperty("condition_value")
     private String value;
 
@@ -110,6 +119,7 @@ public class WorkflowOutputDto {
                                   ConditionOutputDto.builder()
                                       .conditionId(c.getId())
                                       .key(c.getKey())
+                                      .field(c.getField())
                                       .value(c.getValue())
                                       .type(c.getType())
                                       .stepFromId(
@@ -143,6 +153,8 @@ public class WorkflowOutputDto {
         .status(workflow.getStatus())
         .version(workflow.getVersion())
         .isEdited(workflow.isEdited())
+        .scope(workflow.getScope())
+        .timeout(workflow.getTimeout())
         .createdAt(workflow.getWorkflowCreatedAt())
         .updatedAt(workflow.getWorkflowUpdatedAt())
         .steps(stepDtos)

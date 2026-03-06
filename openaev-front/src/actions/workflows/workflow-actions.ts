@@ -1,5 +1,5 @@
 import { simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
-import type { ConditionType, StepActionClass, StepFieldScope } from '../../utils/api-types-custom';
+import type { ConditionType, StepActionClass, StepFieldScope, WorkflowScope } from '../../utils/api-types-custom';
 
 const SCENARIO_URI = '/api/scenarios';
 
@@ -7,6 +7,15 @@ const SCENARIO_URI = '/api/scenarios';
 
 export const fetchWorkflow = (scenarioId: string) => {
   return simpleCall(`${SCENARIO_URI}/${scenarioId}/workflow`);
+};
+
+// -- Scope --
+
+export const updateWorkflowScope = (scenarioId: string, scope: WorkflowScope, timeoutSeconds: number) => {
+  return simplePutCall(`${SCENARIO_URI}/${scenarioId}/workflow/scope`, {
+    workflow_scope: JSON.stringify(scope),
+    workflow_timeout: timeoutSeconds,
+  });
 };
 
 // -- Steps --
@@ -35,6 +44,7 @@ export const deleteStep = (scenarioId: string, stepId: string) => {
 
 export interface ConditionCreateInput {
   condition_key?: string;
+  condition_field?: string;
   condition_value?: string;
   condition_type: ConditionType;
   step_from_id?: string;

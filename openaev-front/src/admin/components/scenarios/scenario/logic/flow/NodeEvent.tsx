@@ -86,7 +86,7 @@ const NodeEvent = ({ data }: NodeProps<NodeEventType>) => {
                   key={condition.condition_id}
                   size="small"
                   variant="outlined"
-                  label={`${condition.condition_key} ${condition.condition_type} ${condition.condition_value ?? ''}`}
+                  label={`${condition.condition_key}${condition.condition_field ? `.${condition.condition_field}` : ''} ${condition.condition_type}${condition.condition_value ? ` ${condition.condition_value}` : ''}`}
                   sx={{ height: 18, fontSize: 10 }}
                 />
               ))}

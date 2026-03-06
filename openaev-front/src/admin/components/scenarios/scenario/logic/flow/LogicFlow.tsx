@@ -20,6 +20,7 @@ import { useHelper } from '../../../../../../store';
 import type { AttackPattern } from '../../../../../../utils/api-types';
 import type { WorkflowStep } from '../../../../../../utils/api-types-custom';
 import {
+  extractInputBindings,
   extractOutputTypesFromStepData,
   getDownstreamStepIds,
   getEventFieldConditions,
@@ -148,6 +149,7 @@ const buildNodesAndEdges = (
         injectorType: getStepInjectorType(step),
         attackPatternExternalIds,
         outputTypes: extractOutputTypesFromStepData(step),
+        inputBindings: extractInputBindings(step, steps),
         fieldScopes: getFieldScopes(step),
         hasParentEvent: hasDependOnCondition(step),
         highlightState: getHighlightState(step.step_id),
@@ -238,6 +240,36 @@ const buildNodesAndEdges = (
     }
   }
 
+  // Add binding flow edges: upstream action output → downstream action input (data_source)
+  for (const node of nodes) {
+    if (node.type !== 'action') continue;
+    const actionData = node.data as NodeActionData;
+    for (const binding of actionData.inputBindings) {
+      if (binding.resolved && binding.providerStepId) {
+        const edgeId = `binding:${binding.providerStepId}->${node.id}:${binding.argumentKey}`;
+        // Avoid duplicate with existing DEPEND_ON or field edges
+        const alreadyHasBindingEdge = edges.some(e => e.id === edgeId);
+        if (!alreadyHasBindingEdge) {
+          edges.push({
+            id: edgeId,
+            source: binding.providerStepId,
+            target: node.id,
+            type: ConnectionLineType.SmoothStep,
+            animated: true,
+            label: `${binding.inputField ?? binding.inputType} → ${binding.argumentKey}`,
+            labelStyle: { fontSize: 8, fill: '#4caf50' },
+            style: { strokeDasharray: '4 4' },
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              width: 14,
+              height: 14,
+            },
+          });
+        }
+      }
+    }
+  }
+
   return { nodes, edges };
 };
 
@@ -308,12 +340,15 @@ const LogicFlow: FunctionComponent<LogicFlowProps> = ({
   const styledEdges = useMemo(() => {
     return builtEdges.map((edge): Edge | null => {
       const isFieldEdge = edge.id.startsWith('field:');
+      const isBindingEdge = edge.id.startsWith('binding:');
       const isOnPath = highlightedEdgeIds?.has(edge.id) ?? false;
       const hasHighlight = highlightedEdgeIds !== null;
 
       const activeColor = isFieldEdge
         ? theme.palette.warning.main
-        : theme.palette.primary.main;
+        : isBindingEdge
+          ? theme.palette.success.main
+          : theme.palette.primary.main;
 
       // Field edges: filtered out unless on highlighted path
       if (isFieldEdge) {
@@ -333,6 +368,28 @@ const LogicFlow: FunctionComponent<LogicFlowProps> = ({
             width: 16,
             height: 16,
             color: theme.palette.warning.main,
+          },
+        };
+      }
+
+      // Binding edges: only visible when on highlighted path
+      if (isBindingEdge) {
+        if (!hasHighlight || !isOnPath) return null;
+        return {
+          ...edge,
+          style: {
+            ...edge.style,
+            stroke: theme.palette.success.main,
+            strokeWidth: 2,
+            strokeDasharray: '4 4',
+            opacity: 1,
+            transition: 'all 0.2s',
+          },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            width: 14,
+            height: 14,
+            color: theme.palette.success.main,
           },
         };
       }

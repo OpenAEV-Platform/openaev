@@ -12,6 +12,10 @@ public class ConditionInput {
   @Nullable
   private String key;
 
+  @JsonProperty("condition_field")
+  @Nullable
+  private String field;
+
   @JsonProperty("condition_value")
   @Nullable
   private String value;

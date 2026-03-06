@@ -8,6 +8,8 @@ import ButtonPopover from '../../../../../../components/common/ButtonPopover';
 import FindingIcon from '../../../../../../components/FindingIcon';
 import { useFormatter } from '../../../../../../components/i18n';
 import type { WorkflowStep } from '../../../../../../utils/api-types-custom';
+import type { InputBinding } from '../logicUtils';
+import { formatBinding } from '../logicUtils';
 import InjectIcon from '../../../../common/injects/InjectIcon';
 
 export type HighlightState = 'source' | 'highlighted' | 'dimmed' | null;
@@ -18,6 +20,7 @@ export type NodeActionData = {
   injectorType: string | null;
   attackPatternExternalIds: string[];
   outputTypes: string[];
+  inputBindings: InputBinding[];
   fieldScopes: Record<string, string>;
   hasParentEvent: boolean;
   highlightState: HighlightState;
@@ -91,6 +94,31 @@ const NodeAction = ({ data }: NodeProps<NodeActionType>) => {
             <Chip key={eid} size="small" label={eid} variant="outlined" color="secondary" sx={{ height: 18, fontSize: 10 }} />
           ))}
         </div>
+        {data.inputBindings.length > 0 && (
+          <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: 9, mr: 0.5 }}>
+              {t('Needs')}:
+            </Typography>
+            {data.inputBindings.map(binding => (
+              <Tooltip
+                key={binding.argumentKey}
+                title={binding.resolved
+                  ? `${binding.argumentKey} ← ${formatBinding(binding)}`
+                  : `${binding.argumentKey}: no upstream provides ${formatBinding(binding)}`
+                }
+              >
+                <Chip
+                  size="small"
+                  icon={<FindingIcon findingType={binding.inputType} />}
+                  label={formatBinding(binding)}
+                  variant={binding.resolved ? 'outlined' : 'filled'}
+                  color={binding.resolved ? 'success' : 'error'}
+                  sx={{ height: 18, fontSize: 9 }}
+                />
+              </Tooltip>
+            ))}
+          </div>
+        )}
         {data.outputTypes.length > 0 && (
           <div style={{ display: 'flex', gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
             {data.outputTypes.map(type => {

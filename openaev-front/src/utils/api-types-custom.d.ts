@@ -85,6 +85,7 @@ export interface ContractElement {
     key: string;
     label: string;
   }[];
+  dataSource?: DataSource | null;
 }
 
 export type EnhancedContractElement = ContractElement & {
@@ -133,6 +134,26 @@ export type WidgetInput = Omit<ApiTypes.WidgetInput, 'widget_config'> & {
 
 export type WidgetInputWithoutLayout = Omit<WidgetInput, 'widget_layout'>;
 
+// -- Data source binding (chaining input mapping) --
+
+export interface DataSource {
+  input_type: string;
+  input_field: string | null;
+}
+
+export interface OutputFieldDescriptor {
+  key: string;
+  type: string; // ContractOutputTechnicalType: text, number, boolean, object
+  required: boolean;
+}
+
+export interface OutputTypeDescriptor {
+  outputType: string;
+  technicalType: string;
+  findingCompatible: boolean;
+  fields: OutputFieldDescriptor[];
+}
+
 // -- Workflow / Chaining types --
 
 export type ScenarioType = 'time-based' | 'chaining';
@@ -156,6 +177,7 @@ export type ConditionType =
 export interface WorkflowCondition {
   condition_id: string;
   condition_key?: string;
+  condition_field?: string;
   condition_value?: string;
   condition_type: ConditionType;
   step_from_id?: string;
@@ -177,11 +199,23 @@ export interface WorkflowStep {
   step_conditions: WorkflowCondition[];
 }
 
+export interface ScopeList {
+  endpoint_ids: string[];
+  manual_entries: string[];
+}
+
+export interface WorkflowScope {
+  whitelist: ScopeList;
+  blacklist: ScopeList;
+}
+
 export interface Workflow {
   workflow_id: string;
   workflow_status: WorkflowStatus;
   workflow_version: number;
   workflow_is_edited: boolean;
+  workflow_scope?: string;
+  workflow_timeout?: number;
   workflow_created_at?: string;
   workflow_updated_at?: string;
   workflow_steps: WorkflowStep[];

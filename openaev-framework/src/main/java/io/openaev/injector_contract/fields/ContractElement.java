@@ -1,5 +1,6 @@
 package io.openaev.injector_contract.fields;
 
+import io.openaev.database.model.DataSource;
 import io.openaev.model.LinkedFieldModel;
 import java.util.ArrayList;
 import java.util.List;
@@ -86,6 +87,14 @@ public abstract class ContractElement {
 
   /** Pre-selected values from linked fields. */
   private List<String> linkedValues = new ArrayList<>();
+
+  /**
+   * Semantic binding to an upstream output field for chaining.
+   *
+   * <p>When set, this field can be auto-populated from the specified sub-field of an upstream
+   * action's output. For example, {@code input_type = "credentials", input_field = "username"}.
+   */
+  private DataSource dataSource;
 
   /**
    * Creates a new contract element.

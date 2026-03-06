@@ -1,4 +1,4 @@
-import type { Workflow, WorkflowStep } from '../../../../../utils/api-types-custom';
+import type { DataSource, Workflow, WorkflowStep } from '../../../../../utils/api-types-custom';
 
 /**
  * Extract output types from a step's output_parser JSON.
@@ -282,3 +282,96 @@ export const getFieldScopes = (step: WorkflowStep): Record<string, string> => {
     return {};
   }
 };
+
+// -- Data source binding (input/output mapping) --
+
+export interface InputBinding {
+  argumentKey: string;   // e.g., "target_host"
+  inputType: string;     // e.g., "portscan"
+  inputField: string | null; // e.g., "host" (null for scalar types)
+  resolved: boolean;     // true if an upstream action produces this type
+  providerStepId: string | null; // step_id of the upstream provider (first match)
+}
+
+/**
+ * Extract raw (unresolved) data source bindings from a step.
+ * Looks at two sources:
+ *   1. Payload arguments with data_source (from step_data.payload_arguments)
+ *   2. Contract content fields with data_source (from inject_content parsed fields)
+ */
+const extractRawBindings = (step: WorkflowStep): Omit<InputBinding, 'resolved' | 'providerStepId'>[] => {
+  if (!step.step_data) return [];
+  try {
+    const data = JSON.parse(step.step_data);
+    const bindings: Omit<InputBinding, 'resolved' | 'providerStepId'>[] = [];
+
+    // 1. Payload arguments (stored in inject_content or step_data)
+    const args: Array<{ key?: string; data_source?: DataSource }> =
+      data.payload_arguments ?? data.inject_content?.payload_arguments ?? [];
+    for (const arg of args) {
+      if (arg.data_source?.input_type) {
+        bindings.push({
+          argumentKey: arg.key ?? '?',
+          inputType: arg.data_source.input_type,
+          inputField: arg.data_source.input_field ?? null,
+        });
+      }
+    }
+
+    // 2. Contract content fields (if stored)
+    const fields: Array<{ key?: string; data_source?: DataSource }> =
+      data.contract_fields ?? [];
+    for (const field of fields) {
+      if (field.data_source?.input_type) {
+        bindings.push({
+          argumentKey: field.key ?? '?',
+          inputType: field.data_source.input_type,
+          inputField: field.data_source.input_field ?? null,
+        });
+      }
+    }
+
+    return bindings;
+  } catch {
+    return [];
+  }
+};
+
+/**
+ * Extract input bindings from a step, resolved against the full step list.
+ * Walks upstream (DEPEND_ON + field provisioning) to find providers.
+ */
+export const extractInputBindings = (step: WorkflowStep, allSteps: WorkflowStep[]): InputBinding[] => {
+  const raw = extractRawBindings(step);
+  if (raw.length === 0) return [];
+
+  // Collect upstream step IDs
+  const upstreamIds = getUpstreamStepIds(allSteps, step.step_id);
+
+  // For each binding, check if any upstream action produces the needed output type
+  return raw.map((binding) => {
+    let providerStepId: string | null = null;
+    for (const uid of upstreamIds) {
+      const upstream = allSteps.find(s => s.step_id === uid);
+      if (!upstream || !isActionStep(upstream)) continue;
+      const outputTypes = extractOutputTypesFromStepData(upstream);
+      if (outputTypes.includes(binding.inputType)) {
+        providerStepId = upstream.step_id;
+        break;
+      }
+    }
+    return {
+      ...binding,
+      resolved: providerStepId !== null,
+      providerStepId,
+    };
+  });
+};
+
+/**
+ * Format an input binding for display: "portscan.host" or "ipv4" (scalar).
+ */
+export const formatBinding = (binding: InputBinding): string =>
+  binding.inputField
+    ? `${binding.inputType}.${binding.inputField}`
+    : binding.inputType;

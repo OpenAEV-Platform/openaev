@@ -8,6 +8,7 @@ import { useHelper } from '../../../../store';
 import { type Scenario } from '../../../../utils/api-types';
 import ScenarioArticles from './articles/ScenarioArticles';
 import ScenarioChallenges from './challenges/ScenarioChallenges';
+import ScenarioScope from './scope/ScenarioScope';
 import ScenarioTeams from './teams/ScenarioTeams';
 import ScenarioVariables from './variables/ScenarioVariables';
 
@@ -19,6 +20,18 @@ const ScenarioDefinition = () => {
   // Fetching data
   const { scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(scenarioId) }));
   const isChaining = scenario?.scenario_type === 'chaining';
+  if (isChaining) {
+    return (
+      <div style={{
+        display: 'grid',
+        gap: `${theme.spacing(3)} ${theme.spacing(3)}`,
+        gridTemplateColumns: '1fr',
+      }}
+      >
+        <ScenarioScope scenarioId={scenarioId} />
+      </div>
+    );
+  }
   return (
     <div style={{
       display: 'grid',
@@ -28,19 +41,15 @@ const ScenarioDefinition = () => {
     >
       <ScenarioTeams scenarioTeamsUsers={scenario.scenario_teams_users} />
       <ScenarioVariables />
-      {!isChaining && (
-        <div style={{ gridColumn: '1 / span 2' }}>
-          <ScenarioArticles />
-        </div>
-      )}
-      {!isChaining && (
-        <div style={{ gridColumn: '1 / span 2' }}>
-          <Typography variant="h4" style={{ float: 'left' }}>
-            {t('Used challenges (in injects)')}
-          </Typography>
-          <ScenarioChallenges />
-        </div>
-      )}
+      <div style={{ gridColumn: '1 / span 2' }}>
+        <ScenarioArticles />
+      </div>
+      <div style={{ gridColumn: '1 / span 2' }}>
+        <Typography variant="h4" style={{ float: 'left' }}>
+          {t('Used challenges (in injects)')}
+        </Typography>
+        <ScenarioChallenges />
+      </div>
     </div>
   );
 };
