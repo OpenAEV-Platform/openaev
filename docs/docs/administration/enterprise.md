@@ -55,6 +55,13 @@ according to the [OpenAEV architecture](../deployment/platform/overview.md#archi
 The SentinelOne Agent can be leveraged to execute implants as detached processes that will then execute payloads
 according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture)
 
+### Palo Alto Cortex Agent
+
+The Palo Alto Cortex Agent can be leveraged to execute implants as detached processes that will then execute payloads
+according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture).
+
+On Windows, because Palo Alto Cortex whitelists its own process tree, OpenAEV creates a scheduled task to detach the process that will execute the payloads.
+
 ## Remediations in CVES
 
 More detail: [CVES](taxonomies.md) and [Findings view](../usage/findings.md)
