@@ -73,6 +73,6 @@ class InjectExecutionServiceTest {
     when(injectorHandler.processContext(any())).thenReturn(Optional.of(mock(ObjectNode.class)));
     InjectExecutionService spyService = spy(service);
     spyService.processInjectExecutionWithInjector(inject, input);
-    verify(agentHandler).processContext(any());
+    verify(injectorHandler).processContext(any());
   }
 }
