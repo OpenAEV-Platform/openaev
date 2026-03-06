@@ -19,7 +19,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface TeamRepository
-    extends JpaRepository<Team, String>, StatisticRepository, JpaSpecificationExecutor<Team> {
+    extends JpaRepository<Team, String>, JpaSpecificationExecutor<Team> {
 
   @NotNull
   Optional<Team> findById(@NotNull String id);
