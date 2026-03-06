@@ -155,6 +155,8 @@ public class WorkflowService {
     copy.setTimeoutEnabled(source.isTimeoutEnabled());
     copy.setTimeoutSeconds(source.getTimeoutSeconds());
     copy.setWorkflow(workflowRun);
+    // Scope
+    copy.setScope(source.getScope());
     return copy;
   }
 

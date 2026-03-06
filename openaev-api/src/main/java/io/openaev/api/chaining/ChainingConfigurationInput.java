@@ -55,4 +55,10 @@ public class ChainingConfigurationInput {
       defaultValue = "true")
   @JsonProperty("chaining_configuration_safe_mode_enabled")
   private boolean safeModeEnabled;
+
+  /** Scope configuration. */
+  @Valid
+  @Schema(description = "Scope configuration.")
+  @JsonProperty("scope")
+  private ChainingScopeInput scope;
 }

@@ -78,4 +78,8 @@ public class ChainingConfiguration implements Base {
   @JoinColumn(name = "chaining_configuration_workflow", referencedColumnName = "workflow_id")
   @JsonIgnore
   private Workflow workflow;
+
+  @OneToOne(mappedBy = "chainingConfiguration")
+  @JsonProperty("chaining_configuration_scope")
+  private Scope scope;
 }

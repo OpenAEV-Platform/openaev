@@ -43,4 +43,9 @@ public class ChainingConfigurationOutput {
           "If enabled, exploits that could crash the customer environment will not be executed.")
   @JsonProperty("chaining_configuration_safe_mode_enabled")
   private boolean safeModeEnabled;
+
+  @Valid
+  @Schema(description = "Scope configuration.")
+  @JsonProperty("scope")
+  private ChainingScopeOutput scope;
 }

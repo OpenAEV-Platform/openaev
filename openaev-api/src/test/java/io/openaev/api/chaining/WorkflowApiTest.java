@@ -11,6 +11,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.api.chaining.dto.ChainingRateLimitInput;
+import io.openaev.api.chaining.dto.ChainingScopeInput;
+import io.openaev.api.chaining.dto.ChainingScopeRuleInput;
+import io.openaev.api.chaining.dto.ChainingTimeOutInput;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ChainingConfigurationRepository;
@@ -20,6 +24,7 @@ import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -403,6 +408,130 @@ class WorkflowApiTest extends IntegrationTest {
                 .content(asJsonString(input))
                 .accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName("Update Chaining Configuration should persist scope rules with expected value types")
+  void updateChainingConfiguration_shouldPersistScopeRulesWithExpectedValueTypes()
+      throws Exception {
+    // -- PREPARE --
+    Workflow workflow = createTemplateWorkflow();
+    ChainingConfiguration existingConfiguration =
+        attachChainingConfiguration(workflow, false, 1, 5, true, 120);
+
+    ChainingConfigurationInput input =
+        ChainingConfigurationInput.builder()
+            .rateLimit(
+                ChainingRateLimitInput.builder()
+                    .isRateLimit(true)
+                    .maxAttempts(7)
+                    .maxTemporalRateMinutes(15)
+                    .build())
+            .timeOut(
+                ChainingTimeOutInput.builder()
+                    .isTimeOut(true)
+                    .timeOutHours(1)
+                    .timeOutMinutes(30)
+                    .build())
+            .isSafeMode(false)
+            .scope(buildScopeInput())
+            .build();
+
+    // -- EXECUTE --
+    mockMvc
+        .perform(
+            put(WORKFLOW_URI + "/" + workflow.getId() + "/chaining-configuration")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(input))
+                .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk());
+
+    // -- ASSERT DATABASE --
+    ChainingConfiguration savedConfiguration =
+        chainingConfigurationRepository.findById(existingConfiguration.getId()).orElseThrow();
+
+    assertNotNull(savedConfiguration.getScope());
+    assertEquals(5, savedConfiguration.getScope().getScopeRules().size());
+    assertEquals(3, savedConfiguration.getScope().getWhitelist().size());
+    assertEquals(2, savedConfiguration.getScope().getBlacklist().size());
+
+    ScopeRule ipRule =
+        savedConfiguration.getScope().getWhitelist().stream()
+            .filter(rule -> "10.10.10.10".equals(rule.getRuleValue()))
+            .findFirst()
+            .orElseThrow();
+    assertEquals(ScopeRuleValueType.IP, ipRule.getValueType());
+    assertEquals(ScopeRuleSelectedMode.WHITELIST, ipRule.getSelectedMode());
+    assertSame(savedConfiguration.getScope(), ipRule.getScope());
+
+    ScopeRule domainRule =
+        savedConfiguration.getScope().getWhitelist().stream()
+            .filter(rule -> "example.org".equals(rule.getRuleValue()))
+            .findFirst()
+            .orElseThrow();
+    assertEquals(ScopeRuleValueType.DOMAIN, domainRule.getValueType());
+    assertEquals(ScopeRuleSelectedMode.WHITELIST, domainRule.getSelectedMode());
+
+    ScopeRule assetRule =
+        savedConfiguration.getScope().getWhitelist().stream()
+            .filter(rule -> "asset-123".equals(rule.getRuleValue()))
+            .findFirst()
+            .orElseThrow();
+    assertEquals(ScopeRuleValueType.ASSET_ID, assetRule.getValueType());
+    assertEquals(ScopeRuleSelectedMode.WHITELIST, assetRule.getSelectedMode());
+
+    ScopeRule subnetRule =
+        savedConfiguration.getScope().getBlacklist().stream()
+            .filter(rule -> "10.10.10.0/24".equals(rule.getRuleValue()))
+            .findFirst()
+            .orElseThrow();
+    assertEquals(ScopeRuleValueType.IP_SUBNET, subnetRule.getValueType());
+    assertEquals(ScopeRuleSelectedMode.BLACKLIST, subnetRule.getSelectedMode());
+
+    ScopeRule assetGroupRule =
+        savedConfiguration.getScope().getBlacklist().stream()
+            .filter(rule -> "asset-group-1".equals(rule.getRuleValue()))
+            .findFirst()
+            .orElseThrow();
+    assertEquals(ScopeRuleValueType.ASSET_GROUP_ID, assetGroupRule.getValueType());
+    assertEquals(ScopeRuleSelectedMode.BLACKLIST, assetGroupRule.getSelectedMode());
+  }
+
+  private ChainingScopeInput buildScopeInput() {
+    ChainingScopeRuleInput ipRule =
+        ChainingScopeRuleInput.builder()
+            .selectedMode(ScopeRuleSelectedMode.WHITELIST)
+            .ruleSource(ScopeRuleSource.MANUAL)
+            .ruleValue("10.10.10.10")
+            .build();
+    ChainingScopeRuleInput domainRule =
+        ChainingScopeRuleInput.builder()
+            .selectedMode(ScopeRuleSelectedMode.WHITELIST)
+            .ruleSource(ScopeRuleSource.MANUAL)
+            .ruleValue("example.org")
+            .build();
+    ChainingScopeRuleInput assetRule =
+        ChainingScopeRuleInput.builder()
+            .selectedMode(ScopeRuleSelectedMode.WHITELIST)
+            .ruleSource(ScopeRuleSource.ASSET)
+            .ruleValue("asset-123")
+            .build();
+    ChainingScopeRuleInput subnetRule =
+        ChainingScopeRuleInput.builder()
+            .selectedMode(ScopeRuleSelectedMode.BLACKLIST)
+            .ruleSource(ScopeRuleSource.MANUAL)
+            .ruleValue("10.10.10.0/24")
+            .build();
+    ChainingScopeRuleInput assetGroupRule =
+        ChainingScopeRuleInput.builder()
+            .selectedMode(ScopeRuleSelectedMode.BLACKLIST)
+            .ruleSource(ScopeRuleSource.ASSET_GROUP)
+            .ruleValue("asset-group-1")
+            .build();
+
+    ChainingScopeInput scopeInput = new ChainingScopeInput();
+    scopeInput.setScopeRules(List.of(ipRule, domainRule, assetRule, subnetRule, assetGroupRule));
+    return scopeInput;
   }
 
   private Workflow createTemplateWorkflow() {
