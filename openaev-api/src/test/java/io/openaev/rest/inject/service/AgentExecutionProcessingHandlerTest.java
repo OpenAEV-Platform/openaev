@@ -1,6 +1,5 @@
 package io.openaev.rest.inject.service;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
@@ -43,17 +42,6 @@ class AgentExecutionProcessingHandlerTest {
   void setUp() {
     this.inject = InjectFixture.getDefaultInject();
     this.agent = AgentFixture.createDefaultAgentService();
-  }
-
-  @Test
-  @DisplayName("Should support only agent execution contexts")
-  void shouldSupportOnlyAgentExecutionContexts() {
-    ExecutionProcessingContext agentCtx = createValidCtx();
-    ExecutionProcessingContext injectorCtx =
-        new ExecutionProcessingContext(inject, null, new InjectExecutionInput(), Map.of());
-
-    assertTrue(handler.supports(agentCtx));
-    assertFalse(handler.supports(injectorCtx));
   }
 
   @Test

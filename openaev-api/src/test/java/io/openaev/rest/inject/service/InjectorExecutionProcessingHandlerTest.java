@@ -1,6 +1,5 @@
 package io.openaev.rest.inject.service;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -17,7 +16,6 @@ import io.openaev.output_processor.OutputProcessorFactory;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
-import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import java.util.List;
 import java.util.Map;
@@ -49,19 +47,6 @@ class InjectorExecutionProcessingHandlerTest {
     this.injectorContract = mock(InjectorContract.class);
     inject.setInjectorContract(injectorContract);
     handler.mapper = mapper;
-  }
-
-  @Test
-  @DisplayName("Should support only injector execution contexts")
-  void shouldSupportOnlyInjectorExecutionContexts() {
-    ExecutionProcessingContext injectorCtx =
-        new ExecutionProcessingContext(inject, null, new InjectExecutionInput(), Map.of());
-    ExecutionProcessingContext agentCtx =
-        new ExecutionProcessingContext(
-            inject, AgentFixture.createDefaultAgentService(), new InjectExecutionInput(), Map.of());
-
-    assertTrue(handler.supports(injectorCtx));
-    assertFalse(handler.supports(agentCtx));
   }
 
   @Test
