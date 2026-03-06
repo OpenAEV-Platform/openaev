@@ -19,8 +19,7 @@ public interface PayloadRepository
   @NotNull
   Optional<Payload> findById(@NotNull String id);
 
-  Optional<Payload> findByExternalIdAndTenantId(
-      @NotNull String externalId, @NotNull String tenantId);
+  Optional<Payload> findByExternalId(@NotNull String externalId);
 
   @Query(
       value = "SELECT payload_external_id FROM payloads WHERE payload_collector = :collectorId",

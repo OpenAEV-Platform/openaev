@@ -43,9 +43,7 @@ public class PayloadUpsertService {
 
   @Transactional(rollbackOn = Exception.class)
   public Payload upsertPayload(PayloadUpsertInput input) {
-    Optional<Payload> payload =
-        payloadRepository.findByExternalIdAndTenantId(
-            input.getExternalId(), TenantContext.getCurrentTenant());
+    Optional<Payload> payload = payloadRepository.findByExternalId(input.getExternalId());
     if (enterpriseEditionService.isEnterpriseLicenseInactive(
         licenseCacheManager.getEnterpriseEditionInfo())) {
       input.setDetectionRemediations(null);
