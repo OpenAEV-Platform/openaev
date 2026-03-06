@@ -18,8 +18,7 @@ public interface OrganizationRepository
   Optional<Organization> findById(@NotNull String id);
 
   @NotNull
-  List<Organization> findByNameIgnoreCaseAndTenantId(
-      @NotNull final String name, @NotNull final String tenantId);
+  List<Organization> findByNameIgnoreCase(@NotNull final String name);
 
   @Query(
       value =
