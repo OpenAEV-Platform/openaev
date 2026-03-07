@@ -19,7 +19,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class DataSource {
+public class InputSource {
 
   @JsonProperty("input_type")
   @Schema(description = "The ContractOutputType value this input consumes (e.g. credentials, portscan, ipv4)")

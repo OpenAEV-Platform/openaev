@@ -29,7 +29,7 @@ public class OutputTypeApi extends RestBehavior {
       summary = "Get all output types with their sub-fields",
       description =
           "Returns the catalog of all ContractOutputType values with their technical type and"
-              + " sub-fields. Used by the chaining UI to build data_source bindings.")
+              + " sub-fields. Used by the chaining UI to build input_source bindings.")
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "List of output types with fields")

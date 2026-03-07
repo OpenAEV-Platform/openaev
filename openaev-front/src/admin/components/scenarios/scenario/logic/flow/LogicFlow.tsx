@@ -240,7 +240,7 @@ const buildNodesAndEdges = (
     }
   }
 
-  // Add binding flow edges: upstream action output → downstream action input (data_source)
+  // Add binding flow edges: upstream action output → downstream action input (input_source)
   for (const node of nodes) {
     if (node.type !== 'action') continue;
     const actionData = node.data as NodeActionData;

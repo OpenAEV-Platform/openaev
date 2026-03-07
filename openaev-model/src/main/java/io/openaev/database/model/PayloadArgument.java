@@ -27,10 +27,10 @@ public class PayloadArgument {
   @Schema(types = {"string", "null"})
   private String separator;
 
-  @JsonProperty("data_source")
+  @JsonProperty("input_source")
   @Schema(
       description =
           "Semantic binding to an upstream output field. When set, this argument can be"
               + " auto-populated from the specified output type sub-field of an upstream action.")
-  private DataSource dataSource;
+  private InputSource inputSource;
 }

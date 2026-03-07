@@ -85,7 +85,7 @@ export interface ContractElement {
     key: string;
     label: string;
   }[];
-  dataSource?: DataSource | null;
+  inputSource?: InputSource | null;
 }
 
 export type EnhancedContractElement = ContractElement & {
@@ -136,7 +136,7 @@ export type WidgetInputWithoutLayout = Omit<WidgetInput, 'widget_layout'>;
 
 // -- Data source binding (chaining input mapping) --
 
-export interface DataSource {
+export interface InputSource {
   input_type: string;
   input_field: string | null;
 }
