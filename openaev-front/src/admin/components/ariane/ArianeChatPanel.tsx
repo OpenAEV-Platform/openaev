@@ -385,7 +385,10 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
               } else if (st === 'transfer_start') {
                 const targetName = (evt.agent_name as string) || 'agent';
                 setThinkingContent('');
-                setAgentStatus({ status: 'transferring', tools: [targetName] });
+                setAgentStatus({
+                  status: 'transferring',
+                  tools: [targetName],
+                });
                 const targetAgent = agents.find(a => a.id === evt.agent_id);
                 if (targetAgent) setSelectedAgent(targetAgent);
               } else if (st === 'thinking_text') {
@@ -396,22 +399,43 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
                 setAgentStatus({ status: 'streaming' });
               } else if (st === 'consult_progress') {
                 const agentName = (evt.agent_name as string) ?? 'agent';
-                setAgentStatus({ status: 'consulting', tools: [agentName] });
+                setAgentStatus({
+                  status: 'consulting',
+                  tools: [agentName],
+                });
               } else if (st === 'tool_start') {
                 hasUsedToolsRef.current = true;
                 const tools = (evt.tools ?? []) as string[];
                 const spawnCount = tools.filter(t => t === 'spawn_background_task').length;
                 const checkCount = tools.filter(t => t === 'check_task_status').length;
+                const fetchCount = tools.filter(t => t === 'get_task_result').length;
                 const transferCount = tools.filter(t => t === 'transfer_to_agent').length;
                 if (spawnCount > 0) {
-                  setAgentStatus({ status: 'delegating', tools });
+                  setAgentStatus({
+                    status: 'delegating',
+                    tools,
+                  });
                 } else if (checkCount > 0) {
-                  setAgentStatus({ status: 'polling', tools });
+                  setAgentStatus({
+                    status: 'polling',
+                    tools,
+                  });
+                } else if (fetchCount > 0) {
+                  setAgentStatus({
+                    status: 'collecting',
+                    tools,
+                  });
                 } else if (transferCount > 0) {
                   const targetName = (evt.transfer_agent_name as string) || 'agent';
-                  setAgentStatus({ status: 'transferring', tools: [targetName] });
+                  setAgentStatus({
+                    status: 'transferring',
+                    tools: [targetName],
+                  });
                 } else {
-                  setAgentStatus({ status: 'tool_start', tools });
+                  setAgentStatus({
+                    status: 'tool_start',
+                    tools,
+                  });
                 }
               } else if (st === 'thinking' && hasUsedToolsRef.current) {
                 setAgentStatus({ status: 'analyzing' });
@@ -947,7 +971,15 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
       case 'polling': {
         const checkCount = agentStatus?.tools?.filter(t => t === 'check_task_status').length ?? 0;
         return {
-          label: checkCount > 1 ? `Checking ${checkCount} tasks…` : 'Checking task progress…',
+          label: `Waiting for ${checkCount > 1 ? `${checkCount} background tasks` : 'background task'}…`,
+          StatusIcon: AutoAwesomeOutlined,
+          anim: 'pulse 2s ease-in-out infinite',
+        };
+      }
+      case 'collecting': {
+        const fetchCount = agentStatus?.tools?.filter(t => t === 'get_task_result').length ?? 0;
+        return {
+          label: `Collecting results from ${fetchCount > 1 ? `${fetchCount} tasks` : 'task'}…`,
           StatusIcon: AutoAwesomeOutlined,
           anim: 'pulse 2s ease-in-out infinite',
         };
@@ -1071,12 +1103,10 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
               .replace(/\*(.+?)\*/g, '$1')
               .replace(/_(.+?)_/g, '$1')
               .replace(/#{1,6}\s+/g, '')
-              .replace(/\s+/g, ' ')
+              .replace(/[\s.*\-•>]+/g, ' ')
               .trim();
-            const lastLine = (cleaned.split(/\n/).filter(Boolean).pop() ?? '')
-              .replace(/^[\s.*\-•>]+/, '')
-              .trim();
-            if (!lastLine || lastLine.length < 3) return null;
+            if (cleaned.length < 3) return null;
+            const tail = cleaned.length > 120 ? cleaned.slice(-120) : cleaned;
             return (
               <Typography
                 sx={{
@@ -1085,12 +1115,13 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
                   fontStyle: 'italic',
                   mt: 0.5,
                   overflow: 'hidden',
-                  textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
                   maxWidth: '100%',
+                  direction: 'rtl',
+                  textAlign: 'left',
                 }}
               >
-                {lastLine}
+                {tail}
               </Typography>
             );
           })()}
