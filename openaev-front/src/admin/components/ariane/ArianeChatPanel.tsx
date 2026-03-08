@@ -396,10 +396,14 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
                 const tools = (evt.tools ?? []) as string[];
                 const spawnCount = tools.filter(t => t === 'spawn_background_task').length;
                 const checkCount = tools.filter(t => t === 'check_task_status').length;
+                const transferCount = tools.filter(t => t === 'transfer_to_agent').length;
                 if (spawnCount > 0) {
                   setAgentStatus({ status: 'delegating', tools });
                 } else if (checkCount > 0) {
                   setAgentStatus({ status: 'polling', tools });
+                } else if (transferCount > 0) {
+                  const targetName = (evt.transfer_agent_name as string) || 'agent';
+                  setAgentStatus({ status: 'transferring', tools: [targetName] });
                 } else {
                   setAgentStatus({ status: 'tool_start', tools });
                 }
@@ -427,10 +431,8 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
                 localStorage.setItem(STORAGE_KEY, evt.conversation_id);
               }
               if (evt.transfer_agent_id) {
-                const targetName = (evt.transfer_agent_name as string) || '';
                 const targetAgent = agents.find(a => a.id === evt.transfer_agent_id);
                 if (targetAgent) setSelectedAgent(targetAgent);
-                setAgentStatus({ status: 'transferring', tools: [targetName] });
               }
               setMessages(prev => prev.map(m => (m.id === assistantId
                 ? {
