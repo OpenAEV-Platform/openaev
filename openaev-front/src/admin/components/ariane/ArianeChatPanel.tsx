@@ -1103,26 +1103,32 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
               .replace(/\*(.+?)\*/g, '$1')
               .replace(/_(.+?)_/g, '$1')
               .replace(/#{1,6}\s+/g, '')
-              .replace(/[\s.*\-•>]+/g, ' ')
+              .replace(/[*\-•>]+/g, ' ')
+              .replace(/\s+/g, ' ')
               .trim();
             if (cleaned.length < 3) return null;
-            const tail = cleaned.length > 120 ? cleaned.slice(-120) : cleaned;
             return (
-              <Typography
+              <Box
+                ref={(el: HTMLDivElement | null) => { if (el) el.scrollTop = el.scrollHeight; }}
                 sx={{
-                  fontSize: '0.7rem',
-                  color: theme.palette.text?.disabled,
-                  fontStyle: 'italic',
                   mt: 0.5,
+                  maxHeight: '3rem',
                   overflow: 'hidden',
-                  whiteSpace: 'nowrap',
-                  maxWidth: '100%',
-                  direction: 'rtl',
-                  textAlign: 'left',
+                  lineHeight: '1rem',
                 }}
               >
-                {tail}
-              </Typography>
+                <Typography
+                  sx={{
+                    fontSize: '0.7rem',
+                    color: theme.palette.text?.disabled,
+                    fontStyle: 'italic',
+                    wordBreak: 'break-word',
+                    m: 0,
+                  }}
+                >
+                  {cleaned}
+                </Typography>
+              </Box>
             );
           })()}
         </Box>
