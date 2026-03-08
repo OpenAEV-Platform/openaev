@@ -382,6 +382,12 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
               const st = evt.status as string;
               if (st === 'tool_done' || st === 'wind_down') {
                 // skip transient internal events
+              } else if (st === 'transfer_start') {
+                const targetName = (evt.agent_name as string) || 'agent';
+                setThinkingContent('');
+                setAgentStatus({ status: 'transferring', tools: [targetName] });
+                const targetAgent = agents.find(a => a.id === evt.agent_id);
+                if (targetAgent) setSelectedAgent(targetAgent);
               } else if (st === 'thinking_text') {
                 const chunk = (evt.content as string) ?? '';
                 if (chunk) setThinkingContent(prev => prev + chunk);
@@ -1067,8 +1073,10 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
               .replace(/#{1,6}\s+/g, '')
               .replace(/\s+/g, ' ')
               .trim();
-            const lastLine = cleaned.split(/\n/).filter(Boolean).pop() ?? '';
-            if (!lastLine) return null;
+            const lastLine = (cleaned.split(/\n/).filter(Boolean).pop() ?? '')
+              .replace(/^[\s.*\-•>]+/, '')
+              .trim();
+            if (!lastLine || lastLine.length < 3) return null;
             return (
               <Typography
                 sx={{
