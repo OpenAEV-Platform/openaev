@@ -135,6 +135,7 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [agentStatus, setAgentStatus] = useState<AgentStatusState | null>(null);
+  const [thinkingContent, setThinkingContent] = useState('');
   const [conversationId, setConversationId] = useState<string | null>(
     () => localStorage.getItem(STORAGE_KEY),
   );
@@ -315,6 +316,7 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
     setAttachedFiles([]);
     setIsLoading(true);
     setAgentStatus({ status: 'thinking' });
+    setThinkingContent('');
     hasUsedToolsRef.current = false;
 
     const assistantId = crypto.randomUUID();
@@ -380,14 +382,61 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
               const st = evt.status as string;
               if (st === 'tool_done' || st === 'wind_down') {
                 // skip transient internal events
+              } else if (st === 'transfer_start') {
+                const targetName = (evt.agent_name as string) || 'agent';
+                setThinkingContent('');
+                setAgentStatus({
+                  status: 'transferring',
+                  tools: [targetName],
+                });
+                const targetAgent = agents.find(a => a.id === evt.agent_id);
+                if (targetAgent) setSelectedAgent(targetAgent);
+              } else if (st === 'thinking_text') {
+                const chunk = (evt.content as string) ?? '';
+                if (chunk) setThinkingContent(prev => prev + chunk);
               } else if (st === 'streaming') {
+                setThinkingContent('');
                 setAgentStatus({ status: 'streaming' });
+              } else if (st === 'consult_progress') {
+                const agentName = (evt.agent_name as string) ?? 'agent';
+                setAgentStatus({
+                  status: 'consulting',
+                  tools: [agentName],
+                });
               } else if (st === 'tool_start') {
                 hasUsedToolsRef.current = true;
-                setAgentStatus({
-                  status: 'tool_start',
-                  tools: evt.tools,
-                });
+                const tools = (evt.tools ?? []) as string[];
+                const spawnCount = tools.filter(t => t === 'spawn_background_task').length;
+                const checkCount = tools.filter(t => t === 'check_task_status').length;
+                const fetchCount = tools.filter(t => t === 'get_task_result').length;
+                const transferCount = tools.filter(t => t === 'transfer_to_agent').length;
+                if (spawnCount > 0) {
+                  setAgentStatus({
+                    status: 'delegating',
+                    tools,
+                  });
+                } else if (checkCount > 0) {
+                  setAgentStatus({
+                    status: 'polling',
+                    tools,
+                  });
+                } else if (fetchCount > 0) {
+                  setAgentStatus({
+                    status: 'collecting',
+                    tools,
+                  });
+                } else if (transferCount > 0) {
+                  const targetName = (evt.transfer_agent_name as string) || 'agent';
+                  setAgentStatus({
+                    status: 'transferring',
+                    tools: [targetName],
+                  });
+                } else {
+                  setAgentStatus({
+                    status: 'tool_start',
+                    tools,
+                  });
+                }
               } else if (st === 'thinking' && hasUsedToolsRef.current) {
                 setAgentStatus({ status: 'analyzing' });
               } else {
@@ -410,6 +459,10 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
               if (evt.conversation_id) {
                 setConversationId(evt.conversation_id);
                 localStorage.setItem(STORAGE_KEY, evt.conversation_id);
+              }
+              if (evt.transfer_agent_id) {
+                const targetAgent = agents.find(a => a.id === evt.transfer_agent_id);
+                if (targetAgent) setSelectedAgent(targetAgent);
               }
               setMessages(prev => prev.map(m => (m.id === assistantId
                 ? {
@@ -899,6 +952,46 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
           StatusIcon: AutoAwesomeOutlined,
           anim: 'pulse 2s ease-in-out infinite',
         };
+      case 'consulting': {
+        const consultName = agentStatus?.tools?.[0] ?? 'agent';
+        return {
+          label: `Consulting ${consultName}…`,
+          StatusIcon: PersonAddOutlined,
+          anim: 'pulse 2s ease-in-out infinite',
+        };
+      }
+      case 'delegating': {
+        const count = agentStatus?.tools?.filter(t => t === 'spawn_background_task').length ?? 0;
+        return {
+          label: count > 1 ? `Delegating ${count} tasks…` : 'Delegating task…',
+          StatusIcon: PersonAddOutlined,
+          anim: 'pulse 2s ease-in-out infinite',
+        };
+      }
+      case 'polling': {
+        const checkCount = agentStatus?.tools?.filter(t => t === 'check_task_status').length ?? 0;
+        return {
+          label: `Waiting for ${checkCount > 1 ? `${checkCount} background tasks` : 'background task'}…`,
+          StatusIcon: AutoAwesomeOutlined,
+          anim: 'pulse 2s ease-in-out infinite',
+        };
+      }
+      case 'collecting': {
+        const fetchCount = agentStatus?.tools?.filter(t => t === 'get_task_result').length ?? 0;
+        return {
+          label: `Collecting results from ${fetchCount > 1 ? `${fetchCount} tasks` : 'task'}…`,
+          StatusIcon: AutoAwesomeOutlined,
+          anim: 'pulse 2s ease-in-out infinite',
+        };
+      }
+      case 'transferring': {
+        const targetName = agentStatus?.tools?.[0] ?? 'agent';
+        return {
+          label: `Transferring to ${targetName}…`,
+          StatusIcon: LaunchOutlined,
+          anim: 'pulse 2s ease-in-out infinite',
+        };
+      }
       case 'composing':
         return {
           label: t('Composing answer…'),
@@ -1001,6 +1094,43 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
               ))}
             </Box>
           </Box>
+          {thinkingContent && (() => {
+            const cleaned = thinkingContent
+              .replace(/```[\s\S]*?```/g, ' ')
+              .replace(/`([^`]+)`/g, '$1')
+              .replace(/\*\*(.+?)\*\*/g, '$1')
+              .replace(/__(.+?)__/g, '$1')
+              .replace(/\*(.+?)\*/g, '$1')
+              .replace(/_(.+?)_/g, '$1')
+              .replace(/#{1,6}\s+/g, '')
+              .replace(/[*\-•>]+/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim();
+            if (cleaned.length < 3) return null;
+            return (
+              <Box
+                ref={(el: HTMLDivElement | null) => { if (el) el.scrollTop = el.scrollHeight; }}
+                sx={{
+                  mt: 0.5,
+                  maxHeight: '3rem',
+                  overflow: 'hidden',
+                  lineHeight: '1rem',
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: '0.7rem',
+                    color: theme.palette.text?.disabled,
+                    fontStyle: 'italic',
+                    wordBreak: 'break-word',
+                    m: 0,
+                  }}
+                >
+                  {cleaned}
+                </Typography>
+              </Box>
+            );
+          })()}
         </Box>
       </Box>
     );
