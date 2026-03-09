@@ -1,6 +1,7 @@
 package io.openaev.rest.collector;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.ResourceType;
@@ -134,7 +135,10 @@ public class CollectorApi extends RestBehavior {
       // We need to support upsert for registration
       Collector collector = collectorRepository.findById(input.getId()).orElse(null);
       if (collector == null) {
-        Collector collectorChecking = collectorRepository.findByType(input.getType()).orElse(null);
+        Collector collectorChecking =
+            collectorRepository
+                .findByTypeAndTenantId(input.getType(), TenantContext.getCurrentTenant())
+                .orElse(null);
         if (collectorChecking != null) {
           throw new Exception(
               "The collector "

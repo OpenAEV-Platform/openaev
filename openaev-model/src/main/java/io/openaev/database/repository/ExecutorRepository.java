@@ -12,6 +12,7 @@ public interface ExecutorRepository extends CrudRepository<Executor, String> {
   @NotNull
   Optional<Executor> findById(@NotNull String id);
 
+  // TODO multi-tenancy: Multi executors dev
   @NotNull
-  Optional<Executor> findByType(@NotNull String type);
+  Optional<Executor> findByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
 }

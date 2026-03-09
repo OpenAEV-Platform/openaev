@@ -2,6 +2,7 @@ package io.openaev.rest.payload;
 
 import static java.time.Instant.now;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.DetectionRemediation;
 import io.openaev.database.model.Payload;
@@ -58,7 +59,10 @@ public class DetectionRemediationUtils {
       boolean copyId) {
     BeanUtils.copyProperties(input, newDetectionRemediation, "id");
 
-    Collector collector = collectorRepository.findByType(input.getCollectorType()).orElseThrow();
+    Collector collector =
+        collectorRepository
+            .findByTypeAndTenantId(input.getCollectorType(), TenantContext.getCurrentTenant())
+            .orElseThrow();
     newDetectionRemediation.setCollector(collector);
 
     if (copyId) {

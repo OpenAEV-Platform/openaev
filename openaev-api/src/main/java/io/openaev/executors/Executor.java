@@ -99,7 +99,8 @@ public class Executor {
     // Depending on injector type (internal or external) execution must be done differently
     Injector injector =
         injectorRepository
-            .findByType(injectorContract.getInjector().getType())
+            .findByTypeAndTenantId(
+                injectorContract.getInjector().getType(), inject.getTenant().getId())
             .orElseThrow(
                 () ->
                     new IllegalStateException(

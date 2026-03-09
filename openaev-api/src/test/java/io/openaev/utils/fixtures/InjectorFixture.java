@@ -2,6 +2,7 @@ package io.openaev.utils.fixtures;
 
 import static io.openaev.integration.impl.injectors.email.EmailInjectorIntegration.EMAIL_INJECTOR_ID;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Injector;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.injectors.email.EmailContract;
@@ -54,7 +55,7 @@ public class InjectorFixture {
     }
 
     return injectorRepository
-        .findByType(OpenAEVImplantContract.TYPE)
+        .findByTypeAndTenantId(OpenAEVImplantContract.TYPE, TenantContext.getCurrentTenant())
         .orElseThrow(
             () ->
                 new IllegalStateException(
@@ -68,7 +69,7 @@ public class InjectorFixture {
   public Injector getWellKnownOaevImplantInjector() {
     Injector injector =
         injectorRepository
-            .findByType(OpenAEVImplantContract.TYPE)
+            .findByTypeAndTenantId(OpenAEVImplantContract.TYPE, TenantContext.getCurrentTenant())
             .orElseGet(this::initializeOAEVImplantInjector);
     // ensure the injector is marked for payloads
     // some tests not running in a transaction may flip this
@@ -78,7 +79,9 @@ public class InjectorFixture {
   }
 
   public Injector getWellKnownEmailInjector(boolean isPayload) {
-    Optional<Injector> injectorOptional = injectorRepository.findByType(EmailContract.TYPE);
+    Optional<Injector> injectorOptional =
+        injectorRepository.findByTypeAndTenantId(
+            EmailContract.TYPE, TenantContext.getCurrentTenant());
     Injector injector =
         injectorOptional.orElseGet(() -> injectorRepository.save(createOAEVEmailInjector()));
     // ensure the injector is marked for payloads
