@@ -13,7 +13,7 @@ public class CollectorTypeComposer extends ComposerBase<CollectorType> {
 
   public class Composer extends InnerComposerBase<CollectorType> {
 
-    private final CollectorType collectorType;
+    private CollectorType collectorType;
 
     public Composer(CollectorType collectorType) {
       this.collectorType = collectorType;
@@ -21,9 +21,10 @@ public class CollectorTypeComposer extends ComposerBase<CollectorType> {
 
     @Override
     public Composer persist() {
-      collectorTypeRepository
-          .findByNameAndTenantId(this.collectorType.getName(), TenantContext.getCurrentTenant())
-          .orElseGet(() -> collectorTypeRepository.save(this.collectorType));
+      this.collectorType =
+          collectorTypeRepository
+              .findByNameAndTenantId(this.collectorType.getName(), TenantContext.getCurrentTenant())
+              .orElseGet(() -> collectorTypeRepository.save(this.collectorType));
       return this;
     }
 

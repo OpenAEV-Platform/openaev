@@ -201,7 +201,8 @@ class InjectImportTest extends IntegrationTest {
                                     .forDetectionRemediation(createDetectionRemediation())
                                     .withCollectorType(
                                         collectorTypeComposer.forCollectorType(
-                                            new CollectorType(collector.getType()))))))
+                                            CollectorTypeFixture.createCollectorType(
+                                                collector.getType()))))))
             .withTag(tagComposer.forTag(TagFixture.getTagWithText("inject with payload tag"))),
         injectComposer
             .forInject(InjectFixture.getDefaultInject())

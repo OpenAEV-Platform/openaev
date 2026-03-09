@@ -26,9 +26,17 @@ public class DetectionRemediationComposer extends ComposerBase<DetectionRemediat
       return this;
     }
 
+    public void persistCollectorTypeDependency() {
+      collectorTypeComposer.ifPresent(
+          ctc -> {
+            ctc.persist();
+            detectionRemediation.setCollectorType(ctc.get());
+          });
+    }
+
     @Override
     public Composer persist() {
-      collectorTypeComposer.ifPresent(CollectorTypeComposer.Composer::persist);
+      persistCollectorTypeDependency();
       detectionRemediationRepository.save(this.detectionRemediation);
       return this;
     }

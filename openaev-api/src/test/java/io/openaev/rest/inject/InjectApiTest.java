@@ -1707,7 +1707,8 @@ class InjectApiTest extends IntegrationTest {
                                               .createDefaultDetectionRemediation())
                                       .withCollectorType(
                                           collectorTypeComposer.forCollectorType(
-                                              new CollectorType(collector.getType()))))))
+                                              CollectorTypeFixture.createCollectorType(
+                                                  collector.getType()))))))
               .persist()
               .get();
 
