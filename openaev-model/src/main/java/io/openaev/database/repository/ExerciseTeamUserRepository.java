@@ -40,6 +40,27 @@ public interface ExerciseTeamUserRepository
   @Modifying
   @Query(
       value =
+          "delete from exercises_teams_users "
+              + "where exercise_id = :exerciseId and team_id in :teamIds",
+      nativeQuery = true)
+  void deleteByExerciseIdAndTeamIds(
+      @Param("exerciseId") String exerciseId, @Param("teamIds") List<String> teamIds);
+
+  @Modifying
+  @Query(
+      value =
+          "insert into exercises_teams_users (exercise_id, team_id, user_id) "
+              + "values (:exerciseId, :teamId, :userId) "
+              + "on conflict (exercise_id, team_id, user_id) do nothing",
+      nativeQuery = true)
+  void insertIfNotExists(
+      @Param("exerciseId") String exerciseId,
+      @Param("teamId") String teamId,
+      @Param("userId") String userId);
+
+  @Modifying
+  @Query(
+      value =
           "insert into exercises_teams_users (exercise_id, team_id, user_id) "
               + "values (:exerciseId, :teamId, :userId)",
       nativeQuery = true)
