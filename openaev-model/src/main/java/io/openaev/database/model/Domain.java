@@ -77,4 +77,12 @@ public class Domain implements TenantBase {
 
     return this.getName().equals(((Domain) obj).getName());
   }
+
+  public Domain(String id, String name, String color, Instant creationDate, Instant updateDate) {
+    this.id = id;
+    this.name = name;
+    this.color = color;
+    this.creationDate = creationDate;
+    this.updateDate = updateDate;
+  }
 }
