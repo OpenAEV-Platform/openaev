@@ -23,10 +23,30 @@ public interface ScenarioTeamUserRepository
   @NotNull
   Optional<ScenarioTeamUser> findById(@NotNull final ScenarioTeamUserId id);
 
-  @Modifying
+  @Modifying(flushAutomatically = true, clearAutomatically = true)
   @Query(
       value = "delete from scenarios_teams_users i where i.team_id in :teamIds",
       nativeQuery = true)
   @Transactional
   void deleteTeamFromAllReferences(@Param("teamIds") List<String> teamIds);
+
+  @Modifying(flushAutomatically = true, clearAutomatically = true)
+  @Query(
+      value =
+          "delete from scenarios_teams_users where scenario_id = :scenarioId and team_id in :teamIds",
+      nativeQuery = true)
+  void deleteByScenarioIdAndTeamIds(
+      @Param("scenarioId") String scenarioId, @Param("teamIds") List<String> teamIds);
+
+  @Modifying(flushAutomatically = true, clearAutomatically = true)
+  @Query(
+      value =
+          "insert into scenarios_teams_users (scenario_id, team_id, user_id) "
+              + "values (:scenarioId, :teamId, :userId) "
+              + "on conflict (scenario_id, team_id, user_id) do nothing",
+      nativeQuery = true)
+  void insertIfNotExists(
+      @Param("scenarioId") String scenarioId,
+      @Param("teamId") String teamId,
+      @Param("userId") String userId);
 }
