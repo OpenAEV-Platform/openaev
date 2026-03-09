@@ -144,7 +144,7 @@ public class PayloadUtils {
             .orElseGet(ArrayList::new));
     duplicate.setTags(new HashSet<>(origin.getTags()));
     duplicate.setDomains(new HashSet<>(origin.getDomains()));
-    duplicate.setCollector(null);
+    duplicate.setCollectorType(null);
     duplicate.setSource(Payload.PAYLOAD_SOURCE.MANUAL);
     duplicate.setStatus(Payload.PAYLOAD_STATUS.UNVERIFIED);
     outputParserService.copyOutputParsersFromEntity(origin.getOutputParsers(), duplicate);

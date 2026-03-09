@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
+import io.openaev.database.repository.CollectorTypeRepository;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.collector.form.CollectorOutput;
@@ -35,6 +36,8 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   private final CollectorRepository collectorRepository;
 
+  private final CollectorTypeRepository collectorTypeRepository;
+
   private final FileService fileService;
 
   private final CollectorMapper collectorMapper;
@@ -42,6 +45,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
   @Autowired
   public CollectorService(
       CollectorRepository collectorRepository,
+      CollectorTypeRepository collectorTypeRepository,
       ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository,
       FileService fileService,
       ConnectorInstanceService connectorInstanceService,
@@ -55,6 +59,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
         connectorInstanceService,
         catalogConnectorMapper);
     this.collectorRepository = collectorRepository;
+    this.collectorTypeRepository = collectorTypeRepository;
     this.fileService = fileService;
     this.collectorMapper = collectorMapper;
   }
@@ -164,6 +169,15 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     if (iconData != null) {
       fileService.uploadStream(COLLECTORS_IMAGES_BASE_PATH, type + ".png", iconData);
     }
+    // Upsert collector type reference
+    collectorTypeRepository
+        .findByNameAndTenantId(type, TenantContext.getCurrentTenant())
+        .orElseGet(
+            () -> {
+              CollectorType ct = new CollectorType(type);
+              return collectorTypeRepository.save(ct);
+            });
+
     Collector collector = collectorRepository.findById(id).orElse(null);
     if (collector == null) {
       Collector collectorChecking =

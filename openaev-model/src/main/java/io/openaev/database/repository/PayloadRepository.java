@@ -22,7 +22,10 @@ public interface PayloadRepository
   Optional<Payload> findByExternalId(@NotNull String externalId);
 
   @Query(
-      value = "SELECT payload_external_id FROM payloads WHERE payload_collector = :collectorId",
+      value =
+          "SELECT p.payload_external_id FROM payloads p"
+              + " JOIN collectors c ON c.collector_type = p.payload_collector_type"
+              + " WHERE c.collector_id = :collectorId",
       nativeQuery = true)
   List<String> findAllExternalIdsByCollectorId(@NotNull @Param("collectorId") String collectorId);
 

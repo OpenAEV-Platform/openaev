@@ -66,6 +66,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   @Autowired private DocumentComposer documentComposer;
 
   @Autowired private CollectorComposer collectorComposer;
+  @Autowired private CollectorTypeComposer collectorTypeComposer;
 
   @Autowired private AttackPatternComposer attackPatternComposer;
 
@@ -1426,7 +1427,9 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                         .withDetectionRemediation(
                             detectionRemediationComposer
                                 .forDetectionRemediation(detectionRemediation)
-                                .withCollector(collectorComposer.forCollector(collector)))))
+                                .withCollectorType(
+                                    collectorTypeComposer.forCollectorType(
+                                        new CollectorType(collector.getType()))))))
         .persist()
         .get();
   }
@@ -1461,7 +1464,9 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                         .withDetectionRemediation(
                             detectionRemediationComposer
                                 .forDetectionRemediation(detectionRemediation)
-                                .withCollector(collectorComposer.forCollector(collector)))))
+                                .withCollectorType(
+                                    collectorTypeComposer.forCollectorType(
+                                        new CollectorType(collector.getType()))))))
         .persist()
         .get();
   }
