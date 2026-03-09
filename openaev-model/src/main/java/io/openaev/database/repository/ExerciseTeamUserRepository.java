@@ -24,18 +24,38 @@ public interface ExerciseTeamUserRepository
   @NotNull
   Optional<ExerciseTeamUser> findById(@NotNull ExerciseTeamUserId id);
 
-  @Modifying
+  @Modifying(flushAutomatically = true, clearAutomatically = true)
   @Query(
       value = "delete from exercises_teams_users i where i.user_id = :userId",
       nativeQuery = true)
   void deleteUserFromAllReferences(@Param("userId") String userId);
 
-  @Modifying
+  @Modifying(flushAutomatically = true, clearAutomatically = true)
   @Query(
       value = "delete from exercises_teams_users i where i.team_id in :teamIds",
       nativeQuery = true)
   @Transactional
   void deleteTeamsFromAllReferences(@Param("teamIds") List<String> teamIds);
+
+  @Modifying(flushAutomatically = true, clearAutomatically = true)
+  @Query(
+      value =
+          "delete from exercises_teams_users where exercise_id = :exerciseId and team_id in :teamIds",
+      nativeQuery = true)
+  void deleteByExerciseIdAndTeamIds(
+      @Param("exerciseId") String exerciseId, @Param("teamIds") List<String> teamIds);
+
+  @Modifying(flushAutomatically = true, clearAutomatically = true)
+  @Query(
+      value =
+          "insert into exercises_teams_users (exercise_id, team_id, user_id) "
+              + "values (:exerciseId, :teamId, :userId) "
+              + "on conflict (exercise_id, team_id, user_id) do nothing",
+      nativeQuery = true)
+  void insertIfNotExists(
+      @Param("exerciseId") String exerciseId,
+      @Param("teamId") String teamId,
+      @Param("userId") String userId);
 
   @Modifying
   @Query(
