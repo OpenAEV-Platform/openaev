@@ -132,6 +132,8 @@ public class CollectorApi extends RestBehavior {
         fileService.uploadFile(
             FileService.COLLECTORS_IMAGES_BASE_PATH + input.getType() + ".png", file.get());
       }
+      // Ensure the collector type reference exists
+      collectorService.ensureCollectorTypeExists(input.getType());
       // We need to support upsert for registration
       Collector collector = collectorRepository.findById(input.getId()).orElse(null);
       if (collector == null) {

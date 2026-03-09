@@ -162,6 +162,23 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     return collectorRepository.save(collectorToUpdate);
   }
 
+  /**
+   * Ensures a {@link CollectorType} row exists for the given type name. Creates one if it does not
+   * already exist (upsert semantics scoped to the current tenant).
+   *
+   * @param type the collector type name (e.g. "openaev_crowdstrike")
+   * @return the existing or newly created {@link CollectorType}
+   */
+  public CollectorType ensureCollectorTypeExists(String type) {
+    return collectorTypeRepository
+        .findByNameAndTenantId(type, TenantContext.getCurrentTenant())
+        .orElseGet(
+            () -> {
+              CollectorType ct = new CollectorType(type);
+              return collectorTypeRepository.save(ct);
+            });
+  }
+
   // -- ACTION --
 
   @Transactional
@@ -170,13 +187,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       fileService.uploadStream(COLLECTORS_IMAGES_BASE_PATH, type + ".png", iconData);
     }
     // Upsert collector type reference
-    collectorTypeRepository
-        .findByNameAndTenantId(type, TenantContext.getCurrentTenant())
-        .orElseGet(
-            () -> {
-              CollectorType ct = new CollectorType(type);
-              return collectorTypeRepository.save(ct);
-            });
+    ensureCollectorTypeExists(type);
 
     Collector collector = collectorRepository.findById(id).orElse(null);
     if (collector == null) {
