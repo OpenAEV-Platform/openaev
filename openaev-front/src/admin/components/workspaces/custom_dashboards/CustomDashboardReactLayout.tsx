@@ -39,7 +39,9 @@ const CustomDashboardReactLayout: FunctionComponent<{
     resizeObserver.observe(container);
     updateWidth(); // Initial measurement
 
-    resizeObserver.disconnect();
+    return () => {
+      resizeObserver.disconnect();
+    };
   }, []);
 
   const [deleting, setDeleting] = useState(false);
