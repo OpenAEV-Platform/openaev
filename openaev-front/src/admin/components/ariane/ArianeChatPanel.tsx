@@ -182,7 +182,8 @@ const ArianeChatPanel: FunctionComponent<ArianeChatPanelProps> = ({
         if (data.length > 0 && !selectedAgent) {
           const savedSlug = localStorage.getItem(STORAGE_AGENT_KEY);
           const match = savedSlug ? data.find(a => a.slug === savedSlug) : null;
-          setSelectedAgent(match || data[0]);
+          const openaevDefault = data.find(a => a.slug?.includes('openaev'));
+          setSelectedAgent(match || openaevDefault || data[0]);
         }
       })
       .catch(() => {});
