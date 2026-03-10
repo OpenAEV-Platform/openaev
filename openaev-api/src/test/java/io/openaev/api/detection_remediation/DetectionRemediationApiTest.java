@@ -847,9 +847,6 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   @DisplayName("Generate AI rules detection remediation by inject id , EE not available")
   public void getDetectionRemediationRuleByInjectWithoutLicenceEE() throws JsonProcessingException {
     // -- PREPARE -
-    collectorTypeComposer
-        .forCollectorType(CollectorTypeFixture.createCollectorType(CollectorsUtils.CROWDSTRIKE))
-        .persist();
     collectorComposer
         .forCollector(CollectorFixture.createDefaultCollector(CollectorsUtils.CROWDSTRIKE))
         .persist();
@@ -906,9 +903,6 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   public void
       getDetectionRemediationRuleBasedInjectCommandCrowdStrikeWithDetectionRemediationWithContent() {
     // -- PREPARE -
-    collectorTypeComposer
-        .forCollectorType(CollectorTypeFixture.createCollectorType(CollectorsUtils.CROWDSTRIKE))
-        .persist();
     Collector collector =
         collectorComposer
             .forCollector(CollectorFixture.createDefaultCollector(CollectorsUtils.CROWDSTRIKE))
@@ -944,9 +938,6 @@ public class DetectionRemediationApiTest extends IntegrationTest {
       getDetectionRemediationRuleBasedInjectCommandCrowdStrikeWithDetectionRemediationWithoutContent()
           throws Exception {
     // -- PREPARE -
-    collectorTypeComposer
-        .forCollectorType(CollectorTypeFixture.createCollectorType(CollectorsUtils.CROWDSTRIKE))
-        .persist();
     Collector collector =
         collectorComposer
             .forCollector(CollectorFixture.createDefaultCollector(CollectorsUtils.CROWDSTRIKE))
@@ -987,9 +978,6 @@ public class DetectionRemediationApiTest extends IntegrationTest {
       getDetectionRemediationRuleBasedOnInjectCommandCrowdStrikeWithoutDetectionRemediation()
           throws Exception {
     // -- PREPARE -
-    collectorTypeComposer
-        .forCollectorType(CollectorTypeFixture.createCollectorType(CollectorsUtils.CROWDSTRIKE))
-        .persist();
     collectorComposer
         .forCollector(CollectorFixture.createDefaultCollector(CollectorsUtils.CROWDSTRIKE))
         .persist();
@@ -1058,9 +1046,6 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   public void getDetectionRemediationRuleBasedOnInjectCommandSplunkWithoutDetectionRemediation()
       throws Exception {
     // -- PREPARE -
-    collectorTypeComposer
-        .forCollectorType(CollectorTypeFixture.createCollectorType(CollectorsUtils.SPLUNK))
-        .persist();
     collectorComposer
         .forCollector(CollectorFixture.createDefaultCollector(CollectorsUtils.SPLUNK))
         .persist();
@@ -1113,9 +1098,6 @@ public class DetectionRemediationApiTest extends IntegrationTest {
       getDetectionRemediationRuleBasedOnInjectDnsResolutionCrowdStrikeWithoutDetectionRemediation()
           throws Exception {
     // -- PREPARE -
-    collectorTypeComposer
-        .forCollectorType(CollectorTypeFixture.createCollectorType(CollectorsUtils.CROWDSTRIKE))
-        .persist();
     collectorComposer
         .forCollector(CollectorFixture.createDefaultCollector(CollectorsUtils.CROWDSTRIKE))
         .persist();
@@ -1186,9 +1168,6 @@ public class DetectionRemediationApiTest extends IntegrationTest {
       getDetectionRemediationRuleBasedOnInjectDnsResolutionSplunkWithoutDetectionRemediation()
           throws Exception {
     // -- PREPARE -
-    collectorTypeComposer
-        .forCollectorType(CollectorTypeFixture.createCollectorType(CollectorsUtils.SPLUNK))
-        .persist();
     collectorComposer
         .forCollector(CollectorFixture.createDefaultCollector(CollectorsUtils.SPLUNK))
         .persist();
@@ -1242,9 +1221,6 @@ public class DetectionRemediationApiTest extends IntegrationTest {
       getDetectionRemediationRuleBasedOnInjectFileDropCrowdStrikeWithoutDetectionRemediation()
           throws Exception {
     // -- PREPARE -
-    collectorTypeComposer
-        .forCollectorType(CollectorTypeFixture.createCollectorType(CollectorsUtils.CROWDSTRIKE))
-        .persist();
     collectorComposer
         .forCollector(CollectorFixture.createDefaultCollector(CollectorsUtils.CROWDSTRIKE))
         .persist();
@@ -1281,9 +1257,6 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   public void getDetectionRemediationRuleBasedOnInjectFileDropSplunkWithoutDetectionRemediation()
       throws Exception {
     // -- PREPARE -
-    collectorTypeComposer
-        .forCollectorType(CollectorTypeFixture.createCollectorType(CollectorsUtils.SPLUNK))
-        .persist();
     collectorComposer
         .forCollector(CollectorFixture.createDefaultCollector(CollectorsUtils.SPLUNK))
         .persist();
@@ -1321,9 +1294,6 @@ public class DetectionRemediationApiTest extends IntegrationTest {
       getDetectionRemediationRuleBasedOnInjectExecutableCrowdStrikeWithoutDetectionRemediation()
           throws Exception {
     // -- PREPARE -
-    collectorTypeComposer
-        .forCollectorType(CollectorTypeFixture.createCollectorType(CollectorsUtils.CROWDSTRIKE))
-        .persist();
     collectorComposer
         .forCollector(CollectorFixture.createDefaultCollector(CollectorsUtils.CROWDSTRIKE))
         .persist();
@@ -1360,9 +1330,6 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   public void getDetectionRemediationRuleBasedOnInjectExecutableSplunkWithoutDetectionRemediation()
       throws Exception {
     // -- PREPARE -
-    collectorTypeComposer
-        .forCollectorType(CollectorTypeFixture.createCollectorType(CollectorsUtils.SPLUNK))
-        .persist();
     collectorComposer
         .forCollector(CollectorFixture.createDefaultCollector(CollectorsUtils.SPLUNK))
         .persist();
