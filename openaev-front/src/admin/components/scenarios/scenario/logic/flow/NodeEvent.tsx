@@ -5,6 +5,7 @@ import { Handle, type Node, type NodeProps, Position } from '@xyflow/react';
 import { memo } from 'react';
 
 import ButtonPopover from '../../../../../../components/common/ButtonPopover';
+import FindingIcon from '../../../../../../components/FindingIcon';
 import { useFormatter } from '../../../../../../components/i18n';
 import type { WorkflowCondition, WorkflowStep } from '../../../../../../utils/api-types-custom';
 import type { HighlightState } from './NodeAction';
@@ -13,6 +14,7 @@ export type NodeEventData = {
   step: WorkflowStep;
   label: string;
   fieldConditions: WorkflowCondition[];
+  flowTypes: string[];
   highlightState: HighlightState;
   onEdit: (step: WorkflowStep) => void;
   onDelete: (stepId: string) => void;
@@ -88,6 +90,24 @@ const NodeEvent = ({ data }: NodeProps<NodeEventType>) => {
                   variant="outlined"
                   label={`${condition.condition_key}${condition.condition_field ? `.${condition.condition_field}` : ''} ${condition.condition_type}${condition.condition_value ? ` ${condition.condition_value}` : ''}`}
                   sx={{ height: 18, fontSize: 10 }}
+                />
+              ))}
+            </div>
+          )}
+          {data.flowTypes.length > 0 && (
+            <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: 9, mr: 0.5 }}>
+                {t('Provides')}:
+              </Typography>
+              {data.flowTypes.map(type => (
+                <Chip
+                  key={type}
+                  size="small"
+                  icon={<FindingIcon findingType={type} />}
+                  label={type}
+                  variant="outlined"
+                  color="warning"
+                  sx={{ height: 18, fontSize: 9 }}
                 />
               ))}
             </div>

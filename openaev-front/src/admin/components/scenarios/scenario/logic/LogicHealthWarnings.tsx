@@ -8,7 +8,7 @@ import FindingIcon from '../../../../../components/FindingIcon';
 import { useFormatter } from '../../../../../components/i18n';
 import type { Workflow } from '../../../../../utils/api-types-custom';
 import InjectIcon from '../../../common/injects/InjectIcon';
-import { extractInputBindings, formatBinding, getActionsProvisioningField, getStepLabel, getRootActionSteps, isActionStep, isEventStep } from './logicUtils';
+import { getActionsProvisioningField, getRootActionSteps, isActionStep, isEventStep } from './logicUtils';
 
 interface Props {
   workflow: Workflow;
@@ -20,12 +20,6 @@ interface FieldWarning {
   eventLabel: string;
 }
 
-interface BindingWarning {
-  actionLabel: string;
-  argumentKey: string;
-  bindingLabel: string; // e.g. "portscan.host"
-  inputType: string;
-}
 
 interface CompatibleContract {
   id: string;
@@ -155,25 +149,9 @@ const LogicHealthWarnings: FunctionComponent<Props> = ({ workflow, onAddActionFr
     }
   }
 
-  // Find unresolved input bindings on action steps
-  const bindingWarnings: BindingWarning[] = [];
-  for (const step of allActions) {
-    const bindings = extractInputBindings(step, steps);
-    for (const binding of bindings) {
-      if (!binding.resolved) {
-        bindingWarnings.push({
-          actionLabel: getStepLabel(step),
-          argumentKey: binding.argumentKey,
-          bindingLabel: formatBinding(binding),
-          inputType: binding.inputType,
-        });
-      }
-    }
-  }
-
   const hasNoRootActions = rootActions.length === 0 && steps.length > 0;
 
-  if (!hasNoRootActions && fieldWarnings.length === 0 && bindingWarnings.length === 0) return null;
+  if (!hasNoRootActions && fieldWarnings.length === 0) return null;
 
   return (
     <>
@@ -213,37 +191,6 @@ const LogicHealthWarnings: FunctionComponent<Props> = ({ workflow, onAddActionFr
         </Alert>
       ))}
 
-      {bindingWarnings.map((warning, index) => (
-        <Alert key={`binding-${index}`} severity="error" sx={{ mb: 2 }}>
-          <AlertTitle>{t('Unresolved input binding')}</AlertTitle>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span>
-              {t('Action')} <strong>{warning.actionLabel}</strong>{' '}
-              {t('argument')} <code>{warning.argumentKey}</code>{' '}
-              {t('requires')}{' '}
-              <Chip
-                size="small"
-                icon={<FindingIcon findingType={warning.inputType} />}
-                label={warning.bindingLabel}
-                variant="filled"
-                color="error"
-                sx={{ height: 22, fontSize: 11, mx: 0.5 }}
-              />{' '}
-              {t('but no upstream action produces this output type.')}
-            </span>
-            <Button
-              size="small"
-              variant="outlined"
-              color="error"
-              startIcon={<InfoOutlined />}
-              onClick={() => handleShowCompatible(warning.inputType)}
-              sx={{ textTransform: 'none', fontSize: 11, whiteSpace: 'nowrap' }}
-            >
-              {t('Show compatible actions')}
-            </Button>
-          </div>
-        </Alert>
-      ))}
 
       {/* Compatible actions drawer */}
       <Drawer

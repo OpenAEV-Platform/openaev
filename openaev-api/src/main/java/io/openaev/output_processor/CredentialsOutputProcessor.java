@@ -12,6 +12,7 @@ public class CredentialsOutputProcessor extends AbstractOutputProcessor {
 
   private static final String USERNAME = "username";
   private static final String PASSWORD = "password";
+  private static final String HASH = "hash";
 
   public CredentialsOutputProcessor() {
     super(
@@ -19,19 +20,25 @@ public class CredentialsOutputProcessor extends AbstractOutputProcessor {
         ContractOutputTechnicalType.Object,
         List.of(
             new ContractOutputField(USERNAME, ContractOutputTechnicalType.Text, true),
-            new ContractOutputField(PASSWORD, ContractOutputTechnicalType.Text, true)),
+            new ContractOutputField(PASSWORD, ContractOutputTechnicalType.Text, true),
+            new ContractOutputField(HASH, ContractOutputTechnicalType.Text, false)),
         true);
   }
 
   @Override
   public boolean validate(JsonNode jsonNode) {
-    return jsonNode.hasNonNull(USERNAME) && jsonNode.hasNonNull(PASSWORD);
+    return jsonNode.hasNonNull(USERNAME)
+        && (jsonNode.hasNonNull(PASSWORD) || jsonNode.hasNonNull(HASH));
   }
 
   @Override
   public String toFindingValue(JsonNode jsonNode) {
     String username = buildString(jsonNode, USERNAME);
     String password = buildString(jsonNode, PASSWORD);
+    String hash = buildString(jsonNode, HASH);
+    if (!hash.isEmpty()) {
+      return username + ":" + hash;
+    }
     return username + ":" + password;
   }
 }

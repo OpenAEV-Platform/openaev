@@ -94,25 +94,22 @@ const NodeAction = ({ data }: NodeProps<NodeActionType>) => {
             <Chip key={eid} size="small" label={eid} variant="outlined" color="secondary" sx={{ height: 18, fontSize: 10 }} />
           ))}
         </div>
-        {data.inputBindings.length > 0 && (
+        {data.inputBindings.some(b => b.bound) && (
           <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
             <Typography variant="caption" color="text.secondary" sx={{ fontSize: 9, mr: 0.5 }}>
-              {t('Needs')}:
+              ⚡
             </Typography>
-            {data.inputBindings.map(binding => (
+            {data.inputBindings.filter(b => b.bound).map(binding => (
               <Tooltip
                 key={binding.argumentKey}
-                title={binding.resolved
-                  ? `${binding.argumentKey} ← ${formatBinding(binding)}`
-                  : `${binding.argumentKey}: no upstream provides ${formatBinding(binding)}`
-                }
+                title={`${binding.argumentKey} ← ${formatBinding(binding)} (${binding.scope.toLowerCase()} via ${binding.providers.map(p => p.eventLabel).join(', ')})`}
               >
                 <Chip
                   size="small"
                   icon={<FindingIcon findingType={binding.inputType} />}
                   label={formatBinding(binding)}
-                  variant={binding.resolved ? 'outlined' : 'filled'}
-                  color={binding.resolved ? 'success' : 'error'}
+                  variant="outlined"
+                  color="success"
                   sx={{ height: 18, fontSize: 9 }}
                 />
               </Tooltip>

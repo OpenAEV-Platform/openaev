@@ -14,6 +14,7 @@ import {
 } from '@xyflow/react';
 import { stratify, tree } from 'd3-hierarchy';
 import { type FunctionComponent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+// Note: getDownstreamStepIds/getUpstreamStepIds kept for potential future use
 
 import { type AttackPatternHelper } from '../../../../../../actions/attack_patterns/attackpattern-helper';
 import { useHelper } from '../../../../../../store';
@@ -24,6 +25,7 @@ import {
   extractOutputTypesFromStepData,
   getDownstreamStepIds,
   getEventFieldConditions,
+  getEventFlowTypes,
   getFieldScopes,
   getStepAttackPatterns,
   getStepInjectorType,
@@ -168,6 +170,7 @@ const buildNodesAndEdges = (
         step,
         label: getStepLabel(step),
         fieldConditions: getEventFieldConditions(step),
+        flowTypes: getEventFlowTypes(step),
         highlightState: getHighlightState(step.step_id),
         onEdit: callbacks.onEditEvent,
         onDelete: callbacks.onDeleteStep,
@@ -245,14 +248,14 @@ const buildNodesAndEdges = (
     if (node.type !== 'action') continue;
     const actionData = node.data as NodeActionData;
     for (const binding of actionData.inputBindings) {
-      if (binding.resolved && binding.providerStepId) {
-        const edgeId = `binding:${binding.providerStepId}->${node.id}:${binding.argumentKey}`;
-        // Avoid duplicate with existing DEPEND_ON or field edges
+      if (!binding.bound) continue;
+      for (const provider of binding.providers) {
+        const edgeId = `binding:${provider.providerStepId}->${node.id}:${binding.argumentKey}`;
         const alreadyHasBindingEdge = edges.some(e => e.id === edgeId);
         if (!alreadyHasBindingEdge) {
           edges.push({
             id: edgeId,
-            source: binding.providerStepId,
+            source: provider.providerStepId,
             target: node.id,
             type: ConnectionLineType.SmoothStep,
             animated: true,
@@ -293,18 +296,18 @@ const LogicFlow: FunctionComponent<LogicFlowProps> = ({
   onAddActionForEvent,
 }) => {
   const theme = useTheme();
-  const [highlightedStepId, setHighlightedActionId] = useState<string | null>(null);
+  const [highlightedStepId, setHighlightedStepId] = useState<string | null>(null);
 
   const { attackPatternsMap } = useHelper((helper: AttackPatternHelper) => ({
     attackPatternsMap: helper.getAttackPatternsMap(),
   }));
 
   const handleHighlight = useCallback((stepId: string) => {
-    setHighlightedActionId(prev => prev === stepId ? null : stepId);
+    setHighlightedStepId(prev => prev === stepId ? null : stepId);
   }, []);
 
   const handlePaneClick = useCallback(() => {
-    setHighlightedActionId(null);
+    setHighlightedStepId(null);
   }, []);
 
   const callbacks = useMemo(() => ({
@@ -315,28 +318,28 @@ const LogicFlow: FunctionComponent<LogicFlowProps> = ({
     onHighlight: handleHighlight,
   }), [onDeleteStep, onEditAction, onEditEvent, onAddActionForEvent, handleHighlight]);
 
-  // Build raw nodes & edges (with highlight state baked in)
+  // Build raw nodes & edges (highlight state baked in)
   const { nodes: builtNodes, edges: builtEdges } = useMemo(
     () => buildNodesAndEdges(steps, attackPatternsMap, callbacks, highlightedStepId),
     [steps, attackPatternsMap, callbacks, highlightedStepId],
   );
 
-  // Compute highlighted edge IDs (upstream + downstream, DEPEND_ON + field edges)
+  // Compute highlighted edge IDs
   const highlightedEdgeIds = useMemo(() => {
     if (!highlightedStepId) return null;
     const downstream = getDownstreamStepIds(steps, highlightedStepId);
     const upstream = getUpstreamStepIds(steps, highlightedStepId);
-    const allHighlighted = new Set([highlightedStepId, ...downstream, ...upstream]);
+    const allConnected = new Set([highlightedStepId, ...downstream, ...upstream]);
     const edgeIds = new Set<string>();
     for (const edge of builtEdges) {
-      if (allHighlighted.has(edge.source) && allHighlighted.has(edge.target)) {
+      if (allConnected.has(edge.source) && allConnected.has(edge.target)) {
         edgeIds.add(edge.id);
       }
     }
     return edgeIds;
   }, [steps, highlightedStepId, builtEdges]);
 
-  // Apply edge styles based on highlight and edge type
+  // Style edges
   const styledEdges = useMemo(() => {
     return builtEdges.map((edge): Edge | null => {
       const isFieldEdge = edge.id.startsWith('field:');
@@ -344,13 +347,10 @@ const LogicFlow: FunctionComponent<LogicFlowProps> = ({
       const isOnPath = highlightedEdgeIds?.has(edge.id) ?? false;
       const hasHighlight = highlightedEdgeIds !== null;
 
-      const activeColor = isFieldEdge
-        ? theme.palette.warning.main
-        : isBindingEdge
-          ? theme.palette.success.main
-          : theme.palette.primary.main;
+      // Binding edges: always hidden
+      if (isBindingEdge) return null;
 
-      // Field edges: filtered out unless on highlighted path
+      // Field provisioning edges: only visible on highlighted path
       if (isFieldEdge) {
         if (!hasHighlight || !isOnPath) return null;
         return {
@@ -360,8 +360,6 @@ const LogicFlow: FunctionComponent<LogicFlowProps> = ({
             stroke: theme.palette.warning.main,
             strokeWidth: 2,
             strokeDasharray: '6 3',
-            opacity: 1,
-            transition: 'all 0.2s',
           },
           markerEnd: {
             type: MarkerType.ArrowClosed,
@@ -372,28 +370,8 @@ const LogicFlow: FunctionComponent<LogicFlowProps> = ({
         };
       }
 
-      // Binding edges: only visible when on highlighted path
-      if (isBindingEdge) {
-        if (!hasHighlight || !isOnPath) return null;
-        return {
-          ...edge,
-          style: {
-            ...edge.style,
-            stroke: theme.palette.success.main,
-            strokeWidth: 2,
-            strokeDasharray: '4 4',
-            opacity: 1,
-            transition: 'all 0.2s',
-          },
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            width: 14,
-            height: 14,
-            color: theme.palette.success.main,
-          },
-        };
-      }
-
+      // DEPEND_ON edges: always visible, highlighted when on path
+      const activeColor = theme.palette.primary.main;
       return {
         ...edge,
         style: {
@@ -402,7 +380,7 @@ const LogicFlow: FunctionComponent<LogicFlowProps> = ({
             ? (isOnPath ? activeColor : theme.palette.divider)
             : theme.palette.divider,
           strokeWidth: isOnPath ? 3 : 2,
-          opacity: hasHighlight ? (isOnPath ? 1 : 0.15) : 1,
+          opacity: hasHighlight ? (isOnPath ? 1 : 0.3) : 1,
           transition: 'all 0.2s',
         },
         markerEnd: {
@@ -460,11 +438,8 @@ const LogicFlow: FunctionComponent<LogicFlowProps> = ({
     },
   }), [theme]);
 
-  // Escape key to clear highlight
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      setHighlightedActionId(null);
-    }
+    if (e.key === 'Escape') setHighlightedStepId(null);
   }, []);
 
   return (

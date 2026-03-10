@@ -283,53 +283,57 @@ export const getFieldScopes = (step: WorkflowStep): Record<string, string> => {
   }
 };
 
-// -- Data source binding (input/output mapping) --
+// -- Auto-binding resolution (provider → event → consumer) --
+
+export interface BindingProvider {
+  providerStepId: string;
+  providerLabel: string;
+  eventStepId: string;
+  eventLabel: string;
+}
 
 export interface InputBinding {
-  argumentKey: string;   // e.g., "target_host"
-  inputType: string;     // e.g., "portscan"
-  inputField: string | null; // e.g., "host" (null for scalar types)
-  resolved: boolean;     // true if an upstream action produces this type
-  providerStepId: string | null; // step_id of the upstream provider (first match)
+  argumentKey: string;       // e.g., "target"
+  inputType: string;         // e.g., "portscan"
+  inputField: string | null; // e.g., "host"
+  bound: boolean;            // true if auto-bound to upstream provider(s)
+  providers: BindingProvider[];
+  scope: string;             // "LOCAL" or "GLOBAL"
+}
+
+interface RawBinding {
+  argumentKey: string;
+  candidates: { inputType: string; inputField: string | null }[];
 }
 
 /**
- * Extract raw (unresolved) data source bindings from a step.
- * Looks at two sources:
- *   1. Payload arguments with input_source (from step_data.payload_arguments)
- *   2. Contract content fields with input_source (from inject_content parsed fields)
+ * Extract input_sources declarations from a step's contract_fields and payload_arguments.
+ * Each argument may have multiple compatible sources (input_sources array).
  */
-const extractRawBindings = (step: WorkflowStep): Omit<InputBinding, 'resolved' | 'providerStepId'>[] => {
+const extractRawBindings = (step: WorkflowStep): RawBinding[] => {
   if (!step.step_data) return [];
   try {
     const data = JSON.parse(step.step_data);
-    const bindings: Omit<InputBinding, 'resolved' | 'providerStepId'>[] = [];
+    const bindings: RawBinding[] = [];
 
-    // 1. Payload arguments (stored in inject_content or step_data)
-    const args: Array<{ key?: string; input_source?: InputSource }> =
-      data.payload_arguments ?? data.inject_content?.payload_arguments ?? [];
-    for (const arg of args) {
-      if (arg.input_source?.input_type) {
-        bindings.push({
-          argumentKey: arg.key ?? '?',
-          inputType: arg.input_source.input_type,
-          inputField: arg.input_source.input_field ?? null,
-        });
+    const extractFromList = (items: Array<{ key?: string; input_sources?: InputSource[]; input_source?: InputSource }>) => {
+      for (const item of items) {
+        // Support both input_sources (array) and input_source (legacy single)
+        const sources = item.input_sources
+          ?? (item.input_source ? [item.input_source] : []);
+        if (sources.length > 0) {
+          bindings.push({
+            argumentKey: item.key ?? '?',
+            candidates: sources
+              .filter(s => s.input_type)
+              .map(s => ({ inputType: s.input_type, inputField: s.input_field ?? null })),
+          });
+        }
       }
-    }
+    };
 
-    // 2. Contract content fields (if stored)
-    const fields: Array<{ key?: string; input_source?: InputSource }> =
-      data.contract_fields ?? [];
-    for (const field of fields) {
-      if (field.input_source?.input_type) {
-        bindings.push({
-          argumentKey: field.key ?? '?',
-          inputType: field.input_source.input_type,
-          inputField: field.input_source.input_field ?? null,
-        });
-      }
-    }
+    extractFromList(data.payload_arguments ?? data.inject_content?.payload_arguments ?? []);
+    extractFromList(data.contract_fields ?? []);
 
     return bindings;
   } catch {
@@ -338,32 +342,96 @@ const extractRawBindings = (step: WorkflowStep): Omit<InputBinding, 'resolved' |
 };
 
 /**
- * Extract input bindings from a step, resolved against the full step list.
- * Walks upstream (DEPEND_ON + field provisioning) to find providers.
+ * Find the parent event step for a given step (the event it DEPEND_ON).
+ */
+export const getParentEventStep = (step: WorkflowStep, allSteps: WorkflowStep[]): WorkflowStep | null => {
+  for (const c of step.step_conditions) {
+    if (c.condition_type === 'DEPEND_ON' && c.step_from_id) {
+      const parent = allSteps.find(s => s.step_id === c.step_from_id);
+      if (parent && isEventStep(parent)) return parent;
+    }
+  }
+  return null;
+};
+
+/**
+ * Get the output types that flow through an event (from its condition_key values).
+ */
+export const getEventFlowTypes = (eventStep: WorkflowStep): string[] => {
+  const types = new Set<string>();
+  for (const c of eventStep.step_conditions) {
+    if (c.condition_key) types.add(c.condition_key);
+  }
+  return [...types];
+};
+
+/**
+ * Resolve auto-bindings for a step.
+ * Walks the full upstream chain transitively. For each argument, tries every
+ * candidate input_source against all upstream actions (through events).
+ * Data accumulates along the chain — an action deep in the chain can still
+ * access outputs from the root action.
  */
 export const extractInputBindings = (step: WorkflowStep, allSteps: WorkflowStep[]): InputBinding[] => {
-  const raw = extractRawBindings(step);
-  if (raw.length === 0) return [];
+  const rawBindings = extractRawBindings(step);
+  if (rawBindings.length === 0) return [];
 
-  // Collect upstream step IDs
+  const fieldScopes = getFieldScopes(step);
   const upstreamIds = getUpstreamStepIds(allSteps, step.step_id);
 
-  // For each binding, check if any upstream action produces the needed output type
-  return raw.map((binding) => {
-    let providerStepId: string | null = null;
-    for (const uid of upstreamIds) {
-      const upstream = allSteps.find(s => s.step_id === uid);
-      if (!upstream || !isActionStep(upstream)) continue;
-      const outputTypes = extractOutputTypesFromStepData(upstream);
-      if (outputTypes.includes(binding.inputType)) {
-        providerStepId = upstream.step_id;
-        break;
+  // Collect all upstream events and actions
+  const upstreamEvents: WorkflowStep[] = [];
+  const upstreamActions: WorkflowStep[] = [];
+  for (const uid of upstreamIds) {
+    const upstream = allSteps.find(s => s.step_id === uid);
+    if (!upstream) continue;
+    if (isEventStep(upstream)) upstreamEvents.push(upstream);
+    else if (isActionStep(upstream)) upstreamActions.push(upstream);
+  }
+
+  return rawBindings.map((raw) => {
+    const providers: BindingProvider[] = [];
+    const seen = new Set<string>();
+
+    // Try each candidate source for this argument
+    for (const candidate of raw.candidates) {
+      // Find upstream actions that produce this candidate type
+      for (const action of upstreamActions) {
+        if (seen.has(action.step_id)) continue;
+        const outputTypes = extractOutputTypesFromStepData(action);
+        if (!outputTypes.includes(candidate.inputType)) continue;
+
+        // Find an event in the chain that filters on this type (bridge)
+        const event = upstreamEvents.find(e =>
+          getEventFlowTypes(e).includes(candidate.inputType),
+        );
+
+        if (event) {
+          seen.add(action.step_id);
+          providers.push({
+            providerStepId: action.step_id,
+            providerLabel: getStepLabel(action),
+            eventStepId: event.step_id,
+            eventLabel: getStepLabel(event),
+          });
+        }
       }
     }
+
+    // Pick the first matched candidate as the display type
+    const matchedCandidate = providers.length > 0
+      ? raw.candidates.find(c =>
+        upstreamActions.some(a => extractOutputTypesFromStepData(a).includes(c.inputType)),
+      ) ?? raw.candidates[0]
+      : raw.candidates[0];
+
     return {
-      ...binding,
-      resolved: providerStepId !== null,
-      providerStepId,
+      argumentKey: raw.argumentKey,
+      inputType: matchedCandidate?.inputType ?? '?',
+      inputField: matchedCandidate?.inputField ?? null,
+      bound: providers.length > 0,
+      providers,
+      scope: fieldScopes[raw.argumentKey] ?? 'LOCAL',
     };
   });
 };

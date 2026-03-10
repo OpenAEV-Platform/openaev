@@ -79,6 +79,12 @@ const LogicEventForm: FunctionComponent<Props> = ({
     setConditions(prev => prev.filter((_, i) => i !== index));
   };
 
+  const VALUE_OPERATORS = new Set(['EQ', 'NEQ', 'GT', 'GTE', 'LT', 'LTE', 'IN', 'NIN']);
+
+  const hasInvalidConditions = conditions.some(
+    c => !c.key || (VALUE_OPERATORS.has(c.operator) && !c.value),
+  );
+
   const handleSubmit = () => {
     onSubmit({
       label,
@@ -176,7 +182,7 @@ const LogicEventForm: FunctionComponent<Props> = ({
             variant="contained"
             color="secondary"
             onClick={handleSubmit}
-            disabled={!label || (conditions.length === 0 && !editingStep)}
+            disabled={!label || (conditions.length === 0 && !editingStep) || hasInvalidConditions}
           >
             {editingStep ? t('Update') : t('Create')}
           </Button>

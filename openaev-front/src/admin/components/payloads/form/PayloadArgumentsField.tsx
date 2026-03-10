@@ -74,14 +74,12 @@ const PayloadArgumentsField = ({ argumentName, canSelectTargetAsset, onArgumentR
     }))
     : [];
 
-  // Sync input_source when type changes
+  // Sync input_sources when type changes
   useEffect(() => {
     if (isOutputType) {
-      setValue(`${argumentName}.input_source.input_type`, argumentType);
-      // Clear sub-field when switching input types
-      setValue(`${argumentName}.input_source.input_field`, null);
+      setValue(`${argumentName}.input_sources`, [{ input_type: argumentType, input_field: null }]);
     } else {
-      setValue(`${argumentName}.input_source`, null);
+      setValue(`${argumentName}.input_sources`, null);
     }
   }, [argumentType, isOutputType, argumentName, setValue]);
 
@@ -153,7 +151,7 @@ const PayloadArgumentsField = ({ argumentName, canSelectTargetAsset, onArgumentR
       )}
       {isOutputType && hasSubFields && (
         <SelectFieldController
-          name={`${argumentName}.input_source.input_field` as const}
+          name={`${argumentName}.input_sources.0.input_field` as const}
           label={t('Sub-field')}
           items={outputFieldItems}
           required

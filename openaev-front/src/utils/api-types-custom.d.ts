@@ -85,7 +85,7 @@ export interface ContractElement {
     key: string;
     label: string;
   }[];
-  inputSource?: InputSource | null;
+  inputSources?: InputSource[];
 }
 
 export type EnhancedContractElement = ContractElement & {

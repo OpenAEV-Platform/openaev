@@ -94,7 +94,7 @@ const ScenarioLogic: FunctionComponent = () => {
 
     if (newStep && contractResult) {
       const contract = contractResult.data as InjectorContract;
-      const enrichedStepData = {
+      const enrichedStepData: Record<string, unknown> = {
         ...baseStepData,
         injector_type: contract.injector_contract_injector_type ?? null,
         injector_contract_attack_patterns: contract.injector_contract_attack_patterns ?? [],
@@ -103,11 +103,22 @@ const ScenarioLogic: FunctionComponent = () => {
       let outputParserJson: string | undefined = newStep.step_output_parser;
       if (payloadOutputParsers.length > 0) {
         outputParserJson = JSON.stringify(payloadOutputParsers);
-      } else if (contract.injector_contract_content) {
+      }
+      if (contract.injector_contract_content) {
         try {
           const content = JSON.parse(contract.injector_contract_content);
-          if (Array.isArray(content.outputs) && content.outputs.length > 0) {
+          if (!outputParserJson && Array.isArray(content.outputs) && content.outputs.length > 0) {
             outputParserJson = JSON.stringify(content.outputs);
+          }
+          // Extract contract fields with input_sources for chaining bindings
+          if (Array.isArray(content.fields)) {
+            const fieldsWithSource = content.fields.filter(
+              (f: { input_sources?: unknown[]; input_source?: unknown }) =>
+                (Array.isArray(f.input_sources) && f.input_sources.length > 0) || f.input_source,
+            );
+            if (fieldsWithSource.length > 0) {
+              enrichedStepData.contract_fields = fieldsWithSource;
+            }
           }
         } catch { /* ignore */ }
       }
@@ -140,10 +151,15 @@ const ScenarioLogic: FunctionComponent = () => {
     setActionEditOpen(true);
   };
 
-  const handleSaveActionEdit = async (step: WorkflowStep, title: string, fieldScopes: Record<string, string>) => {
+  const handleSaveActionEdit = async (step: WorkflowStep, title: string, fieldScopes: Record<string, string>, injectContent?: Record<string, unknown>) => {
     try {
       const currentData = JSON.parse(step.step_data ?? '{}');
-      const updatedData = { ...currentData, inject_title: title, field_scopes: fieldScopes };
+      const updatedData = {
+        ...currentData,
+        inject_title: title,
+        field_scopes: fieldScopes,
+        ...(injectContent ? { inject_content: { ...currentData.inject_content, ...injectContent } } : {}),
+      };
       const input: StepCreateInput = {
         step_action_class: step.step_action_class,
         step_limit_execution: step.step_limit_execution,
@@ -303,7 +319,7 @@ const ScenarioLogic: FunctionComponent = () => {
 
     if (newStep && contractResult) {
       const contract = contractResult.data as InjectorContract;
-      const enrichedStepData = {
+      const enrichedStepData: Record<string, unknown> = {
         ...baseStepData,
         injector_type: contract.injector_contract_injector_type ?? null,
         injector_contract_attack_patterns: contract.injector_contract_attack_patterns ?? [],
@@ -312,11 +328,20 @@ const ScenarioLogic: FunctionComponent = () => {
       let outputParserJson: string | undefined = newStep.step_output_parser;
       if (payloadOutputParsers.length > 0) {
         outputParserJson = JSON.stringify(payloadOutputParsers);
-      } else if (contract.injector_contract_content) {
+      }
+      if (contract.injector_contract_content) {
         try {
           const content = JSON.parse(contract.injector_contract_content);
-          if (Array.isArray(content.outputs) && content.outputs.length > 0) {
+          if (!outputParserJson && Array.isArray(content.outputs) && content.outputs.length > 0) {
             outputParserJson = JSON.stringify(content.outputs);
+          }
+          if (Array.isArray(content.fields)) {
+            const fieldsWithSource = content.fields.filter(
+              (f: { input_source?: unknown }) => f.input_source,
+            );
+            if (fieldsWithSource.length > 0) {
+              enrichedStepData.contract_fields = fieldsWithSource;
+            }
           }
         } catch { /* ignore */ }
       }
@@ -408,6 +433,7 @@ const ScenarioLogic: FunctionComponent = () => {
         open={actionEditOpen}
         handleClose={() => { setActionEditOpen(false); setActionEditStep(null); }}
         step={actionEditStep}
+        allSteps={steps}
         onSave={handleSaveActionEdit}
         attackPatternsMap={attackPatternsMap}
       />

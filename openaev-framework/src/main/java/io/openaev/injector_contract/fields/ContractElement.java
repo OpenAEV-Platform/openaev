@@ -89,12 +89,13 @@ public abstract class ContractElement {
   private List<String> linkedValues = new ArrayList<>();
 
   /**
-   * Semantic binding to an upstream output field for chaining.
+   * Compatible upstream output fields for chaining auto-binding.
    *
-   * <p>When set, this field can be auto-populated from the specified sub-field of an upstream
-   * action's output. For example, {@code input_type = "credentials", input_field = "username"}.
+   * <p>When set, this field can be auto-populated from any matching output type sub-field.
+   * Multiple sources allow compatibility across related types (e.g. credentials.username,
+   * admin_username.username, kerberoastable_account.username).
    */
-  private InputSource inputSource;
+  private List<InputSource> inputSources;
 
   /**
    * Creates a new contract element.

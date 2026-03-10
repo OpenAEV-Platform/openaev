@@ -123,7 +123,7 @@ const LogicConditionRuleRow: FunctionComponent<Props> = ({ rule, index, onChange
       {/* Step 1: Finding type */}
       <TextField
         select
-        label={t('Finding type')}
+        label={t('Filter type')}
         value={rule.key}
         onChange={e => handleTypeChange(e.target.value)}
         size="small"
