@@ -14,6 +14,7 @@ import io.openaev.database.raw.RawInject;
 import io.openaev.database.repository.InjectDocumentRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
+import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.healthcheck.dto.HealthCheck;
@@ -102,6 +103,8 @@ class InjectServiceTest {
   @Mock private CollectorService collectorService;
 
   @Mock private InjectorService injectorService;
+
+  @Mock private InjectorRepository injectorRepository;
 
   @Spy private InjectorContractContentUtils injectorContractContentUtils;
 
@@ -613,6 +616,126 @@ class InjectServiceTest {
 
     assertEquals("defaultValue1", capturedInject.getContent().get("value1").asText());
     assertEquals("defaultValue2", capturedInject.getContent().get("value2").asText());
+  }
+
+  @Test
+  @DisplayName(
+      "createAndSaveInject should resolve injector from explicit injectorId instead of contract")
+  void createAndSaveInject_withExplicitInjectorId_shouldResolveFromRepository() {
+    // -- ARRANGE --
+    String injectorId = "explicit-injector-id";
+    String injectorContractId = "contract-id";
+
+    Injector contractInjector = InjectorFixture.createDefaultPayloadInjector();
+    contractInjector.setId("contract-injector-id");
+
+    InjectorContract injectorContract = new InjectorContract();
+    injectorContract.setId(injectorContractId);
+    injectorContract.setInjector(contractInjector);
+    ObjectNode contractContent = mapper.createObjectNode();
+    contractContent.set("fields", mapper.createArrayNode());
+    injectorContract.setConvertedContent(contractContent);
+
+    Injector explicitInjector = InjectorFixture.createDefaultPayloadInjector();
+    explicitInjector.setId(injectorId);
+
+    InjectInput injectInput = new InjectInput();
+    injectInput.setTitle("Test inject");
+    injectInput.setInjectorContract(injectorContractId);
+    injectInput.setInjectorId(injectorId);
+    injectInput.setDependsDuration(0L);
+
+    Scenario scenario = new Scenario();
+
+    when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
+    when(injectorRepository.findById(injectorId)).thenReturn(Optional.of(explicitInjector));
+
+    // -- ACT --
+    injectService.createAndSaveInject(null, scenario, injectInput);
+
+    // -- ASSERT --
+    ArgumentCaptor<Inject> injectCaptor = ArgumentCaptor.forClass(Inject.class);
+    verify(injectRepository).save(injectCaptor.capture());
+    Inject capturedInject = injectCaptor.getValue();
+
+    assertNotNull(capturedInject.getInjector());
+    assertEquals(injectorId, capturedInject.getInjector().getId());
+    assertNotEquals(
+        contractInjector.getId(),
+        capturedInject.getInjector().getId(),
+        "Injector should come from explicit ID, not from the contract");
+    verify(injectorRepository).findById(injectorId);
+  }
+
+  @Test
+  @DisplayName("createAndSaveInject without injectorId should auto-resolve injector from contract")
+  void createAndSaveInject_withoutInjectorId_shouldFallbackToContractInjector() {
+    // -- ARRANGE --
+    String injectorContractId = "contract-id";
+
+    Injector contractInjector = InjectorFixture.createDefaultPayloadInjector();
+    contractInjector.setId("contract-injector-id");
+
+    InjectorContract injectorContract = new InjectorContract();
+    injectorContract.setId(injectorContractId);
+    injectorContract.setInjector(contractInjector);
+    ObjectNode contractContent = mapper.createObjectNode();
+    contractContent.set("fields", mapper.createArrayNode());
+    injectorContract.setConvertedContent(contractContent);
+
+    InjectInput injectInput = new InjectInput();
+    injectInput.setTitle("Test inject");
+    injectInput.setInjectorContract(injectorContractId);
+    // injectorId is NOT set — auto-resolve from contract
+    injectInput.setDependsDuration(0L);
+
+    Scenario scenario = new Scenario();
+
+    when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
+
+    // -- ACT --
+    injectService.createAndSaveInject(null, scenario, injectInput);
+
+    // -- ASSERT --
+    ArgumentCaptor<Inject> injectCaptor = ArgumentCaptor.forClass(Inject.class);
+    verify(injectRepository).save(injectCaptor.capture());
+    Inject capturedInject = injectCaptor.getValue();
+
+    assertNotNull(capturedInject.getInjector());
+    assertEquals(contractInjector.getId(), capturedInject.getInjector().getId());
+    verify(injectorRepository, never()).findById(any());
+  }
+
+  @Test
+  @DisplayName("createAndSaveInject with unknown injectorId should throw ElementNotFoundException")
+  void createAndSaveInject_withUnknownInjectorId_shouldThrow() {
+    // -- ARRANGE --
+    String unknownInjectorId = "unknown-injector-id";
+    String injectorContractId = "contract-id";
+
+    InjectorContract injectorContract = new InjectorContract();
+    injectorContract.setId(injectorContractId);
+    ObjectNode contractContent = mapper.createObjectNode();
+    contractContent.set("fields", mapper.createArrayNode());
+    injectorContract.setConvertedContent(contractContent);
+
+    InjectInput injectInput = new InjectInput();
+    injectInput.setTitle("Test inject");
+    injectInput.setInjectorContract(injectorContractId);
+    injectInput.setInjectorId(unknownInjectorId);
+    injectInput.setDependsDuration(0L);
+
+    Scenario scenario = new Scenario();
+
+    when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
+    when(injectorRepository.findById(unknownInjectorId)).thenReturn(Optional.empty());
+
+    // -- ACT & ASSERT --
+    assertThrows(
+        ElementNotFoundException.class,
+        () -> injectService.createAndSaveInject(null, scenario, injectInput));
+    verify(injectorRepository).findById(unknownInjectorId);
+    verify(injectRepository, never()).save(any());
   }
 
   @Test
