@@ -11,6 +11,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.CollectorTypeRepository;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
+import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.collector.form.CollectorOutput;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -22,7 +23,9 @@ import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.CollectorMapper;
 import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
+import jakarta.validation.constraints.NotNull;
 import java.io.InputStream;
+import java.time.Instant;
 import java.util.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +41,8 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   private final CollectorTypeRepository collectorTypeRepository;
 
+  private final SecurityPlatformRepository securityPlatformRepository;
+
   private final FileService fileService;
 
   private final CollectorMapper collectorMapper;
@@ -47,6 +52,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       CollectorRepository collectorRepository,
       CollectorTypeRepository collectorTypeRepository,
       ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository,
+      SecurityPlatformRepository securityPlatformRepository,
       FileService fileService,
       ConnectorInstanceService connectorInstanceService,
       CatalogConnectorService catalogConnectorService,
@@ -62,6 +68,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     this.collectorTypeRepository = collectorTypeRepository;
     this.fileService = fileService;
     this.collectorMapper = collectorMapper;
+    this.securityPlatformRepository = securityPlatformRepository;
   }
 
   @Override
@@ -181,40 +188,66 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   // -- ACTION --
 
+  /**
+   * Registers (or updates) a collector with upsert semantics. Handles both built-in and external
+   * collectors.
+   *
+   * @param id collector identifier
+   * @param type collector type (e.g. "openaev_crowdstrike")
+   * @param name human-readable name
+   * @param external whether the collector is external (true) or built-in (false)
+   * @param period polling period in seconds (only relevant for external collectors)
+   * @param securityPlatformId optional security platform reference
+   * @param iconStream optional PNG icon data — uploaded to the file store when present
+   * @return the persisted collector
+   */
   @Transactional
-  public void register(String id, String type, String name, InputStream iconData) throws Exception {
-    if (iconData != null) {
-      fileService.uploadStream(COLLECTORS_IMAGES_BASE_PATH, type + ".png", iconData);
+  public Collector register(
+      @NotNull String id,
+      @NotNull String type,
+      @NotNull String name,
+      boolean external,
+      int period,
+      String securityPlatformId,
+      InputStream iconStream)
+      throws Exception {
+
+    if (iconStream != null) {
+      fileService.uploadStream(COLLECTORS_IMAGES_BASE_PATH, type + ".png", iconStream);
     }
-    // Upsert collector type reference
+
     ensureCollectorTypeExists(type);
 
     Collector collector = collectorRepository.findById(id).orElse(null);
-    if (collector == null) {
-      Collector collectorChecking =
-          collectorRepository
-              .findByTypeAndTenantId(type, TenantContext.getCurrentTenant())
-              .orElse(null);
-      if (collectorChecking != null) {
-        throw new Exception(
-            "The collector "
-                + type
-                + " already exists with a different ID, please delete it or contact your administrator.");
-      }
-    }
+
+    SecurityPlatform securityPlatform =
+        securityPlatformId != null
+            ? securityPlatformRepository.findById(securityPlatformId).orElseThrow()
+            : null;
+
     if (collector != null) {
       collector.setName(name);
-      collector.setExternal(false);
       collector.setType(type);
-      collectorRepository.save(collector);
-    } else {
-      // save the collector
-      Collector newCollector = new Collector();
-      newCollector.setId(id);
-      newCollector.setName(name);
-      newCollector.setType(type);
-      collectorRepository.save(newCollector);
+      collector.setExternal(external);
+      if (external) {
+        collector.setUpdatedAt(Instant.now());
+      }
+      if (securityPlatform != null) {
+        collector.setSecurityPlatform(securityPlatform);
+      }
+      return collectorRepository.save(collector);
     }
+
+    Collector newCollector = new Collector();
+    newCollector.setId(id);
+    newCollector.setName(name);
+    newCollector.setType(type);
+    newCollector.setExternal(external);
+    newCollector.setPeriod(period);
+    if (securityPlatform != null) {
+      newCollector.setSecurityPlatform(securityPlatform);
+    }
+    return collectorRepository.save(newCollector);
   }
 
   public List<Collector> collectorsForPayload(String payloadId) {
