@@ -1,3 +1,4 @@
+import type { AttackPattern, KillChainPhase } from '../../../../../utils/api-types';
 import type { InputSource, Workflow, WorkflowStep } from '../../../../../utils/api-types-custom';
 
 /**
@@ -443,3 +444,71 @@ export const formatBinding = (binding: InputBinding): string =>
   binding.inputField
     ? `${binding.inputType}.${binding.inputField}`
     : binding.inputType;
+
+// -- Kill chain phase resolution for swimlane layout --
+
+const UTILITY_PHASE: KillChainPhase = {
+  phase_id: '__utility__',
+  phase_name: 'Utility',
+  phase_shortname: 'utility',
+  phase_kill_chain_name: 'openaev',
+  phase_external_id: 'utility',
+  phase_order: -1,
+  phase_created_at: '',
+  phase_updated_at: '',
+};
+
+/**
+ * Resolve the primary kill chain phase for an action step.
+ * Picks the most advanced phase (max phase_order) across all attack patterns.
+ * Returns UTILITY_PHASE for actions without attack patterns, null for events.
+ */
+export const getStepKillChainPhase = (
+  step: WorkflowStep,
+  attackPatternsMap: Record<string, AttackPattern>,
+  killChainPhasesMap: Record<string, KillChainPhase>,
+): KillChainPhase | null => {
+  if (!isActionStep(step)) return null;
+
+  const attackPatternIds = getStepAttackPatterns(step);
+  let bestPhase: KillChainPhase | null = null;
+
+  for (const apId of attackPatternIds) {
+    const ap = attackPatternsMap[apId];
+    if (!ap?.attack_pattern_kill_chain_phases) continue;
+    for (const phaseId of ap.attack_pattern_kill_chain_phases) {
+      const phase = killChainPhasesMap[phaseId];
+      if (!phase) continue;
+      if (!bestPhase || (phase.phase_order ?? 0) > (bestPhase.phase_order ?? 0)) {
+        bestPhase = phase;
+      }
+    }
+  }
+
+  return bestPhase ?? UTILITY_PHASE;
+};
+
+/**
+ * Get the sorted list of kill chain phases actually used by action steps,
+ * with UTILITY_PHASE prepended if any action has no attack patterns.
+ */
+export const getUsedPhases = (
+  steps: WorkflowStep[],
+  attackPatternsMap: Record<string, AttackPattern>,
+  killChainPhasesMap: Record<string, KillChainPhase>,
+): KillChainPhase[] => {
+  const phaseMap = new Map<string, KillChainPhase>();
+
+  for (const step of steps) {
+    const phase = getStepKillChainPhase(step, attackPatternsMap, killChainPhasesMap);
+    if (phase) {
+      phaseMap.set(phase.phase_id, phase);
+    }
+  }
+
+  return [...phaseMap.values()].sort(
+    (a, b) => (a.phase_order ?? 0) - (b.phase_order ?? 0),
+  );
+};
+
+export { UTILITY_PHASE };

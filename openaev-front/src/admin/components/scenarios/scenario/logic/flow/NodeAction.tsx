@@ -79,7 +79,7 @@ const NodeAction = ({ data }: NodeProps<NodeActionType>) => {
         cursor: 'pointer',
       }}
     >
-      <Handle type="target" position={Position.Top} style={{ visibility: 'hidden' }} />
+      <Handle type="target" position={Position.Left} style={{ visibility: 'hidden' }} />
       {data.injectorType
         ? <InjectIcon type={data.injectorType} size="small" tooltip={{}} />
         : <PlayArrowOutlined color="primary" sx={{ fontSize: 20 }} />
@@ -162,7 +162,7 @@ const NodeAction = ({ data }: NodeProps<NodeActionType>) => {
       <div className="nopan nodrag">
         <ButtonPopover entries={popoverEntries} variant="icon" size="small" />
       </div>
-      <Handle type="source" position={Position.Bottom} style={{ visibility: 'hidden' }} />
+      <Handle type="source" position={Position.Right} style={{ visibility: 'hidden' }} />
     </div>
   );
 };

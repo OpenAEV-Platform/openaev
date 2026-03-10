@@ -72,7 +72,7 @@ const NodeEvent = ({ data }: NodeProps<NodeEventType>) => {
           gap: 10,
         }}
       >
-        <Handle type="target" position={Position.Top} style={{ visibility: 'hidden' }} />
+        <Handle type="target" position={Position.Left} style={{ visibility: 'hidden' }} />
         <BoltOutlined sx={{ color: theme.palette.warning.main, fontSize: 20 }} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -116,7 +116,7 @@ const NodeEvent = ({ data }: NodeProps<NodeEventType>) => {
         <div className="nopan nodrag">
           <ButtonPopover entries={popoverEntries} variant="icon" size="small" />
         </div>
-        <Handle type="source" position={Position.Bottom} style={{ visibility: 'hidden' }} />
+        <Handle type="source" position={Position.Right} style={{ visibility: 'hidden' }} />
       </div>
       <div className="nopan nodrag" style={{ display: 'flex', justifyContent: 'center', padding: '4px 0' }}>
         <Button
