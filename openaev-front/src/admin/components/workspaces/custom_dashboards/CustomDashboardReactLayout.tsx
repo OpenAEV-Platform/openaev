@@ -29,7 +29,7 @@ const CustomDashboardReactLayout: FunctionComponent<{
   // Measure container width on mount and resize
   useEffect(() => {
     const container = document.querySelector('.dashboard-container');
-    if (!container) return;
+    if (!container) return undefined;
 
     const updateWidth = () => {
       setContainerWidth(container.clientWidth);
