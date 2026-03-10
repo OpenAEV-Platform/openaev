@@ -43,7 +43,6 @@ public class DetectionRemediationComposer extends ComposerBase<DetectionRemediat
 
     @Override
     public Composer delete() {
-      collectorTypeComposer.ifPresent(CollectorTypeComposer.Composer::delete);
       detectionRemediationRepository.delete(this.detectionRemediation);
       return this;
     }
