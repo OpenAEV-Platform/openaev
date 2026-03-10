@@ -218,6 +218,7 @@ public class ScenarioToExerciseService {
           exerciseInject.setTitle(scenarioInject.getTitle());
           exerciseInject.setDescription(scenarioInject.getDescription());
           exerciseInject.setInjectorContract(scenarioInject.getInjectorContract().orElse(null));
+          exerciseInject.setInjector(scenarioInject.getInjector());
           exerciseInject.setCountry(scenarioInject.getCountry());
           exerciseInject.setCity(scenarioInject.getCity());
           exerciseInject.setEnabled(scenarioInject.isEnabled());

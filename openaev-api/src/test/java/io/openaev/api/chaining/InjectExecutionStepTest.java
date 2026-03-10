@@ -111,6 +111,7 @@ public class InjectExecutionStepTest {
                                                             "inject_title": "whoami",
                                                             "inject_description": "",
                                                             "inject_injector_contract": "%s",
+                                                            "inject_injector": "%s",
                                                             "inject_content": {
                                                               "expectations": [
                                                                 {
@@ -148,7 +149,10 @@ public class InjectExecutionStepTest {
                                                             "inject_enabled": true
                         }
                         """
-            .formatted(injectorContractSaved.getId(), asset.getId());
+            .formatted(
+                injectorContractSaved.getId(),
+                injectorContractSaved.getInjector().getId(),
+                asset.getId());
   }
 
   @Test

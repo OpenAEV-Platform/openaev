@@ -740,6 +740,7 @@ public class InjectImportService {
 
     // Once it's done, we set the injectorContract
     inject.setInjectorContract(injectorContract);
+    inject.setInjector(injectorContract.getInjector());
 
     // So far, we only support one expectation
     AtomicReference<InjectExpectation> expectation = new AtomicReference<>();

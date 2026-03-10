@@ -26,6 +26,9 @@ public class InjectInput implements DataInputStep {
   @JsonProperty("inject_injector_contract")
   private String injectorContract;
 
+  @JsonProperty("inject_injector")
+  private String injectorId;
+
   @JsonProperty("inject_content")
   private ObjectNode content;
 
@@ -68,6 +71,7 @@ public class InjectInput implements DataInputStep {
     inject.setDescription(getDescription());
     inject.setContent(getContent());
     inject.setInjectorContract(injectorContract);
+    inject.setInjector(injectorContract.getInjector());
     inject.setDependsDuration(getDependsDuration());
     inject.setAllTeams(isAllTeams());
     inject.setCountry(getCountry());

@@ -96,16 +96,20 @@ public class Executor {
     // Telemetry
     actionMetricCollector.addInjectPlayedCount(injectorContract.getInjector().getType());
 
-    // Depending on injector type (internal or external) execution must be done differently
-    Injector injector =
-        injectorRepository
-            .findByTypeAndTenantId(
-                injectorContract.getInjector().getType(), inject.getTenant().getId())
-            .orElseThrow(
-                () ->
-                    new IllegalStateException(
-                        "Injector not found for type: "
-                            + injectorContract.getInjector().getType()));
+    // Resolve the injector instance from the inject entity directly
+    Injector injector = inject.getInjector();
+    if (injector == null) {
+      // Fallback for legacy injects that may not have the field populated
+      injector =
+          injectorRepository
+              .findByTypeAndTenantId(
+                  injectorContract.getInjector().getType(), inject.getTenant().getId())
+              .orElseThrow(
+                  () ->
+                      new IllegalStateException(
+                          "Injector not found for type: "
+                              + injectorContract.getInjector().getType()));
+    }
 
     boolean hasStartedConnectorInstanceForInjector =
         this.connectorInstanceService.hasStartedConnectorInstanceForInjector(injector.getId());
