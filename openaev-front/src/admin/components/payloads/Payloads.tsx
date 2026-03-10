@@ -305,8 +305,8 @@ const Payloads = () => {
                         onUpdate={(result: Payload) => setAndFormatPayloads(payloads.map(a => (a.payload_id !== result.payload_id ? a : result)) as CsvFormattedPayload[])}
                         onDuplicate={(result: Payload) => setAndFormatPayloads([result, ...payloads] as CsvFormattedPayload[])}
                         onDelete={(result: string) => setAndFormatPayloads(payloads.filter(a => (a.payload_id !== result)) as CsvFormattedPayload[])}
-                        disableUpdate={payload.payload_collector !== null}
-                        disableDelete={payload.payload_collector !== null && payload.payload_status !== 'DEPRECATED'}
+                        disableUpdate={payload.payload_collector_type !== null}
+                        disableDelete={payload.payload_collector_type !== null && payload.payload_status !== 'DEPRECATED'}
                       />
                     )}
                     disablePadding
@@ -316,7 +316,7 @@ const Payloads = () => {
                       onClick={() => onSelectedPayload(payload)}
                     >
                       <ListItemIcon>
-                        {payload.payload_collector ? (
+                        {payload.payload_collector_type ? (
                           <img
                             src={`/api/images/collectors/${payload.payload_collector_type}`}
                             alt={payload.payload_collector_type}
