@@ -8,7 +8,6 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 
-// TODO add tenant_id to requests if it's called some day
 @Repository
 public interface MitigationRepository
     extends CrudRepository<Mitigation, String>, JpaSpecificationExecutor<Mitigation> {
