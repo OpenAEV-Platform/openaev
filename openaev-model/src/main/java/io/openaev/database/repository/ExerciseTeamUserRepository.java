@@ -27,12 +27,6 @@ public interface ExerciseTeamUserRepository
 
   @Modifying
   @Query(
-      value = "delete from exercises_teams_users i where i.user_id = :userId",
-      nativeQuery = true)
-  void deleteUserFromAllReferences(@Param("userId") String userId);
-
-  @Modifying
-  @Query(
       value = "delete from exercises_teams_users i where i.team_id in :teamIds",
       nativeQuery = true)
   @Transactional
@@ -48,9 +42,6 @@ public interface ExerciseTeamUserRepository
       @Param("exerciseId") String exerciseId,
       @Param("teamId") String teamId,
       @Param("userId") String userId);
-
-  @Query(value = "SELECT * FROM exercises_teams_users WHERE team_id IN :ids ;", nativeQuery = true)
-  List<RawExerciseTeamUser> rawByTeamIds(@Param("ids") List<String> ids);
 
   @Query(
       value = "SELECT * FROM exercises_teams_users WHERE exercise_id IN :ids ;",
