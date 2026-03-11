@@ -495,9 +495,6 @@ class InjectApiTest extends IntegrationTest {
     // -- ASSERT --
     assertNotNull(response);
     assertEquals("SUCCESS", JsonPath.read(response, "$.status_name"));
-
-    // -- CLEANUP --
-    userRepository.delete(user);
   }
 
   // -- BULK DELETE --
