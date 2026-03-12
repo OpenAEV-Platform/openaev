@@ -119,6 +119,13 @@ public class MinioService implements DependenciesManager {
     }
   }
 
+  // -- HELPERS --
+
+  public void isTenantPathExists() throws Exception {
+    minioClient.statObject(
+        StatObjectArgs.builder().bucket(bucket()).object(getTenantPath("")).build());
+  }
+
   // -- PRIVATE --
 
   @VisibleForTesting
@@ -133,7 +140,7 @@ public class MinioService implements DependenciesManager {
           XmlParserException,
           InternalException {
     return minioClient.statObject(
-        StatObjectArgs.builder().bucket(minioConfig.getBucket()).object(fullPath).build());
+        StatObjectArgs.builder().bucket(bucket()).object(fullPath).build());
   }
 
   private Iterable<Result<Item>> count(String prefix, boolean includeVersions) {

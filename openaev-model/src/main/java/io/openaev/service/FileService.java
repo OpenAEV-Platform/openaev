@@ -1,6 +1,5 @@
 package io.openaev.service;
 
-import io.openaev.config.MinioConfig;
 import io.openaev.database.model.Document;
 import java.io.InputStream;
 import java.util.Optional;
@@ -22,9 +21,6 @@ import org.springframework.web.multipart.MultipartFile;
  * </ul>
  *
  * <p>Files are organized in predefined directory structures within the MinIO bucket.
- *
- * @see MinioConfig
- * @see FileContainer
  */
 @Service
 @Slf4j
