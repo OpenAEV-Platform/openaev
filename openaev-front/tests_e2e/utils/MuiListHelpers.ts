@@ -23,12 +23,6 @@ class MuiListHelpers {
     await locatorOrPage.getByRole('textbox', { name: 'Search these results...' }).fill(searchText);
     await locatorOrPage.getByRole('button', { name: searchText }).click();
   }
-
-  static async searchAndSelectItemInList2(locatorOrPage: Locator | Page, searchText: string, search: Locator) {
-    console.log(searchText + 'toto');
-    await search.fill(searchText ? searchText : '');
-    await locatorOrPage.getByRole('button', { name: searchText }).click();
-  }
 }
 
 export default MuiListHelpers;

@@ -1,4 +1,5 @@
 import { type APIRequestContext } from '@playwright/test';
+import { expect } from '@playwright/test';
 
 class ScenarioApiHelpers {
   readonly scenarioUri = '/api/scenarios';

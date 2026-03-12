@@ -22,7 +22,7 @@ export default defineConfig({
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
   /* 5 workers because respect SSE limitation  */
-  workers: 1,
+  workers: 5,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
     ['list'],
@@ -56,10 +56,10 @@ export default defineConfig({
     /**
      * Timeouts for specific actions:
      * - Navigation: 30s (page.goto, page.reload)
-     * - Action timeout: 20s (click, fill, etc.)
+     * - Action timeout: 30s (click, fill, etc.)
      */
     navigationTimeout: 30000,
-    actionTimeout: 20000,
+    actionTimeout: 30000,
   },
   /* Timeouts configuration 60s for assertions (e.g., expect().toBeVisible())  */
   expect: { timeout: 60000 },

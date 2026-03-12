@@ -14,6 +14,16 @@ test.describe('Scenario - Teams management', () => {
   test.beforeEach(async ({ page, emptyScenario }) => {
     updateTeamDialog = new UpdateTeamDialog(page);
     scenarioPage = new ScenarioPage(page);
+    await page.addInitScript(() => {
+      const style = document.createElement('style');
+      style.innerHTML = `
+        *, *::before, *::after {
+          transition: none !important;
+          animation: none !important;
+        }
+      `;
+      document.head.appendChild(style);
+    });
     await page.goto(`/admin/scenarios/${emptyScenario.scenario_id}`);
     await scenarioPage.goToDefinitionTab();
   });
@@ -34,7 +44,7 @@ test.describe('Scenario - Teams management', () => {
     });
 
     test('should create and add new contextual team', async ({ page }) => {
-      const newTeamName = 'New team';
+      const newTeamName = `New team ${Date.now()}-${Math.random()}`;
       // Create and add team
       await expect(scenarioPage.teamAddBtn).toBeVisible();
       await scenarioPage.teamAddBtn.click();
@@ -57,9 +67,9 @@ test.describe('Scenario - Teams management', () => {
   test.describe('Player Management', () => {
     test('should be able to activate and deactivate player', async ({ page, createTeamWithMultiplePlayers, createPlayer }) => {
       const players = await Promise.all([
-        createPlayer(`aude-test1@test.io`),
-        createPlayer(`mia-test1@test.io`),
-        createPlayer(`make-test1@test.io`),
+        createPlayer(`aude-test1-${Date.now()}-${Math.random()}@test.io`),
+        createPlayer(`mia-test1-${Date.now()}-${Math.random()}@test.io`),
+        createPlayer(`make-test1-${Date.now()}-${Math.random()}@test.io`),
       ]);
       const teamWithMultiplePlayers = await createTeamWithMultiplePlayers(
         `Team with players ${Date.now()}-${Math.random()}`,

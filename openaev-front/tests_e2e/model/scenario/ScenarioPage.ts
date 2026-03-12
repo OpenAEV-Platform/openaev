@@ -44,7 +44,7 @@ class ScenarioPage {
     await this.teamAddBtn.click();
     await expect(this.updateTeamDialog.searchField).toBeVisible();
     await this.updateTeamDialog.searchField.clear();
-    await MuiListHelpers.searchAndSelectItemInList2(this.updateTeamDialog.listContainer, existingTeamName, this.updateTeamDialog.searchField);
+    await MuiListHelpers.searchAndSelectItemInList(this.updateTeamDialog.listContainer, existingTeamName);
     await this.updateTeamDialog.save();
   }
 

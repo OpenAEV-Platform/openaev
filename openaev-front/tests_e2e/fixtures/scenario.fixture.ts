@@ -15,7 +15,6 @@ const scenarioFixture = base.extend<ScenarioFixtures>({
 
     await scenarioApiHelpers.deleteScenario(scenario.scenario_id);
   },
-
 });
 
 export default scenarioFixture;
