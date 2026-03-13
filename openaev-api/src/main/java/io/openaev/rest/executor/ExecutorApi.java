@@ -7,6 +7,7 @@ import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.database.repository.TokenRepository;
@@ -152,7 +153,10 @@ public class ExecutorApi extends RestBehavior {
       // We need to support upsert for registration
       Executor executor = executorRepository.findById(input.getId()).orElse(null);
       if (executor == null) {
-        Executor executorChecking = executorRepository.findByType(input.getType()).orElse(null);
+        Executor executorChecking =
+            executorRepository
+                .findByTypeAndTenantId(input.getType(), TenantContext.getCurrentTenant())
+                .orElse(null);
         if (executorChecking != null) {
           throw new Exception(
               "The executor "

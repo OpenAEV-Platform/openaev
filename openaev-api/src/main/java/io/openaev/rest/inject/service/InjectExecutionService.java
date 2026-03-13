@@ -3,7 +3,7 @@ package io.openaev.rest.inject.service;
 import static io.openaev.expectation.ExpectationType.VULNERABILITY;
 import static io.openaev.utils.ExecutionTraceUtils.convertExecutionAction;
 import static io.openaev.utils.ExpectationUtils.*;
-import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildForVulnerabilityManager;
+import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildForVulnerabilityManagerInFailed;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -166,7 +166,7 @@ public class InjectExecutionService {
       return;
     }
 
-    InjectExpectationResult injectExpectationResult = buildForVulnerabilityManager();
+    InjectExpectationResult injectExpectationResult = buildForVulnerabilityManagerInFailed();
     boolean vulnerable;
 
     // Determine vulnerability

@@ -2,6 +2,7 @@ package io.openaev.rest.exercise.service;
 
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
+import static io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE.SIMULATION;
 import static io.openaev.database.specification.ExerciseSpecification.*;
 import static io.openaev.database.specification.TeamSpecification.fromIds;
 import static io.openaev.helper.StreamHelper.fromIterable;
@@ -34,9 +35,10 @@ import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.service.ScenarioStatisticService;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
-import io.openaev.service.period.CronService;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.FilterUtilsJpa;
@@ -56,6 +58,7 @@ import jakarta.persistence.criteria.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.*;
+import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -87,8 +90,9 @@ public class ExerciseService {
   private final TagRuleService tagRuleService;
   private final DocumentService documentService;
   private final InjectService injectService;
-  private final CronService cronService;
   private final UserService userService;
+  private final GrantService grantService;
+  private final ExerciseTeamUserService exerciseTeamUserService;
 
   private final ExerciseMapper exerciseMapper;
   private final InjectMapper injectMapper;
@@ -104,12 +108,14 @@ public class ExerciseService {
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
   private final ExerciseTeamUserRepository exerciseTeamUserRepository;
-  private final InjectRepository injectRepository;
-  private final LessonsCategoryRepository lessonsCategoryRepository;
+  private final LessonsService lessonsService;
 
   private final InjectExpectationMapper injectExpectationMapper;
 
   private final ScenarioRecurrenceService scenarioRecurrenceService;
+
+  private final WorkflowService workflowService;
+  private final PreviewFeatureService previewFeatureService;
 
   // region properties
   @Value("${openaev.mail.imap.enabled}")
@@ -139,6 +145,22 @@ public class ExerciseService {
 
     actionMetricCollector.addSimulationCreatedCount();
     return exerciseRepository.save(exercise);
+  }
+
+  /**
+   * Create a simulation with the chaining enabled OR a normal one
+   *
+   * @param simulation the simulation to create
+   * @param isChaining uses the chaining engine or not
+   * @return the created simulation
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public Exercise createSimulation(@NotNull final Exercise simulation, boolean isChaining) {
+    Exercise savedSimulation = createExercise(simulation);
+    if (isChaining && previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)) {
+      workflowService.creationWorkflow(savedSimulation);
+    }
+    return savedSimulation;
   }
 
   // -- READ --
@@ -180,13 +202,15 @@ public class ExerciseService {
     Exercise exercise = copyExercice(exerciseOrigin);
     Exercise exerciseDuplicate = exerciseRepository.save(exercise);
     actionMetricCollector.addSimulationCreatedCount();
+    duplicateGrants(exerciseDuplicate, exerciseOrigin);
     getListOfDuplicatedInjects(exerciseDuplicate, exerciseOrigin);
-    getListOfExerciseTeams(exerciseDuplicate, exerciseOrigin);
+    Map<String, Team> contextualTeams = getListOfExerciseTeams(exerciseDuplicate, exerciseOrigin);
+    duplicateTeamUsers(exerciseDuplicate, exerciseOrigin, contextualTeams);
     getListOfArticles(exerciseDuplicate, exerciseOrigin);
     getListOfVariables(exerciseDuplicate, exerciseOrigin);
     getObjectives(exerciseDuplicate, exerciseOrigin);
     getLessonsCategories(exerciseDuplicate, exerciseOrigin);
-    return exerciseRepository.save(exercise);
+    return exerciseRepository.save(exerciseDuplicate);
   }
 
   private Exercise copyExercice(Exercise exerciseOrigin) {
@@ -203,9 +227,7 @@ public class ExerciseService {
     exerciseDuplicate.setSubtitle(exerciseOrigin.getSubtitle());
     exerciseDuplicate.setLogoDark(exerciseOrigin.getLogoDark());
     exerciseDuplicate.setLogoLight(exerciseOrigin.getLogoLight());
-    exerciseDuplicate.setGrants(new ArrayList<>(exerciseOrigin.getGrants()));
     exerciseDuplicate.setTags(new HashSet<>(exerciseOrigin.getTags()));
-    exerciseDuplicate.setTeamUsers(new ArrayList<>(exerciseOrigin.getTeamUsers()));
     exerciseDuplicate.setReplyTos(new ArrayList<>(exerciseOrigin.getReplyTos()));
     exerciseDuplicate.setDocuments(new ArrayList<>(exerciseOrigin.getDocuments()));
     exerciseDuplicate.setLessonsAnonymized(exerciseOrigin.isLessonsAnonymized());
@@ -237,7 +259,7 @@ public class ExerciseService {
         : Optional.empty();
   }
 
-  private void getListOfExerciseTeams(
+  private Map<String, Team> getListOfExerciseTeams(
       @NotNull Exercise exercise, @NotNull Exercise exerciseOrigin) {
     Map<String, Team> contextualTeams = new HashMap<>();
     List<Team> exerciseTeams = new ArrayList<>();
@@ -273,6 +295,7 @@ public class ExerciseService {
                       });
               inject.setTeams(teams);
             });
+    return contextualTeams;
   }
 
   private void getListOfDuplicatedInjects(Exercise exercise, Exercise exerciseOrigin) {
@@ -401,6 +424,19 @@ public class ExerciseService {
     duplicatedExercise.setObjectives(duplicatedObjectives);
   }
 
+  private void duplicateGrants(@NotNull Exercise target, @NotNull Exercise source) {
+    List<Grant> duplicatedGrants =
+        grantService.duplicateGrants(source.getGrants(), target.getId(), SIMULATION);
+    target.setGrants(duplicatedGrants);
+  }
+
+  private void duplicateTeamUsers(
+      @NotNull Exercise target,
+      @NotNull Exercise source,
+      @NotNull Map<String, Team> contextualTeams) {
+    exerciseTeamUserService.duplicateTeamUsers(target, source.getTeamUsers(), contextualTeams);
+  }
+
   // -- EXERCISES --
   public List<ExerciseSimple> exercises() {
     // We get the exercises depending on whether or not we are granted or have the capa
@@ -437,6 +473,49 @@ public class ExerciseService {
     setComputedAttributesWithEmptyGlobalScore(result.exercises());
 
     return getExerciseSimples(specificationCount, pageable, result);
+  }
+
+  /**
+   * Find a simulation by it's ID
+   *
+   * @param simulationId ID of the simulation to fetch
+   * @return the simulation found
+   * @throws ElementNotFoundException if no simulation matches the given ID
+   */
+  public Exercise findById(String simulationId) {
+    return exerciseRepository
+        .findById(simulationId)
+        .orElseThrow(
+            () -> new ElementNotFoundException("Simulation not found with ID: " + simulationId));
+  }
+
+  /**
+   * Find all simulations matching a list of IDs
+   *
+   * @param simulationIds list of simulation IDs to search
+   * @return the list of simulations found
+   */
+  public List<Exercise> findAllById(List<String> simulationIds) {
+    return exerciseRepository.findAllById(simulationIds);
+  }
+
+  /**
+   * Save a simulation
+   *
+   * @param simulation simulation to save
+   * @return the saved simulation
+   */
+  public Exercise saveSimulation(Exercise simulation) {
+    return exerciseRepository.save(simulation);
+  }
+
+  /**
+   * Delete a simulation
+   *
+   * @param simulationId ID of the simulation to delete
+   */
+  public void deleteById(String simulationId) {
+    exerciseRepository.deleteById(simulationId);
   }
 
   public void throwIfExerciseNotLaunchable(Exercise exercise) {
@@ -731,9 +810,9 @@ public class ExerciseService {
     // Remove all association between users / exercises / teams
     this.exerciseTeamUserRepository.deleteTeamsFromAllReferences(teamIds);
     // Remove all association between injects and teams
-    this.injectRepository.removeTeamsForExercise(exerciseId, teamIds);
+    this.injectService.removeTeamsForSimulation(exerciseId, teamIds);
     // Remove all association between lessons learned and teams
-    this.lessonsCategoryRepository.removeTeamsForExercise(exerciseId, teamIds);
+    this.lessonsService.removeTeamsForSimulation(exerciseId, teamIds);
     return teamService.find(fromIds(teamIds));
   }
 
@@ -786,32 +865,32 @@ public class ExerciseService {
   /**
    * Update the simulation and each of the injects to add default asset groups
    *
-   * @param exercise
+   * @param simulation simulation to update
    * @param currentTags list of the tags before the update
-   * @return
+   * @return updated simulation
    */
   @Transactional
   public Exercise updateExercice(
-      @NotNull final Exercise exercise, @NotNull final Set<Tag> currentTags, boolean applyRule) {
+      @NotNull final Exercise simulation, @NotNull final Set<Tag> currentTags, boolean applyRule) {
     if (applyRule) {
       // Get asset groups from the TagRule of the added tags
       List<AssetGroup> defaultAssetGroupsToAdd =
           tagRuleService.getAssetGroupsFromTagIds(
-              exercise.getTags().stream()
+              simulation.getTags().stream()
                   .filter(tag -> !currentTags.contains(tag))
                   .map(Tag::getId)
                   .toList());
 
       // Add the default asset groups to the injects
-      exercise.getInjects().stream()
+      simulation.getInjects().stream()
           .filter(inject -> this.injectService.canApplyTargetType(inject, TargetType.ASSETS_GROUPS))
           .forEach(
               inject ->
                   injectService.applyDefaultAssetGroupsToInject(
                       inject.getId(), defaultAssetGroupsToAdd));
     }
-    exercise.setUpdatedAt(now());
-    return exerciseRepository.save(exercise);
+    simulation.setUpdatedAt(now());
+    return exerciseRepository.save(simulation);
   }
 
   public Exercise previousFinishedSimulation(

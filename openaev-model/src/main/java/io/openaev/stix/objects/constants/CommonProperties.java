@@ -11,6 +11,7 @@ public enum CommonProperties {
   MODIFIED("modified"),
   AUTO_ENRICHMENT_DISABLE("auto_enrichment_disable"),
   EXTERNAL_URI("external_uri"),
+  URI("uri"),
   REVOKED("revoked"),
   LABELS("labels"),
   CONFIDENCE("confidence"),
@@ -23,7 +24,8 @@ public enum CommonProperties {
   OBSERVABLE_VALUES("observable_values"),
   VALUE("value"),
   NAME("name"),
-  DESCRIPTION("description");
+  DESCRIPTION("description"),
+  MIME_TYPE("mime_type");
 
   private final String value;
 

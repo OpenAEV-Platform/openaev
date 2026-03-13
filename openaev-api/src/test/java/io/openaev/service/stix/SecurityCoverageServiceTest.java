@@ -681,11 +681,11 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                           new Complex<>(
                               new CoverageResult(
                                   "PREVENTION",
-                                  stixRef.getExternalRef().equals("T1234") ? 100.0 : 0.0)),
+                                  stixRef.getExternalRefs().contains("T1234") ? 100.0 : 0.0)),
                           new Complex<>(
                               new CoverageResult(
                                   "DETECTION",
-                                  stixRef.getExternalRef().equals("T1234") ? 100.0 : 0.0))))));
+                                  stixRef.getExternalRefs().contains("T1234") ? 100.0 : 0.0))))));
       assertThatJson(actualSro.toStix(mapper))
           .whenIgnoringPaths(CommonProperties.ID.toString())
           .isEqualTo(expectedSro.toStix(mapper));

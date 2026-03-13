@@ -1,6 +1,7 @@
 package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 import java.util.Objects;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -14,18 +15,18 @@ public class StixRefToExternalRef {
   @JsonProperty("stix_ref")
   private String stixRef;
 
-  @JsonProperty("external_ref")
-  private String externalRef;
+  @JsonProperty("external_refs")
+  private List<String> externalRefs;
 
   /**
    * StixRefToExternalRef object to use when only external reference is necessary
    *
    * @param stixRef id
-   * @param externalRef stix external reference
+   * @param externalRefs stix external references
    */
-  public StixRefToExternalRef(String stixRef, String externalRef) {
+  public StixRefToExternalRef(String stixRef, List<String> externalRefs) {
     this.stixRef = stixRef;
-    this.externalRef = externalRef;
+    this.externalRefs = externalRefs;
   }
 
   @Override
@@ -38,11 +39,11 @@ public class StixRefToExternalRef {
     }
     final StixRefToExternalRef that = (StixRefToExternalRef) o;
     return Objects.equals(this.stixRef, that.stixRef)
-        && Objects.equals(this.externalRef, that.externalRef);
+        && Objects.equals(this.externalRefs, that.externalRefs);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(this.stixRef, this.externalRef);
+    return Objects.hash(this.stixRef, this.externalRefs);
   }
 }

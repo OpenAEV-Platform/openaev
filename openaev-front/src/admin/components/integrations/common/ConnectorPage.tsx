@@ -1,14 +1,15 @@
-import { Alert } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import { type ReactNode, useContext } from 'react';
 import { useOutletContext } from 'react-router';
 
+import useDialog from '../../../../components/common/dialog/useDialog';
 import Tabs, { type TabsEntry } from '../../../../components/common/tabs/Tabs';
 import useTabs from '../../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../../components/i18n';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
+import ConnectorAlerts from './ConnectorAlerts';
 import ConnectorCatalogInfo from './ConnectorCatalogInfo';
 import { ConnectorContext } from './ConnectorContext';
 import type { ConnectorContextLayoutType } from './ConnectorLayout';
@@ -17,12 +18,21 @@ import ConnectorTitle from './ConnectorTitle';
 
 const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode }) => {
   const { t } = useFormatter();
-  const theme = useTheme();
 
-  const { connector, instance, catalogConnector, isXtmComposerUp } = useOutletContext<ConnectorContextLayoutType>();
+  const { connector, instance, catalogConnector, isXtmComposerUp, refreshConnector } = useOutletContext<ConnectorContextLayoutType>();
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
   const ability = useContext(AbilityContext);
   const { logoUrl } = useContext(ConnectorContext);
+  const createInstanceDrawer = useDialog();
+
+  const onCloseCreateInstanceDrawer = () => {
+    createInstanceDrawer.handleClose();
+    refreshConnector();
+  };
+
+  const onMigrateBtnClick = () => {
+    createInstanceDrawer.handleOpen();
+  };
 
   const tabEntries: TabsEntry[] = [{
     key: 'overview',
@@ -40,12 +50,11 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
 
   return (
     <>
-      {isEnterpriseEdition && !isXtmComposerUp && catalogConnector?.catalog_connector_manager_supported
-        && (
-          <Alert severity="warning" style={{ marginBottom: theme.spacing(2) }}>
-            {t('Xtm composer is not reachable', { catalogType: catalogConnector.catalog_connector_type.toLowerCase() })}
-          </Alert>
-        )}
+      <ConnectorAlerts
+        isEnterpriseEdition={isEnterpriseEdition}
+        isXtmComposerUp={isXtmComposerUp}
+        catalogConnector={catalogConnector}
+      />
       <ConnectorTitle
         connector={{
           instanceId: instance?.connector_instance_id,
@@ -62,6 +71,8 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
         instanceCurrentStatus={instance?.connector_instance_current_status}
         instanceRequestedStatus={instance?.connector_instance_requested_status}
         showUpdateButtons={ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
+        showMigrateButton={connector?.isExternal === true && !instance && isXtmComposerUp && ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
+        onMigrateBtnClick={onMigrateBtnClick}
         disabledUpdateButtons={!isEnterpriseEdition || (!isXtmComposerUp && catalogConnector?.catalog_connector_manager_supported)}
       />
       <Tabs
@@ -78,6 +89,16 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
       {currentTab === 'logs' && (
         <ConnectorLogs connectorInstanceId={instance.connector_instance_id} />
       )}
+      <CreateConnectorInstanceDrawer
+        open={createInstanceDrawer.open}
+        catalogConnectorId={catalogConnector ? catalogConnector.catalog_connector_id : ''}
+        catalogConnectorSlug={catalogConnector ? catalogConnector.catalog_connector_slug : ''}
+        onClose={onCloseCreateInstanceDrawer}
+        connectorType={catalogConnector?.catalog_connector_type}
+        disabled={!isXtmComposerUp && catalogConnector?.catalog_connector_manager_supported}
+        migrationSource={connector?.id}
+        disabledMessage={t('Deployment of this {catalogType} requires the installation of our Integration Manager.', { catalogType: catalogConnector ? catalogConnector.catalog_connector_type.toLowerCase() : '' })}
+      />
     </>
   );
 };

@@ -1,10 +1,10 @@
 package io.openaev.rest.attack_pattern.service;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.utils.SecurityCoverageUtils.getExternalIds;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.SecurityCoverage;
 import io.openaev.database.model.StixRefToExternalRef;
@@ -12,6 +12,7 @@ import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.attack_pattern.form.AnalysisResultFromTTPExtractionAIWebserviceOutput;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.utils.SecurityCoverageUtils;
 import jakarta.annotation.Resource;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -44,6 +45,7 @@ public class AttackPatternService {
   private final AttackPatternRepository attackPatternRepository;
   private final EnterpriseEditionService enterpriseEditionService;
   private final RestTemplate restTemplate;
+  private final SecurityCoverageUtils securityCoverageUtils;
 
   /**
    * Call the TTP Extraction AI Webservice to analyze files and text input.
@@ -141,7 +143,8 @@ public class AttackPatternService {
     if (ids.isEmpty()) {
       return Collections.emptyList();
     }
-    return this.attackPatternRepository.findAllByExternalIdInIgnoreCase(new ArrayList<>(ids));
+    return this.attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
+        new ArrayList<>(ids), TenantContext.getCurrentTenant());
   }
 
   private List<AttackPattern> getAttackPatternsByInternalIds(Set<String> ids) {
@@ -245,7 +248,7 @@ public class AttackPatternService {
    */
   public Map<String, AttackPattern> fetchInternalAttackPatternIds(
       Set<StixRefToExternalRef> stixRefs) {
-    return getAttackPatternsByExternalIds(getExternalIds(stixRefs)).stream()
+    return getAttackPatternsByExternalIds(securityCoverageUtils.getExternalIds(stixRefs)).stream()
         .collect(Collectors.toMap(attack -> attack.getId(), Function.identity()));
   }
 

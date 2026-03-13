@@ -13,7 +13,6 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
-import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
@@ -43,11 +42,6 @@ public class InjectStatusService {
   private final ExecutionTraceRepositoryHelper executionTraceRepositoryHelper;
 
   private final EntityManager entityManager;
-  private final ManagerFactory managerFactory;
-
-  public List<InjectStatus> findPendingInjectStatusByType(String injectType) {
-    return this.injectStatusRepository.pendingForInjectType(injectType);
-  }
 
   public InjectStatus findInjectStatusByInjectId(final String injectId) {
     if (!hasText(injectId)) {
@@ -345,5 +339,18 @@ public class InjectStatusService {
       this.updateInjectStatus(agent, inject, input, null);
     }
     throw new IllegalArgumentException(message);
+  }
+
+  /**
+   * Delete all injects statuses for a list of injects
+   *
+   * @param injects the list of injects
+   */
+  public void deleteAllInjectStatusByInjects(List<Inject> injects) {
+    injectStatusRepository.deleteAllById(
+        injects.stream()
+            .map(Inject::getStatus)
+            .map(i -> i.map(InjectStatus::getId).orElse(""))
+            .toList());
   }
 }

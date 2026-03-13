@@ -13,6 +13,7 @@ public abstract class ConnectorBase {
   private boolean onlyContextual = false;
   private boolean playbookCompatible = false;
   private String listenCallbackURI;
+  private volatile String jwks;
 
   public abstract String getName();
 

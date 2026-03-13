@@ -17,7 +17,7 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.service.period.CronService;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.ResultUtils;
@@ -47,12 +47,14 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Mock EnterpriseEditionService enterpriseEditionService;
   @Mock InjectDuplicateService injectDuplicateService;
   @Mock VariableService variableService;
-
+  @Mock private PreviewFeatureService previewFeatureService;
   @Autowired private TeamService teamService;
   @Autowired private TagRuleService tagRuleService;
   @Autowired private DocumentService documentService;
   @Autowired private InjectService injectService;
   @Autowired private UserService userService;
+  @Autowired private GrantService grantService;
+  @Autowired private ExerciseTeamUserService exerciseTeamUserService;
 
   @Autowired private ExerciseMapper exerciseMapper;
   @Autowired private InjectMapper injectMapper;
@@ -68,13 +70,13 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private UserRepository userRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private ExerciseTeamUserRepository exerciseTeamUserRepository;
-  @Autowired private InjectorContractRepository injectorContractRepository;
-  @Autowired private LessonsCategoryRepository lessonsCategoryRepository;
   @Autowired private LicenseCacheManager licenseCacheManager;
   @Autowired private InjectExpectationMapper injectExpectationMapper;
-  @Autowired private CronService cronService;
   @Autowired private ScenarioRecurrenceService scenarioRecurrenceService;
   @Autowired private InjectorContractFixture injectorContractFixture;
+
+  @Autowired private LessonsService lessonsService;
+  @Autowired private WorkflowService workflowService;
 
   private static String USER_ID;
   private static String TEAM_ID;
@@ -93,8 +95,9 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             tagRuleService,
             documentService,
             injectService,
-            cronService,
             userService,
+            grantService,
+            exerciseTeamUserService,
             exerciseMapper,
             injectMapper,
             resultUtils,
@@ -108,10 +111,11 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             teamRepository,
             userRepository,
             exerciseTeamUserRepository,
-            injectRepository,
-            lessonsCategoryRepository,
+            lessonsService,
             injectExpectationMapper,
-            scenarioRecurrenceService);
+            scenarioRecurrenceService,
+            workflowService,
+            previewFeatureService);
   }
 
   @AfterAll

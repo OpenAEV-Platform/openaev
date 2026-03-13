@@ -1,6 +1,5 @@
 package io.openaev.database.model;
 
-import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static java.time.Instant.now;
 import static lombok.AccessLevel.NONE;
 
@@ -11,6 +10,7 @@ import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Filters.FilterGroup;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
@@ -23,19 +23,21 @@ import java.util.*;
 import lombok.Data;
 import lombok.Getter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Data
 @Entity
 @Table(name = "asset_groups")
-@EntityListeners(ModelBaseListener.class)
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 @NamedEntityGraphs({
   @NamedEntityGraph(
       name = "AssetGroup.tags-assets",
       attributeNodes = {@NamedAttributeNode("tags"), @NamedAttributeNode("assets")})
 })
-public class AssetGroup implements Base {
+public class AssetGroup implements TenantBase {
   @Id
   @ControlledUuidGeneration
   @Column(name = "asset_group_id")
@@ -59,10 +61,9 @@ public class AssetGroup implements Base {
   private String externalReference;
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id")
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
-  @NotNull
-  private Tenant tenant = new Tenant(DEFAULT_TENANT_UUID);
+  private Tenant tenant;
 
   // -- ASSET --
 

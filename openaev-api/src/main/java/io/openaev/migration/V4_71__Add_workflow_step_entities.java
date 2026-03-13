@@ -57,7 +57,7 @@ public class V4_71__Add_workflow_step_entities extends BaseJavaMigration {
           """
                   DO $$
                   BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'step_status' ) then
-                    CREATE TYPE step_status AS ENUM ('TEMPLATE', 'WAIT', 'RUN', 'END');
+                    CREATE TYPE step_status AS ENUM ('TEMPLATE', 'READY', 'RUN', 'END');
                     END IF;
                    END;
                   $$;

@@ -5,6 +5,7 @@ import static io.openaev.executors.ExecutorHelper.WINDOWS_CLEAN_PAYLOADS_COMMAND
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Endpoint;
 import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
@@ -32,9 +33,12 @@ public class SentinelOneGarbageCollectorService implements Runnable {
     this.agentService = agentService;
   }
 
+  // TODO multi-tenancy: Multi executors dev
   @Override
   public void run() {
-    List<Agent> agents = this.agentService.getAgentsByExecutorType(SENTINELONE_EXECUTOR_TYPE);
+    List<Agent> agents =
+        this.agentService.getAgentsByExecutorType(
+            SENTINELONE_EXECUTOR_TYPE, TenantContext.getCurrentTenant());
     if (!agents.isEmpty()) {
       List<SentinelOneAction> actions = new ArrayList<>();
       log.info("Running SentinelOne executor garbage collector on " + agents.size() + " agents");

@@ -728,7 +728,8 @@ class FindingApiTest extends IntegrationTest {
       entityManager.clear();
 
       performCallbackRequest(FINDING_URI + "/search", input)
-          .andExpect(jsonPath("$.content.[0].finding_type").value(savedFinding.getType().label))
+          .andExpect(
+              jsonPath("$.content.[0].finding_type").value(savedFinding.getType().getLabel()))
           .andExpect(jsonPath("$.content.[0].finding_value").value("text_value"))
           .andExpect(
               jsonPath("$.content.[0].finding_assets.[0].asset_id").value(savedEndpoint.getId()))
@@ -759,7 +760,8 @@ class FindingApiTest extends IntegrationTest {
 
       performCallbackRequest(
               FINDING_URI + "/exercises/" + savedSimulation.getId() + "/search", input)
-          .andExpect(jsonPath("$.content.[0].finding_type").value(savedFinding.getType().label))
+          .andExpect(
+              jsonPath("$.content.[0].finding_type").value(savedFinding.getType().getLabel()))
           .andExpect(
               jsonPath("$.content.[0].finding_value")
                   .value("2001:0000:130F:0000:0000:09C0:876A:130B"));
@@ -792,7 +794,8 @@ class FindingApiTest extends IntegrationTest {
       performCallbackRequest(FINDING_URI + "/scenarios/" + savedScenario.getId() + "/search", input)
           .andExpect(
               jsonPath("$.content.[0].finding_scenario.scenario_id").value(savedScenario.getId()))
-          .andExpect(jsonPath("$.content.[0].finding_type").value(savedFinding.getType().label))
+          .andExpect(
+              jsonPath("$.content.[0].finding_type").value(savedFinding.getType().getLabel()))
           .andExpect(jsonPath("$.content.[0].finding_value").value("admin:admin"));
     }
 
@@ -814,7 +817,8 @@ class FindingApiTest extends IntegrationTest {
       performCallbackRequest(FINDING_URI + "/endpoints/" + savedEndpoint.getId() + "/search", input)
           .andExpect(
               jsonPath("$.content.[0].finding_assets.[0].asset_id").value(savedEndpoint.getId()))
-          .andExpect(jsonPath("$.content.[0].finding_type").value(savedFinding.getType().label))
+          .andExpect(
+              jsonPath("$.content.[0].finding_type").value(savedFinding.getType().getLabel()))
           .andExpect(jsonPath("$.content.[0].finding_value").value("text_value"));
     }
 
@@ -858,12 +862,13 @@ class FindingApiTest extends IntegrationTest {
 
       Set<String> distinctPairs =
           results.stream()
-              .map(f -> f.getType().label + "::" + f.getValue())
+              .map(f -> f.getType().getLabel() + "::" + f.getValue())
               .collect(Collectors.toSet());
 
       assertThat(distinctPairs)
           .containsExactlyInAnyOrder(
-              f1.getType().label + "::" + f1.getValue(), f3.getType().label + "::" + f3.getValue());
+              f1.getType().getLabel() + "::" + f1.getValue(),
+              f3.getType().getLabel() + "::" + f3.getValue());
     }
   }
 
@@ -882,7 +887,8 @@ class FindingApiTest extends IntegrationTest {
 
     List<Filters.Filter> filters = new ArrayList<>();
 
-    filters.add(buildFilter("finding_type", Filters.FilterOperator.contains, List.of(type.label)));
+    filters.add(
+        buildFilter("finding_type", Filters.FilterOperator.contains, List.of(type.getLabel())));
     filters.add(
         buildFilter("finding_created_at", Filters.FilterOperator.gt, List.of(now.toString())));
     filters.add(

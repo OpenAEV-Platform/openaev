@@ -6,12 +6,12 @@ import static io.openaev.utils.fixtures.TeamFixture.getTeam;
 import static io.openaev.utils.fixtures.UserFixture.getUser;
 import static java.time.Instant.now;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
-import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.healthcheck.dto.HealthCheck;
@@ -21,12 +21,16 @@ import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
-import io.openaev.utils.TargetType;
-import io.openaev.utils.fixtures.*;
+import io.openaev.utils.fixtures.InjectFixture;
+import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.ScenarioMapper;
 import io.openaev.utilstest.RabbitMQTestListener;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.*;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -48,7 +52,6 @@ class ScenarioServiceTest extends IntegrationTest {
   @Autowired private DocumentRepository documentRepository;
   @Autowired private ScenarioTeamUserRepository scenarioTeamUserRepository;
   @Autowired private ArticleRepository articleRepository;
-  @Mock ScenarioRepository mockScenarioRepository;
   @Autowired InjectRepository injectRepository;
   @Autowired private LessonsCategoryRepository lessonsCategoryRepository;
   @Autowired private HealthCheckUtils healthCheckUtils;
@@ -79,33 +82,6 @@ class ScenarioServiceTest extends IntegrationTest {
     scenarioService =
         new ScenarioService(
             scenarioRepository,
-            teamRepository,
-            userRepository,
-            documentRepository,
-            scenarioTeamUserRepository,
-            articleRepository,
-            exerciseMapper,
-            actionMetricCollector,
-            licenseCacheManager,
-            enterpriseEditionService,
-            variableService,
-            challengeService,
-            teamService,
-            fileService,
-            injectDuplicateService,
-            tagRuleService,
-            injectService,
-            userService,
-            injectRepository,
-            lessonsCategoryRepository,
-            healthCheckUtils,
-            scenarioMapper);
-  }
-
-  void setUpWithMockRepository() {
-    scenarioService =
-        new ScenarioService(
-            mockScenarioRepository,
             teamRepository,
             userRepository,
             documentRepository,
@@ -224,94 +200,6 @@ class ScenarioServiceTest extends IntegrationTest {
     assertEquals(0, teams.size());
     Inject injectAssert = this.injectRepository.findById(INJECT_ID).orElseThrow();
     assertEquals(0, injectAssert.getTeams().size());
-  }
-
-  @Test
-  public void testUpdateScenario_WITH_applyRule_true() {
-    setUpWithMockRepository();
-    AssetGroup assetGroup1 = getAssetGroup("assetgroup1");
-    AssetGroup assetGroup2 = getAssetGroup("assetgroup2");
-    Tag tag1 = TagFixture.getTag("Tag1");
-    Tag tag2 = TagFixture.getTag("Tag2");
-    Tag tag3 = TagFixture.getTag("Tag3");
-    Inject inject1 = new Inject();
-    inject1.setId("1");
-    Inject inject2 = new Inject();
-    inject1.setId("2");
-    Scenario scenario = ScenarioFixture.getScenario(null, Set.of(inject1, inject2));
-    scenario.setTags(Set.of(tag1, tag2));
-    Set<Tag> currentTags = Set.of(tag2, tag3);
-    List<AssetGroup> assetGroupsToAdd = List.of(assetGroup1, assetGroup2);
-
-    when(tagRuleService.getAssetGroupsFromTagIds(List.of(tag1.getId())))
-        .thenReturn(assetGroupsToAdd);
-    when(mockScenarioRepository.save(scenario)).thenReturn(scenario);
-    when(injectService.canApplyTargetType(any(), eq(TargetType.ASSETS_GROUPS))).thenReturn(true);
-
-    scenarioService.updateScenario(scenario, currentTags, true);
-
-    scenario
-        .getInjects()
-        .forEach(
-            inject ->
-                verify(injectService)
-                    .applyDefaultAssetGroupsToInject(inject.getId(), assetGroupsToAdd));
-    verify(mockScenarioRepository).save(scenario);
-  }
-
-  @Test
-  public void testUpdateScenario_WITH_applyRule_true_and_manual_inject() {
-    setUpWithMockRepository();
-    AssetGroup assetGroup1 = getAssetGroup("assetgroup1");
-    AssetGroup assetGroup2 = getAssetGroup("assetgroup2");
-    Tag tag1 = TagFixture.getTag("Tag1");
-    Tag tag2 = TagFixture.getTag("Tag2");
-    Tag tag3 = TagFixture.getTag("Tag3");
-    Inject inject1 = new Inject();
-    inject1.setId("1");
-    Inject inject2 = new Inject();
-    inject1.setId("2");
-    Scenario scenario = ScenarioFixture.getScenario(null, Set.of(inject1, inject2));
-    scenario.setTags(Set.of(tag1, tag2));
-    Set<Tag> currentTags = Set.of(tag2, tag3);
-    List<AssetGroup> assetGroupsToAdd = List.of(assetGroup1, assetGroup2);
-
-    when(tagRuleService.getAssetGroupsFromTagIds(List.of(tag1.getId())))
-        .thenReturn(assetGroupsToAdd);
-    when(mockScenarioRepository.save(scenario)).thenReturn(scenario);
-    when(injectService.canApplyTargetType(any(), eq(TargetType.ASSETS_GROUPS))).thenReturn(false);
-
-    scenarioService.updateScenario(scenario, currentTags, true);
-
-    verify(injectService, never()).applyDefaultAssetGroupsToInject(any(), any());
-    verify(mockScenarioRepository).save(scenario);
-  }
-
-  @Test
-  public void testUpdateScenario_WITH_applyRule_false() {
-    setUpWithMockRepository();
-    AssetGroup assetGroup1 = getAssetGroup("assetgroup1");
-    AssetGroup assetGroup2 = getAssetGroup("assetgroup2");
-    Tag tag1 = TagFixture.getTag("Tag1");
-    Tag tag2 = TagFixture.getTag("Tag2");
-    Tag tag3 = TagFixture.getTag("Tag3");
-    Inject inject1 = new Inject();
-    inject1.setId("1");
-    Inject inject2 = new Inject();
-    inject1.setId("2");
-    Scenario scenario = ScenarioFixture.getScenario(null, Set.of(inject1, inject2));
-    scenario.setTags(Set.of(tag1, tag2));
-    Set<Tag> currentTags = Set.of(tag2, tag3);
-    List<AssetGroup> assetGroupsToAdd = List.of(assetGroup1, assetGroup2);
-
-    when(tagRuleService.getAssetGroupsFromTagIds(List.of(tag1.getId())))
-        .thenReturn(assetGroupsToAdd);
-    when(mockScenarioRepository.save(scenario)).thenReturn(scenario);
-    when(injectService.canApplyTargetType(any(), eq(TargetType.ASSETS_GROUPS))).thenReturn(true);
-
-    scenarioService.updateScenario(scenario, currentTags, false);
-
-    verify(injectService, never()).applyDefaultAssetGroupsToInject(any(), any());
   }
 
   @Test
@@ -528,11 +416,5 @@ class ScenarioServiceTest extends IntegrationTest {
     assertEquals(HealthCheck.Type.TEAMS, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.EMPTY, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.WARNING, healthCheckToVerify.getStatus());
-  }
-
-  private AssetGroup getAssetGroup(String name) {
-    AssetGroup assetGroup = AssetGroupFixture.createDefaultAssetGroup(name);
-    assetGroup.setId(name);
-    return assetGroup;
   }
 }

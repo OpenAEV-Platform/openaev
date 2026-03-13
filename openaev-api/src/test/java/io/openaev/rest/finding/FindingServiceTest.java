@@ -8,10 +8,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
-import io.openaev.database.model.Asset;
-import io.openaev.database.model.ContractOutputElement;
-import io.openaev.database.model.Finding;
-import io.openaev.database.model.Inject;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
@@ -23,13 +20,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
-@ExtendWith(MockitoExtension.class)
 class FindingServiceTest extends IntegrationTest {
 
   public static final String ASSET_1 = "asset1";
@@ -163,5 +157,78 @@ class FindingServiceTest extends IntegrationTest {
     // Assert that findings is empty because isFindingCompatible=false
     assertNotNull(findings);
     assertTrue(findings.isEmpty());
+  }
+
+  @Test
+  @DisplayName("should return findings for multiple finding-compatible contract outputs")
+  void shouldReturnFindingsForMultipleFindingCompatibleContractOutputs() throws Exception {
+    ObjectMapper mapper = new ObjectMapper();
+    String contractJson =
+        """
+            {
+              "outputs": [
+                {
+                  "field": "cves",
+                  "isFindingCompatible": true,
+                  "isMultiple": true,
+                  "labels": ["nuclei"],
+                  "type": "cve"
+                }
+              ]
+            }
+            """;
+    ObjectNode convertedContent = (ObjectNode) mapper.readTree(contractJson);
+    ObjectNode structuredOutput =
+        (ObjectNode)
+            mapper.readTree(
+                """
+                    {
+                      "cves": [
+                        { "id": "cve A", "host": "host A", "severity": "high" },
+                        { "id": "cve B", "host": "host B", "severity": "medium" }
+                      ]
+                    }
+                    """);
+    List<InjectorContractContentOutputElement> contractOutputs =
+        injectorContractContentUtils.getContractOutputs(convertedContent, mapper);
+    List<Finding> findings =
+        findingService.getFindingsFromInjectorContract(contractOutputs, structuredOutput);
+    assertNotNull(findings);
+    assertEquals(2, findings.size());
+    assertTrue(findings.stream().allMatch(f -> f.getType().equals(ContractOutputType.CVE)));
+  }
+
+  @Test
+  @DisplayName("should throw exception when finding is not correctly formatted")
+  void shouldThrowExceptionWhenFindingNotCorrectlyFormatted() throws Exception {
+    ObjectMapper mapper = new ObjectMapper();
+    String contractJson =
+        """
+            {
+              "outputs": [
+                {
+                  "field": "port_scans",
+                  "isFindingCompatible": true,
+                  "isMultiple": true,
+                  "labels": ["nuclei"],
+                  "type": "portscan"
+                }
+              ]
+            }
+            """;
+    ObjectNode convertedContent = (ObjectNode) mapper.readTree(contractJson);
+    ObjectNode structuredOutput =
+        (ObjectNode)
+            mapper.readTree(
+                """
+                    {
+                      "port_scans": [ null ]
+                    }
+                    """);
+    List<InjectorContractContentOutputElement> contractOutputs =
+        injectorContractContentUtils.getContractOutputs(convertedContent, mapper);
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> findingService.getFindingsFromInjectorContract(contractOutputs, structuredOutput));
   }
 }

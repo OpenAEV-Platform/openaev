@@ -36,6 +36,8 @@ public class StixService {
       // Update Scenario using the last SecurityCoverage
       Scenario scenario =
           securityCoverageService.buildScenarioFromSecurityCoverage(securityCoverage);
+
+      // FIXME: extract this behaviour into an async worker
       securityCoverageService.pushSecurityCoverageBundleWithExternalURI(scenario);
       return scenario;
     } catch (BadRequestException | ParsingException e) {

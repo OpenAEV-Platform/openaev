@@ -185,7 +185,9 @@ class AssetGroupApiTest extends IntegrationTest {
 
     entityManager
         .createNativeQuery(
-            "INSERT INTO asset_groups (asset_group_id, asset_group_name) VALUES ('test_id', 'test_name')")
+            "INSERT INTO asset_groups (asset_group_id, asset_group_name, tenant_id) VALUES ('test_id', 'test_name', '"
+                + Tenant.DEFAULT_TENANT_UUID
+                + "')")
         .executeUpdate();
     Object resultSql =
         entityManager

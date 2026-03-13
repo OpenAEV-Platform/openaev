@@ -2,6 +2,7 @@ package io.openaev.rest.inject;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -12,10 +13,12 @@ import java.util.Arrays;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.*;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 
-@ExtendWith(MockitoExtension.class)
+@Transactional
+@TestInstance(PER_CLASS)
+@DisplayName("Process OutputParsers to extract structured data")
 class StructuredOutputUtilsTest extends IntegrationTest {
 
   public static final String SIMPLE_RAW_OUTPUT_TASKLIST =
@@ -32,14 +35,7 @@ class StructuredOutputUtilsTest extends IntegrationTest {
           + "  TCP    176.125.125.10:445            0.0.0.0:0              LISTENING\n"
           + "  TCP    192.168.12.12:902            0.0.0.0:0              LISTENING\n";
 
-  private final ObjectMapper mapper = new ObjectMapper();
-
-  private StructuredOutputUtils structuredOutputUtils;
-
-  @BeforeEach
-  void setup() {
-    structuredOutputUtils = new StructuredOutputUtils(mapper);
-  }
+  @Autowired private StructuredOutputUtils structuredOutputUtils;
 
   @Test
   @DisplayName("Should return null string for a raw output empty")

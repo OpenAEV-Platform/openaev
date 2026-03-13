@@ -1,16 +1,15 @@
 package io.openaev.rest.injector.form;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.model.ConnectorInstance;
-import io.openaev.rest.catalog_connector.dto.CatalogConnectorSimpleOutput;
+import io.openaev.rest.connector.dto.ConnectorOutput;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
-import lombok.Builder;
+import lombok.experimental.SuperBuilder;
 
-@Builder
+@SuperBuilder
 @Schema(description = "Injector output")
-public class InjectorOutput {
+public class InjectorOutput extends ConnectorOutput {
   @Schema(description = "Injector id")
   @JsonProperty("injector_id")
   @NotBlank
@@ -26,15 +25,6 @@ public class InjectorOutput {
 
   @JsonProperty("injector_external")
   private boolean external = false;
-
-  @JsonProperty("catalog")
-  private CatalogConnectorSimpleOutput catalog;
-
-  @JsonProperty("is_verified")
-  private boolean verified = false;
-
-  @JsonProperty("current_status")
-  private ConnectorInstance.CURRENT_STATUS_TYPE currentStatus;
 
   @JsonProperty("existing_injector")
   private boolean existing;

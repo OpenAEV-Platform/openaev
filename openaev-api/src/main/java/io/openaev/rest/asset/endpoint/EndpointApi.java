@@ -5,6 +5,7 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.AssetAgentJob;
@@ -74,7 +75,7 @@ public class EndpointApi extends RestBehavior {
     if (endpoint.isEmpty() && input.getIps() != null) {
       List<Endpoint> endpoints =
           this.endpointService.findEndpointByHostnameAndAtLeastOneIp(
-              input.getHostname(), input.getIps());
+              input.getHostname(), input.getIps(), TenantContext.getCurrentTenant());
       if (!endpoints.isEmpty()) {
         endpoint = Optional.of(endpoints.getFirst());
       }

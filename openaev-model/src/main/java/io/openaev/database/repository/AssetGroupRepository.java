@@ -1,7 +1,6 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.AssetGroup;
-import io.openaev.database.raw.RawAssetGroup;
 import io.openaev.database.raw.RawAssetGroupDynamicFilter;
 import io.openaev.database.raw.RawAssetGroupIndexing;
 import io.openaev.utils.Constants;
@@ -13,7 +12,6 @@ import java.util.Set;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -22,25 +20,10 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface AssetGroupRepository
-    extends CrudRepository<AssetGroup, String>,
-        StatisticRepository,
-        JpaSpecificationExecutor<AssetGroup> {
+    extends CrudRepository<AssetGroup, String>, JpaSpecificationExecutor<AssetGroup> {
 
-  @Override
-  @Query(
-      "select COUNT(DISTINCT ag) from Inject i "
-          + "join i.assetGroups as ag "
-          + "join i.exercise as e "
-          + "join e.grants as grant "
-          + "join grant.group.users as user "
-          + "where user.id = :userId and i.createdAt > :creationDate")
-  long userCount(@Param("userId") String userId, @Param("creationDate") Instant creationDate);
-
-  @Override
-  @Query("select count(distinct ag) from AssetGroup ag where ag.createdAt > :creationDate")
-  long globalCount(@Param("creationDate") Instant creationDate);
-
-  Optional<AssetGroup> findByExternalReference(String externalReference);
+  Optional<AssetGroup> findByExternalReferenceAndTenantId(
+      String externalReference, String tenantId);
 
   @Query(
       "SELECT ag FROM AssetGroup ag "
@@ -68,61 +51,7 @@ public interface AssetGroupRepository
           + " AND ag.id IN :ids")
   List<AssetGroup> findDistinctByInjectsSimulationIdAndIdIn(String simulationId, List<String> ids);
 
-  /**
-   * Returns the raw asset group having the ids passed in parameter
-   *
-   * @param ids a list of ids
-   * @return the list of raw asset group
-   */
-  @Query(
-      value =
-          "SELECT ag.asset_group_id, ag.asset_group_name, CAST(ag.asset_group_dynamic_filter as text),  "
-              + "coalesce(array_agg(aga.asset_id) FILTER ( WHERE aga.asset_id IS NOT NULL ), '{}') asset_ids "
-              + "FROM asset_groups ag "
-              + "LEFT JOIN asset_groups_assets aga ON ag.asset_group_id = aga.asset_group_id "
-              + "WHERE ag.asset_group_id IN :ids "
-              + "GROUP BY ag.asset_group_id;",
-      nativeQuery = true)
-  List<RawAssetGroup> rawAssetGroupByIds(@Param("ids") List<String> ids);
-
-  @Query(
-      value =
-          "SELECT ag.asset_group_id, ag.asset_group_name, CAST(ag.asset_group_dynamic_filter as text), "
-              + "coalesce(array_agg(aga.asset_id) FILTER ( WHERE aga.asset_id IS NOT NULL ), '{}') asset_ids "
-              + "FROM asset_groups ag "
-              + "LEFT JOIN injects_asset_groups iat ON ag.asset_group_id = iat.asset_group_id "
-              + "LEFT JOIN asset_groups_assets aga ON aga.asset_group_id = ag.asset_group_id "
-              + "WHERE iat.asset_group_id IN (:assetGroupIds) OR iat.inject_id IN (:injectIds) "
-              + "GROUP BY ag.asset_group_id, ag.asset_group_name, CAST(ag.asset_group_dynamic_filter as text) ;",
-      nativeQuery = true)
-  Set<RawAssetGroup> rawByIdsOrInjectIds(
-      @Param("assetGroupIds") Set<String> assetGroupIds, @Param("injectIds") Set<String> injectIds);
-
   // -- PAGINATION --
-
-  @Query(
-      value =
-          "SELECT ag.asset_group_id as asset_group_id, "
-              + "CAST(asset_group_dynamic_filter as text) as asset_group_dynamic_filter "
-              + "FROM asset_groups ag "
-              + "JOIN injects_asset_groups iat ON ag.asset_group_id = iat.asset_group_id "
-              + "WHERE iat.inject_id = :injectId "
-              + "AND ag.asset_group_dynamic_filter IS NOT NULL;",
-      nativeQuery = true)
-  List<RawAssetGroupDynamicFilter> rawDynamicFiltersByInjectId(@Param("injectId") String injectId);
-
-  @Query(
-      value =
-          "SELECT ag.asset_group_id as asset_group_id, "
-              + "CAST(asset_group_dynamic_filter as text) as asset_group_dynamic_filter "
-              + "FROM asset_groups ag "
-              + "JOIN injects_asset_groups iat ON ag.asset_group_id = iat.asset_group_id "
-              + "WHERE iat.inject_id = :injectId "
-              + "AND ag.asset_group_dynamic_filter IS NOT NULL "
-              + "AND ag.asset_group_id IN :assetGroupIds ;",
-      nativeQuery = true)
-  List<RawAssetGroupDynamicFilter> rawDynamicFiltersByInjectIdAndAssetGroupIds(
-      @Param("injectId") String injectId, @Param("assetGroupIds") List<String> assetGroupIds);
 
   @Query(
       value =
@@ -135,21 +64,7 @@ public interface AssetGroupRepository
   List<RawAssetGroupDynamicFilter> rawDynamicFiltersByAssetGroupIds(
       @Param("assetGroupIds") List<String> assetGroupIds);
 
-  @Query(
-      value =
-          "SELECT ag.asset_group_id as asset_group_id, "
-              + "CAST(asset_group_dynamic_filter as text) as asset_group_dynamic_filter "
-              + "FROM asset_groups ag "
-              + "JOIN injects_asset_groups iat ON ag.asset_group_id = iat.asset_group_id "
-              + "WHERE iat.inject_id = :injectId "
-              + "AND ag.asset_group_dynamic_filter IS NOT NULL "
-              + "AND ag.asset_group_id NOT IN :assetGroupIds ;",
-      nativeQuery = true)
-  List<RawAssetGroupDynamicFilter> rawDynamicFiltersByInjectIdAndNotAssetGroupIds(
-      @Param("injectId") String injectId, @Param("assetGroupIds") List<String> assetGroupIds);
-
   @NotNull
-  @EntityGraph(value = "AssetGroup.tags-assets", type = EntityGraph.EntityGraphType.LOAD)
   Page<AssetGroup> findAll(@NotNull Specification<AssetGroup> spec, @NotNull Pageable pageable);
 
   @Query(
@@ -178,7 +93,8 @@ public interface AssetGroupRepository
           + "   :simulationOrScenarioId is NULL AND i.exercise.id is NULL AND i.scenario.id IS NULL"
           + "   OR (i.exercise.id = :simulationOrScenarioId"
           + "   OR i.scenario.id = :simulationOrScenarioId)"
-          + " ) AND (:name IS NULL OR lower(ag.name) LIKE lower(concat('%', cast(coalesce(:name, '') as string), '%')))")
+          + " ) AND (:name IS NULL OR lower(ag.name) LIKE lower(concat('%', cast(coalesce(:name, '') as string), '%')))"
+          + " AND i.tenant.id = :#{#tenantContext.currentTenant}")
   List<AssetGroup> findAllBySimulationOrScenarioIdAndName(
       String simulationOrScenarioId, String name);
 
@@ -186,7 +102,8 @@ public interface AssetGroupRepository
       value =
           "SELECT ag.* "
               + "FROM asset_groups ag "
-              + "INNER JOIN injects_asset_groups iag ON ag.asset_group_id = iag.asset_group_id",
+              + "INNER JOIN injects_asset_groups iag ON ag.asset_group_id = iag.asset_group_id "
+              + "WHERE ag.tenant_id = :#{#tenantContext.currentTenant}",
       nativeQuery = true)
   List<AssetGroup> findAllAssetGroupsForAtomicTestingsSimulationsAndScenarios();
 
@@ -200,7 +117,8 @@ public interface AssetGroupRepository
         FROM injects i
         INNER JOIN findings f ON f.finding_inject_id = i.inject_id
         INNER JOIN injects_asset_groups iag ON iag.inject_id = i.inject_id
-    ) AND (:name IS NULL OR LOWER(ag.asset_group_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')));
+    ) AND (:name IS NULL OR LOWER(ag.asset_group_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
+    AND ag.tenant_id = :#{#tenantContext.currentTenant};
     """,
       nativeQuery = true)
   List<Object[]> findAllByNameLinkedToFindings(@Param("name") String name, Pageable pageable);
@@ -218,7 +136,8 @@ public interface AssetGroupRepository
         LEFT JOIN injects_asset_groups iag ON iag.inject_id = i.inject_id
         LEFT JOIN scenarios_exercises se ON se.exercise_id = i.inject_exercise
         WHERE i.inject_id = :sourceId OR i.inject_exercise = :sourceId OR se.scenario_id = :sourceId OR fa.asset_id = :sourceId
-    ) AND (:name IS NULL OR LOWER(ag.asset_group_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')));
+    ) AND (:name IS NULL OR LOWER(ag.asset_group_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
+      AND ag.tenant_id = :#{#tenantContext.currentTenant};
     """,
       nativeQuery = true)
   List<Object[]> findAllByNameLinkedToFindingsWithContext(

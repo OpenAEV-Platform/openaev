@@ -4,6 +4,7 @@ import io.openaev.database.model.Step;
 import io.openaev.database.model.StepStatus;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -30,7 +31,7 @@ public interface StepRepository extends JpaRepository<Step, String> {
    * @param status the status of the step
    * @return the matching step, or null if not found
    */
-  Step findByStepTemplateIdIsNullAndIdAndStatus(String stepId, StepStatus status);
+  Optional<Step> findByStepTemplateIdIsNullAndIdAndStatus(String stepId, StepStatus status);
 
   /**
    * Retrieves a {@link Step} entity by its ID and status, ensuring it is based on a step template.
@@ -40,6 +41,8 @@ public interface StepRepository extends JpaRepository<Step, String> {
    * @return the matching step, or null if not found
    */
   Step findByStepTemplateIdIsNotNullAndIdAndStatus(String stepId, StepStatus status);
+
+  Optional<Step> findByIdAndStatus(String stepId, StepStatus status);
 
   /**
    * Counts the number of running steps in a workflow run (steps not in 'END' status).
@@ -66,14 +69,6 @@ public interface StepRepository extends JpaRepository<Step, String> {
       nativeQuery = true)
   int countStepExecutedByStepTemplateIdAndWorkflowRunId(
       @Param("idWorkflowRun") String idWorkflowRun, @Param("stepTemplateId") String stepTemplateId);
-
-  /**
-   * Retrieves all {@link Step} entities with the specified status.
-   *
-   * @param status the status to filter steps by
-   * @return a list of steps with the given status
-   */
-  List<Step> findAllByStatus(StepStatus status);
 
   // STEP EXECUTED
 
@@ -120,4 +115,23 @@ public interface StepRepository extends JpaRepository<Step, String> {
       """,
       nativeQuery = true)
   Optional<String> findStepIdByInjectId(@Param("injectId") String injectId);
+
+  @Query(
+      value =
+          """
+        SELECT DISTINCT s.step_id
+        FROM steps s
+        WHERE EXISTS (
+          SELECT 1
+          FROM injects_expectations ie
+          WHERE ie.inject_expectation_id IN (:expectationIds)
+          AND jsonb_path_exists(
+            s.step_data,
+            '$.** ? (@.inject_id == $id)',
+            jsonb_build_object('id', to_jsonb(ie.inject_id))
+          )
+        )
+        """,
+      nativeQuery = true)
+  Set<String> findStepIdsByExpectationIds(@Param("expectationIds") Set<String> expectationIds);
 }

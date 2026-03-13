@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
+import io.openaev.database.raw.RawInject;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.InjectSpecification;
 import io.openaev.database.specification.SpecificationUtils;
@@ -227,6 +228,19 @@ public class InjectService {
     return this.injectRepository
         .findById(injectId)
         .orElseThrow(() -> new ElementNotFoundException("Inject not found with id: " + injectId));
+  }
+
+  /**
+   * Find an inject or return null value
+   *
+   * @param injectId inject ID to search
+   * @return the inject found or null if none matched the ID
+   */
+  public Inject findInjectOrNull(@NotBlank final String injectId) {
+    if (injectId == null) {
+      return null;
+    }
+    return this.injectRepository.findById(injectId).orElse(null);
   }
 
   /**
@@ -1187,7 +1201,8 @@ public class InjectService {
         .filter(
             inject ->
                 inject.getPayload().isEmpty()
-                    || !(inject.getPayload().get() instanceof DnsResolution))
+                    || (!(inject.getPayload().get() instanceof DnsResolution)
+                        && !(inject.getPayload().get() instanceof FileDrop)))
         .map(inject -> inject.getInjectorContract().map(ic -> Map.entry(inject, ic)))
         .flatMap(Optional::stream)
         // Only keep attack patterns that specify both platform and architecture.
@@ -1315,5 +1330,35 @@ public class InjectService {
     healthChecks.addAll(healthCheckUtils.runContentChecks(inject));
 
     return healthChecks;
+  }
+
+  /**
+   * Create an inject
+   *
+   * @param inject the inject to save
+   * @return the saved inject
+   */
+  public Inject createInject(Inject inject) {
+    return injectRepository.save(inject);
+  }
+
+  /**
+   * Delete a list of teams from a simulation
+   *
+   * @param simulationId the ID of the simulation
+   * @param teamIds list of team IDs to delete from the simulation
+   */
+  public void removeTeamsForSimulation(String simulationId, final List<String> teamIds) {
+    injectRepository.removeTeamsForExercise(simulationId, teamIds);
+  }
+
+  /**
+   * Find a list of Inject in the Raw format
+   *
+   * @param ids IDs of the inject to fetch
+   * @return the list of matching injects in Raw format
+   */
+  public List<RawInject> findRawByIds(List<String> ids) {
+    return injectRepository.findRawByIds(ids);
   }
 }

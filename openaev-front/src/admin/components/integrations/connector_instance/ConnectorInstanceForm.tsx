@@ -25,6 +25,7 @@ interface Props {
   onSubmit: SubmitHandler<Omit<CreateConnectorInstanceInput, 'catalog_connector_id'>>;
   onClose: () => void;
   isEditing?: boolean;
+  isMigrating?: boolean;
   disabled?: boolean;
 }
 
@@ -34,6 +35,7 @@ const ConnectorInstanceForm = ({
   catalogConnectorSlug,
   onClose,
   isEditing = false,
+  isMigrating = false,
   onSubmit,
   disabled = false,
 }: Props) => {
@@ -131,6 +133,16 @@ const ConnectorInstanceForm = ({
     return key
       .replace(/_/g, ' ')
       .replace(/\b\w/g, char => char.toUpperCase());
+  };
+
+  const getActionLabel = () => {
+    if (isEditing) {
+      return 'Update';
+    }
+    if (isMigrating) {
+      return 'Migrate';
+    }
+    return 'Create';
   };
 
   const formatFieldType = (configurationType: CatalogConnectorConfiguration['connector_configuration_type'], configurationFormat: CatalogConnectorConfiguration['connector_configuration_format'], isEnum: boolean): ContractType => {
@@ -318,7 +330,7 @@ const ConnectorInstanceForm = ({
             type="submit"
             disabled={isSubmitting || disabled}
           >
-            {isEditing ? t('Update') : t('Create')}
+            {t(getActionLabel())}
           </Button>
           <Button
             variant="contained"

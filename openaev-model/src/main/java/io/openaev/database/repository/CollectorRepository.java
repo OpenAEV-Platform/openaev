@@ -17,8 +17,9 @@ public interface CollectorRepository
   @NotNull
   Optional<Collector> findById(@NotNull String id);
 
+  // TODO multi-tenancy: Multi executors dev
   @NotNull
-  Optional<Collector> findByType(@NotNull String type);
+  Optional<Collector> findByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
 
   @Query(
       """

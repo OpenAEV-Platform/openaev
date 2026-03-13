@@ -8,7 +8,9 @@ import static org.mockito.Mockito.*;
 import io.openaev.IntegrationTest;
 import io.openaev.opencti.client.OpenCTIClient;
 import io.openaev.opencti.client.mutations.Ping;
+import io.openaev.opencti.client.mutations.QueryTypeFields;
 import io.openaev.opencti.client.mutations.RegisterConnector;
+import io.openaev.opencti.client.response.Response;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.errors.ConnectorError;
@@ -76,6 +78,9 @@ public class OpenCTIConnectorServiceTest extends IntegrationTest {
 
       when(mockOpenCTIClient.execute(any(), any(), any()))
           .thenReturn(ResponseFixture.getOkResponse());
+      Response jwksSchemaResponse = ResponseFixture.getSchemaResponseWithJwks();
+      when(mockOpenCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
+          .thenReturn(jwksSchemaResponse);
       ConnectorBase connector = getInstanceOfTestBeanConnector().get();
       when(mockOpenCTIClient.execute(any(), any(), eq(new RegisterConnector(connector))))
           .thenReturn(ResponseFixture.getErrorResponse());
@@ -100,6 +105,9 @@ public class OpenCTIConnectorServiceTest extends IntegrationTest {
       // make is so it appears not correctly configured
       when(mockOpenCTIClient.execute(any(), any(), any()))
           .thenReturn(ResponseFixture.getOkResponse());
+      Response jwksSchemaResponse = ResponseFixture.getSchemaResponseWithJwks();
+      when(mockOpenCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
+          .thenReturn(jwksSchemaResponse);
 
       openCTIConnectorService.registerOrPingAllConnectors();
 
@@ -128,6 +136,9 @@ public class OpenCTIConnectorServiceTest extends IntegrationTest {
 
       when(mockOpenCTIClient.execute(any(), any(), any()))
           .thenReturn(ResponseFixture.getOkResponse());
+      Response jwksSchemaResponse = ResponseFixture.getSchemaResponseWithJwks();
+      when(mockOpenCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
+          .thenReturn(jwksSchemaResponse);
 
       openCTIConnectorService.registerOrPingAllConnectors();
 
@@ -153,7 +164,9 @@ public class OpenCTIConnectorServiceTest extends IntegrationTest {
     public void whenConnectorFailsToRegister_theServiceShouldKeepGoingAndRegisterTheOthers()
         throws IOException {
       openCTIConnectorService.getConnectors().forEach(c -> c.setRegistered(false));
-
+      Response jwksSchemaResponse = ResponseFixture.getSchemaResponseWithJwks();
+      when(mockOpenCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
+          .thenReturn(jwksSchemaResponse);
       when(mockOpenCTIClient.execute(
               any(),
               any(),

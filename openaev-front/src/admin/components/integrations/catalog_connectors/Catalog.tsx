@@ -62,17 +62,15 @@ const Catalog = () => {
           );
         })}
       </Grid>
-      {selectedConnector && openCreateConnectorInstanceDrawer && (
-        <CreateConnectorInstanceDrawer
-          open={openCreateConnectorInstanceDrawer}
-          catalogConnectorId={selectedConnector.catalog_connector_id}
-          catalogConnectorSlug={selectedConnector.catalog_connector_slug}
-          onClose={onCloseCreateConnectorInstanceDrawer}
-          connectorType={selectedConnector.catalog_connector_type}
-          disabled={!isXtmComposerUp && selectedConnector.catalog_connector_manager_supported}
-          disabledMessage={t('Deployment of this {catalogType} requires the installation of our Integration Manager.', { catalogType: selectedConnector.catalog_connector_type.toLowerCase() })}
-        />
-      )}
+      <CreateConnectorInstanceDrawer
+        open={openCreateConnectorInstanceDrawer}
+        catalogConnectorId={selectedConnector ? selectedConnector.catalog_connector_id : ''}
+        catalogConnectorSlug={selectedConnector ? selectedConnector.catalog_connector_slug : ''}
+        onClose={onCloseCreateConnectorInstanceDrawer}
+        connectorType={selectedConnector?.catalog_connector_type}
+        disabled={!isXtmComposerUp && selectedConnector?.catalog_connector_manager_supported}
+        disabledMessage={t('Deployment of this {catalogType} requires the installation of our Integration Manager.', { catalogType: selectedConnector ? selectedConnector.catalog_connector_type.toLowerCase() : '' })}
+      />
     </div>
   );
 };

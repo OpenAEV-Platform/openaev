@@ -14,4 +14,5 @@ public final class StixConstants {
   public static final String STIX_COVERED_REF = "covered_ref";
   public static final String ATTACK_SCENARIO = "attack-scenario";
   public static final String STIX_TYPE = "type";
+  public static final String FILES = "files";
 }

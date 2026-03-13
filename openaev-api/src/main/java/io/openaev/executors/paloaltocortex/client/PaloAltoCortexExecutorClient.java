@@ -171,7 +171,17 @@ public class PaloAltoCortexExecutorClient {
       // Body
       StringEntity entity = new StringEntity(this.objectMapper.writeValueAsString(body));
       httpPost.setEntity(entity);
-      return httpClient.execute(httpPost, response -> EntityUtils.toString(response.getEntity()));
+      return httpClient.execute(
+          httpPost,
+          response -> {
+            if (response.getCode() >= 400) {
+              log.warn(
+                  "Unexpected response for HTTP POST Palo Alto Cortex: {} {}",
+                  response.getCode(),
+                  response.getReasonPhrase());
+            }
+            return EntityUtils.toString(response.getEntity());
+          });
     } catch (IOException e) {
       throw new ClientProtocolException("Unexpected response for HTTP POST Palo Alto Cortex", e);
     }

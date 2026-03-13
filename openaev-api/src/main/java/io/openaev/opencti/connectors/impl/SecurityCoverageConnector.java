@@ -6,7 +6,6 @@ import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.ConnectorType;
 import io.openaev.utils.StringUtils;
-import jakarta.validation.Valid;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
@@ -22,8 +21,18 @@ public class SecurityCoverageConnector extends ConnectorBase {
   private final String id = "68949a7b-c1c2-4649-b3de-7db804ba02bb";
 
   // need to access the base URL for overriding the callback URI
-  @Autowired @Valid private OpenCTIConfig openctiConfig;
-  @Autowired @Valid private OpenAEVConfig mainConfig;
+  private OpenCTIConfig openctiConfig;
+  private OpenAEVConfig mainConfig;
+
+  @Autowired
+  public void setOpenctiConfig(OpenCTIConfig openCTIConfig) {
+    this.openctiConfig = openCTIConfig;
+  }
+
+  @Autowired
+  public void setMainConfig(OpenAEVConfig mainConfig) {
+    this.mainConfig = mainConfig;
+  }
 
   private final ConnectorType type = ConnectorType.INTERNAL_ENRICHMENT;
   private final String name = "OpenAEV Coverage";

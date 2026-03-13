@@ -40,6 +40,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
     exercise_mails_reply_to: [],
     exercise_message_header: '',
     exercise_message_footer: '',
+    exercise_is_chaining: false,
   },
 }) => {
   // Standard hooks
@@ -70,6 +71,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
         exercise_message_header: z.string().optional(),
         exercise_message_footer: z.string().optional(),
         exercise_custom_dashboard: z.string().optional(),
+        exercise_is_chaining: z.boolean().optional(),
       }),
     ),
     defaultValues: initialValues,
