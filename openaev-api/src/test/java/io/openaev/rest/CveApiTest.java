@@ -6,6 +6,8 @@ import static io.openaev.utils.fixtures.VulnerabilityFixture.CVE_2025_5678;
 import static io.openaev.utils.fixtures.VulnerabilityFixture.VULNERABILITY_EXTERNAL_ID;
 import static java.time.Instant.now;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -14,6 +16,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.Vulnerability;
+import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.VulnerabilityRepository;
 import io.openaev.rest.cve.form.CVEBulkInsertInput;
 import io.openaev.rest.cve.form.CveCreateInput;
@@ -28,6 +31,7 @@ import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -46,6 +50,7 @@ class CveApiTest extends IntegrationTest {
   @Autowired private VulnerabilityComposer vulnerabilityComposer;
   @Autowired private CollectorComposer collectorComposer;
   @Autowired private VulnerabilityRepository vulnerabilityRepository;
+  @Autowired private CollectorRepository collectorRepository;
 
   @BeforeAll
   void init() {
@@ -164,6 +169,18 @@ class CveApiTest extends IntegrationTest {
 
       Assertions.assertTrue(
           vulnerabilityRepository.findByExternalId(VULNERABILITY_EXTERNAL_ID).isPresent());
+      entityManager.flush();
+
+      // Verify that the collector state was updated with bulk insert metadata
+      Optional<Collector> savedCollector = collectorRepository.findById(collector.getId());
+      if (savedCollector.isEmpty()) {
+        fail("Collector not found after bulk insert");
+      }
+      assertThat(savedCollector.get().getState()).isNotNull();
+      assertThat(savedCollector.get().getState().get("last_index").asText()).isEqualTo("1234");
+      assertThat(savedCollector.get().getState().get("initial_dataset_completed").asBoolean())
+          .isFalse();
+      assertThat(savedCollector.get().getState().has("last_modified_date_fetched")).isTrue();
     }
 
     @Test
