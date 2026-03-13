@@ -100,7 +100,7 @@ public class Scenario implements GrantableBase {
     /** High severity scenario. */
     @JsonProperty("high")
     high,
-    /** Critical sevxerity scenario. */
+    /** Critical severity scenario. */
     @JsonProperty("critical")
     critical,
   }
