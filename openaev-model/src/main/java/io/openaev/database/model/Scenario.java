@@ -258,7 +258,7 @@ public class Scenario implements GrantableBase {
   private List<Grant> grants = new ArrayList<>();
 
   @Schema(implementation = String[].class)
-  @OneToMany(mappedBy = "scenario", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+  @OneToMany(mappedBy = "scenario", cascade = CascadeType.REMOVE, fetch = FetchType.LAZY)
   @JsonProperty("scenario_injects")
   @JsonSerialize(using = MultiIdListSerializer.class)
   @Getter(NONE)
