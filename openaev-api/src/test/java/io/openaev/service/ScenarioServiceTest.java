@@ -5,6 +5,7 @@ import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
 import static io.openaev.utils.fixtures.TeamFixture.getTeam;
 import static io.openaev.utils.fixtures.UserFixture.getUser;
 import static java.time.Instant.now;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.when;
@@ -17,13 +18,16 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
-import io.openaev.utils.fixtures.InjectFixture;
-import io.openaev.utils.fixtures.InjectorContractFixture;
-import io.openaev.utils.fixtures.ScenarioFixture;
+import io.openaev.utils.fixtures.*;
+import io.openaev.utils.fixtures.composers.ExerciseComposer;
+import io.openaev.utils.fixtures.composers.InjectComposer;
+import io.openaev.utils.fixtures.composers.ScenarioComposer;
+import io.openaev.utils.fixtures.composers.SecurityCoverageComposer;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.ScenarioMapper;
 import io.openaev.utilstest.RabbitMQTestListener;
@@ -55,6 +59,11 @@ class ScenarioServiceTest extends IntegrationTest {
   @Autowired InjectRepository injectRepository;
   @Autowired private LessonsCategoryRepository lessonsCategoryRepository;
   @Autowired private HealthCheckUtils healthCheckUtils;
+
+  @Autowired private ScenarioComposer scenarioComposer;
+  @Autowired private InjectComposer injectComposer;
+  @Autowired private ExerciseComposer exerciseComposer;
+  @Autowired private SecurityCoverageComposer securityCoverageComposer;
 
   @Mock EnterpriseEditionService enterpriseEditionService;
   @Mock VariableService variableService;
@@ -110,6 +119,56 @@ class ScenarioServiceTest extends IntegrationTest {
     this.userRepository.deleteById(USER_ID);
     this.teamRepository.deleteById(TEAM_ID);
     this.injectRepository.deleteById(INJECT_ID);
+  }
+
+  @DisplayName("Should delete injects at the same time as the scenario itself")
+  @Test
+  @Transactional
+  public void shouldDeleteInjectsAtTheSameTImeAsTheScenarioItself() {
+    Scenario scenario =
+        scenarioComposer
+            .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+            .withInject(injectComposer.forInject(InjectFixture.getDefaultInject()))
+            .persist()
+            .get();
+    entityManager.flush();
+    entityManager.clear();
+
+    String scenarioId = scenario.getId();
+
+    scenarioService.deleteScenario(scenarioId);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThatThrownBy(() -> scenarioService.getScenarioById(scenarioId))
+        .isInstanceOf(ElementNotFoundException.class);
+  }
+
+  @DisplayName(
+      "Should null references from Security Coverage and Simulations when scenario deleted")
+  @Test
+  @Transactional
+  public void shouldNullReferencesFromSecurityCoverageAndSimulationsWhenScenarioDeleted() {
+    ScenarioComposer.Composer scenarioWrapper =
+        scenarioComposer
+            .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+            .withInject(injectComposer.forInject(InjectFixture.getDefaultInject()))
+            .withSimulation(exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()));
+    securityCoverageComposer
+        .forSecurityCoverage(SecurityCoverageFixture.createDefaultSecurityCoverage())
+        .withScenario(scenarioWrapper)
+        .persist();
+    entityManager.flush();
+    entityManager.clear();
+
+    String scenarioId = scenarioWrapper.get().getId();
+
+    scenarioService.deleteScenario(scenarioId);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThatThrownBy(() -> scenarioService.getScenarioById(scenarioId))
+        .isInstanceOf(ElementNotFoundException.class);
   }
 
   @DisplayName("Should create new contextual teams during scenario duplication")
