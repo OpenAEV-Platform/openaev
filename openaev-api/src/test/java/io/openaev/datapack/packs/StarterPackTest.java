@@ -536,8 +536,8 @@ public class StarterPackTest extends IntegrationTest {
     List<Scenario> scenarios = scenarioRepository.findAll();
     assertEquals(3, scenarios.size());
 
-    Scenario scenario = scenarios.getFirst();
-    assertEquals("starterpack", scenario.getName());
+    assertThat(scenarios)
+        .satisfiesOnlyOnce(scenario -> assertThat(scenario.getName()).isEqualTo("starterpack"));
   }
 
   private void verifyDashboardExist() {
