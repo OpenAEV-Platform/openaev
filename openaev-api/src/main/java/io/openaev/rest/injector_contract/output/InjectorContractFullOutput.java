@@ -81,6 +81,7 @@ public class InjectorContractFullOutput extends InjectorContractBaseOutput {
   }
 
   public static InjectorContractFullOutput fromInjectorContract(InjectorContract sourceContract) {
+    Injector injector = sourceContract.getInjector();
     return new InjectorContractFullOutput(
         sourceContract.getId(),
         sourceContract.getExternalId(),
@@ -88,9 +89,9 @@ public class InjectorContractFullOutput extends InjectorContractBaseOutput {
         sourceContract.getContent(),
         sourceContract.getPlatforms(),
         sourceContract.getPayload() == null ? null : sourceContract.getPayload().getType(),
-        sourceContract.getInjector().getName(),
+        injector != null ? injector.getName() : null,
         null,
-        sourceContract.getInjector().getType(),
+        injector != null ? injector.getType() : null,
         sourceContract.getAttackPatterns().stream()
             .map(AttackPattern::getId)
             .toList()

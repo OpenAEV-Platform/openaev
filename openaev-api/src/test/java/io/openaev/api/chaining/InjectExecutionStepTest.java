@@ -65,8 +65,10 @@ public class InjectExecutionStepTest {
     Injector injectorSaved = injectorRepository.save(injector);
 
     InjectorContract injectorContract = InjectorContractFixture.createImplantInjectorContract();
-    injectorContract.setInjector(injectorSaved);
-    injectorContractSaved = injectorContractRepository.save(injectorContract);
+    injectorContract.addInjector(injectorSaved);
+    InjectorContract injectorContractSaved = injectorContractRepository.save(injectorContract);
+    injectorSaved.getContracts().add(injectorContractSaved);
+    injectorRepository.save(injectorSaved);
 
     doReturn(injectorContractSaved).when(injectorContractService).injectorContract(any());
     doReturn(new User()).when(userService).currentUser();
@@ -383,11 +385,14 @@ public class InjectExecutionStepTest {
     assertTrue(stepReadyOpt.isPresent());
     Step stepReady = stepReadyOpt.get();
 
-    String injectorId =
+    String injectorIdsJson =
         StepService.getField(
-            stepReady.getData(), "inject_injector_contract.injector_contract_injector");
-    assertNotNull(injectorId);
-    injectorRepository.deleteById(injectorId);
+            stepReady.getData(), "inject_injector_contract.injector_contract_injectors");
+    assertNotNull(injectorIdsJson);
+    String[] injectorIds = mapper.readValue(injectorIdsJson, String[].class);
+    for (String id : injectorIds) {
+      injectorRepository.deleteById(id);
+    }
 
     // ACT
     ChainingException ex =
@@ -429,11 +434,11 @@ public class InjectExecutionStepTest {
 
     String injectorId =
         StepService.getField(
-            stepReady.getData(), "inject_injector_contract.injector_contract_injector");
+            stepReady.getData(), "inject_injector_contract.injector_contract_injectors");
     assertNotNull(injectorId);
     stepReady.setData(
         StepService.setField(
-            stepReady.getData(), "inject_injector_contract.injector_contract_injector", ""));
+            stepReady.getData(), "inject_injector_contract.injector_contract_injectors", ""));
 
     ChainingException ex =
         Assertions.assertThrows(ChainingException.class, () -> injectExecutionStep.run(stepReady));

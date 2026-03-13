@@ -631,7 +631,7 @@ class InjectServiceTest {
 
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setId(injectorContractId);
-    injectorContract.setInjector(contractInjector);
+    injectorContract.addInjector(contractInjector);
     ObjectNode contractContent = mapper.createObjectNode();
     contractContent.set("fields", mapper.createArrayNode());
     injectorContract.setConvertedContent(contractContent);
@@ -678,7 +678,7 @@ class InjectServiceTest {
 
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setId(injectorContractId);
-    injectorContract.setInjector(contractInjector);
+    injectorContract.addInjector(contractInjector);
     ObjectNode contractContent = mapper.createObjectNode();
     contractContent.set("fields", mapper.createArrayNode());
     injectorContract.setConvertedContent(contractContent);

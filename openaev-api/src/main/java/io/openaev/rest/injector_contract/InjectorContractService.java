@@ -283,20 +283,34 @@ public class InjectorContractService implements DependenciesManager {
     setVulnerabilitiesFromExternalOrInternalIds(
         input.getVulnerabilityExternalIds(), input.getVulnerabilityIds(), injectorContract);
 
-    injectorContract.setInjector(
-        updateRelation(input.getInjectorId(), injectorContract.getInjector(), injectorRepository));
+    Injector injector =
+        updateRelation(input.getInjectorId(), injectorContract.getInjector(), injectorRepository);
+    // Set inverse side so getInjector() works (safe for transient contracts)
+    injectorContract.addInjector(injector);
     injectorContract.setDomains(
-        !injectorContract.getInjector().isPayloads()
+        injector != null && !injector.isPayloads()
             ? this.domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant())
             : new HashSet<>());
-    return injectorContractRepository.save(injectorContract);
+    InjectorContract saved = injectorContractRepository.save(injectorContract);
+    // Link on the owning side now that the contract is persisted
+    if (injector != null) {
+      injector.getContracts().add(saved);
+      injectorRepository.save(injector);
+    }
+    return saved;
   }
 
   public InjectorContract createBuiltinInjectorContract(
       Contract source, Injector injector, boolean isPayloads) {
     InjectorContract target = new InjectorContract();
     target.setId(source.getId());
-    target.setInjector(injector);
+    // Populate the inverse (non-owning) side only so getInjector() works
+    // for tenant resolution in applyBuiltinContractData.
+    // Do NOT call addInjector() here — it modifies the owning side (Injector.contracts)
+    // and causes auto-flush issues since this contract is still transient.
+    if (injector != null) {
+      target.getInjectors().add(injector);
+    }
     target.setTenant(injector.getTenant());
 
     applyBuiltinContractData(target, source, isPayloads);
@@ -492,7 +506,7 @@ public class InjectorContractService implements DependenciesManager {
     Join<Payload, CollectorType> payloadCollectorTypeJoin =
         injectorContractPayloadJoin.join("collectorType", JoinType.LEFT);
     Join<InjectorContract, Injector> injectorContractInjectorJoin =
-        createLeftJoin(injectorContractRoot, "injector");
+        createLeftJoin(injectorContractRoot, "injectors");
     // Array aggregations
     Expression<String[]> attackPatternIdsExpression =
         createJoinArrayAggOnId(cb, injectorContractRoot, "attackPatterns");
@@ -598,7 +612,7 @@ public class InjectorContractService implements DependenciesManager {
     injectorContract.setId(in.getId());
     injectorContract.setManual(in.isManual());
     injectorContract.setLabels(in.getLabels());
-    injectorContract.setInjector(injector);
+    injectorContract.addInjector(injector);
     injectorContract.setTenant(injector.getTenant());
     injectorContract.setContent(in.getContent());
     injectorContract.setAtomicTesting(in.isAtomicTesting());

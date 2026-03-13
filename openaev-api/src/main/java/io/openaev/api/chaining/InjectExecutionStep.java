@@ -449,18 +449,25 @@ public class InjectExecutionStep implements ActionStep {
             "Injector contract not found for step (READY) ID: " + step.getId());
 
       InjectorContract injectorContract = inject.getInjectorContract().get();
-      JsonNode injectorNode =
-          root.path("inject_injector_contract").path("injector_contract_injector");
+      JsonNode injectorsNode =
+          root.path("inject_injector_contract").path("injector_contract_injectors");
 
-      if (injectorNode.isMissingNode() && injectorNode.isEmpty())
+      if (injectorsNode.isMissingNode() && injectorsNode.isEmpty())
         throw new ChainingException(
             "Injector not found for injectorContractId "
                 + injectorContract.getId()
                 + " and step (READY) ID "
                 + step.getId());
 
-      if (injectorContract.getInjector() == null) {
-        String injectorId = injectorNode.asText();
+      // injector_contract_injectors is a JSON array of IDs — load all injectors
+      List<String> injectorIds = new ArrayList<>();
+      if (injectorsNode.isArray()) {
+        injectorsNode.forEach(node -> injectorIds.add(node.asText()));
+      } else {
+        injectorIds.add(injectorsNode.asText());
+      }
+
+      for (String injectorId : injectorIds) {
         Injector injector = em.find(Injector.class, injectorId);
 
         if (injector == null)
@@ -470,8 +477,11 @@ public class InjectExecutionStep implements ActionStep {
                   + " and step (READY) ID "
                   + step.getId());
 
-        injectorContract.setInjector(injector);
+        injectorContract.addInjector(injector);
+        // Contract is already persisted, so update the owning side too
+        injector.getContracts().add(injectorContract);
       }
+
       return inject;
     } catch (JsonProcessingException e) {
       throw new ChainingException("Step (READY) : Error processing JSON to Inject ", e);

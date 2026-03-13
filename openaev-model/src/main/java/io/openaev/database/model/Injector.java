@@ -86,9 +86,13 @@ public class Injector extends BaseConnectorEntity implements TenantBase {
   @JsonProperty("injector_dependencies")
   private ExternalServiceDependency[] dependencies;
 
-  @OneToMany(mappedBy = "injector", fetch = FetchType.LAZY)
+  @ManyToMany(fetch = FetchType.LAZY)
+  @JoinTable(
+      name = "injectors_injector_contracts",
+      joinColumns = @JoinColumn(name = "injector_id"),
+      inverseJoinColumns = @JoinColumn(name = "injector_contract_id"))
   @JsonIgnore
-  private List<InjectorContract> contracts = new ArrayList<>();
+  private Set<InjectorContract> contracts = new HashSet<>();
 
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
