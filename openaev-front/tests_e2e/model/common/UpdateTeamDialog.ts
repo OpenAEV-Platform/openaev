@@ -15,15 +15,6 @@ class UpdateTeamDialog {
     this.saveButton = page.getByRole('button', { name: 'Update' });
   }
 
-  // -- Get Locator methods
-
-  getChipLocator(teamName: string) {
-    return this.page.getByRole('button', {
-      name: teamName,
-      exact: true,
-    });
-  }
-
   // -- Action methods
 
   async save() {

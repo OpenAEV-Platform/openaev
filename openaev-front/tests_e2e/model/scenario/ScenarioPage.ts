@@ -1,4 +1,4 @@
-import {expect, type Locator, type Page} from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 import MuiListHelpers from '../../utils/MuiListHelpers';
 import UpdateTeamDialog from '../common/UpdateTeamDialog';
@@ -15,6 +15,7 @@ class ScenarioPage {
   readonly injectsTab: Locator;
   readonly injectAddBtn: Locator;
   readonly injectListSection: Locator;
+  readonly searchInject: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -27,6 +28,8 @@ class ScenarioPage {
     this.injectsTab = page.getByRole('tab', { name: 'Injects' });
     this.injectListSection = page.getByTestId('injects-list-section');
     this.injectAddBtn = page.getByRole('button', { name: 'Add' });
+
+    this.searchInject = page.getByPlaceholder('Search these results...');
   }
 
   // -- Get Locator methods
@@ -69,6 +72,12 @@ class ScenarioPage {
       teamName,
       actionLabel,
     );
+  }
+
+  async searchAndSelectInjectInList(searchText: string) {
+    await this.searchInject.first().fill(searchText);
+    await this.injectListSection.getByRole('button').first().click();
+    await this.injectListSection.getByRole('button').first().click();
   }
 }
 

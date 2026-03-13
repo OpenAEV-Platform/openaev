@@ -52,6 +52,7 @@ const teamFixture = base.extend<TeamFixtures>({
     };
 
     await use(createPlayer);
+
     await Promise.all(players.map(player => apiHelpers.deletePlayer(player.user_id)));
   },
 
