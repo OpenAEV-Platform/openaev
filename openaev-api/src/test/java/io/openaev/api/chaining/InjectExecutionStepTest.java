@@ -432,13 +432,9 @@ public class InjectExecutionStepTest {
     assertTrue(stepReadyOpt.isPresent());
     Step stepReady = stepReadyOpt.get();
 
-    String injectorId =
-        StepService.getField(
-            stepReady.getData(), "inject_injector_contract.injector_contract_injectors");
+    String injectorId = StepService.getField(stepReady.getData(), "inject_injector");
     assertNotNull(injectorId);
-    stepReady.setData(
-        StepService.setField(
-            stepReady.getData(), "inject_injector_contract.injector_contract_injectors", ""));
+    stepReady.setData(StepService.setField(stepReady.getData(), "inject_injector", ""));
 
     ChainingException ex =
         Assertions.assertThrows(ChainingException.class, () -> injectExecutionStep.run(stepReady));
