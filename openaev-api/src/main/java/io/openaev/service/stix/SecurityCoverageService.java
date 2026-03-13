@@ -303,8 +303,7 @@ public class SecurityCoverageService {
     Set<Inject> injects =
         securityCoverageInjectService.createdInjectsForScenarioAndSecurityCoverage(
             scenario, securityCoverage);
-    scenario.getInjects().clear();
-    scenario.getInjects().addAll(injects);
+    scenario.setInjects(injects);
     log.info(
         "Creating or Updating Scenario with ID: {} from Security coverage with external ID: {}",
         scenario.getId(),
