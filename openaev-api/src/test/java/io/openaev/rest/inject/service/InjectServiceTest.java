@@ -758,7 +758,7 @@ class InjectServiceTest {
     inject
         .getInjectorContract()
         .get()
-        .getInjector()
+        .getFirstInjector()
         .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.SMTP});
 
     // MOCK
@@ -793,7 +793,7 @@ class InjectServiceTest {
     inject
         .getInjectorContract()
         .get()
-        .getInjector()
+        .getFirstInjector()
         .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.IMAP});
 
     // MOCK
@@ -904,7 +904,7 @@ class InjectServiceTest {
     inject
         .getInjectorContract()
         .get()
-        .getInjector()
+        .getFirstInjector()
         .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NMAP});
 
     // MOCK
@@ -932,7 +932,7 @@ class InjectServiceTest {
     inject
         .getInjectorContract()
         .get()
-        .getInjector()
+        .getFirstInjector()
         .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NMAP});
 
     // MOCK
@@ -965,7 +965,7 @@ class InjectServiceTest {
     inject
         .getInjectorContract()
         .get()
-        .getInjector()
+        .getFirstInjector()
         .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NUCLEI});
 
     // MOCK

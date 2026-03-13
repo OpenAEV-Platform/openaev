@@ -81,7 +81,7 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
       this.injectorContract.setId(challengeInjectorContract.getId());
       this.injectorContract.setContent(challengeInjectorContract.getContent());
       this.injectorContract.setConvertedContent(challengeInjectorContract.getConvertedContent());
-      this.injectorContract.addInjector(challengeInjectorContract.getInjector());
+      this.injectorContract.addInjector(challengeInjectorContract.getFirstInjector());
       this.injectorContract.setPlatforms(challengeInjectorContract.getPlatforms());
       this.injectorContract.setUpdatedAt(challengeInjectorContract.getUpdatedAt());
       this.injectorContract.setCreatedAt(challengeInjectorContract.getCreatedAt());
@@ -100,7 +100,7 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
       this.injectorContract.setId(articleInjectorContract.getId());
       this.injectorContract.setContent(articleInjectorContract.getContent());
       this.injectorContract.setConvertedContent(articleInjectorContract.getConvertedContent());
-      this.injectorContract.addInjector(articleInjectorContract.getInjector());
+      this.injectorContract.addInjector(articleInjectorContract.getFirstInjector());
       this.injectorContract.setPlatforms(articleInjectorContract.getPlatforms());
       this.injectorContract.setUpdatedAt(articleInjectorContract.getUpdatedAt());
       this.injectorContract.setCreatedAt(articleInjectorContract.getCreatedAt());
@@ -145,7 +145,7 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
       attackPatternComposer.forEach(AttackPatternComposer.Composer::persist);
       vulnerabilityComposer.forEach(VulnerabilityComposer.Composer::persist);
       if (!WELL_KNOWN_CONTRACT_IDS.contains(injectorContract.getId())) {
-        Injector injector = injectorContract.getInjector();
+        Injector injector = injectorContract.getFirstInjector();
         if (injector != null) {
           entityManager.persist(injector);
           injectorRepository.save(injector);

@@ -44,7 +44,7 @@ public class ScenarioInjectApiSearchTest extends IntegrationTest {
   @BeforeAll
   void beforeAll() {
     InjectorContract injectorContract = injectorContractFixture.getWellKnownSingleEmailContract();
-    EMAIL_INJECTOR_CONTRACT_ID = injectorContract.getInjector().getId();
+    EMAIL_INJECTOR_CONTRACT_ID = injectorContract.getFirstInjector().getId();
 
     Scenario scenario = createDefaultCrisisScenario();
     Scenario scenarioSaved = this.scenarioRepository.save(scenario);

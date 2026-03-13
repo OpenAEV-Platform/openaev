@@ -48,7 +48,7 @@ public class HealthCheckUtils {
       HealthCheck.Status status) {
     List<HealthCheck> result = new ArrayList<>();
     InjectorContract injectorContract = inject.getInjectorContract().orElse(null);
-    Injector injector = injectorContract != null ? injectorContract.getInjector() : null;
+    Injector injector = injectorContract != null ? injectorContract.getFirstInjector() : null;
 
     if (injector != null
         && ArrayUtils.contains(injector.getDependencies(), service)
@@ -147,9 +147,9 @@ public class HealthCheckUtils {
     List<HealthCheck> result = new ArrayList<>();
     InjectorContract contract = inject.getInjectorContract().orElse(null);
     if (contract != null
-        && contract.getInjector() != null
-        && contract.getInjector().getDependencies() != null
-        && Arrays.asList(contract.getInjector().getDependencies())
+        && contract.getFirstInjector() != null
+        && contract.getFirstInjector().getDependencies() != null
+        && Arrays.asList(contract.getFirstInjector().getDependencies())
             .contains(externalServiceDependency)) {
       boolean isInjectorRegistered =
           injectors.stream()
@@ -232,13 +232,13 @@ public class HealthCheckUtils {
                 inject ->
                     inject.getInjectorContract() != null
                         && inject.getInjectorContract().isPresent()
-                        && inject.getInjectorContract().get().getInjector() != null
-                        && inject.getInjectorContract().get().getInjector().getDependencies()
+                        && inject.getInjectorContract().get().getFirstInjector() != null
+                        && inject.getInjectorContract().get().getFirstInjector().getDependencies()
                             != null)
             .flatMap(
                 inject ->
                     Arrays.stream(
-                        inject.getInjectorContract().get().getInjector().getDependencies()))
+                        inject.getInjectorContract().get().getFirstInjector().getDependencies()))
             .anyMatch(
                 dependency ->
                     ExternalServiceDependency.SMTP.equals(dependency)

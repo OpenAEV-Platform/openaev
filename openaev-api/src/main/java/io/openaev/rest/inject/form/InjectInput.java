@@ -71,7 +71,7 @@ public class InjectInput implements DataInputStep {
     inject.setDescription(getDescription());
     inject.setContent(getContent());
     inject.setInjectorContract(injectorContract);
-    inject.setInjector(injectorContract.getInjector());
+    inject.setInjector(injectorContract.getFirstInjector());
     inject.setDependsDuration(getDependsDuration());
     inject.setAllTeams(isAllTeams());
     inject.setCountry(getCountry());

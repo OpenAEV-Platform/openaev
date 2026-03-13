@@ -853,17 +853,17 @@ class ExpectationApiTest extends IntegrationTest {
           StreamHelper.fromIterable(injectorContractRepository.findAll());
       InjectorContract mailInjectorContract =
           injectorContracts.stream()
-              .filter(ic -> ic.getInjector().getType().equals(EmailContract.TYPE))
+              .filter(ic -> ic.getFirstInjector().getType().equals(EmailContract.TYPE))
               .toList()
               .getFirst();
       InjectorContract challengeInjectorContract =
           injectorContracts.stream()
-              .filter(ic -> ic.getInjector().getType().equals(ChallengeContract.TYPE))
+              .filter(ic -> ic.getFirstInjector().getType().equals(ChallengeContract.TYPE))
               .toList()
               .getFirst();
       InjectorContract implantInjectorContract =
           injectorContracts.stream()
-              .filter(ic -> ic.getInjector().getType().equals(OpenAEVImplantContract.TYPE))
+              .filter(ic -> ic.getFirstInjector().getType().equals(OpenAEVImplantContract.TYPE))
               .toList()
               .getFirst();
 

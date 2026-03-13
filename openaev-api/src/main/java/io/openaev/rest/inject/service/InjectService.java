@@ -142,8 +142,8 @@ public class InjectService {
               () -> new ElementNotFoundException("Injector not found with id: " + injectorId));
     }
     // Auto-resolve from the contract's linked injector (single-instance fallback)
-    if (injectorContract != null && injectorContract.getInjector() != null) {
-      return injectorContract.getInjector();
+    if (injectorContract != null && injectorContract.getFirstInjector() != null) {
+      return injectorContract.getFirstInjector();
     }
     return null;
   }

@@ -61,7 +61,7 @@ public class TaniumExecutorContextService extends ExecutorContextService {
     Injector injector =
         inject
             .getInjectorContract()
-            .map(InjectorContract::getInjector)
+            .map(InjectorContract::getFirstInjector)
             .orElseThrow(
                 () -> new UnsupportedOperationException("Inject does not have a contract"));
 

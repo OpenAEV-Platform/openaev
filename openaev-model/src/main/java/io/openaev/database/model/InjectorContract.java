@@ -159,10 +159,12 @@ public class InjectorContract implements TenantBase {
 
   /**
    * Convenience method: returns the first linked injector, or null. All injectors sharing a
-   * contract have the same type, so this is safe for type/name lookups.
+   * contract have the same type, so this is safe for type/name lookups. TODO : remove this method
+   * when multi connector is ready
    */
   @JsonIgnore
-  public Injector getInjector() {
+  @Deprecated
+  public Injector getFirstInjector() {
     return (injectors != null && !injectors.isEmpty()) ? injectors.getFirst() : null;
   }
 
@@ -285,13 +287,13 @@ public class InjectorContract implements TenantBase {
 
   @JsonProperty("injector_contract_injector_type")
   private String getInjectorType() {
-    Injector first = getInjector();
+    Injector first = getFirstInjector();
     return first != null ? first.getType() : null;
   }
 
   @JsonProperty("injector_contract_injector_type_name")
   private String getInjectorName() {
-    Injector first = getInjector();
+    Injector first = getFirstInjector();
     return first != null ? first.getName() : null;
   }
 

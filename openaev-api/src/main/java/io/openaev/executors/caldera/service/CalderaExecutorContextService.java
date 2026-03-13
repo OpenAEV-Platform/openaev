@@ -72,7 +72,7 @@ public class CalderaExecutorContextService extends ExecutorContextService {
 
     inject
         .getInjectorContract()
-        .map(InjectorContract::getInjector)
+        .map(InjectorContract::getFirstInjector)
         .ifPresent(
             injector -> {
               if (this.injectorExecutorAbilities.containsKey(injector.getId())) {

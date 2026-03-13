@@ -42,7 +42,7 @@ public class DirectInjectInput {
     inject.setDescription(getDescription());
     inject.setContent(getContent());
     inject.setInjectorContract(injectorContract);
-    inject.setInjector(injectorContract.getInjector());
+    inject.setInjector(injectorContract.getFirstInjector());
     return inject;
   }
 }

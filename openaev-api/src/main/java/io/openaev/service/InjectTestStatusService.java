@@ -124,7 +124,7 @@ public class InjectTestStatusService {
     String injectorType =
         inject
             .getInjectorContract()
-            .map(contract -> contract.getInjector().getType())
+            .map(contract -> contract.getFirstInjector().getType())
             .orElseThrow(() -> new EntityNotFoundException("Injector contract not found"));
 
     io.openaev.executors.Injector executor =

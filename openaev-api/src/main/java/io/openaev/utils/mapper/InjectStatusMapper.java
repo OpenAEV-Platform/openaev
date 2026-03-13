@@ -33,7 +33,7 @@ public class InjectStatusMapper {
         injectTestStatus
             .getInject()
             .getInjectorContract()
-            .map(InjectorContract::getInjector)
+            .map(InjectorContract::getFirstInjector)
             .map(Injector::getType)
             .orElse(null));
     output.setInjectTitle(injectTestStatus.getInject().getTitle());

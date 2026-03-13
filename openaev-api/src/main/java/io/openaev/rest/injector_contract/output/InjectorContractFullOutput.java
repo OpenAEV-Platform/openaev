@@ -81,7 +81,7 @@ public class InjectorContractFullOutput extends InjectorContractBaseOutput {
   }
 
   public static InjectorContractFullOutput fromInjectorContract(InjectorContract sourceContract) {
-    Injector injector = sourceContract.getInjector();
+    Injector injector = sourceContract.getFirstInjector();
     return new InjectorContractFullOutput(
         sourceContract.getId(),
         sourceContract.getExternalId(),
