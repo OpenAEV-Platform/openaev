@@ -61,10 +61,22 @@ export default defineConfig({
       testMatch: /.*\.setup\.ts/,
     },
     {
-      // Do not change the project name as it is hardcoded in the baseFixtures
-      name: 'chromium',
+      name: 'webkit',
+      use: {
+        ...devices['Desktop Safari'],
+        storageState: 'tests_e2e/.auth/user.json',
+        viewport: {
+          width: 1920,
+          height: 1080,
+        },
+      },
+      dependencies: ['setup'],
+    },
+    {
+      name: 'Google Chrome',
       use: {
         ...devices['Desktop Chrome'],
+        channel: 'chrome',
         storageState: 'tests_e2e/.auth/user.json',
         viewport: {
           width: 1920,

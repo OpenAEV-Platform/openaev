@@ -76,8 +76,11 @@ class ScenarioPage {
 
   async searchAndSelectInjectInList(searchText: string) {
     await this.searchInject.first().fill(searchText);
-    await this.injectListSection.getByRole('button').first().click();
-    await this.injectListSection.getByRole('button').first().click();
+    const firstInject = this.injectListSection.getByRole('button', { name: searchText }).first();
+    await firstInject.click();
+    if (await firstInject.isVisible()) {
+      await firstInject.click();
+    }
   }
 }
 
