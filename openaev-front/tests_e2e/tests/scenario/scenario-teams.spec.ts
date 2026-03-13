@@ -64,7 +64,7 @@ test.describe('Scenario - Teams management', () => {
   });
 
   test.describe('Player Management', () => {
-    test('should be able to activate and deactivate player', async ({ page, createTeamWithMultiplePlayers, createPlayer }) => {
+    test('should be able to activate and deactivate player', async ({ createTeamWithMultiplePlayers, createPlayer }) => {
       const players = await Promise.all([
         createPlayer(`aude-test1-${Date.now()}-${Math.random()}@test.io`),
         createPlayer(`mia-test1-${Date.now()}-${Math.random()}@test.io`),
