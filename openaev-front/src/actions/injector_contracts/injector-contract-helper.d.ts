@@ -3,6 +3,7 @@ import { type InjectorContract, type InjectorContractDomainCountOutput } from '.
 export interface InjectorContractHelper {
   getInjectorContract: (injectorContractId: string) => InjectorContract;
   getInjectorContracts: () => InjectorContract[];
+  getInjectorContractsMap: () => Record<string, InjectorContract>;
   getInjectorContractsWithNoTeams: () => Contract['config']['type'][];
   getInjectorContractsMapByType: () => Record<string, Contract>;
   getInjectorContractsDomainCounts: () => InjectorContractDomainCountOutput[];

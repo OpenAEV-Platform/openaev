@@ -1,4 +1,3 @@
-import { Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
   ConnectionLineType,
@@ -9,20 +8,22 @@ import {
   MiniMap,
   type Node,
   type NodeChange,
-  Panel,
   Position,
   ReactFlow,
   applyEdgeChanges,
   applyNodeChanges,
 } from '@xyflow/react';
-import ELK, { type ElkExtendedEdge, type ElkNode } from 'elkjs/lib/elk.bundled.js';
 import { type FunctionComponent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { type AttackPatternHelper } from '../../../../../../actions/attack_patterns/attackpattern-helper';
+import { fetchInjectorsContracts } from '../../../../../../actions/InjectorContracts';
+import { type InjectorContractHelper } from '../../../../../../actions/injector_contracts/injector-contract-helper';
 import { type KillChainPhaseHelper } from '../../../../../../actions/kill_chain_phases/killchainphase-helper';
 import { useHelper } from '../../../../../../store';
-import type { AttackPattern, KillChainPhase } from '../../../../../../utils/api-types';
+import type { AttackPattern, InjectorContract, KillChainPhase } from '../../../../../../utils/api-types';
 import type { WorkflowStep } from '../../../../../../utils/api-types-custom';
+import { useAppDispatch } from '../../../../../../utils/hooks';
+import useDataLoader from '../../../../../../utils/hooks/useDataLoader';
 import {
   UTILITY_PHASE,
   extractInputBindings,
@@ -55,8 +56,11 @@ interface LogicFlowProps {
 // ── Layout constants ──────────────────────────────────────────────────
 const NODE_WIDTH = 280;
 const NODE_HEIGHT = 100;
-
-const elk = new ELK();
+const COLUMN_WIDTH = 320;
+const COLUMN_GAP = 160;
+const COLUMN_HEADER_H = 44;
+const NODE_VGAP = 24;
+const NODE_HPAD = 20;
 
 // ── Phase color palette (cycled for many phases) ──────────────────────
 const PHASE_COLORS = [
@@ -78,123 +82,219 @@ const PHASE_COLORS = [
 
 const getPhaseColor = (index: number) => PHASE_COLORS[index % PHASE_COLORS.length];
 
-// ── Swimlane band computed from laid-out node positions ───────────────
-interface SwimlaneBand {
+// ── Column layout types ──────────────────────────────────────────────
+interface ColumnDef {
   phase: KillChainPhase;
   color: string;
   x: number;
   width: number;
+  actionCount: number;
 }
 
-const BAND_PADDING = 30;
-const BAND_HEADER_HEIGHT = 36;
+interface ColumnLayout {
+  nodes: Node[];
+  columns: ColumnDef[];
+  graphHeight: number;
+}
 
-const computeSwimlaneBands = (
-  nodes: Node[],
+// ── Column layout engine ─────────────────────────────────────────────
+const computeColumnLayout = (
+  builtNodes: Node[],
+  builtEdges: Edge[],
   steps: WorkflowStep[],
   attackPatternsMap: Record<string, AttackPattern>,
   killChainPhasesMap: Record<string, KillChainPhase>,
   usedPhases: KillChainPhase[],
-): SwimlaneBand[] => {
-  // Map action nodes to their phase
-  const phaseNodeBounds = new Map<string, { minX: number; maxX: number }>();
+  injectorContractsMap?: Record<string, InjectorContract>,
+): ColumnLayout => {
+  if (builtNodes.length === 0) return { nodes: [], columns: [], graphHeight: 0 };
 
-  for (const node of nodes) {
-    const step = steps.find(s => s.step_id === node.id);
-    if (!step || !isActionStep(step)) continue;
-
-    const phase = getStepKillChainPhase(step, attackPatternsMap, killChainPhasesMap);
-    if (!phase) continue;
-
-    const left = node.position.x;
-    const right = node.position.x + NODE_WIDTH;
-    const existing = phaseNodeBounds.get(phase.phase_id);
-    if (existing) {
-      existing.minX = Math.min(existing.minX, left);
-      existing.maxX = Math.max(existing.maxX, right);
-    } else {
-      phaseNodeBounds.set(phase.phase_id, { minX: left, maxX: right });
-    }
-  }
-
-  return usedPhases.map((phase, i) => {
-    const bounds = phaseNodeBounds.get(phase.phase_id);
-    if (!bounds) return null;
-    return {
-      phase,
-      color: getPhaseColor(i),
-      x: bounds.minX - BAND_PADDING,
-      width: bounds.maxX - bounds.minX + BAND_PADDING * 2,
-    };
-  }).filter((b): b is SwimlaneBand => b !== null);
-};
-
-// ── ELK layout (async) ───────────────────────────────────────────────
-const computeElkLayout = async (
-  nodes: Node[],
-  edges: Edge[],
-): Promise<Node[]> => {
-  if (nodes.length === 0) return [];
-
-  const elkNodes: ElkNode[] = nodes.map(n => ({
-    id: n.id,
-    width: NODE_WIDTH,
-    height: NODE_HEIGHT,
+  // 1. Build column definitions
+  const columns: ColumnDef[] = usedPhases.map((phase, i) => ({
+    phase,
+    color: getPhaseColor(i),
+    x: i * (COLUMN_WIDTH + COLUMN_GAP),
+    width: COLUMN_WIDTH,
+    actionCount: 0,
   }));
 
-  // Only use structural edges (DEPEND_ON + field provisioning) for layout
-  const elkEdges: ElkExtendedEdge[] = edges
-    .filter(e => !e.id.startsWith('binding:'))
-    .map(e => ({
-      id: e.id,
-      sources: [e.source],
-      targets: [e.target],
-    }));
+  const phaseToColumn = new Map<string, number>();
+  for (let i = 0; i < columns.length; i++) {
+    phaseToColumn.set(columns[i].phase.phase_id, i);
+  }
 
-  const graph: ElkNode = {
-    id: 'root',
-    layoutOptions: {
-      'elk.algorithm': 'layered',
-      'elk.direction': 'RIGHT',
-      'elk.spacing.nodeNode': '60',
-      'elk.layered.spacing.nodeNodeBetweenLayers': '80',
-      'elk.layered.spacing.edgeNodeBetweenLayers': '40',
-      'elk.edgeRouting': 'SPLINES',
-      'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
-      'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
-    },
-    children: elkNodes,
-    edges: elkEdges,
-  };
+  // 2. Assign actions to columns and stack vertically
+  const columnStacks: number[] = new Array(columns.length).fill(0);
+  const positionedNodes: Node[] = [];
+  const actionPositions = new Map<string, { x: number; y: number; colIdx: number }>();
 
-  try {
-    const laid = await elk.layout(graph);
-    const posMap = new Map<string, { x: number; y: number }>();
-    for (const child of laid.children ?? []) {
-      posMap.set(child.id, { x: child.x ?? 0, y: child.y ?? 0 });
-    }
+  // Sort action nodes: root actions first for better visual flow
+  const actionNodes = builtNodes.filter(n => {
+    const step = steps.find(s => s.step_id === n.id);
+    return step && isActionStep(step);
+  });
+  const eventNodes = builtNodes.filter(n => {
+    const step = steps.find(s => s.step_id === n.id);
+    return step && !isActionStep(step);
+  });
 
-    return nodes.map(node => {
-      const pos = posMap.get(node.id);
-      return {
-        ...node,
-        position: pos ?? node.position,
-        sourcePosition: Position.Right,
-        targetPosition: Position.Left,
-      };
-    });
-  } catch {
-    // Fallback: simple grid
-    return nodes.map((node, i) => ({
+  for (const node of actionNodes) {
+    const step = steps.find(s => s.step_id === node.id);
+    if (!step) continue;
+
+    const phase = getStepKillChainPhase(step, attackPatternsMap, killChainPhasesMap, injectorContractsMap);
+    if (!phase) continue;
+
+    const colIdx = phaseToColumn.get(phase.phase_id);
+    if (colIdx === undefined) continue;
+
+    const col = columns[colIdx];
+    const stackIdx = columnStacks[colIdx];
+    const x = col.x + NODE_HPAD;
+    const y = COLUMN_HEADER_H + stackIdx * (NODE_HEIGHT + NODE_VGAP);
+
+    columnStacks[colIdx]++;
+    col.actionCount++;
+
+    actionPositions.set(node.id, { x, y, colIdx });
+    positionedNodes.push({
       ...node,
-      position: {
-        x: (i % 4) * (NODE_WIDTH + 80),
-        y: Math.floor(i / 4) * (NODE_HEIGHT + 60),
-      },
+      position: { x, y },
       sourcePosition: Position.Right,
       targetPosition: Position.Left,
-    }));
+    });
   }
+
+  // 3. Position events in gaps between columns
+  for (const node of eventNodes) {
+    const step = steps.find(s => s.step_id === node.id);
+    if (!step) continue;
+
+    // Find provider (upstream) actions
+    const providerColIndices: number[] = [];
+    const providerYs: number[] = [];
+    // Find consumer (downstream) actions
+    const consumerColIndices: number[] = [];
+    const consumerYs: number[] = [];
+
+    // Check DEPEND_ON conditions (this event depends on...)
+    for (const c of step.step_conditions) {
+      if (c.condition_type === 'DEPEND_ON' && c.step_from_id) {
+        const pos = actionPositions.get(c.step_from_id);
+        if (pos) {
+          providerColIndices.push(pos.colIdx);
+          providerYs.push(pos.y);
+        }
+      }
+    }
+
+    // Check field provisioning: actions whose outputs match event conditions
+    const conditionKeys = step.step_conditions
+      .filter(c => c.condition_key)
+      .map(c => c.condition_key!);
+    if (conditionKeys.length > 0) {
+      for (const aNode of actionNodes) {
+        const aStep = steps.find(s => s.step_id === aNode.id);
+        if (!aStep) continue;
+        const outputs = extractOutputTypesFromStepData(aStep);
+        if (conditionKeys.some(k => outputs.includes(k))) {
+          const pos = actionPositions.get(aNode.id);
+          if (pos && !providerColIndices.includes(pos.colIdx)) {
+            providerColIndices.push(pos.colIdx);
+            providerYs.push(pos.y);
+          }
+        }
+      }
+    }
+
+    // Find downstream actions (actions that DEPEND_ON this event, or consume its flow)
+    for (const otherStep of steps) {
+      if (!isActionStep(otherStep)) continue;
+      const dependsOnThis = otherStep.step_conditions.some(
+        c => c.condition_type === 'DEPEND_ON' && c.step_from_id === step.step_id,
+      );
+      if (dependsOnThis) {
+        const pos = actionPositions.get(otherStep.step_id);
+        if (pos) {
+          consumerColIndices.push(pos.colIdx);
+          consumerYs.push(pos.y);
+        }
+      }
+    }
+
+    // Determine horizontal position (always in a gap)
+    let eventX: number;
+    const allYs = [...providerYs, ...consumerYs];
+    let eventY = allYs.length > 0
+      ? allYs.reduce((a, b) => a + b, 0) / allYs.length
+      : COLUMN_HEADER_H;
+
+    if (providerColIndices.length > 0 && consumerColIndices.length > 0) {
+      const srcCol = Math.min(...providerColIndices);
+      const tgtCol = Math.min(...consumerColIndices);
+      if (srcCol !== tgtCol) {
+        // Between provider and consumer columns
+        const leftCol = Math.min(srcCol, tgtCol);
+        const rightCol = Math.max(srcCol, tgtCol);
+        // Center in the gap between leftCol right edge and rightCol left edge
+        const gapLeft = columns[leftCol].x + columns[leftCol].width;
+        const gapRight = columns[rightCol].x;
+        eventX = gapLeft + (gapRight - gapLeft) / 2 - NODE_WIDTH / 2;
+      } else {
+        // Same column: place in gap to the right
+        const gapLeft = columns[srcCol].x + columns[srcCol].width;
+        eventX = gapLeft + (COLUMN_GAP - NODE_WIDTH) / 2;
+      }
+    } else if (providerColIndices.length > 0) {
+      // Provider only: gap to the right of provider column
+      const srcCol = Math.max(...providerColIndices);
+      const gapLeft = columns[srcCol].x + columns[srcCol].width;
+      eventX = gapLeft + (COLUMN_GAP - NODE_WIDTH) / 2;
+    } else {
+      // Orphan: place after last column
+      const lastCol = columns[columns.length - 1];
+      const gapLeft = lastCol ? lastCol.x + lastCol.width : 0;
+      eventX = gapLeft + (COLUMN_GAP - NODE_WIDTH) / 2;
+    }
+
+    positionedNodes.push({
+      ...node,
+      position: { x: eventX, y: eventY },
+      sourcePosition: Position.Right,
+      targetPosition: Position.Left,
+    });
+  }
+
+  // 4. Compute graph height
+  const maxY = positionedNodes.reduce(
+    (max, n) => Math.max(max, n.position.y + NODE_HEIGHT),
+    0,
+  );
+  const graphHeight = maxY + NODE_VGAP * 2;
+
+  // 5. Add column background nodes (rendered behind action/event nodes)
+  const colHeight = Math.max(graphHeight, COLUMN_HEADER_H + NODE_HEIGHT + NODE_VGAP * 2);
+  for (const col of columns) {
+    const isUtility = col.phase.phase_id === UTILITY_PHASE.phase_id;
+    positionedNodes.unshift({
+      id: `col-bg-${col.phase.phase_id}`,
+      type: 'column-bg',
+      position: { x: col.x, y: 0 },
+      data: {
+        phaseName: col.phase.phase_name,
+        color: col.color,
+        isUtility,
+        colWidth: col.width,
+        colHeight: colHeight,
+      },
+      selectable: false,
+      draggable: false,
+      connectable: false,
+      style: { zIndex: -1, pointerEvents: 'none' as const },
+    });
+  }
+
+  return { nodes: positionedNodes, columns, graphHeight };
 };
 
 // ── Build nodes & edges ───────────────────────────────────────────────
@@ -209,6 +309,7 @@ const buildNodesAndEdges = (
     onHighlight: (stepId: string) => void;
   },
   highlightedId: string | null,
+  injectorContractsMap?: Record<string, InjectorContract>,
 ) => {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
@@ -231,7 +332,7 @@ const buildNodesAndEdges = (
 
   for (const step of steps) {
     if (isActionStep(step)) {
-      const attackPatternIds = getStepAttackPatterns(step);
+      const attackPatternIds = getStepAttackPatterns(step, injectorContractsMap);
       const attackPatternExternalIds = attackPatternIds
         .map(id => attackPatternsMap[id]?.attack_pattern_external_id)
         .filter((eid): eid is string => !!eid);
@@ -387,12 +488,18 @@ const LogicFlow: FunctionComponent<LogicFlowProps> = ({
   const theme = useTheme();
   const [highlightedStepId, setHighlightedStepId] = useState<string | null>(null);
 
-  const { attackPatternsMap, killChainPhasesMap } = useHelper(
-    (helper: AttackPatternHelper & KillChainPhaseHelper) => ({
+  const { attackPatternsMap, killChainPhasesMap, injectorContractsMap } = useHelper(
+    (helper: AttackPatternHelper & KillChainPhaseHelper & InjectorContractHelper) => ({
       attackPatternsMap: helper.getAttackPatternsMap(),
       killChainPhasesMap: helper.getKillChainPhasesMap(),
+      injectorContractsMap: helper.getInjectorContractsMap(),
     }),
   );
+
+  const dispatch = useAppDispatch();
+  useDataLoader(() => {
+    dispatch(fetchInjectorsContracts());
+  });
 
   const handleHighlight = useCallback((stepId: string) => {
     setHighlightedStepId(prev => prev === stepId ? null : stepId);
@@ -412,14 +519,14 @@ const LogicFlow: FunctionComponent<LogicFlowProps> = ({
 
   // Used kill chain phases (sorted by phase_order)
   const usedPhases = useMemo(
-    () => getUsedPhases(steps, attackPatternsMap, killChainPhasesMap),
-    [steps, attackPatternsMap, killChainPhasesMap],
+    () => getUsedPhases(steps, attackPatternsMap, killChainPhasesMap, injectorContractsMap),
+    [steps, attackPatternsMap, killChainPhasesMap, injectorContractsMap],
   );
 
   // Build raw nodes & edges (highlight state baked in)
   const { nodes: builtNodes, edges: builtEdges } = useMemo(
-    () => buildNodesAndEdges(steps, attackPatternsMap, callbacks, highlightedStepId),
-    [steps, attackPatternsMap, callbacks, highlightedStepId],
+    () => buildNodesAndEdges(steps, attackPatternsMap, callbacks, highlightedStepId, injectorContractsMap),
+    [steps, attackPatternsMap, callbacks, highlightedStepId, injectorContractsMap],
   );
 
   // Compute highlighted edge IDs
@@ -493,27 +600,23 @@ const LogicFlow: FunctionComponent<LogicFlowProps> = ({
   // State
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
-  const [swimlanes, setSwimlanes] = useState<SwimlaneBand[]>([]);
   const topologyKeyRef = useRef('');
 
-  // Sync nodes & edges (ELK layout is async)
+  // Sync nodes & edges (column layout is synchronous)
   useEffect(() => {
-    const newTopologyKey = getTopologyKey(steps);
+    // Include usedPhases in topology key so layout recalculates when contracts load
+    const phasesKey = usedPhases.map(p => p.phase_id).join(',');
+    const newTopologyKey = `${getTopologyKey(steps)}|phases:${phasesKey}`;
 
     if (newTopologyKey !== topologyKeyRef.current) {
       topologyKeyRef.current = newTopologyKey;
-      let cancelled = false;
-
-      computeElkLayout(builtNodes, styledEdges).then((laidOut) => {
-        if (cancelled) return;
-        setNodes(laidOut);
-        setEdges(styledEdges);
-        setSwimlanes(
-          computeSwimlaneBands(laidOut, steps, attackPatternsMap, killChainPhasesMap, usedPhases),
-        );
-      });
-
-      return () => { cancelled = true; };
+      const layout = computeColumnLayout(
+        builtNodes, styledEdges, steps,
+        attackPatternsMap, killChainPhasesMap, usedPhases, injectorContractsMap,
+      );
+      setNodes(layout.nodes);
+      setEdges(styledEdges);
+      return;
     }
 
     // Data-only change (highlight, scope toggle, etc.) → keep positions
@@ -522,8 +625,7 @@ const LogicFlow: FunctionComponent<LogicFlowProps> = ({
       return updated ? { ...node, data: updated.data } : node;
     }));
     setEdges(styledEdges);
-    return undefined;
-  }, [builtNodes, styledEdges, steps, attackPatternsMap, killChainPhasesMap, usedPhases]);
+  }, [builtNodes, styledEdges, steps, attackPatternsMap, killChainPhasesMap, usedPhases, injectorContractsMap]);
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     setNodes(nds => applyNodeChanges(changes, nds));
@@ -548,18 +650,6 @@ const LogicFlow: FunctionComponent<LogicFlowProps> = ({
     if (e.key === 'Escape') setHighlightedStepId(null);
   }, []);
 
-  // Compute total vertical extent of the graph for swimlane band heights
-  const graphBounds = useMemo(() => {
-    if (nodes.length === 0) return { minY: 0, maxY: 400 };
-    let minY = Infinity;
-    let maxY = -Infinity;
-    for (const n of nodes) {
-      minY = Math.min(minY, n.position.y);
-      maxY = Math.max(maxY, n.position.y + NODE_HEIGHT);
-    }
-    return { minY: minY - BAND_PADDING, maxY: maxY + BAND_PADDING };
-  }, [nodes]);
-
   return (
     <div onKeyDown={handleKeyDown} tabIndex={0} style={{ width: '100%', height: '100%', outline: 'none' }}>
       <ReactFlow
@@ -578,58 +668,6 @@ const LogicFlow: FunctionComponent<LogicFlowProps> = ({
         fitViewOptions={{ maxZoom: 1, padding: 0.15 }}
         minZoom={0.15}
       >
-        {/* Swimlane phase backgrounds rendered as SVG behind nodes */}
-        {swimlanes.length > 0 && (
-          <Panel position="top-left" style={{ margin: 0, padding: 0, pointerEvents: 'none', position: 'absolute', top: 0, left: 0 }}>
-            <svg
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: 0,
-                height: 0,
-                overflow: 'visible',
-                pointerEvents: 'none',
-              }}
-            >
-              {swimlanes.map((band) => {
-                const bandHeight = graphBounds.maxY - graphBounds.minY + BAND_HEADER_HEIGHT;
-                const isUtility = band.phase.phase_id === UTILITY_PHASE.phase_id;
-                return (
-                  <g key={band.phase.phase_id}>
-                    {/* Background band */}
-                    <rect
-                      x={band.x}
-                      y={graphBounds.minY - BAND_HEADER_HEIGHT}
-                      width={band.width}
-                      height={bandHeight}
-                      rx={8}
-                      fill={band.color}
-                      fillOpacity={theme.palette.mode === 'dark' ? 0.06 : 0.04}
-                      stroke={band.color}
-                      strokeOpacity={0.2}
-                      strokeWidth={1}
-                      strokeDasharray={isUtility ? '6 3' : undefined}
-                    />
-                    {/* Phase header */}
-                    <text
-                      x={band.x + band.width / 2}
-                      y={graphBounds.minY - BAND_HEADER_HEIGHT + 22}
-                      textAnchor="middle"
-                      fill={band.color}
-                      fontSize={12}
-                      fontWeight={600}
-                      fontFamily={theme.typography.fontFamily}
-                      opacity={0.8}
-                    >
-                      {band.phase.phase_name}
-                    </text>
-                  </g>
-                );
-              })}
-            </svg>
-          </Panel>
-        )}
         <Controls showInteractive={false} />
         <MiniMap
           pannable
@@ -638,43 +676,6 @@ const LogicFlow: FunctionComponent<LogicFlowProps> = ({
           style={{ border: `1px solid ${theme.palette.divider}` }}
         />
       </ReactFlow>
-      {/* Phase legend (bottom) */}
-      {swimlanes.length > 1 && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 8,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            display: 'flex',
-            gap: 12,
-            padding: '4px 12px',
-            borderRadius: 6,
-            background: theme.palette.mode === 'dark'
-              ? 'rgba(0,0,0,0.6)'
-              : 'rgba(255,255,255,0.85)',
-            backdropFilter: 'blur(4px)',
-            border: `1px solid ${theme.palette.divider}`,
-            zIndex: 10,
-          }}
-        >
-          {swimlanes.map((band) => (
-            <div key={band.phase.phase_id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <div style={{
-                width: 10,
-                height: 10,
-                borderRadius: 2,
-                background: band.color,
-                opacity: 0.7,
-              }}
-              />
-              <Typography variant="caption" sx={{ fontSize: 10, color: 'text.secondary' }}>
-                {band.phase.phase_name}
-              </Typography>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 };

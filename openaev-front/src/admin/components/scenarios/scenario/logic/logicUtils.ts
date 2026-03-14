@@ -1,4 +1,4 @@
-import type { AttackPattern, KillChainPhase } from '../../../../../utils/api-types';
+import type { AttackPattern, InjectorContract, KillChainPhase } from '../../../../../utils/api-types';
 import type { InputSource, Workflow, WorkflowStep } from '../../../../../utils/api-types-custom';
 
 /**
@@ -154,15 +154,30 @@ export const getStepInjectorType = (step: WorkflowStep): string | null => {
 };
 
 /**
- * Get attack pattern UUIDs stored in step_data (enriched at action creation)
+ * Get attack pattern UUIDs for a step.
+ * Primary source: step_data.injector_contract_attack_patterns (enriched at creation).
+ * Fallback: resolve from the injector contract via injectorContractsMap.
  */
-export const getStepAttackPatterns = (step: WorkflowStep): string[] => {
+export const getStepAttackPatterns = (
+  step: WorkflowStep,
+  injectorContractsMap?: Record<string, InjectorContract>,
+): string[] => {
   if (!step.step_data) return [];
   try {
     const data = JSON.parse(step.step_data);
-    return Array.isArray(data.injector_contract_attack_patterns)
-      ? data.injector_contract_attack_patterns
-      : [];
+    // Primary: enriched attack patterns in step_data
+    if (Array.isArray(data.injector_contract_attack_patterns)
+      && data.injector_contract_attack_patterns.length > 0) {
+      return data.injector_contract_attack_patterns;
+    }
+    // Fallback: resolve from injector contract
+    if (injectorContractsMap && data.inject_injector_contract) {
+      const contract = injectorContractsMap[data.inject_injector_contract];
+      if (contract && Array.isArray(contract.injector_contract_attack_patterns)) {
+        return contract.injector_contract_attack_patterns;
+      }
+    }
+    return [];
   } catch {
     return [];
   }
@@ -467,10 +482,11 @@ export const getStepKillChainPhase = (
   step: WorkflowStep,
   attackPatternsMap: Record<string, AttackPattern>,
   killChainPhasesMap: Record<string, KillChainPhase>,
+  injectorContractsMap?: Record<string, InjectorContract>,
 ): KillChainPhase | null => {
   if (!isActionStep(step)) return null;
 
-  const attackPatternIds = getStepAttackPatterns(step);
+  const attackPatternIds = getStepAttackPatterns(step, injectorContractsMap);
   let bestPhase: KillChainPhase | null = null;
 
   for (const apId of attackPatternIds) {
@@ -496,11 +512,12 @@ export const getUsedPhases = (
   steps: WorkflowStep[],
   attackPatternsMap: Record<string, AttackPattern>,
   killChainPhasesMap: Record<string, KillChainPhase>,
+  injectorContractsMap?: Record<string, InjectorContract>,
 ): KillChainPhase[] => {
   const phaseMap = new Map<string, KillChainPhase>();
 
   for (const step of steps) {
-    const phase = getStepKillChainPhase(step, attackPatternsMap, killChainPhasesMap);
+    const phase = getStepKillChainPhase(step, attackPatternsMap, killChainPhasesMap, injectorContractsMap);
     if (phase) {
       phaseMap.set(phase.phase_id, phase);
     }

@@ -413,6 +413,7 @@ export const storeHelper = state => ({
     return i.merge(fromJS(JSON.parse(i.get('injector_contract_content'))));
   },
   getInjectorContracts: () => entities('injector_contracts', state),
+  getInjectorContractsMap: () => maps('injector_contracts', state),
   // collectors
   getCollector: id => entity(id, 'collectors', state),
   getExistingCollectors: () => entities('collectors', state).filter(c => c.get('existing_collector') === true),
