@@ -11,6 +11,7 @@ import com.google.gson.*;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.InjectorRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Executor;
 import io.openaev.rest.document.DocumentService;
@@ -65,6 +66,7 @@ public class InjectExecutionStep implements ActionStep {
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final Executor executor;
   private final InjectStatusService injectStatusService;
+  private final InjectorRepository injectorRepository;
   @PersistenceContext private EntityManager em;
 
   /**
@@ -261,7 +263,20 @@ public class InjectExecutionStep implements ActionStep {
     InjectorContract injectorContract =
         this.injectorContractService.injectorContract(data.getInjectorContract());
     Inject inject = data.toInject(injectorContract);
-    inject.setInjector(injectorContract.getFirstInjector());
+
+    // Resolve injector from input ID (explicit instance targeting)
+    if (data.getInjectorId() != null && !data.getInjectorId().isBlank()) {
+      Injector injector =
+          injectorRepository
+              .findById(data.getInjectorId())
+              .orElseThrow(
+                  () ->
+                      new ChainingException(
+                          "Injector not found for id: "
+                              + data.getInjectorId()
+                              + " in step (TEMPLATE) creation"));
+      inject.setInjector(injector);
+    }
     inject.setUser(this.userService.currentUser());
 
     inject.setTeams(teamService.getTeamsByIds(data.getTeams()));
@@ -459,14 +474,16 @@ public class InjectExecutionStep implements ActionStep {
 
       if (inject.getInjector() == null) {
         String injectorId = injectorNode.asText();
-        Injector injector = em.find(Injector.class, injectorId);
-
-        if (injector == null)
-          throw new ChainingException(
-              "Injector not found for injectorId "
-                  + injectorId
-                  + " and step (READY) ID "
-                  + step.getId());
+        Injector injector =
+            injectorRepository
+                .findById(injectorId)
+                .orElseThrow(
+                    () ->
+                        new ChainingException(
+                            "Injector not found for injectorId "
+                                + injectorId
+                                + " and step (READY) ID "
+                                + step.getId()));
 
         inject.setInjector(injector);
       }
