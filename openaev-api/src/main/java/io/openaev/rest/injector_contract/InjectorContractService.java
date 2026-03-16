@@ -2,7 +2,6 @@ package io.openaev.rest.injector_contract;
 
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.model.InjectorContract.*;
-import static io.openaev.helper.DatabaseHelper.updateRelation;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
@@ -283,21 +282,27 @@ public class InjectorContractService implements DependenciesManager {
     setVulnerabilitiesFromExternalOrInternalIds(
         input.getVulnerabilityExternalIds(), input.getVulnerabilityIds(), injectorContract);
 
+    // Resolve the injector specified in the input
     Injector injector =
-        updateRelation(
-            input.getInjectorId(), injectorContract.getFirstInjector(), injectorRepository);
-    // Set inverse side so getInjector() works (safe for transient contracts)
+        injectorRepository
+            .findById(input.getInjectorId())
+            .orElseThrow(
+                () -> new ElementNotFoundException("Injector not found: " + input.getInjectorId()));
+
+    // Link the contract to the specified injector only.
+    // Custom contracts are user-defined for a specific instance —
+    // sharing across instances of the same type is only done for builtin contracts
+    // during registration (InjectorService.registerBuiltinInjector).
     injectorContract.addInjector(injector);
+
     injectorContract.setDomains(
         injector != null && !injector.isPayloads()
             ? this.domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant())
             : new HashSet<>());
     InjectorContract saved = injectorContractRepository.save(injectorContract);
     // Link on the owning side now that the contract is persisted
-    if (injector != null) {
-      injector.getContracts().add(saved);
-      injectorRepository.save(injector);
-    }
+    injector.getContracts().add(saved);
+    injectorRepository.save(injector);
     return saved;
   }
 
@@ -337,12 +342,18 @@ public class InjectorContractService implements DependenciesManager {
 
     // Update attack patterns if not overridden
     if (target.getAttackPatterns().isEmpty() && !source.getAttackPatternsExternalIds().isEmpty()) {
-      List<AttackPattern> attackPatterns =
-          fromIterable(
-              attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
-                  source.getAttackPatternsExternalIds(),
-                  target.getFirstInjector().getTenant().getId()));
-      target.setAttackPatterns(attackPatterns);
+      // All injectors linked to a contract share the same tenant, so any injector is safe
+      // for tenant resolution
+      Injector anyInjector = target.getInjectors().isEmpty() ? null : target.getInjectors().get(0);
+      if (anyInjector != null) {
+        List<AttackPattern> attackPatterns =
+            fromIterable(
+                attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
+                    source.getAttackPatternsExternalIds(), anyInjector.getTenant().getId()));
+        target.setAttackPatterns(attackPatterns);
+      } else {
+        target.setAttackPatterns(new ArrayList<>());
+      }
     } else {
       target.setAttackPatterns(new ArrayList<>());
     }

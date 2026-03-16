@@ -81,6 +81,7 @@ public class InjectorContractFullOutput extends InjectorContractBaseOutput {
   }
 
   public static InjectorContractFullOutput fromInjectorContract(InjectorContract sourceContract) {
+    // This is only used to get the injector name and injector type and they should all be the same
     Injector injector = sourceContract.getFirstInjector();
     return new InjectorContractFullOutput(
         sourceContract.getId(),

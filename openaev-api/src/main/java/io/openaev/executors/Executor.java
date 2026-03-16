@@ -93,8 +93,12 @@ public class Executor {
             .orElseThrow(
                 () -> new UnsupportedOperationException("Inject does not have a contract"));
 
-    // Telemetry
-    actionMetricCollector.addInjectPlayedCount(injectorContract.getFirstInjector().getType());
+    // Telemetry - We shouldn't have multiple injector type per executable inject but if it happens,
+    // we might as well cover that case
+    for (String injectorType :
+        injectorContract.getInjectors().stream().map(Injector::getType).distinct().toList()) {
+      actionMetricCollector.addInjectPlayedCount(injectorType);
+    }
 
     // Resolve the injector instance from the inject entity directly
     Injector injector = inject.getInjector();

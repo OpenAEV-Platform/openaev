@@ -121,11 +121,16 @@ public class InjectTestStatusService {
     ExecutionContext userInjectContext =
         this.executionContextService.executionContext(user, inject, "Direct test");
 
-    String injectorType =
-        inject
-            .getInjectorContract()
-            .map(contract -> contract.getFirstInjector().getType())
-            .orElseThrow(() -> new EntityNotFoundException("Injector contract not found"));
+    String injectorType;
+    if (inject.getInjector() != null) {
+      injectorType = inject.getInjector().getType();
+    } else {
+      injectorType =
+          inject
+              .getInjectorContract()
+              .map(contract -> contract.getFirstInjector().getType())
+              .orElseThrow(() -> new EntityNotFoundException("Injector contract not found"));
+    }
 
     io.openaev.executors.Injector executor =
         managerFactory.getManager().requestInjectorExecutorByType(injectorType);

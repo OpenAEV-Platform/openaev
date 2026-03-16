@@ -514,6 +514,9 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @JsonProperty("inject_type")
   @Queryable(filterable = true, path = "injectorContract.labels", clazz = Map.class)
   public String getType() {
+    if (this.injector != null) {
+      return this.injector.getType();
+    }
     return getInjectorContract()
         .map(InjectorContract::getFirstInjector)
         .map(Injector::getType)

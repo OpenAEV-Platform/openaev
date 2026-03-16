@@ -68,14 +68,16 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
     // Sometimes, assets from agents aren't fetched even with the EAGER property from Hibernate
     sentinelOneAgents.forEach(agent -> agent.setAsset((Asset) Hibernate.unproxy(agent.getAsset())));
 
-    Injector injector =
-        inject
-            .getInjectorContract()
-            // TODO move away from using the first injector - will be done later in the multi
-            // connector epic
-            .map(InjectorContract::getFirstInjector)
-            .orElseThrow(
-                () -> new UnsupportedOperationException("Inject does not have a contract"));
+    Injector injector = inject.getInjector();
+    if (injector == null) {
+      // Fallback for legacy injects without inject_injector populated
+      injector =
+          inject
+              .getInjectorContract()
+              .map(InjectorContract::getFirstInjector)
+              .orElseThrow(
+                  () -> new UnsupportedOperationException("Inject does not have a contract"));
+    }
 
     sentinelOneAgents =
         executorService.manageWithoutPlatformAgents(sentinelOneAgents, injectStatus);
