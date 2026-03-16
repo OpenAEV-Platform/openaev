@@ -1,25 +1,5 @@
 /*package io.openaev.api.multi_tenancy;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
-import io.openaev.database.model.Endpoint;
-import io.openaev.database.model.Tenant;
-import io.openaev.database.repository.EndpointRepository;
-import io.openaev.helper.StreamHelper;
-import io.openaev.utils.fixtures.EndpointFixture;
-import io.openaev.utils.fixtures.composers.EndpointComposer;
-import io.openaev.utils.fixtures.tenants.TenantComposer;
-import io.openaev.utils.fixtures.tenants.TenantFixture;
-import java.util.Comparator;
-import java.util.List;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.transaction.annotation.Transactional;
 
 // TODO multi-tenancy: uncomment tests when multi tenancy will work + add tests with URL and tenant
 // id with objects linked like scenarios, injects,...
