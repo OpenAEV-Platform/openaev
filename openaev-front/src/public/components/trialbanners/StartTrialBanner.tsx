@@ -2,6 +2,7 @@ import { useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../components/i18n';
 import type { PlatformSettings } from '../../../utils/api-types';
+import { isDemoInstance } from '../../../utils/Environment';
 import { isEmptyField } from '../../../utils/utils';
 import TopBanner from './TopBanner';
 
@@ -9,11 +10,7 @@ const StartTrialBanner = (settings: { settings: PlatformSettings }) => {
   const { t } = useFormatter();
   const theme = useTheme();
 
-  if (!settings || isEmptyField(settings.settings?.xtm_hub_url) || settings.settings.platform_base_url !== 'https://demo.openaev.io') return <></>;
-
-  // REMOVE WHEN REMOVING FEATURE FLAG OPENAEV_TRIALS_XTMHUB
-  const freeTrialsEnabled = settings.settings?.enabled_dev_features?.includes('OPENAEV_TRIALS_XTMHUB') ?? false;
-  if (!freeTrialsEnabled) return <></>;
+  if (!settings || isEmptyField(settings.settings?.xtm_hub_url) || !isDemoInstance(settings.settings)) return <></>;
 
   const freeTrialUrl = `${settings.settings?.xtm_hub_url}/cybersecurity-solutions/openaev-free-trial`;
   const createFreeTrialUrl = `${settings.settings?.xtm_hub_url}/redirect/create-free-trial`;
