@@ -390,6 +390,7 @@ export interface AtomicTestingInput {
   inject_content?: object;
   inject_description?: string;
   inject_documents?: InjectDocumentInput[];
+  inject_injector?: string;
   inject_injector_contract?: string;
   inject_tags?: string[];
   inject_teams?: string[];
