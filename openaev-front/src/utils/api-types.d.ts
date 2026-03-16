@@ -1783,6 +1783,7 @@ export interface DirectInjectInput {
   inject_content?: object;
   inject_description?: string;
   inject_documents?: InjectDocumentInput[];
+  inject_injector?: string;
   inject_injector_contract?: string;
   inject_title?: string;
   inject_users?: string[];
