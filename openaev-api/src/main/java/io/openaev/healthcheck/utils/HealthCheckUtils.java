@@ -47,11 +47,9 @@ public class HealthCheckUtils {
       HealthCheck.Type type,
       HealthCheck.Status status) {
     List<HealthCheck> result = new ArrayList<>();
-    InjectorContract injectorContract = inject.getInjectorContract().orElse(null);
-    Injector injector = injectorContract != null ? injectorContract.getFirstInjector() : null;
 
-    if (injector != null
-        && ArrayUtils.contains(injector.getDependencies(), service)
+    if (inject.getInjector() != null
+        && ArrayUtils.contains(inject.getInjector().getDependencies(), service)
         && !isServiceAvailable) {
       result.add(new HealthCheck(type, HealthCheck.Detail.SERVICE_UNAVAILABLE, status, now()));
     }

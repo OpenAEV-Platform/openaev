@@ -477,7 +477,10 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
                 List<InjectorContract> injectorContracts =
                     injectorContractRepository.findInjectorContractsByInjector(dummyInjector);
                 injectorContracts.forEach(
-                    injectorContract -> injectorContract.setInjector(newInjector));
+                    injectorContract -> {
+                      injectorContract.getInjectors().remove(dummyInjector);
+                      injectorContract.getInjectors().add(newInjector);
+                    });
                 injectorContractRepository.saveAll(injectorContracts);
               }
               injectorRepository.delete(dummyInjector);
@@ -622,6 +625,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     savedInjector.getContracts().addAll(injectorContracts);
     // Persist the owning side to save join table entries
     injectorRepository.save(savedInjector);
+    return savedInjector;
   }
 
   private void applyBuiltinInjectorProperties(
