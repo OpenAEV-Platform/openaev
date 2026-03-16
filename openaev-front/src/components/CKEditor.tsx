@@ -64,12 +64,22 @@ const LazyCKEditorComponent = lazy(async () => {
       TodoList,
       Underline,
     },
-    { defautl: en },
-    { defautl: fr },
-    { defautl: zh },
+    { default: de },
+    { default: en },
+    { default: es },
+    { default: fr },
+    { default: it },
+    { default: ja },
+    { default: ko },
+    { default: ru },
+    { default: zh },
   ] = await Promise.all([
     import('@ckeditor/ckeditor5-react'),
     import('ckeditor5'),
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    // eslint-disable-next-line import/extensions
+    import('ckeditor5/translations/de.js'),
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     // eslint-disable-next-line import/extensions
@@ -77,7 +87,27 @@ const LazyCKEditorComponent = lazy(async () => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     // eslint-disable-next-line import/extensions
+    import('ckeditor5/translations/es.js'),
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    // eslint-disable-next-line import/extensions
     import('ckeditor5/translations/fr.js'),
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    // eslint-disable-next-line import/extensions
+    import('ckeditor5/translations/it.js'),
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    // eslint-disable-next-line import/extensions
+    import('ckeditor5/translations/ja.js'),
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    // eslint-disable-next-line import/extensions
+    import('ckeditor5/translations/ko.js'),
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    // eslint-disable-next-line import/extensions
+    import('ckeditor5/translations/ru.js'),
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     // eslint-disable-next-line import/extensions
@@ -86,7 +116,7 @@ const LazyCKEditorComponent = lazy(async () => {
 
   const CKEDITOR_DEFAULT_CONFIG: EditorConfig = {
     licenseKey: 'GPL',
-    translations: [en, fr, zh],
+    translations: [de, en, es, fr, it, ja, ko, ru, zh],
     plugins: [
       Alignment,
       AutoImage,
