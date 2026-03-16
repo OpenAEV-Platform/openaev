@@ -326,6 +326,7 @@ class InjectApiTest extends IntegrationTest {
     input.setTitle(inject.getTitle());
     input.setDescription(inject.getDescription());
     input.setInjectorContract(inject.getInjectorContract().orElseThrow().getId());
+    input.setInjectorId(injectorContract.getFirstInjector().getId());
     input.setUserIds(List.of(user.getId()));
     ObjectNode content = objectMapper.createObjectNode();
     content.set("subject", objectMapper.convertValue("Subject", JsonNode.class));
@@ -386,6 +387,7 @@ class InjectApiTest extends IntegrationTest {
     input.setTitle(inject.getTitle());
     input.setDescription(inject.getDescription());
     input.setInjectorContract(inject.getInjectorContract().orElseThrow().getId());
+    input.setInjectorId(injectorContract.getFirstInjector().getId());
     ObjectNode content = objectMapper.createObjectNode();
     content.set("subject", objectMapper.convertValue("Subject", JsonNode.class));
     content.set("body", objectMapper.convertValue("Test body", JsonNode.class));
@@ -424,6 +426,7 @@ class InjectApiTest extends IntegrationTest {
     input.setTitle(inject.getTitle());
     input.setDescription(inject.getDescription());
     input.setInjectorContract(inject.getInjectorContract().orElseThrow().getId());
+    input.setInjectorId(injectorContract.getFirstInjector().getId());
 
     MockMultipartFile inputJson =
         new MockMultipartFile(

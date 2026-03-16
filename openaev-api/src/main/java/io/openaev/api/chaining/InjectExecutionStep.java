@@ -25,6 +25,7 @@ import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
 import io.openaev.service.chaining.StepService;
+import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -66,6 +67,7 @@ public class InjectExecutionStep implements ActionStep {
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final Executor executor;
   private final InjectStatusService injectStatusService;
+  private final InjectUtils injectUtils;
   private final InjectorRepository injectorRepository;
   @PersistenceContext private EntityManager em;
 
@@ -263,19 +265,7 @@ public class InjectExecutionStep implements ActionStep {
     InjectorContract injectorContract =
         this.injectorContractService.injectorContract(data.getInjectorContract());
 
-    // Resolve injector from input ID (explicit instance targeting)
-    Injector injector = null;
-    if (data.getInjectorId() != null && !data.getInjectorId().isBlank()) {
-      injector =
-          injectorRepository
-              .findById(data.getInjectorId())
-              .orElseThrow(
-                  () ->
-                      new ChainingException(
-                          "Injector not found for id: "
-                              + data.getInjectorId()
-                              + " in step (TEMPLATE) creation"));
-    }
+    Injector injector = injectUtils.resolveInjector(data.getInjectorId(), injectorContract);
     Inject inject = data.toInject(injectorContract, injector);
     inject.setUser(this.userService.currentUser());
 

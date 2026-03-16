@@ -472,6 +472,7 @@ class ScenarioServiceTest extends IntegrationTest {
     injectorContract.addInjector(injector);
 
     Inject inject = InjectFixture.createInject(injectorContract, "test");
+    inject.setInjector(injector);
     scenario.setInjects(new HashSet<>(List.of(inject)));
     this.scenarioRepository.save(scenario);
 

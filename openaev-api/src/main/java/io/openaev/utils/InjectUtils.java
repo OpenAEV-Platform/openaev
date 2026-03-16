@@ -13,7 +13,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.InjectorRepository;
 import io.openaev.helper.ObjectMapperHelper;
+import io.openaev.rest.exception.ElementNotFoundException;
+import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -43,6 +46,35 @@ import org.springframework.stereotype.Component;
 @Component
 @Slf4j
 public class InjectUtils {
+
+  private final InjectorRepository injectorRepository;
+
+  /**
+   * Resolves the {@link Injector} for an inject being created or updated.
+   *
+   * <p>If {@code injectorId} is provided (non-blank), it is looked up by ID. Otherwise, the
+   * injector is auto-resolved from the contract's first linked injector (single-instance fallback).
+   *
+   * @param injectorId explicit injector ID from the input (may be null/blank)
+   * @param injectorContract the contract associated with the inject
+   * @return the resolved Injector, or {@code null} if no contract is provided
+   * @throws ElementNotFoundException if the explicit injector ID does not exist
+   */
+  @SuppressWarnings("deprecation")
+  public Injector resolveInjector(
+      @Nullable String injectorId, @Nullable InjectorContract injectorContract) {
+    if (StringUtils.isNotBlank(injectorId)) {
+      return injectorRepository
+          .findById(injectorId)
+          .orElseThrow(
+              () -> new ElementNotFoundException("Injector not found with id: " + injectorId));
+    }
+    // Auto-resolve from the contract's linked injector (single-instance fallback)
+    if (injectorContract != null && injectorContract.getFirstInjector() != null) {
+      return injectorContract.getFirstInjector();
+    }
+    return null;
+  }
 
   /**
    * Extracts the payload information from an inject.
