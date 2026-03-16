@@ -6,6 +6,7 @@ import static io.openaev.utils.fixtures.TeamFixture.getTeam;
 import static io.openaev.utils.fixtures.UserFixture.getUser;
 import static java.time.Instant.now;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.when;
@@ -31,10 +32,7 @@ import io.openaev.utils.fixtures.composers.SecurityCoverageComposer;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.ScenarioMapper;
 import io.openaev.utilstest.RabbitMQTestListener;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import org.junit.jupiter.api.*;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -51,6 +49,8 @@ import org.springframework.transaction.annotation.Transactional;
 class ScenarioServiceTest extends IntegrationTest {
 
   @Autowired ScenarioRepository scenarioRepository;
+  @Autowired private ExerciseRepository exerciseRepository;
+  @Autowired private SecurityCoverageRepository securityCoverageRepository;
   @Autowired private TeamRepository teamRepository;
   @Autowired private UserRepository userRepository;
   @Autowired private DocumentRepository documentRepository;
@@ -149,15 +149,18 @@ class ScenarioServiceTest extends IntegrationTest {
   @Test
   @Transactional
   public void shouldNullReferencesFromSecurityCoverageAndSimulationsWhenScenarioDeleted() {
+    ExerciseComposer.Composer simulationWrapper =
+        exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise());
     ScenarioComposer.Composer scenarioWrapper =
         scenarioComposer
             .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
             .withInject(injectComposer.forInject(InjectFixture.getDefaultInject()))
-            .withSimulation(exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()));
-    securityCoverageComposer
-        .forSecurityCoverage(SecurityCoverageFixture.createDefaultSecurityCoverage())
-        .withScenario(scenarioWrapper)
-        .persist();
+            .withSimulation(simulationWrapper);
+    SecurityCoverageComposer.Composer securityCoverageWrapper =
+        securityCoverageComposer
+            .forSecurityCoverage(SecurityCoverageFixture.createDefaultSecurityCoverage())
+            .withScenario(scenarioWrapper)
+            .persist();
     entityManager.flush();
     entityManager.clear();
 
@@ -169,6 +172,15 @@ class ScenarioServiceTest extends IntegrationTest {
 
     assertThatThrownBy(() -> scenarioService.getScenarioById(scenarioId))
         .isInstanceOf(ElementNotFoundException.class);
+
+    assertThat(exerciseRepository.findById(simulationWrapper.get().getId()))
+        .isPresent()
+        .get()
+        .satisfies(securityCoverage -> assertThat(securityCoverage.getScenario()).isNull());
+    assertThat(securityCoverageRepository.findById(securityCoverageWrapper.get().getId()))
+        .isPresent()
+        .get()
+        .satisfies(securityCoverage -> assertThat(securityCoverage.getScenario()).isNull());
   }
 
   @DisplayName("Should create new contextual teams during scenario duplication")
