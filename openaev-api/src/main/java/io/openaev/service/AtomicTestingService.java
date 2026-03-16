@@ -13,7 +13,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
+import io.openaev.database.model.Injector;
 import io.openaev.database.repository.*;
+import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.specification.InjectSpecification;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.injector_contract.fields.ContractFieldType;
@@ -24,6 +26,7 @@ import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import jakarta.persistence.criteria.Join;
 import jakarta.transaction.Transactional;
@@ -51,6 +54,7 @@ public class AtomicTestingService {
   private final PayloadMapper payloadMapper;
   private final InjectRepository injectRepository;
   private final InjectorContractRepository injectorContractRepository;
+  private final InjectorRepository injectorRepository;
   private final UserRepository userRepository;
   private final TeamRepository teamRepository;
   private final TagRepository tagRepository;
@@ -104,7 +108,7 @@ public class AtomicTestingService {
     injectToSave.setTitle(input.getTitle());
     injectToSave.setContent(finalContent);
     injectToSave.setInjectorContract(injectorContract);
-    injectToSave.setInjector(injectorContract.getFirstInjector());
+    injectToSave.setInjector(resolveInjector(input.getInjectorId(), injectorContract));
     injectToSave.setAllTeams(input.isAllTeams());
     injectToSave.setDescription(input.getDescription());
     injectToSave.setDependsDuration(0L);
@@ -153,6 +157,20 @@ public class AtomicTestingService {
     }
     injectToSave = injectRepository.save(injectToSave);
     return injectMapper.toInjectResultOverviewOutput(injectToSave);
+  }
+
+  private Injector resolveInjector(
+      @Nullable String injectorId, @Nullable InjectorContract injectorContract) {
+    if (injectorId != null && !injectorId.isBlank()) {
+      return injectorRepository
+          .findById(injectorId)
+          .orElseThrow(
+              () -> new ElementNotFoundException("Injector not found with id: " + injectorId));
+    }
+    if (injectorContract != null && injectorContract.getFirstInjector() != null) {
+      return injectorContract.getFirstInjector();
+    }
+    return null;
   }
 
   private ObjectNode setExpectations(
