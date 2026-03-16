@@ -26,13 +26,7 @@ public class V4_77__Add_inject_injector_column extends BaseJavaMigration {
             AND i.inject_injector IS NULL;
           """);
 
-      // 3. For injects without a contract (manual injects), inject_injector stays NULL.
-      //    We cannot make the column NOT NULL if such rows exist.
-      //    So we only set NOT NULL if there are no NULLs remaining.
-      //    In practice, all injects with a contract now have an injector.
-      //    Injects without a contract are "orphan" channel/manual injects — leave them.
-
-      // 4. Add FK constraint (allows NULLs — injects without contract have no injector)
+      // 3. Add FK constraint (allows NULLs — injects without contract have no injector)
       stmt.execute(
           """
           ALTER TABLE injects
