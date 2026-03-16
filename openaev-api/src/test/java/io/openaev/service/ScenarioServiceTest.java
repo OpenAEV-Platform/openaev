@@ -125,10 +125,12 @@ class ScenarioServiceTest extends IntegrationTest {
   @Test
   @Transactional
   public void shouldDeleteInjectsAtTheSameTImeAsTheScenarioItself() {
+    InjectComposer.Composer injectWrapper =
+        injectComposer.forInject(InjectFixture.getDefaultInject());
     Scenario scenario =
         scenarioComposer
             .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
-            .withInject(injectComposer.forInject(InjectFixture.getDefaultInject()))
+            .withInject(injectWrapper)
             .persist()
             .get();
     entityManager.flush();
@@ -140,6 +142,7 @@ class ScenarioServiceTest extends IntegrationTest {
     entityManager.flush();
     entityManager.clear();
 
+    assertThat(injectRepository.findById(injectWrapper.get().getId())).isEmpty();
     assertThatThrownBy(() -> scenarioService.getScenarioById(scenarioId))
         .isInstanceOf(ElementNotFoundException.class);
   }
