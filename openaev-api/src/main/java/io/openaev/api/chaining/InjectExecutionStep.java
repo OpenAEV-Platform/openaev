@@ -262,11 +262,11 @@ public class InjectExecutionStep implements ActionStep {
 
     InjectorContract injectorContract =
         this.injectorContractService.injectorContract(data.getInjectorContract());
-    Inject inject = data.toInject(injectorContract);
 
     // Resolve injector from input ID (explicit instance targeting)
+    Injector injector = null;
     if (data.getInjectorId() != null && !data.getInjectorId().isBlank()) {
-      Injector injector =
+      injector =
           injectorRepository
               .findById(data.getInjectorId())
               .orElseThrow(
@@ -275,8 +275,8 @@ public class InjectExecutionStep implements ActionStep {
                           "Injector not found for id: "
                               + data.getInjectorId()
                               + " in step (TEMPLATE) creation"));
-      inject.setInjector(injector);
     }
+    Inject inject = data.toInject(injectorContract, injector);
     inject.setUser(this.userService.currentUser());
 
     inject.setTeams(teamService.getTeamsByIds(data.getTeams()));

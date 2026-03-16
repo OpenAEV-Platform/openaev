@@ -287,7 +287,8 @@ class InjectApiTest extends IntegrationTest {
     InjectInput injectInput = new InjectInput();
     injectInput.setTitle("Test inject");
     injectInput.setDependsDuration(0L);
-    Inject inject = injectInput.toInject(injectorContractFixture.getWellKnownSingleEmailContract());
+    InjectorContract emailContract = injectorContractFixture.getWellKnownSingleEmailContract();
+    Inject inject = injectInput.toInject(emailContract, emailContract.getFirstInjector());
     Inject savedInject = injectRepository.save(inject);
 
     Inject injectToUpdate = injectRepository.findById(savedInject.getId()).orElseThrow();

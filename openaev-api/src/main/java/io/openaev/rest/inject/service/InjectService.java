@@ -178,8 +178,8 @@ public class InjectService {
     InjectorContract injectorContract =
         this.injectorContractService.injectorContract(input.getInjectorContract());
     // Get common attributes
-    Inject inject = input.toInject(injectorContract);
-    inject.setInjector(resolveInjector(input.getInjectorId(), injectorContract));
+    Injector injector = resolveInjector(input.getInjectorId(), injectorContract);
+    Inject inject = input.toInject(injectorContract, injector);
     inject.setUser(this.userService.currentUser());
     inject.setTeams(fromIterable(teamRepository.findAllById(input.getTeams())));
     inject.setAssets(fromIterable(assetService.assets(input.getAssets())));
