@@ -6,6 +6,7 @@ import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
+import io.openaev.database.repository.CollectorTypeRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.collector.service.CollectorService;
@@ -38,6 +39,7 @@ public class PayloadUpsertService {
   private final AttackPatternRepository attackPatternRepository;
   private final PayloadRepository payloadRepository;
   private final CollectorService collectorService;
+  private final CollectorTypeRepository collectorTypeRepository;
   private final DocumentService documentService;
   private final DomainService domainService;
 
@@ -49,30 +51,37 @@ public class PayloadUpsertService {
       input.setDetectionRemediations(null);
     }
 
-    Collector collector = null;
+    CollectorType collectorType = null;
     if (input.getCollector() != null) {
-      collector = this.collectorService.collector(input.getCollector());
+      Collector collector = this.collectorService.collector(input.getCollector());
+      collectorType =
+          collectorTypeRepository
+              .findByName(collector.getType())
+              .orElseThrow(
+                  () ->
+                      new IllegalStateException(
+                          "Collector type not found: " + collector.getType()));
     }
     List<AttackPattern> attackPatterns =
         attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
             input.getAttackPatternsExternalIds(), TenantContext.getCurrentTenant());
     if (payload.isPresent()) {
-      return updatePayloadFromUpsert(input, payload.get(), attackPatterns, collector);
+      return updatePayloadFromUpsert(input, payload.get(), attackPatterns, collectorType);
     } else {
-      return createPayloadFromUpsert(input, attackPatterns, collector);
+      return createPayloadFromUpsert(input, attackPatterns, collectorType);
     }
   }
 
   private Payload createPayloadFromUpsert(
-      PayloadUpsertInput input, List<AttackPattern> attackPatterns, Collector collector) {
+      PayloadUpsertInput input, List<AttackPattern> attackPatterns, CollectorType collectorType) {
     PayloadType payloadType = PayloadType.fromString(input.getType());
     validateArchitecture(payloadType.key, input.getExecutionArch());
 
     Payload payload = payloadType.getPayloadSupplier().get();
     payloadUtils.copyProperties(input, payload, false);
 
-    if (collector != null) {
-      payload.setCollector(collector);
+    if (collectorType != null) {
+      payload.setCollectorType(collectorType);
     }
 
     payload.setDomains(
@@ -100,15 +109,15 @@ public class PayloadUpsertService {
       PayloadUpsertInput input,
       Payload existingPayload,
       List<AttackPattern> attackPatterns,
-      Collector collector) {
+      CollectorType collectorType) {
     PayloadType payloadType = PayloadType.fromString(existingPayload.getType());
     validateArchitecture(payloadType.key, input.getExecutionArch());
 
     Payload payload = (Payload) Hibernate.unproxy(existingPayload);
     payloadUtils.copyProperties(input, payload, true);
 
-    if (collector != null) {
-      payload.setCollector(collector);
+    if (collectorType != null) {
+      payload.setCollectorType(collectorType);
     }
 
     final Set<Domain> existingDomains =

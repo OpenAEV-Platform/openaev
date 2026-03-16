@@ -462,8 +462,8 @@ public class InjectorContractService {
     // Joins
     Join<InjectorContract, Payload> injectorContractPayloadJoin =
         createLeftJoin(injectorContractRoot, "payload");
-    Join<Payload, Collector> payloadCollectorJoin =
-        injectorContractPayloadJoin.join("collector", JoinType.LEFT);
+    Join<Payload, CollectorType> payloadCollectorTypeJoin =
+        injectorContractPayloadJoin.join("collectorType", JoinType.LEFT);
     Join<InjectorContract, Injector> injectorContractInjectorJoin =
         createLeftJoin(injectorContractRoot, "injector");
     // Array aggregations
@@ -484,7 +484,7 @@ public class InjectorContractService {
             injectorContractRoot.get("content").alias("injector_contract_content"),
             injectorContractRoot.get("platforms").alias("injector_contract_platforms"),
             injectorContractPayloadJoin.get("type").alias("payload_type"),
-            payloadCollectorJoin.get("type").alias("collector_type"),
+            payloadCollectorTypeJoin.get("name").alias("collector_type"),
             injectorContractInjectorJoin.get("type").alias("injector_contract_injector_type"),
             injectorContractInjectorJoin.get("name").alias("injector_contract_injector_name"),
             attackPatternIdsExpression.alias("injector_contract_attack_patterns"),
@@ -499,7 +499,7 @@ public class InjectorContractService {
         Arrays.asList(
             injectorContractRoot.get("id"),
             injectorContractPayloadJoin.get("id"),
-            payloadCollectorJoin.get("id"),
+            payloadCollectorTypeJoin.get("id"),
             injectorContractInjectorJoin.get("id")));
   }
 

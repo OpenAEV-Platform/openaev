@@ -68,6 +68,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
   @Autowired private CollectorComposer collectorComposer;
 
+  @Autowired private CollectorTypeComposer collectorTypeComposer;
+
   @Autowired private AttackPatternComposer attackPatternComposer;
 
   @Autowired private DomainComposer domainComposer;
@@ -910,7 +912,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     assertThat(output.getStatus()).isEqualTo(404);
     String response = JsonPath.read(output.getContentAsString(), "$.message");
     assertThat(response)
-        .isEqualTo("Element not found: Collector not found with type: collector_name_unknow");
+        .isEqualTo("Element not found: Collector type not found: collector_name_unknow");
   }
 
   @Test
@@ -1443,7 +1445,10 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                         .withDetectionRemediation(
                             detectionRemediationComposer
                                 .forDetectionRemediation(detectionRemediation)
-                                .withCollector(collectorComposer.forCollector(collector)))))
+                                .withCollectorType(
+                                    collectorTypeComposer.forCollectorType(
+                                        CollectorTypeFixture.createCollectorType(
+                                            collector.getType()))))))
         .persist()
         .get();
   }
@@ -1478,7 +1483,10 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                         .withDetectionRemediation(
                             detectionRemediationComposer
                                 .forDetectionRemediation(detectionRemediation)
-                                .withCollector(collectorComposer.forCollector(collector)))))
+                                .withCollectorType(
+                                    collectorTypeComposer.forCollectorType(
+                                        CollectorTypeFixture.createCollectorType(
+                                            collector.getType()))))))
         .persist()
         .get();
   }

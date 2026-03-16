@@ -93,6 +93,8 @@ public class PayloadComposer extends ComposerBase<Payload> {
       domainComposers.forEach(DomainComposer.Composer::persist);
       tagComposers.forEach(TagComposer.Composer::persist);
       attackPatternComposers.forEach(AttackPatternComposer.Composer::persist);
+      detectionRemediationComposers.forEach(
+          DetectionRemediationComposer.Composer::persistCollectorTypeDependency);
       payload.setId(null);
       payloadRepository.save(payload);
       return this;

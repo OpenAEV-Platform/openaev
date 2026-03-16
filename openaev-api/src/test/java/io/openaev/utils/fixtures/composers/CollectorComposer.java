@@ -2,6 +2,7 @@ package io.openaev.utils.fixtures.composers;
 
 import io.openaev.database.model.Collector;
 import io.openaev.database.repository.CollectorRepository;
+import io.openaev.utils.fixtures.CollectorTypeFixture;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Component;
 public class CollectorComposer extends ComposerBase<Collector> {
 
   @Autowired private CollectorRepository collectorRepository;
+  @Autowired private CollectorTypeComposer collectorTypeComposer;
 
   public class Composer extends InnerComposerBase<Collector> {
 
@@ -29,6 +31,10 @@ public class CollectorComposer extends ComposerBase<Collector> {
     @Override
     public CollectorComposer.Composer persist() {
       securityPlatformComposer.ifPresent(SecurityPlatformComposer.Composer::persist);
+      // Ensure the corresponding CollectorType exists in the database
+      collectorTypeComposer
+          .forCollectorType(CollectorTypeFixture.createCollectorType(collector.getType()))
+          .persist();
       collectorRepository.save(this.collector);
       return this;
     }

@@ -541,7 +541,6 @@ interface BasePayload {
   payload_attack_patterns?: string[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
-  payload_collector?: string;
   payload_collector_type?: string;
   /** @format date-time */
   payload_created_at: string;
@@ -1078,7 +1077,6 @@ export interface Command {
   payload_attack_patterns?: string[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
-  payload_collector?: string;
   payload_collector_type?: string;
   /** @format date-time */
   payload_created_at: string;
@@ -1771,7 +1769,6 @@ export interface DnsResolution {
   payload_attack_patterns?: string[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
-  payload_collector?: string;
   payload_collector_type?: string;
   /** @format date-time */
   payload_created_at: string;
@@ -2611,7 +2608,6 @@ export interface Executable {
   payload_attack_patterns?: string[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
-  payload_collector?: string;
   payload_collector_type?: string;
   /** @format date-time */
   payload_created_at: string;
@@ -3025,7 +3021,6 @@ export interface FileDrop {
   payload_attack_patterns?: string[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
-  payload_collector?: string;
   payload_collector_type?: string;
   /** @format date-time */
   payload_created_at: string;
@@ -4774,7 +4769,6 @@ export interface NetworkTraffic {
   payload_attack_patterns?: string[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
-  payload_collector?: string;
   payload_collector_type?: string;
   /** @format date-time */
   payload_created_at: string;

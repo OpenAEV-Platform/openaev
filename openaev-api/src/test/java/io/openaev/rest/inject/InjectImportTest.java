@@ -70,6 +70,7 @@ class InjectImportTest extends IntegrationTest {
   @Autowired private ChallengeComposer challengeComposer;
   @Autowired private DocumentComposer documentComposer;
   @Autowired private CollectorComposer collectorComposer;
+  @Autowired private CollectorTypeComposer collectorTypeComposer;
   @Autowired private FileService fileService;
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private TeamComposer teamComposer;
@@ -199,7 +200,10 @@ class InjectImportTest extends IntegrationTest {
                             .withDetectionRemediation(
                                 detectionRemediationComposer
                                     .forDetectionRemediation(createDetectionRemediation())
-                                    .withCollector(collectorComposer.forCollector(collector)))))
+                                    .withCollectorType(
+                                        collectorTypeComposer.forCollectorType(
+                                            CollectorTypeFixture.createCollectorType(
+                                                collector.getType()))))))
             .withTag(tagComposer.forTag(TagFixture.getTagWithText("inject with payload tag"))),
         injectComposer
             .forInject(InjectFixture.getDefaultInject())

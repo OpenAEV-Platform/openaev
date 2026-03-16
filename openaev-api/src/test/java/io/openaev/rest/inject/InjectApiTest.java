@@ -110,6 +110,7 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private DetectionRemediationComposer detectionRemediationComposer;
   @Autowired private CollectorComposer collectorComposer;
+  @Autowired private CollectorTypeComposer collectorTypeComposer;
   @Autowired private DocumentComposer documentComposer;
   @Autowired private InjectStatusComposer injectStatusComposer;
   @Autowired private ExecutionTraceComposer executionTraceComposer;
@@ -3866,7 +3867,10 @@ class InjectApiTest extends IntegrationTest {
                                       .forDetectionRemediation(
                                           DetectionRemediationFixture
                                               .createDefaultDetectionRemediation())
-                                      .withCollector(collectorComposer.forCollector(collector)))))
+                                      .withCollectorType(
+                                          collectorTypeComposer.forCollectorType(
+                                              CollectorTypeFixture.createCollectorType(
+                                                  collector.getType()))))))
               .persist()
               .get();
 

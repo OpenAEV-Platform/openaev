@@ -155,7 +155,7 @@ public class PayloadMapper {
         .cleanupExecutor(payload.getCleanupExecutor())
         .name(payload.getName())
         .type(payload.getType())
-        .collectorType(payload.getCollectorType())
+        .collectorType(payload.getCollectorTypeValue())
         .description(payload.getDescription())
         .tags(payload.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
         .platforms(payload.getPlatforms())
@@ -235,7 +235,7 @@ public class PayloadMapper {
     Payload payload = injectorContract.getPayload();
     if (payload != null) {
       builder
-          .collectorType(payload.getCollectorType())
+          .collectorType(payload.getCollectorTypeValue())
           .payloadOutputParsers(toOutputParsersSimple(payload.getOutputParsers()))
           .tags(payload.getTags().stream().map(Tag::getId).collect(Collectors.toSet()));
     }
@@ -290,7 +290,7 @@ public class PayloadMapper {
     return DetectionRemediationOutput.builder()
         .id(detectionRemediation.getId())
         .payloadId(detectionRemediation.getPayload().getId())
-        .collectorType(detectionRemediation.getCollector().getType())
+        .collectorType(detectionRemediation.getCollectorType().getName())
         .values(detectionRemediation.getValues())
         .authorRule(detectionRemediation.getAuthorRule())
         .build();

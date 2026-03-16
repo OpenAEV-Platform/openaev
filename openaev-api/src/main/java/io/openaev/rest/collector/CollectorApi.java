@@ -1,7 +1,6 @@
 package io.openaev.rest.collector;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.ResourceType;
@@ -22,6 +21,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
+import java.io.InputStream;
 import java.time.Instant;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -127,47 +127,18 @@ public class CollectorApi extends RestBehavior {
       @Valid @RequestPart("input") CollectorCreateInput input,
       @RequestPart("icon") Optional<MultipartFile> file) {
     try {
-      // Upload icon
-      if (file.isPresent() && "image/png".equals(file.get().getContentType())) {
-        fileService.uploadFile(
-            FileService.COLLECTORS_IMAGES_BASE_PATH + input.getType() + ".png", file.get());
-      }
-      // We need to support upsert for registration
-      Collector collector = collectorRepository.findById(input.getId()).orElse(null);
-      if (collector == null) {
-        Collector collectorChecking =
-            collectorRepository
-                .findByTypeAndTenantId(input.getType(), TenantContext.getCurrentTenant())
-                .orElse(null);
-        if (collectorChecking != null) {
-          throw new Exception(
-              "The collector "
-                  + input.getType()
-                  + " already exists with a different ID, please delete it or contact your administrator.");
-        }
-      }
-      if (collector != null) {
-        return updateCollector(
-            collector,
-            input.getType(),
-            input.getName(),
-            input.getPeriod(),
-            collector.getLastExecution(),
-            input.getSecurityPlatform());
-      } else {
-        // save the injector
-        Collector newCollector = new Collector();
-        newCollector.setId(input.getId());
-        newCollector.setExternal(true);
-        newCollector.setName(input.getName());
-        newCollector.setType(input.getType());
-        newCollector.setPeriod(input.getPeriod());
-        if (input.getSecurityPlatform() != null) {
-          newCollector.setSecurityPlatform(
-              securityPlatformRepository.findById(input.getSecurityPlatform()).orElseThrow());
-        }
-        return collectorRepository.save(newCollector);
-      }
+      InputStream iconStream =
+          file.isPresent() && "image/png".equals(file.get().getContentType())
+              ? file.get().getInputStream()
+              : null;
+      return collectorService.register(
+          input.getId(),
+          input.getType(),
+          input.getName(),
+          true,
+          input.getPeriod(),
+          input.getSecurityPlatform(),
+          iconStream);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
