@@ -5,11 +5,7 @@ import static org.mockito.Mockito.*;
 
 import io.openaev.api.chaining.ChainingConfigurationInput;
 import io.openaev.api.chaining.ChainingConfigurationMapper;
-import io.openaev.api.chaining.dto.ChainingRateLimitInput;
-import io.openaev.api.chaining.dto.ChainingTimeOutInput;
 import io.openaev.database.model.ChainingConfiguration;
-import io.openaev.database.model.ChainingRateLimit;
-import io.openaev.database.model.ChainingTimeOut;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowStatus;
@@ -119,11 +115,9 @@ class WorkflowServiceTest {
 
       verify(chainingConfigurationRepository).save(chainingConfigurationCaptor.capture());
       ChainingConfiguration savedConfiguration = chainingConfigurationCaptor.getValue();
-      assertNotNull(savedConfiguration.getRateLimit());
-      assertFalse(savedConfiguration.getRateLimit().isEnableRateLimit());
-      assertNotNull(savedConfiguration.getTimeOut());
-      assertFalse(savedConfiguration.getTimeOut().isEnableTimeOut());
-      assertTrue(savedConfiguration.isSafeMode());
+      assertFalse(savedConfiguration.isRateLimitEnabled());
+      assertFalse(savedConfiguration.isTimeoutEnabled());
+      assertTrue(savedConfiguration.isSafeModeEnabled());
       assertEquals(savedWorkflow, savedConfiguration.getWorkflow());
       assertEquals(savedConfiguration, savedWorkflow.getChainingConfiguration());
     }
@@ -142,28 +136,30 @@ class WorkflowServiceTest {
       // Prepare
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow = mock(Workflow.class);
-      when(workflowRepository.findById(workflowId)).thenReturn(Optional.of(workflow));
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
 
       // Act
       workflowService.updateWorkflowTemplate(workflowId);
 
       // Assert
-      verify(workflowRepository).findById(workflowId);
+      verify(workflowRepository).findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
       verify(workflow).setEdited(true);
       verify(workflowRepository).save(workflow);
     }
 
     @Test
-    @DisplayName("should throw exception when workflow not found")
+    @DisplayName("should throw ElementNotFoundException when workflow not found")
     void shouldThrowExceptionWhenNotFound() {
       // Prepare
       String workflowId = UUID.randomUUID().toString();
-      when(workflowRepository.findById(workflowId)).thenReturn(Optional.empty());
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.empty());
 
       // Act & Assert
       assertThrows(
-          NoSuchElementException.class, () -> workflowService.updateWorkflowTemplate(workflowId));
-      verify(workflowRepository).findById(workflowId);
+          ElementNotFoundException.class, () -> workflowService.updateWorkflowTemplate(workflowId));
+      verify(workflowRepository).findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
       verify(workflowRepository, never()).save(any());
     }
   }
@@ -289,17 +285,13 @@ class WorkflowServiceTest {
               .version(3)
               .simulation(simulation)
               .build();
-      ChainingRateLimit templateRateLimit = new ChainingRateLimit();
-      templateRateLimit.setEnableRateLimit(true);
-      templateRateLimit.setMaxAttempts(5);
-      templateRateLimit.setMaxTemporalRateMinutes(15);
-      ChainingTimeOut templateTimeOut = new ChainingTimeOut();
-      templateTimeOut.setEnableTimeOut(true);
-      templateTimeOut.setTimeOutSeconds(120);
       ChainingConfiguration templateConfiguration = new ChainingConfiguration();
-      templateConfiguration.setRateLimit(templateRateLimit);
-      templateConfiguration.setTimeOut(templateTimeOut);
-      templateConfiguration.setSafeMode(false);
+      templateConfiguration.setRateLimitEnabled(true);
+      templateConfiguration.setMaxAttempts(5);
+      templateConfiguration.setMaxTemporalRateSeconds(15L);
+      templateConfiguration.setTimeoutEnabled(true);
+      templateConfiguration.setTimeoutSeconds(120L);
+      templateConfiguration.setSafeModeEnabled(false);
       templateConfiguration.setWorkflow(workflowTemplate);
       workflowTemplate.setChainingConfiguration(templateConfiguration);
 
@@ -320,15 +312,13 @@ class WorkflowServiceTest {
       assertEquals(savedConfiguration, run.getChainingConfiguration());
 
       assertNotSame(templateConfiguration, savedConfiguration);
-      assertNotSame(templateRateLimit, savedConfiguration.getRateLimit());
-      assertNotSame(templateTimeOut, savedConfiguration.getTimeOut());
 
-      assertFalse(savedConfiguration.isSafeMode());
-      assertTrue(savedConfiguration.getRateLimit().isEnableRateLimit());
-      assertEquals(5, savedConfiguration.getRateLimit().getMaxAttempts());
-      assertEquals(15, savedConfiguration.getRateLimit().getMaxTemporalRateMinutes());
-      assertTrue(savedConfiguration.getTimeOut().isEnableTimeOut());
-      assertEquals(120, savedConfiguration.getTimeOut().getTimeOutSeconds());
+      assertFalse(savedConfiguration.isSafeModeEnabled());
+      assertTrue(savedConfiguration.isRateLimitEnabled());
+      assertEquals(5, savedConfiguration.getMaxAttempts());
+      assertEquals(15L, savedConfiguration.getMaxTemporalRateSeconds());
+      assertTrue(savedConfiguration.isTimeoutEnabled());
+      assertEquals(120L, savedConfiguration.getTimeoutSeconds());
     }
 
     @Test
@@ -481,7 +471,7 @@ class WorkflowServiceTest {
       when(workflow.getChainingConfiguration()).thenReturn(chainingConfiguration);
 
       // Act
-      ChainingConfiguration result = workflowService.fetchChainingConfiguration(workflowId);
+      ChainingConfiguration result = workflowService.getChainingConfiguration(workflowId);
 
       // Assert
       assertEquals(chainingConfiguration, result);
@@ -501,7 +491,7 @@ class WorkflowServiceTest {
       ElementNotFoundException exception =
           assertThrows(
               ElementNotFoundException.class,
-              () -> workflowService.fetchChainingConfiguration(workflowId));
+              () -> workflowService.getChainingConfiguration(workflowId));
       assertEquals(
           "Workflow TEMPLATE not found. Workflow ID : " + workflowId, exception.getMessage());
       verify(workflowRepository).findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
@@ -521,7 +511,7 @@ class WorkflowServiceTest {
       ElementNotFoundException exception =
           assertThrows(
               ElementNotFoundException.class,
-              () -> workflowService.fetchChainingConfiguration(workflowId));
+              () -> workflowService.getChainingConfiguration(workflowId));
       assertEquals(
           "Chaining configuration not found for this workflow: " + workflowId,
           exception.getMessage());
@@ -547,31 +537,19 @@ class WorkflowServiceTest {
       Workflow workflow = mock(Workflow.class);
       ChainingConfiguration configuration = mock(ChainingConfiguration.class);
       ChainingConfigurationInput input = mock(ChainingConfigurationInput.class);
-      ChainingRateLimitInput rateLimitInput = mock(ChainingRateLimitInput.class);
-      ChainingTimeOutInput timeOutInput = mock(ChainingTimeOutInput.class);
-      ChainingRateLimit rateLimit = new ChainingRateLimit();
-      ChainingTimeOut timeOut = new ChainingTimeOut();
       ChainingConfiguration savedConfiguration = mock(ChainingConfiguration.class);
 
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
       when(workflow.getChainingConfiguration()).thenReturn(configuration);
-      when(input.getRateLimit()).thenReturn(rateLimitInput);
-      when(input.getTimeOut()).thenReturn(timeOutInput);
-      when(input.isSafeMode()).thenReturn(true);
-      when(chainingConfigurationMapper.toRateLimit(rateLimitInput)).thenReturn(rateLimit);
-      when(chainingConfigurationMapper.toTimeOut(timeOutInput)).thenReturn(timeOut);
+      doNothing().when(chainingConfigurationMapper).applyInput(input, configuration);
       when(chainingConfigurationRepository.save(configuration)).thenReturn(savedConfiguration);
 
       // Act
       ChainingConfiguration result = workflowService.updateChainingConfiguration(workflowId, input);
 
       // Assert
-      verify(chainingConfigurationMapper).toRateLimit(rateLimitInput);
-      verify(chainingConfigurationMapper).toTimeOut(timeOutInput);
-      verify(configuration).setRateLimit(rateLimit);
-      verify(configuration).setTimeOut(timeOut);
-      verify(configuration).setSafeMode(true);
+      verify(chainingConfigurationMapper).applyInput(input, configuration);
       verify(chainingConfigurationRepository).save(chainingConfigurationCaptor.capture());
       assertEquals(configuration, chainingConfigurationCaptor.getValue());
       assertEquals(savedConfiguration, result);

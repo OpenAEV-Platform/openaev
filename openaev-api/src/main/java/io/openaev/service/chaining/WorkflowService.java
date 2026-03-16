@@ -62,11 +62,9 @@ public class WorkflowService {
   /** Creates a default chaining configuration for a scenario. */
   private void createDefaultChainingConfiguration(Workflow workflow) {
     ChainingConfiguration configuration = new ChainingConfiguration();
-    configuration.setRateLimit(new ChainingRateLimit());
-    configuration.getRateLimit().setEnableRateLimit(false);
-    configuration.setTimeOut(new ChainingTimeOut());
-    configuration.getTimeOut().setEnableTimeOut(false);
-    configuration.setSafeMode(true);
+    configuration.setRateLimitEnabled(false);
+    configuration.setTimeoutEnabled(false);
+    configuration.setSafeModeEnabled(true);
     configuration.setWorkflow(workflow);
     workflow.setChainingConfiguration(configuration);
     this.chainingConfigurationRepository.save(configuration);
@@ -76,10 +74,12 @@ public class WorkflowService {
    * Marks a workflow template as edited.
    *
    * @param workflowId the ID of the workflow to update
+   * @throws ElementNotFoundException if no TEMPLATE workflow is found with the given ID
    */
   public void updateWorkflowTemplate(String workflowId) {
-    Workflow workflow = workflowRepository.findById(workflowId).orElseThrow(); // todo
-    workflow.setEdited(true);
+    Workflow workflow = getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
+    // Mark as edited if at least one run has been executed from this template
+    workflow.setEdited(!workflow.getWorkflowsExecuted().isEmpty());
     workflowRepository.save(workflow);
   }
 
@@ -131,34 +131,30 @@ public class WorkflowService {
     if (templateConfiguration == null) {
       return;
     }
-
-    ChainingConfiguration runConfiguration = new ChainingConfiguration();
-    runConfiguration.setSafeMode(templateConfiguration.isSafeMode());
-    runConfiguration.setRateLimit(copyRateLimit(templateConfiguration.getRateLimit()));
-    runConfiguration.setTimeOut(copyTimeOut(templateConfiguration.getTimeOut()));
-    runConfiguration.setWorkflow(workflowRun);
+    ChainingConfiguration runConfiguration = copyConfiguration(templateConfiguration, workflowRun);
     workflowRun.setChainingConfiguration(runConfiguration);
     this.chainingConfigurationRepository.save(runConfiguration);
   }
 
-  private ChainingRateLimit copyRateLimit(ChainingRateLimit rateLimit) {
-    if (rateLimit == null) {
-      return null;
-    }
-    ChainingRateLimit copy = new ChainingRateLimit();
-    copy.setEnableRateLimit(rateLimit.isEnableRateLimit());
-    copy.setMaxAttempts(rateLimit.getMaxAttempts());
-    copy.setMaxTemporalRateMinutes(rateLimit.getMaxTemporalRateMinutes());
-    return copy;
-  }
-
-  private ChainingTimeOut copyTimeOut(ChainingTimeOut timeOut) {
-    if (timeOut == null) {
-      return null;
-    }
-    ChainingTimeOut copy = new ChainingTimeOut();
-    copy.setEnableTimeOut(timeOut.isEnableTimeOut());
-    copy.setTimeOutSeconds(timeOut.getTimeOutSeconds());
+  /**
+   * Creates a shallow copy of a {@link ChainingConfiguration}, bound to the given workflow run.
+   *
+   * @param source the template configuration to copy from
+   * @param workflowRun the workflow run to bind the new configuration to
+   * @return a new {@link ChainingConfiguration} with the same field values
+   */
+  private ChainingConfiguration copyConfiguration(
+      ChainingConfiguration source, Workflow workflowRun) {
+    ChainingConfiguration copy = new ChainingConfiguration();
+    copy.setSafeModeEnabled(source.isSafeModeEnabled());
+    // Rate limit
+    copy.setRateLimitEnabled(source.isRateLimitEnabled());
+    copy.setMaxAttempts(source.getMaxAttempts());
+    copy.setMaxTemporalRateSeconds(source.getMaxTemporalRateSeconds());
+    // Timeout
+    copy.setTimeoutEnabled(source.isTimeoutEnabled());
+    copy.setTimeoutSeconds(source.getTimeoutSeconds());
+    copy.setWorkflow(workflowRun);
     return copy;
   }
 
@@ -194,7 +190,7 @@ public class WorkflowService {
     workflowRepository.deleteById(workflowId);
   }
 
-  public ChainingConfiguration fetchChainingConfiguration(@NotBlank String workflowId) {
+  public ChainingConfiguration getChainingConfiguration(@NotBlank String workflowId) {
     Workflow workflow = this.getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
     if (workflow.getChainingConfiguration() == null) {
       throw new ElementNotFoundException(
@@ -206,10 +202,8 @@ public class WorkflowService {
   @Transactional
   public ChainingConfiguration updateChainingConfiguration(
       @NotBlank String workflowId, @Valid ChainingConfigurationInput input) {
-    ChainingConfiguration configuration = fetchChainingConfiguration(workflowId);
-    configuration.setRateLimit(chainingConfigurationMapper.toRateLimit(input.getRateLimit()));
-    configuration.setTimeOut(chainingConfigurationMapper.toTimeOut(input.getTimeOut()));
-    configuration.setSafeMode(input.isSafeMode());
+    ChainingConfiguration configuration = getChainingConfiguration(workflowId);
+    chainingConfigurationMapper.applyInput(input, configuration);
     this.updateWorkflowTemplate(workflowId);
     return chainingConfigurationRepository.save(configuration);
   }

@@ -95,7 +95,7 @@ public class Workflow implements Base {
   @Schema(description = "Simulation associated with this workflow")
   private Exercise simulation;
 
-  @OneToOne(mappedBy = "workflow")
-  @JsonProperty("chaining_configuration_workflow")
+  @OneToOne(fetch = FetchType.LAZY, mappedBy = "workflow")
+  @JsonIgnore
   private ChainingConfiguration chainingConfiguration;
 }

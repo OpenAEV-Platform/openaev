@@ -1,8 +1,6 @@
 package io.openaev.utils.fixtures.composers;
 
 import io.openaev.database.model.ChainingConfiguration;
-import io.openaev.database.model.ChainingRateLimit;
-import io.openaev.database.model.ChainingTimeOut;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.ChainingConfigurationRepository;
@@ -66,16 +64,10 @@ public class WorkflowComposer extends ComposerBase<Workflow> {
 
     /** Creates and attaches a default chaining configuration to the workflow. */
     public Composer withDefaultChainingConfiguration() {
-      ChainingRateLimit rateLimit = new ChainingRateLimit();
-      rateLimit.setEnableRateLimit(false);
-
-      ChainingTimeOut timeOut = new ChainingTimeOut();
-      timeOut.setEnableTimeOut(false);
-
       ChainingConfiguration configuration = new ChainingConfiguration();
-      configuration.setRateLimit(rateLimit);
-      configuration.setTimeOut(timeOut);
-      configuration.setSafeMode(true);
+      configuration.setRateLimitEnabled(false);
+      configuration.setTimeoutEnabled(false);
+      configuration.setSafeModeEnabled(true);
       return withChainingConfiguration(configuration);
     }
 

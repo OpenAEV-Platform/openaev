@@ -11,18 +11,21 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.api.chaining.dto.ChainingRateLimitInput;
-import io.openaev.api.chaining.dto.ChainingTimeOutInput;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ChainingConfigurationRepository;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.CacheManager;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,10 +39,34 @@ class WorkflowApiTest extends IntegrationTest {
   @Autowired private WorkflowComposer workflowComposer;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private ChainingConfigurationRepository chainingConfigurationRepository;
+  @Autowired private OpenAEVConfig openAEVConfig;
+  @Autowired private CacheManager cacheManager;
+
+  private String originalDevFeatures;
+
+  @BeforeEach
+  void enableChainingFeature() {
+    originalDevFeatures = openAEVConfig.getEnabledDevFeatures();
+    openAEVConfig.setEnabledDevFeatures(PreviewFeature.INJECT_CHAINING.getValue());
+    clearFeatureCache();
+  }
+
+  @AfterEach
+  void restoreDevFeatures() {
+    openAEVConfig.setEnabledDevFeatures(originalDevFeatures);
+    clearFeatureCache();
+  }
+
+  private void clearFeatureCache() {
+    var cache = cacheManager.getCache("global");
+    if (cache != null) {
+      cache.clear();
+    }
+  }
 
   @Test
   @DisplayName("Fetch Chaining Configuration should return configuration for a template workflow")
-  void fetchChainingConfiguration_shouldReturnConfiguration() throws Exception {
+  void getChainingConfiguration_shouldReturnConfiguration() throws Exception {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
     attachChainingConfiguration(workflow, true, 3, 10, true, 3660);
@@ -56,22 +83,17 @@ class WorkflowApiTest extends IntegrationTest {
     // -- ASSERT --
     JsonNode body = new ObjectMapper().readTree(response);
 
-    JsonNode rateLimit = body.get("chaining_configuration_rate_limit");
-    assertTrue(rateLimit.get("chaining_enable_rate_limit").asBoolean());
-    assertEquals(3, rateLimit.get("chaining_max_attempts").asInt());
-    assertEquals(10, rateLimit.get("chaining_max_temporal_rate_minutes").asInt());
-
-    JsonNode timeOut = body.get("chaining_configuration_time_out");
-    assertTrue(timeOut.get("chaining_enable_time_out").asBoolean());
-    assertEquals(1, timeOut.get("chaining_time_out_hours").asInt());
-    assertEquals(1, timeOut.get("chaining_time_out_minutes").asInt());
-
-    assertTrue(body.get("chaining_configuration_enable_safe_mode").asBoolean());
+    assertTrue(body.get("chaining_configuration_rate_limit_enabled").asBoolean());
+    assertEquals(3, body.get("chaining_configuration_max_attempts").asInt());
+    assertEquals(10, body.get("chaining_configuration_max_temporal_rate_seconds").asInt());
+    assertTrue(body.get("chaining_configuration_timeout_enabled").asBoolean());
+    assertEquals(3660, body.get("chaining_configuration_timeout_seconds").asLong());
+    assertTrue(body.get("chaining_configuration_safe_mode_enabled").asBoolean());
   }
 
   @Test
   @DisplayName("Fetch Chaining Configuration should return 404 when workflow does not exist")
-  void fetchChainingConfiguration_shouldReturnNotFoundWhenWorkflowMissing() throws Exception {
+  void getChainingConfiguration_shouldReturnNotFoundWhenWorkflowMissing() throws Exception {
     // -- PREPARE --
     String workflowId = "missing-workflow-id";
 
@@ -91,6 +113,58 @@ class WorkflowApiTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName(
+      "Fetch Chaining Configuration should return 404 when INJECT_CHAINING feature is disabled")
+  void getChainingConfiguration_shouldReturnNotFoundWhenFeatureDisabled() throws Exception {
+    // -- PREPARE --
+    openAEVConfig.setEnabledDevFeatures("");
+    clearFeatureCache();
+    Workflow workflow = createTemplateWorkflow();
+
+    // -- EXECUTE & ASSERT --
+    String response =
+        mockMvc
+            .perform(get(WORKFLOW_URI + "/" + workflow.getId() + "/chaining-configuration"))
+            .andExpect(status().isNotFound())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    assertEquals(
+        "Element not found: INJECT_CHAINING feature is not enabled",
+        JsonPath.read(response, "$.message"));
+  }
+
+  @Test
+  @DisplayName(
+      "Update Chaining Configuration should return 404 when INJECT_CHAINING feature is disabled")
+  void updateChainingConfiguration_shouldReturnNotFoundWhenFeatureDisabled() throws Exception {
+    // -- PREPARE --
+    openAEVConfig.setEnabledDevFeatures("");
+    clearFeatureCache();
+    Workflow workflow = createTemplateWorkflow();
+    ChainingConfigurationInput input =
+        ChainingConfigurationInput.builder().rateLimitEnabled(false).safeModeEnabled(true).build();
+
+    // -- EXECUTE & ASSERT --
+    String response =
+        mockMvc
+            .perform(
+                put(WORKFLOW_URI + "/" + workflow.getId() + "/chaining-configuration")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(input))
+                    .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isNotFound())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    assertEquals(
+        "Element not found: INJECT_CHAINING feature is not enabled",
+        JsonPath.read(response, "$.message"));
+  }
+
+  @Test
   @DisplayName("Update Chaining Configuration should update and persist configuration")
   void updateChainingConfiguration_shouldUpdateAndPersistConfiguration() throws Exception {
     // -- PREPARE --
@@ -100,19 +174,12 @@ class WorkflowApiTest extends IntegrationTest {
 
     ChainingConfigurationInput input =
         ChainingConfigurationInput.builder()
-            .rateLimit(
-                ChainingRateLimitInput.builder()
-                    .isRateLimit(true)
-                    .maxAttempts(7)
-                    .maxTemporalRateMinutes(15)
-                    .build())
-            .timeOut(
-                ChainingTimeOutInput.builder()
-                    .isTimeOut(true)
-                    .timeOutHours(1)
-                    .timeOutMinutes(30)
-                    .build())
-            .isSafeMode(false)
+            .rateLimitEnabled(true)
+            .maxAttempts(7)
+            .maxTemporalRateSeconds(15L)
+            .timeoutEnabled(true)
+            .timeoutSeconds(5400L) // 1 h 30 min
+            .safeModeEnabled(false)
             .build();
 
     // -- EXECUTE --
@@ -131,29 +198,22 @@ class WorkflowApiTest extends IntegrationTest {
     // -- ASSERT RESPONSE --
     JsonNode body = new ObjectMapper().readTree(response);
 
-    JsonNode rateLimit = body.get("chaining_configuration_rate_limit");
-    assertTrue(rateLimit.get("chaining_enable_rate_limit").asBoolean());
-    assertEquals(7, rateLimit.get("chaining_max_attempts").asInt());
-    assertEquals(15, rateLimit.get("chaining_max_temporal_rate_minutes").asInt());
-
-    JsonNode timeOut = body.get("chaining_configuration_time_out");
-    assertTrue(timeOut.get("chaining_enable_time_out").asBoolean());
-    assertEquals(1, timeOut.get("chaining_time_out_hours").asInt());
-    assertEquals(30, timeOut.get("chaining_time_out_minutes").asInt());
-
-    assertFalse(body.get("chaining_configuration_enable_safe_mode").asBoolean());
+    assertTrue(body.get("chaining_configuration_rate_limit_enabled").asBoolean());
+    assertEquals(7, body.get("chaining_configuration_max_attempts").asInt());
+    assertEquals(15, body.get("chaining_configuration_max_temporal_rate_seconds").asInt());
+    assertTrue(body.get("chaining_configuration_timeout_enabled").asBoolean());
+    assertEquals(5400L, body.get("chaining_configuration_timeout_seconds").asLong());
+    assertFalse(body.get("chaining_configuration_safe_mode_enabled").asBoolean());
 
     // -- ASSERT DATABASE --
     ChainingConfiguration savedConfiguration =
         chainingConfigurationRepository.findById(existingConfiguration.getId()).orElseThrow();
-    assertNotNull(savedConfiguration.getRateLimit());
-    assertTrue(savedConfiguration.getRateLimit().isEnableRateLimit());
-    assertEquals(7, savedConfiguration.getRateLimit().getMaxAttempts());
-    assertEquals(15, savedConfiguration.getRateLimit().getMaxTemporalRateMinutes());
-    assertNotNull(savedConfiguration.getTimeOut());
-    assertTrue(savedConfiguration.getTimeOut().isEnableTimeOut());
-    assertEquals(5400, savedConfiguration.getTimeOut().getTimeOutSeconds());
-    assertFalse(savedConfiguration.isSafeMode());
+    assertTrue(savedConfiguration.isRateLimitEnabled());
+    assertEquals(7, savedConfiguration.getMaxAttempts());
+    assertEquals(15L, savedConfiguration.getMaxTemporalRateSeconds());
+    assertTrue(savedConfiguration.isTimeoutEnabled());
+    assertEquals(5400L, savedConfiguration.getTimeoutSeconds());
+    assertFalse(savedConfiguration.isSafeModeEnabled());
   }
 
   @Test
@@ -164,19 +224,12 @@ class WorkflowApiTest extends IntegrationTest {
     Workflow workflow = createTemplateWorkflow();
     ChainingConfigurationInput input =
         ChainingConfigurationInput.builder()
-            .rateLimit(
-                ChainingRateLimitInput.builder()
-                    .isRateLimit(true)
-                    .maxAttempts(5)
-                    .maxTemporalRateMinutes(10)
-                    .build())
-            .timeOut(
-                ChainingTimeOutInput.builder()
-                    .isTimeOut(true)
-                    .timeOutHours(0)
-                    .timeOutMinutes(30)
-                    .build())
-            .isSafeMode(true)
+            .rateLimitEnabled(true)
+            .maxAttempts(5)
+            .maxTemporalRateSeconds(10L)
+            .timeoutEnabled(true)
+            .timeoutSeconds(1800L) // 30 min
+            .safeModeEnabled(true)
             .build();
 
     // -- EXECUTE --
@@ -209,14 +262,10 @@ class WorkflowApiTest extends IntegrationTest {
     attachChainingConfiguration(workflow, false, 1, 5, true, 120);
     ChainingConfigurationInput input =
         ChainingConfigurationInput.builder()
-            .rateLimit(
-                ChainingRateLimitInput.builder()
-                    .isRateLimit(true)
-                    .maxAttempts(0) // below @Min(1)
-                    .maxTemporalRateMinutes(10)
-                    .build())
-            .timeOut(ChainingTimeOutInput.builder().isTimeOut(false).build())
-            .isSafeMode(true)
+            .rateLimitEnabled(true)
+            .maxAttempts(0) // below @Min(1)
+            .maxTemporalRateSeconds(10L)
+            .safeModeEnabled(true)
             .build();
 
     // -- EXECUTE & ASSERT --
@@ -239,14 +288,10 @@ class WorkflowApiTest extends IntegrationTest {
     attachChainingConfiguration(workflow, false, 1, 5, true, 120);
     ChainingConfigurationInput input =
         ChainingConfigurationInput.builder()
-            .rateLimit(
-                ChainingRateLimitInput.builder()
-                    .isRateLimit(true)
-                    .maxAttempts(100) // above @Max(99)
-                    .maxTemporalRateMinutes(10)
-                    .build())
-            .timeOut(ChainingTimeOutInput.builder().isTimeOut(false).build())
-            .isSafeMode(true)
+            .rateLimitEnabled(true)
+            .maxAttempts(100) // above @Max(99)
+            .maxTemporalRateSeconds(10L)
+            .safeModeEnabled(true)
             .build();
 
     // -- EXECUTE & ASSERT --
@@ -261,22 +306,18 @@ class WorkflowApiTest extends IntegrationTest {
 
   @Test
   @DisplayName(
-      "Update Chaining Configuration should return 400 when rate limit temporal rate minutes is below minimum")
-  void updateChainingConfiguration_shouldReturnBadRequestWhenTemporalRateMinutesBelowMin()
+      "Update Chaining Configuration should return 400 when max temporal rate seconds is below minimum")
+  void updateChainingConfiguration_shouldReturnBadRequestWhenMaxTemporalRateSecondsBelowMin()
       throws Exception {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
     attachChainingConfiguration(workflow, false, 1, 5, true, 120);
     ChainingConfigurationInput input =
         ChainingConfigurationInput.builder()
-            .rateLimit(
-                ChainingRateLimitInput.builder()
-                    .isRateLimit(true)
-                    .maxAttempts(3)
-                    .maxTemporalRateMinutes(0) // below @Min(1)
-                    .build())
-            .timeOut(ChainingTimeOutInput.builder().isTimeOut(false).build())
-            .isSafeMode(true)
+            .rateLimitEnabled(true)
+            .maxAttempts(3)
+            .maxTemporalRateSeconds(0L) // below @Min(1)
+            .safeModeEnabled(true)
             .build();
 
     // -- EXECUTE & ASSERT --
@@ -291,22 +332,18 @@ class WorkflowApiTest extends IntegrationTest {
 
   @Test
   @DisplayName(
-      "Update Chaining Configuration should return 400 when rate limit temporal rate minutes exceeds maximum")
-  void updateChainingConfiguration_shouldReturnBadRequestWhenTemporalRateMinutesAboveMax()
+      "Update Chaining Configuration should return 400 when max temporal rate seconds exceeds maximum")
+  void updateChainingConfiguration_shouldReturnBadRequestWhenMaxTemporalRateSecondsAboveMax()
       throws Exception {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
     attachChainingConfiguration(workflow, false, 1, 5, true, 120);
     ChainingConfigurationInput input =
         ChainingConfigurationInput.builder()
-            .rateLimit(
-                ChainingRateLimitInput.builder()
-                    .isRateLimit(true)
-                    .maxAttempts(3)
-                    .maxTemporalRateMinutes(60) // above @Max(59)
-                    .build())
-            .timeOut(ChainingTimeOutInput.builder().isTimeOut(false).build())
-            .isSafeMode(true)
+            .rateLimitEnabled(true)
+            .maxAttempts(3)
+            .maxTemporalRateSeconds(60L) // above @Max(59)
+            .safeModeEnabled(true)
             .build();
 
     // -- EXECUTE & ASSERT --
@@ -321,23 +358,17 @@ class WorkflowApiTest extends IntegrationTest {
 
   @Test
   @DisplayName(
-      "Update Chaining Configuration should return 400 when timeout is enabled with both hours and minutes set to zero")
-  void
-      updateChainingConfiguration_shouldReturnBadRequestWhenTimeOutEnabledWithBothHoursAndMinutesZero()
-          throws Exception {
+      "Update Chaining Configuration should return 400 when timeout seconds exceed maximum")
+  void updateChainingConfiguration_shouldReturnBadRequestWhenTimeoutSecondsAboveMax()
+      throws Exception {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
     attachChainingConfiguration(workflow, false, 1, 5, true, 120);
     ChainingConfigurationInput input =
         ChainingConfigurationInput.builder()
-            .rateLimit(ChainingRateLimitInput.builder().isRateLimit(false).build())
-            .timeOut(
-                ChainingTimeOutInput.builder()
-                    .isTimeOut(true)
-                    .timeOutHours(0) // both 0 while enabled → @ValidTimeOutDuration
-                    .timeOutMinutes(0)
-                    .build())
-            .isSafeMode(true)
+            .timeoutEnabled(true)
+            .timeoutSeconds(86401L) // above @Max(86400)
+            .safeModeEnabled(true)
             .build();
 
     // -- EXECUTE & ASSERT --
@@ -351,81 +382,17 @@ class WorkflowApiTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("Update Chaining Configuration should return 400 when timeout hours exceed maximum")
-  void updateChainingConfiguration_shouldReturnBadRequestWhenTimeOutHoursAboveMax()
+  @DisplayName("Update Chaining Configuration should return 400 when timeout seconds are negative")
+  void updateChainingConfiguration_shouldReturnBadRequestWhenTimeoutSecondsNegative()
       throws Exception {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
     attachChainingConfiguration(workflow, false, 1, 5, true, 120);
     ChainingConfigurationInput input =
         ChainingConfigurationInput.builder()
-            .rateLimit(ChainingRateLimitInput.builder().isRateLimit(false).build())
-            .timeOut(
-                ChainingTimeOutInput.builder()
-                    .isTimeOut(true)
-                    .timeOutHours(24) // above @Max(23)
-                    .timeOutMinutes(0)
-                    .build())
-            .isSafeMode(true)
-            .build();
-
-    // -- EXECUTE & ASSERT --
-    mockMvc
-        .perform(
-            put(WORKFLOW_URI + "/" + workflow.getId() + "/chaining-configuration")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(input))
-                .accept(MediaType.APPLICATION_JSON))
-        .andExpect(status().isBadRequest());
-  }
-
-  @Test
-  @DisplayName(
-      "Update Chaining Configuration should return 400 when timeout minutes exceed maximum")
-  void updateChainingConfiguration_shouldReturnBadRequestWhenTimeOutMinutesAboveMax()
-      throws Exception {
-    // -- PREPARE --
-    Workflow workflow = createTemplateWorkflow();
-    attachChainingConfiguration(workflow, false, 1, 5, true, 120);
-    ChainingConfigurationInput input =
-        ChainingConfigurationInput.builder()
-            .rateLimit(ChainingRateLimitInput.builder().isRateLimit(false).build())
-            .timeOut(
-                ChainingTimeOutInput.builder()
-                    .isTimeOut(true)
-                    .timeOutHours(0)
-                    .timeOutMinutes(60) // above @Max(59)
-                    .build())
-            .isSafeMode(true)
-            .build();
-
-    // -- EXECUTE & ASSERT --
-    mockMvc
-        .perform(
-            put(WORKFLOW_URI + "/" + workflow.getId() + "/chaining-configuration")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(input))
-                .accept(MediaType.APPLICATION_JSON))
-        .andExpect(status().isBadRequest());
-  }
-
-  @Test
-  @DisplayName("Update Chaining Configuration should return 400 when timeout minutes are negative")
-  void updateChainingConfiguration_shouldReturnBadRequestWhenTimeOutMinutesNegative()
-      throws Exception {
-    // -- PREPARE --
-    Workflow workflow = createTemplateWorkflow();
-    attachChainingConfiguration(workflow, false, 1, 5, true, 120);
-    ChainingConfigurationInput input =
-        ChainingConfigurationInput.builder()
-            .rateLimit(ChainingRateLimitInput.builder().isRateLimit(false).build())
-            .timeOut(
-                ChainingTimeOutInput.builder()
-                    .isTimeOut(true)
-                    .timeOutHours(1)
-                    .timeOutMinutes(-1) // below @Min(0)
-                    .build())
-            .isSafeMode(true)
+            .timeoutEnabled(true)
+            .timeoutSeconds(-1L) // below @Min(0)
+            .safeModeEnabled(true)
             .build();
 
     // -- EXECUTE & ASSERT --
@@ -455,22 +422,16 @@ class WorkflowApiTest extends IntegrationTest {
       Workflow workflow,
       boolean rateLimitEnabled,
       int maxAttempts,
-      int maxTemporalRateMinutes,
+      int maxTemporalRateSeconds,
       boolean timeOutEnabled,
       int timeOutSeconds) {
-    ChainingRateLimit rateLimit = new ChainingRateLimit();
-    rateLimit.setEnableRateLimit(rateLimitEnabled);
-    rateLimit.setMaxAttempts(maxAttempts);
-    rateLimit.setMaxTemporalRateMinutes(maxTemporalRateMinutes);
-
-    ChainingTimeOut timeOut = new ChainingTimeOut();
-    timeOut.setEnableTimeOut(timeOutEnabled);
-    timeOut.setTimeOutSeconds(timeOutSeconds);
-
     ChainingConfiguration configuration = new ChainingConfiguration();
-    configuration.setRateLimit(rateLimit);
-    configuration.setTimeOut(timeOut);
-    configuration.setSafeMode(true);
+    configuration.setRateLimitEnabled(rateLimitEnabled);
+    configuration.setMaxAttempts(maxAttempts);
+    configuration.setMaxTemporalRateSeconds((long) maxTemporalRateSeconds);
+    configuration.setTimeoutEnabled(timeOutEnabled);
+    configuration.setTimeoutSeconds((long) timeOutSeconds);
+    configuration.setSafeModeEnabled(true);
     workflowComposer.forWorkflow(workflow).withChainingConfiguration(configuration).persist();
     return chainingConfigurationRepository.findById(configuration.getId()).orElseThrow();
   }
