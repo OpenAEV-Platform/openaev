@@ -470,7 +470,7 @@ public class StarterPackTest extends IntegrationTest {
             .findFirst()
             .orElse(null);
     assertNotNull(injectorContractsDummyNuclei);
-    assertEquals("Dummy Nuclei", injectorContractsDummyNuclei.getInjector().getName());
+    assertEquals("Dummy Nuclei", injectorContractsDummyNuclei.getFirstInjector().getName());
     assertTrue(injectorContractsDummyNuclei.isAtomicTesting());
     assertFalse(injectorContractsDummyNuclei.getNeedsExecutor());
 
