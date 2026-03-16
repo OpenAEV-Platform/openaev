@@ -71,6 +71,7 @@ public class InjectInput implements DataInputStep {
     inject.setDescription(getDescription());
     inject.setContent(getContent());
     inject.setInjectorContract(injectorContract);
+    // TODO move away from using the first injector - will be done later in the multi connector epic
     inject.setInjector(injectorContract.getFirstInjector());
     inject.setDependsDuration(getDependsDuration());
     inject.setAllTeams(isAllTeams());

@@ -61,6 +61,8 @@ public class TaniumExecutorContextService extends ExecutorContextService {
     Injector injector =
         inject
             .getInjectorContract()
+            // TODO move away from using the first injector - will be done later in the multi
+            // connector epic
             .map(InjectorContract::getFirstInjector)
             .orElseThrow(
                 () -> new UnsupportedOperationException("Inject does not have a contract"));
