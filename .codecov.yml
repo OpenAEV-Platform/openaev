@@ -11,7 +11,6 @@ coverage:
 
       openaev-api:
         target: 80%
-        threshold: 30%
         informational: true
 
       openaev-front:
