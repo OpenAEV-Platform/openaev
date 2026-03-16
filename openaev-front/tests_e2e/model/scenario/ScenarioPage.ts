@@ -54,7 +54,7 @@ class ScenarioPage {
   async addIndividualMailInject() {
     await this.injectAddBtn.click();
     await MuiListHelpers.searchAndSelectItemInList(this.page, 'Send individual mails');
-    await this.page.getByRole('button', { name: 'Create' }).click();
+    await this.page.getByTestId('inject-form-submit-button').click();
   }
 
   async goToDefinitionTab() {

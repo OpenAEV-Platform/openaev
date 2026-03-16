@@ -30,7 +30,7 @@ class UpdateTeamDialog {
     if (isContextual) {
       await this.page.getByRole('checkbox', { name: 'Only in this context' }).check();
     }
-    await this.page.getByRole('button', { name: 'Create' }).click();
+    await this.page.getByTestId('team-form-submit-button').click();
   }
 }
 
