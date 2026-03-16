@@ -8,11 +8,3 @@ coverage:
       default:
         target: 80%
         informational: true
-
-      openaev-api:
-        target: 80%
-        informational: true
-
-      openaev-front:
-        target: 80%
-        informational: true
