@@ -7,6 +7,18 @@ coverage:
         informational: true
     patch:
       default:
-        target: 50%
-        threshold: 0
+        target: 80%
+        threshold: 30%
+        informational: true
+
+      openaev-api:
+        flags:
+          - openaev-api
+        target: 80%
+        informational: true
+
+      openaev-front:
+        flags:
+          - openaev-front
+        target: 80%
         informational: true
