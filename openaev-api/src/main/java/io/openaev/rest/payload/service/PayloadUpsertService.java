@@ -56,7 +56,7 @@ public class PayloadUpsertService {
       Collector collector = this.collectorService.collector(input.getCollector());
       collectorType =
           collectorTypeRepository
-              .findByNameAndTenantId(collector.getType(), TenantContext.getCurrentTenant())
+              .findByName(collector.getType())
               .orElseThrow(
                   () ->
                       new IllegalStateException(

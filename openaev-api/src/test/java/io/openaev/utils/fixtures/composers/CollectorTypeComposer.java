@@ -1,6 +1,5 @@
 package io.openaev.utils.fixtures.composers;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.CollectorType;
 import io.openaev.database.repository.CollectorTypeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,7 +22,7 @@ public class CollectorTypeComposer extends ComposerBase<CollectorType> {
     public Composer persist() {
       this.collectorType =
           collectorTypeRepository
-              .findByNameAndTenantId(this.collectorType.getName(), TenantContext.getCurrentTenant())
+              .findByName(this.collectorType.getName())
               .orElseGet(() -> collectorTypeRepository.save(this.collectorType));
       return this;
     }

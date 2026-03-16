@@ -178,7 +178,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
    */
   public CollectorType ensureCollectorTypeExists(String type) {
     return collectorTypeRepository
-        .findByNameAndTenantId(type, TenantContext.getCurrentTenant())
+        .findByName(type)
         .orElseGet(
             () -> {
               CollectorType ct = new CollectorType(type);

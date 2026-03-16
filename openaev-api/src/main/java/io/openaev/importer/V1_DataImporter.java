@@ -1501,8 +1501,7 @@ public class V1_DataImporter implements Importer {
         continue;
       }
 
-      Optional<CollectorType> collectorType =
-          collectorTypeRepository.findByNameAndTenantId(type, TenantContext.getCurrentTenant());
+      Optional<CollectorType> collectorType = collectorTypeRepository.findByName(type);
       if (collectorType.isPresent()) {
         detectionRemediationInputs.add(buildDetectionRemediationFromJsonNode(detectionNode));
       } else {

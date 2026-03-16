@@ -9,5 +9,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface CollectorTypeRepository extends CrudRepository<CollectorType, String> {
 
-  Optional<CollectorType> findByNameAndTenantId(@NotNull String name, @NotNull String tenantId);
+  Optional<CollectorType> findByName(@NotNull String name);
 }

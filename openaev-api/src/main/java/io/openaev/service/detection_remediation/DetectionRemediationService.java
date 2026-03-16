@@ -1,7 +1,6 @@
 package io.openaev.service.detection_remediation;
 
 import io.openaev.api.detection_remediation.dto.PayloadInput;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.CollectorType;
 import io.openaev.database.model.DetectionRemediation;
@@ -45,7 +44,7 @@ public class DetectionRemediationService {
   public DetectionRemediation createDetectionRemediation(Payload payload, String collectorType) {
     CollectorType type =
         collectorTypeRepository
-            .findByNameAndTenantId(collectorType, TenantContext.getCurrentTenant())
+            .findByName(collectorType)
             .orElseThrow(
                 () -> new ElementNotFoundException("Collector type not found: " + collectorType));
     return DetectionRemediation.builder().payload(payload).collectorType(type).build();
