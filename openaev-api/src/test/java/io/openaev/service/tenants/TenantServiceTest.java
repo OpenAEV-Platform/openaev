@@ -54,7 +54,7 @@ class TenantServiceTest extends IntegrationTest {
     minioClient.putObject(
         PutObjectArgs.builder()
             .bucket(minioConfig.getBucket())
-            .object(created.getName() + "/test-file.txt")
+            .object(created.getId() + "/test-file.txt")
             .stream(data, content.length, -1)
             .contentType("text/plain")
             .build());
@@ -67,7 +67,7 @@ class TenantServiceTest extends IntegrationTest {
         minioClient.listObjects(
             ListObjectsArgs.builder()
                 .bucket(minioConfig.getBucket())
-                .prefix(created.getName() + "/")
+                .prefix(created.getId() + "/")
                 .maxKeys(1)
                 .build());
     boolean pathExists = results.iterator().hasNext();

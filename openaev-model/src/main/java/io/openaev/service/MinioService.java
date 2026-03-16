@@ -143,7 +143,7 @@ public class MinioService implements DependenciesManager {
         StatObjectArgs.builder().bucket(bucket()).object(fullPath).build());
   }
 
-  private Iterable<Result<Item>> count(String prefix, boolean includeVersions) {
+  private Iterable<Result<Item>> listObjects(String prefix, boolean includeVersions) {
     return minioClient.listObjects(
         ListObjectsArgs.builder()
             .bucket(bucket())
@@ -155,7 +155,7 @@ public class MinioService implements DependenciesManager {
 
   @VisibleForTesting
   public int countObjectsForCurrentTenant(String prefix) {
-    Iterable<Result<Item>> results = count(getTenantPath(prefix), false);
+    Iterable<Result<Item>> results = listObjects(getTenantPath(prefix), false);
     int count = 0;
     for (Result<Item> ignored : results) {
       count++;
@@ -165,7 +165,7 @@ public class MinioService implements DependenciesManager {
 
   @VisibleForTesting
   public int countObjects(String prefix) {
-    Iterable<Result<Item>> results = count(prefix, false);
+    Iterable<Result<Item>> results = listObjects(prefix, false);
     int count = 0;
     for (Result<Item> ignored : results) {
       count++;
@@ -178,7 +178,7 @@ public class MinioService implements DependenciesManager {
    * them (1 000 per request — S3/MinIO limit).
    */
   private void deleteObjectsByPrefix(String prefix, boolean includeVersions) throws MinioException {
-    Iterable<Result<Item>> objects = count(prefix, includeVersions);
+    Iterable<Result<Item>> objects = listObjects(prefix, includeVersions);
 
     // Mapper: with or without versionId depending on the use-case
     Function<Item, DeleteObject> toDeleteObject =
