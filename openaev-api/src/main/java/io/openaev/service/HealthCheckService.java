@@ -3,10 +3,7 @@ package io.openaev.service;
 import com.cronutils.utils.VisibleForTesting;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
-import io.minio.BucketExistsArgs;
 import io.minio.MinioClient;
-import io.minio.errors.*;
-import io.openaev.config.MinioConfig;
 import io.openaev.config.RabbitMQSslConfiguration;
 import io.openaev.config.RabbitmqConfig;
 import io.openaev.database.repository.HealthCheckRepository;
@@ -27,8 +24,8 @@ public class HealthCheckService {
 
   private final RabbitMQSslConfiguration rabbitMQSslConfiguration;
   private final HealthCheckRepository healthCheckRepository;
-  private final MinioConfig minioConfig;
   private final MinioDriver minioDriver;
+  private final MinioService minioService;
   private final RabbitmqConfig rabbitmqConfig;
 
   /**
@@ -104,16 +101,8 @@ public class HealthCheckService {
     MinioClient minioClient = minioDriver.getMinioClient();
     minioClient.setTimeout(2000L, 2000L, 2000L);
     try {
-      minioClient.bucketExists(BucketExistsArgs.builder().bucket(minioConfig.getBucket()).build());
-    } catch (ErrorResponseException
-        | InvalidResponseException
-        | InsufficientDataException
-        | InternalException
-        | InvalidKeyException
-        | IOException
-        | NoSuchAlgorithmException
-        | ServerException
-        | XmlParserException e) {
+      minioService.isTenantPathExists();
+    } catch (Exception e) {
       throw new HealthCheckFailureException("FileStorage check failure", e);
     }
   }

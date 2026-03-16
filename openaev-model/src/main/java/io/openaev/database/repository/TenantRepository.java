@@ -11,9 +11,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface TenantRepository
     extends CrudRepository<Tenant, String>, JpaSpecificationExecutor<Tenant> {
-  boolean existsByName(String name);
 
-  @Modifying
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
   @Query(value = "DELETE FROM tenants t WHERE t.tenant_id = :tenantId", nativeQuery = true)
-  int deleteByIdNative(@Param("tenantId") String tenantId);
+  void deleteByIdNative(@Param("tenantId") String tenantId);
 }
