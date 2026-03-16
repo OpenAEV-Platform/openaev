@@ -147,9 +147,9 @@ public class HealthCheckUtils {
     List<HealthCheck> result = new ArrayList<>();
     InjectorContract contract = inject.getInjectorContract().orElse(null);
     if (contract != null
-        && contract.getFirstInjector() != null
-        && contract.getFirstInjector().getDependencies() != null
-        && Arrays.asList(contract.getFirstInjector().getDependencies())
+        && inject.getInjector() != null
+        && inject.getInjector().getDependencies() != null
+        && Arrays.asList(inject.getInjector().getDependencies())
             .contains(externalServiceDependency)) {
       boolean isInjectorRegistered =
           injectors.stream()
@@ -232,13 +232,9 @@ public class HealthCheckUtils {
                 inject ->
                     inject.getInjectorContract() != null
                         && inject.getInjectorContract().isPresent()
-                        && inject.getInjectorContract().get().getFirstInjector() != null
-                        && inject.getInjectorContract().get().getFirstInjector().getDependencies()
-                            != null)
-            .flatMap(
-                inject ->
-                    Arrays.stream(
-                        inject.getInjectorContract().get().getFirstInjector().getDependencies()))
+                        && inject.getInjector() != null
+                        && inject.getInjector().getDependencies() != null)
+            .flatMap(inject -> Arrays.stream(inject.getInjector().getDependencies()))
             .anyMatch(
                 dependency ->
                     ExternalServiceDependency.SMTP.equals(dependency)
