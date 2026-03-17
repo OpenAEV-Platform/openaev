@@ -3,8 +3,8 @@ import { Avatar, Button, CircularProgress, ListItemIcon, ListItemText, Menu, Men
 import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useCallback, useState } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
+import { MESSAGING$ } from '../../../utils/Environment';
 import useAuth from '../../../utils/hooks/useAuth';
-import { MESSAGING$ } from "../../../utils/Environment";
 
 /**
  * TenantSwitcher component displays a dropdown allowing users to switch
@@ -16,7 +16,6 @@ const TenantSwitcher: FunctionComponent = () => {
 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [switching, setSwitching] = useState(false);
-
 
   const handleOpen = useCallback((event: ReactMouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -35,10 +34,10 @@ const TenantSwitcher: FunctionComponent = () => {
 
     setSwitching(true);
     try {
-      await switchUserTenant(tenantId)
+      await switchUserTenant(tenantId);
       setSwitching(false);
       handleClose();
-    } catch (error) {
+    } catch (_error) {
       setSwitching(false);
       MESSAGING$.notifyError(t('Error switching tenant'));
     }
@@ -51,22 +50,24 @@ const TenantSwitcher: FunctionComponent = () => {
       <Tooltip title={t('Switch tenant')}>
         <Button
           onClick={handleOpen}
-          startIcon={
+          startIcon={(
             <Avatar
-              sx={{ width: 24, height: 24, bgcolor: 'primary.main' }}
+              sx={{
+                width: 24,
+                height: 24,
+                bgcolor: 'primary.main',
+              }}
             >
               <BusinessIcon fontSize="small" />
             </Avatar>
-          }
+          )}
           endIcon={<ExpandMoreIcon />}
           disabled={switching}
           sx={{
-            textTransform: 'none',
-            color: 'text.primary',
-            width: 220,
-            '&:hover': {
-              backgroundColor: 'action.hover',
-            },
+            'textTransform': 'none',
+            'color': 'text.primary',
+            'width': 220,
+            '&:hover': { backgroundColor: 'action.hover' },
           }}
           aria-controls={menuOpen ? 'tenant-switcher-menu' : undefined}
           aria-haspopup="true"
@@ -75,7 +76,12 @@ const TenantSwitcher: FunctionComponent = () => {
           {switching ? (
             <CircularProgress size={16} sx={{ ml: 1 }} />
           ) : (
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+            >
               {currentUserTenant?.tenant_name || t('Select tenant')}
             </span>
           )}
@@ -131,9 +137,7 @@ const TenantSwitcher: FunctionComponent = () => {
                   fontWeight: tenant.tenant_id === currentUserTenant?.tenant_id ? 600 : 400,
                   noWrap: true,
                 },
-                secondary: {
-                  noWrap: true,
-                },
+                secondary: { noWrap: true },
               }}
               sx={{ overflow: 'hidden' }}
             />

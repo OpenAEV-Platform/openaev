@@ -5,21 +5,13 @@ import type { TenantOutput } from '../../utils/api-types';
 /**
  * Extended TenantOutput with is_current flag for tenant switcher
  */
-export interface UserTenantOutput extends TenantOutput {
-  tenant_is_current?: boolean;
-}
+export interface UserTenantOutput extends TenantOutput { tenant_is_current?: boolean }
 
-export interface UserTenantsResponse {
-  tenants: UserTenantOutput[];
-}
+export interface UserTenantsResponse { tenants: UserTenantOutput[] }
 
-export interface SwitchTenantInput {
-  tenant_id: string;
-}
+export interface SwitchTenantInput { tenant_id: string }
 
-export interface SwitchTenantResponse {
-  token?: string;
-}
+export interface SwitchTenantResponse { token?: string }
 
 // -- ACTIONS --
 
@@ -50,4 +42,3 @@ export const fetchUserTenants = async (): Promise<UserTenantsResponse> => {
     ],
   };
 };
-

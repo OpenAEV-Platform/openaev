@@ -4,8 +4,8 @@ import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
 
 import { fetchMe, fetchPlatformParameters } from './actions/Application';
-import { fetchUserTenants, type UserTenantOutput } from './actions/user/user-tenant-actions';
 import { type LoggedHelper } from './actions/helper';
+import { fetchUserTenants, type UserTenantOutput } from './actions/user/user-tenant-actions';
 import EnterpriseEditionAgreementDialog from './admin/components/common/entreprise_edition/EnterpriseEditionAgreementDialog';
 import ConnectedIntlProvider from './components/AppIntlProvider';
 import ConnectedThemeProvider from './components/AppThemeProvider';
@@ -90,9 +90,8 @@ const Root = () => {
         setCurrentUserTenant(current);
       }
       // TODO: tenant routing
-      //window.location.replace(window.location.href);
+      // window.location.replace(window.location.href);
     }, 0);
-
   }, [currentUserTenant, userTenants]);
 
   const { isReachable } = useNetworkCheck(settings?.xtm_hub_url && `${settings?.xtm_hub_url}/health`);

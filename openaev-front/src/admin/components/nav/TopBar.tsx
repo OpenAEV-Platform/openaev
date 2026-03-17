@@ -21,9 +21,9 @@ import { useAppDispatch } from '../../../utils/hooks';
 import useAuth from '../../../utils/hooks/useAuth';
 import { AbilityContext } from '../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { isFeatureEnabled } from '../../../utils/utils';
 import AskArianeButton from '../ariane/AskArianeButton';
 import TenantSwitcher from './TenantSwitcher';
-import { isFeatureEnabled } from "../../../utils/utils";
 
 const useStyles = makeStyles()(theme => ({
   appBar: {
