@@ -20,8 +20,6 @@ import org.springframework.stereotype.Component;
  *     use-aws-role: true
  *     sts-endpoint: https://sts.amazonaws.com
  * }</pre>
- *
- * @see MinioConfig
  */
 @Component
 @Data

@@ -104,6 +104,7 @@ public class AtomicTestingService {
     injectToSave.setTitle(input.getTitle());
     injectToSave.setContent(finalContent);
     injectToSave.setInjectorContract(injectorContract);
+    injectToSave.setInjector(injectorContract.getInjector());
     injectToSave.setAllTeams(input.isAllTeams());
     injectToSave.setDescription(input.getDescription());
     injectToSave.setDependsDuration(0L);

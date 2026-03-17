@@ -3327,6 +3327,7 @@ export interface Inject {
   inject_expectations?: string[];
   /** @minLength 1 */
   inject_id: string;
+  inject_injector?: string;
   inject_injector_contract?: InjectorContract;
   inject_kill_chain_phases?: KillChainPhase[];
   inject_scenario?: string;
@@ -3668,6 +3669,7 @@ export interface InjectInput {
   inject_description?: string;
   inject_documents?: InjectDocumentInput[];
   inject_enabled?: boolean;
+  inject_injector?: string;
   inject_injector_contract?: string;
   inject_tags?: string[];
   inject_teams?: string[];

@@ -444,6 +444,59 @@ class InjectApiTest extends IntegrationTest {
     assertTrue(JsonPath.read(response, "$.status_traces").toString().contains("Inject is empty"));
   }
 
+  @DisplayName(
+      "Execute an email inject for exercise with null injector (legacy fallback via type+tenant)")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void executeEmailInjectForExercise_withNullInjector_shouldFallbackToTypeResolution()
+      throws Exception {
+    // -- ARRANGE --
+    InjectorContract injectorContract = injectorContractFixture.getWellKnownSingleEmailContract();
+    Inject inject = getInjectForEmailContract(injectorContract);
+    User user = userRepository.findById(currentUser().getId()).orElseThrow();
+
+    DirectInjectInput input = new DirectInjectInput();
+    input.setTitle(inject.getTitle());
+    input.setDescription(inject.getDescription());
+    input.setInjectorContract(inject.getInjectorContract().orElseThrow().getId());
+    input.setUserIds(List.of(user.getId()));
+    ObjectNode content = objectMapper.createObjectNode();
+    content.set("subject", objectMapper.convertValue("Subject", JsonNode.class));
+    content.set("body", objectMapper.convertValue("Test body", JsonNode.class));
+    content.set("expectationType", objectMapper.convertValue("none", JsonNode.class));
+    input.setContent(content);
+
+    MockMultipartFile inputJson =
+        new MockMultipartFile(
+            "input", null, "application/json", objectMapper.writeValueAsString(input).getBytes());
+
+    // Mock the behavior of JavaMailSender
+    doNothing().when(javaMailSender).send(ArgumentMatchers.any(SimpleMailMessage.class));
+    when(javaMailSender.createMimeMessage()).thenReturn(new MimeMessage((Session) null));
+
+    // Intercept executor.execute() to null out the injector — simulating a legacy inject
+    doAnswer(
+            invocation -> {
+              ExecutableInject executableInject = invocation.getArgument(0);
+              executableInject.getInjection().getInject().setInjector(null);
+              return invocation.callRealMethod();
+            })
+        .when(executor)
+        .execute(any());
+
+    // -- ACT --
+    String response =
+        mvc.perform(multipart(EXERCISE_URI + "/" + EXERCISE.getId() + "/inject").file(inputJson))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // -- ASSERT --
+    assertNotNull(response);
+    assertEquals("SUCCESS", JsonPath.read(response, "$.status_name"));
+  }
+
   // -- BULK DELETE --
 
   @DisplayName("Delete list of inject for exercise")
