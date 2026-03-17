@@ -2,7 +2,7 @@ package io.openaev.utilstest;
 
 import io.openaev.rest.helper.queue.BatchQueueService;
 import io.openaev.rest.inject.InjectApi;
-import io.openaev.service.workflow.QueueChainingService;
+import io.openaev.service.chaining.QueueChainingService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.TestContext;
