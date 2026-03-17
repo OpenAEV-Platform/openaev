@@ -18,7 +18,7 @@ const defaultContext: UserContextType = {
   isXTMHubAccessible: undefined,
   userTenants: [],
   currentUserTenant: null,
-  switchUserTenant: async (tenantId: string) => {},
+  switchUserTenant: async (_tenantId: string) => {},
 };
 export const UserContext = createContext<UserContextType>(defaultContext);
 
