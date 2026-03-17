@@ -4,6 +4,7 @@ import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useCallback
 
 import { useFormatter } from '../../../components/i18n';
 import useAuth from '../../../utils/hooks/useAuth';
+import { MESSAGING$ } from "../../../utils/Environment";
 
 /**
  * TenantSwitcher component displays a dropdown allowing users to switch
@@ -36,13 +37,12 @@ const TenantSwitcher: FunctionComponent = () => {
 
     setSwitching(true);
     try {
-      console.log('[TenantSwitcher] Calling switchUserTenant...');
       await switchUserTenant(tenantId)
       setSwitching(false);
       handleClose();
     } catch (error) {
-      console.error('[TenantSwitcher] Error caught:', error);
       setSwitching(false);
+      MESSAGING$.notifyError(t('Error switching tenant'));
     }
   }, [currentUserTenant, handleClose]);
 
