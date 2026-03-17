@@ -42,16 +42,12 @@ export const fetchUserTenants = async (): Promise<UserTenantsResponse> => {
         tenant_id: '2cffad3a-0001-4078-b0e2-ef74274022c3', // DEFAULT_TENANT_UUID
         tenant_name: 'Default Tenant',
         tenant_description: 'First default tenant auto created',
-        tenant_logo_dark: null,
-        tenant_logo_light: null,
         tenant_is_current: true,
       },
       {
         tenant_id: 'uuid-2',
         tenant_name: 'Beta Industries',
         tenant_description: 'Secondary tenant for testing',
-        tenant_logo_dark: null,
-        tenant_logo_light: null,
         tenant_is_current: false,
       },
     ],
