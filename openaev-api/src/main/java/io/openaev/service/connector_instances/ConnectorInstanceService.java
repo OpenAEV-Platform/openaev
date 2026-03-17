@@ -130,6 +130,33 @@ public class ConnectorInstanceService {
   }
 
   /**
+   * Resolves the {@link ConnectorInstance} that owns the given executor entity.
+   *
+   * <p>Looks up the connector instance configuration where the key is {@code EXECUTOR_ID} and the
+   * value matches the provided executor ID.
+   *
+   * @param executorId the executor entity ID
+   * @return the owning connector instance
+   * @throws EntityNotFoundException if no connector instance is found for the executor ID
+   */
+  @Transactional(readOnly = true)
+  public ConnectorInstancePersisted findByExecutorId(String executorId) {
+    ConnectorInstanceConfigurationRepository.ConnectorIdsFomDatabase persistedId =
+        this.connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue(
+            ConnectorType.EXECUTOR.getIdKeyName(), executorId);
+    if (persistedId == null) {
+      throw new EntityNotFoundException(
+          "No connector instance found for executor ID: " + executorId);
+    }
+    return this.connectorInstanceRepository
+        .findById(persistedId.getConnectorInstanceId())
+        .orElseThrow(
+            () ->
+                new EntityNotFoundException(
+                    "Connector instance not found: " + persistedId.getConnectorInstanceId()));
+  }
+
+  /**
    * Retrieves all connector instances.
    *
    * @return the list of connector instances
