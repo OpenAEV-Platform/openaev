@@ -59,18 +59,14 @@ const Root = () => {
   const loadUserTenants = useCallback(async () => {
     if (!me) return;
 
-    try {
-      const result = await fetchUserTenants();
-      if (result && result.tenants) {
-        setUserTenants(result.tenants);
-        // TODO: at initial logging
-        //  - either have a "preferred" tenant to land on (or do we persist last visited tenant)
-        //  - land on the first tenant in the list (sorted by name for better UX) if no preferred tenant is set
-        const current = result.tenants.find(t => t.tenant_is_current);
-        setCurrentUserTenant(current || result.tenants[0] || null);
-      }
-    } catch (error) {
-      console.error('Failed to load user tenants:', error);
+    const result = await fetchUserTenants();
+    if (result && result.tenants) {
+      setUserTenants(result.tenants);
+      // TODO: at initial logging
+      //  - either have a "preferred" tenant to land on (or do we persist last visited tenant)
+      //  - land on the first tenant in the list (sorted by name for better UX) if no preferred tenant is set
+      const current = result.tenants.find(t => t.tenant_is_current);
+      setCurrentUserTenant(current || result.tenants[0] || null);
     }
   }, [me]);
 
