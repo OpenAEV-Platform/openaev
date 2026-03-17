@@ -85,13 +85,13 @@ const InjectTeamsList: FunctionComponent<Props> = ({ readOnly = false, hideEnabl
           <div className={classes.column}>
             <Typography color={textColor} className={classes.bodyItem}>
               {team.team_name}
-            </Typography>
-            <Tooltip color={textColor} title={t('Number of users')} className={classes.bodyItem}>
-              <Typography>{team.team_users_number}</Typography>
+            </div>
+            <Tooltip title={t('Number of users')} className={classes.bodyItem}>
+              <span data-testid="user-count">{team.team_users_number}</span>
             </Tooltip>
             {!hideEnabledUsersNumber && (
-              <Tooltip color={textColor} title={t('Number of enable user')} className={classes.bodyItem}>
-                <Typography>{userEnabled}</Typography>
+              <Tooltip title={t('Number of enable user')} className={classes.bodyItem}>
+                <span data-testid="enable-user-count">{userEnabled}</span>
               </Tooltip>
             )}
             <div className={classes.bodyItem}>

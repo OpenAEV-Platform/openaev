@@ -246,7 +246,7 @@ const Payloads = () => {
   };
 
   return (
-    <>
+    <div data-testid="payload-list-page">
       <Breadcrumbs
         variant="list"
         elements={[{ label: t('Components') }, {
@@ -370,7 +370,7 @@ const Payloads = () => {
           documentsMap={documentsMap}
         />
       </Drawer>
-    </>
+    </div>
   );
 };
 
