@@ -39,6 +39,7 @@ const TenantSwitcher: FunctionComponent = () => {
       console.log('[TenantSwitcher] Calling switchUserTenant...');
       await switchUserTenant(tenantId)
       setSwitching(false);
+      handleClose();
     } catch (error) {
       console.error('[TenantSwitcher] Error caught:', error);
       setSwitching(false);
@@ -64,6 +65,7 @@ const TenantSwitcher: FunctionComponent = () => {
           sx={{
             textTransform: 'none',
             color: 'text.primary',
+            width: 220,
             '&:hover': {
               backgroundColor: 'action.hover',
             },
@@ -75,7 +77,9 @@ const TenantSwitcher: FunctionComponent = () => {
           {switching ? (
             <CircularProgress size={16} sx={{ ml: 1 }} />
           ) : (
-            currentUserTenant?.tenant_name || t('Select Tenant')
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {currentUserTenant?.tenant_name || t('Select Tenant')}
+            </span>
           )}
         </Button>
       </Tooltip>
@@ -97,7 +101,7 @@ const TenantSwitcher: FunctionComponent = () => {
           paper: {
             elevation: 3,
             sx: {
-              minWidth: 250,
+              width: 280,
               mt: 1,
             },
           },
@@ -124,9 +128,16 @@ const TenantSwitcher: FunctionComponent = () => {
             <ListItemText
               primary={tenant.tenant_name}
               secondary={tenant.tenant_description}
-              primaryTypographyProps={{
-                fontWeight: tenant.tenant_id === currentUserTenant?.tenant_id ? 600 : 400,
+              slotProps={{
+                primary: {
+                  fontWeight: tenant.tenant_id === currentUserTenant?.tenant_id ? 600 : 400,
+                  noWrap: true,
+                },
+                secondary: {
+                  noWrap: true,
+                },
               }}
+              sx={{ overflow: 'hidden' }}
             />
             {tenant.tenant_id === currentUserTenant?.tenant_id && (
               <CheckIcon fontSize="small" color="primary" sx={{ ml: 1 }} />
