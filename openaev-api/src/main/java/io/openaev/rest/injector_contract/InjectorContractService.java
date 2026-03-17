@@ -344,7 +344,7 @@ public class InjectorContractService implements DependenciesManager {
     if (target.getAttackPatterns().isEmpty() && !source.getAttackPatternsExternalIds().isEmpty()) {
       // All injectors linked to a contract share the same tenant, so any injector is safe
       // for tenant resolution
-      Injector anyInjector = target.getInjectors().isEmpty() ? null : target.getInjectors().get(0);
+      Injector anyInjector = target.getFirstInjector();
       if (anyInjector != null) {
         List<AttackPattern> attackPatterns =
             fromIterable(
