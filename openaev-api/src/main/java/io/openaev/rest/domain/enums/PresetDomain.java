@@ -28,7 +28,7 @@ public class PresetDomain {
           URL_FILTERING, List.of("bitsadmin"),
           CLOUD, List.of("aws", "azure", "gcp"));
 
-  private static final Set<Domain> presetDomains =
+  public static final Set<Domain> presetDomains =
       Set.of(
           ENDPOINT,
           NETWORK,
