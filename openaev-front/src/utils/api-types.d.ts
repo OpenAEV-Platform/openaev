@@ -805,65 +805,6 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_short_description?: string;
 }
 
-/** Input for creating or updating a workflow configuration on a scenario. */
-export interface ChainingConfigurationInput {
-  /**
-   * Maximum number of attempts allowed before the temporal rate limit kicks in (1–99).
-   * @format int32
-   * @min 1
-   * @max 99
-   */
-  chaining_configuration_max_attempts?: number;
-  /**
-   * Minutes to wait between attempts (1–59).
-   * @format int64
-   * @min 1
-   * @max 59
-   */
-  chaining_configuration_max_temporal_rate_seconds?: number;
-  /** Whether rate limiting is enabled. */
-  chaining_configuration_rate_limit_enabled?: boolean;
-  /**
-   * If enabled, exploits that could crash the customer environment will not be executed.
-   * @default true
-   */
-  chaining_configuration_safe_mode_enabled?: boolean;
-  /** Whether the timeout feature is enabled. */
-  chaining_configuration_timeout_enabled?: boolean;
-  /**
-   * Total timeout in seconds for the attack chaining scenario (0–86400).
-   * @format int64
-   * @min 0
-   * @max 86400
-   */
-  chaining_configuration_timeout_seconds?: number;
-}
-
-/** Output for a workflow configuration on a scenario. */
-export interface ChainingConfigurationOutput {
-  /**
-   * Maximum number of attempts allowed before the temporal rate limit kicks in.
-   * @format int32
-   */
-  chaining_configuration_max_attempts?: number;
-  /**
-   * Seconds to wait between attempts.
-   * @format int64
-   */
-  chaining_configuration_max_temporal_rate_seconds?: number;
-  /** Whether rate limiting is enabled. */
-  chaining_configuration_rate_limit_enabled?: boolean;
-  /** If enabled, exploits that could crash the customer environment will not be executed. */
-  chaining_configuration_safe_mode_enabled?: boolean;
-  /** Whether the timeout feature is enabled. */
-  chaining_configuration_timeout_enabled?: boolean;
-  /**
-   * Total timeout in seconds for the attack chaining scenario.
-   * @format int64
-   */
-  chaining_configuration_timeout_seconds?: number;
-}
-
 export interface Challenge {
   challenge_category?: string;
   challenge_content?: string;
@@ -7892,6 +7833,65 @@ export interface WidgetToEntitiesOutput {
   es_entities?: EsEntities;
   /** List configuration generated based on the input widget id and filter value */
   list_configuration?: ListConfiguration;
+}
+
+/** Input for creating or updating a workflow configuration. */
+export interface WorkflowConfigurationInput {
+  /**
+   * Maximum number of attempts allowed before the temporal rate limit kicks in (1–99).
+   * @format int32
+   * @min 1
+   * @max 99
+   */
+  workflow_configuration_max_attempts?: number;
+  /**
+   * Seconds to wait between attempts (1–59).
+   * @format int64
+   * @min 1
+   * @max 59
+   */
+  workflow_configuration_max_temporal_rate_seconds?: number;
+  /** Whether rate limiting is enabled. */
+  workflow_configuration_rate_limit_enabled?: boolean;
+  /**
+   * If enabled, exploits that could crash the customer environment will not be executed.
+   * @default true
+   */
+  workflow_configuration_safe_mode_enabled?: boolean;
+  /** Whether the timeout feature is enabled. */
+  workflow_configuration_timeout_enabled?: boolean;
+  /**
+   * Total timeout in seconds for the attack workflow scenario (0–86400).
+   * @format int64
+   * @min 0
+   * @max 86400
+   */
+  workflow_configuration_timeout_seconds?: number;
+}
+
+/** Output for a workflow configuration on a scenario. */
+export interface WorkflowConfigurationOutput {
+  /**
+   * Maximum number of attempts allowed before the temporal rate limit kicks in.
+   * @format int32
+   */
+  workflow_configuration_max_attempts?: number;
+  /**
+   * Seconds to wait between attempts.
+   * @format int64
+   */
+  workflow_configuration_max_temporal_rate_seconds?: number;
+  /** Whether rate limiting is enabled. */
+  workflow_configuration_rate_limit_enabled?: boolean;
+  /** If enabled, exploits that could crash the customer environment will not be executed. */
+  workflow_configuration_safe_mode_enabled?: boolean;
+  /** Whether the timeout feature is enabled. */
+  workflow_configuration_timeout_enabled?: boolean;
+  /**
+   * Total timeout in seconds for the attack workflow scenario.
+   * @format int64
+   */
+  workflow_configuration_timeout_seconds?: number;
 }
 
 export interface XtmComposerInstanceOutput {

@@ -23,7 +23,7 @@ public class WorkflowComposer extends ComposerBase<Workflow> {
     private Optional<ExerciseComposer.Composer> simulationComposer = Optional.empty();
     private final List<StepComposer.Composer> stepComposers = new ArrayList<>();
     private final List<WorkflowComposer.Composer> workflowComposers = new ArrayList<>();
-    private Optional<WorkflowConfiguration> chainingConfiguration = Optional.empty();
+    private Optional<WorkflowConfiguration> workflowConfiguration = Optional.empty();
 
     public Composer(Workflow workflow) {
       this.workflow = workflow;
@@ -55,34 +55,34 @@ public class WorkflowComposer extends ComposerBase<Workflow> {
     }
 
     /** Attaches a provided workflow configuration to the workflow. */
-    public Composer withChainingConfiguration(WorkflowConfiguration configuration) {
-      this.chainingConfiguration = Optional.of(configuration);
+    public Composer withWorkflowConfiguration(WorkflowConfiguration configuration) {
+      this.workflowConfiguration = Optional.of(configuration);
       configuration.setWorkflow(workflow);
       workflow.setWorkflowConfiguration(configuration);
       return this;
     }
 
     /** Creates and attaches a default workflow configuration to the workflow. */
-    public Composer withDefaultChainingConfiguration() {
+    public Composer withDefaultWorkflowConfiguration() {
       WorkflowConfiguration configuration = new WorkflowConfiguration();
       configuration.setRateLimitEnabled(false);
       configuration.setTimeoutEnabled(false);
       configuration.setSafeModeEnabled(true);
-      return withChainingConfiguration(configuration);
+      return withWorkflowConfiguration(configuration);
     }
 
     @Override
     public Composer persist() {
       simulationComposer.ifPresent(ExerciseComposer.Composer::persist);
       workflowRepository.save(workflow);
-      chainingConfiguration.ifPresent(workflowConfigurationRepository::save);
+      workflowConfiguration.ifPresent(workflowConfigurationRepository::save);
       workflowComposers.forEach(WorkflowComposer.Composer::persist);
       return this;
     }
 
     @Override
     public Composer delete() {
-      chainingConfiguration.ifPresent(workflowConfigurationRepository::delete);
+      workflowConfiguration.ifPresent(workflowConfigurationRepository::delete);
       workflowRepository.delete(workflow);
       simulationComposer.ifPresent(ExerciseComposer.Composer::delete);
       return this;
