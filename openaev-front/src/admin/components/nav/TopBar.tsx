@@ -22,6 +22,7 @@ import useAuth from '../../../utils/hooks/useAuth';
 import { AbilityContext } from '../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import AskArianeButton from '../ariane/AskArianeButton';
+import TenantSwitcher from './TenantSwitcher';
 
 const useStyles = makeStyles()(theme => ({
   appBar: {
@@ -221,6 +222,7 @@ const TopBar: FunctionComponent = () => {
         <div className={classes.barRight}>
           <div className={classes.barRightContainer}>
             { settings.platform_license?.license_type === 'nfr' && <ItemBoolean variant="large" label="EE DEV LICENSE" status={false} /> }
+            <TenantSwitcher />
             <AskArianeButton isOpen={isArianeChatOpen} />
             <Tooltip title={t('Install simulation agents')}>
               <IconButton

@@ -1,9 +1,10 @@
 import { CssBaseline } from '@mui/material';
 import { StyledEngineProvider } from '@mui/material/styles';
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
 
 import { fetchMe, fetchPlatformParameters } from './actions/Application';
+import {fetchUserTenants, switchUserTenant, type UserTenantOutput} from './actions/user/user-tenant-actions';
 import { type LoggedHelper } from './actions/helper';
 import EnterpriseEditionAgreementDialog from './admin/components/common/entreprise_edition/EnterpriseEditionAgreementDialog';
 import ConnectedIntlProvider from './components/AppIntlProvider';
@@ -44,10 +45,59 @@ const Root = () => {
     };
   });
   const dispatch = useAppDispatch();
+
+  // User tenant state
+  const [userTenants, setUserTenants] = useState<UserTenantOutput[]>([]);
+  const [currentUserTenant, setCurrentUserTenant] = useState<UserTenantOutput | null>(null);
+
   useEffect(() => {
     dispatch(fetchMe());
     dispatch(fetchPlatformParameters());
   }, []);
+
+  // Load user tenants when user is logged in
+  const loadUserTenants = useCallback(async () => {
+    if (!me) return;
+
+    try {
+      const result = await fetchUserTenants();
+      if (result && result.tenants) {
+        setUserTenants(result.tenants);
+        // TODO: at initial logging
+        //  - either have a "preferred" tenant to land on (or do we persist last visited tenant)
+        //  - land on the first tenant in the list (sorted by name for better UX) if no preferred tenant is set
+        const current = result.tenants.find(t => t.tenant_is_current);
+        setCurrentUserTenant(current || result.tenants[0] || null);
+      }
+    } catch (error) {
+      console.error('Failed to load user tenants:', error);
+    }
+  }, [me]);
+
+  useEffect(() => {
+    if (me && logged) {
+      loadUserTenants();
+    }
+  }, [me, logged, loadUserTenants]);
+
+  const switchUserTenant = useCallback(async (tenantId: string) => {
+    // If already on this tenant, just close
+    if (tenantId === currentUserTenant?.tenant_id) {
+      return;
+    }
+
+    // Reload page to refresh all data in new tenant context
+    // Use setTimeout to ensure state updates complete before reload
+    setTimeout(() => {
+      const current = userTenants.find(t => (t.tenant_id === tenantId));
+      if (current) {
+        setCurrentUserTenant(current);
+      }
+      // TODO: tenant routing
+      //window.location.replace(window.location.href);
+    }, 0);
+
+  }, [currentUserTenant]);
 
   const { isReachable } = useNetworkCheck(settings?.xtm_hub_url && `${settings?.xtm_hub_url}/health`);
   if (logged && typeof logged === 'object' && Object.keys(logged).length === 0) {
@@ -69,6 +119,9 @@ const Root = () => {
           me,
           settings,
           isXTMHubAccessible: isReachable,
+          userTenants,
+          currentUserTenant,
+          switchUserTenant,
         }}
       >
         <StyledEngineProvider injectFirst>
