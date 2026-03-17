@@ -59,7 +59,7 @@ public class WorkflowService {
     createDefaultWorkflowConfiguration(workflow);
   }
 
-  /** Creates a default workflow configuration for a scenario. */
+  /** Creates a default workflow configuration. */
   private void createDefaultWorkflowConfiguration(Workflow workflow) {
     WorkflowConfiguration configuration = new WorkflowConfiguration();
     configuration.setRateLimitEnabled(false);
@@ -159,7 +159,7 @@ public class WorkflowService {
   }
 
   /**
-   * Checks if a simulation has workflow workflow enabled.
+   * Checks if a simulation has workflow enabled.
    *
    * @param simulationId the ID of the simulation to check
    * @return true if the simulation has at least one workflow, false otherwise
