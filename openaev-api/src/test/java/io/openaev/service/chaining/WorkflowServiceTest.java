@@ -12,6 +12,7 @@ import io.openaev.database.model.WorkflowStatus;
 import io.openaev.database.repository.ChainingConfigurationRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.utils.fixtures.WorkflowFixture;
 import java.util.*;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
@@ -136,6 +137,8 @@ class WorkflowServiceTest {
       // Prepare
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow = mock(Workflow.class);
+      workflow.setWorkflowsExecuted(
+          List.of(WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN)));
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
 

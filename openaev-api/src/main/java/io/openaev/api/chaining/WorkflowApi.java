@@ -62,7 +62,9 @@ public class WorkflowApi extends RestBehavior {
           "Workflow or chaining configuration not found, or the INJECT_CHAINING feature is disabled")
   @ApiResponse(responseCode = "500", description = "Unexpected server error")
   @PutMapping("/{workflowId}/chaining-configuration")
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION) // fixme Add RBAC
+  @AccessControl(
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.SIMULATION) // fixme Add RBAC
   public ChainingConfigurationOutput updateChainingConfiguration(
       @PathVariable @NotBlank final String workflowId,
       @Valid @RequestBody final ChainingConfigurationInput input) {
