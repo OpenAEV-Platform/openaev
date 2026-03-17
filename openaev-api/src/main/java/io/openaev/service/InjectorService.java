@@ -164,21 +164,6 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     deleteDummyInjectorIfItExists(injectorType, null);
   }
 
-  /**
-   * This method will check if the injector type is a dummy if yes it will remove the dummy suffix
-   * if no it will return the parameter It is used to send the execution to the correct injector
-   * even if the current one is just a dummy injector
-   *
-   * @param injectorType
-   * @return
-   */
-  public String getOriginInjectorType(@NotBlank final String injectorType) {
-    if (injectorType.endsWith(DUMMY_SUFFIX)) {
-      return injectorType.substring(0, injectorType.length() - DUMMY_SUFFIX.length());
-    }
-    return injectorType;
-  }
-
   public List<Injector> findAll() {
     return StreamSupport.stream(injectorRepository.findAll().spliterator(), false)
         .collect(Collectors.toList());
@@ -226,8 +211,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
             FileService.INJECTORS_IMAGES_BASE_PATH + input.getType() + ".png", file.get());
       }
       connection = factory.newConnection();
-      this.queueService.createChannel(connection, "_injector_" + input.getType(), input.getType());
-      String queueName = rabbitmqConfig.getPrefix() + "_injector_" + input.getType();
+      this.queueService.createChannel(connection, "_injector_" + input.getId(), input.getId());
+      String queueName = rabbitmqConfig.getPrefix() + "_injector_" + input.getId();
       // We need to support upsert for registration
       Injector injector = injectorRepository.findById(input.getId()).orElse(null);
       if (injector == null) {
