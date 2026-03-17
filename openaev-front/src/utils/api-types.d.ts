@@ -805,7 +805,7 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_short_description?: string;
 }
 
-/** Input for creating or updating a chaining configuration on a scenario. */
+/** Input for creating or updating a workflow configuration on a scenario. */
 export interface ChainingConfigurationInput {
   /**
    * Maximum number of attempts allowed before the temporal rate limit kicks in (1–99).
@@ -839,7 +839,7 @@ export interface ChainingConfigurationInput {
   chaining_configuration_timeout_seconds?: number;
 }
 
-/** Output for a chaining configuration on a scenario. */
+/** Output for a workflow configuration on a scenario. */
 export interface ChainingConfigurationOutput {
   /**
    * Maximum number of attempts allowed before the temporal rate limit kicks in.

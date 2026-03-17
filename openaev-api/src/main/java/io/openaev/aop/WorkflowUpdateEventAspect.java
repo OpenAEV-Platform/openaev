@@ -2,8 +2,8 @@ package io.openaev.aop;
 
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
-import io.openaev.service.chaining.QueueChainingService;
-import io.openaev.service.chaining.StepService;
+import io.openaev.service.workflow.QueueChainingService;
+import io.openaev.service.workflow.StepService;
 import java.io.IOException;
 import java.util.*;
 import lombok.RequiredArgsConstructor;

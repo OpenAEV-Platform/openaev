@@ -3,7 +3,7 @@ package io.openaev.utils.fixtures.composers;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowConfiguration;
-import io.openaev.database.repository.ChainingConfigurationRepository;
+import io.openaev.database.repository.WorkflowConfigurationRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 public class WorkflowComposer extends ComposerBase<Workflow> {
 
   @Autowired private WorkflowRepository workflowRepository;
-  @Autowired private ChainingConfigurationRepository chainingConfigurationRepository;
+  @Autowired private WorkflowConfigurationRepository workflowConfigurationRepository;
 
   public class Composer extends InnerComposerBase<Workflow> {
 
@@ -54,7 +54,7 @@ public class WorkflowComposer extends ComposerBase<Workflow> {
       return this;
     }
 
-    /** Attaches a provided chaining configuration to the workflow. */
+    /** Attaches a provided workflow configuration to the workflow. */
     public Composer withChainingConfiguration(WorkflowConfiguration configuration) {
       this.chainingConfiguration = Optional.of(configuration);
       configuration.setWorkflow(workflow);
@@ -62,7 +62,7 @@ public class WorkflowComposer extends ComposerBase<Workflow> {
       return this;
     }
 
-    /** Creates and attaches a default chaining configuration to the workflow. */
+    /** Creates and attaches a default workflow configuration to the workflow. */
     public Composer withDefaultChainingConfiguration() {
       WorkflowConfiguration configuration = new WorkflowConfiguration();
       configuration.setRateLimitEnabled(false);
@@ -75,14 +75,14 @@ public class WorkflowComposer extends ComposerBase<Workflow> {
     public Composer persist() {
       simulationComposer.ifPresent(ExerciseComposer.Composer::persist);
       workflowRepository.save(workflow);
-      chainingConfiguration.ifPresent(chainingConfigurationRepository::save);
+      chainingConfiguration.ifPresent(workflowConfigurationRepository::save);
       workflowComposers.forEach(WorkflowComposer.Composer::persist);
       return this;
     }
 
     @Override
     public Composer delete() {
-      chainingConfiguration.ifPresent(chainingConfigurationRepository::delete);
+      chainingConfiguration.ifPresent(workflowConfigurationRepository::delete);
       workflowRepository.delete(workflow);
       simulationComposer.ifPresent(ExerciseComposer.Composer::delete);
       return this;
