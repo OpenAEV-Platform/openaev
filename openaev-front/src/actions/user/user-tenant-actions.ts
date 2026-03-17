@@ -1,6 +1,3 @@
-import type { Dispatch } from 'redux';
-
-import { simplePostCall } from '../../utils/Action';
 import type { TenantOutput } from '../../utils/api-types';
 
 // -- TYPES --
