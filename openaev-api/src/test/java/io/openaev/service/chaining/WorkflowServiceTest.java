@@ -99,7 +99,7 @@ class WorkflowServiceTest {
 
     @Test
     @DisplayName("should create workflow template and default workflow configuration for exercise")
-    void shouldCreateWorkflowTemplateAndDefaultChainingConfiguration() {
+    void shouldCreateWorkflowTemplateAndDefaultWorkflowConfiguration() {
       // Prepare
       Exercise exercise = mock(Exercise.class);
 
@@ -277,7 +277,7 @@ class WorkflowServiceTest {
 
     @Test
     @DisplayName("should copy and save workflow configuration for workflow run")
-    void shouldCopyAndSaveChainingConfigurationForRun() {
+    void shouldCopyAndSaveWorkflowConfigurationForRun() {
       // Prepare
       Exercise simulation = mock(Exercise.class);
 
@@ -305,10 +305,10 @@ class WorkflowServiceTest {
       Workflow run = workflowService.launchWorkflow(workflowTemplate);
 
       // Assert
-      ArgumentCaptor<WorkflowConfiguration> chainingConfigurationCaptor =
+      ArgumentCaptor<WorkflowConfiguration> workflowConfigurationCaptor =
           ArgumentCaptor.forClass(WorkflowConfiguration.class);
-      verify(workflowConfigurationRepository).save(chainingConfigurationCaptor.capture());
-      WorkflowConfiguration savedConfiguration = chainingConfigurationCaptor.getValue();
+      verify(workflowConfigurationRepository).save(workflowConfigurationCaptor.capture());
+      WorkflowConfiguration savedConfiguration = workflowConfigurationCaptor.getValue();
 
       assertSame(run, savedConfiguration.getWorkflow());
       assertEquals(savedConfiguration, run.getWorkflowConfiguration());
@@ -325,7 +325,7 @@ class WorkflowServiceTest {
 
     @Test
     @DisplayName("should not save workflow configuration when template has none")
-    void shouldNotSaveChainingConfigurationWhenTemplateHasNone() {
+    void shouldNotSaveWorkflowConfigurationWhenTemplateHasNone() {
       // Prepare
       Exercise simulation = mock(Exercise.class);
       Workflow workflowTemplate =
@@ -455,15 +455,15 @@ class WorkflowServiceTest {
   }
 
   // ========================================================================
-  // fetchChainingConfiguration Tests
+  // fetchWorkflowConfiguration Tests
   // ========================================================================
   @Nested
-  @DisplayName("fetchChainingConfiguration")
+  @DisplayName("fetchWorkflowConfiguration")
   class FetchWorkflowConfigurationTests {
 
     @Test
     @DisplayName("should return workflow configuration when found")
-    void shouldReturnChainingConfigurationWhenFound() {
+    void shouldReturnWorkflowConfigurationWhenFound() {
       // Prepare
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow = mock(Workflow.class);
@@ -501,7 +501,7 @@ class WorkflowServiceTest {
 
     @Test
     @DisplayName("should throw ElementNotFoundException when workflow configuration is missing")
-    void shouldThrowExceptionWhenChainingConfigurationIsMissing() {
+    void shouldThrowExceptionWhenWorkflowConfigurationIsMissing() {
       // Prepare
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow = mock(Workflow.class);
@@ -523,17 +523,17 @@ class WorkflowServiceTest {
   }
 
   // ========================================================================
-  // updateChainingConfiguration Tests
+  // updateWorkflowConfiguration Tests
   // ========================================================================
   @Nested
-  @DisplayName("updateChainingConfiguration")
+  @DisplayName("updateWorkflowConfiguration")
   class UpdateWorkflowConfigurationTests {
 
     @Captor private ArgumentCaptor<WorkflowConfiguration> configurationArgumentCaptor;
 
     @Test
     @DisplayName("should update workflow configuration and save it")
-    void shouldUpdateChainingConfigurationAndSaveIt() {
+    void shouldUpdateWorkflowConfigurationAndSaveIt() {
       // Prepare
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow = mock(Workflow.class);

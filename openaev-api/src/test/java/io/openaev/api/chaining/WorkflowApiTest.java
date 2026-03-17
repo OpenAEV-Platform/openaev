@@ -33,7 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 @WithMockUser(isAdmin = true)
-@DisplayName("Chaining API integration tests")
+@DisplayName("Workflow API integration tests")
 class WorkflowApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mockMvc;
