@@ -1,27 +1,22 @@
 package io.openaev.execution;
 
-import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
-import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE;
-import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_NAME;
-import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_TYPE;
-import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
-import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
-import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME;
-import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE;
-
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.integration.ComponentRequest;
+import io.openaev.integration.Manager;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.AgentException;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
@@ -36,6 +31,7 @@ public class ExecutionExecutorService {
   private final ExecutionTraceRepository executionTraceRepository;
   private final InjectService injectService;
   private final ExecutorUtils executorUtils;
+  private final ConnectorInstanceService connectorInstanceService;
 
   public void launchExecutorContext(Inject inject) {
     InjectStatus injectStatus =
@@ -47,52 +43,32 @@ public class ExecutionExecutorService {
     Set<Asset> assetsAgentless = agentsAndAssetsAgentless.assetsAgentless();
     // Manage agentless assets
     saveAgentlessAssetsTraces(assetsAgentless, injectStatus);
-    // Filter each list to do something for each specific case and then remove the specific agents
-    // from the main "agents" list to execute payloads at the end for the remaining "normal" agents
+    // Filter inactive and executor-less agents
     Set<Agent> inactiveAgents = executorUtils.findInactiveAgents(agents);
     agents.removeAll(inactiveAgents);
     Set<Agent> agentsWithoutExecutor = executorUtils.findAgentsWithoutExecutor(agents);
     agents.removeAll(agentsWithoutExecutor);
-    Set<Agent> crowdstrikeAgents =
-        executorUtils.findAgentsByExecutorType(agents, CROWDSTRIKE_EXECUTOR_TYPE);
-    agents.removeAll(crowdstrikeAgents);
-    Set<Agent> sentineloneAgents =
-        executorUtils.findAgentsByExecutorType(agents, SENTINELONE_EXECUTOR_TYPE);
-    agents.removeAll(sentineloneAgents);
-    Set<Agent> taniumAgents = executorUtils.findAgentsByExecutorType(agents, TANIUM_EXECUTOR_TYPE);
-    agents.removeAll(taniumAgents);
-    Set<Agent> cortexAgents =
-        executorUtils.findAgentsByExecutorType(agents, PALOALTOCORTEX_EXECUTOR_TYPE);
-    agents.removeAll(cortexAgents);
 
     AtomicBoolean atLeastOneExecution = new AtomicBoolean(false);
     // Manage inactive agents
     saveInactiveAgentsTraces(inactiveAgents, injectStatus);
     // Manage without executor agents
     saveWithoutExecutorAgentsTraces(agentsWithoutExecutor, injectStatus);
-    // Manage Crowdstrike agents for batch execution
-    launchBatchExecutorContextForAgent(
-        crowdstrikeAgents, CROWDSTRIKE_EXECUTOR_NAME, inject, injectStatus, atLeastOneExecution);
-    // Manage Sentinelone agents for batch execution
-    launchBatchExecutorContextForAgent(
-        sentineloneAgents, SENTINELONE_EXECUTOR_NAME, inject, injectStatus, atLeastOneExecution);
-    // Manage Tanium agents for batch execution
-    launchBatchExecutorContextForAgent(
-        taniumAgents, TANIUM_EXECUTOR_NAME, inject, injectStatus, atLeastOneExecution);
-    // Manage Palo Alto Cortex agents for batch execution
-    launchBatchExecutorContextForAgent(
-        cortexAgents, PALOALTOCORTEX_EXECUTOR_NAME, inject, injectStatus, atLeastOneExecution);
-    // Manage remaining agents
-    agents.forEach(
-        agent -> {
-          try {
-            launchExecutorContextForAgent(inject, agent);
-            atLeastOneExecution.set(true);
-          } catch (AgentException e) {
-            log.error("launchExecutorContextForAgent error: {}", e.getMessage());
-            saveAgentErrorTrace(e, injectStatus);
-          }
-        });
+
+    // Group remaining agents by their executor entity for per-instance routing.
+    // Each executor entity maps to exactly one ConnectorInstance (and therefore one Integration
+    // with its own API client/config). This replaces the previous hard-coded type-based dispatch.
+    Map<io.openaev.database.model.Executor, Set<Agent>> agentsByExecutor =
+        agents.stream().collect(Collectors.groupingBy(Agent::getExecutor, Collectors.toSet()));
+
+    for (Map.Entry<io.openaev.database.model.Executor, Set<Agent>> entry :
+        agentsByExecutor.entrySet()) {
+      io.openaev.database.model.Executor executor = entry.getKey();
+      Set<Agent> executorAgents = entry.getValue();
+      launchBatchExecutorContextForAgent(
+          executorAgents, executor, inject, injectStatus, atLeastOneExecution);
+    }
+
     if (!atLeastOneExecution.get()) {
       throw new ExecutionExecutorException("No asset executed");
     }
@@ -100,22 +76,43 @@ public class ExecutionExecutorService {
 
   private void launchBatchExecutorContextForAgent(
       Set<Agent> agents,
-      String executorName,
+      io.openaev.database.model.Executor executor,
       Inject inject,
       InjectStatus injectStatus,
       AtomicBoolean atLeastOneExecution) {
-    if (!agents.isEmpty()) {
+    if (agents.isEmpty()) {
+      return;
+    }
+    try {
+      Manager manager = managerFactory.getManager();
+      ExecutorContextService executorContextService;
       try {
-        ExecutorContextService executorContextService =
-            managerFactory
-                .getManager()
-                .request(new ComponentRequest(executorName), ExecutorContextService.class);
-        executorContextService.launchBatchExecutorSubprocess(inject, agents, injectStatus);
-        atLeastOneExecution.set(true);
-      } catch (Exception e) {
-        log.error("{} launchBatchExecutorSubprocess error: {}", executorName, e.getMessage());
-        saveAgentsErrorTraces(e, agents, injectStatus);
+        // Prefer per-instance routing: resolve the ConnectorInstance that owns this executor
+        ConnectorInstancePersisted instance =
+            connectorInstanceService.findByExecutorId(executor.getId());
+        executorContextService =
+            manager.requestForInstance(
+                instance, new ComponentRequest(executor.getName()), ExecutorContextService.class);
+      } catch (Exception instanceNotFound) {
+        // Fallback for builtin executors without a persisted ConnectorInstance (e.g. OpenAEV agent)
+        executorContextService =
+            manager.request(new ComponentRequest(executor.getName()), ExecutorContextService.class);
       }
+      executorContextService.launchBatchExecutorSubprocess(inject, agents, injectStatus);
+      // Also handle individual execution for executor context services whose batch
+      // implementation is a no-op (e.g. OpenAEV agent)
+      for (Agent agent : agents) {
+        Endpoint assetEndpoint = (Endpoint) Hibernate.unproxy(agent.getAsset());
+        executorContextService.launchExecutorSubprocess(inject, assetEndpoint, agent);
+      }
+      atLeastOneExecution.set(true);
+    } catch (Exception e) {
+      log.error(
+          "{} (id={}) launchBatchExecutorSubprocess error: {}",
+          executor.getName(),
+          executor.getId(),
+          e.getMessage());
+      saveAgentsErrorTraces(e, agents, injectStatus);
     }
   }
 
@@ -210,22 +207,6 @@ public class ExecutionExecutorService {
                           null,
                           null))
               .toList());
-    }
-  }
-
-  private void launchExecutorContextForAgent(Inject inject, Agent agent) throws AgentException {
-    try {
-      Endpoint assetEndpoint = (Endpoint) Hibernate.unproxy(agent.getAsset());
-      ExecutorContextService executorContextService =
-          managerFactory
-              .getManager()
-              .request(
-                  new ComponentRequest(agent.getExecutor().getName()),
-                  ExecutorContextService.class);
-      executorContextService.launchExecutorSubprocess(inject, assetEndpoint, agent);
-    } catch (Exception e) {
-      log.error(e.getMessage(), e);
-      throw new AgentException("Fatal error: " + e.getMessage(), agent);
     }
   }
 }
