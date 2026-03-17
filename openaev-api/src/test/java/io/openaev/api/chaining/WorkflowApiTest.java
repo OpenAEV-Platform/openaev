@@ -70,7 +70,7 @@ class WorkflowApiTest extends IntegrationTest {
   void getWorkflowConfiguration_shouldReturnConfiguration() throws Exception {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
-    attachChainingConfiguration(workflow, true, 3, 10, true, 3660);
+    attachWorkflowConfiguration(workflow, true, 3, 10, true, 3660);
 
     // -- EXECUTE --
     String response =
@@ -84,12 +84,12 @@ class WorkflowApiTest extends IntegrationTest {
     // -- ASSERT --
     JsonNode body = new ObjectMapper().readTree(response);
 
-    assertTrue(body.get("chaining_configuration_rate_limit_enabled").asBoolean());
-    assertEquals(3, body.get("chaining_configuration_max_attempts").asInt());
-    assertEquals(10, body.get("chaining_configuration_max_temporal_rate_seconds").asInt());
-    assertTrue(body.get("chaining_configuration_timeout_enabled").asBoolean());
-    assertEquals(3660, body.get("chaining_configuration_timeout_seconds").asLong());
-    assertTrue(body.get("chaining_configuration_safe_mode_enabled").asBoolean());
+    assertTrue(body.get("workflow_configuration_rate_limit_enabled").asBoolean());
+    assertEquals(3, body.get("workflow_configuration_max_attempts").asInt());
+    assertEquals(10, body.get("workflow_configuration_max_temporal_rate_seconds").asInt());
+    assertTrue(body.get("workflow_configuration_timeout_enabled").asBoolean());
+    assertEquals(3660, body.get("workflow_configuration_timeout_seconds").asLong());
+    assertTrue(body.get("workflow_configuration_safe_mode_enabled").asBoolean());
   }
 
   @Test
@@ -171,7 +171,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
     WorkflowConfiguration existingConfiguration =
-        attachChainingConfiguration(workflow, false, 1, 5, true, 120);
+        attachWorkflowConfiguration(workflow, false, 1, 5, true, 120);
 
     WorkflowConfigurationInput input =
         WorkflowConfigurationInput.builder()
@@ -199,12 +199,12 @@ class WorkflowApiTest extends IntegrationTest {
     // -- ASSERT RESPONSE --
     JsonNode body = new ObjectMapper().readTree(response);
 
-    assertTrue(body.get("chaining_configuration_rate_limit_enabled").asBoolean());
-    assertEquals(7, body.get("chaining_configuration_max_attempts").asInt());
-    assertEquals(15, body.get("chaining_configuration_max_temporal_rate_seconds").asInt());
-    assertTrue(body.get("chaining_configuration_timeout_enabled").asBoolean());
-    assertEquals(5400L, body.get("chaining_configuration_timeout_seconds").asLong());
-    assertFalse(body.get("chaining_configuration_safe_mode_enabled").asBoolean());
+    assertTrue(body.get("workflow_configuration_rate_limit_enabled").asBoolean());
+    assertEquals(7, body.get("workflow_configuration_max_attempts").asInt());
+    assertEquals(15, body.get("workflow_configuration_max_temporal_rate_seconds").asInt());
+    assertTrue(body.get("workflow_configuration_timeout_enabled").asBoolean());
+    assertEquals(5400L, body.get("workflow_configuration_timeout_seconds").asLong());
+    assertFalse(body.get("workflow_configuration_safe_mode_enabled").asBoolean());
 
     // -- ASSERT DATABASE --
     WorkflowConfiguration savedConfiguration =
@@ -260,7 +260,7 @@ class WorkflowApiTest extends IntegrationTest {
       throws Exception {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
-    attachChainingConfiguration(workflow, false, 1, 5, true, 120);
+    attachWorkflowConfiguration(workflow, false, 1, 5, true, 120);
     WorkflowConfigurationInput input =
         WorkflowConfigurationInput.builder()
             .rateLimitEnabled(true)
@@ -286,7 +286,7 @@ class WorkflowApiTest extends IntegrationTest {
       throws Exception {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
-    attachChainingConfiguration(workflow, false, 1, 5, true, 120);
+    attachWorkflowConfiguration(workflow, false, 1, 5, true, 120);
     WorkflowConfigurationInput input =
         WorkflowConfigurationInput.builder()
             .rateLimitEnabled(true)
@@ -312,7 +312,7 @@ class WorkflowApiTest extends IntegrationTest {
       throws Exception {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
-    attachChainingConfiguration(workflow, false, 1, 5, true, 120);
+    attachWorkflowConfiguration(workflow, false, 1, 5, true, 120);
     WorkflowConfigurationInput input =
         WorkflowConfigurationInput.builder()
             .rateLimitEnabled(true)
@@ -338,7 +338,7 @@ class WorkflowApiTest extends IntegrationTest {
       throws Exception {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
-    attachChainingConfiguration(workflow, false, 1, 5, true, 120);
+    attachWorkflowConfiguration(workflow, false, 1, 5, true, 120);
     WorkflowConfigurationInput input =
         WorkflowConfigurationInput.builder()
             .rateLimitEnabled(true)
@@ -364,7 +364,7 @@ class WorkflowApiTest extends IntegrationTest {
       throws Exception {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
-    attachChainingConfiguration(workflow, false, 1, 5, true, 120);
+    attachWorkflowConfiguration(workflow, false, 1, 5, true, 120);
     WorkflowConfigurationInput input =
         WorkflowConfigurationInput.builder()
             .timeoutEnabled(true)
@@ -388,7 +388,7 @@ class WorkflowApiTest extends IntegrationTest {
       throws Exception {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
-    attachChainingConfiguration(workflow, false, 1, 5, true, 120);
+    attachWorkflowConfiguration(workflow, false, 1, 5, true, 120);
     WorkflowConfigurationInput input =
         WorkflowConfigurationInput.builder()
             .timeoutEnabled(true)
@@ -419,18 +419,18 @@ class WorkflowApiTest extends IntegrationTest {
         .get();
   }
 
-  private WorkflowConfiguration attachChainingConfiguration(
+  private WorkflowConfiguration attachWorkflowConfiguration(
       Workflow workflow,
       boolean rateLimitEnabled,
       int maxAttempts,
       int maxTemporalRateSeconds,
-      boolean timeOutEnabled,
+      boolean timeoutEnabled,
       int timeOutSeconds) {
     WorkflowConfiguration configuration = new WorkflowConfiguration();
     configuration.setRateLimitEnabled(rateLimitEnabled);
     configuration.setMaxAttempts(maxAttempts);
     configuration.setMaxTemporalRateSeconds((long) maxTemporalRateSeconds);
-    configuration.setTimeoutEnabled(timeOutEnabled);
+    configuration.setTimeoutEnabled(timeoutEnabled);
     configuration.setTimeoutSeconds((long) timeOutSeconds);
     configuration.setSafeModeEnabled(true);
     workflowComposer.forWorkflow(workflow).withChainingConfiguration(configuration).persist();
