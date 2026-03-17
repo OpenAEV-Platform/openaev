@@ -139,7 +139,7 @@ class WorkflowApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Update Workflow Configuration should return 404 when INJECT_CHAINING feature is disabled")
-  void updateChainingConfiguration_shouldReturnNotFoundWhenFeatureDisabled() throws Exception {
+  void updateWorkflowConfiguration_shouldReturnNotFoundWhenFeatureDisabled() throws Exception {
     // -- PREPARE --
     openAEVConfig.setEnabledDevFeatures("");
     clearFeatureCache();
@@ -167,7 +167,7 @@ class WorkflowApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Update Workflow Configuration should update and persist configuration")
-  void updateChainingConfiguration_shouldUpdateAndPersistConfiguration() throws Exception {
+  void updateWorkflowConfiguration_shouldUpdateAndPersistConfiguration() throws Exception {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
     WorkflowConfiguration existingConfiguration =
@@ -220,7 +220,7 @@ class WorkflowApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Update Workflow Configuration should return 404 when workflow configuration is missing")
-  void updateChainingConfiguration_shouldReturnNotFoundWhenConfigurationMissing() throws Exception {
+  void updateWorkflowConfiguration_shouldReturnNotFoundWhenConfigurationMissing() throws Exception {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
     WorkflowConfigurationInput input =
@@ -256,7 +256,7 @@ class WorkflowApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Update Workflow Configuration should return 400 when rate limit max attempts is below minimum")
-  void updateChainingConfiguration_shouldReturnBadRequestWhenMaxAttemptsBelowMin()
+  void updateWorkflowConfiguration_shouldReturnBadRequestWhenMaxAttemptsBelowMin()
       throws Exception {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
@@ -282,7 +282,7 @@ class WorkflowApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Update Workflow Configuration should return 400 when rate limit max attempts exceeds maximum")
-  void updateChainingConfiguration_shouldReturnBadRequestWhenMaxAttemptsAboveMax()
+  void updateWorkflowConfiguration_shouldReturnBadRequestWhenMaxAttemptsAboveMax()
       throws Exception {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
@@ -308,7 +308,7 @@ class WorkflowApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Update Workflow Configuration should return 400 when max temporal rate seconds is below minimum")
-  void updateChainingConfiguration_shouldReturnBadRequestWhenMaxTemporalRateSecondsBelowMin()
+  void updateWorkflowConfiguration_shouldReturnBadRequestWhenMaxTemporalRateSecondsBelowMin()
       throws Exception {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
@@ -334,7 +334,7 @@ class WorkflowApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Update Workflow Configuration should return 400 when max temporal rate seconds exceeds maximum")
-  void updateChainingConfiguration_shouldReturnBadRequestWhenMaxTemporalRateSecondsAboveMax()
+  void updateWorkflowConfiguration_shouldReturnBadRequestWhenMaxTemporalRateSecondsAboveMax()
       throws Exception {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
@@ -360,7 +360,7 @@ class WorkflowApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Update Workflow Configuration should return 400 when timeout seconds exceed maximum")
-  void updateChainingConfiguration_shouldReturnBadRequestWhenTimeoutSecondsAboveMax()
+  void updateWorkflowConfiguration_shouldReturnBadRequestWhenTimeoutSecondsAboveMax()
       throws Exception {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
@@ -384,7 +384,7 @@ class WorkflowApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Update Workflow Configuration should return 400 when timeout seconds are negative")
-  void updateChainingConfiguration_shouldReturnBadRequestWhenTimeoutSecondsNegative()
+  void updateWorkflowConfiguration_shouldReturnBadRequestWhenTimeoutSecondsNegative()
       throws Exception {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
@@ -433,7 +433,7 @@ class WorkflowApiTest extends IntegrationTest {
     configuration.setTimeoutEnabled(timeoutEnabled);
     configuration.setTimeoutSeconds((long) timeOutSeconds);
     configuration.setSafeModeEnabled(true);
-    workflowComposer.forWorkflow(workflow).withChainingConfiguration(configuration).persist();
+    workflowComposer.forWorkflow(workflow).withWorkflowConfiguration(configuration).persist();
     return workflowConfigurationRepository.findById(configuration.getId()).orElseThrow();
   }
 }
