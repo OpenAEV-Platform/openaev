@@ -86,11 +86,17 @@ public class PayloadUpsertService {
 
     payload.setDomains(
         input.getDomains() != null
-            ? domainService.upserts(input.getDomains())
+            ? domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant())
             : new HashSet<>(
                 Set.of(
                     domainService.upsert(
-                        new Domain(null, "To classify", "#FFFFFF", Instant.now(), null)))));
+                        new Domain(
+                            null,
+                            "To classify",
+                            "#FFFFFF",
+                            new Tenant(TenantContext.getCurrentTenant()),
+                            Instant.now(),
+                            null)))));
     payload.setAttackPatterns(attackPatterns);
     payload.setTags(this.tagService.tagSet((input.getTagIds())));
 
@@ -121,9 +127,13 @@ public class PayloadUpsertService {
     }
 
     final Set<Domain> existingDomains =
-        this.domainService.upsertDomainEntities(payload.getDomains());
-    final Set<Domain> domainsToAdd = this.domainService.upserts(input.getDomains());
-    payload.setDomains(this.domainService.mergeDomains(existingDomains, domainsToAdd));
+        this.domainService.upsertDomainEntities(
+            payload.getDomains(), TenantContext.getCurrentTenant());
+    final Set<Domain> domainsToAdd =
+        this.domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant());
+    payload.setDomains(
+        this.domainService.mergeDomains(
+            existingDomains, domainsToAdd, new Tenant(TenantContext.getCurrentTenant())));
     payload.setAttackPatterns(attackPatterns);
     payload.setTags(this.tagService.tagSet((input.getTagIds())));
 

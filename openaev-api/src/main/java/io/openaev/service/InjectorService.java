@@ -335,10 +335,14 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
                 if (!payloads) {
                   Set<Domain> currentDomains =
-                      this.domainService.upsertDomainEntities(contract.getDomains());
-                  Set<Domain> domainsToAdd = this.domainService.upserts(current.get().getDomains());
+                      this.domainService.upsertDomainEntities(
+                          contract.getDomains(), injector.getTenant().getId());
+                  Set<Domain> domainsToAdd =
+                      this.domainService.upserts(
+                          current.get().getDomains(), injector.getTenant().getId());
                   contract.setDomains(
-                      this.domainService.mergeDomains(currentDomains, domainsToAdd));
+                      this.domainService.mergeDomains(
+                          currentDomains, domainsToAdd, injector.getTenant()));
                 }
               } else if (!contract.getCustom()) {
                 toDeletes.add(contract.getId());

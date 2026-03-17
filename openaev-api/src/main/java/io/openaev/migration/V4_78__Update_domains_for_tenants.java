@@ -8,7 +8,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_76__Update_domains_for_tenants extends BaseJavaMigration {
+public class V4_78__Update_domains_for_tenants extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
@@ -26,6 +26,16 @@ public class V4_76__Update_domains_for_tenants extends BaseJavaMigration {
           """
                   CREATE INDEX IF NOT EXISTS idx_tenant_id ON domains(tenant_id);
                   """);
+      statement.execute(
+          """
+                    ALTER TABLE domains
+                    DROP CONSTRAINT domains_domain_name_key;
+                    """);
+      statement.execute(
+          """
+                    ALTER TABLE domains
+                    ADD CONSTRAINT domains_domain_name_tenant_key UNIQUE (domain_name, tenant_id);
+                    """);
     }
   }
 }

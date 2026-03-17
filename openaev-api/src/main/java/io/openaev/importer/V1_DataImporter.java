@@ -253,7 +253,8 @@ public class V1_DataImporter implements Importer {
                 Domain createdDomain =
                     this.domainService.upsert(
                         nodeDomain.get("domain_name").textValue(),
-                        nodeDomain.get("domain_color").textValue());
+                        nodeDomain.get("domain_color").textValue(),
+                        new Tenant(TenantContext.getCurrentTenant()));
                 baseIds.put(createdDomain.getId(), createdDomain);
                 domainIds.add(createdDomain.getId());
               }

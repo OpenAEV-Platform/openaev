@@ -1,11 +1,9 @@
 package io.openaev.rest.domain.enums;
 
 import io.openaev.database.model.Domain;
+import io.openaev.database.model.Tenant;
 import java.time.Instant;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public class PresetDomain {
   public static Domain ENDPOINT = new Domain(null, "Endpoint", "#389CFF", Instant.now(), null);
@@ -29,6 +27,23 @@ public class PresetDomain {
           DATA_EXFILTRATION, List.of("exfiltrat"),
           URL_FILTERING, List.of("bitsadmin"),
           CLOUD, List.of("aws", "azure", "gcp"));
+
+  private static final Set<Domain> presetDomains =
+      Set.of(
+          ENDPOINT,
+          NETWORK,
+          WEB_APP,
+          EMAIL_INFILTRATION,
+          DATA_EXFILTRATION,
+          URL_FILTERING,
+          CLOUD,
+          TABLETOP,
+          TOCLASSIFY);
+
+  public static Set<Domain> getDomainsForTenant(Tenant tenant) {
+    presetDomains.forEach(presetDomain -> presetDomain.setTenant(tenant));
+    return presetDomains;
+  }
 
   public static Set<Domain> getRelevantDomainsFromKeywords(String searchValue) {
     Set<Domain> domains = new HashSet<>();
