@@ -76,7 +76,7 @@ const TenantSwitcher: FunctionComponent = () => {
             <CircularProgress size={16} sx={{ ml: 1 }} />
           ) : (
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {currentUserTenant?.tenant_name || t('Select Tenant')}
+              {currentUserTenant?.tenant_name || t('Select tenant')}
             </span>
           )}
         </Button>
