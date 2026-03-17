@@ -9,8 +9,6 @@ import { MESSAGING$ } from "../../../utils/Environment";
 /**
  * TenantSwitcher component displays a dropdown allowing users to switch
  * between tenants they have access to.
- * It fetches the list of accessible tenants and highlights the current tenant.
- * When a tenant is selected, it dispatches an action to switch the tenant and reloads the page.
  */
 const TenantSwitcher: FunctionComponent = () => {
   const { t } = useFormatter();
