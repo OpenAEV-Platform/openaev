@@ -67,7 +67,7 @@ class WorkflowApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Fetch Workflow Configuration should return configuration for a template workflow")
-  void getChainingConfiguration_shouldReturnConfiguration() throws Exception {
+  void getWorkflowConfiguration_shouldReturnConfiguration() throws Exception {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
     attachChainingConfiguration(workflow, true, 3, 10, true, 3660);
@@ -94,7 +94,7 @@ class WorkflowApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Fetch Workflow Configuration should return 404 when workflow does not exist")
-  void getChainingConfiguration_shouldReturnNotFoundWhenWorkflowMissing() throws Exception {
+  void getWorkflowConfiguration_shouldReturnNotFoundWhenWorkflowMissing() throws Exception {
     // -- PREPARE --
     String workflowId = "missing-workflow-id";
 
@@ -116,7 +116,7 @@ class WorkflowApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Fetch Workflow Configuration should return 404 when INJECT_CHAINING feature is disabled")
-  void getChainingConfiguration_shouldReturnNotFoundWhenFeatureDisabled() throws Exception {
+  void getWorkflowConfiguration_shouldReturnNotFoundWhenFeatureDisabled() throws Exception {
     // -- PREPARE --
     openAEVConfig.setEnabledDevFeatures("");
     clearFeatureCache();
