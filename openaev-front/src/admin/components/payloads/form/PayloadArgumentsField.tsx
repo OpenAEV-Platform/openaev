@@ -108,6 +108,7 @@ const PayloadArgumentsField = ({ argumentName, canSelectTargetAsset, onArgumentR
         onClick={onArgumentRemoveClick}
         size="small"
         color="primary"
+        data-testid={`${argumentName}.delete-btn`}
       >
         <DeleteOutlined />
       </IconButton>
