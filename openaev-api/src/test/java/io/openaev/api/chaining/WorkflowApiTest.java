@@ -143,8 +143,8 @@ class WorkflowApiTest extends IntegrationTest {
     openAEVConfig.setEnabledDevFeatures("");
     clearFeatureCache();
     Workflow workflow = createTemplateWorkflow();
-    ChainingConfigurationInput input =
-        ChainingConfigurationInput.builder().rateLimitEnabled(false).safeModeEnabled(true).build();
+    WorkflowConfigurationInput input =
+        WorkflowConfigurationInput.builder().rateLimitEnabled(false).safeModeEnabled(true).build();
 
     // -- EXECUTE & ASSERT --
     String response =
@@ -169,11 +169,11 @@ class WorkflowApiTest extends IntegrationTest {
   void updateChainingConfiguration_shouldUpdateAndPersistConfiguration() throws Exception {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
-    ChainingConfiguration existingConfiguration =
+    WorkflowConfiguration existingConfiguration =
         attachChainingConfiguration(workflow, false, 1, 5, true, 120);
 
-    ChainingConfigurationInput input =
-        ChainingConfigurationInput.builder()
+    WorkflowConfigurationInput input =
+        WorkflowConfigurationInput.builder()
             .rateLimitEnabled(true)
             .maxAttempts(7)
             .maxTemporalRateSeconds(15L)
@@ -206,7 +206,7 @@ class WorkflowApiTest extends IntegrationTest {
     assertFalse(body.get("chaining_configuration_safe_mode_enabled").asBoolean());
 
     // -- ASSERT DATABASE --
-    ChainingConfiguration savedConfiguration =
+    WorkflowConfiguration savedConfiguration =
         chainingConfigurationRepository.findById(existingConfiguration.getId()).orElseThrow();
     assertTrue(savedConfiguration.isRateLimitEnabled());
     assertEquals(7, savedConfiguration.getMaxAttempts());
@@ -222,8 +222,8 @@ class WorkflowApiTest extends IntegrationTest {
   void updateChainingConfiguration_shouldReturnNotFoundWhenConfigurationMissing() throws Exception {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
-    ChainingConfigurationInput input =
-        ChainingConfigurationInput.builder()
+    WorkflowConfigurationInput input =
+        WorkflowConfigurationInput.builder()
             .rateLimitEnabled(true)
             .maxAttempts(5)
             .maxTemporalRateSeconds(10L)
@@ -260,8 +260,8 @@ class WorkflowApiTest extends IntegrationTest {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
     attachChainingConfiguration(workflow, false, 1, 5, true, 120);
-    ChainingConfigurationInput input =
-        ChainingConfigurationInput.builder()
+    WorkflowConfigurationInput input =
+        WorkflowConfigurationInput.builder()
             .rateLimitEnabled(true)
             .maxAttempts(0) // below @Min(1)
             .maxTemporalRateSeconds(10L)
@@ -286,8 +286,8 @@ class WorkflowApiTest extends IntegrationTest {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
     attachChainingConfiguration(workflow, false, 1, 5, true, 120);
-    ChainingConfigurationInput input =
-        ChainingConfigurationInput.builder()
+    WorkflowConfigurationInput input =
+        WorkflowConfigurationInput.builder()
             .rateLimitEnabled(true)
             .maxAttempts(100) // above @Max(99)
             .maxTemporalRateSeconds(10L)
@@ -312,8 +312,8 @@ class WorkflowApiTest extends IntegrationTest {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
     attachChainingConfiguration(workflow, false, 1, 5, true, 120);
-    ChainingConfigurationInput input =
-        ChainingConfigurationInput.builder()
+    WorkflowConfigurationInput input =
+        WorkflowConfigurationInput.builder()
             .rateLimitEnabled(true)
             .maxAttempts(3)
             .maxTemporalRateSeconds(0L) // below @Min(1)
@@ -338,8 +338,8 @@ class WorkflowApiTest extends IntegrationTest {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
     attachChainingConfiguration(workflow, false, 1, 5, true, 120);
-    ChainingConfigurationInput input =
-        ChainingConfigurationInput.builder()
+    WorkflowConfigurationInput input =
+        WorkflowConfigurationInput.builder()
             .rateLimitEnabled(true)
             .maxAttempts(3)
             .maxTemporalRateSeconds(60L) // above @Max(59)
@@ -364,8 +364,8 @@ class WorkflowApiTest extends IntegrationTest {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
     attachChainingConfiguration(workflow, false, 1, 5, true, 120);
-    ChainingConfigurationInput input =
-        ChainingConfigurationInput.builder()
+    WorkflowConfigurationInput input =
+        WorkflowConfigurationInput.builder()
             .timeoutEnabled(true)
             .timeoutSeconds(86401L) // above @Max(86400)
             .safeModeEnabled(true)
@@ -388,8 +388,8 @@ class WorkflowApiTest extends IntegrationTest {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
     attachChainingConfiguration(workflow, false, 1, 5, true, 120);
-    ChainingConfigurationInput input =
-        ChainingConfigurationInput.builder()
+    WorkflowConfigurationInput input =
+        WorkflowConfigurationInput.builder()
             .timeoutEnabled(true)
             .timeoutSeconds(-1L) // below @Min(0)
             .safeModeEnabled(true)
@@ -418,14 +418,14 @@ class WorkflowApiTest extends IntegrationTest {
         .get();
   }
 
-  private ChainingConfiguration attachChainingConfiguration(
+  private WorkflowConfiguration attachChainingConfiguration(
       Workflow workflow,
       boolean rateLimitEnabled,
       int maxAttempts,
       int maxTemporalRateSeconds,
       boolean timeOutEnabled,
       int timeOutSeconds) {
-    ChainingConfiguration configuration = new ChainingConfiguration();
+    WorkflowConfiguration configuration = new WorkflowConfiguration();
     configuration.setRateLimitEnabled(rateLimitEnabled);
     configuration.setMaxAttempts(maxAttempts);
     configuration.setMaxTemporalRateSeconds((long) maxTemporalRateSeconds);

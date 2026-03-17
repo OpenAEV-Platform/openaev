@@ -1,7 +1,7 @@
 package io.openaev.service.chaining;
 
-import io.openaev.api.chaining.ChainingConfigurationInput;
-import io.openaev.api.chaining.ChainingConfigurationMapper;
+import io.openaev.api.chaining.WorkflowConfigurationInput;
+import io.openaev.api.chaining.WorkflowConfigurationMapper;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ChainingConfigurationRepository;
 import io.openaev.database.repository.WorkflowRepository;
@@ -19,7 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class WorkflowService {
   private final WorkflowRepository workflowRepository;
   private final ChainingConfigurationRepository chainingConfigurationRepository;
-  private final ChainingConfigurationMapper chainingConfigurationMapper;
+  private final WorkflowConfigurationMapper workflowConfigurationMapper;
 
   // -- READ --
   /**
@@ -61,12 +61,12 @@ public class WorkflowService {
 
   /** Creates a default chaining configuration for a scenario. */
   private void createDefaultChainingConfiguration(Workflow workflow) {
-    ChainingConfiguration configuration = new ChainingConfiguration();
+    WorkflowConfiguration configuration = new WorkflowConfiguration();
     configuration.setRateLimitEnabled(false);
     configuration.setTimeoutEnabled(false);
     configuration.setSafeModeEnabled(true);
     configuration.setWorkflow(workflow);
-    workflow.setChainingConfiguration(configuration);
+    workflow.setWorkflowConfiguration(configuration);
     this.chainingConfigurationRepository.save(configuration);
   }
 
@@ -127,25 +127,25 @@ public class WorkflowService {
   }
 
   private void saveChainingConfiguration(Workflow workflowTemplate, Workflow workflowRun) {
-    ChainingConfiguration templateConfiguration = workflowTemplate.getChainingConfiguration();
+    WorkflowConfiguration templateConfiguration = workflowTemplate.getWorkflowConfiguration();
     if (templateConfiguration == null) {
       return;
     }
-    ChainingConfiguration runConfiguration = copyConfiguration(templateConfiguration, workflowRun);
-    workflowRun.setChainingConfiguration(runConfiguration);
+    WorkflowConfiguration runConfiguration = copyConfiguration(templateConfiguration, workflowRun);
+    workflowRun.setWorkflowConfiguration(runConfiguration);
     this.chainingConfigurationRepository.save(runConfiguration);
   }
 
   /**
-   * Creates a shallow copy of a {@link ChainingConfiguration}, bound to the given workflow run.
+   * Creates a shallow copy of a {@link WorkflowConfiguration}, bound to the given workflow run.
    *
    * @param source the template configuration to copy from
    * @param workflowRun the workflow run to bind the new configuration to
-   * @return a new {@link ChainingConfiguration} with the same field values
+   * @return a new {@link WorkflowConfiguration} with the same field values
    */
-  private ChainingConfiguration copyConfiguration(
-      ChainingConfiguration source, Workflow workflowRun) {
-    ChainingConfiguration copy = new ChainingConfiguration();
+  private WorkflowConfiguration copyConfiguration(
+      WorkflowConfiguration source, Workflow workflowRun) {
+    WorkflowConfiguration copy = new WorkflowConfiguration();
     copy.setSafeModeEnabled(source.isSafeModeEnabled());
     // Rate limit
     copy.setRateLimitEnabled(source.isRateLimitEnabled());
@@ -190,20 +190,20 @@ public class WorkflowService {
     workflowRepository.deleteById(workflowId);
   }
 
-  public ChainingConfiguration getChainingConfiguration(@NotBlank String workflowId) {
+  public WorkflowConfiguration getChainingConfiguration(@NotBlank String workflowId) {
     Workflow workflow = this.getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
-    if (workflow.getChainingConfiguration() == null) {
+    if (workflow.getWorkflowConfiguration() == null) {
       throw new ElementNotFoundException(
           "Chaining configuration not found for this workflow: " + workflowId);
     }
-    return workflow.getChainingConfiguration();
+    return workflow.getWorkflowConfiguration();
   }
 
   @Transactional
-  public ChainingConfiguration updateChainingConfiguration(
-      @NotBlank String workflowId, @Valid ChainingConfigurationInput input) {
-    ChainingConfiguration configuration = getChainingConfiguration(workflowId);
-    chainingConfigurationMapper.applyInput(input, configuration);
+  public WorkflowConfiguration updateChainingConfiguration(
+      @NotBlank String workflowId, @Valid WorkflowConfigurationInput input) {
+    WorkflowConfiguration configuration = getChainingConfiguration(workflowId);
+    workflowConfigurationMapper.applyInput(input, configuration);
     this.updateWorkflowTemplate(workflowId);
     return chainingConfigurationRepository.save(configuration);
   }

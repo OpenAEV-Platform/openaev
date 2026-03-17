@@ -1,8 +1,8 @@
 package io.openaev.utils.fixtures.composers;
 
-import io.openaev.database.model.ChainingConfiguration;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
+import io.openaev.database.model.WorkflowConfiguration;
 import io.openaev.database.repository.ChainingConfigurationRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import java.util.ArrayList;
@@ -23,7 +23,7 @@ public class WorkflowComposer extends ComposerBase<Workflow> {
     private Optional<ExerciseComposer.Composer> simulationComposer = Optional.empty();
     private final List<StepComposer.Composer> stepComposers = new ArrayList<>();
     private final List<WorkflowComposer.Composer> workflowComposers = new ArrayList<>();
-    private Optional<ChainingConfiguration> chainingConfiguration = Optional.empty();
+    private Optional<WorkflowConfiguration> chainingConfiguration = Optional.empty();
 
     public Composer(Workflow workflow) {
       this.workflow = workflow;
@@ -55,16 +55,16 @@ public class WorkflowComposer extends ComposerBase<Workflow> {
     }
 
     /** Attaches a provided chaining configuration to the workflow. */
-    public Composer withChainingConfiguration(ChainingConfiguration configuration) {
+    public Composer withChainingConfiguration(WorkflowConfiguration configuration) {
       this.chainingConfiguration = Optional.of(configuration);
       configuration.setWorkflow(workflow);
-      workflow.setChainingConfiguration(configuration);
+      workflow.setWorkflowConfiguration(configuration);
       return this;
     }
 
     /** Creates and attaches a default chaining configuration to the workflow. */
     public Composer withDefaultChainingConfiguration() {
-      ChainingConfiguration configuration = new ChainingConfiguration();
+      WorkflowConfiguration configuration = new WorkflowConfiguration();
       configuration.setRateLimitEnabled(false);
       configuration.setTimeoutEnabled(false);
       configuration.setSafeModeEnabled(true);

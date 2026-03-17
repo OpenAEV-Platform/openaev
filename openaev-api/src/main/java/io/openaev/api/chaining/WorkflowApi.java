@@ -1,7 +1,7 @@
 package io.openaev.api.chaining;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.api.chaining.dto.ChainingConfigurationOutput;
+import io.openaev.api.chaining.dto.WorkflowConfigurationOutput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -27,7 +27,7 @@ public class WorkflowApi extends RestBehavior {
 
   public static final String WORKFLOW_URI = "/api/workflows";
 
-  private final ChainingConfigurationMapper chainingConfigurationMapper;
+  private final WorkflowConfigurationMapper workflowConfigurationMapper;
   private final WorkflowService workflowService;
   private final PreviewFeatureService previewFeatureService;
 
@@ -45,10 +45,10 @@ public class WorkflowApi extends RestBehavior {
   @ApiResponse(responseCode = "500", description = "Unexpected server error")
   @GetMapping("/{workflowId}/chaining-configuration")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
-  public ChainingConfigurationOutput getChainingConfiguration(
+  public WorkflowConfigurationOutput getChainingConfiguration(
       @PathVariable @NotBlank final String workflowId) {
     checkChainingFeatureEnabled();
-    return chainingConfigurationMapper.toOutput(
+    return workflowConfigurationMapper.toOutput(
         workflowService.getChainingConfiguration(workflowId));
   }
 
@@ -65,11 +65,11 @@ public class WorkflowApi extends RestBehavior {
   @AccessControl(
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION) // fixme Add RBAC
-  public ChainingConfigurationOutput updateChainingConfiguration(
+  public WorkflowConfigurationOutput updateChainingConfiguration(
       @PathVariable @NotBlank final String workflowId,
-      @Valid @RequestBody final ChainingConfigurationInput input) {
+      @Valid @RequestBody final WorkflowConfigurationInput input) {
     checkChainingFeatureEnabled();
-    return chainingConfigurationMapper.toOutput(
+    return workflowConfigurationMapper.toOutput(
         workflowService.updateChainingConfiguration(workflowId, input));
   }
 
