@@ -136,9 +136,8 @@ class WorkflowServiceTest {
     void shouldMarkWorkflowAsEdited() {
       // Prepare
       String workflowId = UUID.randomUUID().toString();
-      Workflow workflow = WorkflowFixture.getDefaultWorkflowTemplate();
-      workflow.setWorkflowsExecuted(
-          List.of(WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN)));
+      Workflow workflow = mock(Workflow.class);
+      when(workflow.getWorkflowsExecuted()).thenReturn(List.of(mock(Workflow.class))); // Simulate at least one run executed
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
 
