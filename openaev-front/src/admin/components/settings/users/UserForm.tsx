@@ -27,7 +27,7 @@ const UserForm = ({ onSubmit, initialValues = {}, editing, handleClose }: UserFo
   const phoneRegex = /^\+\d+$/;
 
   const userFormSchemaValidation = z.object({
-    user_email: z.email(t('Should be a valid email address'))
+    user_email: z.string().email(t('Should be a valid email address'))
       .nonempty(t('This field is required.')),
     ...(requiredFields.includes('user_plain_password') && {
       user_plain_password: z
