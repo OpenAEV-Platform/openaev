@@ -3,7 +3,6 @@ package io.openaev.api.chaining.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.ScopeRuleSelectedMode;
 import io.openaev.database.model.ScopeRuleSource;
-import io.openaev.database.model.ScopeRuleValueType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
@@ -12,6 +11,10 @@ import lombok.Getter;
 @Builder
 @Schema(description = "Output for a scope rule used in workflow configuration.")
 public class WorkflowScopeRuleOutput {
+
+  @Schema(description = "ID of the scope rule.")
+  @JsonProperty("workflow_scope_rule_id")
+  private String id;
 
   @Schema(description = "Selected list mode where the rule is applied.")
   @JsonProperty("workflow_scope_rule_selected_mode")
@@ -24,8 +27,4 @@ public class WorkflowScopeRuleOutput {
   @Schema(description = "Selected item value")
   @JsonProperty("workflow_scope_rule_value")
   private String ruleValue;
-
-  @Schema(description = "Type of selected item value")
-  @JsonProperty("workflow_scope_rule_value_type")
-  private ScopeRuleValueType ruleValueType;
 }

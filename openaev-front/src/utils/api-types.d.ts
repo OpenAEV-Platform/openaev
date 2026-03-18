@@ -7932,6 +7932,8 @@ export interface WorkflowConfigurationOutput {
 
 /** Input for a scope rule used in workflow configuration. */
 export interface WorkflowScopeRuleInput {
+  /** ID of an existing scope rule. Null means a new rule will be created. */
+  workflow_scope_rule_id?: string;
   /** Selected list mode where the rule should be applied */
   workflow_scope_rule_selected_mode: "WHITELIST" | "BLACKLIST";
   /** Source of the selected rule */
@@ -7945,19 +7947,14 @@ export interface WorkflowScopeRuleInput {
 
 /** Output for a scope rule used in workflow configuration. */
 export interface WorkflowScopeRuleOutput {
+  /** ID of the scope rule. */
+  workflow_scope_rule_id?: string;
   /** Selected list mode where the rule is applied. */
   workflow_scope_rule_selected_mode?: "WHITELIST" | "BLACKLIST";
   /** Source of the selected item */
   workflow_scope_rule_source?: "ASSET" | "ASSET_GROUP" | "MANUAL" | "CSV";
   /** Selected item value */
   workflow_scope_rule_value?: string;
-  /** Type of selected item value */
-  workflow_scope_rule_value_type?:
-    | "IP"
-    | "IP_SUBNET"
-    | "DOMAIN"
-    | "ASSET_ID"
-    | "ASSET_GROUP_ID";
 }
 
 export interface XtmComposerInstanceOutput {

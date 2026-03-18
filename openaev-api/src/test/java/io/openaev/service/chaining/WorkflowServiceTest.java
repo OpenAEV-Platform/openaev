@@ -3,16 +3,13 @@ package io.openaev.service.chaining;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import io.openaev.api.chaining.WorkflowConfigurationMapper;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
-import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.WorkflowRepository;
+import io.openaev.database.repository.WorkflowScopeRuleRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import io.openaev.utils.fixtures.WorkflowFixture;
+import java.util.*;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -32,7 +29,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class WorkflowServiceTest {
 
   @Mock private WorkflowRepository workflowRepository;
-  @Mock private WorkflowConfigurationMapper workflowConfigurationMapper;
+  @Mock private WorkflowScopeRuleRepository workflowScopeRuleRepository;
 
   @InjectMocks private WorkflowService workflowService;
 
@@ -125,6 +122,63 @@ class WorkflowServiceTest {
       verify(workflowRepository).findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
       verify(workflow).setEdited(true);
       verify(workflowRepository).save(workflow);
+    }
+
+    @Test
+    @DisplayName("should mark workflow as not edited when no runs have been executed")
+    void shouldMarkWorkflowAsNotEditedWhenNoRunsExecuted() {
+      // Prepare — workflow was previously marked edited, but all runs have been removed
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow = mock(Workflow.class);
+      when(workflow.getWorkflowsExecuted()).thenReturn(Collections.emptyList());
+      when(workflow.isEdited()).thenReturn(true); // currently edited
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+
+      // Act
+      workflowService.updateWorkflowTemplate(workflowId);
+
+      // Assert — should flip edited to false and persist
+      verify(workflow).setEdited(false);
+      verify(workflowRepository).save(workflow);
+    }
+
+    @Test
+    @DisplayName("should not save when workflow is already edited and has runs")
+    void shouldNotSaveWhenAlreadyEditedAndHasRuns() {
+      // Prepare — state is already consistent: edited=true and runs exist
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow = mock(Workflow.class);
+      when(workflow.getWorkflowsExecuted()).thenReturn(List.of(mock(Workflow.class)));
+      when(workflow.isEdited()).thenReturn(true); // already correct
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+
+      // Act
+      workflowService.updateWorkflowTemplate(workflowId);
+
+      // Assert — no state change, no save
+      verify(workflow, never()).setEdited(anyBoolean());
+      verify(workflowRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("should not save when workflow is not edited and has no runs")
+    void shouldNotSaveWhenNotEditedAndHasNoRuns() {
+      // Prepare — state is already consistent: edited=false and no runs
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow = mock(Workflow.class);
+      when(workflow.getWorkflowsExecuted()).thenReturn(Collections.emptyList());
+      when(workflow.isEdited()).thenReturn(false); // already correct
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+
+      // Act
+      workflowService.updateWorkflowTemplate(workflowId);
+
+      // Assert — no state change, no save
+      verify(workflow, never()).setEdited(anyBoolean());
+      verify(workflowRepository, never()).save(any());
     }
 
     @Test
@@ -310,8 +364,8 @@ class WorkflowServiceTest {
       Workflow result = workflowService.launchWorkflow(template);
 
       // Assert
-      // save called twice: once for the run, once for the scope-rule cascade
-      verify(workflowRepository, times(2)).save(any(Workflow.class));
+      // save called once: scope rules are attached in-memory to the run before saveWorkflowRun
+      verify(workflowRepository, times(1)).save(any(Workflow.class));
 
       List<WorkflowScopeRule> copiedRules = result.getWorkflowScopeRules();
       assertEquals(1, copiedRules.size());
@@ -448,24 +502,29 @@ class WorkflowServiceTest {
     @Captor private ArgumentCaptor<Workflow> workflowCaptor;
 
     @Test
-    @DisplayName("should apply input to workflow and save it")
+    @DisplayName("should apply input to workflow and save it when a field changed")
     void shouldApplyInputToWorkflowAndSaveIt() {
       // Prepare
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow = mock(Workflow.class);
-      WorkflowConfigurationInput input = mock(WorkflowConfigurationInput.class);
       Workflow savedWorkflow = mock(Workflow.class);
+
+      // rateLimitEnabled differs from mock default (false) → change detected
+      WorkflowConfigurationInput input = new WorkflowConfigurationInput();
+      input.setRateLimitEnabled(true);
 
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
+      when(workflow.getId()).thenReturn(workflowId);
+      when(workflow.getWorkflowScopeRules()).thenReturn(new ArrayList<>());
       when(workflow.getWorkflowsExecuted()).thenReturn(Collections.emptyList());
       when(workflowRepository.save(workflow)).thenReturn(savedWorkflow);
 
       // Act
       Workflow result = workflowService.updateWorkflowConfiguration(workflowId, input);
 
-      // Assert
-      verify(workflowConfigurationMapper).applyInput(input, workflow);
+      // Assert — service loads the entity, applies the input, then saves
+      verify(workflowRepository, times(2)).findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
       verify(workflowRepository).save(workflowCaptor.capture());
       assertSame(workflow, workflowCaptor.getValue());
       assertEquals(savedWorkflow, result);
@@ -476,7 +535,7 @@ class WorkflowServiceTest {
     void shouldThrowWhenWorkflowMissing() {
       // Prepare
       String workflowId = UUID.randomUUID().toString();
-      WorkflowConfigurationInput input = mock(WorkflowConfigurationInput.class);
+      WorkflowConfigurationInput input = new WorkflowConfigurationInput();
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.empty());
 
@@ -488,60 +547,29 @@ class WorkflowServiceTest {
       assertEquals(
           "Workflow TEMPLATE not found. Workflow ID : " + workflowId, exception.getMessage());
       verify(workflowRepository).findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
-      verifyNoInteractions(workflowConfigurationMapper);
       verify(workflowRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("should map scope rules onto workflow using real mapper")
+    @DisplayName("should apply scope rules onto workflow and persist them")
     void shouldMapScopeRulesOntoWorkflowUsingRealMapper() {
       String workflowId = UUID.randomUUID().toString();
-      Workflow workflow = Workflow.builder().status(WorkflowStatus.TEMPLATE).version(0).build();
-
-      WorkflowScopeRuleInput ipRule =
-          WorkflowScopeRuleInput.builder()
-              .selectedMode(ScopeRuleSelectedMode.WHITELIST)
-              .ruleSource(ScopeRuleSource.MANUAL)
-              .ruleValue("10.10.10.10")
-              .build();
-      WorkflowScopeRuleInput domainRule =
-          WorkflowScopeRuleInput.builder()
-              .selectedMode(ScopeRuleSelectedMode.WHITELIST)
-              .ruleSource(ScopeRuleSource.MANUAL)
-              .ruleValue("example.org")
-              .build();
-      WorkflowScopeRuleInput assetRule =
-          WorkflowScopeRuleInput.builder()
-              .selectedMode(ScopeRuleSelectedMode.WHITELIST)
-              .ruleSource(ScopeRuleSource.ASSET)
-              .ruleValue("asset-123")
-              .build();
-      WorkflowScopeRuleInput subnetRule =
-          WorkflowScopeRuleInput.builder()
-              .selectedMode(ScopeRuleSelectedMode.BLACKLIST)
-              .ruleSource(ScopeRuleSource.MANUAL)
-              .ruleValue("10.10.10.0/24")
-              .build();
-      WorkflowScopeRuleInput assetGroupRule =
-          WorkflowScopeRuleInput.builder()
-              .selectedMode(ScopeRuleSelectedMode.BLACKLIST)
-              .ruleSource(ScopeRuleSource.ASSET_GROUP)
-              .ruleValue("asset-group-1")
-              .build();
+      Workflow workflow =
+          Workflow.builder().id(workflowId).status(WorkflowStatus.TEMPLATE).version(0).build();
 
       WorkflowConfigurationInput input = new WorkflowConfigurationInput();
       input.setSafeModeEnabled(true);
-      input.setWorkflowScopeRules(
-          List.of(ipRule, domainRule, assetRule, subnetRule, assetGroupRule));
+      input.setWorkflowScopeRules(WorkflowFixture.getDefaultWorkflowScopeRuleInputList());
 
-      WorkflowConfigurationMapper realMapper = new WorkflowConfigurationMapper();
-      WorkflowService serviceWithRealMapper = new WorkflowService(workflowRepository, realMapper);
+      // Service now owns the apply logic — no manual mapper call needed
+      WorkflowService service =
+          new WorkflowService(workflowRepository, workflowScopeRuleRepository);
 
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
       when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
 
-      Workflow result = serviceWithRealMapper.updateWorkflowConfiguration(workflowId, input);
+      Workflow result = service.updateWorkflowConfiguration(workflowId, input);
 
       assertSame(workflow, result);
       assertEquals(5, result.getWorkflowScopeRules().size());

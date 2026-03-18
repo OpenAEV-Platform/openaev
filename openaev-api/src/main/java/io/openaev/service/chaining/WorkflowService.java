@@ -1,15 +1,22 @@
 package io.openaev.service.chaining;
 
-import io.openaev.api.chaining.WorkflowConfigurationMapper;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
+import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.WorkflowRepository;
+import io.openaev.database.repository.WorkflowScopeRuleRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
-import jakarta.validation.Valid;
+import io.openaev.utils.IpAddressUtils;
 import jakarta.validation.constraints.NotBlank;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,7 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class WorkflowService {
 
   private final WorkflowRepository workflowRepository;
-  private final WorkflowConfigurationMapper workflowConfigurationMapper;
+  private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
 
   // -- READ --
 
@@ -41,6 +48,22 @@ public class WorkflowService {
                         + (status != null ? status.name() : null)
                         + " not found. Workflow ID : "
                         + workflowId));
+  }
+
+  /**
+   * Returns the TEMPLATE workflow for the given ID with its scope-rules collection eagerly
+   * initialized, so the caller can safely read the collection after the session closes (e.g. inside
+   * a static mapper called from the controller layer).
+   *
+   * @param workflowId the ID of the workflow
+   * @return the template workflow with scope rules initialized
+   * @throws ElementNotFoundException if no TEMPLATE workflow is found with the given ID
+   */
+  @Transactional(readOnly = true)
+  public Workflow getWorkflowConfiguration(@NotBlank String workflowId) {
+    Workflow workflow = getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
+    Hibernate.initialize(workflow.getWorkflowScopeRules());
+    return workflow;
   }
 
   // -- WRITE --
@@ -80,6 +103,30 @@ public class WorkflowService {
   }
 
   /**
+   * Loads the TEMPLATE workflow, applies the configuration input and persists it only when at least
+   * one field or scope rule has actually changed.
+   *
+   * <p>The entire operation runs inside a single transaction so that lazy-collection access and the
+   * subsequent save are atomic.
+   *
+   * @param workflowId the ID of the TEMPLATE workflow to update
+   * @param input the new configuration values
+   * @return the (possibly updated) workflow
+   * @throws ElementNotFoundException if no TEMPLATE workflow is found with the given ID
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public Workflow updateWorkflowConfiguration(
+      @NotBlank String workflowId, WorkflowConfigurationInput input) {
+    Workflow workflow = getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
+    boolean changed = applyConfigurationInput(input, workflow);
+    if (changed) {
+      updateWorkflowTemplate(workflowId);
+      return workflowRepository.save(workflow);
+    }
+    return workflow;
+  }
+
+  /**
    * Saves a workflow run to the repository.
    *
    * @param workflowRun the workflow run to save
@@ -99,7 +146,6 @@ public class WorkflowService {
    * @return the created workflow run
    */
   public Workflow launchWorkflow(Workflow workflowTemplate) {
-
     if (workflowTemplate.isEdited()) {
       workflowTemplate.setEdited(false);
       workflowTemplate.setVersion(workflowTemplate.getVersion() + 1);
@@ -113,7 +159,6 @@ public class WorkflowService {
             .simulation(workflowTemplate.getSimulation())
             .version(workflowTemplate.getVersion())
             .workflowTemplate(workflowTemplate)
-            // Copy inline configuration from template
             .rateLimitEnabled(workflowTemplate.isRateLimitEnabled())
             .maxAttempts(workflowTemplate.getMaxAttempts())
             .maxTemporalRateSeconds(workflowTemplate.getMaxTemporalRateSeconds())
@@ -122,9 +167,8 @@ public class WorkflowService {
             .safeModeEnabled(workflowTemplate.isSafeModeEnabled())
             .build();
 
-    Workflow savedRun = saveWorkflowRun(run);
-    copyScopeRules(workflowTemplate, savedRun);
-    return savedRun;
+    copyScopeRules(workflowTemplate, run);
+    return saveWorkflowRun(run);
   }
 
   /**
@@ -132,25 +176,14 @@ public class WorkflowService {
    * workflow owns its own rule rows.
    */
   private void copyScopeRules(Workflow source, Workflow target) {
-    List<WorkflowScopeRule> sourceRules = source.getWorkflowScopeRules();
+    List<WorkflowScopeRule> sourceRules =
+        workflowScopeRuleRepository.findAllByWorkflowId(source.getId());
     if (sourceRules == null || sourceRules.isEmpty()) {
       return;
     }
-    List<WorkflowScopeRule> copies =
-        sourceRules.stream()
-            .map(
-                rule -> {
-                  WorkflowScopeRule copy = new WorkflowScopeRule();
-                  copy.setSelectedMode(rule.getSelectedMode());
-                  copy.setRuleSource(rule.getRuleSource());
-                  copy.setRuleValue(rule.getRuleValue());
-                  copy.setValueType(rule.getValueType());
-                  copy.setWorkflow(target);
-                  return copy;
-                })
-            .toList();
-    target.setWorkflowScopeRules(copies);
-    workflowRepository.save(target);
+    sourceRules.stream()
+        .map(rule -> WorkflowScopeRule.copyOf(rule, target))
+        .forEach(target.getWorkflowScopeRules()::add);
   }
 
   /**
@@ -185,32 +218,142 @@ public class WorkflowService {
     workflowRepository.deleteById(workflowId);
   }
 
+  // -- Configuration Update --
+
   /**
-   * Returns the TEMPLATE workflow that holds the configuration for a given workflow ID. Since
-   * configuration fields are stored inline on the workflow row, no separate lookup is needed.
-   *
-   * @param workflowId the ID of the workflow
-   * @return the template workflow (which carries the configuration)
-   * @throws ElementNotFoundException if no TEMPLATE workflow is found with the given ID
+   * Copies all fields from {@code input} onto {@code workflow} and returns {@code true} when at
+   * least one value changed.
    */
-  public Workflow getWorkflowConfiguration(@NotBlank String workflowId) {
-    return getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
+  private boolean applyConfigurationInput(WorkflowConfigurationInput input, Workflow workflow) {
+    boolean changed = false;
+    if (workflow.isRateLimitEnabled() != input.isRateLimitEnabled()) {
+      workflow.setRateLimitEnabled(input.isRateLimitEnabled());
+      changed = true;
+    }
+    if (!Objects.equals(workflow.getMaxAttempts(), input.getMaxAttempts())) {
+      workflow.setMaxAttempts(input.getMaxAttempts());
+      changed = true;
+    }
+    if (!Objects.equals(workflow.getMaxTemporalRateSeconds(), input.getMaxTemporalRateSeconds())) {
+      workflow.setMaxTemporalRateSeconds(input.getMaxTemporalRateSeconds());
+      changed = true;
+    }
+    if (workflow.isTimeoutEnabled() != input.isTimeoutEnabled()) {
+      workflow.setTimeoutEnabled(input.isTimeoutEnabled());
+      changed = true;
+    }
+    if (!Objects.equals(workflow.getTimeoutSeconds(), input.getTimeoutSeconds())) {
+      workflow.setTimeoutSeconds(input.getTimeoutSeconds());
+      changed = true;
+    }
+    if (workflow.isSafeModeEnabled() != input.isSafeModeEnabled()) {
+      workflow.setSafeModeEnabled(input.isSafeModeEnabled());
+      changed = true;
+    }
+    return applyScopeRules(input.getWorkflowScopeRules(), workflow) || changed;
   }
 
   /**
-   * Updates the inline workflow configuration fields and scope rules for a given TEMPLATE workflow.
+   * Reconciles the workflow's scope-rule collection against the provided inputs: removes rules not
+   * present in the input, adds new ones, and updates changed ones in-place.
    *
-   * @param workflowId the ID of the workflow to update
-   * @param input the new configuration values
-   * @return the updated workflow
-   * @throws ElementNotFoundException if no TEMPLATE workflow is found with the given ID
+   * @return {@code true} if the collection was modified
    */
-  @Transactional
-  public Workflow updateWorkflowConfiguration(
-      @NotBlank String workflowId, @Valid WorkflowConfigurationInput input) {
-    Workflow workflow = getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
-    workflowConfigurationMapper.applyInput(input, workflow);
-    updateWorkflowTemplate(workflowId);
-    return workflowRepository.save(workflow);
+  private boolean applyScopeRules(List<WorkflowScopeRuleInput> ruleInputs, Workflow workflow) {
+    if (ruleInputs == null) {
+      return false;
+    }
+    List<WorkflowScopeRuleInput> deduplicated = deduplicateRules(ruleInputs);
+
+    Set<String> inputIds =
+        deduplicated.stream()
+            .map(WorkflowScopeRuleInput::getId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+
+    List<WorkflowScopeRule> existing = workflow.getWorkflowScopeRules();
+    Map<String, WorkflowScopeRule> existingById =
+        existing.stream().collect(Collectors.toMap(WorkflowScopeRule::getId, r -> r));
+
+    boolean changed = existing.removeIf(r -> !inputIds.contains(r.getId()));
+
+    for (WorkflowScopeRuleInput ruleInput : deduplicated) {
+      if (ruleInput.getId() == null) {
+        existing.add(buildScopeRule(ruleInput, workflow));
+        changed = true;
+      } else {
+        WorkflowScopeRule existingRule = existingById.get(ruleInput.getId());
+        if (existingRule != null && hasRuleChanged(existingRule, ruleInput)) {
+          updateScopeRule(existingRule, ruleInput);
+          changed = true;
+        }
+      }
+    }
+    return changed;
+  }
+
+  /**
+   * Filters out duplicate scope-rule inputs, keeping only the first occurrence of each unique
+   * (selectedMode, ruleSource, ruleValue) combination.
+   */
+  private List<WorkflowScopeRuleInput> deduplicateRules(List<WorkflowScopeRuleInput> rules) {
+    Set<String> seen = new HashSet<>();
+    return rules.stream()
+        .filter(
+            rule ->
+                seen.add(
+                    rule.getSelectedMode()
+                        + ":"
+                        + rule.getRuleSource()
+                        + ":"
+                        + (rule.getRuleValue() != null
+                            ? rule.getRuleValue().trim().toLowerCase()
+                            : "")))
+        .toList();
+  }
+
+  private boolean hasRuleChanged(WorkflowScopeRule existing, WorkflowScopeRuleInput input) {
+    return existing.getSelectedMode() != input.getSelectedMode()
+        || existing.getRuleSource() != input.getRuleSource()
+        || !Objects.equals(existing.getRuleValue(), input.getRuleValue());
+  }
+
+  private void updateScopeRule(WorkflowScopeRule existing, WorkflowScopeRuleInput input) {
+    existing.setSelectedMode(input.getSelectedMode());
+    existing.setRuleSource(input.getRuleSource());
+    existing.setRuleValue(input.getRuleValue());
+    existing.setValueType(detectValueType(input));
+  }
+
+  private WorkflowScopeRule buildScopeRule(WorkflowScopeRuleInput input, Workflow workflow) {
+    return WorkflowScopeRule.builder()
+        .selectedMode(input.getSelectedMode())
+        .ruleSource(input.getRuleSource())
+        .ruleValue(input.getRuleValue())
+        .valueType(detectValueType(input))
+        .workflow(workflow)
+        .build();
+  }
+
+  private ScopeRuleValueType detectValueType(WorkflowScopeRuleInput input) {
+    if (input.getRuleSource() != null) {
+      return switch (input.getRuleSource()) {
+        case ASSET -> ScopeRuleValueType.ASSET_ID;
+        case ASSET_GROUP -> ScopeRuleValueType.ASSET_GROUP_ID;
+        default -> resolveValueTypeFromString(input.getRuleValue());
+      };
+    }
+    return resolveValueTypeFromString(input.getRuleValue());
+  }
+
+  private ScopeRuleValueType resolveValueTypeFromString(String value) {
+    String trimmed = value != null ? value.trim() : "";
+    if (IpAddressUtils.isIpv4Subnet(trimmed) || IpAddressUtils.isIpv6Subnet(trimmed)) {
+      return ScopeRuleValueType.IP_SUBNET;
+    }
+    if (IpAddressUtils.isIpv4Address(trimmed) || IpAddressUtils.isIpv6Address(trimmed)) {
+      return ScopeRuleValueType.IP;
+    }
+    return ScopeRuleValueType.DOMAIN;
   }
 }

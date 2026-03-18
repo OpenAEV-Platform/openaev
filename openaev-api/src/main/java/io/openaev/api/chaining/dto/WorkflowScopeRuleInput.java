@@ -20,6 +20,10 @@ import lombok.Setter;
 @Schema(description = "Input for a scope rule used in workflow configuration.")
 public class WorkflowScopeRuleInput {
 
+  @Schema(description = "ID of an existing scope rule. Null means a new rule will be created.")
+  @JsonProperty("workflow_scope_rule_id")
+  private String id;
+
   @NotNull
   @Schema(description = "Selected list mode where the rule should be applied")
   @JsonProperty("workflow_scope_rule_selected_mode")

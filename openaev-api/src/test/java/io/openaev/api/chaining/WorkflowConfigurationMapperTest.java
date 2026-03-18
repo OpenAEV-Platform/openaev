@@ -1,8 +1,8 @@
 package io.openaev.api.chaining;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 
+import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.database.model.*;
 import java.util.List;
@@ -26,7 +26,7 @@ class WorkflowConfigurationMapperTest {
 
   @ParameterizedTest(name = "source={0}, value={1} -> {2}")
   @MethodSource("valueTypeCases")
-  void toScopeShouldDetectRuleValueType(
+  void shouldDetectRuleValueTypeForWhitelistRule(
       ScopeRuleSource source, String ruleValue, ScopeRuleValueType expectedType) {
     WorkflowScopeRuleInput ruleInput =
         WorkflowScopeRuleInput.builder()
@@ -35,24 +35,24 @@ class WorkflowConfigurationMapperTest {
             .ruleValue(ruleValue)
             .build();
 
-    WorkflowScopeInput scopeInput =
-        WorkflowScopeInput.builder().workflowScopeRules(List.of(ruleInput)).build();
+    WorkflowConfigurationInput input =
+        WorkflowConfigurationInput.builder().workflowScopeRules(List.of(ruleInput)).build();
 
-    WorkflowScope workflowScope = mapper.toScope(scopeInput);
+    Workflow workflow = Workflow.builder().build();
+    mapper.applyInput(input, workflow);
 
-    assertNotNull(workflowScope);
-    assertEquals(1, workflowScope.getWorkflowScopeRules().size());
-    assertEquals(1, workflowScope.getWhitelist().size());
+    assertEquals(1, workflow.getWorkflowScopeRules().size());
+    assertEquals(1, workflow.getWhitelist().size());
 
-    WorkflowScopeRule mappedRule = workflowScope.getWhitelist().getFirst();
+    WorkflowScopeRule mappedRule = workflow.getWhitelist().getFirst();
     assertEquals(ScopeRuleSelectedMode.WHITELIST, mappedRule.getSelectedMode());
     assertEquals(expectedType, mappedRule.getValueType());
-    assertEquals(workflowScope, mappedRule.getWorkflowScope());
+    assertSame(workflow, mappedRule.getWorkflow());
   }
 
-  @ParameterizedTest(name = "blacklist source={0}, value={1} -> {2}")
+  @ParameterizedTest(name = "source={0}, value={1} -> {2}")
   @MethodSource("valueTypeCases")
-  void toScopeShouldDetectRuleValueTypeInBlacklist(
+  void shouldDetectRuleValueTypeForBlacklistRule(
       ScopeRuleSource source, String ruleValue, ScopeRuleValueType expectedType) {
     WorkflowScopeRuleInput ruleInput =
         WorkflowScopeRuleInput.builder()
@@ -61,18 +61,18 @@ class WorkflowConfigurationMapperTest {
             .ruleValue(ruleValue)
             .build();
 
-    WorkflowScopeInput scopeInput =
-        WorkflowScopeInput.builder().workflowScopeRules(List.of(ruleInput)).build();
+    WorkflowConfigurationInput input =
+        WorkflowConfigurationInput.builder().workflowScopeRules(List.of(ruleInput)).build();
 
-    WorkflowScope workflowScope = mapper.toScope(scopeInput);
+    Workflow workflow = Workflow.builder().build();
+    mapper.applyInput(input, workflow);
 
-    assertNotNull(workflowScope);
-    assertEquals(1, workflowScope.getWorkflowScopeRules().size());
-    assertEquals(1, workflowScope.getBlacklist().size());
+    assertEquals(1, workflow.getWorkflowScopeRules().size());
+    assertEquals(1, workflow.getBlacklist().size());
 
-    WorkflowScopeRule mappedRule = workflowScope.getBlacklist().getFirst();
+    WorkflowScopeRule mappedRule = workflow.getBlacklist().getFirst();
     assertEquals(ScopeRuleSelectedMode.BLACKLIST, mappedRule.getSelectedMode());
     assertEquals(expectedType, mappedRule.getValueType());
-    assertEquals(workflowScope, mappedRule.getWorkflowScope());
+    assertSame(workflow, mappedRule.getWorkflow());
   }
 }

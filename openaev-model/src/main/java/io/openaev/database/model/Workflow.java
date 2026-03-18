@@ -10,7 +10,6 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -138,6 +137,7 @@ public class Workflow implements Base {
       fetch = FetchType.LAZY,
       orphanRemoval = true,
       cascade = CascadeType.ALL)
+  @Builder.Default
   @JsonProperty("workflow_scope_rules")
   private List<WorkflowScopeRule> workflowScopeRules = new ArrayList<WorkflowScopeRule>();
 
@@ -145,13 +145,13 @@ public class Workflow implements Base {
   public List<WorkflowScopeRule> getWhitelist() {
     return this.workflowScopeRules.stream()
         .filter(r -> ScopeRuleSelectedMode.WHITELIST.equals(r.getSelectedMode()))
-        .collect(Collectors.toList());
+        .toList();
   }
 
   @JsonIgnore
   public List<WorkflowScopeRule> getBlacklist() {
     return this.workflowScopeRules.stream()
         .filter(r -> ScopeRuleSelectedMode.BLACKLIST.equals(r.getSelectedMode()))
-        .collect(Collectors.toList());
+        .toList();
   }
 }

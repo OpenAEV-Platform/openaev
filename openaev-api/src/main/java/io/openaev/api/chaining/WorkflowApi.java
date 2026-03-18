@@ -1,5 +1,7 @@
 package io.openaev.api.chaining;
 
+import static io.openaev.api.chaining.WorkflowConfigurationMapper.toOutput;
+
 import io.openaev.aop.AccessControl;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationOutput;
@@ -28,11 +30,10 @@ public class WorkflowApi extends RestBehavior {
 
   public static final String WORKFLOW_URI = "/api/workflows";
 
-  private final WorkflowConfigurationMapper workflowConfigurationMapper;
   private final WorkflowService workflowService;
   private final PreviewFeatureService previewFeatureService;
 
-  // -- Endpoints --
+  // -- READ --
 
   @Operation(
       summary = "Fetch workflow configuration for a workflow",
@@ -51,9 +52,10 @@ public class WorkflowApi extends RestBehavior {
   public WorkflowConfigurationOutput getWorkflowConfiguration(
       @PathVariable @NotBlank final String workflowId) {
     checkWorkflowFeatureEnabled();
-    return workflowConfigurationMapper.toOutput(
-        workflowService.getWorkflowConfiguration(workflowId));
+    return toOutput(workflowService.getWorkflowConfiguration(workflowId));
   }
+
+  // -- UPDATE --
 
   @Operation(
       summary = "Update workflow configuration for a workflow",
@@ -72,8 +74,7 @@ public class WorkflowApi extends RestBehavior {
       @PathVariable @NotBlank final String workflowId,
       @Valid @RequestBody final WorkflowConfigurationInput input) {
     checkWorkflowFeatureEnabled();
-    return workflowConfigurationMapper.toOutput(
-        workflowService.updateWorkflowConfiguration(workflowId, input));
+    return toOutput(workflowService.updateWorkflowConfiguration(workflowId, input));
   }
 
   // -- Helpers --

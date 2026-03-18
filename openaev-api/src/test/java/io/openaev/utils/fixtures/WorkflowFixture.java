@@ -2,7 +2,6 @@ package io.openaev.utils.fixtures;
 
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.database.model.*;
-
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;

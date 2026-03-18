@@ -5,5 +5,5 @@ public enum ScopeRuleValueType {
   IP_SUBNET,
   DOMAIN,
   ASSET_ID,
-  ASSET_GROUP_ID,
+  ASSET_GROUP_ID
 }
