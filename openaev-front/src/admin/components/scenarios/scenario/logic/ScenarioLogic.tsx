@@ -159,9 +159,10 @@ const ScenarioLogic: FunctionComponent = () => {
     setActionEditOpen(true);
   };
 
-  const handleSaveActionEdit = async (step: WorkflowStep, title: string, fieldScopes: Record<string, string>, injectContent?: Record<string, unknown>) => {
+  const handleSaveActionEdit = async (step: WorkflowStep, title: string, fieldScopes: Record<string, string>, injectContent?: Record<string, unknown>, modifiedStepData?: string) => {
     try {
-      const currentData = JSON.parse(step.step_data ?? '{}');
+      const baseData = modifiedStepData ?? step.step_data ?? '{}';
+      const currentData = JSON.parse(baseData);
       const updatedData = {
         ...currentData,
         inject_title: title,

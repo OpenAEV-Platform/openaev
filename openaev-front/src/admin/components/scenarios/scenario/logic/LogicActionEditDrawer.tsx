@@ -1,4 +1,4 @@
-import { InfoOutlined, LanguageOutlined, LinkOutlined, LinkOffOutlined, PlayArrowOutlined, PushPinOutlined } from '@mui/icons-material';
+import { InfoOutlined, LanguageOutlined, LinkOutlined, LinkOff, PlayArrowOutlined, GpsFixedOutlined } from '@mui/icons-material';
 import { Button, Chip, Divider, IconButton, Menu, MenuItem, Switch, TextField, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useCallback, useEffect, useState } from 'react';
@@ -36,7 +36,7 @@ interface Props {
   handleClose: () => void;
   step: WorkflowStep | null;
   allSteps: WorkflowStep[];
-  onSave: (step: WorkflowStep, title: string, fieldScopes: Record<string, string>, injectContent: Record<string, unknown>) => void;
+  onSave: (step: WorkflowStep, title: string, fieldScopes: Record<string, string>, injectContent: Record<string, unknown>, modifiedStepData?: string) => void;
   attackPatternsMap: Record<string, { attack_pattern_external_id?: string }>;
 }
 
@@ -56,6 +56,8 @@ const LogicActionEditDrawer: FunctionComponent<Props> = ({
   const [contractFields, setContractFields] = useState<ContractElement[]>([]);
   const [injectContent, setInjectContent] = useState<Record<string, unknown>>({});
   const [inputBindings, setInputBindings] = useState<InputBinding[]>([]);
+  const [unlinkedFields, setUnlinkedFields] = useState<Set<string>>(new Set());
+  const [modifiedStepData, setModifiedStepData] = useState<string | undefined>(undefined);
   const [outputTypeCatalog, setOutputTypeCatalog] = useState<OutputTypeDescriptor[]>([]);
   const [linkMenuAnchor, setLinkMenuAnchor] = useState<null | HTMLElement>(null);
   const [linkMenuFieldKey, setLinkMenuFieldKey] = useState<string | null>(null);
@@ -106,6 +108,8 @@ const LogicActionEditDrawer: FunctionComponent<Props> = ({
       setTitle(getStepLabel(step));
       setFieldScopes(getFieldScopes(step));
       setInputBindings(extractInputBindings(step, allSteps));
+      setUnlinkedFields(new Set());
+      setModifiedStepData(undefined);
 
       // Load existing inject_content
       try {
@@ -121,6 +125,8 @@ const LogicActionEditDrawer: FunctionComponent<Props> = ({
       setContractFields([]);
       setInjectContent({});
       setInputBindings([]);
+      setUnlinkedFields(new Set());
+      setModifiedStepData(undefined);
     }
   }, [step, open, allSteps, loadContract]);
 
@@ -145,9 +151,11 @@ const LogicActionEditDrawer: FunctionComponent<Props> = ({
     setInjectContent(prev => ({ ...prev, [key]: value }));
   };
 
-  // Find binding for a contract field
-  const getBindingForField = (fieldKey: string): InputBinding | null =>
-    inputBindings.find(b => b.argumentKey === fieldKey) ?? null;
+  // Find binding for a contract field (respects explicitly unlinked fields)
+  const getBindingForField = (fieldKey: string): InputBinding | null => {
+    if (unlinkedFields.has(fieldKey)) return null;
+    return inputBindings.find(b => b.argumentKey === fieldKey) ?? null;
+  };
 
   // Compute available upstream output types for linking
   const upstreamOutputTypes = (() => {
@@ -188,10 +196,13 @@ const LogicActionEditDrawer: FunctionComponent<Props> = ({
     setLinkMenuFieldKey(null);
   };
 
+  // Get the current step_data (local modifications take precedence)
+  const getCurrentStepData = (): string => modifiedStepData ?? step?.step_data ?? '{}';
+
   const handleLinkField = (inputType: string, inputField: string | null) => {
     if (!step || !linkMenuFieldKey) return;
     try {
-      const data = JSON.parse(step.step_data ?? '{}');
+      const data = JSON.parse(getCurrentStepData());
       const newSource = { input_type: inputType, input_field: inputField };
 
       // Update payload_arguments if the field exists there
@@ -215,9 +226,16 @@ const LogicActionEditDrawer: FunctionComponent<Props> = ({
         data.payload_arguments.push({ key: linkMenuFieldKey, input_sources: [newSource] });
       }
 
-      // Persist: mutate step_data and re-derive bindings
-      step.step_data = JSON.stringify(data);
-      setInputBindings(extractInputBindings(step, allSteps));
+      const newStepData = JSON.stringify(data);
+      setModifiedStepData(newStepData);
+      // Re-derive bindings with a temporary step object
+      const tempStep = { ...step, step_data: newStepData };
+      setInputBindings(extractInputBindings(tempStep, allSteps));
+      setUnlinkedFields(prev => {
+        const next = new Set(prev);
+        next.delete(linkMenuFieldKey);
+        return next;
+      });
     } catch { /* ignore */ }
     handleCloseLinkMenu();
   };
@@ -225,27 +243,52 @@ const LogicActionEditDrawer: FunctionComponent<Props> = ({
   const handleUnlinkField = (fieldKey: string) => {
     if (!step) return;
     try {
-      const data = JSON.parse(step.step_data ?? '{}');
-      // Remove input_sources from the argument
+      const data = JSON.parse(getCurrentStepData());
+      // Remove input_sources and input_source (legacy) from the argument
       for (const list of [data.payload_arguments, data.contract_fields]) {
         if (!Array.isArray(list)) continue;
         const item = list.find((a: { key: string }) => a.key === fieldKey);
-        if (item) delete item.input_sources;
+        if (item) {
+          delete item.input_sources;
+          delete item.input_source;
+        }
       }
-      step.step_data = JSON.stringify(data);
-      setInputBindings(extractInputBindings(step, allSteps));
+      const newStepData = JSON.stringify(data);
+      setModifiedStepData(newStepData);
+      const tempStep = { ...step, step_data: newStepData };
+      setInputBindings(extractInputBindings(tempStep, allSteps));
+      setUnlinkedFields(prev => new Set(prev).add(fieldKey));
     } catch { /* ignore */ }
   };
 
-  // Visible contract fields (exclude hidden ones)
-  const visibleFields = contractFields.filter(f => !HIDDEN_FIELD_KEYS.has(f.key));
+  // Visible contract fields (exclude hidden ones) + unlinked fields not already in list
+  const baseVisibleFields = contractFields.filter(f => !HIDDEN_FIELD_KEYS.has(f.key));
+  const visibleFieldKeys = new Set(baseVisibleFields.map(f => f.key));
+  // Add unlinked fields that were auto-bound (typed) but not in contractFields
+  const extraUnlinkedFields: ContractElement[] = [];
+  for (const fieldKey of unlinkedFields) {
+    if (!visibleFieldKeys.has(fieldKey)) {
+      const binding = inputBindings.find(b => b.argumentKey === fieldKey);
+      extraUnlinkedFields.push({
+        key: fieldKey,
+        label: binding ? `${fieldKey} (${binding.inputType})` : fieldKey,
+        type: 'text' as ContractElement['type'],
+        defaultValue: '',
+        mandatory: false,
+        readOnly: false,
+        cardinality: '1',
+      } as ContractElement);
+    }
+  }
+  const visibleFields = [...baseVisibleFields, ...extraUnlinkedFields];
 
   const handleSubmit = () => {
-    onSave(step, title, fieldScopes, injectContent);
+    onSave(step, title, fieldScopes, injectContent, modifiedStepData);
     handleClose();
   };
 
   return (
+    <>
     <Drawer
       open={open}
       handleClose={handleClose}
@@ -375,7 +418,7 @@ const LogicActionEditDrawer: FunctionComponent<Props> = ({
                         <Tooltip title={isLocal ? t('Local: only the triggering instance') : t('Global: all results of this type')}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                             {isLocal
-                              ? <PushPinOutlined sx={{ fontSize: 14, color: theme.palette.primary.main }} />
+                              ? <GpsFixedOutlined sx={{ fontSize: 14, color: theme.palette.primary.main }} />
                               : <LanguageOutlined sx={{ fontSize: 14, color: theme.palette.text.secondary }} />
                             }
                             <Switch
@@ -392,7 +435,7 @@ const LogicActionEditDrawer: FunctionComponent<Props> = ({
                     })()}
                     <Tooltip title={t('Unlink')}>
                       <IconButton size="small" onClick={() => handleUnlinkField(field.key)}>
-                        <LinkOffOutlined sx={{ fontSize: 16, color: theme.palette.text.secondary }} />
+                        <LinkOff sx={{ fontSize: 16, color: theme.palette.text.secondary }} />
                       </IconButton>
                     </Tooltip>
                   </div>
@@ -480,7 +523,8 @@ const LogicActionEditDrawer: FunctionComponent<Props> = ({
           </Button>
         </div>
       </div>
-      {/* Link field menu */}
+      </Drawer>
+      {/* Link field menu — outside drawer to avoid cloneElement issues */}
       <Menu
         anchorEl={linkMenuAnchor}
         open={Boolean(linkMenuAnchor)}
@@ -503,7 +547,7 @@ const LogicActionEditDrawer: FunctionComponent<Props> = ({
           </MenuItem>
         )}
       </Menu>
-    </Drawer>
+    </>
   );
 };
 

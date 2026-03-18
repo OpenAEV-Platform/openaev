@@ -73,8 +73,8 @@ const NodeEvent = ({ data }: NodeProps<NodeEventType>) => {
         position: 'relative',
       }}
     >
-      <Handle type="target" position={Position.Left} style={{ left: 0, top: CIRCLE_SIZE / 2, visibility: 'hidden' }} />
-      <Handle type="source" position={Position.Right} style={{ left: CIRCLE_SIZE, top: CIRCLE_SIZE / 2, visibility: 'hidden' }} />
+      <Handle type="target" position={Position.Left} style={{ left: -1, top: CIRCLE_SIZE / 2, visibility: 'hidden' }} />
+      <Handle type="source" position={Position.Right} style={{ left: CIRCLE_SIZE + 1, top: CIRCLE_SIZE / 2, visibility: 'hidden' }} />
       {/* Sequence badge */}
       {data.sequenceNumber != null && (
         <div style={{
@@ -125,77 +125,88 @@ const NodeEvent = ({ data }: NodeProps<NodeEventType>) => {
           </div>
         </div>
       </div>
-      {/* Conditions below circle — only shown when on highlighted path */}
-      {isOnPath && data.fieldConditions.length > 0 && (() => {
-        const groups = new Map<string, { key: string; field?: string; entries: { type: string; value?: string }[] }>();
-        for (const c of data.fieldConditions) {
-          const groupKey = `${c.condition_key ?? ''}|${c.condition_field ?? ''}`;
-          if (!groups.has(groupKey)) {
-            groups.set(groupKey, { key: c.condition_key ?? '', field: c.condition_field ?? undefined, entries: [] });
+      {/* Conditions + flow types + Add button below circle — absolutely positioned to avoid layout shift */}
+      <div style={{
+        position: 'absolute',
+        top: CIRCLE_SIZE + 2,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 3,
+        zIndex: 1,
+      }}>
+        {isOnPath && data.fieldConditions.length > 0 && (() => {
+          const groups = new Map<string, { key: string; field?: string; entries: { type: string; value?: string }[] }>();
+          for (const c of data.fieldConditions) {
+            const groupKey = `${c.condition_key ?? ''}|${c.condition_field ?? ''}`;
+            if (!groups.has(groupKey)) {
+              groups.set(groupKey, { key: c.condition_key ?? '', field: c.condition_field ?? undefined, entries: [] });
+            }
+            groups.get(groupKey)!.entries.push({ type: c.condition_type ?? '=', value: c.condition_value ?? undefined });
           }
-          groups.get(groupKey)!.entries.push({ type: c.condition_type ?? '=', value: c.condition_value ?? undefined });
-        }
-        return (
-          <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center', marginTop: 6, maxWidth: CIRCLE_SIZE + 80 }}>
-            {[...groups.values()].map((g) => {
-              const fieldPart = g.field ?? g.key;
-              const valuesPart = g.entries.map(e => e.value ?? e.type).join(' or ');
-              const shortLabel = `${fieldPart}=${valuesPart}`;
-              const fullLabel = `${g.key}${g.field ? `.${g.field}` : ''} ${g.entries.map(e => `${e.type} ${e.value ?? ''}`).join(' or ')}`;
-              return (
-                <Tooltip key={`${g.key}|${g.field}`} title={fullLabel}>
-                  <Chip
-                    size="small"
-                    variant="outlined"
-                    color="warning"
-                    icon={g.key ? <FindingIcon findingType={g.key} /> : undefined}
-                    label={shortLabel}
-                    sx={{ height: 20, fontSize: 10 }}
-                  />
-                </Tooltip>
-              );
-            })}
-          </div>
-        );
-      })()}
-      {/* Flow type chips below circle — only when highlighted */}
-      {isOnPath && (() => {
-        const conditionKeys = new Set(data.fieldConditions.map(c => c.condition_key).filter(Boolean));
-        const extraFlowTypes = data.flowTypes.filter(ft => !conditionKeys.has(ft));
-        return extraFlowTypes.length > 0 && (
-          <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center', marginTop: 4, maxWidth: CIRCLE_SIZE + 60 }}>
-            {extraFlowTypes.map(type => (
-              <Chip
-                key={type}
-                size="small"
-                icon={<FindingIcon findingType={type} />}
-                label={type}
-                variant="outlined"
-                color="warning"
-                sx={{ height: 20, fontSize: 10 }}
-              />
-            ))}
-          </div>
-        );
-      })()}
-      {/* Blue "Add Action" dot */}
-      <div className="nopan nodrag" style={{ marginTop: 4, display: 'flex', justifyContent: 'center' }}>
-        <Tooltip title={t('Add Action')}>
-          <IconButton
-            size="small"
-            onClick={(e) => { e.stopPropagation(); data.onAddAction(data.step.step_id); }}
-            sx={{
-              width: 26,
-              height: 26,
-              background: theme.palette.primary.main,
-              color: theme.palette.primary.contrastText,
-              '&:hover': { background: theme.palette.primary.dark },
-              boxShadow: theme.shadows[2],
-            }}
-          >
-            <Add sx={{ fontSize: 16 }} />
-          </IconButton>
-        </Tooltip>
+          return (
+            <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center', maxWidth: CIRCLE_SIZE + 80 }}>
+              {[...groups.values()].map((g) => {
+                const fieldPart = g.field ?? g.key;
+                const valuesPart = g.entries.map(e => e.value ?? e.type).join(' or ');
+                const shortLabel = `${fieldPart}=${valuesPart}`;
+                const fullLabel = `${g.key}${g.field ? `.${g.field}` : ''} ${g.entries.map(e => `${e.type} ${e.value ?? ''}`).join(' or ')}`;
+                return (
+                  <Tooltip key={`${g.key}|${g.field}`} title={fullLabel}>
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      color="warning"
+                      icon={g.key ? <FindingIcon findingType={g.key} /> : undefined}
+                      label={shortLabel}
+                      sx={{ height: 20, fontSize: 10 }}
+                    />
+                  </Tooltip>
+                );
+              })}
+            </div>
+          );
+        })()}
+        {isOnPath && (() => {
+          const conditionKeys = new Set(data.fieldConditions.map(c => c.condition_key).filter(Boolean));
+          const extraFlowTypes = data.flowTypes.filter(ft => !conditionKeys.has(ft));
+          return extraFlowTypes.length > 0 && (
+            <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center', maxWidth: CIRCLE_SIZE + 60 }}>
+              {extraFlowTypes.map(type => (
+                <Chip
+                  key={type}
+                  size="small"
+                  icon={<FindingIcon findingType={type} />}
+                  label={type}
+                  variant="outlined"
+                  color="warning"
+                  sx={{ height: 20, fontSize: 10 }}
+                />
+              ))}
+            </div>
+          );
+        })()}
+        {/* Blue "Add Action" dot — always below conditions */}
+        <div className="nopan nodrag" style={{ display: 'flex', justifyContent: 'center', marginTop: 2 }}>
+          <Tooltip title={t('Add Action')}>
+            <IconButton
+              size="small"
+              onClick={(e) => { e.stopPropagation(); data.onAddAction(data.step.step_id); }}
+              sx={{
+                width: 26,
+                height: 26,
+                background: theme.palette.primary.main,
+                color: theme.palette.primary.contrastText,
+                '&:hover': { background: theme.palette.primary.dark },
+                boxShadow: theme.shadows[2],
+              }}
+            >
+              <Add sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+        </div>
       </div>
     </div>
   );
