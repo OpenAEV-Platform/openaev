@@ -5,10 +5,9 @@ import static org.mockito.Mockito.*;
 
 import io.openaev.api.chaining.WorkflowConfigurationMapper;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
-import io.openaev.database.model.Exercise;
-import io.openaev.database.model.Workflow;
-import io.openaev.database.model.WorkflowConfiguration;
-import io.openaev.database.model.WorkflowStatus;
+import io.openaev.api.chaining.dto.WorkflowScopeInput;
+import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.WorkflowConfigurationRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -165,7 +164,7 @@ class WorkflowServiceTest {
   class LaunchWorkflowTests {
 
     @Captor private ArgumentCaptor<Workflow> workflowCaptor;
-    @Captor private ArgumentCaptor<ChainingConfiguration> chainingConfigurationCaptor;
+    @Captor private ArgumentCaptor<WorkflowConfiguration> workflowConfigurationCaptor;
 
     @Test
     void shouldIncrementVersionWhenTemplateEdited() {
@@ -175,7 +174,7 @@ class WorkflowServiceTest {
       when(template.isEdited()).thenReturn(true);
       when(template.getVersion()).thenReturn(1);
       when(template.getSimulation()).thenReturn(simulation);
-      when(template.getChainingConfiguration()).thenReturn(null);
+      when(template.getWorkflowConfiguration()).thenReturn(null);
       when(workflowRepository.save(any(Workflow.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -186,18 +185,12 @@ class WorkflowServiceTest {
       verify(template).setEdited(false);
       verify(template).setVersion(2);
       verify(workflowRepository, times(2)).save(any(Workflow.class));
-      verify(chainingConfigurationRepository, never()).save(any());
+      verify(workflowConfigurationRepository, never()).save(any());
     }
 
     @Test
-    void shouldCreateRunAndCopyChainingConfigurationWithScope() {
-      // Prepare
-      Exercise simulation = mock(Exercise.class);
-      Scope scope = new Scope();
-
-    @Test
     @DisplayName("should create workflow run with correct properties")
-    void shouldCreateWorkflowRunWithCorrectProperties() {
+    void shouldCreateRunAndCopyWorkflowConfigurationWithScope() {
       // Prepare
       Exercise simulation = mock(Exercise.class);
       int version = 3;
@@ -230,13 +223,14 @@ class WorkflowServiceTest {
       // Prepare
       Exercise simulation = mock(Exercise.class);
 
-      Workflow template =
+      Workflow workflowTemplate =
           Workflow.builder()
               .status(WorkflowStatus.TEMPLATE)
               .version(3)
               .simulation(simulation)
               .isEdited(false)
               .build();
+
       WorkflowConfiguration templateConfiguration = new WorkflowConfiguration();
       templateConfiguration.setRateLimitEnabled(true);
       templateConfiguration.setMaxAttempts(5);
@@ -253,7 +247,7 @@ class WorkflowServiceTest {
           .thenAnswer(invocation -> invocation.getArgument(0));
 
       // Act
-      Workflow result = workflowService.launchWorkflow(template);
+      Workflow result = workflowService.launchWorkflow(workflowTemplate);
 
       // Assert
       ArgumentCaptor<WorkflowConfiguration> workflowConfigurationCaptor =
@@ -261,8 +255,8 @@ class WorkflowServiceTest {
       verify(workflowConfigurationRepository).save(workflowConfigurationCaptor.capture());
       WorkflowConfiguration savedConfiguration = workflowConfigurationCaptor.getValue();
 
-      assertSame(run, savedConfiguration.getWorkflow());
-      assertEquals(savedConfiguration, run.getWorkflowConfiguration());
+      assertSame(result, savedConfiguration.getWorkflow());
+      assertEquals(savedConfiguration, result.getWorkflowConfiguration());
 
       assertNotSame(templateConfiguration, savedConfiguration);
 
@@ -272,7 +266,7 @@ class WorkflowServiceTest {
       assertEquals(15L, savedConfiguration.getMaxTemporalRateSeconds());
       assertTrue(savedConfiguration.isTimeoutEnabled());
       assertEquals(120L, savedConfiguration.getTimeoutSeconds());
-      assertSame(run, result);
+      assertSame(result, result);
     }
 
     @Test
@@ -518,107 +512,108 @@ class WorkflowServiceTest {
     void shouldUpdateScopeRulesWithRealMapper() {
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow = mock(Workflow.class);
-      ChainingConfiguration configuration = new ChainingConfiguration();
+      WorkflowConfiguration configuration = new WorkflowConfiguration();
 
-      ChainingScopeRuleInput ipRule =
-          ChainingScopeRuleInput.builder()
+      WorkflowScopeRuleInput ipRule =
+          WorkflowScopeRuleInput.builder()
               .selectedMode(ScopeRuleSelectedMode.WHITELIST)
               .ruleSource(ScopeRuleSource.MANUAL)
               .ruleValue("10.10.10.10")
               .build();
-      ChainingScopeRuleInput domainRule =
-          ChainingScopeRuleInput.builder()
+      WorkflowScopeRuleInput domainRule =
+          WorkflowScopeRuleInput.builder()
               .selectedMode(ScopeRuleSelectedMode.WHITELIST)
               .ruleSource(ScopeRuleSource.MANUAL)
               .ruleValue("example.org")
               .build();
-      ChainingScopeRuleInput assetRule =
-          ChainingScopeRuleInput.builder()
+      WorkflowScopeRuleInput assetRule =
+          WorkflowScopeRuleInput.builder()
               .selectedMode(ScopeRuleSelectedMode.WHITELIST)
               .ruleSource(ScopeRuleSource.ASSET)
               .ruleValue("asset-123")
               .build();
-      ChainingScopeRuleInput subnetRule =
-          ChainingScopeRuleInput.builder()
+      WorkflowScopeRuleInput subnetRule =
+          WorkflowScopeRuleInput.builder()
               .selectedMode(ScopeRuleSelectedMode.BLACKLIST)
               .ruleSource(ScopeRuleSource.MANUAL)
               .ruleValue("10.10.10.0/24")
               .build();
-      ChainingScopeRuleInput assetGroupRule =
-          ChainingScopeRuleInput.builder()
+      WorkflowScopeRuleInput assetGroupRule =
+          WorkflowScopeRuleInput.builder()
               .selectedMode(ScopeRuleSelectedMode.BLACKLIST)
               .ruleSource(ScopeRuleSource.ASSET_GROUP)
               .ruleValue("asset-group-1")
               .build();
 
-      ChainingScopeInput scopeInput = new ChainingScopeInput();
-      scopeInput.setScopeRules(List.of(ipRule, domainRule, assetRule, subnetRule, assetGroupRule));
+      WorkflowScopeInput scopeInput = new WorkflowScopeInput();
+      scopeInput.setWorkflowScopeRules(
+          List.of(ipRule, domainRule, assetRule, subnetRule, assetGroupRule));
 
-      ChainingConfigurationInput input = new ChainingConfigurationInput();
-      input.setSafeMode(true);
-      input.setScope(scopeInput);
+      WorkflowConfigurationInput input = new WorkflowConfigurationInput();
+      input.setSafeModeEnabled(true);
+      input.setWorkflowScope(scopeInput);
 
-      ChainingConfigurationMapper realMapper = new ChainingConfigurationMapper();
+      WorkflowConfigurationMapper realMapper = new WorkflowConfigurationMapper();
       WorkflowService serviceWithRealMapper =
-          new WorkflowService(workflowRepository, chainingConfigurationRepository, realMapper);
+          new WorkflowService(workflowRepository, workflowConfigurationRepository, realMapper);
 
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
-      when(workflow.getChainingConfiguration()).thenReturn(configuration);
+      when(workflow.getWorkflowConfiguration()).thenReturn(configuration);
       when(workflowRepository.findById(workflowId)).thenReturn(Optional.of(workflow));
-      when(chainingConfigurationRepository.save(configuration)).thenReturn(configuration);
+      when(workflowConfigurationRepository.save(configuration)).thenReturn(configuration);
 
-      ChainingConfiguration result =
-          serviceWithRealMapper.updateChainingConfiguration(workflowId, input);
+      WorkflowConfiguration result =
+          serviceWithRealMapper.updateWorkflowConfiguration(workflowId, input);
 
       assertSame(configuration, result);
-      assertNotNull(configuration.getScope());
-      assertEquals(3, configuration.getScope().getWhitelist().size());
-      assertEquals(2, configuration.getScope().getBlacklist().size());
+      assertNotNull(configuration.getWorkflowScope());
+      assertEquals(3, configuration.getWorkflowScope().getWhitelist().size());
+      assertEquals(2, configuration.getWorkflowScope().getBlacklist().size());
 
-      ScopeRule mappedIpRule =
-          configuration.getScope().getWhitelist().stream()
+      WorkflowScopeRule mappedIpRule =
+          configuration.getWorkflowScope().getWhitelist().stream()
               .filter(rule -> "10.10.10.10".equals(rule.getRuleValue()))
               .findFirst()
               .orElseThrow();
       assertEquals(ScopeRuleValueType.IP, mappedIpRule.getValueType());
-      assertSame(configuration.getScope(), mappedIpRule.getScope());
+      assertSame(configuration.getWorkflowScope(), mappedIpRule.getWorkflowScope());
 
-      ScopeRule mappedDomainRule =
-          configuration.getScope().getWhitelist().stream()
+      WorkflowScopeRule mappedDomainRule =
+          configuration.getWorkflowScope().getWhitelist().stream()
               .filter(rule -> "example.org".equals(rule.getRuleValue()))
               .findFirst()
               .orElseThrow();
       assertEquals(ScopeRuleValueType.DOMAIN, mappedDomainRule.getValueType());
-      assertSame(configuration.getScope(), mappedDomainRule.getScope());
+      assertSame(configuration.getWorkflowScope(), mappedDomainRule.getWorkflowScope());
 
-      ScopeRule mappedAssetRule =
-          configuration.getScope().getWhitelist().stream()
+      WorkflowScopeRule mappedAssetRule =
+          configuration.getWorkflowScope().getWhitelist().stream()
               .filter(rule -> "asset-123".equals(rule.getRuleValue()))
               .findFirst()
               .orElseThrow();
       assertEquals(ScopeRuleValueType.ASSET_ID, mappedAssetRule.getValueType());
-      assertSame(configuration.getScope(), mappedAssetRule.getScope());
+      assertSame(configuration.getWorkflowScope(), mappedAssetRule.getWorkflowScope());
 
-      ScopeRule mappedSubnetRule =
-          configuration.getScope().getBlacklist().stream()
+      WorkflowScopeRule mappedSubnetRule =
+          configuration.getWorkflowScope().getBlacklist().stream()
               .filter(rule -> "10.10.10.0/24".equals(rule.getRuleValue()))
               .findFirst()
               .orElseThrow();
       assertEquals(ScopeRuleValueType.IP_SUBNET, mappedSubnetRule.getValueType());
-      assertSame(configuration.getScope(), mappedSubnetRule.getScope());
+      assertSame(configuration.getWorkflowScope(), mappedSubnetRule.getWorkflowScope());
 
-      ScopeRule mappedAssetGroupRule =
-          configuration.getScope().getBlacklist().stream()
+      WorkflowScopeRule mappedAssetGroupRule =
+          configuration.getWorkflowScope().getBlacklist().stream()
               .filter(rule -> "asset-group-1".equals(rule.getRuleValue()))
               .findFirst()
               .orElseThrow();
       assertEquals(ScopeRuleValueType.ASSET_GROUP_ID, mappedAssetGroupRule.getValueType());
-      assertSame(configuration.getScope(), mappedAssetGroupRule.getScope());
+      assertSame(configuration.getWorkflowScope(), mappedAssetGroupRule.getWorkflowScope());
 
       verify(workflow).setEdited(true);
       verify(workflowRepository).save(workflow);
-      verify(chainingConfigurationRepository).save(configuration);
+      verify(workflowConfigurationRepository).save(configuration);
     }
   }
 }

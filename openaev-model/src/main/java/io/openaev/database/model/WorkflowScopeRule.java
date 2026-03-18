@@ -14,56 +14,56 @@ import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
 
 @Entity
-@Table(name = "scope_rules")
+@Table(name = "workflow_scope_rules")
 @EntityListeners(ModelBaseListener.class)
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class ScopeRule implements Base {
+public class WorkflowScopeRule implements Base {
 
   @Id
   @UuidGenerator
-  @Column(name = "scope_rule_id")
-  @JsonProperty("scope_rule_id")
+  @Column(name = "workflow_scope_rule_id")
+  @JsonProperty("workflow_scope_rule_id")
   @NotBlank
   private String id;
 
-  @Column(name = "scope_rule_selected_mode")
+  @Column(name = "workflow_scope_rule_selected_mode")
   @Enumerated(EnumType.STRING)
   @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-  @JsonProperty("scope_rule_selected_mode")
+  @JsonProperty("workflow_scope_rule_selected_mode")
   private ScopeRuleSelectedMode selectedMode;
 
-  @Column(name = "scope_rule_source")
+  @Column(name = "workflow_scope_rule_source")
   @Enumerated(EnumType.STRING)
   @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-  @JsonProperty("scope_rule_source")
+  @JsonProperty("workflow_scope_rule_source")
   private ScopeRuleSource ruleSource;
 
-  @Column(name = "scope_rule_value")
-  @JsonProperty("scope_rule_value")
+  @Column(name = "workflow_scope_rule_value")
+  @JsonProperty("workflow_scope_rule_value")
   private String ruleValue;
 
-  @Column(name = "scope_rule_value_type")
+  @Column(name = "workflow_scope_rule_value_type")
   @Enumerated(EnumType.STRING)
   @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-  @JsonProperty("scope_rule_type")
+  @JsonProperty("workflow_scope_rule_type")
   private ScopeRuleValueType valueType;
 
   @CreationTimestamp
-  @Column(name = "scope_rule_created_at")
-  @JsonProperty("scope_created_at")
+  @Column(name = "workflow_scope_rule_created_at")
+  @JsonProperty("workflow_scope_created_at")
   private Instant createdAt;
 
   @UpdateTimestamp
-  @Column(name = "scope_rule_updated_at")
-  @JsonProperty("scope_updated_at")
+  @Column(name = "workflow_scope_rule_updated_at")
+  @JsonProperty("workflow_scope_updated_at")
   private Instant updatedAt;
 
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "scope_id")
+  @JoinColumn(name = "workflow_scope_id")
   @JsonIgnore
-  private Scope scope;
+  private WorkflowScope workflowScope;
 }

@@ -3,22 +3,19 @@ package io.openaev.api.chaining;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import io.openaev.api.chaining.dto.ChainingScopeInput;
-import io.openaev.api.chaining.dto.ChainingScopeRuleInput;
-import io.openaev.database.model.Scope;
-import io.openaev.database.model.ScopeRule;
-import io.openaev.database.model.ScopeRuleSelectedMode;
-import io.openaev.database.model.ScopeRuleSource;
-import io.openaev.database.model.ScopeRuleValueType;
+import io.openaev.api.chaining.dto.WorkflowScopeInput;
+import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
+import io.openaev.database.model.*;
+import io.openaev.database.model.WorkflowScope;
 import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-class ChainingConfigurationMapperTest {
+class WorkflowConfigurationMapperTest {
 
-  private final ChainingConfigurationMapper mapper = new ChainingConfigurationMapper();
+  private final WorkflowConfigurationMapper mapper = new WorkflowConfigurationMapper();
 
   static Stream<Arguments> valueTypeCases() {
     return Stream.of(
@@ -33,51 +30,51 @@ class ChainingConfigurationMapperTest {
   @MethodSource("valueTypeCases")
   void toScopeShouldDetectRuleValueType(
       ScopeRuleSource source, String ruleValue, ScopeRuleValueType expectedType) {
-    ChainingScopeRuleInput ruleInput =
-        ChainingScopeRuleInput.builder()
+    WorkflowScopeRuleInput ruleInput =
+        WorkflowScopeRuleInput.builder()
             .selectedMode(ScopeRuleSelectedMode.WHITELIST)
             .ruleSource(source)
             .ruleValue(ruleValue)
             .build();
 
-    ChainingScopeInput scopeInput =
-        ChainingScopeInput.builder().scopeRules(List.of(ruleInput)).build();
+    WorkflowScopeInput scopeInput =
+        WorkflowScopeInput.builder().workflowScopeRules(List.of(ruleInput)).build();
 
-    Scope scope = mapper.toScope(scopeInput);
+    WorkflowScope workflowScope = mapper.toScope(scopeInput);
 
-    assertNotNull(scope);
-    assertEquals(1, scope.getScopeRules().size());
-    assertEquals(1, scope.getWhitelist().size());
+    assertNotNull(workflowScope);
+    assertEquals(1, workflowScope.getWorkflowScopeRules().size());
+    assertEquals(1, workflowScope.getWhitelist().size());
 
-    ScopeRule mappedRule = scope.getWhitelist().getFirst();
+    WorkflowScopeRule mappedRule = workflowScope.getWhitelist().getFirst();
     assertEquals(ScopeRuleSelectedMode.WHITELIST, mappedRule.getSelectedMode());
     assertEquals(expectedType, mappedRule.getValueType());
-    assertEquals(scope, mappedRule.getScope());
+    assertEquals(workflowScope, mappedRule.getWorkflowScope());
   }
 
   @ParameterizedTest(name = "blacklist source={0}, value={1} -> {2}")
   @MethodSource("valueTypeCases")
   void toScopeShouldDetectRuleValueTypeInBlacklist(
       ScopeRuleSource source, String ruleValue, ScopeRuleValueType expectedType) {
-    ChainingScopeRuleInput ruleInput =
-        ChainingScopeRuleInput.builder()
+    WorkflowScopeRuleInput ruleInput =
+        WorkflowScopeRuleInput.builder()
             .selectedMode(ScopeRuleSelectedMode.BLACKLIST)
             .ruleSource(source)
             .ruleValue(ruleValue)
             .build();
 
-    ChainingScopeInput scopeInput =
-        ChainingScopeInput.builder().scopeRules(List.of(ruleInput)).build();
+    WorkflowScopeInput scopeInput =
+        WorkflowScopeInput.builder().workflowScopeRules(List.of(ruleInput)).build();
 
-    Scope scope = mapper.toScope(scopeInput);
+    WorkflowScope workflowScope = mapper.toScope(scopeInput);
 
-    assertNotNull(scope);
-    assertEquals(1, scope.getScopeRules().size());
-    assertEquals(1, scope.getBlacklist().size());
+    assertNotNull(workflowScope);
+    assertEquals(1, workflowScope.getWorkflowScopeRules().size());
+    assertEquals(1, workflowScope.getBlacklist().size());
 
-    ScopeRule mappedRule = scope.getBlacklist().getFirst();
+    WorkflowScopeRule mappedRule = workflowScope.getBlacklist().getFirst();
     assertEquals(ScopeRuleSelectedMode.BLACKLIST, mappedRule.getSelectedMode());
     assertEquals(expectedType, mappedRule.getValueType());
-    assertEquals(scope, mappedRule.getScope());
+    assertEquals(workflowScope, mappedRule.getWorkflowScope());
   }
 }

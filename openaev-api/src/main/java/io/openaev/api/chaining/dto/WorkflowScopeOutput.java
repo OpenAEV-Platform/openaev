@@ -9,11 +9,11 @@ import lombok.Getter;
 
 @Getter
 @Builder
-@Schema(description = "Output scope payload for chaining configuration.")
-public class ChainingScopeOutput {
+@Schema(description = "Output scope payload for workflow configuration.")
+public class WorkflowScopeOutput {
 
   @Valid
   @Schema(description = "List scope rules.")
-  @JsonProperty("scope_rules")
-  private List<ChainingScopeRuleOutput> scopeRules;
+  @JsonProperty("workflow_scope_rules")
+  private List<WorkflowScopeRuleOutput> workflowScopeRules;
 }

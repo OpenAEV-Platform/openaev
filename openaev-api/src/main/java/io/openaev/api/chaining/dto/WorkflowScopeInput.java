@@ -15,11 +15,11 @@ import lombok.Setter;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@Schema(description = "Input scope payload for chaining configuration.")
-public class ChainingScopeInput {
+@Schema(description = "Input scope payload for workflow configuration.")
+public class WorkflowScopeInput {
 
   @Valid
   @Schema(description = "List scope rules.")
-  @JsonProperty("scope_rules")
-  private List<ChainingScopeRuleInput> scopeRules;
+  @JsonProperty("workflow_scope_rules")
+  private List<WorkflowScopeRuleInput> workflowScopeRules;
 }

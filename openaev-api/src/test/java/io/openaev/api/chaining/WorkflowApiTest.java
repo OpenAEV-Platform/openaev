@@ -12,6 +12,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
+import io.openaev.api.chaining.dto.WorkflowScopeInput;
+import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.WorkflowConfigurationRepository;
@@ -408,30 +410,23 @@ class WorkflowApiTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("Update Chaining Configuration should persist scope rules with expected value types")
-  void updateChainingConfiguration_shouldPersistScopeRulesWithExpectedValueTypes()
+  @DisplayName("Update workflow configuration should persist scope rules with expected value types")
+  void updateWorkflowConfiguration_shouldPersistScopeRulesWithExpectedValueTypes()
       throws Exception {
     // -- PREPARE --
     Workflow workflow = createTemplateWorkflow();
-    ChainingConfiguration existingConfiguration =
-        attachChainingConfiguration(workflow, false, 1, 5, true, 120);
+    WorkflowConfiguration existingConfiguration =
+        attachWorkflowConfiguration(workflow, false, 1, 5, true, 120);
 
-    ChainingConfigurationInput input =
-        ChainingConfigurationInput.builder()
-            .rateLimit(
-                ChainingRateLimitInput.builder()
-                    .isRateLimit(true)
-                    .maxAttempts(7)
-                    .maxTemporalRateMinutes(15)
-                    .build())
-            .timeOut(
-                ChainingTimeOutInput.builder()
-                    .isTimeOut(true)
-                    .timeOutHours(1)
-                    .timeOutMinutes(30)
-                    .build())
-            .isSafeMode(false)
-            .scope(buildScopeInput())
+    WorkflowConfigurationInput input =
+        WorkflowConfigurationInput.builder()
+            .rateLimitEnabled(true)
+            .maxAttempts(7)
+            .maxTemporalRateSeconds(15L)
+            .timeoutEnabled(true)
+            .timeoutSeconds(5400L) // 1 h 30 min
+            .safeModeEnabled(false)
+            .workflowScope(buildScopeInput())
             .build();
 
     // -- EXECUTE --
@@ -444,49 +439,49 @@ class WorkflowApiTest extends IntegrationTest {
         .andExpect(status().isOk());
 
     // -- ASSERT DATABASE --
-    ChainingConfiguration savedConfiguration =
-        chainingConfigurationRepository.findById(existingConfiguration.getId()).orElseThrow();
+    WorkflowConfiguration savedConfiguration =
+        workflowConfigurationRepository.findById(existingConfiguration.getId()).orElseThrow();
 
-    assertNotNull(savedConfiguration.getScope());
-    assertEquals(5, savedConfiguration.getScope().getScopeRules().size());
-    assertEquals(3, savedConfiguration.getScope().getWhitelist().size());
-    assertEquals(2, savedConfiguration.getScope().getBlacklist().size());
+    assertNotNull(savedConfiguration.getWorkflowScope());
+    assertEquals(5, savedConfiguration.getWorkflowScope().getWorkflowScopeRules().size());
+    assertEquals(3, savedConfiguration.getWorkflowScope().getWhitelist().size());
+    assertEquals(2, savedConfiguration.getWorkflowScope().getBlacklist().size());
 
-    ScopeRule ipRule =
-        savedConfiguration.getScope().getWhitelist().stream()
+    WorkflowScopeRule ipRule =
+        savedConfiguration.getWorkflowScope().getWhitelist().stream()
             .filter(rule -> "10.10.10.10".equals(rule.getRuleValue()))
             .findFirst()
             .orElseThrow();
     assertEquals(ScopeRuleValueType.IP, ipRule.getValueType());
     assertEquals(ScopeRuleSelectedMode.WHITELIST, ipRule.getSelectedMode());
-    assertSame(savedConfiguration.getScope(), ipRule.getScope());
+    assertSame(savedConfiguration.getWorkflowScope(), ipRule.getWorkflowScope());
 
-    ScopeRule domainRule =
-        savedConfiguration.getScope().getWhitelist().stream()
+    WorkflowScopeRule domainRule =
+        savedConfiguration.getWorkflowScope().getWhitelist().stream()
             .filter(rule -> "example.org".equals(rule.getRuleValue()))
             .findFirst()
             .orElseThrow();
     assertEquals(ScopeRuleValueType.DOMAIN, domainRule.getValueType());
     assertEquals(ScopeRuleSelectedMode.WHITELIST, domainRule.getSelectedMode());
 
-    ScopeRule assetRule =
-        savedConfiguration.getScope().getWhitelist().stream()
+    WorkflowScopeRule assetRule =
+        savedConfiguration.getWorkflowScope().getWhitelist().stream()
             .filter(rule -> "asset-123".equals(rule.getRuleValue()))
             .findFirst()
             .orElseThrow();
     assertEquals(ScopeRuleValueType.ASSET_ID, assetRule.getValueType());
     assertEquals(ScopeRuleSelectedMode.WHITELIST, assetRule.getSelectedMode());
 
-    ScopeRule subnetRule =
-        savedConfiguration.getScope().getBlacklist().stream()
+    WorkflowScopeRule subnetRule =
+        savedConfiguration.getWorkflowScope().getBlacklist().stream()
             .filter(rule -> "10.10.10.0/24".equals(rule.getRuleValue()))
             .findFirst()
             .orElseThrow();
     assertEquals(ScopeRuleValueType.IP_SUBNET, subnetRule.getValueType());
     assertEquals(ScopeRuleSelectedMode.BLACKLIST, subnetRule.getSelectedMode());
 
-    ScopeRule assetGroupRule =
-        savedConfiguration.getScope().getBlacklist().stream()
+    WorkflowScopeRule assetGroupRule =
+        savedConfiguration.getWorkflowScope().getBlacklist().stream()
             .filter(rule -> "asset-group-1".equals(rule.getRuleValue()))
             .findFirst()
             .orElseThrow();
@@ -494,40 +489,41 @@ class WorkflowApiTest extends IntegrationTest {
     assertEquals(ScopeRuleSelectedMode.BLACKLIST, assetGroupRule.getSelectedMode());
   }
 
-  private ChainingScopeInput buildScopeInput() {
-    ChainingScopeRuleInput ipRule =
-        ChainingScopeRuleInput.builder()
+  private WorkflowScopeInput buildScopeInput() {
+    WorkflowScopeRuleInput ipRule =
+        WorkflowScopeRuleInput.builder()
             .selectedMode(ScopeRuleSelectedMode.WHITELIST)
             .ruleSource(ScopeRuleSource.MANUAL)
             .ruleValue("10.10.10.10")
             .build();
-    ChainingScopeRuleInput domainRule =
-        ChainingScopeRuleInput.builder()
+    WorkflowScopeRuleInput domainRule =
+        WorkflowScopeRuleInput.builder()
             .selectedMode(ScopeRuleSelectedMode.WHITELIST)
             .ruleSource(ScopeRuleSource.MANUAL)
             .ruleValue("example.org")
             .build();
-    ChainingScopeRuleInput assetRule =
-        ChainingScopeRuleInput.builder()
+    WorkflowScopeRuleInput assetRule =
+        WorkflowScopeRuleInput.builder()
             .selectedMode(ScopeRuleSelectedMode.WHITELIST)
             .ruleSource(ScopeRuleSource.ASSET)
             .ruleValue("asset-123")
             .build();
-    ChainingScopeRuleInput subnetRule =
-        ChainingScopeRuleInput.builder()
+    WorkflowScopeRuleInput subnetRule =
+        WorkflowScopeRuleInput.builder()
             .selectedMode(ScopeRuleSelectedMode.BLACKLIST)
             .ruleSource(ScopeRuleSource.MANUAL)
             .ruleValue("10.10.10.0/24")
             .build();
-    ChainingScopeRuleInput assetGroupRule =
-        ChainingScopeRuleInput.builder()
+    WorkflowScopeRuleInput assetGroupRule =
+        WorkflowScopeRuleInput.builder()
             .selectedMode(ScopeRuleSelectedMode.BLACKLIST)
             .ruleSource(ScopeRuleSource.ASSET_GROUP)
             .ruleValue("asset-group-1")
             .build();
 
-    ChainingScopeInput scopeInput = new ChainingScopeInput();
-    scopeInput.setScopeRules(List.of(ipRule, domainRule, assetRule, subnetRule, assetGroupRule));
+    WorkflowScopeInput scopeInput = new WorkflowScopeInput();
+    scopeInput.setWorkflowScopeRules(
+        List.of(ipRule, domainRule, assetRule, subnetRule, assetGroupRule));
     return scopeInput;
   }
 

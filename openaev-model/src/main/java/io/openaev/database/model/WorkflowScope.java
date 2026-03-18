@@ -15,57 +15,58 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
-@Table(name = "scopes")
+@Table(name = "workflow_scopes")
 @EntityListeners(ModelBaseListener.class)
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class Scope implements Base {
+public class WorkflowScope implements Base {
 
   @Id
+  @Column(name = "workflow_scope_id")
+  @GeneratedValue(generator = "UUID")
   @UuidGenerator
-  @Column(name = "scope_id")
-  @JsonProperty("scope_id")
+  @JsonProperty("workflow_scope_id")
   @NotBlank
   private String id;
 
   @OneToMany(
-      mappedBy = "scope",
+      mappedBy = "workflowScope",
       fetch = FetchType.LAZY,
       orphanRemoval = true,
       cascade = CascadeType.ALL)
-  @JsonProperty("scope_rules")
-  private List<ScopeRule> scopeRules = new ArrayList<ScopeRule>();
+  @JsonProperty("workflow_scope_rules")
+  private List<WorkflowScopeRule> workflowScopeRules = new ArrayList<WorkflowScopeRule>();
 
   @CreationTimestamp
-  @Column(name = "scope_created_at")
-  @JsonProperty("scope_created_at")
+  @Column(name = "workflow_scope_created_at")
+  @JsonProperty("workflow_scope_created_at")
   private Instant createdAt;
 
   @UpdateTimestamp
-  @Column(name = "scope_updated_at")
-  @JsonProperty("scope_updated_at")
+  @Column(name = "workflow_scope_updated_at")
+  @JsonProperty("workflow_scope_updated_at")
   private Instant updatedAt;
 
   @OneToOne
   @JoinColumn(
-      name = "scope_chaining_configuration",
-      referencedColumnName = "chaining_configuration_id")
+      name = "workflow_scope_workflow_configuration",
+      referencedColumnName = "workflow_configuration_id")
   @JsonIgnore
-  private ChainingConfiguration chainingConfiguration;
+  private WorkflowConfiguration workflowConfiguration;
 
   @JsonIgnore
-  public List<ScopeRule> getWhitelist() {
-    return this.scopeRules.stream()
+  public List<WorkflowScopeRule> getWhitelist() {
+    return this.workflowScopeRules.stream()
         .filter(r -> ScopeRuleSelectedMode.WHITELIST.equals(r.getSelectedMode()))
         .collect(Collectors.toList());
   }
 
   @JsonIgnore
-  public List<ScopeRule> getBlacklist() {
-    return this.scopeRules.stream()
+  public List<WorkflowScopeRule> getBlacklist() {
+    return this.workflowScopeRules.stream()
         .filter(r -> ScopeRuleSelectedMode.BLACKLIST.equals(r.getSelectedMode()))
         .collect(Collectors.toList());
   }

@@ -2,6 +2,7 @@ package io.openaev.api.chaining.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.*;
@@ -56,9 +57,9 @@ public class WorkflowConfigurationInput {
   @JsonProperty("workflow_configuration_safe_mode_enabled")
   private boolean safeModeEnabled;
 
-  /** Scope configuration. */
+  /** WorkflowScope configuration. */
   @Valid
-  @Schema(description = "Scope configuration.")
-  @JsonProperty("scope")
-  private ChainingScopeInput scope;
+  @Schema(description = "Workflow scope configuration.")
+  @JsonProperty("workflow_scope")
+  private WorkflowScopeInput workflowScope;
 }

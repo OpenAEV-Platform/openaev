@@ -17,21 +17,21 @@ import lombok.Setter;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@Schema(description = "Input for a scope rule used in chaining configuration.")
-public class ChainingScopeRuleInput {
+@Schema(description = "Input for a scope rule used in workflow configuration.")
+public class WorkflowScopeRuleInput {
 
   @NotNull
   @Schema(description = "Selected list mode where the rule should be applied")
-  @JsonProperty("scope_rule_selected_mode")
+  @JsonProperty("workflow_scope_rule_selected_mode")
   private ScopeRuleSelectedMode selectedMode;
 
   @NotNull
   @Schema(description = "Source of the selected rule")
-  @JsonProperty("scope_rule_source")
+  @JsonProperty("workflow_scope_rule_source")
   private ScopeRuleSource ruleSource;
 
   @NotBlank
   @Schema(description = "Selected rule value")
-  @JsonProperty("scope_rule_value")
+  @JsonProperty("workflow_scope_rule_value")
   private String ruleValue;
 }

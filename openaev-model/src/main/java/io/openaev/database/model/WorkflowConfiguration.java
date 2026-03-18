@@ -79,7 +79,7 @@ public class WorkflowConfiguration implements Base {
   @JsonIgnore
   private Workflow workflow;
 
-  @OneToOne(mappedBy = "chainingConfiguration")
-  @JsonProperty("chaining_configuration_scope")
-  private Scope scope;
+  @OneToOne(mappedBy = "workflowConfiguration")
+  @JsonProperty("workflow_configuration_scope")
+  private WorkflowScope workflowScope;
 }
