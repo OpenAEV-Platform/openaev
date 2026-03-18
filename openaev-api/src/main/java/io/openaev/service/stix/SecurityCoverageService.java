@@ -499,8 +499,7 @@ public class SecurityCoverageService {
               new HashMap<>(
                   Map.of(
                       CommonProperties.ID.toString(),
-                      new Identifier(
-                          ObjectTypes.RELATIONSHIP.toString(), UUID.randomUUID().toString()),
+                      generateRelationship(coverage.getId().getValue(), platformIdentity.getId().getValue()),
                       CommonProperties.TYPE.toString(),
                       new StixString(ObjectTypes.RELATIONSHIP.toString()),
                       RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
