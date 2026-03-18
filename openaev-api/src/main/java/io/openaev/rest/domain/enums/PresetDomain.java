@@ -28,21 +28,12 @@ public class PresetDomain {
           URL_FILTERING, List.of("bitsadmin"),
           CLOUD, List.of("aws", "azure", "gcp"));
 
-  public static final Set<Domain> presetDomains =
-      Set.of(
-          ENDPOINT,
-          NETWORK,
-          WEB_APP,
-          EMAIL_INFILTRATION,
-          DATA_EXFILTRATION,
-          URL_FILTERING,
-          CLOUD,
-          TABLETOP,
-          TOCLASSIFY);
-
-  public static Set<Domain> getDomainsForTenant(Tenant tenant) {
-    presetDomains.forEach(presetDomain -> presetDomain.setTenant(tenant));
-    return presetDomains;
+  public static List<Domain> getDomainsForTenant(Tenant tenant) {
+    List<Domain> domains = new ArrayList<>();
+    domains.add(new Domain(ENDPOINT.getName(), ENDPOINT.getColor(), tenant));
+    domains.add(new Domain(NETWORK.getName(), NETWORK.getColor(), tenant));
+    domains.add(new Domain(WEB_APP.getName(), WEB_APP.getColor(), tenant));
+    return domains;
   }
 
   public static Set<Domain> getRelevantDomainsFromKeywords(String searchValue) {

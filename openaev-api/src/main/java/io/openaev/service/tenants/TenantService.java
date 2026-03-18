@@ -31,8 +31,7 @@ public class TenantService {
 
     Tenant createdTenant = tenantRepository.save(tenant);
     for (DependenciesManager dependency : dependencies) {
-      dependency.createDependencyForTenant(
-          tenantRepository.findById(createdTenant.getId()).orElse(createdTenant));
+      dependency.createDependencyForTenant(createdTenant);
     }
     return createdTenant;
   }
