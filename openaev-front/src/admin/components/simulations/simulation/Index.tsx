@@ -26,6 +26,7 @@ const Simulation = lazy(() => import('./overview/SimulationComponent'));
 const Lessons = lazy(() => import('./lessons/SimulationLessons'));
 const SimulationFindings = lazy(() => import('./findings/SimulationFindings'));
 const SimulationAnalysis = lazy(() => import('./analysis/SimulationAnalysis'));
+const SimulationAttackPath = lazy(() => import('./attack_path/SimulationAttackPath'));
 const SimulationDefinition = lazy(() => import('./SimulationDefinition'));
 const Injects = lazy(() => import('./injects/ExerciseInjects'));
 const Tests = lazy(() => import('./tests/ExerciseTests'));
@@ -75,6 +76,8 @@ const IndexComponent: FunctionComponent<{ exercise: ExerciseType }> = ({ exercis
     tabValue = `/admin/simulations/${exercise.exercise_id}/results`;
   } else if (location.pathname.includes(`/admin/simulations/${exercise.exercise_id}/tests`)) {
     tabValue = `/admin/simulations/${exercise.exercise_id}/tests`;
+  } else if (location.pathname.includes(`/admin/simulations/${exercise.exercise_id}/attack-path`)) {
+    tabValue = `/admin/simulations/${exercise.exercise_id}/attack-path`;
   }
 
   return (
@@ -151,6 +154,12 @@ const IndexComponent: FunctionComponent<{ exercise: ExerciseType }> = ({ exercis
                 value={`/admin/simulations/${exercise.exercise_id}/analysis`}
                 label={t('Analysis')}
               />
+              <Tab
+                component={Link}
+                to={`/admin/simulations/${exercise.exercise_id}/attack-path`}
+                value={`/admin/simulations/${exercise.exercise_id}/attack-path`}
+                label={t('Attack Path')}
+              />
             </Tabs>
             {permissionsContext.permissions.canManage && (
               <div className={classes.scheduling}>
@@ -175,6 +184,7 @@ const IndexComponent: FunctionComponent<{ exercise: ExerciseType }> = ({ exercis
               <Route path="lessons" element={errorWrapper(Lessons)()} />
               <Route path="findings" element={errorWrapper(SimulationFindings)()} />
               <Route path="analysis" element={errorWrapper(SimulationAnalysis)()} />
+              <Route path="attack-path" element={errorWrapper(SimulationAttackPath)()} />
               {/* Not found */}
               <Route path="*" element={<NotFound />} />
             </Routes>
