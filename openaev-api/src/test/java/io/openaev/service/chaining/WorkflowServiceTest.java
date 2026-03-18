@@ -43,6 +43,8 @@ class WorkflowServiceTest {
   @DisplayName("getWorkflowByIdAndStatus")
   class GetWorkflowByIdAndStatusTests {
 
+    @Captor private ArgumentCaptor<String> workflowIdCaptor;
+
     @Test
     @DisplayName("should return workflow when found")
     void shouldReturnWorkflowWhenFound() {
@@ -57,8 +59,8 @@ class WorkflowServiceTest {
           workflowService.getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
 
       verify(workflowRepository)
-          .findByIdAndStatus(workflowId, eq(WorkflowStatus.TEMPLATE));
-      assertEquals(workflowId, workflowId);
+          .findByIdAndStatus(workflowIdCaptor.capture(), eq(WorkflowStatus.TEMPLATE));
+      assertEquals(workflowId, workflowIdCaptor.getValue());
       assertNotNull(result);
       assertEquals(workflow, result);
     }
