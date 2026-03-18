@@ -14,7 +14,7 @@ public class OutputParserFixture {
   }
 
   public static OutputParser getDefaultOutputParser() {
-    ContractOutputElement contractOutputElement = getDefaultContractOutputElement();
+    ContractOutputElement contractOutputElement = getContractOutputElementTypeIPv6();
     return getOutputParser(Set.of(contractOutputElement));
   }
 
@@ -41,7 +41,7 @@ public class OutputParserFixture {
     return contractOutputElement;
   }
 
-  public static ContractOutputElement getDefaultContractOutputElement() {
+  public static ContractOutputElement getContractOutputElementTypeIPv6() {
     return getContractOutputElement(
         ContractOutputType.IPv6, "/d+", Set.of(getDefaultRegexGroup()), false);
   }

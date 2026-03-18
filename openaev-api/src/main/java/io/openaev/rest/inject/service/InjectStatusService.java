@@ -194,7 +194,7 @@ public class InjectStatusService {
   }
 
   public void updateInjectStatus(
-      Agent agent, Inject inject, InjectExecutionInput input, ObjectNode structuredOutput) {
+      Inject inject, Agent agent, InjectExecutionInput input, ObjectNode structuredOutput) {
     InjectStatus injectStatus = inject.getStatus().orElseThrow(ElementNotFoundException::new);
 
     // Creating the Execution Trace
@@ -342,7 +342,7 @@ public class InjectStatusService {
       input.setMessage("Execution done");
       input.setStatus(ExecutionTraceStatus.INFO.name());
       input.setAction(InjectExecutionAction.complete);
-      this.updateInjectStatus(agent, inject, input, null);
+      this.updateInjectStatus(inject, agent, input, null);
     }
     throw new IllegalArgumentException(message);
   }

@@ -16,7 +16,7 @@ import octiDark from '../../../static/images/xtm/octi_dark.png';
 import octiLight from '../../../static/images/xtm/octi_light.png';
 import xtmhubDark from '../../../static/images/xtm/xtm_hub_dark.png';
 import xtmhubLight from '../../../static/images/xtm/xtm_hub_light.png';
-import { MESSAGING$ } from '../../../utils/Environment';
+import { MESSAGING$, XTM_HUB_DEFAULT_URL } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
 import useAuth from '../../../utils/hooks/useAuth';
 import { AbilityContext } from '../../../utils/permissions/PermissionsProvider';
@@ -264,7 +264,7 @@ const TopBar: FunctionComponent = () => {
                       { shouldXtmHubRedirectToSite ? (
                         <a
                           className={classes.xtmItem}
-                          href={settings.xtm_hub_enable && settings.xtm_hub_url ? settings.xtm_hub_url : 'https://hub.filigran.io'}
+                          href={settings.xtm_hub_enable && settings.xtm_hub_url ? settings.xtm_hub_url : XTM_HUB_DEFAULT_URL}
                           target="_blank"
                           rel="noreferrer"
                           onClick={handleCloseXtm}

@@ -58,7 +58,7 @@ const computeBannerError = (message: string): BannerInfo => {
   };
 };
 
-const computeBannerInfo = (t: (text: string) => string, eeSettings: License, freeTrialEnabled: boolean, onButtonClick?: () => void): BannerInfo | undefined => {
+const computeBannerInfo = (t: (text: string) => string, eeSettings: License, onButtonClick?: () => void): BannerInfo | undefined => {
   if (!eeSettings.license_is_validated) {
     return computeBannerError(`The current ${eeSettings.license_type} license has expired, Enterprise Edition is disabled.`);
   }
@@ -69,7 +69,7 @@ const computeBannerInfo = (t: (text: string) => string, eeSettings: License, fre
     const remainingDays = daysBetweenDates(moment(), moment(eeSettings.license_expiration_date));
     const bannerColor = getBannerColor(remainingDays);
     return {
-      buttonText: freeTrialEnabled ? t('Reach out to sales') : undefined,
+      buttonText: t('Reach out to sales'),
       bannerColor,
       message: (
         <>
@@ -119,8 +119,7 @@ const LicenseBanner = (settings: { settings: PlatformSettings }) => {
   const isTrialLicense = eeSettings?.license_type === LICENSE_OPTION_TRIAL;
   if (!isTrialLicense) return null;
 
-  const freeTrialsEnabled = settings.settings?.enabled_dev_features?.includes('OPENAEV_TRIALS_XTMHUB') ?? false;
-  const bannerInfo = computeBannerInfo(t, eeSettings, freeTrialsEnabled, () => {
+  const bannerInfo = computeBannerInfo(t, eeSettings, () => {
     setShowFormDialog(true);
   });
   if (!bannerInfo) return null;

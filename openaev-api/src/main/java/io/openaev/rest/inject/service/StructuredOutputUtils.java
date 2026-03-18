@@ -130,14 +130,17 @@ public class StructuredOutputUtils {
       Matcher matcher = pattern.matcher(cleanOutput);
       ArrayNode matchesArray = mapper.createArrayNode();
 
-      // Get handler once per contract output type
-      OutputProcessor handler = outputProcessorFactory.getHandler(contractOutputElement.getType());
-
-      while (matcher.find()) {
-        buildStructuredJsonNode(contractOutputElement, matcher, handler)
-            .filter(handler::validate)
-            .ifPresent(matchesArray::add);
-      }
+      // Get processor once per contract output type
+      outputProcessorFactory
+          .getProcessor(contractOutputElement.getType())
+          .ifPresent(
+              processor -> {
+                while (matcher.find()) {
+                  buildStructuredJsonNode(contractOutputElement, matcher, processor)
+                      .filter(processor::validate)
+                      .ifPresent(matchesArray::add);
+                }
+              });
       resultRoot.set(contractOutputElement.getKey(), matchesArray);
     }
 
