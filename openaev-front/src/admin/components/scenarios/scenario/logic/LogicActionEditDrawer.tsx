@@ -1,5 +1,5 @@
-import { InfoOutlined, LanguageOutlined, LinkOutlined, PlayArrowOutlined, PushPinOutlined } from '@mui/icons-material';
-import { Button, Chip, Divider, Switch, TextField, Tooltip, Typography } from '@mui/material';
+import { InfoOutlined, LanguageOutlined, LinkOutlined, LinkOffOutlined, PlayArrowOutlined, PushPinOutlined } from '@mui/icons-material';
+import { Button, Chip, Divider, IconButton, Menu, MenuItem, Switch, TextField, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useCallback, useEffect, useState } from 'react';
 
@@ -8,7 +8,8 @@ import Drawer from '../../../../../components/common/Drawer';
 import FindingIcon from '../../../../../components/FindingIcon';
 import { useFormatter } from '../../../../../components/i18n';
 import type { InjectorContract } from '../../../../../utils/api-types';
-import type { ContractElement, WorkflowStep } from '../../../../../utils/api-types-custom';
+import type { ContractElement, OutputTypeDescriptor, WorkflowStep } from '../../../../../utils/api-types-custom';
+import { simpleCall } from '../../../../../utils/Action';
 import InjectIcon from '../../../common/injects/InjectIcon';
 import {
   extractInputBindings,
@@ -18,7 +19,9 @@ import {
   getStepAttackPatterns,
   getStepInjectorType,
   getStepLabel,
+  getUpstreamStepIds,
   hasDependOnCondition,
+  isActionStep,
   type InputBinding,
 } from './logicUtils';
 
@@ -53,6 +56,16 @@ const LogicActionEditDrawer: FunctionComponent<Props> = ({
   const [contractFields, setContractFields] = useState<ContractElement[]>([]);
   const [injectContent, setInjectContent] = useState<Record<string, unknown>>({});
   const [inputBindings, setInputBindings] = useState<InputBinding[]>([]);
+  const [outputTypeCatalog, setOutputTypeCatalog] = useState<OutputTypeDescriptor[]>([]);
+  const [linkMenuAnchor, setLinkMenuAnchor] = useState<null | HTMLElement>(null);
+  const [linkMenuFieldKey, setLinkMenuFieldKey] = useState<string | null>(null);
+
+  // Fetch output types catalog once
+  useEffect(() => {
+    simpleCall('/api/output_types')
+      .then((result: { data: OutputTypeDescriptor[] }) => setOutputTypeCatalog(result.data))
+      .catch(() => {});
+  }, []);
 
   // Load contract fields on open
   const loadContract = useCallback(async (contractId: string) => {
@@ -135,6 +148,94 @@ const LogicActionEditDrawer: FunctionComponent<Props> = ({
   // Find binding for a contract field
   const getBindingForField = (fieldKey: string): InputBinding | null =>
     inputBindings.find(b => b.argumentKey === fieldKey) ?? null;
+
+  // Compute available upstream output types for linking
+  const upstreamOutputTypes = (() => {
+    if (!step) return [];
+    const upstreamIds = getUpstreamStepIds(allSteps, step.step_id);
+    const types = new Set<string>();
+    for (const id of upstreamIds) {
+      const s = allSteps.find(st => st.step_id === id);
+      if (s && isActionStep(s)) {
+        for (const t of extractOutputTypesFromStepData(s)) {
+          types.add(t);
+        }
+      }
+    }
+    return [...types];
+  })();
+
+  // Build linkable options: type.field pairs from upstream output types
+  const linkableOptions = upstreamOutputTypes.flatMap(outputType => {
+    const descriptor = outputTypeCatalog.find(d => d.outputType === outputType);
+    if (!descriptor || descriptor.fields.length === 0) {
+      return [{ label: outputType, inputType: outputType, inputField: null as string | null }];
+    }
+    return descriptor.fields.map(f => ({
+      label: `${outputType}.${f.key}`,
+      inputType: outputType,
+      inputField: f.key as string | null,
+    }));
+  });
+
+  const handleOpenLinkMenu = (e: React.MouseEvent<HTMLElement>, fieldKey: string) => {
+    setLinkMenuAnchor(e.currentTarget);
+    setLinkMenuFieldKey(fieldKey);
+  };
+
+  const handleCloseLinkMenu = () => {
+    setLinkMenuAnchor(null);
+    setLinkMenuFieldKey(null);
+  };
+
+  const handleLinkField = (inputType: string, inputField: string | null) => {
+    if (!step || !linkMenuFieldKey) return;
+    try {
+      const data = JSON.parse(step.step_data ?? '{}');
+      const newSource = { input_type: inputType, input_field: inputField };
+
+      // Update payload_arguments if the field exists there
+      if (Array.isArray(data.payload_arguments)) {
+        const arg = data.payload_arguments.find((a: { key: string }) => a.key === linkMenuFieldKey);
+        if (arg) {
+          arg.input_sources = [newSource];
+        }
+      }
+      // Also update contract_fields
+      if (Array.isArray(data.contract_fields)) {
+        const field = data.contract_fields.find((f: { key: string }) => f.key === linkMenuFieldKey);
+        if (field) {
+          field.input_sources = [newSource];
+        }
+      }
+      // If not found in either, add to payload_arguments
+      if (!data.payload_arguments?.some((a: { key: string }) => a.key === linkMenuFieldKey)
+        && !data.contract_fields?.some((f: { key: string }) => f.key === linkMenuFieldKey)) {
+        if (!data.payload_arguments) data.payload_arguments = [];
+        data.payload_arguments.push({ key: linkMenuFieldKey, input_sources: [newSource] });
+      }
+
+      // Persist: mutate step_data and re-derive bindings
+      step.step_data = JSON.stringify(data);
+      setInputBindings(extractInputBindings(step, allSteps));
+    } catch { /* ignore */ }
+    handleCloseLinkMenu();
+  };
+
+  const handleUnlinkField = (fieldKey: string) => {
+    if (!step) return;
+    try {
+      const data = JSON.parse(step.step_data ?? '{}');
+      // Remove input_sources from the argument
+      for (const list of [data.payload_arguments, data.contract_fields]) {
+        if (!Array.isArray(list)) continue;
+        const item = list.find((a: { key: string }) => a.key === fieldKey);
+        if (item) delete item.input_sources;
+      }
+      step.step_data = JSON.stringify(data);
+      setInputBindings(extractInputBindings(step, allSteps));
+    } catch { /* ignore */ }
+  };
 
   // Visible contract fields (exclude hidden ones)
   const visibleFields = contractFields.filter(f => !HIDDEN_FIELD_KEYS.has(f.key));
@@ -289,6 +390,11 @@ const LogicActionEditDrawer: FunctionComponent<Props> = ({
                         </Tooltip>
                       );
                     })()}
+                    <Tooltip title={t('Unlink')}>
+                      <IconButton size="small" onClick={() => handleUnlinkField(field.key)}>
+                        <LinkOffOutlined sx={{ fontSize: 16, color: theme.palette.text.secondary }} />
+                      </IconButton>
+                    </Tooltip>
                   </div>
                 );
               }
@@ -316,6 +422,17 @@ const LogicActionEditDrawer: FunctionComponent<Props> = ({
                       variant="standard"
                     />
                   </div>
+                  {linkableOptions.length > 0 && (
+                    <Tooltip title={t('Link to upstream output')}>
+                      <IconButton
+                        size="small"
+                        onClick={(e) => handleOpenLinkMenu(e, field.key)}
+                        sx={{ color: theme.palette.primary.main }}
+                      >
+                        <LinkOutlined sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Tooltip>
+                  )}
                   <Typography variant="caption" color="text.disabled" sx={{ fontSize: 10, whiteSpace: 'nowrap' }}>
                     {t('Manual')}
                   </Typography>
@@ -363,6 +480,29 @@ const LogicActionEditDrawer: FunctionComponent<Props> = ({
           </Button>
         </div>
       </div>
+      {/* Link field menu */}
+      <Menu
+        anchorEl={linkMenuAnchor}
+        open={Boolean(linkMenuAnchor)}
+        onClose={handleCloseLinkMenu}
+        slotProps={{ paper: { style: { maxHeight: 300 } } }}
+      >
+        {linkableOptions.map(opt => (
+          <MenuItem
+            key={opt.label}
+            onClick={() => handleLinkField(opt.inputType, opt.inputField)}
+            sx={{ fontSize: 13 }}
+          >
+            <FindingIcon findingType={opt.inputType} />
+            <Typography sx={{ ml: 1, fontSize: 13 }}>{opt.label}</Typography>
+          </MenuItem>
+        ))}
+        {linkableOptions.length === 0 && (
+          <MenuItem disabled sx={{ fontSize: 13 }}>
+            <Typography color="text.secondary" sx={{ fontSize: 13 }}>{t('No upstream outputs available')}</Typography>
+          </MenuItem>
+        )}
+      </Menu>
     </Drawer>
   );
 };

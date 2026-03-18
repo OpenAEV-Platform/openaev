@@ -1,15 +1,13 @@
-import { LanguageOutlined, PlayArrowOutlined, PushPinOutlined } from '@mui/icons-material';
-import { Chip, Tooltip, Typography } from '@mui/material';
+import { PlayArrowOutlined } from '@mui/icons-material';
+import { Chip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Handle, type Node, type NodeProps, Position } from '@xyflow/react';
 import { memo } from 'react';
 
 import ButtonPopover from '../../../../../../components/common/ButtonPopover';
-import FindingIcon from '../../../../../../components/FindingIcon';
 import { useFormatter } from '../../../../../../components/i18n';
 import type { WorkflowStep } from '../../../../../../utils/api-types-custom';
 import type { InputBinding } from '../logicUtils';
-import { formatBinding } from '../logicUtils';
 import InjectIcon from '../../../../common/injects/InjectIcon';
 
 export type HighlightState = 'source' | 'highlighted' | 'dimmed' | null;
@@ -109,7 +107,7 @@ const NodeAction = ({ data }: NodeProps<NodeActionType>) => {
       }
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <Typography variant="body2" noWrap fontWeight="bold" sx={{ maxWidth: 120 }}>
+          <Typography variant="body2" noWrap fontWeight="bold" sx={{ maxWidth: 160 }}>
             {data.label}
           </Typography>
           <Chip size="small" label={t('Action')} color="primary" variant="outlined" sx={{ height: 18, fontSize: 10 }} />
@@ -117,70 +115,6 @@ const NodeAction = ({ data }: NodeProps<NodeActionType>) => {
             <Chip key={eid} size="small" label={eid} variant="outlined" color="secondary" sx={{ height: 18, fontSize: 10 }} />
           ))}
         </div>
-        {data.inputBindings.some(b => b.bound) && (
-          <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontSize: 9, mr: 0.5 }}>
-              ⚡
-            </Typography>
-            {data.inputBindings.filter(b => b.bound).map(binding => (
-              <Tooltip
-                key={binding.argumentKey}
-                title={`${binding.argumentKey} ← ${formatBinding(binding)} (${binding.scope.toLowerCase()} via ${binding.providers.map(p => p.eventLabel).join(', ')})`}
-              >
-                <Chip
-                  size="small"
-                  icon={<FindingIcon findingType={binding.inputType} />}
-                  label={formatBinding(binding)}
-                  variant="outlined"
-                  color="success"
-                  sx={{ height: 18, fontSize: 9 }}
-                />
-              </Tooltip>
-            ))}
-          </div>
-        )}
-        {data.outputTypes.length > 0 && (
-          <div style={{ display: 'flex', gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
-            {data.outputTypes.map(type => {
-              if (!data.hasParentEvent) {
-                return (
-                  <Chip
-                    key={type}
-                    size="small"
-                    icon={<FindingIcon findingType={type} />}
-                    label={type}
-                    variant="outlined"
-                    sx={{ height: 20, fontSize: 10 }}
-                  />
-                );
-              }
-              const isLocal = (data.fieldScopes[type] ?? 'GLOBAL') === 'LOCAL';
-              return (
-                <Tooltip
-                  key={type}
-                  title={isLocal ? t('Local scope') : t('Global scope')}
-                >
-                  <Chip
-                    size="small"
-                    icon={
-                      <>
-                        <FindingIcon findingType={type} />
-                        {isLocal
-                          ? <PushPinOutlined sx={{ fontSize: 10, ml: -0.5 }} />
-                          : <LanguageOutlined sx={{ fontSize: 10, ml: -0.5 }} />
-                        }
-                      </>
-                    }
-                    label={type}
-                    variant={isLocal ? 'filled' : 'outlined'}
-                    color={isLocal ? 'primary' : 'default'}
-                    sx={{ height: 20, fontSize: 10 }}
-                  />
-                </Tooltip>
-              );
-            })}
-          </div>
-        )}
       </div>
       <div className="nopan nodrag">
         <ButtonPopover entries={popoverEntries} variant="icon" size="small" />

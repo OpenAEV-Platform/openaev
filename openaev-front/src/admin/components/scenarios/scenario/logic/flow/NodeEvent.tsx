@@ -25,7 +25,7 @@ export type NodeEventData = {
 
 export type NodeEventType = Node<NodeEventData>;
 
-const CIRCLE_SIZE = 100;
+const CIRCLE_SIZE = 140;
 
 const NodeEvent = ({ data }: NodeProps<NodeEventType>) => {
   const { t } = useFormatter();
@@ -46,6 +46,7 @@ const NodeEvent = ({ data }: NodeProps<NodeEventType>) => {
 
   const hl = data.highlightState;
   const isDimmed = hl === 'dimmed';
+  const isOnPath = hl === 'source' || hl === 'highlighted';
 
   const borderColor = hl === 'source'
     ? theme.palette.warning.main
@@ -112,10 +113,10 @@ const NodeEvent = ({ data }: NodeProps<NodeEventType>) => {
         overflow: 'hidden',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <BoltOutlined sx={{ color: theme.palette.warning.main, fontSize: 14, flexShrink: 0 }} />
+          <BoltOutlined sx={{ color: theme.palette.warning.main, fontSize: 16, flexShrink: 0 }} />
           <Typography
             fontWeight="bold"
-            sx={{ fontSize: 11, lineHeight: 1.2, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: CIRCLE_SIZE - 40 }}
+            sx={{ fontSize: 13, lineHeight: 1.2, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: CIRCLE_SIZE - 50 }}
           >
             {data.label}
           </Typography>
@@ -123,33 +124,42 @@ const NodeEvent = ({ data }: NodeProps<NodeEventType>) => {
             <ButtonPopover entries={popoverEntries} variant="icon" size="small" />
           </div>
         </div>
-        {/* Conditions inside circle (compact) */}
-        {data.fieldConditions.length > 0 && (() => {
-          const groups = new Map<string, { key: string; field?: string; entries: { type: string; value?: string }[] }>();
-          for (const c of data.fieldConditions) {
-            const groupKey = `${c.condition_key ?? ''}|${c.condition_field ?? ''}`;
-            if (!groups.has(groupKey)) {
-              groups.set(groupKey, { key: c.condition_key ?? '', field: c.condition_field ?? undefined, entries: [] });
-            }
-            groups.get(groupKey)!.entries.push({ type: c.condition_type ?? '=', value: c.condition_value ?? undefined });
-          }
-          return (
-            <Tooltip title={[...groups.values()].map(g => `${g.key}${g.field ? `.${g.field}` : ''} ${g.entries.map(e => `${e.type} ${e.value ?? ''}`).join(' or ')}`).join(', ')}>
-              <Typography
-                sx={{ fontSize: 9, color: theme.palette.text.secondary, textAlign: 'center', lineHeight: 1.1, overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: CIRCLE_SIZE - 24, whiteSpace: 'nowrap' }}
-              >
-                {[...groups.values()].map(g => {
-                  const fieldPart = g.field ?? g.key;
-                  const valuesPart = g.entries.map(e => e.value ?? e.type).join(' or ');
-                  return `${fieldPart}=${valuesPart}`;
-                }).join(', ')}
-              </Typography>
-            </Tooltip>
-          );
-        })()}
       </div>
-      {/* Flow type chips below circle */}
-      {(() => {
+      {/* Conditions below circle — only shown when on highlighted path */}
+      {isOnPath && data.fieldConditions.length > 0 && (() => {
+        const groups = new Map<string, { key: string; field?: string; entries: { type: string; value?: string }[] }>();
+        for (const c of data.fieldConditions) {
+          const groupKey = `${c.condition_key ?? ''}|${c.condition_field ?? ''}`;
+          if (!groups.has(groupKey)) {
+            groups.set(groupKey, { key: c.condition_key ?? '', field: c.condition_field ?? undefined, entries: [] });
+          }
+          groups.get(groupKey)!.entries.push({ type: c.condition_type ?? '=', value: c.condition_value ?? undefined });
+        }
+        return (
+          <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center', marginTop: 6, maxWidth: CIRCLE_SIZE + 80 }}>
+            {[...groups.values()].map((g) => {
+              const fieldPart = g.field ?? g.key;
+              const valuesPart = g.entries.map(e => e.value ?? e.type).join(' or ');
+              const shortLabel = `${fieldPart}=${valuesPart}`;
+              const fullLabel = `${g.key}${g.field ? `.${g.field}` : ''} ${g.entries.map(e => `${e.type} ${e.value ?? ''}`).join(' or ')}`;
+              return (
+                <Tooltip key={`${g.key}|${g.field}`} title={fullLabel}>
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    color="warning"
+                    icon={g.key ? <FindingIcon findingType={g.key} /> : undefined}
+                    label={shortLabel}
+                    sx={{ height: 20, fontSize: 10 }}
+                  />
+                </Tooltip>
+              );
+            })}
+          </div>
+        );
+      })()}
+      {/* Flow type chips below circle — only when highlighted */}
+      {isOnPath && (() => {
         const conditionKeys = new Set(data.fieldConditions.map(c => c.condition_key).filter(Boolean));
         const extraFlowTypes = data.flowTypes.filter(ft => !conditionKeys.has(ft));
         return extraFlowTypes.length > 0 && (
