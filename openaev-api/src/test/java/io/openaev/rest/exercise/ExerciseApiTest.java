@@ -616,7 +616,7 @@ public class ExerciseApiTest extends IntegrationTest {
       List<String> teamIds = reloaded.getTeams().stream().map(Team::getId).toList();
 
       assertEquals(2, teamIds.size());
-      assertTrue(teamIds.contains(teamToKeep.getId()), "teamToKeep should still be present");
+      assertTrue(teamIds.contains(teamToKeep.getId()), "teamToKeep should still be present.");
       assertTrue(teamIds.contains(teamToAdd.getId()), "teamToAdd should be present");
       assertFalse(teamIds.contains(teamToRemove.getId()), "teamToRemove should have been removed");
     }
