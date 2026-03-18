@@ -25,7 +25,7 @@ export type NodeEventData = {
 
 export type NodeEventType = Node<NodeEventData>;
 
-const DIAMOND_SIZE = 100;
+const CIRCLE_SIZE = 100;
 
 const NodeEvent = ({ data }: NodeProps<NodeEventType>) => {
   const { t } = useFormatter();
@@ -72,8 +72,8 @@ const NodeEvent = ({ data }: NodeProps<NodeEventType>) => {
         position: 'relative',
       }}
     >
-      <Handle type="target" position={Position.Left} style={{ left: 0, top: DIAMOND_SIZE / 2, visibility: 'hidden' }} />
-      <Handle type="source" position={Position.Right} style={{ left: DIAMOND_SIZE, top: DIAMOND_SIZE / 2, visibility: 'hidden' }} />
+      <Handle type="target" position={Position.Left} style={{ left: 0, top: CIRCLE_SIZE / 2, visibility: 'hidden' }} />
+      <Handle type="source" position={Position.Right} style={{ left: CIRCLE_SIZE, top: CIRCLE_SIZE / 2, visibility: 'hidden' }} />
       {/* Sequence badge */}
       {data.sequenceNumber != null && (
         <div style={{
@@ -96,30 +96,26 @@ const NodeEvent = ({ data }: NodeProps<NodeEventType>) => {
           {data.sequenceNumber}
         </div>
       )}
-      {/* Diamond shape */}
+      {/* Circle shape */}
       <div style={{
-        width: DIAMOND_SIZE,
-        height: DIAMOND_SIZE,
-        transform: 'rotate(45deg)',
+        width: CIRCLE_SIZE,
+        height: CIRCLE_SIZE,
+        borderRadius: '50%',
         background: theme.palette.background.paper,
         border: `2px solid ${borderColor}`,
         boxShadow: shadowStyle,
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
+        padding: 8,
+        overflow: 'hidden',
       }}>
-        {/* Counter-rotate content — text can overflow diamond */}
-        <div style={{
-          transform: 'rotate(-45deg)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 2,
-        }}>
-          <BoltOutlined sx={{ color: theme.palette.warning.main, fontSize: 16, flexShrink: 0 }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <BoltOutlined sx={{ color: theme.palette.warning.main, fontSize: 14, flexShrink: 0 }} />
           <Typography
             fontWeight="bold"
-            sx={{ fontSize: 11, lineHeight: 1.2, textAlign: 'center', whiteSpace: 'nowrap' }}
+            sx={{ fontSize: 11, lineHeight: 1.2, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: CIRCLE_SIZE - 40 }}
           >
             {data.label}
           </Typography>
@@ -127,70 +123,51 @@ const NodeEvent = ({ data }: NodeProps<NodeEventType>) => {
             <ButtonPopover entries={popoverEntries} variant="icon" size="small" />
           </div>
         </div>
-      </div>
-      {/* Conditions & flow types below diamond — clear the bottom point */}
-      {(data.fieldConditions.length > 0 || data.flowTypes.length > 0) && (
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 3,
-          marginTop: Math.round(DIAMOND_SIZE * 0.21),
-          maxWidth: DIAMOND_SIZE + 80,
-        }}>
-          {data.fieldConditions.length > 0 && (() => {
-            const groups = new Map<string, { key: string; field?: string; entries: { type: string; value?: string }[] }>();
-            for (const c of data.fieldConditions) {
-              const groupKey = `${c.condition_key ?? ''}|${c.condition_field ?? ''}`;
-              if (!groups.has(groupKey)) {
-                groups.set(groupKey, { key: c.condition_key ?? '', field: c.condition_field ?? undefined, entries: [] });
-              }
-              groups.get(groupKey)!.entries.push({ type: c.condition_type ?? '=', value: c.condition_value ?? undefined });
+        {/* Conditions inside circle (compact) */}
+        {data.fieldConditions.length > 0 && (() => {
+          const groups = new Map<string, { key: string; field?: string; entries: { type: string; value?: string }[] }>();
+          for (const c of data.fieldConditions) {
+            const groupKey = `${c.condition_key ?? ''}|${c.condition_field ?? ''}`;
+            if (!groups.has(groupKey)) {
+              groups.set(groupKey, { key: c.condition_key ?? '', field: c.condition_field ?? undefined, entries: [] });
             }
-            return (
-              <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
-                {[...groups.values()].map((g) => {
+            groups.get(groupKey)!.entries.push({ type: c.condition_type ?? '=', value: c.condition_value ?? undefined });
+          }
+          return (
+            <Tooltip title={[...groups.values()].map(g => `${g.key}${g.field ? `.${g.field}` : ''} ${g.entries.map(e => `${e.type} ${e.value ?? ''}`).join(' or ')}`).join(', ')}>
+              <Typography
+                sx={{ fontSize: 9, color: theme.palette.text.secondary, textAlign: 'center', lineHeight: 1.1, overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: CIRCLE_SIZE - 24, whiteSpace: 'nowrap' }}
+              >
+                {[...groups.values()].map(g => {
                   const fieldPart = g.field ?? g.key;
                   const valuesPart = g.entries.map(e => e.value ?? e.type).join(' or ');
-                  const shortLabel = `${fieldPart} = ${valuesPart}`;
-                  const fullLabel = `${g.key}${g.field ? `.${g.field}` : ''} ${g.entries.map(e => `${e.type} ${e.value ?? ''}`).join(' or ')}`;
-                  return (
-                    <Tooltip key={`${g.key}|${g.field}`} title={fullLabel}>
-                      <Chip
-                        size="small"
-                        variant="outlined"
-                        color="warning"
-                        icon={g.key ? <FindingIcon findingType={g.key} /> : undefined}
-                        label={shortLabel}
-                        sx={{ height: 20, fontSize: 10 }}
-                      />
-                    </Tooltip>
-                  );
-                })}
-              </div>
-            );
-          })()}
-          {(() => {
-            const conditionKeys = new Set(data.fieldConditions.map(c => c.condition_key).filter(Boolean));
-            const extraFlowTypes = data.flowTypes.filter(t => !conditionKeys.has(t));
-            return extraFlowTypes.length > 0 && (
-              <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
-                {extraFlowTypes.map(type => (
-                  <Chip
-                    key={type}
-                    size="small"
-                    icon={<FindingIcon findingType={type} />}
-                    label={type}
-                    variant="outlined"
-                    color="warning"
-                    sx={{ height: 20, fontSize: 10 }}
-                  />
-                ))}
-              </div>
-            );
-          })()}
-        </div>
-      )}
+                  return `${fieldPart}=${valuesPart}`;
+                }).join(', ')}
+              </Typography>
+            </Tooltip>
+          );
+        })()}
+      </div>
+      {/* Flow type chips below circle */}
+      {(() => {
+        const conditionKeys = new Set(data.fieldConditions.map(c => c.condition_key).filter(Boolean));
+        const extraFlowTypes = data.flowTypes.filter(ft => !conditionKeys.has(ft));
+        return extraFlowTypes.length > 0 && (
+          <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center', marginTop: 4, maxWidth: CIRCLE_SIZE + 60 }}>
+            {extraFlowTypes.map(type => (
+              <Chip
+                key={type}
+                size="small"
+                icon={<FindingIcon findingType={type} />}
+                label={type}
+                variant="outlined"
+                color="warning"
+                sx={{ height: 20, fontSize: 10 }}
+              />
+            ))}
+          </div>
+        );
+      })()}
       {/* Blue "Add Action" dot */}
       <div className="nopan nodrag" style={{ marginTop: 4, display: 'flex', justifyContent: 'center' }}>
         <Tooltip title={t('Add Action')}>

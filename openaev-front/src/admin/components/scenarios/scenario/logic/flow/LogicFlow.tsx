@@ -58,10 +58,10 @@ interface LogicFlowProps {
 
 // ── Layout constants ──────────────────────────────────────────────────
 const NODE_WIDTH = 280;
-const EVENT_NODE_WIDTH = 100; // diamond events
+const EVENT_NODE_WIDTH = 100; // circle events
 const NODE_HEIGHT = 100;
 const ACTION_NODE_HEIGHT = 160;
-const EVENT_NODE_HEIGHT = 170; // diamond + blue dot
+const EVENT_NODE_HEIGHT = 160; // circle + add button
 const COLUMN_WIDTH = 320;
 const COLUMN_GAP = 320;
 const COLUMN_HEADER_H = 44;
