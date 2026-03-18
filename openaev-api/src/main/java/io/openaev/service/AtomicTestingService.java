@@ -56,7 +56,7 @@ public class AtomicTestingService {
   private final TagRepository tagRepository;
   private final DocumentRepository documentRepository;
   private final AssetGroupService assetGroupService;
-  private final UserService userService;
+  private final UserAuthService userAuthService;
   private final InjectSearchService injectSearchService;
   private final InjectService injectService;
   private final GrantService grantService;
@@ -254,7 +254,7 @@ public class AtomicTestingService {
 
     // Atomic testings are injects where scenario and exercise are null. They are also subject to
     // the grant system.
-    User currentUser = userService.currentUser();
+    User currentUser = userAuthService.currentUser();
 
     Specification<Inject> customSpec =
         Specification.<Inject>unrestricted()

@@ -256,7 +256,6 @@ public class User implements Base {
   @JsonIgnore
   private Set<Tenant> tenants = new HashSet<>();
 
-
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
   private final ResourceType resourceType = ResourceType.USER;

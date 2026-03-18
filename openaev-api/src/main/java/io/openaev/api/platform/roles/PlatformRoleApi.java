@@ -89,4 +89,3 @@ public class PlatformRoleApi {
     platformRoleService.deletePlatformRole(platformRoleId);
   }
 }
-

@@ -37,7 +37,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.payload.form.DetectionRemediationOutput;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
-import io.openaev.service.UserService;
+import io.openaev.service.UserAuthService;
 import io.openaev.service.targets.TargetService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TargetType;
@@ -90,7 +90,7 @@ public class InjectApi extends RestBehavior {
   private final TargetService targetService;
   private final UserRepository userRepository;
   private final PayloadMapper payloadMapper;
-  private final UserService userService;
+  private final UserAuthService userAuthService;
   private final DocumentService documentService;
   private final BatchExecutionTraceExecutor batchExecutionTraceExecutor;
 
@@ -161,7 +161,7 @@ public class InjectApi extends RestBehavior {
       HttpServletResponse response)
       throws IOException {
     List<String> targetIds = injectExportRequestInput.getTargetsIds();
-    User currentUser = userService.currentUser();
+    User currentUser = userAuthService.currentUser();
     List<Inject> injects =
         injectRepository.findAll(
             Specification.<Inject>unrestricted()

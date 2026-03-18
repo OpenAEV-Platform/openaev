@@ -34,7 +34,6 @@ import io.openaev.service.AssetGroupService;
 import io.openaev.service.AssetService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.UserAuthService;
-import io.openaev.service.UserService;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.fixtures.AssetGroupFixture;

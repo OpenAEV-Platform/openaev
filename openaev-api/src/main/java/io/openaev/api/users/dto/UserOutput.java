@@ -1,12 +1,11 @@
 package io.openaev.api.users.dto;
 
+import static io.openaev.config.AppConfig.EMAIL_FORMAT;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-
 import java.util.Set;
-
-import static io.openaev.config.AppConfig.EMAIL_FORMAT;
 
 public record UserOutput(
     @JsonProperty("user_id") @NotBlank String id,

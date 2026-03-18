@@ -30,7 +30,7 @@ import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
-import io.openaev.service.UserService;
+import io.openaev.service.UserAuthService;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Nullable;
@@ -80,7 +80,7 @@ public class InjectorContractService {
   private final VulnerabilityService vulnerabilityService;
   private final DomainService domainService;
   private final InjectorRepository injectorRepository;
-  private final UserService userService;
+  private final UserAuthService userAuthService;
   private final AttackPatternRepository attackPatternRepository;
 
   /** Configuration flag for enabling email import from XLS files. */
@@ -132,7 +132,7 @@ public class InjectorContractService {
 
     // Always apply access spec
     Specification<InjectorContract> accessSpec =
-        InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser());
+        InjectorContractSpecification.hasAccessToInjectorContract(userAuthService.currentUser());
 
     Specification<InjectorContract> combinedSpec =
         (specification == null ? accessSpec : specification.and(accessSpec));
@@ -214,7 +214,7 @@ public class InjectorContractService {
   }
 
   public Iterable<RawInjectorsContracts> getAllRawInjectContracts() {
-    User currentUser = userService.currentUser();
+    User currentUser = userAuthService.currentUser();
     if (currentUser.isAdminOrBypass()
         || currentUser.getCapabilities().contains(Capability.ACCESS_PAYLOADS)) {
       return injectorContractRepository.getAllRawInjectorsContracts();

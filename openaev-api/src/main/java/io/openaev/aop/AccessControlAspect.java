@@ -6,7 +6,7 @@ import io.openaev.database.model.User;
 import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.service.PermissionService;
-import io.openaev.service.UserService;
+import io.openaev.service.UserAuthService;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
@@ -36,7 +36,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class AccessControlAspect {
 
   private final PermissionService permissionService;
-  private final UserService userService;
+  private final UserAuthService userAuthService;
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
 
@@ -94,7 +94,7 @@ public class AccessControlAspect {
     User principal = null;
     try {
       // Attempt to retrieve the principal from the security context
-      principal = userService.currentUser();
+      principal = userAuthService.currentUser();
     } catch (Exception e) {
       log.warn(String.format("Error retrieving current user: %s", e.getMessage()), e);
     }

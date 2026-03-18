@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_77__Add_platform_groups extends BaseJavaMigration {
+public class V4_79__Add_platform_groups extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
@@ -25,4 +25,3 @@ public class V4_77__Add_platform_groups extends BaseJavaMigration {
     }
   }
 }
-

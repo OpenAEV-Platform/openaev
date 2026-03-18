@@ -47,7 +47,8 @@ class CapabilityTreeBuilderTest {
 
     // ACCESS_ASSETS and ACCESS_SECURITY_PLATFORMS should also be direct children of Targets
     assertThat(targets.children()).anyMatch(n -> ACCESS_ASSETS.name().equals(n.value()));
-    assertThat(targets.children()).anyMatch(n -> ACCESS_SECURITY_PLATFORMS.name().equals(n.value()));
+    assertThat(targets.children())
+        .anyMatch(n -> ACCESS_SECURITY_PLATFORMS.name().equals(n.value()));
   }
 
   @Test

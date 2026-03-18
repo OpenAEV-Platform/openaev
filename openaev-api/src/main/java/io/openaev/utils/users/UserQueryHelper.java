@@ -9,7 +9,6 @@ import io.openaev.database.model.User;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
-
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -27,15 +26,25 @@ public class UserQueryHelper {
     Expression<String[]> tagIdsExpression = createJoinArrayAggOnId(cb, userRoot, "tags");
 
     // Boolean expressions for sensitive fields
-    Expression<Boolean> hasPasswordExpression = cb.selectCase()
-        .when(cb.and(cb.isNotNull(userRoot.get("password")), cb.notEqual(cb.trim(userRoot.get("password")), "")), true)
-        .otherwise(false)
-        .as(Boolean.class);
+    Expression<Boolean> hasPasswordExpression =
+        cb.selectCase()
+            .when(
+                cb.and(
+                    cb.isNotNull(userRoot.get("password")),
+                    cb.notEqual(cb.trim(userRoot.get("password")), "")),
+                true)
+            .otherwise(false)
+            .as(Boolean.class);
 
-    Expression<Boolean> hasPgpKeyExpression = cb.selectCase()
-        .when(cb.and(cb.isNotNull(userRoot.get("pgpKey")), cb.notEqual(cb.trim(userRoot.get("pgpKey")), "")), true)
-        .otherwise(false)
-        .as(Boolean.class);
+    Expression<Boolean> hasPgpKeyExpression =
+        cb.selectCase()
+            .when(
+                cb.and(
+                    cb.isNotNull(userRoot.get("pgpKey")),
+                    cb.notEqual(cb.trim(userRoot.get("pgpKey")), "")),
+                true)
+            .otherwise(false)
+            .as(Boolean.class);
 
     // Multiselect
     cq.multiselect(
@@ -82,6 +91,3 @@ public class UserQueryHelper {
         .toList();
   }
 }
-
-
-

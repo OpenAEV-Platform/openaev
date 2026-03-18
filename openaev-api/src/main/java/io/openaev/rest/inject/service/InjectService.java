@@ -100,7 +100,7 @@ public class InjectService {
   private final InjectStatusRepository injectStatusRepository;
   private final InjectMapper injectMapper;
   private final MethodSecurityExpressionHandler methodSecurityExpressionHandler;
-  private final UserService userService;
+  private final UserAuthService userAuthService;
   private final InjectorContractService injectorContractService;
   private final TagRuleService tagRuleService;
   private final TagService tagService;
@@ -178,7 +178,7 @@ public class InjectService {
     // Get common attributes
     Inject inject = input.toInject(injectorContract);
     inject.setInjector(resolveInjector(input.getInjectorId(), injectorContract));
-    inject.setUser(this.userService.currentUser());
+    inject.setUser(this.userAuthService.currentUser());
     inject.setTeams(fromIterable(teamRepository.findAllById(input.getTeams())));
     inject.setAssets(fromIterable(assetService.assets(input.getAssets())));
     inject.setTags(tagService.tagSet(input.getTagIds()));
@@ -1156,7 +1156,7 @@ public class InjectService {
    */
   public Specification<Inject> hasGrantAccessForInject(Grant.GRANT_TYPE grantType) {
 
-    User currentUser = userService.currentUser();
+    User currentUser = userAuthService.currentUser();
     boolean hasCapabilityAccessAssessment =
         currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)
             || currentUser.getCapabilities().contains(Capability.BYPASS);

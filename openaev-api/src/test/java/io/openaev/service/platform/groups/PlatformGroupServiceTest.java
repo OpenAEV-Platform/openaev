@@ -39,8 +39,7 @@ class PlatformGroupServiceTest extends IntegrationTest {
   void should_create_platform_group() {
     // -- ACT --
     PlatformGroup created =
-        platformGroupService.createPlatformGroup(
-            PLATFORM_GROUP_NAME, PLATFORM_GROUP_DESCRIPTION);
+        platformGroupService.createPlatformGroup(PLATFORM_GROUP_NAME, PLATFORM_GROUP_DESCRIPTION);
 
     // -- ASSERT --
     assertThat(created.getId()).isNotNull();
@@ -57,8 +56,7 @@ class PlatformGroupServiceTest extends IntegrationTest {
     entityManager.flush();
 
     // -- ACT --
-    PlatformGroup created =
-        platformGroupService.createPlatformGroup("Group with roles", "desc");
+    PlatformGroup created = platformGroupService.createPlatformGroup("Group with roles", "desc");
     platformGroupService.updatePlatformGroupRoles(created.getId(), List.of(role.getId()));
     entityManager.flush();
 
@@ -73,8 +71,7 @@ class PlatformGroupServiceTest extends IntegrationTest {
     String userId = testUserHolder.get().getId();
 
     // -- ACT --
-    PlatformGroup created =
-        platformGroupService.createPlatformGroup("Group with users", "desc");
+    PlatformGroup created = platformGroupService.createPlatformGroup("Group with users", "desc");
     platformGroupService.updatePlatformGroupUsers(created.getId(), List.of(userId));
     entityManager.flush();
 
@@ -209,9 +206,7 @@ class PlatformGroupServiceTest extends IntegrationTest {
 
   @Test
   void should_fail_when_updating_non_existent_group() {
-    assertThatThrownBy(
-            () ->
-                platformGroupService.updatePlatformGroup("unknown", "name", "desc"))
+    assertThatThrownBy(() -> platformGroupService.updatePlatformGroup("unknown", "name", "desc"))
         .isInstanceOf(EntityNotFoundException.class);
   }
 
@@ -220,8 +215,7 @@ class PlatformGroupServiceTest extends IntegrationTest {
   @Test
   void should_delete_platform_group() {
     // -- ARRANGE --
-    PlatformGroup created =
-        platformGroupService.createPlatformGroup("To delete", "desc");
+    PlatformGroup created = platformGroupService.createPlatformGroup("To delete", "desc");
     entityManager.flush();
 
     // -- ACT --

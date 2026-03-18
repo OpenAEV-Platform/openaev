@@ -27,4 +27,3 @@ public class PlatformRoleFixture {
     return role;
   }
 }
-

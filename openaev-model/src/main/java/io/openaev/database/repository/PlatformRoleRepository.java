@@ -12,4 +12,3 @@ public interface PlatformRoleRepository
 
   long countByIdIn(Set<String> ids);
 }
-

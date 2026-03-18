@@ -16,4 +16,3 @@ public class PlatformRoleMapper {
         role.getUpdatedAt());
   }
 }
-

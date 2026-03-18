@@ -90,7 +90,7 @@ public class ExerciseService {
   private final TagRuleService tagRuleService;
   private final DocumentService documentService;
   private final InjectService injectService;
-  private final UserService userService;
+  private final UserAuthService userAuthService;
   private final GrantService grantService;
   private final ExerciseTeamUserService exerciseTeamUserService;
 
@@ -180,7 +180,7 @@ public class ExerciseService {
 
   public List<ExerciseSimple> exercises(final List<String> exerciseIds) {
 
-    User currentUser = userService.currentUser();
+    User currentUser = userAuthService.currentUser();
     List<RawExerciseSimple> exercises =
         currentUser.isAdminOrBypass()
                 || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)
@@ -440,7 +440,7 @@ public class ExerciseService {
   // -- EXERCISES --
   public List<ExerciseSimple> exercises() {
     // We get the exercises depending on whether or not we are granted or have the capa
-    User currentUser = userService.currentUser();
+    User currentUser = userAuthService.currentUser();
     List<RawExerciseSimple> exercises =
         currentUser.isAdminOrBypass()
                 || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)

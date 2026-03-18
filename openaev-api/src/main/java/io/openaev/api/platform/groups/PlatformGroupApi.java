@@ -11,7 +11,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Set;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -31,8 +30,7 @@ public class PlatformGroupApi {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public PlatformGroupOutput create(@Valid @RequestBody PlatformGroupInput input) {
-    return toOutput(
-        platformGroupService.createPlatformGroup(input.name(), input.description()));
+    return toOutput(platformGroupService.createPlatformGroup(input.name(), input.description()));
   }
 
   // -- READ --
@@ -87,9 +85,7 @@ public class PlatformGroupApi {
       @PathVariable String platformGroupId, @Valid @RequestBody PlatformGroupInput input) {
     return toOutput(
         platformGroupService.updatePlatformGroup(
-            platformGroupId,
-            input.name(),
-            input.description()));
+            platformGroupId, input.name(), input.description()));
   }
 
   @Operation(summary = "Update users of a platform group")
@@ -129,4 +125,3 @@ public class PlatformGroupApi {
     platformGroupService.deletePlatformGroup(platformGroupId);
   }
 }
-

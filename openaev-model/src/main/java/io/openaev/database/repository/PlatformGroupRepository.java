@@ -3,7 +3,6 @@ package io.openaev.database.repository;
 import io.openaev.database.model.PlatformGroup;
 import java.util.List;
 import java.util.Set;
-
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -25,4 +24,3 @@ public interface PlatformGroupRepository
       nativeQuery = true)
   Set<String> findPlatformRoleIdsByGroupId(@Param("groupId") String groupId);
 }
-

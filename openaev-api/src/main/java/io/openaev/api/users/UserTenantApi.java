@@ -1,5 +1,7 @@
 package io.openaev.api.users;
 
+import static io.openaev.api.users.dto.UserMapper.toOutput;
+
 import io.openaev.aop.AccessControl;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.api.users.dto.UserOutput;
@@ -19,11 +21,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-import static io.openaev.api.users.dto.UserMapper.toOutput;
-
-/**
- * User management API scoped to a specific tenant.
- */
+/** User management API scoped to a specific tenant. */
 @RestController
 @RequestMapping("/api/tenants/{tenantId}/users")
 @RequiredArgsConstructor
@@ -79,7 +77,9 @@ public class UserTenantApi {
 
   // -- UPDATE --
 
-  @Operation(summary = "Update a user in a tenant", description = "Updates a user that belongs to the tenant")
+  @Operation(
+      summary = "Update a user in a tenant",
+      description = "Updates a user that belongs to the tenant")
   @AccessControl(
       resourceId = "#userId",
       actionPerformed = Action.WRITE,

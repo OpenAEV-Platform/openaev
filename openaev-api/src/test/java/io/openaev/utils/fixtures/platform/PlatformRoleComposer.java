@@ -42,4 +42,3 @@ public class PlatformRoleComposer extends ComposerBase<PlatformRole> {
     return new PlatformRoleComposer.Composer(platformRole);
   }
 }
-

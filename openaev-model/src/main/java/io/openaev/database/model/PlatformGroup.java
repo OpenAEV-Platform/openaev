@@ -14,7 +14,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
-
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Fetch;
@@ -45,7 +44,6 @@ public class PlatformGroup implements Base, Auditable {
   @Column(name = "platform_group_description")
   @JsonProperty("platform_group_description")
   private String description;
-
 
   @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
@@ -105,4 +103,3 @@ public class PlatformGroup implements Base, Auditable {
     return Objects.hash(id);
   }
 }
-

@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_76__Add_platform_roles extends BaseJavaMigration {
+public class V4_78__Add_platform_roles extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
@@ -37,4 +37,3 @@ public class V4_76__Add_platform_roles extends BaseJavaMigration {
     }
   }
 }
-

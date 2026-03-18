@@ -11,9 +11,7 @@ public class UserSpecification {
 
   private UserSpecification() {}
 
-  /**
-   * Filters users that belong to a specific tenant via the users_tenants join table.
-   */
+  /** Filters users that belong to a specific tenant via the users_tenants join table. */
   public static Specification<User> inTenant(String tenantId) {
     return (root, query, cb) -> {
       Join<User, Tenant> tenantJoin = root.join("tenants");

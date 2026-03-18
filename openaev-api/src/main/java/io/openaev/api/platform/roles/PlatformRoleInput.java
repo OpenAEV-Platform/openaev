@@ -9,4 +9,3 @@ public record PlatformRoleInput(
     @JsonProperty("platform_role_name") @NotBlank String name,
     @JsonProperty("platform_role_description") String description,
     @JsonProperty("platform_role_capabilities") Set<Capability> capabilities) {}
-

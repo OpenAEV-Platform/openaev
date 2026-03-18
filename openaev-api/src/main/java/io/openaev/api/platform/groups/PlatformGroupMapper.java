@@ -7,10 +7,6 @@ public class PlatformGroupMapper {
   private PlatformGroupMapper() {}
 
   public static PlatformGroupOutput toOutput(PlatformGroup group) {
-    return new PlatformGroupOutput(
-        group.getId(),
-        group.getName(),
-        group.getDescription());
+    return new PlatformGroupOutput(group.getId(), group.getName(), group.getDescription());
   }
 }
-

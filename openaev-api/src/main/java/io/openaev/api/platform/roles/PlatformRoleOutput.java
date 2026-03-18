@@ -14,4 +14,3 @@ public record PlatformRoleOutput(
     @JsonProperty("platform_role_capabilities") Set<Capability> capabilities,
     @JsonProperty("platform_role_created_at") @NotNull Instant createdAt,
     @JsonProperty("platform_role_updated_at") @NotNull Instant updatedAt) {}
-

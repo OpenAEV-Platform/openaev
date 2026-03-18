@@ -25,7 +25,7 @@ import org.springframework.stereotype.Service;
 public class NotificationRuleService {
   private final NotificationRuleRepository notificationRuleRepository;
 
-  private final UserService userService;
+  private final UserAuthService userAuthService;
   private final ScenarioService scenarioService;
   private final EmailNotificationService emailNotificationService;
   private final PlatformSettingsService platformSettingsService;
@@ -50,7 +50,7 @@ public class NotificationRuleService {
   }
 
   public NotificationRule createNotificationRule(@NotNull final NotificationRule notificationRule) {
-    User currentUser = userService.currentUser();
+    User currentUser = userAuthService.currentUser();
     if (NotificationRuleResourceType.SCENARIO.equals(
         notificationRule.getNotificationResourceType())) {
       // verify if the scenario exists

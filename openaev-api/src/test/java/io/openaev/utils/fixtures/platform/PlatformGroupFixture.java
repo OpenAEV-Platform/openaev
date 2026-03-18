@@ -18,4 +18,3 @@ public class PlatformGroupFixture {
     return group;
   }
 }
-

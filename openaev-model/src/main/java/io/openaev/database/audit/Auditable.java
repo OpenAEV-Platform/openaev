@@ -12,4 +12,3 @@ public interface Auditable {
 
   void setUpdatedAt(Instant updatedAt);
 }
-

@@ -54,7 +54,7 @@ import org.springframework.stereotype.Component;
 public class InjectExecutionStep implements ActionStep {
   private static final Gson gson = new Gson();
   private final InjectorContractService injectorContractService;
-  private final UserService userService;
+  private final UserAuthService userAuthService;
   private final AssetService assetService;
   private final TeamService teamService;
   private final TagService tagService;
@@ -262,7 +262,7 @@ public class InjectExecutionStep implements ActionStep {
         this.injectorContractService.injectorContract(data.getInjectorContract());
     Inject inject = data.toInject(injectorContract);
     inject.setInjector(injectorContract.getInjector());
-    inject.setUser(this.userService.currentUser());
+    inject.setUser(this.userAuthService.currentUser());
 
     inject.setTeams(teamService.getTeamsByIds(data.getTeams()));
     inject.setAssets(assetService.assets(data.getAssets()));

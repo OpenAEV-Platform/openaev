@@ -195,7 +195,8 @@ public interface UserRepository
 
   @Modifying
   @Query(
-      value = "INSERT INTO users_tenants (user_id, tenant_id) VALUES (:userId, :tenantId) ON CONFLICT DO NOTHING",
+      value =
+          "INSERT INTO users_tenants (user_id, tenant_id) VALUES (:userId, :tenantId) ON CONFLICT DO NOTHING",
       nativeQuery = true)
   void addUserToTenant(@Param("userId") String userId, @Param("tenantId") String tenantId);
 
@@ -206,7 +207,8 @@ public interface UserRepository
   void removeUserFromTenant(@Param("userId") String userId, @Param("tenantId") String tenantId);
 
   @Query(
-      value = "SELECT EXISTS(SELECT 1 FROM users_tenants WHERE user_id = :userId AND tenant_id = :tenantId)",
+      value =
+          "SELECT EXISTS(SELECT 1 FROM users_tenants WHERE user_id = :userId AND tenant_id = :tenantId)",
       nativeQuery = true)
   boolean isUserInTenant(@Param("userId") String userId, @Param("tenantId") String tenantId);
 }

@@ -12,11 +12,8 @@ import io.openaev.utils.ReferenceResolver;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
-
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
@@ -34,8 +31,7 @@ public class PlatformGroupService {
 
   // -- CREATE --
 
-  public PlatformGroup createPlatformGroup(
-      @NotBlank final String name, final String description) {
+  public PlatformGroup createPlatformGroup(@NotBlank final String name, final String description) {
     PlatformGroup group = new PlatformGroup();
     group.setName(name);
     group.setDescription(description);
@@ -70,9 +66,7 @@ public class PlatformGroupService {
   // -- UPDATE --
 
   public PlatformGroup updatePlatformGroup(
-      @NotBlank final String groupId,
-      @NotBlank final String name,
-      final String description) {
+      @NotBlank final String groupId, @NotBlank final String name, final String description) {
     PlatformGroup group = findById(groupId);
     group.setName(name);
     group.setDescription(description);
@@ -91,8 +85,8 @@ public class PlatformGroupService {
       @NotBlank final String groupId, List<String> platformRoleIds) {
     PlatformGroup group = findById(groupId);
     group.setPlatformRoles(
-            referenceResolver.resolve(
-                    platformRoleIds, PlatformRole.class, platformRoleRepository::countByIdIn));
+        referenceResolver.resolve(
+            platformRoleIds, PlatformRole.class, platformRoleRepository::countByIdIn));
     platformGroupRepository.save(group);
     return platformGroupRepository.findPlatformRoleIdsByGroupId(groupId);
   }

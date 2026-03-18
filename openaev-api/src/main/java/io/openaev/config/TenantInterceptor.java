@@ -19,7 +19,8 @@ public class TenantInterceptor implements HandlerInterceptor {
 
   @Override
   @SuppressWarnings("unchecked")
-  public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+  public boolean preHandle(
+      HttpServletRequest request, HttpServletResponse response, Object handler) {
     Map<String, String> pathVariables =
         (Map<String, String>) request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
     if (pathVariables != null && pathVariables.containsKey(TENANT_ID_ATTRIBUTE)) {
@@ -29,8 +30,8 @@ public class TenantInterceptor implements HandlerInterceptor {
   }
 
   @Override
-  public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
+  public void afterCompletion(
+      HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
     TenantContext.clearCurrentTenant();
   }
 }
-

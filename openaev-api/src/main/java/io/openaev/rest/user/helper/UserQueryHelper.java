@@ -25,15 +25,25 @@ public class UserQueryHelper {
     Expression<String[]> tagIdsExpression = createJoinArrayAggOnId(cb, userRoot, "tags");
 
     // Boolean expressions for sensitive fields
-    Expression<Boolean> hasPasswordExpression = cb.selectCase()
-        .when(cb.and(cb.isNotNull(userRoot.get("password")), cb.notEqual(cb.trim(userRoot.get("password")), "")), true)
-        .otherwise(false)
-        .as(Boolean.class);
+    Expression<Boolean> hasPasswordExpression =
+        cb.selectCase()
+            .when(
+                cb.and(
+                    cb.isNotNull(userRoot.get("password")),
+                    cb.notEqual(cb.trim(userRoot.get("password")), "")),
+                true)
+            .otherwise(false)
+            .as(Boolean.class);
 
-    Expression<Boolean> hasPgpKeyExpression = cb.selectCase()
-        .when(cb.and(cb.isNotNull(userRoot.get("pgpKey")), cb.notEqual(cb.trim(userRoot.get("pgpKey")), "")), true)
-        .otherwise(false)
-        .as(Boolean.class);
+    Expression<Boolean> hasPgpKeyExpression =
+        cb.selectCase()
+            .when(
+                cb.and(
+                    cb.isNotNull(userRoot.get("pgpKey")),
+                    cb.notEqual(cb.trim(userRoot.get("pgpKey")), "")),
+                true)
+            .otherwise(false)
+            .as(Boolean.class);
 
     // Multiselect
     cq.multiselect(
@@ -58,7 +68,8 @@ public class UserQueryHelper {
   public static List<UserOutput> execution(TypedQuery<Tuple> query) {
     return query.getResultList().stream()
         .map(
-            tuple -> new UserOutput(
+            tuple ->
+                new UserOutput(
                     tuple.get("user_id", String.class),
                     tuple.get("user_email", String.class),
                     tuple.get("user_firstname", String.class),

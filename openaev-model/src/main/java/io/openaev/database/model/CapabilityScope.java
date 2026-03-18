@@ -5,4 +5,3 @@ public enum CapabilityScope {
   PLATFORM,
   TENANT
 }
-

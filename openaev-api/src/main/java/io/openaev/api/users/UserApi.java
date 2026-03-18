@@ -1,5 +1,7 @@
 package io.openaev.api.users;
 
+import static io.openaev.api.users.dto.UserMapper.toOutput;
+
 import io.openaev.aop.AccessControl;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.api.users.dto.UserOutput;
@@ -14,8 +16,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-
-import static io.openaev.api.users.dto.UserMapper.toOutput;
 
 @RestController
 @RequestMapping("/api/users")
@@ -42,9 +42,7 @@ public class UserApi {
 
   // -- READ --
 
-  @Operation(
-      summary = "Get user by ID",
-      description = "Retrieves a user by its unique identifier")
+  @Operation(summary = "Get user by ID", description = "Retrieves a user by its unique identifier")
   @AccessControl(
       resourceId = "#userId",
       actionPerformed = Action.READ,
@@ -57,9 +55,7 @@ public class UserApi {
 
   // -- SEARCH --
 
-  @Operation(
-      summary = "Search users",
-      description = "Search users with pagination and filtering")
+  @Operation(summary = "Search users", description = "Search users with pagination and filtering")
   @AccessControl(
       actionPerformed = Action.READ,
       resourceType = ResourceType.USER,
