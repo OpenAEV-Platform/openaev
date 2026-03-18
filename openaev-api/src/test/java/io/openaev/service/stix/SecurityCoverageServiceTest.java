@@ -487,65 +487,69 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
         }
       }
 
-        @Test
-        @DisplayName(
-                "Multiple bundles are created should have the same SRO ID")
-        public void whenMultipleBundlesAreCreatedShouldHaveTheSameSROID()
-                throws ParsingException, JsonProcessingException {
-            AttackPatternComposer.Composer ap1 =
-                    attackPatternComposer.forAttackPattern(
-                            AttackPatternFixture.createAttackPatternsWithExternalId("T1234"));
-            AttackPatternComposer.Composer ap2 =
-                    attackPatternComposer.forAttackPattern(
-                            AttackPatternFixture.createAttackPatternsWithExternalId("T5678"));
-            // some security platforms
-            SecurityPlatformComposer.Composer securityPlatformWrapper =
-                    securityPlatformComposer
-                            .forSecurityPlatform(
-                                    SecurityPlatformFixture.createDefault(
-                                            "Bad EDR", SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name()))
-                            .persist();
-            // another nameless platform not involved in simulation
+      @Test
+      @DisplayName("Multiple bundles are created should have the same SRO ID")
+      public void whenMultipleBundlesAreCreatedShouldHaveTheSameSROID()
+          throws ParsingException, JsonProcessingException {
+        AttackPatternComposer.Composer ap1 =
+            attackPatternComposer.forAttackPattern(
+                AttackPatternFixture.createAttackPatternsWithExternalId("T1234"));
+        AttackPatternComposer.Composer ap2 =
+            attackPatternComposer.forAttackPattern(
+                AttackPatternFixture.createAttackPatternsWithExternalId("T5678"));
+        // some security platforms
+        SecurityPlatformComposer.Composer securityPlatformWrapper =
             securityPlatformComposer
-                    .forSecurityPlatform(
-                            SecurityPlatformFixture.createDefault(
-                                    "New SIEM", SecurityPlatform.SECURITY_PLATFORM_TYPE.SIEM.name()))
-                    .persist();
-            // create exercise cover all TTPs
-            ExerciseComposer.Composer exerciseWrapper =
-                    createExerciseWrapperWithInjectsForDomainObjects(Map.of(ap1, true, ap2, true), Map.of());
-            exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
+                .forSecurityPlatform(
+                    SecurityPlatformFixture.createDefault(
+                        "Bad EDR", SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name()))
+                .persist();
+        // another nameless platform not involved in simulation
+        securityPlatformComposer
+            .forSecurityPlatform(
+                SecurityPlatformFixture.createDefault(
+                    "New SIEM", SecurityPlatform.SECURITY_PLATFORM_TYPE.SIEM.name()))
+            .persist();
+        // create exercise cover all TTPs
+        ExerciseComposer.Composer exerciseWrapper =
+            createExerciseWrapperWithInjectsForDomainObjects(
+                Map.of(ap1, true, ap2, true), Map.of());
+        exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
 
-            // set SUCCESS results for all inject expectations
-            setupSuccessfulExpectations(securityPlatformWrapper);
-            persistScenario(exerciseWrapper);
+        // set SUCCESS results for all inject expectations
+        setupSuccessfulExpectations(securityPlatformWrapper);
+        persistScenario(exerciseWrapper);
 
-            Optional<SecurityCoverageSendJob> job =
-                    securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationIfReady(
-                            exerciseWrapper.get());
+        Optional<SecurityCoverageSendJob> job =
+            securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationIfReady(
+                exerciseWrapper.get());
 
-            // intermediate assert
-            assertThat(job).isNotEmpty();
+        // intermediate assert
+        assertThat(job).isNotEmpty();
 
-            // act
-            Bundle bundle1 = securityCoverageService.createBundleFromSendJobs(List.of(job.orElseThrow()));
-            Bundle bundle2 = securityCoverageService.createBundleFromSendJobs(List.of(job.orElseThrow()));
+        // act
+        Bundle bundle1 =
+            securityCoverageService.createBundleFromSendJobs(List.of(job.orElseThrow()));
+        Bundle bundle2 =
+            securityCoverageService.createBundleFromSendJobs(List.of(job.orElseThrow()));
 
-            // assert
-            assertThat(bundle1).isNotNull();
-            assertThat(bundle2).isNotNull();
+        // assert
+        assertThat(bundle1).isNotNull();
+        assertThat(bundle2).isNotNull();
 
-            List<String> sroIds1 = bundle1.getRelationshipObjects().stream()
-                    .filter(sro -> sro.hasProperty("id"))
-                    .map(sro -> sro.getProperty("id").getValue().toString())
-                    .toList();
-            List<String> sroIds2 = bundle2.getRelationshipObjects().stream()
-                    .filter(sro -> sro.hasProperty("id"))
-                    .map(sro -> sro.getProperty("id").getValue().toString())
-                    .toList();
+        List<String> sroIds1 =
+            bundle1.getRelationshipObjects().stream()
+                .filter(sro -> sro.hasProperty("id"))
+                .map(sro -> sro.getProperty("id").getValue().toString())
+                .toList();
+        List<String> sroIds2 =
+            bundle2.getRelationshipObjects().stream()
+                .filter(sro -> sro.hasProperty("id"))
+                .map(sro -> sro.getProperty("id").getValue().toString())
+                .toList();
 
-            assertThat(sroIds1).containsExactlyInAnyOrderElementsOf(sroIds2);
-        }
+        assertThat(sroIds1).containsExactlyInAnyOrderElementsOf(sroIds2);
+      }
     }
   }
 
