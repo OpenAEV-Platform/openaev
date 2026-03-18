@@ -92,7 +92,7 @@ const GroupManageUsers: FunctionComponent<Props> = ({
     <Drawer
       open={open}
       handleClose={handleClose}
-      title={t(`Users of ${groupName}`)}
+      title={t('Users of {groupName}', { groupName: groupName ?? t('this group') })}
       variant="full"
     >
       <Box sx={{ marginTop: 2 }}>
