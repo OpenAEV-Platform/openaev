@@ -6,15 +6,13 @@ import {useFormatter} from '../../../../../components/i18n';
 import {useAppDispatch} from '../../../../../utils/hooks';
 import {AbilityContext} from '../../../../../utils/permissions/PermissionsProvider';
 import {ACTIONS, SUBJECTS} from '../../../../../utils/permissions/types';
-import PlatformUserUpdate from './PlatformUserUpdate';
 import {deleteUser} from "../../../../../actions/platform/users/user-action";
 
-type ActionType = 'Update' | 'Delete';
+type ActionType = 'Delete';
 
 interface Props {
   user: UserOutput;
   actions: ActionType[];
-  onUpdate?: (result: UserOutput) => void;
   onDelete?: (result: string) => void;
   inList?: boolean;
 }
@@ -22,7 +20,6 @@ interface Props {
 const PlatformUserPopover: FunctionComponent<Props> = ({
   user,
   actions = [],
-  onUpdate,
   onDelete,
   inList = false,
 }) => {
@@ -30,15 +27,6 @@ const PlatformUserPopover: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
-
-  // Edition
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  const handleOpenEdit = useCallback(() => {
-    setIsEditOpen(true);
-  }, []);
-  const handleCloseEdit = useCallback(() => {
-    setIsEditOpen(false);
-  }, []);
 
   // Deletion
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -57,13 +45,6 @@ const PlatformUserPopover: FunctionComponent<Props> = ({
   // Button Popover
   const entries = useMemo(() => {
     const result = [];
-    if (actions.includes('Update')) {
-      result.push({
-        label: t('Update'),
-        action: handleOpenEdit,
-        userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_GROUPS_AND_ROLES),
-      });
-    }
     if (actions.includes('Delete')) {
       result.push({
         label: t('Delete'),
@@ -72,20 +53,11 @@ const PlatformUserPopover: FunctionComponent<Props> = ({
       });
     }
     return result;
-  }, [actions, ability, handleOpenEdit, handleOpenDelete]);
+  }, [actions, ability, handleOpenDelete]);
 
   return (
     <>
       {entries.length > 0 && <ButtonPopover entries={entries} variant={inList ? 'icon' : 'toggle'} />}
-      {actions.includes('Update')
-        && (
-          <PlatformUserUpdate
-            user={user}
-            open={isEditOpen}
-            onClose={handleCloseEdit}
-            onUpdate={onUpdate}
-          />
-        )}
       {actions.includes('Delete')
         && (
           <DialogDelete

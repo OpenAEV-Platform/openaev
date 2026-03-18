@@ -8,14 +8,12 @@ import type { UserOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import UserUpdate from './UserUpdate';
 
-type ActionType = 'Update' | 'Delete';
+type ActionType = 'Delete';
 
 interface Props {
   user: UserOutput;
   actions: ActionType[];
-  onUpdate?: (result: UserOutput) => void;
   onDelete?: (result: string) => void;
   inList?: boolean;
 }
@@ -23,7 +21,6 @@ interface Props {
 const UserPopover: FunctionComponent<Props> = ({
   user,
   actions = [],
-  onUpdate,
   onDelete,
   inList = false,
 }) => {
@@ -31,11 +28,7 @@ const UserPopover: FunctionComponent<Props> = ({
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
 
-  const [openEdit, setOpenEdit] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
-
-  const handleOpenEdit = useCallback(() => setOpenEdit(true), []);
-  const handleCloseEdit = useCallback(() => setOpenEdit(false), []);
 
   const handleOpenDelete = useCallback(() => setOpenDelete(true), []);
   const handleCloseDelete = useCallback(() => setOpenDelete(false), []);
@@ -49,13 +42,6 @@ const UserPopover: FunctionComponent<Props> = ({
 
   const entries = useMemo(() => {
     const items = [];
-    if (actions.includes('Update')) {
-      items.push({
-        label: 'Update',
-        action: handleOpenEdit,
-        userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS),
-      });
-    }
     if (actions.includes('Delete')) {
       items.push({
         label: 'Delete',
@@ -64,7 +50,7 @@ const UserPopover: FunctionComponent<Props> = ({
       });
     }
     return items;
-  }, [actions, ability, handleOpenEdit, handleOpenDelete]);
+  }, [actions, ability, handleOpenDelete]);
 
   return (
     <>
@@ -74,12 +60,6 @@ const UserPopover: FunctionComponent<Props> = ({
         handleClose={handleCloseDelete}
         handleSubmit={submitDelete}
         text={t('Do you want to remove this user from the tenant?')}
-      />
-      <UserUpdate
-        user={user}
-        open={openEdit}
-        onClose={handleCloseEdit}
-        onUpdate={onUpdate}
       />
     </>
   );

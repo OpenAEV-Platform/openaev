@@ -41,7 +41,6 @@ const PlatformUsers = () => {
         loading,
         fetchPlatformUsers,
         addPlatformUser,
-        updatePlatformUserInList,
         removePlatformUser,
     } = usePlatformUsers();
 
@@ -104,8 +103,7 @@ const PlatformUsers = () => {
                                   <PlatformUserPopover
                                       inList
                                       user={user}
-                                      actions={['Update', 'Delete']}
-                                      onUpdate={updatePlatformUserInList}
+                                      actions={['Delete']}
                                       onDelete={removePlatformUser}
                                   />
                               )}

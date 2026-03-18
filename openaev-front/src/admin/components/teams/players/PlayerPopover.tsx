@@ -22,6 +22,7 @@ interface PlayerPopoverProps {
   user: UserStore;
   teamId?: string;
   openEditOnInit?: boolean;
+  isExistingUser?: boolean;
   onUpdate?: (result: UserStore) => void;
   onDelete?: (result: string) => void;
 }
@@ -30,6 +31,7 @@ const PlayerPopover: FunctionComponent<PlayerPopoverProps> = ({
   user,
   teamId,
   openEditOnInit = false,
+  isExistingUser = false,
   onUpdate,
   onDelete,
 }) => {
@@ -163,6 +165,7 @@ const PlayerPopover: FunctionComponent<PlayerPopoverProps> = ({
           handleClose={handleCloseEdit}
           onSubmit={onSubmitEdit}
           editing
+          isExistingUser={isExistingUser}
         />
       </Drawer>
       <MuiDialog

@@ -39,7 +39,6 @@ const Users = () => {
     loading,
     fetchTenantUsers,
     addTenantUser,
-    updateTenantUserInList,
     removeTenantUser,
   } = useTenantUsers();
 
@@ -103,8 +102,7 @@ const Users = () => {
                   <UserPopover
                     inList
                     user={user}
-                    actions={['Update', 'Delete']}
-                    onUpdate={updateTenantUserInList}
+                    actions={['Delete']}
                     onDelete={removeTenantUser}
                   />
                 )}

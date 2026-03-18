@@ -176,14 +176,20 @@ public class ImapService extends ExternalServiceBase {
   }
 
   private List<String> computeParticipants(Message message) throws Exception {
+    Address[] fromAddresses = message.getFrom();
     List<String> from =
-        Arrays.stream(message.getFrom())
-            .map(addr -> (((InternetAddress) addr).getAddress()))
-            .toList();
+        fromAddresses == null
+            ? List.of()
+            : Arrays.stream(fromAddresses)
+                .map(addr -> ((InternetAddress) addr).getAddress())
+                .toList();
+    Address[] recipientAddresses = message.getAllRecipients();
     List<String> recipients =
-        Arrays.stream(message.getAllRecipients())
-            .map(addr -> (((InternetAddress) addr).getAddress()))
-            .toList();
+        recipientAddresses == null
+            ? List.of()
+            : Arrays.stream(recipientAddresses)
+                .map(addr -> ((InternetAddress) addr).getAddress())
+                .toList();
     return Stream.concat(from.stream(), recipients.stream())
         .map(String::toLowerCase)
         .filter(recipient -> !recipient.equals(username))
@@ -216,8 +222,10 @@ public class ImapService extends ExternalServiceBase {
         List<User> users = userRepository.findAllByEmailInIgnoreCase(participants);
         if (inject != null && !users.isEmpty()) {
           String subject = message.getSubject();
-          String from = String.valueOf(Arrays.stream(message.getFrom()).toList().get(0));
-          String to = String.valueOf(Arrays.stream(message.getAllRecipients()).toList());
+          Address[] fromAddr = message.getFrom();
+          String from = fromAddr != null ? String.valueOf(Arrays.stream(fromAddr).toList().get(0)) : "";
+          Address[] recipientAddr = message.getAllRecipients();
+          String to = recipientAddr != null ? String.valueOf(Arrays.stream(recipientAddr).toList()) : "";
           Date receivedDate = message.getReceivedDate();
           Date sentDate = message.getSentDate();
           // Save messaging

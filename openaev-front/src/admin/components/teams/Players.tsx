@@ -180,6 +180,7 @@ const Players = () => {
                   <PlayerPopover
                     user={player}
                     openEditOnInit={player.user_id === searchId}
+                    isExistingUser={player.user_is_user}
                     onUpdate={result => setPlayers(players.map(p => (p.user_id !== result.user_id ? p : result)))}
                     onDelete={result => setPlayers(players.filter(p => (p.user_id !== result)))}
                   />

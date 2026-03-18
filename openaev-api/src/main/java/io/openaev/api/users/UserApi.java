@@ -66,18 +66,6 @@ public class UserApi {
     return userCriteriaBuilderService.userPagination(searchPaginationInput);
   }
 
-  // -- UPDATE --
-
-  @Operation(summary = "Update a user", description = "Updates an existing user")
-  @AccessControl(
-      resourceId = "#userId",
-      actionPerformed = Action.WRITE,
-      resourceType = ResourceType.USER,
-      isEnterpriseEdition = true)
-  @PutMapping("/{userId}")
-  public UserOutput update(@PathVariable String userId, @Valid @RequestBody UserInput input) {
-    return toOutput(userService.update(userId, input));
-  }
 
   // -- DELETE --
 

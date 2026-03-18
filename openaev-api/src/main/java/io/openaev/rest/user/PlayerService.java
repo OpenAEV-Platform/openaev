@@ -34,6 +34,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.function.TriFunction;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -43,6 +44,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.RequestBody;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PlayerService {
@@ -110,7 +112,17 @@ public class PlayerService {
         return user.get();
       }
       User existingUser = user.get();
-      existingUser.setUpdateAttributes(input);
+      boolean hasAccount = StringUtils.hasLength(existingUser.getPassword());
+      if (!hasAccount) {
+        // Simple player without account — allow full profile override
+        existingUser.setUpdateAttributes(input);
+      } else {
+        log.info(
+            "Skipping profile update for player {} — user has an existing account. "
+                + "Profile information must be edited by the user themselves.",
+            existingUser.getId());
+      }
+      // Always allow updating assignment data (tags, teams, organization)
       existingUser.setUpdatedAt(now());
       Iterable<String> tags =
           Stream.concat(

@@ -1,15 +1,17 @@
 package io.openaev.rest.user;
 
-import static io.openaev.helper.DatabaseHelper.updateRelation;
-import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.helper.StreamHelper.iterableToSet;
-
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.config.SessionManager;
-import io.openaev.database.model.*;
+import io.openaev.database.model.Action;
+import io.openaev.database.model.Communication;
+import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.User;
 import io.openaev.database.raw.RawPlayer;
-import io.openaev.database.repository.*;
+import io.openaev.database.repository.CommunicationRepository;
+import io.openaev.database.repository.OrganizationRepository;
+import io.openaev.database.repository.TagRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.user.form.player.PlayerInput;
@@ -19,10 +21,16 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+import static io.openaev.helper.DatabaseHelper.updateRelation;
+import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.helper.StreamHelper.iterableToSet;
 
 @RestController
 @RequiredArgsConstructor
@@ -37,7 +45,6 @@ public class PlayerApi extends RestBehavior {
   private final UserRepository userRepository;
   private final TagRepository tagRepository;
   private final UserAuthService userAuthService;
-  private final TeamRepository teamRepository;
   private final PlayerService playerService;
 
   @GetMapping(PLAYER_URI)
@@ -92,10 +99,15 @@ public class PlayerApi extends RestBehavior {
       resourceType = ResourceType.PLAYER)
   public User updatePlayer(@PathVariable String userId, @Valid @RequestBody PlayerInput input) {
     User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
+    if (StringUtils.hasLength(user.getPassword())) {
+      throw new IllegalArgumentException(
+          "This player has an existing user account. Profile must be edited by the user themselves.");
+    }
     user.setUpdateAttributes(input);
     user.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
     user.setOrganization(
-        updateRelation(input.getOrganizationId(), user.getOrganization(), organizationRepository));
+        updateRelation(
+            input.getOrganizationId(), user.getOrganization(), organizationRepository));
     return userRepository.save(user);
   }
 

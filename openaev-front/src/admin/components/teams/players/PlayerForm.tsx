@@ -1,5 +1,5 @@
-import { InfoOutlined } from '@mui/icons-material';
-import { Button, InputAdornment, Tooltip } from '@mui/material';
+import { InfoOutlined, LockOutlined } from '@mui/icons-material';
+import { Alert, Button, InputAdornment, Tooltip } from '@mui/material';
 import { type FunctionComponent, useContext } from 'react';
 import { Form } from 'react-final-form';
 import { z } from 'zod';
@@ -19,6 +19,7 @@ interface PlayerFormProps {
   handleClose: () => void;
   onSubmit: (data: PlayerInputForm) => void;
   editing?: boolean;
+  isExistingUser?: boolean;
 }
 
 const PlayerForm: FunctionComponent<PlayerFormProps> = ({
@@ -26,6 +27,7 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
   onSubmit,
   initialValues,
   handleClose,
+  isExistingUser = false,
 }) => {
   // Standard hooks
   const { t } = useFormatter();
@@ -64,6 +66,11 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
     >
       {({ handleSubmit, form, values, submitting, pristine }) => (
         <form id="playerForm" onSubmit={handleSubmit}>
+          {isExistingUser && (
+            <Alert severity="info" icon={<LockOutlined fontSize="inherit" />} sx={{ mb: 2 }}>
+              {t('This player has an existing user account. Profile information can only be edited by the user themselves.')}
+            </Alert>
+          )}
           <OldTextField
             variant="standard"
             name="user_email"
@@ -77,6 +84,7 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
             fullWidth
             label={t('Firstname')}
             style={{ marginTop: 20 }}
+            disabled={isExistingUser}
           />
           <OldTextField
             variant="standard"
@@ -84,6 +92,7 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
             fullWidth
             label={t('Lastname')}
             style={{ marginTop: 20 }}
+            disabled={isExistingUser}
           />
           <OrganizationField
             name="user_organization"
@@ -95,6 +104,7 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
             name="user_country"
             values={values}
             setFieldValue={form.mutators.setValue}
+            disabled={isExistingUser}
           />
           <OldTextField
             InputProps={{
@@ -111,6 +121,7 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
             fullWidth
             label={t('Phone number (mobile)')}
             style={{ marginTop: 20 }}
+            disabled={isExistingUser}
           />
           <OldTextField
             InputProps={{
@@ -127,6 +138,7 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
             fullWidth
             label={t('Phone number (landline)')}
             style={{ marginTop: 20 }}
+            disabled={isExistingUser}
           />
           <OldTextField
             variant="standard"
@@ -136,6 +148,7 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
             rows={5}
             label={t('PGP public key')}
             style={{ marginTop: 20 }}
+            disabled={isExistingUser}
           />
           <TagField
             name="user_tags"

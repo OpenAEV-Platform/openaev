@@ -41,4 +41,7 @@ public class PlayerOutput {
 
   @JsonProperty("user_tags")
   private Set<String> tags;
+
+  @JsonProperty("user_is_user")
+  private boolean isUser;
 }

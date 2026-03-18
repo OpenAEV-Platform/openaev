@@ -15,6 +15,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.util.StringUtils;
 
 public class PlayerQueryHelper {
 
@@ -38,6 +39,7 @@ public class PlayerQueryHelper {
             userRoot.get("phone").alias("user_phone"),
             userRoot.get("phone2").alias("user_phone2"),
             userRoot.get("pgpKey").alias("user_pgp_key"),
+            userRoot.get("password").alias("user_password"),
             organizationIdExpression.alias("user_organization"),
             tagIdsExpression.alias("user_tags"))
         .distinct(true);
@@ -62,6 +64,7 @@ public class PlayerQueryHelper {
                     .phone2(tuple.get("user_phone2", String.class))
                     .pgpKey(tuple.get("user_pgp_key", String.class))
                     .organization(tuple.get("user_organization", String.class))
+                    .isUser(StringUtils.hasLength(tuple.get("user_password", String.class)))
                     .tags(
                         Arrays.stream(tuple.get("user_tags", String[].class))
                             .collect(Collectors.toSet()))

@@ -40,7 +40,7 @@ const CreateUser: FunctionComponent<Props> = ({ onCreate }) => {
       <Drawer
         open={open}
         handleClose={handleClose}
-        title={t('Create a new user')}
+        title={t('Add a user')}
       >
         <UserForm
           onSubmit={handleSubmit}

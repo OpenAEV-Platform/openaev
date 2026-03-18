@@ -1,24 +1,21 @@
 package io.openaev.service;
 
-import static io.openaev.helper.DatabaseHelper.updateRelation;
-import static io.openaev.helper.StreamHelper.iterableToSet;
-import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
-
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.config.SessionManager;
-import io.openaev.database.model.*;
-import io.openaev.database.repository.*;
+import io.openaev.database.model.Group;
+import io.openaev.database.model.User;
+import io.openaev.database.repository.GroupRepository;
+import io.openaev.database.repository.OrganizationRepository;
+import io.openaev.database.repository.TagRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.database.specification.GroupSpecification;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.user.form.user.CreateUserInput;
 import io.openaev.rest.user.form.user.UpdateUserInput;
-import io.openaev.utils.ReferenceResolver;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
-import java.util.List;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -27,6 +24,14 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import static io.openaev.helper.DatabaseHelper.updateRelation;
+import static io.openaev.helper.StreamHelper.iterableToSet;
+import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 /**
  * Service for user CRUD operations.
@@ -41,7 +46,6 @@ import org.springframework.util.StringUtils;
 public class UserService {
 
   @Resource private SessionManager sessionManager;
-  private final ReferenceResolver referenceResolver;
   private final UserAuthService userAuthService;
 
   private final UserRepository userRepository;
@@ -64,8 +68,6 @@ public class UserService {
     }
     User user = new User();
     user.setUpdateAttributes(input);
-    user.setOrganization(referenceResolver.resolve(input.organizationId(), Organization.class));
-    user.setTags(referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
     return createUser(user, input.plainPassword(), UUID.randomUUID().toString());
   }
 
@@ -140,20 +142,6 @@ public class UserService {
     return savedUser;
   }
 
-  public User update(String userId, UserInput input) {
-    User existing = user(userId);
-    existing.setUpdateAttributes(input);
-    if (StringUtils.hasLength(input.plainPassword())) {
-      existing.setPassword(userAuthService.encodeUserPassword(input.plainPassword()));
-    }
-    existing.setOrganization(referenceResolver.resolve(input.organizationId(), Organization.class));
-    existing.setTags(
-        referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
-    User savedUser = userRepository.save(existing);
-    sessionManager.refreshUserSessions(savedUser);
-    return savedUser;
-  }
-
   // -- DELETE --
 
   public void delete(String userId) {
@@ -166,9 +154,24 @@ public class UserService {
 
   // -- TENANT --
 
+  /**
+   * Creates a user in a tenant, or silently links an existing user to the tenant.
+   *
+   * <p>Privacy: we never reveal whether the email already exists on the platform. If the user
+   * already exists, we simply add the tenant link and return the existing user. This prevents user
+   * enumeration from a tenant context.
+   */
   @Transactional
   public User createUserInTenant(UserInput input, String tenantId) {
-    User user = createUser(input);
+    Optional<User> existingUser = userRepository.findByEmailIgnoreCase(input.email());
+    User user;
+    if (existingUser.isPresent()) {
+      user = existingUser.get();
+    } else {
+      user = new User();
+      user.setUpdateAttributes(input);
+      user = createUser(user, input.plainPassword(), UUID.randomUUID().toString());
+    }
     userRepository.addUserToTenant(user.getId(), tenantId);
     return user;
   }

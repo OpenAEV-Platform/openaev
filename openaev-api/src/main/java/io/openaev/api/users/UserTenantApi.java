@@ -75,20 +75,6 @@ public class UserTenantApi {
     return userCriteriaBuilderService.userPagination(searchPaginationInput, tenantSpec());
   }
 
-  // -- UPDATE --
-
-  @Operation(
-      summary = "Update a user in a tenant",
-      description = "Updates a user that belongs to the tenant")
-  @AccessControl(
-      resourceId = "#userId",
-      actionPerformed = Action.WRITE,
-      resourceType = ResourceType.USER,
-      isEnterpriseEdition = true)
-  @PutMapping("/{userId}")
-  public UserOutput update(@PathVariable String userId, @Valid @RequestBody UserInput input) {
-    return toOutput(userService.update(userId, input));
-  }
 
   // -- DELETE --
 

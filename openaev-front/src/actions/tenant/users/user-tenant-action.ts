@@ -1,6 +1,6 @@
 import type { Dispatch } from 'redux';
 
-import { delReferential, postReferential, putReferential, simplePostCall } from '../../../utils/Action';
+import { delReferential, postReferential, simplePostCall } from '../../../utils/Action';
 import type { SearchPaginationInput, UserInput, UserOutput } from '../../../utils/api-types';
 import { tenantUser } from './user-tenant-schema';
 
@@ -22,12 +22,6 @@ export const searchTenantUsers = (tenantId: string, paginationInput: SearchPagin
   return simplePostCall(uri, paginationInput);
 };
 
-// -- UPDATE --
-
-export const updateTenantUser = (tenantId: string, userId: UserOutput['user_id'], data: UserInput) => (dispatch: Dispatch) => {
-  const uri = `${tenantUserUri(tenantId)}/${userId}`;
-  return putReferential(tenantUser, uri, data)(dispatch);
-};
 
 // -- DELETE --
 

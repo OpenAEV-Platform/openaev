@@ -6100,12 +6100,14 @@ export interface PlayerInput {
 
 export interface PlayerOutput {
   user_phone2?: string;
+  user?: boolean;
   user_country?: string;
   /** @minLength 1 */
   user_email: string;
   user_firstname?: string;
   /** @minLength 1 */
   user_id: string;
+  user_is_user?: boolean;
   user_lastname?: string;
   user_organization?: string;
   user_pgp_key?: string;
@@ -7616,24 +7618,18 @@ export interface User {
 }
 
 export interface UserInput {
-  /** @pattern ^\+[\d\s\-.()]+$ */
-  user_phone2?: string;
   /**
    * @format email
    * @minLength 1
    */
   user_email: string;
-  user_firstname?: string;
-  user_lastname?: string;
-  user_organization?: string;
   user_pgp_key?: string;
-  /** @pattern ^\+[\d\s\-.()]+$ */
-  user_phone?: string;
-  user_plain_password?: string;
-  user_tags?: string[];
+  /** @minLength 1 */
+  user_plain_password: string;
 }
 
 export interface UserOutput {
+  user_phone2?: string;
   /**
    * @format email
    * @minLength 1
@@ -7648,7 +7644,6 @@ export interface UserOutput {
   user_organization_id?: string;
   user_organization_name?: string;
   user_phone?: string;
-  user_phone2?: string;
   /** @uniqueItems true */
   user_tags?: string[];
 }
