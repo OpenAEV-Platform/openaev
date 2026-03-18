@@ -44,9 +44,11 @@ class WorkflowServiceTest {
   class GetWorkflowByIdAndStatusTests {
 
     @Test
+    @DisplayName("should return workflow when found")
     void shouldReturnWorkflowWhenFound() {
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow = mock(Workflow.class);
+      workflow.setStatus(WorkflowStatus.TEMPLATE);
 
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
@@ -54,11 +56,15 @@ class WorkflowServiceTest {
       Workflow result =
           workflowService.getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
 
-      assertSame(workflow, result);
-      verify(workflowRepository).findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
+      verify(workflowRepository)
+          .findByIdAndStatus(workflowId, eq(WorkflowStatus.TEMPLATE));
+      assertEquals(workflowId, workflowId);
+      assertNotNull(result);
+      assertEquals(workflow, result);
     }
 
     @Test
+    @DisplayName("should throw ElementNotFoundException when not found")
     void shouldThrowWhenWorkflowNotFound() {
       String workflowId = UUID.randomUUID().toString();
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
@@ -111,6 +117,7 @@ class WorkflowServiceTest {
   class UpdateWorkflowTemplateTests {
 
     @Test
+    @DisplayName("should mark workflow as edited")
     void shouldMarkWorkflowAsEdited() {
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow = mock(Workflow.class);
@@ -146,16 +153,23 @@ class WorkflowServiceTest {
   @DisplayName("saveWorkflowRun")
   class SaveWorkflowRunTests {
 
+    @Captor private ArgumentCaptor<Workflow> workflowCaptor;
+
     @Test
+    @DisplayName("should save and return workflow run")
     void shouldSaveAndReturnWorkflowRun() {
-      Workflow run = mock(Workflow.class);
-      Workflow persisted = mock(Workflow.class);
-      when(workflowRepository.save(run)).thenReturn(persisted);
+      // Prepare
+      Workflow workflowRun = mock(Workflow.class);
+      Workflow savedWorkflow = mock(Workflow.class);
+      when(workflowRepository.save(workflowRun)).thenReturn(savedWorkflow);
 
-      Workflow result = workflowService.saveWorkflowRun(run);
+      // Act
+      Workflow result = workflowService.saveWorkflowRun(workflowRun);
 
-      assertSame(persisted, result);
-      verify(workflowRepository).save(run);
+      // Assert
+      verify(workflowRepository).save(workflowCaptor.capture());
+      assertEquals(workflowRun, workflowCaptor.getValue());
+      assertEquals(savedWorkflow, result);
     }
   }
 
