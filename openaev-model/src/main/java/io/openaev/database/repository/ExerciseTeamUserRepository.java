@@ -4,6 +4,7 @@ import io.openaev.database.model.ExerciseTeamUser;
 import io.openaev.database.model.ExerciseTeamUserId;
 import io.openaev.database.raw.RawExerciseTeamUser;
 import jakarta.validation.constraints.NotNull;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -55,4 +56,16 @@ public interface ExerciseTeamUserRepository
       value = "SELECT * FROM exercises_teams_users WHERE exercise_id IN :ids ;",
       nativeQuery = true)
   List<RawExerciseTeamUser> rawByExerciseIds(@Param("ids") List<String> ids);
+
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query(
+      value =
+          "delete from exercises_teams_users "
+              + "where exercise_id = :exerciseId and team_id in :teamIds",
+      nativeQuery = true)
+  @Transactional
+  void deleteByExerciseIdAndTeamIds(
+      @Param("exerciseId") String exerciseId, @Param("teamIds") Collection<String> teamIds);
+
+  boolean existsByExerciseIdAndTeamIdAndUserId(String exerciseId, String teamId, String userId);
 }
