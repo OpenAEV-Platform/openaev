@@ -297,7 +297,7 @@ class WorkflowServiceTest {
   @DisplayName("isSimulationChaining")
   class IsSimulationChainingTests {
 
-    static Stream<Arguments> isSimulationChainingCases() {
+    static Stream<Arguments> testCases() {
       return Stream.of(
           Arguments.of("single", List.of(mock(Workflow.class)), true),
           Arguments.of("multiple", List.of(mock(Workflow.class), mock(Workflow.class)), true),
@@ -305,7 +305,7 @@ class WorkflowServiceTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource("isSimulationChainingCases")
+    @MethodSource("testCases")
     void shouldReturnExpectedResult(String caseName, List<Workflow> workflows, boolean expected) {
       // Prepare
       String simulationId = UUID.randomUUID().toString();
@@ -322,9 +322,10 @@ class WorkflowServiceTest {
   }
 
   @Nested
-  @DisplayName("findWorkflowTemplateBySimulationId")
+  @DisplayName("Should find WorkflowTemplate By SimulationId")
   class FindWorkflowTemplateBySimulationIdTests {
 
+    @DisplayName("should return workflow template when found")
     @Test
     void shouldReturnTemplateWhenFound() {
       String simulationId = UUID.randomUUID().toString();
@@ -340,6 +341,7 @@ class WorkflowServiceTest {
           .findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE);
     }
 
+    @DisplayName("should return null when template not found")
     @Test
     void shouldReturnEmptyWhenNotFound() {
       String simulationId = UUID.randomUUID().toString();
@@ -393,6 +395,7 @@ class WorkflowServiceTest {
       verify(workflow, atLeastOnce()).getWorkflowConfiguration();
     }
 
+    @DisplayName("should throw ElementNotFoundException when workflow not found")
     @Test
     void shouldThrowWhenWorkflowMissing() {
       String workflowId = UUID.randomUUID().toString();
@@ -463,6 +466,7 @@ class WorkflowServiceTest {
       assertEquals(savedConfiguration, result);
     }
 
+    @DisplayName("should throw ElementNotFoundException when workflow is missing")
     @Test
     void shouldThrowWhenWorkflowMissing() {
       // Prepare

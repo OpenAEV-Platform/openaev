@@ -2,6 +2,7 @@ package io.openaev.api.chaining;
 
 import static io.openaev.api.chaining.WorkflowApi.WORKFLOW_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static io.openaev.utils.fixtures.WorkflowFixture.getDefaultWorkflowScopeInput;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -12,8 +13,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
-import io.openaev.api.chaining.dto.WorkflowScopeInput;
-import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.WorkflowConfigurationRepository;
@@ -23,7 +22,6 @@ import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.mockUser.WithMockUser;
-import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -426,7 +424,7 @@ class WorkflowApiTest extends IntegrationTest {
             .timeoutEnabled(true)
             .timeoutSeconds(5400L) // 1 h 30 min
             .safeModeEnabled(false)
-            .workflowScope(buildScopeInput())
+            .workflowScope(getDefaultWorkflowScopeInput())
             .build();
 
     // -- EXECUTE --
@@ -487,44 +485,6 @@ class WorkflowApiTest extends IntegrationTest {
             .orElseThrow();
     assertEquals(ScopeRuleValueType.ASSET_GROUP_ID, assetGroupRule.getValueType());
     assertEquals(ScopeRuleSelectedMode.BLACKLIST, assetGroupRule.getSelectedMode());
-  }
-
-  private WorkflowScopeInput buildScopeInput() {
-    WorkflowScopeRuleInput ipRule =
-        WorkflowScopeRuleInput.builder()
-            .selectedMode(ScopeRuleSelectedMode.WHITELIST)
-            .ruleSource(ScopeRuleSource.MANUAL)
-            .ruleValue("10.10.10.10")
-            .build();
-    WorkflowScopeRuleInput domainRule =
-        WorkflowScopeRuleInput.builder()
-            .selectedMode(ScopeRuleSelectedMode.WHITELIST)
-            .ruleSource(ScopeRuleSource.MANUAL)
-            .ruleValue("example.org")
-            .build();
-    WorkflowScopeRuleInput assetRule =
-        WorkflowScopeRuleInput.builder()
-            .selectedMode(ScopeRuleSelectedMode.WHITELIST)
-            .ruleSource(ScopeRuleSource.ASSET)
-            .ruleValue("asset-123")
-            .build();
-    WorkflowScopeRuleInput subnetRule =
-        WorkflowScopeRuleInput.builder()
-            .selectedMode(ScopeRuleSelectedMode.BLACKLIST)
-            .ruleSource(ScopeRuleSource.MANUAL)
-            .ruleValue("10.10.10.0/24")
-            .build();
-    WorkflowScopeRuleInput assetGroupRule =
-        WorkflowScopeRuleInput.builder()
-            .selectedMode(ScopeRuleSelectedMode.BLACKLIST)
-            .ruleSource(ScopeRuleSource.ASSET_GROUP)
-            .ruleValue("asset-group-1")
-            .build();
-
-    WorkflowScopeInput scopeInput = new WorkflowScopeInput();
-    scopeInput.setWorkflowScopeRules(
-        List.of(ipRule, domainRule, assetRule, subnetRule, assetGroupRule));
-    return scopeInput;
   }
 
   private Workflow createTemplateWorkflow() {
