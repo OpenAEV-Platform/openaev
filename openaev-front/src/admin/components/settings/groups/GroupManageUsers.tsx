@@ -18,6 +18,7 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onSubmit: (userIds: string[]) => void;
+  groupName: string;
 }
 
 const GroupManageUsers: FunctionComponent<Props> = ({
@@ -25,6 +26,7 @@ const GroupManageUsers: FunctionComponent<Props> = ({
   open,
   onClose,
   onSubmit,
+  groupName,
 }) => {
   // Standard hooks
   const { t } = useFormatter();
@@ -90,7 +92,7 @@ const GroupManageUsers: FunctionComponent<Props> = ({
     <Drawer
       open={open}
       handleClose={handleClose}
-      title={t('Manage the users of this group')}
+      title={t(`Users of ${groupName}`)}
       variant="full"
     >
       <Box sx={{ marginTop: 2 }}>

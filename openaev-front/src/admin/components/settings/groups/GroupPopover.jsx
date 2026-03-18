@@ -222,6 +222,7 @@ class GroupPopoverComponent extends Component {
           open={this.state.openUsers}
           onClose={this.handleCloseUsers.bind(this)}
           onSubmit={this.submitUpdateUsers.bind(this)}
+          groupName={group.group_name}
         />
         <GroupManageRoles
           initialState={this.state.rolesIds}
