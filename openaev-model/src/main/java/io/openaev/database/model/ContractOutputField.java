@@ -10,7 +10,7 @@ public class ContractOutputField {
   private ContractOutputTechnicalType type;
   private boolean required;
 
-  ContractOutputField(String key, ContractOutputTechnicalType type, boolean required) {
+  public ContractOutputField(String key, ContractOutputTechnicalType type, boolean required) {
     this.key = key;
     this.type = type;
     this.required = required;

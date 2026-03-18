@@ -23,7 +23,7 @@ public abstract class ExecutorContextService {
 
   /**
    * To use when possible for better performance, launch one attack for X agents, used by
-   * Tanium/SentinelOne/Crowdstrike
+   * Tanium/SentinelOne/Crowdstrike/PaloAltoCortex
    *
    * @param inject to launch for the attack
    * @param agents concerned by the attack

@@ -20,6 +20,7 @@ import static io.openaev.database.model.SettingKeys.PLATFORM_INSTANCE;
 import static io.openaev.ee.Pem.*;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_NAME;
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
 import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME;
 import static java.util.Optional.ofNullable;
@@ -51,7 +52,11 @@ public class Ee {
   public static final String LICENSE_OPTION_PRODUCT = "2.14521.4.4.20";
   public static final String LICENSE_OPTION_CREATOR = "2.14521.4.4.30";
   private final List<String> eeExecutorsNames =
-      List.of(CROWDSTRIKE_EXECUTOR_NAME, TANIUM_EXECUTOR_NAME, SENTINELONE_EXECUTOR_NAME);
+      List.of(
+          CROWDSTRIKE_EXECUTOR_NAME,
+          TANIUM_EXECUTOR_NAME,
+          SENTINELONE_EXECUTOR_NAME,
+          PALOALTOCORTEX_EXECUTOR_NAME);
 
   @Resource private OpenAEVConfig openAEVConfig;
 

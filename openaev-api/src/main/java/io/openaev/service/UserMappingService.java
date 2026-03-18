@@ -33,13 +33,13 @@ public class UserMappingService {
   public static final String ROLES_PATH_SUFFIX = "roles_path";
   public static final String GROUPS_PATH_SUFFIX = "groups_path";
 
-  public void mapCurrentUserWithGroup(String property, User user, List<String> rolesFromToken) {
-
-    for (GroupMapping mapping : safeParseMappings(property)) {
+  public void mapCurrentUserWithGroup(String property, User user, List<String> groupsFromToken) {
+    List<GroupMapping> groupMappings = safeParseMappings(property);
+    for (GroupMapping mapping : groupMappings) {
       String idpGroup = mapping.getIdpGroup();
       String userGroup = mapping.getUserGroup();
       boolean autoCreate = mapping.isAutoCreate();
-      for (String role : rolesFromToken) {
+      for (String role : groupsFromToken) {
         if (idpGroup.equals(role)) {
           Optional<Group> groupOptional = groupRepository.findByName(userGroup);
           if (groupOptional.isPresent()) {
@@ -67,6 +67,18 @@ public class UserMappingService {
         } else {
           log.error(String.format("No corresponding group found for group %s", role));
         }
+      }
+
+      // If the user has not this group in the groups from the token but he has the group in his
+      // current groups
+      if (groupsFromToken.stream().noneMatch(groupToken -> groupToken.equals(mapping.getIdpGroup()))
+          && user.getGroups().stream()
+              .anyMatch(groupOfUser -> groupOfUser.getName().equals(mapping.getUserGroup()))) {
+        // It means the user was removed from the group in the identity provider -> we remove it
+        // from its current groups
+        List<Group> userGroups = user.getGroups();
+        userGroups.removeIf(group -> group.getName().equals(mapping.getUserGroup()));
+        user.setGroups(userGroups);
       }
     }
   }

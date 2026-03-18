@@ -8,22 +8,19 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.ConnectorType;
 import java.util.List;
-import lombok.Data;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
+import lombok.*;
 
 @RequiredArgsConstructor
 public class RegisterConnector implements Mutation {
   @Getter private final ConnectorBase connector;
+  @Getter private Boolean withJwks = false;
 
-  @Getter
-  private final String queryText =
+  private final String mutationMask =
       """
     mutation RegisterConnector($input: RegisterConnectorInput) {
       registerConnector(input: $input) {
         id
         connector_state
-        jwks
         config {
           connection {
             host
@@ -41,9 +38,19 @@ public class RegisterConnector implements Mutation {
           push_exchange
         }
         connector_user_id
+        %s
       }
     }
     """;
+
+  public String getQueryText() {
+    return mutationMask.formatted(withJwks ? "jwks" : "");
+  }
+
+  public RegisterConnector(ConnectorBase connector, Boolean withJwks) {
+    this.connector = connector;
+    this.withJwks = withJwks;
+  }
 
   @Override
   public JsonNode getVariables() throws JsonProcessingException {

@@ -11,7 +11,6 @@ import io.openaev.opencti.client.response.Response;
 import io.openaev.opencti.client.response.fields.Error;
 import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.connectors.ConnectorBase;
-import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.connectors.service.PrivilegeService;
 import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.stix.objects.Bundle;
@@ -33,22 +32,39 @@ public class OpenCTIService {
   private final ObjectMapper mapper;
   private final PrivilegeService privilegeService;
 
-  private void applyJwksIfApplicable(ConnectorBase connector, String jwks) {
-    if (connector instanceof SecurityCoverageConnector scc) {
-      scc.setJwks(jwks);
+  public QueryTypeFields.ResponsePayload queryTypeFields(ConnectorBase connector, String typeName)
+      throws IOException, ConnectorError {
+    Response r =
+        openCTIClient.execute(
+            connector.getApiUrl(),
+            classicOpenCTIConfig.getToken(),
+            new QueryTypeFields(connector, typeName));
+    if (r.isError()) {
+      throw new ConnectorError(
+          """
+              Failed to query type fields for type %s with OpenCTI at %s
+              Errors: %s
+              """
+              .formatted(
+                  typeName,
+                  connector.getApiUrl(),
+                  r.getErrors().stream().map(Error::toString).collect(Collectors.joining("\n"))));
+    } else {
+      return mapper.convertValue(r.getData(), QueryTypeFields.ResponsePayload.class);
     }
   }
 
   public RegisterConnector.ResponsePayload registerConnector(ConnectorBase connector)
       throws IOException, ConnectorError {
-
     privilegeService.ensurePrivilegedUserExistsForConnector(connector);
+
+    QueryTypeFields.ResponsePayload typeFields = this.queryTypeFields(connector, "Connector");
 
     Response r =
         openCTIClient.execute(
             connector.getApiUrl(),
             classicOpenCTIConfig.getToken(),
-            new RegisterConnector(connector));
+            new RegisterConnector(connector, typeFields.hasJwks()));
     if (r.isError()) {
       throw new ConnectorError(
           """
@@ -68,7 +84,7 @@ public class OpenCTIService {
       // side effect on transient state
       connector.setRegistered(true);
       if (payload.getRegisterConnectorContent() != null) {
-        applyJwksIfApplicable(connector, payload.getRegisterConnectorContent().getJwks());
+        connector.setJwks(payload.getRegisterConnectorContent().getJwks());
       }
       return payload;
     }
@@ -81,12 +97,15 @@ public class OpenCTIService {
           "Cannot ping connector %s with OpenCTI at %s: connector hasn't registered yet. Try again later."
               .formatted(connector.getName(), connector.getApiUrl()));
     }
-
     privilegeService.ensurePrivilegedUserExistsForConnector(connector);
+
+    QueryTypeFields.ResponsePayload typeFields = this.queryTypeFields(connector, "Connector");
 
     Response r =
         openCTIClient.execute(
-            connector.getApiUrl(), classicOpenCTIConfig.getToken(), new Ping(connector));
+            connector.getApiUrl(),
+            classicOpenCTIConfig.getToken(),
+            new Ping(connector, typeFields.hasJwks()));
     if (r.isError()) {
       throw new ConnectorError(
           """
@@ -102,7 +121,7 @@ public class OpenCTIService {
       log.info(
           "Pinged connector {} with OpenCTI at {}", connector.getName(), connector.getApiUrl());
       if (payload.getPingConnectorContent() != null) {
-        applyJwksIfApplicable(connector, payload.getPingConnectorContent().getJwks());
+        connector.setJwks(payload.getPingConnectorContent().getJwks());
       }
       return payload;
     }

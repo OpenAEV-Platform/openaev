@@ -14,26 +14,35 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class Ping implements Mutation {
   @Getter private final ConnectorBase connector;
+  @Getter private Boolean withJwks = false;
 
-  @Getter
-  private final String queryText =
+  private final String mutationMask =
       """
-      mutation PingConnector($id: ID!, $state: String, $connectorInfo: ConnectorInfoInput ) {
-        pingConnector(id: $id, state: $state, connectorInfo: $connectorInfo) {
-          id
-          jwks
-          connector_state
-          connector_info {
-              run_and_terminate
-              buffering
-              queue_threshold
-              queue_messages_size
-              next_run_datetime
-              last_run_datetime
-          }
+    mutation PingConnector($id: ID!, $state: String, $connectorInfo: ConnectorInfoInput ) {
+      pingConnector(id: $id, state: $state, connectorInfo: $connectorInfo) {
+        id
+        connector_state
+        connector_info {
+          run_and_terminate
+          buffering
+          queue_threshold
+          queue_messages_size
+          next_run_datetime
+          last_run_datetime
         }
+        %s
       }
+    }
     """;
+
+  public String getQueryText() {
+    return mutationMask.formatted(withJwks ? "jwks" : "");
+  }
+
+  public Ping(ConnectorBase connector, Boolean withJwks) {
+    this.connector = connector;
+    this.withJwks = withJwks;
+  }
 
   @Override
   public JsonNode getVariables() throws JsonProcessingException {

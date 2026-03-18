@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class ExecutorMapper {
   private final CatalogConnectorMapper catalogConnectorMapper;
+  private final ConnectorInstanceMapper connectorInstanceMapper;
 
   public ExecutorOutput toExecutorOutput(
       Executor executor,
@@ -30,8 +31,11 @@ public class ExecutorMapper {
         .platforms(executor.getPlatforms())
         .doc(executor.getDoc())
         .backgroundColor(executor.getBackgroundColor())
-        .currentStatus(connectorInstance != null ? connectorInstance.getCurrentStatus() : null)
         .existing(existingExecutor)
+        .connectorInstance(
+            connectorInstance != null
+                ? connectorInstanceMapper.toConnectorInstanceOutput(connectorInstance)
+                : null)
         .build();
   }
 }

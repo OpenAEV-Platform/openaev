@@ -1,4 +1,4 @@
-package io.openaev.opencti;
+package io.openaev.security;
 
 import static io.openaev.api.stix_process.StixApi.STIX_URI;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -13,8 +13,14 @@ import io.jsonwebtoken.security.*;
 import io.openaev.IntegrationTest;
 import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
+import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
+import io.openaev.utils.fixtures.TokenFixture;
+import io.openaev.utils.fixtures.UserFixture;
+import io.openaev.utils.fixtures.composers.TokenComposer;
+import io.openaev.utils.fixtures.composers.UserComposer;
+import io.openaev.utils.mockConfig.WithMockOpenCTIConfig;
 import java.security.KeyPair;
 import java.util.Date;
 import java.util.List;
@@ -36,6 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 @TestInstance(PER_CLASS)
+@WithMockOpenCTIConfig(url = "public_url", token = "auth token")
 public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
   @SpyBean private OpenCTIConnectorService openCTIConnectorService;
 
@@ -44,9 +51,14 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private ManualInjectorIntegrationFactory manualInjectorIntegrationFactory;
+  @Autowired private UserComposer userComposer;
+  @Autowired private TokenComposer tokenComposer;
+  @Autowired private OpenCTIConfig openCTIConfig;
 
   @BeforeEach
   void setUp() throws Exception {
+    userComposer.reset();
+    tokenComposer.reset();
     new Manager(List.of(manualInjectorIntegrationFactory)).monitorIntegrations();
   }
 
@@ -90,7 +102,7 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
             "Bearer " + expiredJwtJwk.jwtToken,
             expiredJwtJwk.jwks,
             false,
-            "Given expired valid JWT should authorized"));
+            "Given expired valid JWT should not authorize"));
   }
 
   @ParameterizedTest(name = "{3}")
@@ -100,8 +112,15 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
     if (jwks != null) {
       SecurityCoverageConnector c = new SecurityCoverageConnector();
       c.setJwks(jwks);
+      c.setOpenctiConfig(openCTIConfig);
       Mockito.doReturn(Optional.of(c)).when(openCTIConnectorService).getConnectorBase();
     }
+
+    userComposer
+        .forUser(UserFixture.getUserWithDefaultEmail())
+        .withToken(tokenComposer.forToken(TokenFixture.getTokenWithValue("auth token")))
+        .persist();
+    entityManager.flush();
 
     var request =
         post(STIX_URI + "/process-bundle").contentType(MediaType.APPLICATION_JSON).content("");

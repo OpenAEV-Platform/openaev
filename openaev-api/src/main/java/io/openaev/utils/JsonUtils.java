@@ -3,6 +3,8 @@ package io.openaev.utils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import io.openaev.helper.ObjectMapperHelper;
 
 /**
@@ -36,5 +38,23 @@ public class JsonUtils {
   public static Object fromJsonNode(JsonNode node, Class<?> desiredClass)
       throws JsonProcessingException {
     return MAPPER.treeToValue(node, desiredClass);
+  }
+
+  /**
+   * Safely retrieves an ArrayNode from a parent JsonNode by field name.
+   *
+   * <p>If the specified field does not exist or is not an array, an empty ArrayNode is returned
+   * instead of null, preventing potential NullPointerExceptions in downstream processing.
+   *
+   * @param node the parent JsonNode to search
+   * @param field the name of the field to retrieve as an array
+   * @return the ArrayNode corresponding to the specified field, or an empty ArrayNode if not found
+   *     or not an array
+   */
+  public static ArrayNode safeArray(JsonNode node, String field) {
+    JsonNode child = node.get(field);
+    return (child != null && child.isArray())
+        ? (ArrayNode) child
+        : JsonNodeFactory.instance.arrayNode();
   }
 }

@@ -2,34 +2,27 @@ package io.openaev.rest.finding;
 
 import static io.openaev.utils.fixtures.AssetFixture.createDefaultAsset;
 import static io.openaev.utils.fixtures.InjectFixture.getDefaultInject;
-import static io.openaev.utils.fixtures.OutputParserFixture.getDefaultContractOutputElement;
+import static io.openaev.utils.fixtures.OutputParserFixture.getContractOutputElementTypeIPv6;
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
-import io.openaev.database.model.Asset;
-import io.openaev.database.model.ContractOutputElement;
-import io.openaev.database.model.Finding;
-import io.openaev.database.model.Inject;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
+import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.helpers.InjectTestHelper;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
-@ExtendWith(MockitoExtension.class)
 class FindingServiceTest extends IntegrationTest {
 
   public static final String ASSET_1 = "asset1";
@@ -41,127 +34,183 @@ class FindingServiceTest extends IntegrationTest {
   @Autowired private InjectorContractContentUtils injectorContractContentUtils;
 
   @Test
-  @DisplayName("Should have two assets for a finding")
+  @DisplayName("Should have two assets when finding already exists with one asset")
   void given_a_finding_already_existent_with_one_asset_should_have_two_assets() {
     Inject inject = getDefaultInject();
-    Asset asset1 = createDefaultAsset(ASSET_1);
-    asset1 = injectTestHelper.forceSaveAsset(asset1);
-    Asset asset2 = createDefaultAsset(ASSET_2);
-    asset2 = injectTestHelper.forceSaveAsset(asset2);
+    Asset asset1 = injectTestHelper.forceSaveAsset(createDefaultAsset(ASSET_1));
+    Asset asset2 = injectTestHelper.forceSaveAsset(createDefaultAsset(ASSET_2));
     String value = "value-already-existent";
-    ContractOutputElement contractOutputElement = getDefaultContractOutputElement();
+    ContractOutputElement contractOutputElement = getContractOutputElementTypeIPv6();
+    ContractOutputContext contractOutputContext = ContractOutputContext.from(contractOutputElement);
 
-    Finding finding1 = new Finding();
-    finding1.setValue(value);
-    finding1.setInject(inject);
-    finding1.setField(contractOutputElement.getKey());
-    finding1.setType(contractOutputElement.getType());
-    finding1.setAssets(new ArrayList<>(Arrays.asList(asset1)));
+    Finding existing = new Finding();
+    existing.setValue(value);
+    existing.setInject(inject);
+    existing.setField(contractOutputElement.getKey());
+    existing.setType(contractOutputElement.getType());
+    existing.setAssets(new ArrayList<>(List.of(asset1)));
 
     injectTestHelper.forceSaveInject(inject);
-    injectTestHelper.forceSaveFinding(finding1);
+    injectTestHelper.forceSaveFinding(existing);
 
-    findingService.buildFinding(inject, asset2, contractOutputElement, value);
+    findingService.saveAgentFinding(inject, asset2, contractOutputContext, value);
 
-    Finding capturedFinding =
+    Finding result =
         findingRepository
             .findByInjectIdAndValueAndTypeAndKey(
-                finding1.getInject().getId(),
-                finding1.getValue(),
-                finding1.getType(),
-                finding1.getField())
+                inject.getId(),
+                value,
+                contractOutputElement.getType(),
+                contractOutputElement.getKey())
             .orElseThrow();
 
-    assertEquals(2, capturedFinding.getAssets().size());
+    assertEquals(2, result.getAssets().size());
     Set<String> assetIds =
-        capturedFinding.getAssets().stream().map(Asset::getId).collect(Collectors.toSet());
+        result.getAssets().stream().map(Asset::getId).collect(Collectors.toSet());
     assertTrue(assetIds.contains(asset1.getId()));
     assertTrue(assetIds.contains(asset2.getId()));
   }
 
   @Test
-  @DisplayName("Should have one asset for a finding")
-  void given_a_finding_already_existent_with_same_asset_should_have_one_assets() {
+  @DisplayName("Should have one asset when finding already exists with the same asset")
+  void given_a_finding_already_existent_with_same_asset_should_have_one_asset() {
     Inject inject = getDefaultInject();
-    Asset asset1 = createDefaultAsset(ASSET_1);
-    asset1 = injectTestHelper.forceSaveAsset(asset1);
+    Asset asset1 = injectTestHelper.forceSaveAsset(createDefaultAsset(ASSET_1));
     String value = "value-already-existent";
-    ContractOutputElement contractOutputElement = getDefaultContractOutputElement();
+    ContractOutputElement contractOutputElement = getContractOutputElementTypeIPv6();
+    ContractOutputContext contractOutputContext = ContractOutputContext.from(contractOutputElement);
 
-    Finding finding1 = new Finding();
-    finding1.setValue(value);
-    finding1.setInject(inject);
-    finding1.setField(contractOutputElement.getKey());
-    finding1.setType(contractOutputElement.getType());
-    finding1.setAssets(new ArrayList<>(Arrays.asList(asset1)));
+    Finding existing = new Finding();
+    existing.setValue(value);
+    existing.setInject(inject);
+    existing.setField(contractOutputElement.getKey());
+    existing.setType(contractOutputElement.getType());
+    existing.setAssets(new ArrayList<>(List.of(asset1)));
 
     injectTestHelper.forceSaveInject(inject);
-    injectTestHelper.forceSaveFinding(finding1);
+    injectTestHelper.forceSaveFinding(existing);
 
-    findingService.buildFinding(inject, asset1, contractOutputElement, value);
+    findingService.saveAgentFinding(inject, asset1, contractOutputContext, value);
 
-    Finding capturedFinding =
+    Finding result =
         findingRepository
             .findByInjectIdAndValueAndTypeAndKey(
-                finding1.getInject().getId(),
-                finding1.getValue(),
-                finding1.getType(),
-                finding1.getField())
+                inject.getId(),
+                value,
+                contractOutputElement.getType(),
+                contractOutputElement.getKey())
             .orElseThrow();
 
-    assertEquals(1, capturedFinding.getAssets().size());
-    Set<String> assetIds =
-        capturedFinding.getAssets().stream().map(Asset::getId).collect(Collectors.toSet());
-    assertTrue(assetIds.contains(asset1.getId()));
+    assertEquals(1, result.getAssets().size());
+    assertTrue(
+        result.getAssets().stream()
+            .map(Asset::getId)
+            .collect(Collectors.toSet())
+            .contains(asset1.getId()));
   }
 
   @Test
-  @DisplayName("Should return empty findings when contract output is not finding compatible")
-  void shouldReturnEmptyFindingsWhenContractOutputIsNotFindingCompatible() throws Exception {
-
+  @DisplayName("Should return two findings for multiple finding-compatible CVE contract outputs")
+  void shouldReturnFindingsForMultipleFindingCompatibleContractOutputs() throws Exception {
     ObjectMapper mapper = new ObjectMapper();
-
-    // Simulate a contract with a non-finding-compatible output
-    String contractJson =
-        """
+    ObjectNode convertedContent =
+        (ObjectNode)
+            mapper.readTree(
+                """
+        {
+          "outputs": [
             {
-              "outputs": [
-                {
-                  "field": "found_assets",
-                  "isFindingCompatible": false,
-                  "isMultiple": true,
-                  "labels": ["shodan"],
-                  "type": "asset"
-                }
-              ]
+              "field": "cves",
+              "isFindingCompatible": true,
+              "isMultiple": true,
+              "labels": ["nuclei"],
+              "type": "cve"
             }
-            """;
-
-    ObjectNode convertedContent = (ObjectNode) mapper.readTree(contractJson);
-
-    // Simulate structured output
+          ]
+        }
+        """);
     ObjectNode structuredOutput =
         (ObjectNode)
             mapper.readTree(
                 """
-                    {
-                      "found_assets": [
-                        { "name": "Asset A" },
-                        { "name": "Asset B" }
-                      ]
-                    }
-                    """);
+        {
+          "cves": [
+            { "id": "cve A", "host": "host A", "severity": "high" },
+            { "id": "cve B", "host": "host B", "severity": "medium" }
+          ]
+        }
+        """);
 
-    // Convert JSON outputs to InjectorContractContentOutputElement
     List<InjectorContractContentOutputElement> contractOutputs =
         injectorContractContentUtils.getContractOutputs(convertedContent, mapper);
+    ContractOutputContext ctx = ContractOutputContext.from(contractOutputs.getFirst());
+    JsonNode elementNode = structuredOutput.path("cves");
 
-    // Call the method to check behavior when isFindingCompatible=false
     List<Finding> findings =
-        findingService.getFindingsFromInjectorContract(contractOutputs, structuredOutput);
+        findingService.buildFindings(
+            elementNode,
+            ctx,
+            node -> node.hasNonNull("id") && node.hasNonNull("host") && node.hasNonNull("severity"),
+            node -> node.get("id").asText(),
+            node -> Collections.emptyList(),
+            node -> Collections.emptyList(),
+            node -> Collections.emptyList());
 
-    // Assert that findings is empty because isFindingCompatible=false
     assertNotNull(findings);
-    assertTrue(findings.isEmpty());
+    assertEquals(2, findings.size());
+    assertTrue(findings.stream().allMatch(f -> f.getType().equals(ContractOutputType.CVE)));
+    Set<String> values = findings.stream().map(Finding::getValue).collect(Collectors.toSet());
+    assertTrue(values.contains("cve A"));
+    assertTrue(values.contains("cve B"));
+  }
+
+  @Test
+  @DisplayName("Should throw exception when finding node is not correctly formatted")
+  void shouldThrowExceptionWhenFindingNotCorrectlyFormatted() throws Exception {
+    ObjectMapper mapper = new ObjectMapper();
+    ObjectNode convertedContent =
+        (ObjectNode)
+            mapper.readTree(
+                """
+        {
+          "outputs": [
+            {
+              "field": "port_scans",
+              "isFindingCompatible": true,
+              "isMultiple": true,
+              "labels": ["nuclei"],
+              "type": "portscan"
+            }
+          ]
+        }
+        """);
+    ObjectNode structuredOutput =
+        (ObjectNode)
+            mapper.readTree(
+                """
+        {
+          "port_scans": [ null ]
+        }
+        """);
+
+    List<InjectorContractContentOutputElement> contractOutputs =
+        injectorContractContentUtils.getContractOutputs(convertedContent, mapper);
+    ContractOutputContext ctx = ContractOutputContext.from(contractOutputs.getFirst());
+    JsonNode elementNode = structuredOutput.path("port_scans");
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            findingService.buildFindings(
+                elementNode,
+                ctx,
+                node ->
+                    node.hasNonNull("host")
+                        && node.hasNonNull("port")
+                        && node.hasNonNull("service"),
+                node -> node.get("port").asText(),
+                node -> Collections.emptyList(),
+                node -> Collections.emptyList(),
+                node -> Collections.emptyList()));
   }
 }

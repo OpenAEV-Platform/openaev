@@ -42,7 +42,6 @@ public class V20260101_Starter_pack extends DataPack {
   }
 
   private static final class Config {
-
     static final String STARTER_PACK_KEY = "starterpack";
     static final String STARTER_PACK_SETTING_VALUE = "StarterPack creation process completed";
     static final String SCENARIOS_FOLDER_NAME = "scenarios";

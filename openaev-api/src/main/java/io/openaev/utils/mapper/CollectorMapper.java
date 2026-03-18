@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 public class CollectorMapper {
 
   private final CatalogConnectorMapper catalogConnectorMapper;
+  private final ConnectorInstanceMapper connectorInstanceMapper;
 
   public CollectorOutput toCollectorOutput(
       Collector collector,
@@ -29,8 +30,11 @@ public class CollectorMapper {
         .lastExecution(collector.getUpdatedAt())
         .catalog(catalogConnectorMapper.toCatalogSimpleOutput(catalogConnector))
         .verified(connectorInstance != null)
-        .currentStatus(connectorInstance != null ? connectorInstance.getCurrentStatus() : null)
         .existing(existingCollector)
+        .connectorInstance(
+            connectorInstance != null
+                ? connectorInstanceMapper.toConnectorInstanceOutput(connectorInstance)
+                : null)
         .build();
   }
 }
