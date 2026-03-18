@@ -53,8 +53,8 @@ const TenantSwitcher: FunctionComponent = () => {
           startIcon={(
             <Avatar
               sx={{
-                width: 24,
-                height: 24,
+                width: (theme) => theme.spacing(3),
+                height: (theme) => theme.spacing(3),
                 bgcolor: 'primary.main',
               }}
             >
@@ -63,12 +63,11 @@ const TenantSwitcher: FunctionComponent = () => {
           )}
           endIcon={<ExpandMoreIcon />}
           disabled={switching}
-          sx={{
-            'textTransform': 'none',
-            'color': 'text.primary',
-            'width': 220,
-            '&:hover': { backgroundColor: 'action.hover' },
-          }}
+        sx={{
+          textTransform: 'none',
+          color: 'text.primary',
+          maxWidth: 220,
+        }}
           aria-controls={menuOpen ? 'tenant-switcher-menu' : undefined}
           aria-haspopup="true"
           aria-expanded={menuOpen ? 'true' : undefined}
@@ -93,20 +92,10 @@ const TenantSwitcher: FunctionComponent = () => {
         anchorEl={anchorEl}
         open={menuOpen}
         onClose={handleClose}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'right',
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'right',
-        }}
         slotProps={{
           paper: {
-            elevation: 3,
             sx: {
               width: 280,
-              mt: 1,
             },
           },
         }}
@@ -121,8 +110,6 @@ const TenantSwitcher: FunctionComponent = () => {
             <ListItemIcon>
               <Avatar
                 sx={{
-                  width: 32,
-                  height: 32,
                   bgcolor: 'primary.main',
                 }}
               >
@@ -134,12 +121,12 @@ const TenantSwitcher: FunctionComponent = () => {
               secondary={tenant.tenant_description}
               slotProps={{
                 primary: {
-                  fontWeight: tenant.tenant_id === currentUserTenant?.tenant_id ? 600 : 400,
+                  fontWeight: (theme) => (tenant.tenant_id === currentUserTenant?.tenant_id ? theme.typography.fontWeightBold : theme.typography.fontWeightRegular),
                   noWrap: true,
                 },
                 secondary: { noWrap: true },
               }}
-              sx={{ overflow: 'hidden' }}
+              sx={{ overflow: 'hidden', ml: 1 }}
             />
             {tenant.tenant_id === currentUserTenant?.tenant_id && (
               <CheckIcon fontSize="small" color="primary" sx={{ ml: 1 }} />
