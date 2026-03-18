@@ -97,5 +97,5 @@ public class Workflow implements Base {
 
   @OneToOne(fetch = FetchType.LAZY, mappedBy = "workflow")
   @JsonIgnore
-  private ChainingConfiguration chainingConfiguration;
+  private WorkflowConfiguration workflowConfiguration;
 }

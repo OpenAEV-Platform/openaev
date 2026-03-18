@@ -1,7 +1,8 @@
 package io.openaev.api.chaining;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.api.chaining.dto.ChainingConfigurationOutput;
+import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
+import io.openaev.api.chaining.dto.WorkflowConfigurationOutput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -22,64 +23,64 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping(WorkflowApi.WORKFLOW_URI)
-@Tag(name = "Workflow API", description = "Operations related to Chaining")
+@Tag(name = "Workflow API", description = "Operations related to Workflow")
 public class WorkflowApi extends RestBehavior {
 
   public static final String WORKFLOW_URI = "/api/workflows";
 
-  private final ChainingConfigurationMapper chainingConfigurationMapper;
+  private final WorkflowConfigurationMapper workflowConfigurationMapper;
   private final WorkflowService workflowService;
   private final PreviewFeatureService previewFeatureService;
 
   // -- Endpoints --
 
   @Operation(
-      summary = "Fetch chaining configuration for a workflow",
+      summary = "Fetch workflow configuration for a workflow",
       description =
-          "Fetch the chaining configuration for a given workflow, including time-out, rate-limit, safe-mode and scope rules.")
-  @ApiResponse(responseCode = "200", description = "Chaining configuration retrieved successfully")
+          "Fetch the workflow configuration for a given workflow, including time-out, rate-limit, safe-mode and scope rules.")
+  @ApiResponse(responseCode = "200", description = "Workflow configuration retrieved successfully")
   @ApiResponse(
       responseCode = "404",
       description =
-          "Chaining configuration not found for the specified workflow, or the INJECT_CHAINING feature is disabled")
+          "Workflow configuration not found for the specified workflow, or the INJECT_CHAINING feature is disabled")
   @ApiResponse(responseCode = "500", description = "Unexpected server error")
-  @GetMapping("/{workflowId}/chaining-configuration")
+  @GetMapping("/{workflowId}/workflow-configuration")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
-  public ChainingConfigurationOutput getChainingConfiguration(
+  public WorkflowConfigurationOutput getWorkflowConfiguration(
       @PathVariable @NotBlank final String workflowId) {
-    checkChainingFeatureEnabled();
-    return chainingConfigurationMapper.toOutput(
-        workflowService.getChainingConfiguration(workflowId));
+    checkWorkflowFeatureEnabled();
+    return workflowConfigurationMapper.toOutput(
+        workflowService.getWorkflowConfiguration(workflowId));
   }
 
   @Operation(
-      summary = "Update chaining configuration for a workflow",
-      description = "Update chaining configuration for a given workflow.")
-  @ApiResponse(responseCode = "200", description = "Chaining configuration updated successfully")
+      summary = "Update workflow configuration for a workflow",
+      description = "Update workflow configuration for a given workflow.")
+  @ApiResponse(responseCode = "200", description = "Workflow configuration updated successfully")
   @ApiResponse(
       responseCode = "404",
       description =
-          "Workflow or chaining configuration not found, or the INJECT_CHAINING feature is disabled")
+          "Workflow or workflow configuration not found, or the INJECT_CHAINING feature is disabled")
   @ApiResponse(responseCode = "500", description = "Unexpected server error")
-  @PutMapping("/{workflowId}/chaining-configuration")
+  @PutMapping("/{workflowId}/workflow-configuration")
   @AccessControl(
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION) // fixme Add RBAC
-  public ChainingConfigurationOutput updateChainingConfiguration(
+  public WorkflowConfigurationOutput updateWorkflowConfiguration(
       @PathVariable @NotBlank final String workflowId,
-      @Valid @RequestBody final ChainingConfigurationInput input) {
-    checkChainingFeatureEnabled();
-    return chainingConfigurationMapper.toOutput(
-        workflowService.updateChainingConfiguration(workflowId, input));
+      @Valid @RequestBody final WorkflowConfigurationInput input) {
+    checkWorkflowFeatureEnabled();
+    return workflowConfigurationMapper.toOutput(
+        workflowService.updateWorkflowConfiguration(workflowId, input));
   }
 
   // -- Helpers --
 
   /**
    * Throws {@link ElementNotFoundException} (HTTP 404) when the {@code INJECT_CHAINING} feature
-   * flag is disabled, preventing access to all chaining endpoints.
+   * flag is disabled, preventing access to all workflow endpoints.
    */
-  private void checkChainingFeatureEnabled() {
+  private void checkWorkflowFeatureEnabled() {
     if (!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)) {
       throw new ElementNotFoundException("INJECT_CHAINING feature is not enabled");
     }

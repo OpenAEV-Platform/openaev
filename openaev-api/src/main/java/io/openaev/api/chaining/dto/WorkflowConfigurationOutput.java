@@ -5,35 +5,35 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
 
-/** Output DTO for a chaining configuration on a scenario. */
+/** Output DTO for a workflow configuration on a scenario. */
 @Getter
 @Builder
-@Schema(description = "Output for a chaining configuration on a scenario.")
-public class ChainingConfigurationOutput {
+@Schema(description = "Output for a workflow configuration on a scenario.")
+public class WorkflowConfigurationOutput {
 
   // -- Rate limit --
 
   @Schema(description = "Whether rate limiting is enabled.")
-  @JsonProperty("chaining_configuration_rate_limit_enabled")
+  @JsonProperty("workflow_configuration_rate_limit_enabled")
   private boolean rateLimitEnabled;
 
   @Schema(
       description = "Maximum number of attempts allowed before the temporal rate limit kicks in.")
-  @JsonProperty("chaining_configuration_max_attempts")
+  @JsonProperty("workflow_configuration_max_attempts")
   private Integer maxAttempts;
 
   @Schema(description = "Seconds to wait between attempts.")
-  @JsonProperty("chaining_configuration_max_temporal_rate_seconds")
+  @JsonProperty("workflow_configuration_max_temporal_rate_seconds")
   private Long maxTemporalRateSeconds;
 
   // -- Timeout --
 
   @Schema(description = "Whether the timeout feature is enabled.")
-  @JsonProperty("chaining_configuration_timeout_enabled")
+  @JsonProperty("workflow_configuration_timeout_enabled")
   private boolean timeoutEnabled;
 
-  @Schema(description = "Total timeout in seconds for the attack chaining scenario.")
-  @JsonProperty("chaining_configuration_timeout_seconds")
+  @Schema(description = "Total timeout in seconds for the attack workflow scenario.")
+  @JsonProperty("workflow_configuration_timeout_seconds")
   private Long timeoutSeconds;
 
   // -- Safe mode --
@@ -41,7 +41,7 @@ public class ChainingConfigurationOutput {
   @Schema(
       description =
           "If enabled, exploits that could crash the customer environment will not be executed.")
-  @JsonProperty("chaining_configuration_safe_mode_enabled")
+  @JsonProperty("workflow_configuration_safe_mode_enabled")
   private boolean safeModeEnabled;
 
   @Valid

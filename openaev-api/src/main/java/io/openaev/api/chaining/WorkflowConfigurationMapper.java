@@ -1,9 +1,10 @@
 package io.openaev.api.chaining;
 
-import io.openaev.api.chaining.dto.ChainingConfigurationOutput;
+import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
+import io.openaev.api.chaining.dto.WorkflowConfigurationOutput;
 import io.openaev.api.chaining.dto.ChainingScopeInput;
 import io.openaev.api.chaining.dto.ChainingScopeRuleInput;
-import io.openaev.database.model.ChainingConfiguration;
+import io.openaev.database.model.WorkflowConfiguration;
 import io.openaev.database.model.Scope;
 import io.openaev.database.model.ScopeRule;
 import io.openaev.database.model.ScopeRuleValueType;
@@ -13,7 +14,7 @@ import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
 @Component
-public class ChainingConfigurationMapper {
+public class WorkflowConfigurationMapper {
 
   private static final Pattern IPV4_PATTERN =
       Pattern.compile(
@@ -28,13 +29,13 @@ public class ChainingConfigurationMapper {
   // -- Input → Entity --
 
   /**
-   * Applies a {@link ChainingConfigurationInput} DTO onto an existing {@link ChainingConfiguration}
+   * Applies a {@link WorkflowConfigurationInput} DTO onto an existing {@link WorkflowConfiguration}
    * entity by copying each flat field directly.
    *
    * @param input the input DTO to read from
    * @param configuration the entity to update in place
    */
-  public void applyInput(ChainingConfigurationInput input, ChainingConfiguration configuration) {
+  public void applyInput(WorkflowConfigurationInput input, WorkflowConfiguration configuration) {
     // Rate limit
     configuration.setRateLimitEnabled(input.isRateLimitEnabled());
     configuration.setMaxAttempts(input.getMaxAttempts());
@@ -72,13 +73,13 @@ public class ChainingConfigurationMapper {
   }
 
   /**
-   * Maps a {@link ChainingConfiguration} entity to its {@link ChainingConfigurationOutput} DTO.
+   * Maps a {@link WorkflowConfiguration} entity to its {@link WorkflowConfigurationOutput} DTO.
    *
    * @param configuration the entity to map
    * @return the mapped output DTO
    */
-  public ChainingConfigurationOutput toOutput(ChainingConfiguration configuration) {
-    return ChainingConfigurationOutput.builder()
+  public WorkflowConfigurationOutput toOutput(WorkflowConfiguration configuration) {
+    return WorkflowConfigurationOutput.builder()
         .rateLimitEnabled(configuration.isRateLimitEnabled())
         .maxAttempts(configuration.getMaxAttempts())
         .maxTemporalRateSeconds(configuration.getMaxTemporalRateSeconds())
