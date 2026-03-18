@@ -94,7 +94,7 @@
     "@typescript-eslint/utils": "8.57.0",
     "@vitejs/plugin-react": "5.2.0",
     "@vitest/eslint-plugin": "1.6.12",
-    "chokidar": "4.0.3",
+    "chokidar": "5.0.0",
     "cross-env": "10.1.0",
     "esbuild": "0.27.4",
     "eslint": "9.39.4",
