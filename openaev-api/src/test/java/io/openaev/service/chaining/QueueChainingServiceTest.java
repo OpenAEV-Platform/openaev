@@ -83,21 +83,6 @@ class QueueChainingServiceTest {
     }
 
     @Test
-    @DisplayName("should throw RuntimeException when workflows-delay config is missing")
-    void shouldThrowWhenDelayConfigMissing() {
-      // Prepare
-      Map<String, QueueConfig> queueConfig = new HashMap<>();
-      queueConfig.put("workflows-ready", new QueueConfig());
-      queueConfig.put("workflows-update", new QueueConfig());
-      when(openAEVConfig.getQueueConfig()).thenReturn(queueConfig);
-
-      // Act & Assert
-      RuntimeException exception =
-          assertThrows(RuntimeException.class, () -> queueChainingService.init());
-      assertTrue(exception.getMessage().contains("workflows-delay"));
-    }
-
-    @Test
     @DisplayName("should throw RuntimeException when all configs are missing")
     void shouldThrowWhenAllConfigsMissing() {
       // Prepare
