@@ -2,9 +2,11 @@ import { CssBaseline } from '@mui/material';
 import { StyledEngineProvider } from '@mui/material/styles';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
+import { useLocalStorage } from 'usehooks-ts';
 
 import { fetchMe, fetchPlatformParameters } from './actions/Application';
 import { type LoggedHelper } from './actions/helper';
+import { tenant } from './actions/tenants/tenant-schema';
 import { fetchUserTenants } from './actions/user/user-tenant-actions';
 import EnterpriseEditionAgreementDialog from './admin/components/common/entreprise_edition/EnterpriseEditionAgreementDialog';
 import ConnectedIntlProvider from './components/AppIntlProvider';
@@ -18,14 +20,12 @@ import SystemBanners from './public/components/systembanners/SystemBanners';
 import LicenseBanner from './public/components/trialbanners/LicenseBanner';
 import StartTrialBanner from './public/components/trialbanners/StartTrialBanner';
 import { useHelper } from './store';
+import { type TenantOutput } from './utils/api-types';
 import ErrorHandler from './utils/error/ErrorHandler';
 import { useAppDispatch } from './utils/hooks';
 import { UserContext } from './utils/hooks/useAuth';
 import useNetworkCheck from './utils/hooks/useCheckNetwork';
 import { PermissionsProvider } from './utils/permissions/PermissionsProvider';
-import { useLocalStorage } from "usehooks-ts";
-import {TenantOutput} from "./utils/api-types";
-import {tenant} from "./actions/tenants/tenant-schema";
 
 const RootPublic = lazy(() => import('./public/Root'));
 const IndexPrivate = lazy(() => import('./private/Index'));
@@ -43,7 +43,7 @@ const DEFAULT_TENANT: TenantOutput = {
   tenant_id: '2cffad3a-0001-4078-b0e2-ef74274022c3', // DEFAULT_TENANT_UUID
   tenant_name: 'Default Tenant',
   tenant_description: 'Default tenant auto created',
-}
+};
 
 const Root = () => {
   const { logged, me, settings } = useHelper((helper: LoggedHelper) => {
@@ -57,7 +57,7 @@ const Root = () => {
 
   // User tenant state
   const [userTenants, setUserTenants] = useState<TenantOutput[]>([]);
-  const [currentTenantStorage, setCurrentTenantStorage] = useLocalStorage('current-tenant-storage',  DEFAULT_TENANT);
+  const [currentTenantStorage, setCurrentTenantStorage] = useLocalStorage('current-tenant-storage', DEFAULT_TENANT);
   const [currentUserTenant, setCurrentUserTenant] = useState<TenantOutput>(DEFAULT_TENANT);
 
   useEffect(() => {
@@ -70,12 +70,12 @@ const Root = () => {
     if (!me) return;
 
     const result = await fetchUserTenants();
-    
+
     if (result && result.tenants) {
       setUserTenants(result.tenants);
       // if local storage tenant is still valid use it, otherwise switch to first tenant in list
-      const currentTenant = result.tenants.find(tenant => (tenant.tenant_id === currentTenantStorage.tenant_id))
-      if(currentTenant) {
+      const currentTenant = result.tenants.find(tenant => (tenant.tenant_id === currentTenantStorage.tenant_id));
+      if (currentTenant) {
         setCurrentUserTenant(currentTenant);
         setCurrentTenantStorage(currentTenant);
       } else {

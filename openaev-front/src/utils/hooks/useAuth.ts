@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
 
-import {type PlatformSettings, TenantOutput, type User} from '../api-types';
+import { type PlatformSettings, type TenantOutput, type User } from '../api-types';
 
 export interface UserContextType {
   me: User | undefined;

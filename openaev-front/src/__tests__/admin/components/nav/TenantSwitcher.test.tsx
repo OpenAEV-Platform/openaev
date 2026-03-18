@@ -1,12 +1,12 @@
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { IntlProvider } from 'react-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import TenantSwitcher from '../../../../admin/components/nav/TenantSwitcher';
-import { type UserContextType, UserContext } from '../../../../utils/hooks/useAuth';
-import {TenantOutput} from "../../../../utils/api-types";
+import { type TenantOutput } from '../../../../utils/api-types';
+import { UserContext, type UserContextType } from '../../../../utils/hooks/useAuth';
 
 // -- TEST DATA --
 
@@ -279,4 +279,3 @@ describe('TenantSwitcher', () => {
     });
   });
 });
-
