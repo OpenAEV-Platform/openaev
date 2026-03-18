@@ -5,6 +5,7 @@ import io.openaev.database.model.Document;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.raw.RawAsset;
 import io.openaev.utils.Constants;
+import jakarta.validation.constraints.NotEmpty;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -64,4 +65,12 @@ public interface SecurityPlatformRepository
           + "' AND "
           + "(:name IS NULL OR lower(a.name) LIKE lower(concat('%', cast(coalesce(:name, '') as string), '%')))")
   List<SecurityPlatform> findAllByName(String name);
+
+  @Query(
+      "SELECT DISTINCT a FROM Asset a "
+          + "WHERE a.type = '"
+          + AssetType.Values.SECURITY_PLATFORM_TYPE
+          + "' AND "
+          + "a.name IN :names")
+  List<SecurityPlatform> findAllByNames(@NotEmpty @Param("names") List<String> names);
 }

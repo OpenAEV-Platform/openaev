@@ -39,8 +39,8 @@ public class AssetService {
     return fromIterable(this.assetRepository.findAll());
   }
 
-  public List<SecurityPlatform> securityPlatforms() {
-    return fromIterable(securityPlatformRepository.findAll());
+  public List<SecurityPlatform> securityPlatformsByNames(@NotNull final List<String> names) {
+    return securityPlatformRepository.findAllByNames(names);
   }
 
   public Iterable<Asset> assetFromIds(@NotNull final List<String> assetIds) {
