@@ -49,6 +49,7 @@ import io.openaev.utils.time.TimeUtils;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -498,8 +499,8 @@ public class SecurityCoverageService {
               new HashMap<>(
                   Map.of(
                       CommonProperties.ID.toString(),
-                      new Identifier(
-                          ObjectTypes.RELATIONSHIP.toString(), UUID.randomUUID().toString()),
+                      generateRelationship(
+                          coverage.getId().getValue(), platformIdentity.getId().getValue()),
                       CommonProperties.TYPE.toString(),
                       new StixString(ObjectTypes.RELATIONSHIP.toString()),
                       RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
@@ -540,7 +541,7 @@ public class SecurityCoverageService {
               new HashMap<>(
                   Map.of(
                       CommonProperties.ID.toString(),
-                      new Identifier(ObjectTypes.RELATIONSHIP.toString(), simulation.getId()),
+                      generateRelationship(coverageId.getValue(), stixRef.getStixRef()),
                       CommonProperties.TYPE.toString(),
                       new StixString(ObjectTypes.RELATIONSHIP.toString()),
                       RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
@@ -684,5 +685,11 @@ public class SecurityCoverageService {
 
   private BaseType<?> uncovered() {
     return new io.openaev.stix.types.List<>(new ArrayList<>());
+  }
+
+  private Identifier generateRelationship(String sourceId, String targetId) {
+    return new Identifier(
+        ObjectTypes.RELATIONSHIP.toString(),
+        UUID.nameUUIDFromBytes((sourceId + targetId).getBytes(StandardCharsets.UTF_8)).toString());
   }
 }
