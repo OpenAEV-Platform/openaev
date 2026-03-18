@@ -20,8 +20,7 @@ public class WorkflowConfigurationMapper {
 
   /**
    * Applies a {@link WorkflowConfigurationInput} DTO onto an existing {@link WorkflowConfiguration}
-   * entity by copying each flat field directly. Also wires the bidirectional JPA back-reference on
-   * the new {@link WorkflowScope} so that its owning-side foreign key is persisted correctly.
+   * entity by copying each flat field directly.
    *
    * @param input the input DTO to read from
    * @param configuration the entity to update in place
