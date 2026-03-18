@@ -16,8 +16,10 @@ import {
 import { type FunctionComponent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { type AttackPatternHelper } from '../../../../../../actions/attack_patterns/attackpattern-helper';
+import { fetchAttackPatterns } from '../../../../../../actions/AttackPattern';
 import { fetchInjectorsContracts } from '../../../../../../actions/InjectorContracts';
 import { type InjectorContractHelper } from '../../../../../../actions/injector_contracts/injector-contract-helper';
+import { fetchKillChainPhases } from '../../../../../../actions/KillChainPhase';
 import { type KillChainPhaseHelper } from '../../../../../../actions/kill_chain_phases/killchainphase-helper';
 import { useHelper } from '../../../../../../store';
 import type { AttackPattern, InjectorContract, KillChainPhase } from '../../../../../../utils/api-types';
@@ -559,6 +561,8 @@ const LogicFlow: FunctionComponent<LogicFlowProps> = ({
   const dispatch = useAppDispatch();
   useDataLoader(() => {
     dispatch(fetchInjectorsContracts());
+    dispatch(fetchAttackPatterns());
+    dispatch(fetchKillChainPhases());
   });
 
   const handleHighlight = useCallback((stepId: string) => {
