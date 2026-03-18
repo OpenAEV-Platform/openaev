@@ -5,7 +5,7 @@ import { Navigate, Route, Routes } from 'react-router';
 
 import { fetchMe, fetchPlatformParameters } from './actions/Application';
 import { type LoggedHelper } from './actions/helper';
-import { fetchUserTenants, type UserTenantOutput } from './actions/user/user-tenant-actions';
+import { fetchUserTenants } from './actions/user/user-tenant-actions';
 import EnterpriseEditionAgreementDialog from './admin/components/common/entreprise_edition/EnterpriseEditionAgreementDialog';
 import ConnectedIntlProvider from './components/AppIntlProvider';
 import ConnectedThemeProvider from './components/AppThemeProvider';
@@ -23,6 +23,9 @@ import { useAppDispatch } from './utils/hooks';
 import { UserContext } from './utils/hooks/useAuth';
 import useNetworkCheck from './utils/hooks/useCheckNetwork';
 import { PermissionsProvider } from './utils/permissions/PermissionsProvider';
+import { useLocalStorage } from "usehooks-ts";
+import {TenantOutput} from "./utils/api-types";
+import {tenant} from "./actions/tenants/tenant-schema";
 
 const RootPublic = lazy(() => import('./public/Root'));
 const IndexPrivate = lazy(() => import('./private/Index'));
@@ -36,6 +39,12 @@ const ScenarioViewLessons = lazy(() => import('./public/components/lessons/Scena
 const SimulationChallengesPreview = lazy(() => import('./admin/components/simulations/simulation/challenges/SimulationChallengesPreview'));
 const ScenarioChallengesPreview = lazy(() => import('./admin/components/scenarios/scenario/challenges/ScenarioChallengesPreview'));
 
+const DEFAULT_TENANT: TenantOutput = {
+  tenant_id: '2cffad3a-0001-4078-b0e2-ef74274022c3', // DEFAULT_TENANT_UUID
+  tenant_name: 'Default Tenant',
+  tenant_description: 'Default tenant auto created',
+}
+
 const Root = () => {
   const { logged, me, settings } = useHelper((helper: LoggedHelper) => {
     return {
@@ -47,8 +56,9 @@ const Root = () => {
   const dispatch = useAppDispatch();
 
   // User tenant state
-  const [userTenants, setUserTenants] = useState<UserTenantOutput[]>([]);
-  const [currentUserTenant, setCurrentUserTenant] = useState<UserTenantOutput | null>(null);
+  const [userTenants, setUserTenants] = useState<TenantOutput[]>([]);
+  const [currentTenantStorage, setCurrentTenantStorage] = useLocalStorage('current-tenant-storage',  DEFAULT_TENANT);
+  const [currentUserTenant, setCurrentUserTenant] = useState<TenantOutput>(DEFAULT_TENANT);
 
   useEffect(() => {
     dispatch(fetchMe());
@@ -60,13 +70,18 @@ const Root = () => {
     if (!me) return;
 
     const result = await fetchUserTenants();
+    
     if (result && result.tenants) {
       setUserTenants(result.tenants);
-      // TODO: at initial logging
-      //  - either have a "preferred" tenant to land on (or do we persist last visited tenant)
-      //  - land on the first tenant in the list (sorted by name for better UX) if no preferred tenant is set
-      const current = result.tenants.find(t => t.tenant_is_current);
-      setCurrentUserTenant(current || result.tenants[0] || null);
+      // if local storage tenant is still valid use it, otherwise switch to first tenant in list
+      const currentTenant = result.tenants.find(tenant => (tenant.tenant_id === currentTenantStorage.tenant_id))
+      if(currentTenant) {
+        setCurrentUserTenant(currentTenant);
+        setCurrentTenantStorage(currentTenant);
+      } else {
+        setCurrentUserTenant(result.tenants[0]);
+        setCurrentTenantStorage(result.tenants[0]);
+      }
     }
   }, [me]);
 
