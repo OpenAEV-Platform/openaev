@@ -206,6 +206,7 @@ describe('TenantSwitcher', () => {
       const notifyErrorSpy = vi.fn();
       // Mock MESSAGING$.notifyError via module mock
       vi.doMock('../../../../utils/Environment', async (importOriginal) => {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-imports
         const original = await importOriginal<typeof import('../../../../utils/Environment')>();
         return {
           ...original,
@@ -264,9 +265,7 @@ describe('TenantSwitcher', () => {
       // The span wrapping the name should have overflow:hidden style
       const nameSpan = button.querySelector('span[style]');
       expect(nameSpan).toBeTruthy();
-      if (nameSpan) {
-        expect(nameSpan.getAttribute('style')).toContain('overflow');
-      }
+      expect(nameSpan!.getAttribute('style')).toContain('overflow');
     });
 
     it('renders the first letter of tenant name as avatar in menu items', () => {

@@ -6,7 +6,6 @@ import { useLocalStorage } from 'usehooks-ts';
 
 import { fetchMe, fetchPlatformParameters } from './actions/Application';
 import { type LoggedHelper } from './actions/helper';
-import { tenant } from './actions/tenants/tenant-schema';
 import { fetchUserTenants } from './actions/user/user-tenant-actions';
 import EnterpriseEditionAgreementDialog from './admin/components/common/entreprise_edition/EnterpriseEditionAgreementDialog';
 import ConnectedIntlProvider from './components/AppIntlProvider';
