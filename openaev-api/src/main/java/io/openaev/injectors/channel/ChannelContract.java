@@ -17,6 +17,7 @@ import static io.openaev.injector_contract.fields.ContractTextArea.richTextareaF
 import static io.openaev.injectors.channel.ChannelExecutor.VARIABLE_ARTICLE;
 import static io.openaev.injectors.channel.ChannelExecutor.VARIABLE_ARTICLES;
 
+import io.openaev.database.model.Domain;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Variable.VariableType;
 import io.openaev.expectation.ExpectationBuilderService;
@@ -123,7 +124,7 @@ public class ChannelContract extends Contractor {
             publishInstance,
             List.of(Endpoint.PLATFORM_TYPE.Internal),
             false,
-            Set.of(PresetDomain.EMAIL_INFILTRATION, PresetDomain.TABLETOP));
+            Set.of(new Domain(PresetDomain.EMAIL_INFILTRATION), new Domain(PresetDomain.TABLETOP)));
     // Adding generated variables
     publishArticle.addVariable(
         variable(

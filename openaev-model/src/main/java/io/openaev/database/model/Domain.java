@@ -91,4 +91,13 @@ public class Domain implements TenantBase {
     this.creationDate = creationDate;
     this.updateDate = updateDate;
   }
+
+  public Domain(Domain domain) {
+    this.id = domain.getId();
+    this.name = domain.getName();
+    this.color = domain.getColor();
+    this.tenant = domain.getTenant();
+    this.creationDate = domain.getCreationDate();
+    this.updateDate = domain.getUpdateDate();
+  }
 }

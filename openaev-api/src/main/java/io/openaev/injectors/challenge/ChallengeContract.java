@@ -13,6 +13,7 @@ import static io.openaev.injector_contract.fields.ContractTeam.teamField;
 import static io.openaev.injector_contract.fields.ContractText.textField;
 import static io.openaev.injector_contract.fields.ContractTextArea.richTextareaField;
 
+import io.openaev.database.model.Domain;
 import io.openaev.database.model.Endpoint;
 import io.openaev.expectation.ExpectationBuilderService;
 import io.openaev.injector_contract.Contract;
@@ -89,7 +90,7 @@ public class ChallengeContract extends Contractor {
             publishInstance,
             List.of(Endpoint.PLATFORM_TYPE.Internal),
             false,
-            Set.of(PresetDomain.EMAIL_INFILTRATION, PresetDomain.TABLETOP));
+            Set.of(new Domain(PresetDomain.EMAIL_INFILTRATION), new Domain(PresetDomain.TABLETOP)));
     publishChallenge.setAtomicTesting(false);
     return List.of(publishChallenge);
   }

@@ -9,6 +9,7 @@ import static io.openaev.injector_contract.fields.ContractExpectations.expectati
 import static io.openaev.injector_contract.fields.ContractTeam.teamField;
 import static io.openaev.injector_contract.fields.ContractTextArea.textareaField;
 
+import io.openaev.database.model.Domain;
 import io.openaev.database.model.Endpoint;
 import io.openaev.injector_contract.Contract;
 import io.openaev.injector_contract.ContractConfig;
@@ -60,7 +61,8 @@ public class OvhSmsContract extends Contractor {
             instance,
             List.of(Endpoint.PLATFORM_TYPE.Service),
             false,
-            Set.of(PresetDomain.EMAIL_INFILTRATION, PresetDomain.TABLETOP)));
+            Set.of(
+                new Domain(PresetDomain.EMAIL_INFILTRATION), new Domain(PresetDomain.TABLETOP))));
   }
 
   @Override

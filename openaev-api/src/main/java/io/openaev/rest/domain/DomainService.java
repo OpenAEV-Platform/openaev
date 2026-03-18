@@ -183,7 +183,7 @@ public class DomainService implements DependenciesManager {
 
   public Set<Domain> findDomainByNameAndDescription(final String name) {
     Set<Domain> domains = new HashSet<>();
-    domains.add(PresetDomain.ENDPOINT);
+    domains.add(new Domain(PresetDomain.ENDPOINT));
     domains.addAll(PresetDomain.getRelevantDomainsFromKeywords(name));
     return domains;
   }

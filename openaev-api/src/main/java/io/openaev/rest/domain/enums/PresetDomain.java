@@ -33,6 +33,12 @@ public class PresetDomain {
     domains.add(new Domain(ENDPOINT.getName(), ENDPOINT.getColor(), tenant));
     domains.add(new Domain(NETWORK.getName(), NETWORK.getColor(), tenant));
     domains.add(new Domain(WEB_APP.getName(), WEB_APP.getColor(), tenant));
+    domains.add(new Domain(EMAIL_INFILTRATION.getName(), EMAIL_INFILTRATION.getColor(), tenant));
+    domains.add(new Domain(DATA_EXFILTRATION.getName(), DATA_EXFILTRATION.getColor(), tenant));
+    domains.add(new Domain(URL_FILTERING.getName(), URL_FILTERING.getColor(), tenant));
+    domains.add(new Domain(CLOUD.getName(), CLOUD.getColor(), tenant));
+    domains.add(new Domain(TABLETOP.getName(), TABLETOP.getColor(), tenant));
+    domains.add(new Domain(TOCLASSIFY.getName(), TOCLASSIFY.getColor(), tenant));
     return domains;
   }
 
@@ -41,7 +47,7 @@ public class PresetDomain {
     domainKeywordsMap.forEach(
         (domain, keywords) -> {
           if (foundInKeywords(keywords, searchValue)) {
-            domains.add(domain);
+            domains.add(new Domain(domain));
           }
         });
     return domains;

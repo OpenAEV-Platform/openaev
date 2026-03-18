@@ -14,6 +14,7 @@ import static io.openaev.injector_contract.fields.ContractTeam.teamField;
 import static io.openaev.injector_contract.fields.ContractText.textField;
 import static io.openaev.injector_contract.fields.ContractTextArea.richTextareaField;
 
+import io.openaev.database.model.Domain;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Variable.VariableType;
 import io.openaev.injector_contract.*;
@@ -74,7 +75,7 @@ public class EmailContract extends Contractor {
             standardInstance,
             List.of(Endpoint.PLATFORM_TYPE.Service),
             false,
-            Set.of(PresetDomain.EMAIL_INFILTRATION, PresetDomain.TABLETOP));
+            Set.of(new Domain(PresetDomain.EMAIL_INFILTRATION), new Domain(PresetDomain.TABLETOP)));
     standardEmail.addVariable(documentUriVariable);
     // Global contract
     List<ContractElement> globalInstance =
@@ -93,7 +94,7 @@ public class EmailContract extends Contractor {
             globalInstance,
             List.of(Endpoint.PLATFORM_TYPE.Service),
             false,
-            Set.of(PresetDomain.EMAIL_INFILTRATION, PresetDomain.TABLETOP));
+            Set.of(new Domain(PresetDomain.EMAIL_INFILTRATION), new Domain(PresetDomain.TABLETOP)));
     globalEmail.addVariable(documentUriVariable);
     return List.of(standardEmail, globalEmail);
   }

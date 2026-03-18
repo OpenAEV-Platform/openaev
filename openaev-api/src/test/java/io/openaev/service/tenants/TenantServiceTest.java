@@ -13,6 +13,7 @@ import io.minio.messages.Item;
 import io.openaev.IntegrationTest;
 import io.openaev.config.MinioConfig;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.repository.DomainRepository;
 import io.openaev.service.MinioService;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -21,6 +22,7 @@ import jakarta.persistence.EntityNotFoundException;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import org.hibernate.Session;
 import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -39,9 +41,7 @@ class TenantServiceTest extends IntegrationTest {
   @Autowired private MinioConfig minioConfig;
   @Autowired private MinioClient minioClient;
   @Autowired private MinioService minioService;
-
-  // TODO multi-tenancy: add check domains tests (create and delete tenant) when we will manage the
-  // multi tenant context in the Backend
+  @Autowired private DomainRepository domainRepository;
 
   @Test
   void should_create_and_find_tenant() throws Exception {
@@ -75,6 +75,11 @@ class TenantServiceTest extends IntegrationTest {
                 .build());
     boolean pathExists = results.iterator().hasNext();
     assertThat(pathExists).isTrue();
+
+    // Verify the 9 domains from PresetDomain are created for this tenant
+    Session session = entityManager.unwrap(Session.class);
+    session.enableFilter("tenantFilter").setParameter("tenantId", created.getId());
+    assertThat(domainRepository.findAll()).hasSize(9);
 
     Tenant exists = tenantService.findById(created.getId());
     assertThat(exists.getName()).isEqualTo(TENANT_NAME);
@@ -163,6 +168,11 @@ class TenantServiceTest extends IntegrationTest {
 
     // Verify the file is removed under the tenant prefix
     assertThat(minioService.countObjects(created.getName() + "/")).isZero();
+
+    // Verify no domain anymore for this tenant
+    Session session = entityManager.unwrap(Session.class);
+    session.enableFilter("tenantFilter").setParameter("tenantId", created.getId());
+    assertThat(domainRepository.findAll()).isEmpty();
   }
 
   @Test

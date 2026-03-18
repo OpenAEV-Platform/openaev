@@ -8,6 +8,7 @@ import static io.openaev.injector_contract.ContractDef.contractBuilder;
 import static io.openaev.injector_contract.fields.ContractExpectations.expectationsField;
 import static io.openaev.injector_contract.fields.ContractTeam.teamField;
 
+import io.openaev.database.model.Domain;
 import io.openaev.database.model.Endpoint;
 import io.openaev.helper.SupportedLanguage;
 import io.openaev.injector_contract.Contract;
@@ -51,7 +52,9 @@ public class ManualContract extends Contractor {
                 instance,
                 List.of(Endpoint.PLATFORM_TYPE.Internal),
                 false,
-                Set.of(PresetDomain.EMAIL_INFILTRATION, PresetDomain.TABLETOP)));
+                Set.of(
+                    new Domain(PresetDomain.EMAIL_INFILTRATION),
+                    new Domain(PresetDomain.TABLETOP))));
   }
 
   @Override
