@@ -122,6 +122,14 @@ const ScenarioLogic: FunctionComponent = () => {
           }
         } catch { /* ignore */ }
       }
+      // Extract payload arguments for chaining bindings (derive input_sources from type)
+      const payloadArgs = contract.injector_contract_payload?.payload_arguments ?? [];
+      if (payloadArgs.length > 0) {
+        enrichedStepData.payload_arguments = payloadArgs.map((arg: { type: string; key: string; [k: string]: unknown }) => ({
+          ...arg,
+          input_sources: [{ input_type: arg.type, input_field: null }],
+        }));
+      }
       const updateInput: StepCreateInput = {
         step_action_class: newStep.step_action_class,
         step_limit_execution: newStep.step_limit_execution,
@@ -337,13 +345,22 @@ const ScenarioLogic: FunctionComponent = () => {
           }
           if (Array.isArray(content.fields)) {
             const fieldsWithSource = content.fields.filter(
-              (f: { input_source?: unknown }) => f.input_source,
+              (f: { input_source?: unknown; input_sources?: unknown[] }) =>
+                (Array.isArray(f.input_sources) && f.input_sources.length > 0) || f.input_source,
             );
             if (fieldsWithSource.length > 0) {
               enrichedStepData.contract_fields = fieldsWithSource;
             }
           }
         } catch { /* ignore */ }
+      }
+      // Extract payload arguments for chaining bindings (derive input_sources from type)
+      const payloadArgs2 = contract.injector_contract_payload?.payload_arguments ?? [];
+      if (payloadArgs2.length > 0) {
+        enrichedStepData.payload_arguments = payloadArgs2.map((arg: { type: string; key: string; [k: string]: unknown }) => ({
+          ...arg,
+          input_sources: [{ input_type: arg.type, input_field: null }],
+        }));
       }
       const updateInput: StepCreateInput = {
         step_action_class: newStep.step_action_class,

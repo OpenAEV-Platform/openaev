@@ -24,6 +24,7 @@ export type NodeActionData = {
   fieldScopes: Record<string, string>;
   hasParentEvent: boolean;
   highlightState: HighlightState;
+  sequenceNumber?: number;
   onEdit: (step: WorkflowStep) => void;
   onDelete: (stepId: string) => void;
   onHighlight: (stepId: string) => void;
@@ -77,8 +78,30 @@ const NodeAction = ({ data }: NodeProps<NodeActionType>) => {
         opacity: isDimmed ? 0.3 : 1,
         transition: 'opacity 0.2s, border 0.2s, box-shadow 0.2s',
         cursor: 'pointer',
+        position: 'relative',
       }}
     >
+      {data.sequenceNumber != null && (
+        <div style={{
+          position: 'absolute',
+          top: -10,
+          right: -10,
+          width: 22,
+          height: 22,
+          borderRadius: '50%',
+          background: theme.palette.primary.main,
+          color: theme.palette.primary.contrastText,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 11,
+          fontWeight: 700,
+          boxShadow: theme.shadows[2],
+          zIndex: 1,
+        }}>
+          {data.sequenceNumber}
+        </div>
+      )}
       <Handle type="target" position={Position.Left} style={{ visibility: 'hidden' }} />
       {data.injectorType
         ? <InjectIcon type={data.injectorType} size="small" tooltip={{}} />

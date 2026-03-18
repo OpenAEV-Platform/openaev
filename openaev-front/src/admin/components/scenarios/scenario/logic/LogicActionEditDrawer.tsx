@@ -59,12 +59,32 @@ const LogicActionEditDrawer: FunctionComponent<Props> = ({
     try {
       const result = await directFetchInjectorContract(contractId);
       const contract = result.data as InjectorContract;
+      const fields: ContractElement[] = [];
+
+      // 1. Standard contract fields from injector_contract_content
       if (contract.injector_contract_content) {
         const content = JSON.parse(contract.injector_contract_content);
         if (Array.isArray(content.fields)) {
-          setContractFields(content.fields);
+          fields.push(...content.fields);
         }
       }
+
+      // 2. Payload arguments → map to ContractElement format for display
+      const payloadArgs = contract.injector_contract_payload?.payload_arguments ?? [];
+      for (const arg of payloadArgs) {
+        if (fields.some(f => f.key === arg.key)) continue;
+        fields.push({
+          key: arg.key,
+          label: arg.key,
+          type: 'text' as ContractElement['type'],
+          defaultValue: arg.default_value ?? '',
+          mandatory: false,
+          readOnly: false,
+          cardinality: '1',
+        } as ContractElement);
+      }
+
+      setContractFields(fields);
     } catch { /* ignore */ }
   }, []);
 

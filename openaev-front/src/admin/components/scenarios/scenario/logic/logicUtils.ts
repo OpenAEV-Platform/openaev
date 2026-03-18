@@ -285,6 +285,74 @@ export const getUpstreamStepIds = (
 };
 
 /**
+ * Compute a topological sequence order for the highlighted chain.
+ * Returns a Map<stepId, sequenceNumber> starting from 1 at the roots.
+ */
+export const getChainSequenceOrder = (
+  steps: WorkflowStep[],
+  highlightedStepId: string,
+): Map<string, number> => {
+  const downstream = getDownstreamStepIds(steps, highlightedStepId);
+  const upstream = getUpstreamStepIds(steps, highlightedStepId);
+  const chainIds = new Set([highlightedStepId, ...downstream, ...upstream]);
+  const chainSteps = steps.filter(s => chainIds.has(s.step_id));
+
+  // Build adjacency for topological sort (only within chain)
+  const inDegree = new Map<string, number>();
+  const adj = new Map<string, string[]>();
+  for (const s of chainSteps) {
+    inDegree.set(s.step_id, 0);
+    adj.set(s.step_id, []);
+  }
+
+  for (const s of chainSteps) {
+    for (const c of s.step_conditions) {
+      if (c.condition_type === 'DEPEND_ON' && c.step_from_id && chainIds.has(c.step_from_id)) {
+        adj.get(c.step_from_id)!.push(s.step_id);
+        inDegree.set(s.step_id, (inDegree.get(s.step_id) ?? 0) + 1);
+      }
+    }
+    // Field provisioning edges
+    if (!isActionStep(s)) {
+      const condKeys = s.step_conditions.filter(c => c.condition_key).map(c => c.condition_key!);
+      if (condKeys.length > 0) {
+        for (const a of chainSteps) {
+          if (a.step_id === s.step_id || !isActionStep(a)) continue;
+          const outputs = extractOutputTypesFromStepData(a);
+          if (condKeys.some(k => outputs.includes(k))) {
+            // Avoid duplicate edges
+            if (!adj.get(a.step_id)!.includes(s.step_id)) {
+              adj.get(a.step_id)!.push(s.step_id);
+              inDegree.set(s.step_id, (inDegree.get(s.step_id) ?? 0) + 1);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Kahn's algorithm
+  const queue: string[] = [];
+  for (const [id, deg] of inDegree) {
+    if (deg === 0) queue.push(id);
+  }
+  const order = new Map<string, number>();
+  let seq = 1;
+  while (queue.length > 0) {
+    queue.sort(); // stable ordering
+    const id = queue.shift()!;
+    order.set(id, seq++);
+    for (const next of adj.get(id) ?? []) {
+      const newDeg = (inDegree.get(next) ?? 1) - 1;
+      inDegree.set(next, newDeg);
+      if (newDeg === 0) queue.push(next);
+    }
+  }
+
+  return order;
+};
+
+/**
  * Get per-field scope map stored in step_data (field_scopes).
  * Returns e.g. { "port": "LOCAL", "ipv4": "GLOBAL" }.
  * Fields not present default to GLOBAL.
@@ -464,7 +532,7 @@ export const formatBinding = (binding: InputBinding): string =>
 
 const UTILITY_PHASE: KillChainPhase = {
   phase_id: '__utility__',
-  phase_name: 'Utility',
+  phase_name: 'Other',
   phase_shortname: 'utility',
   phase_kill_chain_name: 'openaev',
   phase_external_id: 'utility',

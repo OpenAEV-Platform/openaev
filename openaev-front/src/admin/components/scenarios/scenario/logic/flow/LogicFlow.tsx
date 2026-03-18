@@ -28,6 +28,7 @@ import {
   UTILITY_PHASE,
   extractInputBindings,
   extractOutputTypesFromStepData,
+  getChainSequenceOrder,
   getDownstreamStepIds,
   getEventFieldConditions,
   getEventFlowTypes,
@@ -55,9 +56,12 @@ interface LogicFlowProps {
 
 // ── Layout constants ──────────────────────────────────────────────────
 const NODE_WIDTH = 280;
+const EVENT_NODE_WIDTH = 100; // diamond events
 const NODE_HEIGHT = 100;
+const ACTION_NODE_HEIGHT = 160;
+const EVENT_NODE_HEIGHT = 170; // diamond + blue dot
 const COLUMN_WIDTH = 320;
-const COLUMN_GAP = 160;
+const COLUMN_GAP = 320;
 const COLUMN_HEADER_H = 44;
 const NODE_VGAP = 24;
 const NODE_HPAD = 20;
@@ -151,7 +155,7 @@ const computeColumnLayout = (
     const col = columns[colIdx];
     const stackIdx = columnStacks[colIdx];
     const x = col.x + NODE_HPAD;
-    const y = COLUMN_HEADER_H + stackIdx * (NODE_HEIGHT + NODE_VGAP);
+    const y = COLUMN_HEADER_H + stackIdx * (ACTION_NODE_HEIGHT + NODE_VGAP);
 
     columnStacks[colIdx]++;
     col.actionCount++;
@@ -222,39 +226,58 @@ const computeColumnLayout = (
       }
     }
 
-    // Determine horizontal position (always in a gap)
+    // Determine horizontal position: always just LEFT of the actions' column
     let eventX: number;
     const allYs = [...providerYs, ...consumerYs];
     let eventY = allYs.length > 0
       ? allYs.reduce((a, b) => a + b, 0) / allYs.length
       : COLUMN_HEADER_H;
 
-    if (providerColIndices.length > 0 && consumerColIndices.length > 0) {
-      const srcCol = Math.min(...providerColIndices);
-      const tgtCol = Math.min(...consumerColIndices);
-      if (srcCol !== tgtCol) {
-        // Between provider and consumer columns
-        const leftCol = Math.min(srcCol, tgtCol);
-        const rightCol = Math.max(srcCol, tgtCol);
-        // Center in the gap between leftCol right edge and rightCol left edge
-        const gapLeft = columns[leftCol].x + columns[leftCol].width;
-        const gapRight = columns[rightCol].x;
-        eventX = gapLeft + (gapRight - gapLeft) / 2 - NODE_WIDTH / 2;
-      } else {
-        // Same column: place in gap to the right
-        const gapLeft = columns[srcCol].x + columns[srcCol].width;
-        eventX = gapLeft + (COLUMN_GAP - NODE_WIDTH) / 2;
+    // Center event in the gap to the left of a given column index
+    const centerLeftOfCol = (colIdx: number) => {
+      if (colIdx <= 0) {
+        // Before first column
+        return columns.length > 0 ? columns[0].x - COLUMN_GAP / 2 - EVENT_NODE_WIDTH / 2 : 0;
       }
+      const gapLeft = columns[colIdx - 1].x + columns[colIdx - 1].width;
+      const gapRight = columns[colIdx].x;
+      return gapLeft + (gapRight - gapLeft) / 2 - EVENT_NODE_WIDTH / 2;
+    };
+
+    // Center event in the gap to the right of a given column index
+    const centerRightOfCol = (colIdx: number) => {
+      if (colIdx >= columns.length) return 0;
+      const gapLeft = columns[colIdx].x + columns[colIdx].width;
+      const gapRight = colIdx + 1 < columns.length ? columns[colIdx + 1].x : gapLeft + COLUMN_GAP;
+      return gapLeft + (gapRight - gapLeft) / 2 - EVENT_NODE_WIDTH / 2;
+    };
+
+    if (columns.length === 0) {
+      eventX = 0;
+    } else if (consumerColIndices.length > 0) {
+      // Place just LEFT of the leftmost consumer action's column
+      const targetCol = Math.min(...consumerColIndices);
+      eventX = centerLeftOfCol(targetCol);
     } else if (providerColIndices.length > 0) {
-      // Provider only: gap to the right of provider column
-      const srcCol = Math.max(...providerColIndices);
-      const gapLeft = columns[srcCol].x + columns[srcCol].width;
-      eventX = gapLeft + (COLUMN_GAP - NODE_WIDTH) / 2;
-    } else {
+      // No consumer: place just RIGHT of the rightmost provider action's column
+      const sourceCol = Math.max(...providerColIndices);
+      eventX = centerRightOfCol(sourceCol);
+    } else if (columns.length > 0) {
       // Orphan: place after last column
-      const lastCol = columns[columns.length - 1];
-      const gapLeft = lastCol ? lastCol.x + lastCol.width : 0;
-      eventX = gapLeft + (COLUMN_GAP - NODE_WIDTH) / 2;
+      eventX = centerRightOfCol(columns.length - 1);
+    } else {
+      eventX = 0;
+    }
+
+    // Clamp: ensure event X is NOT inside any column
+    for (const col of columns) {
+      const colRight = col.x + col.width;
+      const eventRight = eventX + EVENT_NODE_WIDTH;
+      if (eventX >= col.x && eventX < colRight) {
+        eventX = colRight + (COLUMN_GAP - EVENT_NODE_WIDTH) / 2;
+      } else if (eventRight > col.x && eventRight <= colRight) {
+        eventX = col.x - COLUMN_GAP / 2 - EVENT_NODE_WIDTH / 2;
+      }
     }
 
     positionedNodes.push({
@@ -265,6 +288,27 @@ const computeColumnLayout = (
     });
   }
 
+  // 3b. Resolve vertical overlaps among events
+  const eventPositioned = positionedNodes.filter(n => eventNodes.some(e => e.id === n.id));
+  // Group events by similar X (same gap) — use wide bucket to catch nearby events
+  const gapGroups = new Map<number, Node[]>();
+  for (const ep of eventPositioned) {
+    const bucketX = Math.round(ep.position.x / (COLUMN_GAP / 2)) * (COLUMN_GAP / 2);
+    if (!gapGroups.has(bucketX)) gapGroups.set(bucketX, []);
+    gapGroups.get(bucketX)!.push(ep);
+  }
+  for (const group of gapGroups.values()) {
+    if (group.length <= 1) continue;
+    group.sort((a, b) => a.position.y - b.position.y);
+    for (let i = 1; i < group.length; i++) {
+      const prev = group[i - 1];
+      const minY = prev.position.y + EVENT_NODE_HEIGHT + NODE_VGAP;
+      if (group[i].position.y < minY) {
+        group[i].position = { ...group[i].position, y: minY };
+      }
+    }
+  }
+
   // 4. Compute graph height
   const maxY = positionedNodes.reduce(
     (max, n) => Math.max(max, n.position.y + NODE_HEIGHT),
@@ -272,9 +316,18 @@ const computeColumnLayout = (
   );
   const graphHeight = maxY + NODE_VGAP * 2;
 
-  // 5. Add column background nodes (rendered behind action/event nodes)
-  const colHeight = Math.max(graphHeight, COLUMN_HEADER_H + NODE_HEIGHT + NODE_VGAP * 2);
+  // 5. Add column background nodes — each sized to its own content
+  const minColHeight = COLUMN_HEADER_H + NODE_HEIGHT + NODE_VGAP * 2;
   for (const col of columns) {
+    // Find the max Y of actions in this column
+    const colIdx = columns.indexOf(col);
+    let colMaxY = 0;
+    for (const [, pos] of actionPositions) {
+      if (pos.colIdx === colIdx) {
+        colMaxY = Math.max(colMaxY, pos.y + ACTION_NODE_HEIGHT);
+      }
+    }
+    const colHeight = Math.max(colMaxY + NODE_VGAP * 2, minColHeight);
     const isUtility = col.phase.phase_id === UTILITY_PHASE.phase_id;
     positionedNodes.unshift({
       id: `col-bg-${col.phase.phase_id}`,
@@ -323,6 +376,11 @@ const buildNodesAndEdges = (
     })()
     : null;
 
+  // Compute sequence order for highlighted chain
+  const sequenceOrder = highlightedId
+    ? getChainSequenceOrder(steps, highlightedId)
+    : null;
+
   const getHighlightState = (stepId: string): HighlightState => {
     if (!highlightedId) return null;
     if (stepId === highlightedId) return 'source';
@@ -347,6 +405,7 @@ const buildNodesAndEdges = (
         fieldScopes: getFieldScopes(step),
         hasParentEvent: hasDependOnCondition(step),
         highlightState: getHighlightState(step.step_id),
+        sequenceNumber: sequenceOrder?.get(step.step_id),
         onEdit: callbacks.onEditAction,
         onDelete: callbacks.onDeleteStep,
         onHighlight: callbacks.onHighlight,
@@ -364,6 +423,7 @@ const buildNodesAndEdges = (
         fieldConditions: getEventFieldConditions(step),
         flowTypes: getEventFlowTypes(step),
         highlightState: getHighlightState(step.step_id),
+        sequenceNumber: sequenceOrder?.get(step.step_id),
         onEdit: callbacks.onEditEvent,
         onDelete: callbacks.onDeleteStep,
         onAddAction: callbacks.onAddActionForEvent,
