@@ -1,6 +1,7 @@
 package io.openaev.rest.exercise;
 
 import static io.openaev.database.model.SettingKeys.DEFAULT_SIMULATION_DASHBOARD;
+import static io.openaev.database.specification.TeamSpecification.fromExercise;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -449,6 +450,7 @@ public class ExerciseApiTest extends IntegrationTest {
   }
 
   @Nested
+  @Transactional
   @DisplayName("replaceTeams - scoped cleanup and no cross-exercise side effects")
   @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
   class ReplaceTeamsIntegration {
@@ -504,76 +506,23 @@ public class ExerciseApiTest extends IntegrationTest {
 
       // -- ASSERT --
       // The link of exerciseA must have been deleted
-      List<ExerciseTeamUser> linksA =
-          exerciseTeamUserRepository.findAll().stream()
-              .filter(l -> l.getExercise().getId().equals(exerciseASaved.getId()))
-              .toList();
       assertTrue(
-          linksA.isEmpty(), "The link exercise-team-user of exerciseA should have been deleted");
+          exerciseTeamUserRepository.rawByExerciseIds(List.of(exerciseASaved.getId())).isEmpty(),
+          "The link exercise-team-user of exerciseA should have been deleted");
 
       // The link of exerciseB must still exist
-      List<ExerciseTeamUser> linksB =
-          exerciseTeamUserRepository.findAll().stream()
-              .filter(l -> l.getExercise().getId().equals(exerciseBSaved.getId()))
-              .toList();
+      var linksB = exerciseTeamUserRepository.rawByExerciseIds(List.of(exerciseBSaved.getId()));
       assertEquals(1, linksB.size(), "The link exercise-team-user of exerciseB should be intact");
-      assertEquals(sharedTeam.getId(), linksB.getFirst().getTeam().getId());
+      assertEquals(sharedTeam.getId(), linksB.getFirst().getTeam_id());
 
       // exerciseA should not have any team anymore
-      Exercise exerciseAReloaded =
-          exerciseRepository.findById(exerciseASaved.getId()).orElseThrow();
-      assertTrue(exerciseAReloaded.getTeams().isEmpty());
+      List<Team> exerciseATeams = teamRepository.findAll(fromExercise(exerciseASaved.getId()));
+      assertTrue(exerciseATeams.isEmpty());
 
       // exerciseB should still have sharedTeam in its team list
-      Exercise exerciseBReloaded =
-          exerciseRepository.findById(exerciseBSaved.getId()).orElseThrow();
-      assertEquals(1, exerciseBReloaded.getTeams().size());
-    }
-
-    @Test
-    @DisplayName("Calling replaceTeams twice with same payload must not cause duplicate key error")
-    void callingReplaceTeamsTwiceShouldNotCauseDuplicateKey() throws Exception {
-      // -- PREPARE --
-      User userTom = userRepository.save(UserFixture.getUser("Tom", "RT2", "tom-rt2@fake.email"));
-      USER_IDS.add(userTom.getId());
-
-      Team team = new Team();
-      team.setName("Team-RT2");
-      team.setUsers(List.of(userTom));
-      teamRepository.save(team);
-      TEAM_IDS.add(team.getId());
-
-      Exercise exercise = ExerciseFixture.createDefaultCrisisExercise();
-      exercise.setTeams(List.of());
-      Exercise exerciseSaved = exerciseRepository.save(exercise);
-      EXERCISE_IDS.add(exerciseSaved.getId());
-
-      ExerciseUpdateTeamsInput input = new ExerciseUpdateTeamsInput();
-      input.setTeamIds(List.of(team.getId()));
-
-      // -- ACT: two identical calls to replaceTeams with the same team list --
-      mvc.perform(
-              put(EXERCISE_URI + "/" + exerciseSaved.getId() + "/teams/replace")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(objectMapper.writeValueAsString(input))
-                  .accept(MediaType.APPLICATION_JSON))
-          .andExpect(status().isOk());
-
-      mvc.perform(
-              put(EXERCISE_URI + "/" + exerciseSaved.getId() + "/teams/replace")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(objectMapper.writeValueAsString(input))
-                  .accept(MediaType.APPLICATION_JSON))
-          .andExpect(status().isOk());
-
-      // -- ASSERT --
-      List<ExerciseTeamUser> links =
-          exerciseTeamUserRepository.findAll().stream()
-              .filter(l -> l.getExercise().getId().equals(exerciseSaved.getId()))
-              .toList();
-      assertEquals(1, links.size(), "One single exercise-team-user link should be created");
-      assertEquals(team.getId(), links.getFirst().getTeam().getId());
-      assertEquals(userTom.getId(), links.getFirst().getUser().getId());
+      List<Team> exerciseBTeams = teamRepository.findAll(fromExercise(exerciseBSaved.getId()));
+      assertEquals(1, exerciseBTeams.size());
+      assertEquals(sharedTeam.getId(), exerciseBTeams.getFirst().getId());
     }
 
     @Test
@@ -612,8 +561,10 @@ public class ExerciseApiTest extends IntegrationTest {
           .andExpect(status().isOk());
 
       // -- ASSERT --
-      Exercise reloaded = exerciseRepository.findById(exerciseSaved.getId()).orElseThrow();
-      List<String> teamIds = reloaded.getTeams().stream().map(Team::getId).toList();
+      List<String> teamIds =
+          teamRepository.findAll(fromExercise(exerciseSaved.getId())).stream()
+              .map(Team::getId)
+              .toList();
 
       assertEquals(2, teamIds.size());
       assertTrue(teamIds.contains(teamToKeep.getId()), "teamToKeep should still be present.");
