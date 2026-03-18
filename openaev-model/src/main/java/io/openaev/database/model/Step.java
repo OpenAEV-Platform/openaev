@@ -107,6 +107,7 @@ public class Step implements Base {
   @JoinColumn(name = "step_template_id")
   @ManyToOne(fetch = FetchType.LAZY)
   @JsonIgnore
+  @OnDelete(action = OnDeleteAction.SET_NULL)
   @Schema(description = "Template step from which this step was created")
   private Step stepTemplate;
 

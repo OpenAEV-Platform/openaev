@@ -14,9 +14,11 @@ import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,8 +37,10 @@ public class StepServiceTest {
   @Mock private WorkflowService workflowService;
   @Mock private ConditionService conditionService;
   @Mock private QueueChainingService queueChainingService;
+  @Mock private StepDelayQueueService stepDelayQueueService;
 
   @Spy @InjectMocks StepService stepService;
+  private QueueChainingScheduler queueChainingScheduler;
 
   private final String workflowId = UUID.randomUUID().toString();
 
@@ -50,6 +54,11 @@ public class StepServiceTest {
   /* ============================================================
    * createStepsTemplate — ActionStep resolution
    * ============================================================ */
+  @BeforeEach
+  void setUp() {
+    queueChainingScheduler = new QueueChainingScheduler(stepDelayQueueService, stepService);
+  }
+
   @Nested
   class ActionStepResolution {
 
@@ -978,25 +987,6 @@ public class StepServiceTest {
       }
 
       @Test
-      void shouldConsumeDelayEvents_andReturnSameList() {
-        // -------- Prepare --------
-        StepEvent e1 = mock(StepEvent.class);
-        StepEvent e2 = mock(StepEvent.class);
-        List<StepEvent> events = List.of(e1, e2);
-
-        doNothing().when(stepService).handleDelayStepEvent(any(StepEvent.class));
-
-        // -------- Act --------
-        List<StepEvent> result = stepService.handleDelayEvent(events);
-
-        // -------- Assert --------
-        assertSame(events, result);
-
-        verify(stepService, times(2)).handleDelayStepEvent(stepEventCaptor.capture());
-        assertTrue(stepEventCaptor.getAllValues().containsAll(events));
-      }
-
-      @Test
       void shouldConsumeExternalUpdateEvents_andReturnSameList() {
         // -------- Prepare --------
         ExternalUpdateEvent e1 = mock(ExternalUpdateEvent.class);
@@ -1056,54 +1046,55 @@ public class StepServiceTest {
     }
 
     /* ============================================================
-     * handleDelayStepEvent — repository lookup then workflow lookup then ready(...)
+     * processDelayStep — find next queued step then ready(...)
      * ============================================================ */
     @Nested
-    class HandleDelayStepEvent {
+    class ProcessDelayStep {
 
-      @ParameterizedTest(name = "{index} => stepFound={0}")
+      @ParameterizedTest(name = "{index} => stepFound={0}, throwException={1}")
       @MethodSource("delayStepEventScenarios")
-      void shouldReadyOnlyWhenStepExists(boolean stepFound) throws ChainingException {
+      void shouldReadyOnlyWhenStepExists(boolean stepFound, boolean throwException)
+          throws ChainingException {
         // -------- Prepare --------
-        StepEvent event = mock(StepEvent.class);
-        String stepId = UUID.randomUUID().toString();
-        String workflowId = UUID.randomUUID().toString();
-        when(event.getStepId()).thenReturn(stepId);
-
+        StepsDelayQueue stepsDelayQueue = mock(StepsDelayQueue.class);
         Step step = mock(Step.class);
         Workflow workflowRun = mock(Workflow.class);
 
-        when(stepRepository.findByIdAndStatus(stepId, StepStatus.TEMPLATE))
-            .thenReturn(stepFound ? Optional.of(step) : Optional.empty());
+        when(stepDelayQueueService.findNextToProcess())
+            .thenReturn(stepFound ? Optional.of(stepsDelayQueue) : Optional.empty());
 
         if (stepFound) {
-          when(event.getWorkflowId()).thenReturn(workflowId);
-          when(workflowService.getWorkflowByIdAndStatus(workflowId, WorkflowStatus.RUN))
-              .thenReturn(workflowRun);
-          // Avoid executing real ready(...) logic
-          doReturn(Optional.of(mock(Step.class)))
-              .when(stepService)
-              .ready(any(Step.class), any(Workflow.class), isNull());
+          when(stepsDelayQueue.getWorkflowRun()).thenReturn(workflowRun);
+          when(stepsDelayQueue.getStepTemplate()).thenReturn(step);
+
+          if (throwException) {
+            doThrow(new ChainingException("error"))
+                .when(stepService)
+                .ready(any(Step.class), any(Workflow.class), any());
+          } else {
+            doReturn(Optional.of(mock(Step.class)))
+                .when(stepService)
+                .ready(any(Step.class), any(Workflow.class), any());
+          }
         }
 
         // -------- Act --------
-        stepService.handleDelayStepEvent(event);
+        queueChainingScheduler.processDelayStep();
 
         // -------- Assert --------
-        verify(stepRepository).findByIdAndStatus(stepId, StepStatus.TEMPLATE);
-
         if (stepFound) {
-          verify(workflowService).getWorkflowByIdAndStatus(workflowId, WorkflowStatus.RUN);
           verify(stepService).ready(step, workflowRun, null);
+          // delete must always be called regardless of exception
+          verify(stepDelayQueueService).deleteStepsDelayQueue(stepsDelayQueue);
         } else {
-          verify(workflowService, never())
-              .getWorkflowByIdAndStatus(anyString(), eq(WorkflowStatus.RUN));
           verify(stepService, never()).ready(any(), any(), any());
+          verify(stepDelayQueueService, never()).deleteStepsDelayQueue(any());
         }
       }
 
       static Stream<Arguments> delayStepEventScenarios() {
-        return Stream.of(Arguments.of(true), Arguments.of(false));
+        return Stream.of(
+            Arguments.of(true, false), Arguments.of(true, true), Arguments.of(false, false));
       }
     }
 
@@ -1349,6 +1340,43 @@ public class StepServiceTest {
 
     assertEquals(StepStatus.END, stepReady.getStatus());
     verify(stepService).saveStep(stepReady);
+  }
+
+  @Nested
+  class DelayRateTimeCondition {
+
+    @Test
+    void shouldDelegateToConditionService() {
+      // -------- Prepare --------
+      Condition condition = mock(Condition.class);
+      Instant lastExecution = Instant.now();
+      Long timeRate = 5000L;
+
+      // -------- Act --------
+      stepService.delayRateTimeCondition(condition, lastExecution, timeRate);
+
+      // -------- Assert --------
+      verify(conditionService).delayRateTimeCondition(condition, lastExecution, timeRate);
+    }
+
+    @Test
+    void shouldPropagateIllegalArgumentException_whenConditionTypeIsNotAFTER() {
+      // -------- Prepare --------
+      Condition condition = mock(Condition.class);
+      Instant lastExecution = Instant.now();
+      Long timeRate = 5000L;
+
+      doThrow(new IllegalArgumentException("Delay can only be applied to AFTER conditions"))
+          .when(conditionService)
+          .delayRateTimeCondition(any(), any(), any());
+
+      // -------- Act & Assert --------
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> stepService.delayRateTimeCondition(condition, lastExecution, timeRate));
+
+      verify(conditionService).delayRateTimeCondition(condition, lastExecution, timeRate);
+    }
   }
 
   /* ============================================================

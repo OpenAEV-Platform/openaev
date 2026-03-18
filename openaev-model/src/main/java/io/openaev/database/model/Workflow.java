@@ -4,16 +4,15 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Table;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.annotations.UpdateTimestamp;
-import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.annotations.*;
 import org.hibernate.type.SqlTypes;
 
 @Entity
@@ -71,6 +70,7 @@ public class Workflow implements Base {
   @ManyToOne(fetch = FetchType.LAZY)
   @JsonIgnore
   @Schema(description = "Template workflow from which this workflow was created")
+  @OnDelete(action = OnDeleteAction.SET_NULL)
   private Workflow workflowTemplate;
 
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "workflowTemplate")

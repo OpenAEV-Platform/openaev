@@ -13,6 +13,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -799,18 +800,6 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
   }
 
   /**
-   * Consume delay event from queue
-   *
-   * @param events list of events
-   * @return consumed list of events
-   */
-  // todo remove
-  public List<StepEvent> handleDelayEvent(List<StepEvent> events) {
-    events.forEach(this::handleDelayStepEvent);
-    return events;
-  }
-
-  /**
    * Consume update event from queue
    *
    * @param events list of events
@@ -838,33 +827,6 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
             () ->
                 log.error(
                     "Ready consume: Step not found for StepEvent ID: {}", stepEvent.getStepId()));
-  }
-
-  /**
-   * Handle delay event and pause the corresponding step
-   *
-   * @param stepEvent event to handle
-   */
-  // TODO remove
-  @Override
-  public void handleDelayStepEvent(StepEvent stepEvent) {
-    stepRepository
-        .findByIdAndStatus(stepEvent.getStepId(), StepStatus.TEMPLATE)
-        .ifPresentOrElse(
-            step -> {
-              Workflow workflowRun =
-                  workflowService.getWorkflowByIdAndStatus(
-                      stepEvent.getWorkflowId(), WorkflowStatus.RUN);
-              try {
-                ready(step, workflowRun, null);
-              } catch (ChainingException e) {
-                log.error("Delay consume failed : {}", e.getMessage(), e);
-              }
-            },
-            () ->
-                log.error(
-                    "Delay consume: Step not found for StepEvent. Step ID: {}",
-                    stepEvent.getStepId()));
   }
 
   /**
@@ -949,6 +911,22 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
         }
       }
     }
+  }
+
+  /**
+   * Delegates the delay rate time condition update to {@link ConditionService}.
+   *
+   * <p>This method exists to avoid direct access to {@link ConditionService} from {@link
+   * QueueChainingScheduler}, keeping encapsulation clean. Updates the {@link Condition} value to
+   * the next execution timestamp based on the last execution time and the configured time rate.
+   *
+   * @param condition the {@link Condition} of type {@link ConditionType#AFTER} to update
+   * @param lastExecution the timestamp of the last execution
+   * @param timeRate the delay in milliseconds before the next execution
+   * @throws IllegalArgumentException if the condition type is not {@link ConditionType#AFTER}
+   */
+  public void delayRateTimeCondition(Condition condition, Instant lastExecution, Long timeRate) {
+    conditionService.delayRateTimeCondition(condition, lastExecution, timeRate);
   }
 
   public enum ACTION_JSON {

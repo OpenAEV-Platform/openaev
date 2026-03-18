@@ -1,9 +1,11 @@
 package io.openaev.service.chaining;
 
-import io.openaev.database.model.*;
+import io.openaev.database.model.Condition;
+import io.openaev.database.model.ConditionType;
+import io.openaev.database.model.Step;
+import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.rest.exception.ChainingException;
-import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -17,7 +19,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class ConditionService {
   private final ConditionRepository conditionRepository;
-  private final QueueChainingService queueChainingService;
+  private final StepDelayQueueService stepDelayQueueService;
 
   /**
    * Checks whether the condition is a time-based condition.
@@ -172,14 +174,10 @@ public class ConditionService {
 
       if (condition.getType().equals(ConditionType.AFTER)) {
         long delay = ChronoUnit.MILLIS.between(now, goal);
-        try {
-          queueChainingService.delayStep(nextStepTemplateToExecute, workflowRun, delay);
-        } catch (IOException e) {
-          throw new ChainingException(
-              "Failed to push step (TEMPLATE) into delay queue. Step ID: "
-                  + nextStepTemplateToExecute.getId(),
-              e);
-        }
+
+        stepDelayQueueService.pushStepTemplateIntoStepDelayQueue(
+            nextStepTemplateToExecute, now, input, delay, condition, workflowRun, goal);
+
         return null;
       }
     }
@@ -262,5 +260,15 @@ public class ConditionService {
         .type(ConditionType.DEPEND_ON)
         .value(idStepFromTemplate)
         .build();
+  }
+
+  public void delayRateTimeCondition(Condition condition, Instant lastExecution, Long timeRate) {
+    if (!condition.getType().equals(ConditionType.AFTER))
+      throw new IllegalArgumentException(
+          "Delay can only be applied to AFTER conditions, got: " + condition.getType());
+
+    Instant nexExecution = lastExecution.plus(timeRate, ChronoUnit.MILLIS);
+    condition.setValue(nexExecution.toString());
+    conditionRepository.save(condition);
   }
 }
