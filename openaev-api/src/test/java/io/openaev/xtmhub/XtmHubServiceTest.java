@@ -8,6 +8,7 @@ import io.openaev.ee.License;
 import io.openaev.ee.LicenseTypeEnum;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
+import io.openaev.service.UserService;
 import io.openaev.xtmhub.config.XtmHubConfig;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,6 +25,7 @@ import org.springframework.web.server.ResponseStatusException;
 class XtmHubServiceTest {
 
   @Mock private PlatformSettingsService platformSettingsService;
+  @Mock private UserService userService;
 
   @Mock private XtmHubClient xtmHubClient;
 
@@ -405,8 +407,15 @@ class XtmHubServiceTest {
     mockSettings.setPlatformBaseUrl("http://localhost");
     mockSettings.setPlatformVersion("1.0.0");
     when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+    when(userService.globalCount()).thenReturn((long) 1);
     when(xtmHubClient.autoRegister(
-            anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyLong()))
         .thenReturn(true);
 
     // When
@@ -414,7 +423,8 @@ class XtmHubServiceTest {
 
     // Then
     verify(xtmHubClient)
-        .autoRegister(eq(token), eq("CE"), anyString(), anyString(), anyString(), anyString());
+        .autoRegister(
+            eq(token), eq("CE"), anyString(), anyString(), anyString(), anyString(), anyLong());
   }
 
   @Test
@@ -431,8 +441,15 @@ class XtmHubServiceTest {
     mockSettings.setPlatformBaseUrl("http://localhost");
     mockSettings.setPlatformVersion("1.0.0");
     when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+    when(userService.globalCount()).thenReturn((long) 1);
     when(xtmHubClient.autoRegister(
-            anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyLong()))
         .thenReturn(true);
 
     // When
@@ -440,7 +457,8 @@ class XtmHubServiceTest {
 
     // Then
     verify(xtmHubClient)
-        .autoRegister(eq(token), eq("trial"), anyString(), anyString(), anyString(), anyString());
+        .autoRegister(
+            eq(token), eq("trial"), anyString(), anyString(), anyString(), anyString(), anyLong());
   }
 
   @Test
@@ -457,8 +475,15 @@ class XtmHubServiceTest {
     mockSettings.setPlatformBaseUrl("http://localhost");
     mockSettings.setPlatformVersion("1.0.0");
     when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+    when(userService.globalCount()).thenReturn((long) 1);
     when(xtmHubClient.autoRegister(
-            anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyLong()))
         .thenReturn(true);
 
     // When
@@ -466,7 +491,8 @@ class XtmHubServiceTest {
 
     // Then
     verify(xtmHubClient)
-        .autoRegister(eq(token), eq("EE"), anyString(), anyString(), anyString(), anyString());
+        .autoRegister(
+            eq(token), eq("EE"), anyString(), anyString(), anyString(), anyString(), anyLong());
   }
 
   @Test
@@ -483,8 +509,55 @@ class XtmHubServiceTest {
     mockSettings.setPlatformBaseUrl("http://localhost");
     mockSettings.setPlatformVersion("1.0.0");
     when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+    when(userService.globalCount()).thenReturn((long) 2);
     when(xtmHubClient.autoRegister(
-            anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyLong()))
+        .thenReturn(true);
+
+    // When
+    xtmHubService.autoRegister(token);
+
+    // Then
+    verify(xtmHubClient)
+        .autoRegister(
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            eq((long) 2));
+  }
+
+  @Test
+  @DisplayName("Should send global users count")
+  void autoRegister_WhenSuccessful_ShouldSendGlobalUsersCount() {
+    // Given
+    String token = "valid-token";
+    License license = new License();
+    license.setLicenseEnterprise(true);
+    license.setType(LicenseTypeEnum.trial);
+    mockSettings.setPlatformLicense(license);
+    mockSettings.setPlatformId("platform-123");
+    mockSettings.setPlatformName("Test Platform");
+    mockSettings.setPlatformBaseUrl("http://localhost");
+    mockSettings.setPlatformVersion("1.0.0");
+    when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+    when(userService.globalCount()).thenReturn((long) 1);
+    when(xtmHubClient.autoRegister(
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyLong()))
         .thenReturn(true);
 
     // When
@@ -498,7 +571,8 @@ class XtmHubServiceTest {
             eq("platform-123"),
             eq("Test Platform"),
             eq("http://localhost"),
-            eq("1.0.0"));
+            eq("1.0.0"),
+            eq((long) 1));
     verify(platformSettingsService)
         .updateXTMHubRegistration(
             eq(token),
@@ -522,8 +596,15 @@ class XtmHubServiceTest {
     mockSettings.setPlatformBaseUrl("http://localhost");
     mockSettings.setPlatformVersion("1.0.0");
     when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+    when(userService.globalCount()).thenReturn((long) 1);
     when(xtmHubClient.autoRegister(
-            anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyLong()))
         .thenReturn(false);
 
     // When
