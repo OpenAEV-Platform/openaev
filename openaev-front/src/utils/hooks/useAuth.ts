@@ -1,14 +1,13 @@
 import { createContext, useContext } from 'react';
 
-import { type UserTenantOutput } from '../../actions/user/user-tenant-actions';
-import { type PlatformSettings, type User } from '../api-types';
+import {type PlatformSettings, TenantOutput, type User} from '../api-types';
 
 export interface UserContextType {
   me: User | undefined;
   settings: PlatformSettings | undefined;
   isXTMHubAccessible: boolean | undefined;
-  userTenants: UserTenantOutput[];
-  currentUserTenant: UserTenantOutput | null;
+  userTenants: TenantOutput[];
+  currentUserTenant: TenantOutput | null;
   switchUserTenant: (tenantId: string) => Promise<void>;
 }
 
