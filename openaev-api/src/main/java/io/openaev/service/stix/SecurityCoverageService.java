@@ -488,7 +488,16 @@ public class SecurityCoverageService {
           objects);
     }
 
-    for (SecurityPlatform securityPlatform : assetService.securityPlatforms()) {
+    List<String> platformNames =
+        simulation.getInjects().stream()
+            .flatMap(inject -> inject.getExpectations().stream())
+            .flatMap(expectation -> expectation.getResults().stream())
+            .map(InjectExpectationResult::getSourceName)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+
+    for (SecurityPlatform securityPlatform : assetService.securityPlatformsByNames(platformNames)) {
       DomainObject platformIdentity = securityPlatform.toStixDomainObject();
       objects.add(platformIdentity);
 
