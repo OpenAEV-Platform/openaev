@@ -263,7 +263,7 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   private List<Grant> grants = new ArrayList<>();
 
   @Schema(implementation = String[].class)
-  @OneToMany(mappedBy = "scenario", fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
+  @OneToMany(mappedBy = "scenario", cascade = CascadeType.REMOVE, fetch = FetchType.LAZY)
   @JsonProperty("scenario_injects")
   @JsonSerialize(using = MultiIdListSerializer.class)
   @Getter(NONE)
@@ -272,7 +272,8 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   // UpdatedAt now used to sync with linked object
   public void setInjects(Set<Inject> injects) {
     this.updatedAt = now();
-    this.injects = injects;
+    this.injects.clear();
+    this.injects.addAll(injects);
   }
 
   @Schema(implementation = String[].class)

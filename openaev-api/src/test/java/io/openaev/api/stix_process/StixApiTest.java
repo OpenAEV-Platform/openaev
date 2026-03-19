@@ -949,9 +949,6 @@ class StixApiTest extends IntegrationTest {
       assertThat(createdScenario.getSecurityCoverage().getStixModified())
           .isEqualTo("2025-12-31T14:00:00Z");
 
-      entityManager.flush();
-      entityManager.clear();
-
       String modifiedDateForTesting = Instant.now().toString();
       JsonNode updated =
           updateStixObjectField(
