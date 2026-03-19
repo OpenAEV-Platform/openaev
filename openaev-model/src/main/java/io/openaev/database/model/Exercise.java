@@ -233,7 +233,7 @@ public class Exercise implements GrantableBase, TenantBase {
   private List<Grant> grants = new ArrayList<>();
 
   @Schema(implementation = String[].class)
-  @OneToMany(mappedBy = "exercise", fetch = FetchType.LAZY)
+  @OneToMany(mappedBy = "exercise", cascade = CascadeType.REMOVE, fetch = FetchType.LAZY)
   @JsonProperty("exercise_injects")
   @JsonSerialize(using = MultiIdListSerializer.class)
   private List<Inject> injects = new ArrayList<>();
@@ -241,7 +241,8 @@ public class Exercise implements GrantableBase, TenantBase {
   // UpdatedAt now used to sync with linked object
   public void setInjects(List<Inject> injects) {
     this.updatedAt = now();
-    this.injects = injects;
+    this.injects.clear();
+    this.injects.addAll(injects);
   }
 
   @Getter
