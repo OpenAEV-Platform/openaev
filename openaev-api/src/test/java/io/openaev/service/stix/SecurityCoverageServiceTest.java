@@ -647,12 +647,9 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     // assert
     SecurityCoverage generatedCoverage = securityCoverageComposer.generatedItems.getFirst();
     List<Inject> generatedInjects = injectComposer.generatedItems;
-    List<SecurityPlatform> generatedSecurityPlatforms = securityPlatformComposer.generatedItems;
 
     DomainObject expectedAssessmentWithCoverage =
         getExpectedMainSecurityCoverage(generatedCoverage, generatedInjects);
-//    List<DomainObject> expectedPlatformIdentities =
-//        generatedSecurityPlatforms.stream().map(SecurityPlatform::toStixDomainObject).toList();
 
     // main assessment is completed with coverage
     assertThatJson(
@@ -977,12 +974,13 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
   }
 
   private List<DomainObject> getExpectedPlatformIdentities() {
-    Set<String> involvedPlatformNames = injectComposer.generatedItems.stream()
-        .flatMap(inject -> inject.getExpectations().stream())
-        .flatMap(exp -> exp.getResults().stream())
-        .map(InjectExpectationResult::getSourceName)
-        .filter(Objects::nonNull)
-        .collect(Collectors.toSet());
+    Set<String> involvedPlatformNames =
+        injectComposer.generatedItems.stream()
+            .flatMap(inject -> inject.getExpectations().stream())
+            .flatMap(exp -> exp.getResults().stream())
+            .map(InjectExpectationResult::getSourceName)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
 
     return securityPlatformComposer.generatedItems.stream()
         .filter(sp -> involvedPlatformNames.contains(sp.getName()))
