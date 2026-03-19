@@ -325,7 +325,7 @@ public class InjectorContractService {
               target.getDomains(), target.getInjector().getTenant().getId());
       Set<Domain> domainsToAdd =
           this.domainService.upsertDomainEntities(
-              target.getDomains(), target.getInjector().getTenant().getId());
+              source.getDomains(), target.getInjector().getTenant().getId());
       target.setDomains(
           this.domainService.mergeDomains(
               currentDomains, domainsToAdd, target.getInjector().getTenant()));
