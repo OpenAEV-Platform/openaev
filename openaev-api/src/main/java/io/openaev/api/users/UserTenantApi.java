@@ -1,6 +1,7 @@
 package io.openaev.api.users;
 
 import static io.openaev.api.users.dto.UserMapper.toOutput;
+import static io.openaev.utils.tenants.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.api.users.dto.UserInput;
@@ -23,7 +24,7 @@ import org.springframework.web.bind.annotation.*;
 
 /** User management API scoped to a specific tenant. */
 @RestController
-@RequestMapping("/api/tenants/{tenantId}/users")
+@RequestMapping(TENANT_PREFIX + "/users")
 @RequiredArgsConstructor
 public class UserTenantApi {
 

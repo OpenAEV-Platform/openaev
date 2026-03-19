@@ -5,7 +5,7 @@ import * as R from 'ramda';
 import { Component } from 'react';
 import { connect } from 'react-redux';
 
-import { deleteTag, updateTag } from '../../../../actions/Tag';
+import { deleteTag, updateTag } from '../../../../actions/tags/tag-action';
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import inject18n from '../../../../components/i18n';

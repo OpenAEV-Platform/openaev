@@ -21,6 +21,12 @@ public class TagService {
 
   // -- CRUD --
 
+  public Tag createTag(TagCreateInput input) {
+    Tag tag = new Tag();
+    tag.setUpdateAttributes(input);
+    return tagRepository.save(tag);
+  }
+
   public Set<Tag> tagSet(@NotNull final List<String> tagIds) {
     return iterableToSet(this.tagRepository.findAllById(tagIds));
   }

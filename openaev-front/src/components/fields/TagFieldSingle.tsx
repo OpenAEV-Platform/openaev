@@ -5,10 +5,10 @@ import { type FieldErrors } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
 import { type TagHelper, type UserHelper } from '../../actions/helper';
-import { addTag } from '../../actions/Tag';
+import { addTag } from '../../actions/tags/tag-action';
 import TagForm from '../../admin/components/settings/tags/TagForm';
 import { useHelper } from '../../store';
-import { type Tag } from '../../utils/api-types';
+import { type Tag, type TagCreateInput } from '../../utils/api-types';
 import { useAppDispatch } from '../../utils/hooks';
 import { Can } from '../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
@@ -74,8 +74,8 @@ const TagFieldSingle: FunctionComponent<Props> = ({
     return tagsOptions.filter(tag => fieldValue.includes(tag.label))[0];
   };
 
-  const onSubmit = (data: Tag) => {
-    dispatch(addTag(data))
+  const onSubmit = (data: Record<string, string>) => {
+    dispatch(addTag(data as TagCreateInput))
       .then((result: {
         entities: { tags: Record<string, Tag> };
         result: string;
