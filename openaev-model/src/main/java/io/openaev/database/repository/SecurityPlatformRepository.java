@@ -9,6 +9,8 @@ import jakarta.validation.constraints.NotEmpty;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -72,5 +74,5 @@ public interface SecurityPlatformRepository
           + AssetType.Values.SECURITY_PLATFORM_TYPE
           + "' AND "
           + "a.name IN :names")
-  List<SecurityPlatform> findAllByNames(@NotEmpty @Param("names") List<String> names);
+  List<SecurityPlatform> findAllByNames(@NotEmpty @Param("names") Set<String> names);
 }
