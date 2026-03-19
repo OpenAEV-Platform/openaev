@@ -84,8 +84,8 @@ const TopBanner = ({ bannerText, bannerColor = 'gradient_blue', buttonText, butt
             'fontSize': '0.8rem',
             'textTransform': 'none',
             'lineHeight': 1.2,
-            'background-color': '#007399',
-            'color': 'white',
+            'background-color': '#ffffff',
+            'color': '#000000',
             '& .MuiButton-endIcon': { marginLeft: theme.spacing('2px') },
             ...buttonStyle,
           }}
