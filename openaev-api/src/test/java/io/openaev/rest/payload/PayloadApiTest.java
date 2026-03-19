@@ -885,13 +885,13 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(get(PAYLOAD_URI + "/" + payloadId1))
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.payload_name").value("My Command Payload"))
-        .andExpect(jsonPath("$.payload_collector").value(collectorId))
+        .andExpect(jsonPath("$.payload_collector_type").value(collectorCreateInput.getType()))
         .andExpect(jsonPath("$.payload_status").value("DEPRECATED"));
 
     mvc.perform(get(PAYLOAD_URI + "/" + payloadId2))
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.payload_name").value("Command Payload 2"))
-        .andExpect(jsonPath("$.payload_collector").value(collectorId))
+        .andExpect(jsonPath("$.payload_collector_type").value(collectorCreateInput.getType()))
         .andExpect(jsonPath("$.payload_status").value("UNVERIFIED"));
   }
 }

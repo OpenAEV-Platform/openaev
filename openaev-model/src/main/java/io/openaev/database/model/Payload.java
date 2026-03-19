@@ -16,8 +16,8 @@ import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
+import io.openaev.helper.CollectorTypeNameSerializer;
 import io.openaev.helper.MonoIdDeserializerHelper;
-import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
 import io.openaev.jsonapi.IncludeOption;
@@ -200,16 +200,15 @@ public class Payload implements GrantableBase, TenantBase {
   @JsonIgnore
   private Tenant tenant;
 
-  // -- COLLECTOR --
+  // -- COLLECTOR TYPE --
 
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "payload_collector")
-  @JsonSerialize(using = MonoIdSerializer.class)
-  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
-  @JsonProperty("payload_collector")
+  @JoinColumn(name = "payload_collector_type", referencedColumnName = "collector_type_name")
+  @JsonSerialize(using = CollectorTypeNameSerializer.class)
+  @JsonProperty("payload_collector_type")
   @IncludeOption(key = "exclude from payload export")
   @Schema(implementation = String.class)
-  private Collector collector;
+  private CollectorType collectorType;
 
   @OneToMany(
       mappedBy = "payload",
@@ -279,9 +278,9 @@ public class Payload implements GrantableBase, TenantBase {
   @NotNull
   private Instant updatedAt = now();
 
-  @JsonProperty("payload_collector_type")
-  public String getCollectorType() {
-    return this.collector != null ? this.collector.getType() : null;
+  @JsonIgnore
+  public String getCollectorTypeValue() {
+    return this.collectorType != null ? this.collectorType.getName() : null;
   }
 
   @Transient

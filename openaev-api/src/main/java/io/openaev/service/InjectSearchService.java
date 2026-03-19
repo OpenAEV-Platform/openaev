@@ -501,8 +501,8 @@ public class InjectSearchService {
     Join<Base, Base> payloadJoin = injectorContractJoin.join("payload", JoinType.LEFT);
     joinMap.put("payload", payloadJoin);
 
-    Join<Base, Base> collectorJoin = payloadJoin.join("collector", JoinType.LEFT);
-    joinMap.put("collector", collectorJoin);
+    Join<Base, Base> collectorTypeJoin = payloadJoin.join("collectorType", JoinType.LEFT);
+    joinMap.put("collectorType", collectorTypeJoin);
 
     Join<Base, Base> statusJoin = injectRoot.join("status", JoinType.LEFT);
     joinMap.put("status", statusJoin);
@@ -531,7 +531,7 @@ public class InjectSearchService {
             injectorContractJoin.get("labels").alias("injector_contract_labels"),
             payloadJoin.get("id").alias("payload_id"),
             payloadJoin.get("type").alias("payload_type"),
-            collectorJoin.get("type").alias("payload_collector_type"),
+            collectorTypeJoin.get("name").alias("payload_collector_type"),
             statusJoin.get("id").alias("status_id"),
             statusJoin.get("name").alias("status_name"),
             statusJoin.get("trackingSentDate").alias("status_tracking_sent_date"),
@@ -549,7 +549,7 @@ public class InjectSearchService {
             injectorContractJoin.get("id"),
             injectorJoin.get("id"),
             payloadJoin.get("id"),
-            collectorJoin.get("id"),
+            collectorTypeJoin.get("name"),
             statusJoin.get("id")));
   }
 

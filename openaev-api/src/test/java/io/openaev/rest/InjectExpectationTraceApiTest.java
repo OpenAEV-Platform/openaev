@@ -43,6 +43,7 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private InjectRepository injectRepository;
   @Autowired private CollectorRepository collectorRepository;
+  @Autowired private CollectorTypeRepository collectorTypeRepository;
   @Autowired private SecurityPlatformRepository securityPlatformRepository;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
   @Autowired private InjectExpectationTraceRepository injectExpectationTraceRepository;
@@ -67,6 +68,9 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
     sp.setName("sp-name");
     sp.setSecurityPlatformType(SECURITY_PLATFORM_TYPE.SIEM);
     savedSecurityPlatform = securityPlatformRepository.save(sp);
+
+    CollectorType collectorType = new CollectorType("type");
+    collectorTypeRepository.save(collectorType);
 
     Collector collector = new Collector();
     collector.setId(UUID.randomUUID().toString());

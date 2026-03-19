@@ -83,7 +83,7 @@ public class V1_DataImporter implements Importer {
   private final VariableRepository variableRepository;
   private final InjectDependenciesRepository injectDependenciesRepository;
   private final PayloadCreationService payloadCreationService;
-  private final CollectorRepository collectorRepository;
+  private final CollectorTypeRepository collectorTypeRepository;
   private final DomainService domainService;
 
   private final InjectorContractContentUtils injectorContractContentUtils;
@@ -1501,9 +1501,8 @@ public class V1_DataImporter implements Importer {
         continue;
       }
 
-      Optional<Collector> collector =
-          collectorRepository.findByTypeAndTenantId(type, TenantContext.getCurrentTenant());
-      if (collector.isPresent()) {
+      Optional<CollectorType> collectorType = collectorTypeRepository.findByName(type);
+      if (collectorType.isPresent()) {
         detectionRemediationInputs.add(buildDetectionRemediationFromJsonNode(detectionNode));
       } else {
         log.warn("Import Detection Remediations: Missing Collector type: {}", type);

@@ -5,6 +5,7 @@ import static io.openaev.api.tenants.TenantMapper.toOutput;
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
+import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.service.tenants.TenantService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,7 +35,8 @@ public class TenantApi {
       isEnterpriseEdition = true)
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
-  public TenantOutput create(@Valid @RequestBody TenantInput input) {
+  public TenantOutput create(@Valid @RequestBody TenantInput input)
+      throws DependenciesManagerException {
     return toOutput(tenantService.create(TenantMapper.fromInput(null, input)));
   }
 
@@ -92,7 +94,7 @@ public class TenantApi {
       isEnterpriseEdition = true)
   @DeleteMapping("/{tenantId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void delete(@PathVariable String tenantId) {
+  public void delete(@PathVariable String tenantId) throws DependenciesManagerException {
     tenantService.delete(tenantId);
   }
 }
