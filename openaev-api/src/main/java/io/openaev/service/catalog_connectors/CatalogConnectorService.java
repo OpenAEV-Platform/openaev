@@ -26,6 +26,25 @@ public class CatalogConnectorService {
   private final ConnectorInstanceService connectorInstanceService;
 
   /**
+   * Retrieves all catalog connectors in CatalogConnectorOutput format.
+   *
+   * @return a list of catalog connector outputs with associated instance counts
+   */
+  public List<CatalogConnectorOutput> getCatalogConnectors() {
+    List<ConnectorInstancePersisted> instances = connectorInstanceService.connectorInstances();
+    return fromIterable(catalogConnectorRepository.findAll()).stream()
+        .map(
+            c ->
+                catalogConnectorMapper.toCatalogConnectorOutput(
+                    c,
+                    Math.toIntExact(
+                        instances.stream()
+                            .filter(i -> i.getCatalogConnector().getId().equals(c.getId()))
+                            .count())))
+        .toList();
+  }
+
+  /**
    * Retrieves all unDeployed catalog connectors in CatalogConnectorOutput format.
    *
    * @return a list of catalog connector outputs with associated instance counts

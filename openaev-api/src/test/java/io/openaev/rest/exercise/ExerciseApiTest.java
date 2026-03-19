@@ -1,10 +1,13 @@
 package io.openaev.rest.exercise;
 
 import static io.openaev.database.model.SettingKeys.DEFAULT_SIMULATION_DASHBOARD;
+import static io.openaev.database.specification.TeamSpecification.fromExercise;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -444,5 +447,129 @@ public class ExerciseApiTest extends IntegrationTest {
     assertEquals(exerciseSaved.getId(), link.getExercise().getId());
     assertEquals(teamB.getId(), link.getTeam().getId());
     assertEquals(userBen.getId(), link.getUser().getId());
+  }
+
+  @Nested
+  @Transactional
+  @DisplayName("replaceTeams - scoped cleanup and no cross-exercise side effects")
+  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+  class ReplaceTeamsIntegration {
+
+    @Test
+    @DisplayName(
+        "Deselecting a team should remove its exercise-team-user links only for that exercise")
+    void deselectedTeamShouldRemoveLinksOnlyForCurrentExercise() throws Exception {
+      // -- PREPARE --
+      User userTom = userRepository.save(UserFixture.getUser("Tom", "RT1", "tom-rt1@fake.email"));
+      USER_IDS.add(userTom.getId());
+
+      Team sharedTeam = new Team();
+      sharedTeam.setName("SharedTeam-RT1");
+      sharedTeam.setUsers(List.of(userTom));
+      teamRepository.save(sharedTeam);
+      TEAM_IDS.add(sharedTeam.getId());
+
+      // exerciseA
+      Exercise exerciseA = ExerciseFixture.createDefaultCrisisExercise();
+      exerciseA.setTeams(List.of(sharedTeam));
+      Exercise exerciseASaved = exerciseRepository.save(exerciseA);
+      EXERCISE_IDS.add(exerciseASaved.getId());
+
+      ExerciseTeamUser linkA = new ExerciseTeamUser();
+      linkA.setExercise(exerciseASaved);
+      linkA.setTeam(sharedTeam);
+      linkA.setUser(userTom);
+      exerciseTeamUserRepository.save(linkA);
+
+      // exerciseB
+      Exercise exerciseB = ExerciseFixture.createDefaultCrisisExercise();
+      exerciseB.setTeams(List.of(sharedTeam));
+      Exercise exerciseBSaved = exerciseRepository.save(exerciseB);
+      EXERCISE_IDS.add(exerciseBSaved.getId());
+
+      ExerciseTeamUser linkB = new ExerciseTeamUser();
+      linkB.setExercise(exerciseBSaved);
+      linkB.setTeam(sharedTeam);
+      linkB.setUser(userTom);
+      exerciseTeamUserRepository.save(linkB);
+
+      // -- ACT : We remove sharedTeam from exerciseA --
+      ExerciseUpdateTeamsInput input = new ExerciseUpdateTeamsInput();
+      input.setTeamIds(List.of());
+
+      mvc.perform(
+              put(EXERCISE_URI + "/" + exerciseASaved.getId() + "/teams/replace")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(objectMapper.writeValueAsString(input))
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk());
+
+      // -- ASSERT --
+      // The link of exerciseA must have been deleted
+      assertTrue(
+          exerciseTeamUserRepository.rawByExerciseIds(List.of(exerciseASaved.getId())).isEmpty(),
+          "The link exercise-team-user of exerciseA should have been deleted");
+
+      // The link of exerciseB must still exist
+      var linksB = exerciseTeamUserRepository.rawByExerciseIds(List.of(exerciseBSaved.getId()));
+      assertEquals(1, linksB.size(), "The link exercise-team-user of exerciseB should be intact");
+      assertEquals(sharedTeam.getId(), linksB.getFirst().getTeam_id());
+
+      // exerciseA should not have any team anymore
+      List<Team> exerciseATeams = teamRepository.findAll(fromExercise(exerciseASaved.getId()));
+      assertTrue(exerciseATeams.isEmpty());
+
+      // exerciseB should still have sharedTeam in its team list
+      List<Team> exerciseBTeams = teamRepository.findAll(fromExercise(exerciseBSaved.getId()));
+      assertEquals(1, exerciseBTeams.size());
+      assertEquals(sharedTeam.getId(), exerciseBTeams.getFirst().getId());
+    }
+
+    @Test
+    @DisplayName("Replacing teams should update the exercise team list in database")
+    void replacingTeamsShouldPersistNewTeamListInDatabase() throws Exception {
+      // -- PREPARE --
+      Team teamToRemove = new Team();
+      teamToRemove.setName("TeamToRemove-RT3");
+      teamRepository.save(teamToRemove);
+      TEAM_IDS.add(teamToRemove.getId());
+
+      Team teamToKeep = new Team();
+      teamToKeep.setName("TeamToKeep-RT3");
+      teamRepository.save(teamToKeep);
+      TEAM_IDS.add(teamToKeep.getId());
+
+      Team teamToAdd = new Team();
+      teamToAdd.setName("TeamToAdd-RT3");
+      teamRepository.save(teamToAdd);
+      TEAM_IDS.add(teamToAdd.getId());
+
+      Exercise exercise = ExerciseFixture.createDefaultCrisisExercise();
+      exercise.setTeams(List.of(teamToRemove, teamToKeep));
+      Exercise exerciseSaved = exerciseRepository.save(exercise);
+      EXERCISE_IDS.add(exerciseSaved.getId());
+
+      ExerciseUpdateTeamsInput input = new ExerciseUpdateTeamsInput();
+      input.setTeamIds(List.of(teamToKeep.getId(), teamToAdd.getId()));
+
+      // -- ACT --
+      mvc.perform(
+              put(EXERCISE_URI + "/" + exerciseSaved.getId() + "/teams/replace")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(objectMapper.writeValueAsString(input))
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk());
+
+      // -- ASSERT --
+      List<String> teamIds =
+          teamRepository.findAll(fromExercise(exerciseSaved.getId())).stream()
+              .map(Team::getId)
+              .toList();
+
+      assertEquals(2, teamIds.size());
+      assertTrue(teamIds.contains(teamToKeep.getId()), "teamToKeep should still be present.");
+      assertTrue(teamIds.contains(teamToAdd.getId()), "teamToAdd should be present");
+      assertFalse(teamIds.contains(teamToRemove.getId()), "teamToRemove should have been removed");
+    }
   }
 }

@@ -18,6 +18,8 @@ import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
+import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
+import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.service.InjectService;
@@ -27,6 +29,7 @@ import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.AssetService;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.service.stix.error.BundleValidationError;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.objects.DomainObject;
 import io.openaev.stix.objects.ObjectBase;
@@ -44,6 +47,9 @@ import io.openaev.utils.ResultUtils;
 import io.openaev.utils.StringUtils;
 import io.openaev.utils.time.TimeUtils;
 import jakarta.annotation.Resource;
+import jakarta.validation.constraints.NotNull;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -53,8 +59,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.coyote.BadRequestException;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -78,7 +82,7 @@ public class SecurityCoverageService {
   @Resource private OpenAEVConfig openAEVConfig;
   private final ObjectMapper objectMapper;
   private final VulnerabilityService vulnerabilityService;
-
+  private final OpenCTIConnectorService openCTIConnectorService;
   private final PreviewFeatureService previewFeatureService;
 
   // FIXME: don't access the connector directly when we deal with multiple origins
@@ -94,10 +98,10 @@ public class SecurityCoverageService {
    * @return the saved {@link SecurityCoverage} object
    * @throws JsonProcessingException if the input cannot be parsed into JSON
    * @throws ParsingException if the STIX bundle is obsolete or already stored
-   * @throws BadRequestException if validation fails
+   * @throws BundleValidationError if validation fails
    */
   public SecurityCoverage processAndBuildStixToSecurityCoverage(String stixJson)
-      throws ParsingException, BadRequestException, JsonProcessingException {
+      throws ParsingException, BundleValidationError, JsonProcessingException {
 
     JsonNode root = objectMapper.readTree(stixJson);
     String stixJsonHash = md5Hex(stixJson);
@@ -118,12 +122,12 @@ public class SecurityCoverageService {
    * @param stixJsonHash MD5 hash of the STIX JSON content
    * @return the saved {@link SecurityCoverage} object
    * @throws ParsingException if the STIX bundle is malformed
-   * @throws BadRequestException if the STIX bundle is obsolete or already stored
+   * @throws BundleValidationError if the STIX bundle is obsolete or already stored
    */
   @Lock(type = LockResourceType.SECURITY_COVERAGE, key = "#externalId")
   private SecurityCoverage buildSecurityCoverageFromStix(
       ObjectBase stixCoverageObj, Bundle bundle, String externalId, String stixJsonHash)
-      throws ParsingException, BadRequestException {
+      throws ParsingException, BundleValidationError {
 
     SecurityCoverage securityCoverage = getByExternalIdOrCreateSecurityCoverage(externalId);
 
@@ -213,7 +217,7 @@ public class SecurityCoverageService {
    */
   private static void checkLastBundle(
       ObjectBase stixCoverageObj, String externalId, SecurityCoverage securityCoverage)
-      throws ParsingException, BadRequestException {
+      throws ParsingException, BundleValidationError {
     // Check If stix coverage is the last one
     Object modifiedObj = stixCoverageObj.getProperty(MODIFIED).getValue();
 
@@ -238,7 +242,7 @@ public class SecurityCoverageService {
         stixModified);
     boolean isNewer = currentModified == null || stixModified.isAfter(currentModified);
     if (!isNewer) {
-      throw new BadRequestException(
+      throw new BundleValidationError(
           "The STIX package is obsolete because a newer version has already been computed.");
     }
   }
@@ -249,7 +253,7 @@ public class SecurityCoverageService {
    */
   private static void checkExistingBundle(
       String externalId, String stixJsonHash, SecurityCoverage securityCoverage)
-      throws BadRequestException {
+      throws BundleValidationError {
     // Check if contentHash already matches (duplicate)
     if (stixJsonHash.equals(securityCoverage.getBundleHashMd5())) {
       log.info(
@@ -257,7 +261,7 @@ public class SecurityCoverageService {
           externalId);
       // We could also simply return the existing security cover and avoid returning the error and
       // also avoid continue with the retry;
-      throw new BadRequestException(
+      throw new BundleValidationError(
           String.format(
               "Duplicate STIX bundle detected for externalId: %s -> returning existing object",
               externalId));
@@ -305,7 +309,34 @@ public class SecurityCoverageService {
         "Creating or Updating Scenario with ID: {} from Security coverage with external ID: {}",
         scenario.getId(),
         securityCoverage.getExternalId());
+
     return scenario;
+  }
+
+  /**
+   * Enrich and push the security coverage to OpenCTI. This injects the OpenAEV scenario external
+   * URL into the STIX object.
+   *
+   * @param scenario The scenario containing the security coverage.
+   * @throws ParsingException If STIX parsing fails.
+   * @throws ConnectorError If the OpenCTI push fails.
+   */
+  public void pushSecurityCoverageBundleWithExternalURI(Scenario scenario)
+      throws ParsingException, ConnectorError, IOException {
+    if (openCTIConnectorService.getConnectorBase().isEmpty()) {
+      return;
+    }
+
+    SecurityCoverage coverage = scenario.getSecurityCoverage();
+    String externalLink = openAEVConfig.getBaseUrl() + "/admin/scenarios/" + scenario.getId();
+
+    DomainObject sdo = (DomainObject) stixParser.parseObject(coverage.getContent());
+    sdo.setProperty(CommonProperties.EXTERNAL_URI.toString(), new StixString(externalLink));
+
+    Bundle bundle =
+        new Bundle(new Identifier("bundle", UUID.randomUUID().toString()), List.of(sdo));
+
+    openCTIConnectorService.pushSecurityCoverageStixBundle(bundle);
   }
 
   /**
@@ -468,8 +499,8 @@ public class SecurityCoverageService {
               new HashMap<>(
                   Map.of(
                       CommonProperties.ID.toString(),
-                      new Identifier(
-                          ObjectTypes.RELATIONSHIP.toString(), UUID.randomUUID().toString()),
+                      generateRelationship(
+                          coverage.getId().getValue(), platformIdentity.getId().getValue()),
                       CommonProperties.TYPE.toString(),
                       new StixString(ObjectTypes.RELATIONSHIP.toString()),
                       RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
@@ -510,7 +541,7 @@ public class SecurityCoverageService {
               new HashMap<>(
                   Map.of(
                       CommonProperties.ID.toString(),
-                      new Identifier(ObjectTypes.RELATIONSHIP.toString(), simulation.getId()),
+                      generateRelationship(coverageId.getValue(), stixRef.getStixRef()),
                       CommonProperties.TYPE.toString(),
                       new StixString(ObjectTypes.RELATIONSHIP.toString()),
                       RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
@@ -654,5 +685,11 @@ public class SecurityCoverageService {
 
   private BaseType<?> uncovered() {
     return new io.openaev.stix.types.List<>(new ArrayList<>());
+  }
+
+  private Identifier generateRelationship(String sourceId, String targetId) {
+    return new Identifier(
+        ObjectTypes.RELATIONSHIP.toString(),
+        UUID.nameUUIDFromBytes((sourceId + targetId).getBytes(StandardCharsets.UTF_8)).toString());
   }
 }

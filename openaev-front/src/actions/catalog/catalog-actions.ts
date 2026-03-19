@@ -5,6 +5,10 @@ import { arrayOfCatalogConnectors, catalogConnector } from './catalog-schema';
 
 const CATALOG_CONNECTORS_URI = '/api/catalog-connector';
 
+export const fetchCatalogConnectors = () => (dispatch: Dispatch) => {
+  return getReferential(arrayOfCatalogConnectors, `${CATALOG_CONNECTORS_URI}`)(dispatch);
+};
+
 export const fetchUndeployedCatalogConnectors = () => (dispatch: Dispatch) => {
   return getReferential(arrayOfCatalogConnectors, `${CATALOG_CONNECTORS_URI}/undeployed`)(dispatch);
 };

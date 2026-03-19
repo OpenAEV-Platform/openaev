@@ -17,6 +17,14 @@ public class ExecutorHelper {
       "Get-ChildItem -Path \"C:\\Program Files (x86)\\Filigran\\OAEV Agent\\payloads\",\"C:\\Program Files (x86)\\Filigran\\OAEV Agent\\runtimes\" -Directory -Recurse | Where-Object {$_.CreationTime -lt (Get-Date).AddHours(-24)} | Remove-Item -Recurse -Force";
   public static final String UNIX_CLEAN_PAYLOADS_COMMAND =
       "find /opt/openaev-agent/payloads /opt/openaev-agent/runtimes -type d -mmin +1440 -exec rm -rf {} + 2>/dev/null";
+  // Get arch from command
+  public static final String ARCH_VARIABLE = "$architecture";
+  public static final String WINDOWS_ARCH =
+      "switch ($env:PROCESSOR_ARCHITECTURE) { \"AMD64\" {$architecture = \"x86_64\"; Break} \"ARM64\" {$architecture = \"arm64\"; Break} \"x86\" { switch ($env:PROCESSOR_ARCHITEW6432) { \"AMD64\" {$architecture = \"x86_64\"; Break} \"ARM64\" {$architecture = \"arm64\"; Break} } } };";
+  public static final String UNIX_ARCH = "architecture=$(uname -m);";
+  // PowerShell command for base64 implant command to decode
+  public static final String POWERSHELL_CMD =
+      "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -NonInteractive -NoProfile -encodedCommand ";
 
   private ExecutorHelper() {}
 

@@ -7,6 +7,7 @@ import io.minio.BucketExistsArgs;
 import io.minio.MinioClient;
 import io.minio.errors.*;
 import io.openaev.config.MinioConfig;
+import io.openaev.config.RabbitMQSslConfiguration;
 import io.openaev.config.RabbitmqConfig;
 import io.openaev.database.repository.HealthCheckRepository;
 import io.openaev.driver.MinioDriver;
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class HealthCheckService {
 
+  private final RabbitMQSslConfiguration rabbitMQSslConfiguration;
   private final HealthCheckRepository healthCheckRepository;
   private final MinioConfig minioConfig;
   private final MinioDriver minioDriver;
@@ -59,8 +61,14 @@ public class HealthCheckService {
     factory.setUsername(rabbitmqConfig.getUser());
     factory.setPassword(rabbitmqConfig.getPass());
     factory.setVirtualHost(rabbitmqConfig.getVhost());
+    // Configure SSL if enabled
     if (rabbitmqConfig.isSsl()) {
-      factory.useSslProtocol();
+      try {
+        rabbitMQSslConfiguration.configureSsl(factory, rabbitmqConfig);
+      } catch (Exception e) {
+        log.error("Failed to configure SSL for RabbitMQ connection", e);
+        throw new IllegalStateException("Failed to configure SSL for RabbitMQ", e);
+      }
     }
     factory.setConnectionTimeout(2000);
     return factory;

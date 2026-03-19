@@ -8,6 +8,7 @@ import { type CatalogConnector, type ConnectorInstanceOutput } from '../../../..
 import ConnectorStatus from './ConnectorStatus';
 import ConnectorTitle from './ConnectorTitle';
 import DeployButton from './DeployButton';
+import MigrateButton from './MigrateButton';
 
 const useStyles = makeStyles()(theme => ({
   card: {
@@ -57,6 +58,12 @@ const useStyles = makeStyles()(theme => ({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  descriptionContainer: {
+    marginTop: 'auto',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
 }));
 
 export type ConnectorMainInfo = {
@@ -71,7 +78,7 @@ export type ConnectorMainInfo = {
   isVerified?: boolean;
   connectorUseCases?: string[];
   connectorInstancesCount?: number;
-  connectorCurrentStatus?: ConnectorInstanceOutput['connector_instance_current_status'];
+  connectorCurrentStatus?: ConnectorInstanceOutput['connector_instance_current_status'] | null;
 };
 
 type ConnectorCardProps = {
@@ -80,6 +87,7 @@ type ConnectorCardProps = {
   isNotClickable?: boolean;
   connector: ConnectorMainInfo;
   onDeployBtnClick?: (e: SyntheticEvent) => void;
+  onMigrateBtnClick?: (e: SyntheticEvent) => void;
 };
 
 const ConnectorCard = ({
@@ -88,6 +96,7 @@ const ConnectorCard = ({
   showStatusOrLastUpdatedAt = false,
   isNotClickable = false,
   onDeployBtnClick,
+  onMigrateBtnClick,
 }: ConnectorCardProps) => {
   const { classes } = useStyles();
   const { t, nsdt } = useFormatter();
@@ -101,11 +110,15 @@ const ConnectorCard = ({
       >
         <CardContent className={classes.content}>
           <ConnectorTitle connector={connector} />
-          {connector.connectorDescription && (
-            <Typography className={classes.description}>
-              {connector.connectorDescription}
-            </Typography>
-          )}
+          <div className={classes.descriptionContainer}>
+            {connector.connectorDescription && (
+              <Typography className={classes.description}>
+                {connector.connectorDescription}
+              </Typography>
+            )}
+            {onMigrateBtnClick
+              && <MigrateButton onMigrateBtnClick={onMigrateBtnClick} />}
+          </div>
           <div className={classes.footer}>
             <Chip
               variant="outlined"

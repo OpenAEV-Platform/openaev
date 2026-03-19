@@ -25,6 +25,9 @@ public interface InjectExpectationRepository
   @Query(value = "select i from InjectExpectation i where i.exercise.id = :exerciseId")
   List<InjectExpectation> findAllForExercise(@Param("exerciseId") String exerciseId);
 
+  @Query(value = "select i from InjectExpectation i where i.inject.id = :injectId")
+  List<InjectExpectation> findAllByInjectId(@Param("injectId") @NotBlank final String injectId);
+
   @Query(
       value =
           "select i from InjectExpectation i where i.exercise.id = :exerciseId and i.inject.id = :injectId")

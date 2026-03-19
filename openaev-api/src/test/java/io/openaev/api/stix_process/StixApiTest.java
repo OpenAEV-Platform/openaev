@@ -12,6 +12,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+import static org.mockserver.model.HttpResponse.response;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -28,9 +31,9 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.database.repository.TagRepository;
-import io.openaev.integration.Manager;
-import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
+import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.service.AssetGroupService;
+import io.openaev.service.stix.SecurityCoverageService;
 import io.openaev.stix.objects.constants.CommonProperties;
 import io.openaev.utils.constants.StixConstants;
 import io.openaev.utils.fixtures.*;
@@ -48,7 +51,9 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.*;
+import org.mockserver.integration.ClientAndServer;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -80,11 +85,17 @@ class StixApiTest extends IntegrationTest {
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private TagComposer tagComposer;
   @Autowired private DomainComposer domainComposer;
+  @Autowired private ConnectorInstanceComposer connectorInstanceComposer;
+  @Autowired private ConnectorInstanceConfigurationComposer connectorInstanceConfigurationComposer;
+  @Autowired private CatalogConnectorComposer catalogConnectorComposer;
 
   @Autowired private InjectorFixture injectorFixture;
-  @Autowired private ManualInjectorIntegrationFactory manualInjectorIntegrationFactory;
+  @Autowired private InjectorContractFixture injectorContractFixture;
+  @SpyBean private SecurityCoverageService securityCoverageService;
+  @Autowired private OpenCTIConnectorService openCTIConnectorService;
 
   private JsonNode stixSecurityCoverage;
+  private JsonNode stixSecurityCoverageTwoCoverages;
   private JsonNode stixSecurityCoverageNoDuration;
   private JsonNode stixSecurityCoverageNoPlatformAffinity;
   private JsonNode stixSecurityCoverageWithoutTtps;
@@ -93,9 +104,10 @@ class StixApiTest extends IntegrationTest {
   private JsonNode stixSecurityCoverageOnlyVulns;
   private JsonNode stixSecurityCoverageWithDomainName;
 
+  private static ClientAndServer mockServer;
+
   @BeforeEach
   void setUp() throws Exception {
-    new Manager(List.of(manualInjectorIntegrationFactory)).monitorIntegrations();
 
     attackPatternComposer.reset();
     vulnerabilityComposer.reset();
@@ -108,6 +120,10 @@ class StixApiTest extends IntegrationTest {
 
     stixSecurityCoverage =
         loadJsonWithStixObjects("src/test/resources/stix-bundles/security-coverage.json");
+
+    stixSecurityCoverageTwoCoverages =
+        loadJsonWithStixObjects(
+            "src/test/resources/stix-bundles/security-coverage-two-coverage-objects.json");
 
     stixSecurityCoverageNoDuration =
         loadJsonWithStixObjects(
@@ -184,6 +200,10 @@ class StixApiTest extends IntegrationTest {
             vulnerabilityComposer.forVulnerability(
                 VulnerabilityFixture.createVulnerabilityInput("CVE-2025-56786")))
         .persist();
+
+    injectorContractComposer
+        .forInjectorContract(injectorContractFixture.getWellKnownSingleManualContract())
+        .persist();
   }
 
   @Nested
@@ -205,7 +225,7 @@ class StixApiTest extends IntegrationTest {
               .andReturn()
               .getResponse()
               .getContentAsString();
-
+      verify(securityCoverageService).pushSecurityCoverageBundleWithExternalURI(any());
       assertThat(response).isNotBlank();
       String scenarioId = JsonPath.read(response, "$.scenarioId");
       Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
@@ -293,8 +313,8 @@ class StixApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Should return 400 when STIX bundle has no security coverage")
-    void shouldReturnBadRequestWhenNoSecurityCoverage() throws Exception {
+    @DisplayName("Should return 200 OK when STIX bundle has no security coverage")
+    void shouldReturn200OKWhenNoSecurityCoverage() throws Exception {
       JsonNode updated =
           updateStixObjectField(
               stixSecurityCoverage,
@@ -307,21 +327,20 @@ class StixApiTest extends IntegrationTest {
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(mapper.writeValueAsString(updated)))
-          .andExpect(status().isBadRequest());
+          .andExpect(status().isOk());
     }
 
     @Test
-    @DisplayName("Should return 400 when STIX bundle has multiple security coverages")
-    void shouldReturnBadRequestWhenMultipleSecurityCoverages() throws Exception {
+    @DisplayName("Should return 200 OK when STIX bundle has multiple security coverages")
+    void shouldReturn200OKWhenMultipleSecurityCoverages() throws Exception {
       // Simulate bundle with two identical security coverages
-      String content = mapper.writeValueAsString(stixSecurityCoverage);
-      String duplicatedCoverage = content.replace("]", ", " + content.split("\\[")[1]);
+      String content = mapper.writeValueAsString(stixSecurityCoverageTwoCoverages);
 
       mvc.perform(
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(duplicatedCoverage))
-          .andExpect(status().isBadRequest());
+                  .content(content))
+          .andExpect(status().isOk());
     }
 
     @Test
@@ -329,10 +348,10 @@ class StixApiTest extends IntegrationTest {
     void shouldReturnBadRequestWhenStixJsonIsInvalid() throws Exception {
       String invalidJson =
           """
-                    {
-                      "not-a-valid-json":
-                    }
-                    """;
+          {
+            "not-a-valid-json":
+          }
+          """;
 
       mvc.perform(
               post(STIX_URI + "/process-bundle")
@@ -363,6 +382,7 @@ class StixApiTest extends IntegrationTest {
     @DisplayName(
         "Should create the scenario from stix bundle and not set recurrence end if not specified")
     void shouldCreateScenarioNoEnd() throws Exception {
+
       String response =
           mvc.perform(
                   post(STIX_URI + "/process-bundle")
@@ -388,8 +408,8 @@ class StixApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Should throw bad request when security coverage is already saved")
-    void shouldThrowBadRequestWhenSecurityCoverageIsAlreadySaved() throws Exception {
+    @DisplayName("Should return 200 OK even when security coverage is already saved")
+    void shouldReturn200OKEvenWhenSecurityCoverageIsAlreadySaved() throws Exception {
       mvc.perform(
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
@@ -403,12 +423,12 @@ class StixApiTest extends IntegrationTest {
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(mapper.writeValueAsString(stixSecurityCoverage)))
-          .andExpect(status().isBadRequest());
+          .andExpect(status().isOk());
     }
 
     @Test
-    @DisplayName("Should throw bad request when security coverage is Obsolete")
-    void shouldThrowBadRequestWhenSecurityCoverageIsObsolete() throws Exception {
+    @DisplayName("Should return 200 OK even when security coverage is Obsolete")
+    void shouldReturn200OKEvenWhenSecurityCoverageIsObsolete() throws Exception {
       Instant reference = Instant.parse("2025-12-31T10:43:56Z");
       JsonNode referenceInput =
           updateStixObjectField(
@@ -440,7 +460,7 @@ class StixApiTest extends IntegrationTest {
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(mapper.writeValueAsString(updated)))
-          .andExpect(status().isBadRequest());
+          .andExpect(status().isOk());
     }
 
     @Test

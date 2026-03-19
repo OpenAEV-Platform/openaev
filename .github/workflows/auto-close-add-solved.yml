@@ -2,7 +2,7 @@ name: Auto Close and Solve Issues
 on:
   pull_request:
     branches:
-      - release/*
+      - release/current
       - master
     types:
       - closed
@@ -20,37 +20,30 @@ jobs:
     outputs:
       issue_numbers: ${{ steps.extract.outputs.issue_numbers }}
     steps:
-      - name: Extract issue numbers from PR title
+      - name: Extract issue numbers from PR title and body
         id: extract
         uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const prTitle = context.payload.pull_request.title;
+            const prBody = context.payload.pull_request.body || '';
+            const fullText = `${prTitle}\n${prBody}`;
+
             core.info(`PR Title: ${prTitle}`);
-            
-            // Match only issue-containing groups at the end
-            const endPattern = /(?:\((?:[^)]*#\d+[^)]*)\)|#\d+)(?:\s+(?:\((?:[^)]*#\d+[^)]*)\)|#\d+))*\s*$/;
-            const endMatch = prTitle.match(endPattern);
-            
-            let issueNumbers = [];
-            
-            if (endMatch) {
-              // Extract all #number patterns from the matched section
-              const allMatches = endMatch[0].matchAll(/#(\d+)/g);
-              issueNumbers = [...allMatches]
-                .map(match => match[1])
-                .filter((value, index, self) => self.indexOf(value) === index); // Remove duplicates
-            
-              if (issueNumbers.length > 0) {
-                core.info(`Found ${issueNumbers.length} issue number(s): ${issueNumbers.join(', ')}`);
-                core.setOutput('issue_numbers', issueNumbers.join(' '));
-              } else {
-                core.warning('No issue numbers found at the end of PR title');
-                core.setOutput('issue_numbers', '');
-              }
+
+            // GitHub closing keywords (case-insensitive)
+            // https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue
+            const closingPattern = /(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s*:?\s*#(\d+)/gi;
+
+            const matches = [...fullText.matchAll(closingPattern)];
+            const issueNumbers = [...new Set(matches.map(m => m[1]))];
+
+            if (issueNumbers.length > 0) {
+              core.info(`Found ${issueNumbers.length} issue(s) to close: ${issueNumbers.join(', ')}`);
+              core.setOutput('issue_numbers', issueNumbers.join(' '));
             } else {
-              core.warning('No issue numbers found at the end of PR title');
+              core.warning('No closing keywords found — no issues will be closed');
               core.setOutput('issue_numbers', '');
             }
 
@@ -70,17 +63,17 @@ jobs:
             const issueNumbers = "${{ needs.extract_issue_number.outputs.issue_numbers }}"
               .split(' ')
               .filter(num => num.trim() !== '');
-            
+
             core.info(`Processing ${issueNumbers.length} issue(s): ${issueNumbers.join(', ')}`);
             core.startGroup('Processing Issues');
-            
+
             let successCount = 0;
             let failureCount = 0;
-            
+
             for (const issueNumber of issueNumbers) {
               try {
                 core.startGroup(`Issue #${issueNumber}`);
-            
+
                 // Add "solved" label
                 await github.rest.issues.addLabels({
                   owner: context.repo.owner,
@@ -89,7 +82,7 @@ jobs:
                   labels: ["solved"]
                 });
                 core.info(`✓ Added "solved" label`);
-            
+
                 // Close the issue
                 await github.rest.issues.update({
                   owner: context.repo.owner,
@@ -98,19 +91,19 @@ jobs:
                   state: "closed"
                 });
                 core.info(`✓ Closed issue`);
-            
+
                 successCount++;
                 core.endGroup();
-            
+
               } catch (error) {
                 core.error(`✗ Failed to process issue #${issueNumber}: ${error.message}`);
                 failureCount++;
                 core.endGroup();
               }
             }
-            
+
             core.endGroup();
-            
+
             // Summary
             core.notice(`Successfully processed ${successCount} issue(s)`);
             if (failureCount > 0) {

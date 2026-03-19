@@ -2,6 +2,7 @@ package io.openaev.rest.payload;
 
 import static io.openaev.database.model.Payload.PAYLOAD_EXECUTION_ARCH.arm64;
 import static io.openaev.database.model.Payload.PAYLOAD_EXECUTION_ARCH.x86_64;
+import static io.openaev.utils.JsonUtils.safeArray;
 import static io.openaev.utils.StringUtils.duplicateString;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -44,7 +45,7 @@ public class PayloadUtils {
     payloadCreateInput.setStatus(
         Payload.PAYLOAD_STATUS.valueOf(payloadNode.get("payload_status").textValue()));
 
-    ArrayNode platformsNode = (ArrayNode) payloadNode.get("payload_platforms");
+    ArrayNode platformsNode = safeArray(payloadNode, "payload_platforms");
     Endpoint.PLATFORM_TYPE[] platforms = new Endpoint.PLATFORM_TYPE[platformsNode.size()];
     for (int i = 0; i < platformsNode.size(); i++) {
       platforms[i] = Endpoint.PLATFORM_TYPE.valueOf(platformsNode.get(i).textValue());
@@ -74,33 +75,28 @@ public class PayloadUtils {
       payloadCreateInput.setHostname(payloadNode.get("dns_resolution_hostname").textValue());
     }
 
-    if (payloadNode.has("payload_arguments")) {
-      ArrayNode argumentsNode = (ArrayNode) payloadNode.get("payload_arguments");
-      List<PayloadArgument> arguments = new ArrayList<>();
-      for (JsonNode argumentNode : argumentsNode) {
-        PayloadArgument argument = new PayloadArgument();
-        argument.setType(argumentNode.get("type").textValue());
-        argument.setKey(argumentNode.get("key").textValue());
-        argument.setDefaultValue(argumentNode.get("default_value").textValue());
-        argument.setDescription(argumentNode.get("description").textValue());
-        arguments.add(argument);
-      }
-      payloadCreateInput.setArguments(arguments);
+    List<PayloadArgument> arguments = new ArrayList<>();
+    for (JsonNode argumentNode : safeArray(payloadNode, "payload_arguments")) {
+      PayloadArgument argument = new PayloadArgument();
+      argument.setType(argumentNode.get("type").textValue());
+      argument.setKey(argumentNode.get("key").textValue());
+      argument.setDefaultValue(argumentNode.get("default_value").textValue());
+      argument.setDescription(argumentNode.get("description").textValue());
+      arguments.add(argument);
     }
+    payloadCreateInput.setArguments(arguments);
 
-    if (payloadNode.has("payload_prerequisites")) {
-      ArrayNode prerequisitesNode = (ArrayNode) payloadNode.get("payload_prerequisites");
-      List<PayloadPrerequisite> prerequisites = new ArrayList<>();
-      for (JsonNode prerequisiteNode : prerequisitesNode) {
-        PayloadPrerequisite prerequisite = new PayloadPrerequisite();
-        prerequisite.setExecutor(prerequisiteNode.get("executor").textValue());
-        prerequisite.setGetCommand(prerequisiteNode.get("get_command").textValue());
-        prerequisite.setCheckCommand(prerequisiteNode.get("check_command").textValue());
-        prerequisite.setDescription(prerequisiteNode.get("description").textValue());
-        prerequisites.add(prerequisite);
-      }
-      payloadCreateInput.setPrerequisites(prerequisites);
+    List<PayloadPrerequisite> prerequisites = new ArrayList<>();
+    for (JsonNode prerequisiteNode : safeArray(payloadNode, "payload_prerequisites")) {
+      PayloadPrerequisite prerequisite = new PayloadPrerequisite();
+      prerequisite.setExecutor(prerequisiteNode.get("executor").textValue());
+      prerequisite.setGetCommand(prerequisiteNode.get("get_command").textValue());
+      prerequisite.setCheckCommand(prerequisiteNode.get("check_command").textValue());
+      prerequisite.setDescription(prerequisiteNode.get("description").textValue());
+      prerequisites.add(prerequisite);
     }
+    payloadCreateInput.setPrerequisites(prerequisites);
+
     if (payloadNode.has("payload_cleanup_executor")) {
       payloadCreateInput.setCleanupExecutor(
           payloadNode.get("payload_cleanup_executor").textValue());

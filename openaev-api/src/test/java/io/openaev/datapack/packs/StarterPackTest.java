@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.doThrow;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.collect.Lists;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
@@ -70,6 +71,7 @@ public class StarterPackTest extends IntegrationTest {
   @Autowired private DomainComposer domainComposer;
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private InjectRepository injectRepository;
+  @Autowired private InjectorContractRepository injectorContractRepository;
 
   @Autowired private DataPackService dataPackService;
 
@@ -376,6 +378,7 @@ public class StarterPackTest extends IntegrationTest {
     this.verifyDefaultScenarioDashboardParameterExist();
     this.verifyDefaultSimulationDashboardParameterExist();
     this.verifyTagRuleExist();
+    this.verifyInjectorContracts();
 
     List<Inject> injects = this.injectRepository.findAll();
     assertFalse(injects.isEmpty());
@@ -437,6 +440,7 @@ public class StarterPackTest extends IntegrationTest {
     this.verifyDefaultScenarioDashboardParameterExist();
     this.verifyDefaultSimulationDashboardParameterExist();
     this.verifyTagRuleExist();
+    this.verifyInjectorContracts();
 
     List<Inject> injects = this.injectRepository.findAll();
     assertFalse(injects.isEmpty());
@@ -447,6 +451,37 @@ public class StarterPackTest extends IntegrationTest {
                     inject.getAssetGroups() != null
                         && !inject.getAssetGroups().isEmpty()
                         && "All endpoints".equals(inject.getAssetGroups().getFirst().getName())));
+  }
+
+  private void verifyInjectorContracts() {
+    Iterable<InjectorContract> injectorContractsIterable =
+        this.injectorContractRepository.findAll();
+    List<InjectorContract> injectorContracts = Lists.newArrayList(injectorContractsIterable);
+    assertEquals(15, injectorContracts.size());
+
+    InjectorContract injectorContractsDummyNuclei =
+        injectorContracts.stream()
+            .filter(c -> "2e7fc079-4531-4444-4444-928fe4a2fc0b".equals(c.getId()))
+            .findFirst()
+            .orElse(null);
+    assertNotNull(injectorContractsDummyNuclei);
+    assertEquals("Dummy Nuclei", injectorContractsDummyNuclei.getInjector().getName());
+    assertTrue(injectorContractsDummyNuclei.isAtomicTesting());
+    assertFalse(injectorContractsDummyNuclei.getNeedsExecutor());
+
+    InjectorContract injectorContractsBeaconPayload =
+        injectorContracts.stream()
+            .filter(
+                c ->
+                    c.getPayload() != null
+                        && "Download beacon to target with some masquerading - Salt Typhoon Style"
+                            .equals(c.getPayload().getName()))
+            .findFirst()
+            .orElse(null);
+    assertNotNull(injectorContractsBeaconPayload);
+    assertNotNull(injectorContractsBeaconPayload.getPayload());
+    assertTrue(injectorContractsBeaconPayload.isAtomicTesting());
+    assertTrue(injectorContractsBeaconPayload.getNeedsExecutor());
   }
 
   private void verifyTagsExist() {
@@ -498,7 +533,7 @@ public class StarterPackTest extends IntegrationTest {
 
   private void verifyScenarioExist() {
     List<Scenario> scenarios = scenarioRepository.findAll();
-    assertEquals(2, scenarios.size());
+    assertEquals(3, scenarios.size());
 
     Scenario scenario = scenarios.getFirst();
     assertEquals("starterpack", scenario.getName());

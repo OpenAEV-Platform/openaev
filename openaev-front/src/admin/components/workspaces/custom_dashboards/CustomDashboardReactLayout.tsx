@@ -1,6 +1,6 @@
 import { Paper } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, useContext, useEffect, useMemo, useState } from 'react';
-import RGL, { type Layout, WidthProvider } from 'react-grid-layout';
+import ReactGridLayout, { type Layout, type LayoutItem } from 'react-grid-layout';
 
 import { updateCustomDashboardWidgetLayout } from '../../../../actions/custom_dashboards/customdashboardwidget-action';
 import { type Widget, type WidgetLayout } from '../../../../utils/api-types';
@@ -13,10 +13,10 @@ const CustomDashboardReactLayout: FunctionComponent<{
 }> = ({ readOnly, style = {} }) => {
   const { customDashboard, setCustomDashboard, setGridReady } = useContext(CustomDashboardContext);
 
-  // Create ReactGridLayout inside component (same pattern as OpenCTI)
-  const ReactGridLayout = useMemo(() => WidthProvider(RGL), []);
+  // Track container width for responsive grid
+  const [containerWidth, setContainerWidth] = useState(1200);
 
-  // Hide grid until WidthProvider has measured container (prevents initial layout animation)
+  // Hide grid until container has been measured (prevents initial layout animation)
   const [isReady, setIsReady] = useState(false);
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -25,6 +25,22 @@ const CustomDashboardReactLayout: FunctionComponent<{
     }, 150);
     return () => clearTimeout(timeout);
   }, [setGridReady]);
+
+  // Measure container width on mount and resize
+  useEffect(() => {
+    const container = document.querySelector('.dashboard-container');
+    if (!container) return;
+
+    const updateWidth = () => {
+      setContainerWidth(container.clientWidth);
+    };
+
+    const resizeObserver = new ResizeObserver(updateWidth);
+    resizeObserver.observe(container);
+    updateWidth(); // Initial measurement
+
+    resizeObserver.disconnect();
+  }, []);
 
   const [deleting, setDeleting] = useState(false);
   const [idToResize, setIdToResize] = useState<string | null>(null);
@@ -35,14 +51,14 @@ const CustomDashboardReactLayout: FunctionComponent<{
   // Map of widget layouts, refreshed when dashboard is updated (like OpenCTI).
   // We use a local map of layouts to avoid a lot of computation when only changing position
   // or dimension of widgets.
-  const [widgetsLayouts, setWidgetsLayouts] = useState<Record<string, Layout>>({});
+  const [widgetsLayouts, setWidgetsLayouts] = useState<Record<string, LayoutItem>>({});
 
   // Array of all widgets, refreshed when dashboard is updated (same pattern as OpenCTI).
   // Sync our local layouts immediately.
   const widgetsArray = useMemo(() => {
     const widgets = customDashboard?.custom_dashboard_widgets ?? [];
     setWidgetsLayouts(
-      widgets.reduce<Record<string, Layout>>((res, widget) => {
+      widgets.reduce<Record<string, LayoutItem>>((res, widget) => {
         if (widget.widget_layout) {
           res[widget.widget_id] = {
             i: widget.widget_id,
@@ -97,14 +113,14 @@ const CustomDashboardReactLayout: FunctionComponent<{
     }));
   };
 
-  const onLayoutChange = (layouts: Layout[]) => {
+  const onLayoutChange = (layouts: Layout) => {
     if (deleting || !customDashboard) {
       setDeleting(false);
       return;
     }
 
     // Build maps for quick lookup
-    const newLayouts: Record<string, Layout> = {};
+    const newLayouts: Record<string, LayoutItem> = {};
     const layoutMap = new Map<string, WidgetLayout>();
     layouts.forEach((layout) => {
       newLayouts[layout.i] = layout;
@@ -149,7 +165,7 @@ const CustomDashboardReactLayout: FunctionComponent<{
   };
 
   // Compute layouts directly for data-grid prop to avoid timing issues
-  const getWidgetLayout = (widget: Widget): Layout => {
+  const getWidgetLayout = (widget: Widget): LayoutItem => {
     // First check local state (for user-modified positions)
     if (widgetsLayouts[widget.widget_id]) {
       return widgetsLayouts[widget.widget_id];
@@ -176,6 +192,7 @@ const CustomDashboardReactLayout: FunctionComponent<{
 
   return (
     <div
+      className="dashboard-container"
       style={{
         ...style,
         width: '100%',
@@ -184,15 +201,20 @@ const CustomDashboardReactLayout: FunctionComponent<{
     >
       <ReactGridLayout
         className="layout"
-        margin={[20, 20]}
-        containerPadding={[0, 0]}
-        rowHeight={50}
-        cols={12}
-        draggableCancel=".noDrag,.MuiAutocomplete-paper,.MuiModal-backdrop,.MuiPopover-paper,.MuiDialog-paper"
-        isDraggable={!readOnly}
-        isResizable={!readOnly}
-        onLayoutChange={!readOnly ? onLayoutChange : () => true}
-        onResizeStart={!readOnly ? (_, { i }) => handleResize(i) : undefined}
+        width={containerWidth}
+        gridConfig={{
+          margin: [20, 20],
+          containerPadding: [0, 0],
+          rowHeight: 50,
+          cols: 12,
+        }}
+        dragConfig={{
+          cancel: '.noDrag,.MuiAutocomplete-paper,.MuiModal-backdrop,.MuiPopover-paper,.MuiDialog-paper',
+          enabled: !readOnly,
+        }}
+        resizeConfig={{ enabled: !readOnly }}
+        onLayoutChange={!readOnly ? onLayoutChange : undefined}
+        onResizeStart={!readOnly ? (_layout, _oldItem, newItem) => handleResize(newItem?.i ?? null) : undefined}
         onResizeStop={!readOnly ? () => handleResize(null) : undefined}
       >
         {widgetsArray.map((widget) => {

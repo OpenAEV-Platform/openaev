@@ -32,16 +32,39 @@ public class OpenCTIService {
   private final ObjectMapper mapper;
   private final PrivilegeService privilegeService;
 
+  public QueryTypeFields.ResponsePayload queryTypeFields(ConnectorBase connector, String typeName)
+      throws IOException, ConnectorError {
+    Response r =
+        openCTIClient.execute(
+            connector.getApiUrl(),
+            classicOpenCTIConfig.getToken(),
+            new QueryTypeFields(connector, typeName));
+    if (r.isError()) {
+      throw new ConnectorError(
+          """
+              Failed to query type fields for type %s with OpenCTI at %s
+              Errors: %s
+              """
+              .formatted(
+                  typeName,
+                  connector.getApiUrl(),
+                  r.getErrors().stream().map(Error::toString).collect(Collectors.joining("\n"))));
+    } else {
+      return mapper.convertValue(r.getData(), QueryTypeFields.ResponsePayload.class);
+    }
+  }
+
   public RegisterConnector.ResponsePayload registerConnector(ConnectorBase connector)
       throws IOException, ConnectorError {
-
     privilegeService.ensurePrivilegedUserExistsForConnector(connector);
+
+    QueryTypeFields.ResponsePayload typeFields = this.queryTypeFields(connector, "Connector");
 
     Response r =
         openCTIClient.execute(
             connector.getApiUrl(),
             classicOpenCTIConfig.getToken(),
-            new RegisterConnector(connector));
+            new RegisterConnector(connector, typeFields.hasJwks()));
     if (r.isError()) {
       throw new ConnectorError(
           """
@@ -60,6 +83,9 @@ public class OpenCTIService {
           "Registered connector {} with OpenCTI at {}", connector.getName(), connector.getApiUrl());
       // side effect on transient state
       connector.setRegistered(true);
+      if (payload.getRegisterConnectorContent() != null) {
+        connector.setJwks(payload.getRegisterConnectorContent().getJwks());
+      }
       return payload;
     }
   }
@@ -71,12 +97,15 @@ public class OpenCTIService {
           "Cannot ping connector %s with OpenCTI at %s: connector hasn't registered yet. Try again later."
               .formatted(connector.getName(), connector.getApiUrl()));
     }
-
     privilegeService.ensurePrivilegedUserExistsForConnector(connector);
+
+    QueryTypeFields.ResponsePayload typeFields = this.queryTypeFields(connector, "Connector");
 
     Response r =
         openCTIClient.execute(
-            connector.getApiUrl(), classicOpenCTIConfig.getToken(), new Ping(connector));
+            connector.getApiUrl(),
+            classicOpenCTIConfig.getToken(),
+            new Ping(connector, typeFields.hasJwks()));
     if (r.isError()) {
       throw new ConnectorError(
           """
@@ -91,6 +120,9 @@ public class OpenCTIService {
       Ping.ResponsePayload payload = mapper.convertValue(r.getData(), Ping.ResponsePayload.class);
       log.info(
           "Pinged connector {} with OpenCTI at {}", connector.getName(), connector.getApiUrl());
+      if (payload.getPingConnectorContent() != null) {
+        connector.setJwks(payload.getPingConnectorContent().getJwks());
+      }
       return payload;
     }
   }
