@@ -46,7 +46,7 @@ public class SecurityPlatform extends Asset implements StixDomainObjectConvertib
                 CommonProperties.TYPE.toString(),
                 new StixString(ObjectTypes.IDENTITY.toString()),
                 "identity_class",
-                new StixString("securityplatform"))));
+                new StixString("security-platform"))));
   }
 
   public enum SECURITY_PLATFORM_TYPE {
