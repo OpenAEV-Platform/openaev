@@ -26,6 +26,7 @@ public class V4_78__Update_domains_for_tenants extends BaseJavaMigration {
           """
                   CREATE INDEX IF NOT EXISTS idx_tenant_id ON domains(tenant_id);
                   """);
+      // Delete the unique name constraint and recreate for name/tenant_id to allow same domain name for different tenants
       statement.execute(
           """
                     ALTER TABLE domains
