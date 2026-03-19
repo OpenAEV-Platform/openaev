@@ -4,7 +4,7 @@ import { useContext } from 'react';
 import { type LoggedHelper, type UserHelper } from '../../actions/helper';
 import { type ScenariosHelper } from '../../actions/scenarios/scenario-helper';
 import { useHelper } from '../../store';
-import { AbilityContext } from './PermissionsProvider';
+import { AbilityContext } from './permissionsContext';
 import { ACTIONS, SUBJECTS } from './types';
 
 const useScenarioPermissions = (scenarioId: string) => {

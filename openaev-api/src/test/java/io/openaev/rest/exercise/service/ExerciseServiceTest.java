@@ -21,11 +21,8 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exercise.form.ExercisesGlobalScoresInput;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.service.TagRuleService;
-import io.openaev.service.TeamService;
-import io.openaev.service.UserService;
-import io.openaev.service.VariableService;
-import io.openaev.service.cron.CronService;
+import io.openaev.service.*;
+import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.openaev.utils.ResultUtils;
@@ -39,10 +36,7 @@ import io.openaev.utils.mapper.InjectMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -82,12 +76,14 @@ class ExerciseServiceTest extends IntegrationTest {
   @Mock private ExerciseTeamUserRepository exerciseTeamUserRepository;
   @Mock private InjectRepository injectRepository;
   @Mock private LessonsCategoryRepository lessonsCategoryRepository;
-  @Mock private CronService cronService;
+  @Mock private GrantService grantService;
+  @Mock private ExerciseTeamUserService exerciseTeamUserService;
 
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private EntityManager entityManager;
   @Autowired private ExerciseService actualExerciseService;
+  @Autowired private ScenarioRecurrenceService scenarioRecurrenceService;
 
   @Mock private InjectExpectationMapper injectExpectationMapper;
 
@@ -104,8 +100,9 @@ class ExerciseServiceTest extends IntegrationTest {
             tagRuleService,
             documentService,
             injectService,
-            cronService,
             userService,
+            grantService,
+            exerciseTeamUserService,
             exerciseMapper,
             injectMapper,
             resultUtils,
@@ -121,7 +118,8 @@ class ExerciseServiceTest extends IntegrationTest {
             exerciseTeamUserRepository,
             injectRepository,
             lessonsCategoryRepository,
-            injectExpectationMapper);
+            injectExpectationMapper,
+            scenarioRecurrenceService);
 
     scenarioComposer.reset();
     exerciseComposer.reset();
@@ -173,8 +171,8 @@ class ExerciseServiceTest extends IntegrationTest {
     inject1.setId("2");
     Exercise exercise = ExerciseFixture.getExercise(null);
     exercise.setInjects(List.of(inject1, inject2));
-    exercise.setTags(Set.of(tag1, tag2));
-    Set<Tag> currentTags = Set.of(tag2, tag3);
+    exercise.setTags(new HashSet<>(Set.of(tag1, tag2)));
+    Set<Tag> currentTags = new HashSet<>(Set.of(tag2, tag3));
     List<AssetGroup> assetGroupsToAdd = List.of(assetGroup1, assetGroup2);
 
     when(tagRuleService.getAssetGroupsFromTagIds(List.of(tag1.getId())))
@@ -206,8 +204,8 @@ class ExerciseServiceTest extends IntegrationTest {
     inject1.setId("2");
     Exercise exercise = ExerciseFixture.getExercise(null);
     exercise.setInjects(List.of(inject1, inject2));
-    exercise.setTags(Set.of(tag1, tag2));
-    Set<Tag> currentTags = Set.of(tag2, tag3);
+    exercise.setTags(new HashSet<>(Set.of(tag1, tag2)));
+    Set<Tag> currentTags = new HashSet<>(Set.of(tag2, tag3));
     List<AssetGroup> assetGroupsToAdd = List.of(assetGroup1, assetGroup2);
 
     when(tagRuleService.getAssetGroupsFromTagIds(List.of(tag1.getId())))
@@ -232,8 +230,8 @@ class ExerciseServiceTest extends IntegrationTest {
     inject1.setId("2");
     Exercise exercise = ExerciseFixture.getExercise(null);
     exercise.setInjects(List.of(inject1, inject2));
-    exercise.setTags(Set.of(tag1, tag2));
-    Set<Tag> currentTags = Set.of(tag2, tag3);
+    exercise.setTags(new HashSet<>(Set.of(tag1, tag2)));
+    Set<Tag> currentTags = new HashSet<>(Set.of(tag2, tag3));
 
     when(exerciseRepository.save(exercise)).thenReturn(exercise);
 

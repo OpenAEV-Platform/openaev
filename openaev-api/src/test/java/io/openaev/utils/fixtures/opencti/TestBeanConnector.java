@@ -4,6 +4,7 @@ import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.ConnectorType;
 import java.util.UUID;
 import lombok.Getter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -11,6 +12,9 @@ import org.springframework.stereotype.Component;
 public class TestBeanConnector extends ConnectorBase {
   private final String name = "Test Bean Connector";
   private final ConnectorType type = ConnectorType.INTERNAL_ENRICHMENT;
+
+  @Value("${openaev.test.connector.url:#{'test opencti server url'}}")
+  private String url;
 
   public TestBeanConnector() {
     this.setAuto(false);
@@ -22,12 +26,12 @@ public class TestBeanConnector extends ConnectorBase {
 
   @Override
   public String getUrl() {
-    return "test opencti server url";
+    return url;
   }
 
   @Override
   public String getApiUrl() {
-    return "test opencti server url";
+    return url;
   }
 
   @Override

@@ -9,6 +9,7 @@ import static io.openaev.utils.fixtures.RawInjectExpectationFixture.createDefaul
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.raw.RawInjectExpectation;
@@ -32,6 +33,7 @@ class ResultUtilsTest extends IntegrationTest {
 
   @Mock private InjectExpectationRepository injectExpectationRepository;
   @Mock private InjectRepository injectRepository;
+  @Mock private ObjectMapper objectMapper;
   @Mock private InjectUtils injectUtils;
 
   private InjectExpectationMapper injectExpectationMapper;
@@ -39,7 +41,8 @@ class ResultUtilsTest extends IntegrationTest {
 
   @BeforeEach
   void before() {
-    injectExpectationMapper = new InjectExpectationMapper(injectRepository, injectUtils);
+    injectExpectationMapper =
+        new InjectExpectationMapper(injectRepository, objectMapper, injectUtils);
     resultUtils = new ResultUtils(injectExpectationRepository, injectExpectationMapper);
   }
 

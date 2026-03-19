@@ -1,5 +1,5 @@
 import type { ExecutorHelper } from '../../actions/executors/executor-helper';
-import { type EndpointOutput, type ExecutorOutput } from '../api-types';
+import { type AgentExecutorOutput, type EndpointOutput } from '../api-types';
 
 export const getActiveMsgTooltip = (activity_map: boolean[], activeMessage: string, inactiveMessage: string, agentlessMessage: string): {
   status: 'Active' | 'Inactive' | 'Agentless';
@@ -39,5 +39,5 @@ export const getExecutorsCount = (endpoint: EndpointOutput, executorsMap: Return
       acc['Unknown'] = acc['Unknown'] || [];
     }
     return acc;
-  }, {} as Record<string, ExecutorOutput[]>);
+  }, {} as Record<string, AgentExecutorOutput[]>);
 };

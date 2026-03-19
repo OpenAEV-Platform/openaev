@@ -8,7 +8,8 @@ import static org.springframework.security.saml2.provider.service.authentication
 import io.openaev.config.OpenAEVSaml2User;
 import io.openaev.database.model.User;
 import io.openaev.security.SsoRefererAuthenticationSuccessHandler;
-import jakarta.validation.constraints.NotBlank;
+import io.openaev.service.UserMappingService;
+import io.openaev.service.user_events.UserEventService;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -36,15 +37,17 @@ import org.springframework.security.saml2.provider.service.web.authentication.Sa
 @RequiredArgsConstructor
 public class OpenSamlConfig {
 
-  public static final String ROLES_PATH_SUFFIX = ".roles_path";
   public static final String FIRSTNAME_ATTRIBUTE_PATH_SUFFIX = ".firstname_attribute_key";
   public static final String LASTNAME_ATTRIBUTE_PATH_SUFFIX = ".lastname_attribute_key";
 
   private final Environment env;
   private final SecurityService securityService;
+  private final UserMappingService userMappingService;
 
   @Autowired(required = false)
   private RelyingPartyRegistrationRepository relyingPartyRegistrationRepository;
+
+  private final UserEventService userEventService;
 
   public void addOpenSamlConfig(@NotNull final HttpSecurity http) throws Exception {
     if (this.relyingPartyRegistrationRepository == null) {
@@ -98,7 +101,8 @@ public class OpenSamlConfig {
   private User userSaml2Management(@NotNull final Saml2AuthenticatedPrincipal user) {
     String emailAttribute = user.getName();
     String registrationId = user.getRelyingPartyRegistrationId();
-    List<String> rolesFromUser = extractRolesFromUser(user, registrationId);
+    List<String> rolesFromUser = userMappingService.extractRolesFromUser(user, registrationId);
+    List<String> groupsFromUser = userMappingService.extractGroupsFromUser(user, registrationId);
 
     String firstname =
         user.getFirstAttribute(
@@ -116,7 +120,7 @@ public class OpenSamlConfig {
     try {
       User userLogin =
           securityService.userManagement(
-              emailAttribute, registrationId, rolesFromUser, firstname, lastname);
+              emailAttribute, registrationId, rolesFromUser, groupsFromUser, firstname, lastname);
 
       if (userLogin != null) {
         return userLogin;
@@ -127,25 +131,5 @@ public class OpenSamlConfig {
 
     Saml2Error authError = new Saml2Error("invalid_token", "User conversion fail");
     throw new Saml2AuthenticationException(authError);
-  }
-
-  private List<String> extractRolesFromUser(
-      @NotNull final Saml2AuthenticatedPrincipal user, @NotBlank final String registrationId) {
-    List<String> rolesPath = getRoles(registrationId);
-    List<String> extractedRoles = new ArrayList<>();
-
-    for (String path : rolesPath) {
-      List<String> roles = user.getAttribute(path);
-      if (roles != null) {
-        extractedRoles.addAll(roles);
-      }
-    }
-    return extractedRoles;
-  }
-
-  private List<String> getRoles(@NotBlank final String registrationId) {
-    String rolesPathConfig = OPENAEV_PROVIDER_PATH_PREFIX + registrationId + ROLES_PATH_SUFFIX;
-    //noinspection unchecked
-    return env.getProperty(rolesPathConfig, List.class, new ArrayList<String>());
   }
 }

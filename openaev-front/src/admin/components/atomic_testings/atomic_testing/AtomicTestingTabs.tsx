@@ -96,7 +96,6 @@ const AtomicTestingTabs = ({ injectResultOverview }: Props) => {
                 <EEChip
                   style={{ marginLeft: theme.spacing(1) }}
                   clickable
-                  featureDetectedInfo={t('Remediation')}
                 />
               )}
             </Box>

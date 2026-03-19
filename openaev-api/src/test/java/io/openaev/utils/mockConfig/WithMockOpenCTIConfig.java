@@ -10,4 +10,6 @@ public @interface WithMockOpenCTIConfig {
   String url() default "";
 
   String apiUrl() default "";
+
+  String token() default "";
 }

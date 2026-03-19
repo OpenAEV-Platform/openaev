@@ -9,6 +9,7 @@ import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import { type InjectTarget, type SearchPaginationInput } from '../../../../utils/api-types';
+import { isAgentless } from '../../../../utils/target/TargetUtils';
 import { InjectResultOverviewOutputContext, type InjectResultOverviewOutputContextType } from '../InjectResultOverviewOutputContext';
 import PaginatedTargetTab from './PaginatedTargetTab';
 import TargetResultsDetail from './target_result/TargetResultsDetail';
@@ -282,7 +283,7 @@ const AtomicTesting = () => {
           {t('Results by target')}
         </Typography>
         {selectedTarget && !!injectResultOverviewOutput.inject_type && (
-          <TargetResultsDetail inject={injectResultOverviewOutput} target={selectedTarget} />
+          <TargetResultsDetail inject={injectResultOverviewOutput} target={selectedTarget} isAgentless={isAgentless(hasAgents, hasTeams)} />
         )}
         {!selectedTarget && (
           <Paper classes={{ root: classes.paper }} variant="outlined">

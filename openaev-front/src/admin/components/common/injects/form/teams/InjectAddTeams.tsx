@@ -22,7 +22,7 @@ import Transition from '../../../../../../components/common/Transition';
 import { useFormatter } from '../../../../../../components/i18n';
 import ItemTags from '../../../../../../components/ItemTags';
 import { type TeamOutput } from '../../../../../../utils/api-types';
-import { Can } from '../../../../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
 import CreateTeam from '../../../../components/teams/CreateTeam';
 import { TeamContext } from '../../../Context';
@@ -131,15 +131,17 @@ const InjectAddTeams: FunctionComponent<Props> = ({
       </ListItemButton>
       <Dialog
         open={open}
-        TransitionComponent={Transition}
+        slots={{ transition: Transition }}
         onClose={handleClose}
         fullWidth
         maxWidth="lg"
-        PaperProps={{
-          elevation: 1,
-          sx: {
-            minHeight: 580,
-            maxHeight: 580,
+        slotProps={{
+          paper: {
+            elevation: 1,
+            sx: {
+              minHeight: 580,
+              maxHeight: 580,
+            },
           },
         }}
       >

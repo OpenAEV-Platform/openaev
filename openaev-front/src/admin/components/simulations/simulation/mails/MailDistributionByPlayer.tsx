@@ -57,7 +57,7 @@ const MailDistributionByPlayer: FunctionComponent<Props> = ({ exerciseId }) => {
   const totalMailsByUserData = [
     {
       name: t('Total mails'),
-      data: sortedUsersByCommunicationNumber.map((u: Communication & { user_communications_number: number }) => ({
+      data: sortedUsersByCommunicationNumber.map((u: User & { user_communications_number: number }) => ({
         x: resolveUserName(u),
         y: u.user_communications_number,
       })),

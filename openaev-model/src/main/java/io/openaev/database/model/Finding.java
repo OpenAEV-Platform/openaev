@@ -8,9 +8,9 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MonoIdDeserializer;
-import io.openaev.helper.MultiIdListDeserializer;
-import io.openaev.helper.MultiIdSetDeserializer;
+import io.openaev.helper.MonoIdSerializer;
+import io.openaev.helper.MultiIdListSerializer;
+import io.openaev.helper.MultiIdSetSerializer;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -76,7 +76,7 @@ public class Finding implements Base {
       name = "findings_tags",
       joinColumns = @JoinColumn(name = "finding_id"),
       inverseJoinColumns = @JoinColumn(name = "tag_id"))
-  @JsonSerialize(using = MultiIdSetDeserializer.class)
+  @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonProperty("finding_tags")
   @Queryable(filterable = true, dynamicValues = true, path = "tags.id")
   private Set<Tag> tags = new HashSet<>();
@@ -86,7 +86,7 @@ public class Finding implements Base {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "finding_inject_id")
   @JsonProperty("finding_inject_id")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @Schema(type = "string")
   @Queryable(filterable = true, dynamicValues = true, sortable = true, path = "inject.id")
   private Inject inject;
@@ -114,7 +114,7 @@ public class Finding implements Base {
       name = "findings_assets",
       joinColumns = @JoinColumn(name = "finding_id"),
       inverseJoinColumns = @JoinColumn(name = "asset_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("finding_assets")
   @Queryable(filterable = true, dynamicValues = true, path = "assets.id")
   private List<Asset> assets = new ArrayList<>();
@@ -131,7 +131,7 @@ public class Finding implements Base {
       name = "findings_teams",
       joinColumns = @JoinColumn(name = "finding_id"),
       inverseJoinColumns = @JoinColumn(name = "team_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("finding_teams")
   private List<Team> teams = new ArrayList<>();
 
@@ -141,7 +141,7 @@ public class Finding implements Base {
       name = "findings_users",
       joinColumns = @JoinColumn(name = "finding_id"),
       inverseJoinColumns = @JoinColumn(name = "user_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("finding_users")
   private List<User> users = new ArrayList<>();
 
@@ -152,20 +152,27 @@ public class Finding implements Base {
   @JsonProperty("finding_simulation")
   @Queryable(filterable = true, dynamicValues = true, path = "inject.exercise.id")
   public Exercise getSimulation() {
+    if (getInject() == null) {
+      return null;
+    }
     return getInject().getExercise();
   }
 
   @JsonProperty("finding_scenario")
   @Queryable(filterable = true, dynamicValues = true, path = "inject.exercise.scenario.id")
   public Scenario getScenario() {
-    return Optional.ofNullable(getInject().getExercise())
-        .map(exercise -> exercise.getScenario())
-        .orElse(null);
+    if (getInject() == null) {
+      return null;
+    }
+    return Optional.ofNullable(getInject().getExercise()).map(Exercise::getScenario).orElse(null);
   }
 
   @JsonProperty("finding_asset_groups")
   @Queryable(filterable = true, dynamicValues = true, path = "inject.assetGroups.id")
   public Set<AssetGroup> getAssetGroups() {
+    if (getInject() == null) {
+      return Collections.emptySet();
+    }
     return getInject().getAssetGroups().stream().collect(Collectors.toSet());
   }
 }

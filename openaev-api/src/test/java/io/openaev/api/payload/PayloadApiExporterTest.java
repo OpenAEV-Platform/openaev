@@ -14,10 +14,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.Domain;
+import io.openaev.utils.fixtures.DomainFixture;
+import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
 import io.openaev.utils.fixtures.composers.TagComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,11 +35,14 @@ class PayloadApiExporterTest extends IntegrationTest {
 
   @Autowired private MockMvc mockMvc;
   @Autowired private PayloadComposer payloadComposer;
+  @Autowired private DomainComposer domainComposer;
   @Autowired private TagComposer tagComposer;
 
   PayloadComposer.Composer createPayloadComposer() {
+    Set<Domain> domains =
+        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
     return this.payloadComposer
-        .forPayload(createDefaultCommand())
+        .forPayload(createDefaultCommand(domains))
         .withTag(tagComposer.forTag(getTagWithText("malware")))
         .persist();
   }

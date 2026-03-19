@@ -11,10 +11,17 @@ public class ExpectationUtils {
 
   private ExpectationUtils() {}
 
+  /**
+   * Checks if an expectation has expired based on its expiration time setting.
+   *
+   * @param expectation the expectation to check
+   * @return true if the expectation has exceeded its expiration time
+   */
   public static boolean isExpired(@NotNull final InjectExpectation expectation) {
-    Instant expirationTime =
-        Instant.now().minus(expectation.getExpirationTime() / 60, ChronoUnit.MINUTES);
-    return expectation.getCreatedAt().isBefore(expirationTime);
+    // expirationTime is stored in seconds, convert to minutes for comparison
+    long expirationTimeInMinutes = expectation.getExpirationTime() / 60;
+    Instant expirationThreshold = Instant.now().minus(expirationTimeInMinutes, ChronoUnit.MINUTES);
+    return expectation.getCreatedAt().isBefore(expirationThreshold);
   }
 
   public static String computeSuccessMessage(@NotNull final EXPECTATION_TYPE expectationType) {

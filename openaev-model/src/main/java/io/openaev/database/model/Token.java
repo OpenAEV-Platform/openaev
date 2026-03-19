@@ -2,7 +2,7 @@ package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import io.openaev.helper.MonoIdDeserializer;
+import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -32,7 +32,7 @@ public class Token implements Base {
 
   @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "token_user")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("token_user")
   @Schema(type = "string")
   private User user;
@@ -50,6 +50,12 @@ public class Token implements Base {
 
   @Override
   public boolean isUserHasAccess(User user) {
+    if (user.isAdmin()) {
+      return true;
+    }
+    if (this.user == null) {
+      return false;
+    }
     return this.user.equals(user);
   }
 

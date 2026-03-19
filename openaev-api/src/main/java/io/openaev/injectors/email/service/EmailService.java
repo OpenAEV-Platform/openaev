@@ -124,7 +124,7 @@ public class EmailService {
               "Mail successfully send (imap disabled)", ExecutionTraceAction.COMPLETE, userIds));
       return;
     }
-    if (execution.isRuntime() && imapEnabled) {
+    if (execution.isRuntime()) {
       for (int i = 0; i < 3; i++) {
         try {
           imapService.storeSentMessage(mimeMessage);

@@ -1,6 +1,5 @@
 import { CssBaseline } from '@mui/material';
 import { StyledEngineProvider } from '@mui/material/styles';
-import * as R from 'ramda';
 import { lazy, Suspense, useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
 
@@ -15,12 +14,14 @@ import Loader from './components/Loader';
 import Message from './components/Message';
 import NotFound from './components/NotFound';
 import SystemBanners from './public/components/systembanners/SystemBanners';
+import LicenseBanner from './public/components/trialbanners/LicenseBanner';
+import StartTrialBanner from './public/components/trialbanners/StartTrialBanner';
 import { useHelper } from './store';
 import ErrorHandler from './utils/error/ErrorHandler';
 import { useAppDispatch } from './utils/hooks';
 import { UserContext } from './utils/hooks/useAuth';
 import useNetworkCheck from './utils/hooks/useCheckNetwork';
-import { PermissionsProvider } from './utils/permissions/PermissionsProvider';
+import PermissionsProvider from './utils/permissions/PermissionsProvider';
 
 const RootPublic = lazy(() => import('./public/Root'));
 const IndexPrivate = lazy(() => import('./private/Index'));
@@ -49,7 +50,7 @@ const Root = () => {
   }, []);
 
   const { isReachable } = useNetworkCheck(settings?.xtm_hub_url && `${settings?.xtm_hub_url}/health`);
-  if (R.isEmpty(logged)) {
+  if (logged && typeof logged === 'object' && Object.keys(logged).length === 0) {
     return <div />;
   }
 
@@ -60,6 +61,7 @@ const Root = () => {
       </Suspense>
     );
   }
+
   return (
     <PermissionsProvider capabilities={me.user_capabilities} grants={me.user_grants} isAdmin={me.user_admin}>
       <UserContext.Provider
@@ -78,6 +80,8 @@ const Root = () => {
                 <ErrorHandler />
                 <EnterpriseEditionAgreementDialog />
                 <SystemBanners settings={settings} />
+                <LicenseBanner settings={settings} />
+                <StartTrialBanner settings={settings} />
                 <Suspense fallback={<Loader />}>
                   <Routes>
                     <Route
@@ -102,7 +106,6 @@ const Root = () => {
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Suspense>
-
               </EnterpriseEditionProvider>
             </ConnectedThemeProvider>
           </ConnectedIntlProvider>

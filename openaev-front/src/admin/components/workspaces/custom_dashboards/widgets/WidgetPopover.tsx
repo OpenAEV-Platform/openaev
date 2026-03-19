@@ -5,7 +5,7 @@ import ButtonPopover, { type PopoverEntry } from '../../../../../components/comm
 import DialogDelete from '../../../../../components/common/DialogDelete';
 import { useFormatter } from '../../../../../components/i18n';
 import { type Widget } from '../../../../../utils/api-types';
-import { AbilityContext } from '../../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import WidgetForm from './configuration/WidgetForm';
 import { type WidgetInputWithoutLayout } from './WidgetUtils';
@@ -72,13 +72,13 @@ const WidgetPopover: FunctionComponent<Props> = ({
 
   return (
     <div className={className}>
-      <ButtonPopover entries={entries} variant="icon" />
+      <ButtonPopover entries={entries} variant="icon" size="small" />
       <WidgetForm
         open={openEdit}
         toggleDialog={toggleDialog}
         initialValues={initialValues}
         onSubmit={onSubmit}
-        editing={true}
+        editing
       />
       <DialogDelete
         open={openDelete}

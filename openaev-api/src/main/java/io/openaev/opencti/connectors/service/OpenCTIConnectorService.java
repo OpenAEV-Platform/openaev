@@ -22,7 +22,7 @@ public class OpenCTIConnectorService {
   private final OpenCTIService openCTIService;
 
   @NotNull
-  private Optional<ConnectorBase> getConnectorBase() {
+  public Optional<ConnectorBase> getConnectorBase() {
     // don't examine the bundle
     // pick the first occurrence of the correct connector type
     // it's not supported yet to have more than one active connector of each type

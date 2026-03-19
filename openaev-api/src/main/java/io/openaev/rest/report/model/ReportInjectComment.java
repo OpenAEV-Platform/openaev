@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.model.Inject;
-import io.openaev.helper.MonoIdDeserializer;
+import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
@@ -20,7 +20,7 @@ public class ReportInjectComment {
   @MapsId("injectId")
   @JoinColumn(name = "inject_id")
   @JsonIgnore // Ignore Inject object in JSON
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @NotNull
   @Schema(type = "string")
   private Inject inject;
@@ -29,7 +29,7 @@ public class ReportInjectComment {
   @MapsId("reportId")
   @JoinColumn(name = "report_id")
   @JsonIgnore // Ignore Inject object in JSON
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @NotNull
   @Schema(type = "string")
   private Report report;

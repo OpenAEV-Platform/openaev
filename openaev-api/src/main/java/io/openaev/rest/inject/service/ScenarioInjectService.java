@@ -1,7 +1,7 @@
 package io.openaev.rest.inject.service;
 
 import io.openaev.database.model.Scenario;
-import io.openaev.service.ScenarioService;
+import io.openaev.service.scenario.ScenarioService;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

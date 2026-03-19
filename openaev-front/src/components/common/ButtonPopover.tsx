@@ -18,6 +18,8 @@ interface Props {
   style?: CSSProperties;
   variant?: VariantButtonPopover;
   disabled?: boolean;
+  className?: string;
+  size?: 'small' | 'medium' | 'large';
 }
 
 const ButtonPopover: FunctionComponent<Props> = ({
@@ -25,6 +27,8 @@ const ButtonPopover: FunctionComponent<Props> = ({
   style,
   variant = 'toggle',
   disabled = false,
+  className,
+  size = 'large',
 }) => {
   // Standard hooks
   const { t } = useFormatter();
@@ -36,6 +40,7 @@ const ButtonPopover: FunctionComponent<Props> = ({
       {variant === 'toggle' && !entries.every(entry => !entry.userRight)
         && (
           <ToggleButton
+            className={className}
             value="popover"
             size="small"
             color="primary"
@@ -53,7 +58,7 @@ const ButtonPopover: FunctionComponent<Props> = ({
         && (
           <IconButton
             value="popover"
-            size="large"
+            size={size}
             color="primary"
             onClick={(ev) => {
               ev.stopPropagation();
@@ -62,7 +67,7 @@ const ButtonPopover: FunctionComponent<Props> = ({
             style={{ ...style }}
             disabled={disabled}
           >
-            <MoreVert color={disabled ? 'disabled' : 'primary'} />
+            <MoreVert fontSize={size === 'small' ? 'small' : 'medium'} color={disabled ? 'disabled' : 'primary'} />
           </IconButton>
         )}
       <Menu

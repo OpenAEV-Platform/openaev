@@ -11,6 +11,7 @@ import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpect
 import io.openaev.database.model.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Injector;
+import io.openaev.executors.InjectorContext;
 import io.openaev.injectors.openaev.model.OpenAEVImplantInjectContent;
 import io.openaev.model.ExecutionProcess;
 import io.openaev.model.Expectation;
@@ -25,18 +26,25 @@ import io.openaev.service.InjectExpectationService;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.stream.Stream;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 
-@Component(OpenAEVImplantContract.TYPE)
-@RequiredArgsConstructor
 @Slf4j
 public class OpenAEVImplantExecutor extends Injector {
 
   private final AssetGroupService assetGroupService;
   private final InjectExpectationService injectExpectationService;
   private final InjectService injectService;
+
+  public OpenAEVImplantExecutor(
+      InjectorContext context,
+      AssetGroupService assetGroupService,
+      InjectExpectationService injectExpectationService,
+      InjectService injectService) {
+    super(context);
+    this.assetGroupService = assetGroupService;
+    this.injectExpectationService = injectExpectationService;
+    this.injectService = injectService;
+  }
 
   @Override
   public ExecutionProcess process(Execution execution, ExecutableInject injection)

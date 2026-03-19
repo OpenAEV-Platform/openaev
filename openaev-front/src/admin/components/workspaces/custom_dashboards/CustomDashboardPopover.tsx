@@ -10,7 +10,7 @@ import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import { type CustomDashboard, type PlatformSettings } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { download } from '../../../../utils/utils';
 import CustomDashboardForm, { type CustomDashboardFormType } from './CustomDashboardForm';
@@ -71,17 +71,17 @@ const CustomDashboardPopover: FunctionComponent<Props> = ({ customDashboard, onU
 
   const entries = [
     {
-      label: t('Update'),
+      label: 'Update',
       action: () => toggleModal('edit'),
       userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.DASHBOARDS),
     },
     {
-      label: t('Export'),
+      label: 'Export',
       action: () => submitExport(),
       userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.DASHBOARDS),
     },
     {
-      label: t('Delete'),
+      label: 'Delete',
       action: () => toggleModal('delete'),
       userRight: ability.can(ACTIONS.DELETE, SUBJECTS.DASHBOARDS) && settings.platform_home_dashboard !== customDashboard.custom_dashboard_id,
     },

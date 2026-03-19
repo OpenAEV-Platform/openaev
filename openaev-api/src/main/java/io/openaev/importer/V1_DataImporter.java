@@ -16,11 +16,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.annotations.VisibleForTesting;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Scenario.SEVERITY;
 import io.openaev.database.repository.*;
 import io.openaev.injectors.challenge.model.ChallengeContent;
 import io.openaev.injectors.channel.model.ChannelContent;
+import io.openaev.rest.domain.DomainService;
+import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exercise.exports.VariableWithValueMixin;
 import io.openaev.rest.inject.form.InjectDependencyInput;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
@@ -32,7 +35,7 @@ import io.openaev.rest.payload.service.PayloadCreationService;
 import io.openaev.service.FileService;
 import io.openaev.service.ImportEntry;
 import io.openaev.service.InjectorService;
-import io.openaev.service.ScenarioService;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.activation.MimetypesFileTypeMap;
 import jakarta.annotation.Resource;
@@ -80,6 +83,7 @@ public class V1_DataImporter implements Importer {
   private final InjectDependenciesRepository injectDependenciesRepository;
   private final PayloadCreationService payloadCreationService;
   private final CollectorRepository collectorRepository;
+  private final DomainService domainService;
 
   private final InjectorContractContentUtils injectorContractContentUtils;
 
@@ -110,7 +114,7 @@ public class V1_DataImporter implements Importer {
           challengeContent.setChallenges(remappedIds);
           content = mapper.writeValueAsString(challengeContent);
         } catch (Exception e) {
-          // Error rewriting content, inject cant be created
+          // Error rewriting content, inject can't be created
           return null;
         }
       }
@@ -129,7 +133,7 @@ public class V1_DataImporter implements Importer {
           channelContent.setArticles(remappedIds);
           content = mapper.writeValueAsString(channelContent);
         } catch (Exception e) {
-          // Error rewriting content, inject cant be created
+          // Error rewriting content, inject can't be created
           return null;
         }
       }
@@ -218,6 +222,52 @@ public class V1_DataImporter implements Importer {
     tag.setName(jsonNode.get("tag_name").textValue());
     tag.setColor(jsonNode.get("tag_color").textValue());
     return tag;
+  }
+
+  // -- DOMAINS --
+  @VisibleForTesting
+  protected List<String> importDomains(
+      JsonNode importNode, String prefix, Map<String, Base> baseIds) {
+    List<String> domainIds = new ArrayList<>();
+    resolveJsonElements(importNode, prefix + "domains")
+        .forEach(
+            nodeDomain -> {
+              JsonNode idNode = nodeDomain.get("domain_id");
+              if (idNode == null) {
+                return;
+              }
+              String id = idNode.textValue();
+
+              if (baseIds.get(id) != null) {
+                // Already import
+                domainIds.add(baseIds.get(id).getId());
+                return;
+              }
+
+              Optional<Domain> existingDomain = this.domainService.findOptionalById(id);
+              if (existingDomain.isPresent()) {
+                baseIds.put(id, existingDomain.get());
+                domainIds.add(existingDomain.get().getId());
+              } else {
+                Domain createdDomain =
+                    this.domainService.upsert(
+                        nodeDomain.get("domain_name").textValue(),
+                        nodeDomain.get("domain_color").textValue());
+                baseIds.put(createdDomain.getId(), createdDomain);
+                domainIds.add(createdDomain.getId());
+              }
+            });
+
+    // if no domain found we marked it as "TOCLASSIFY"
+    if (domainIds.isEmpty()) {
+      domainIds.add(
+          domainService
+              .findOptionalByName(PresetDomain.TOCLASSIFY.getName())
+              .orElseThrow()
+              .getId());
+    }
+
+    return domainIds;
   }
 
   // -- ATTACK PATTERN --
@@ -497,13 +547,14 @@ public class V1_DataImporter implements Importer {
     document.setName(nodeDoc.get("document_name").textValue());
     document.setDescription(nodeDoc.get("document_description").textValue());
     if (savedExercise != null) {
-      document.setExercises(Set.of(savedExercise));
+      document.setExercises(new HashSet<>(Set.of(savedExercise)));
     } else if (savedScenario != null) {
-      document.setScenarios(Set.of(savedScenario));
+      document.setScenarios(new HashSet<>(Set.of(savedScenario)));
     }
     // need to get real database-bound ids for tags
     List<String> tagIds =
         resolveJsonIds(nodeDoc, "document_tags").stream()
+            .filter(baseIds::containsKey)
             .map(tid -> baseIds.get(tid).getId())
             .toList();
     document.setTags(iterableToSet(tagRepository.findAllById(tagIds)));
@@ -1055,15 +1106,17 @@ public class V1_DataImporter implements Importer {
           }
 
           if (injectorContractId == null) {
-            if (scenario.getDependencies() != null
+            if (scenario != null
+                && scenario.getDependencies() != null
                 && Arrays.asList(scenario.getDependencies())
                     .contains(Scenario.Dependency.STARTERPACK)) {
               // if we are importing the starter pack, we will create the injector contract so the
               // injects are created before the injector registered
               // once the injector register the contract will be overriden and will be the one
               // provided by the injector
+              Payload createdPayload = injectorContract.map(ic -> ic.getPayload()).orElse(null);
               injectorContractId =
-                  importInjectorContractFromStarterPack(injectContractNode).getId();
+                  importInjectorContractFromStarterPack(injectContractNode, createdPayload).getId();
             } else {
               log.warn(
                   "Import Inject Failed: Unresolved injector contract ID on inject: {}", injectId);
@@ -1240,9 +1293,11 @@ public class V1_DataImporter implements Importer {
    * injector, this contract will be overriden
    *
    * @param importNode contract node
+   * @param payload to set on contract
    * @return
    */
-  private InjectorContract importInjectorContractFromStarterPack(JsonNode importNode) {
+  private InjectorContract importInjectorContractFromStarterPack(
+      JsonNode importNode, Payload payload) {
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setId(importNode.get("injector_contract_id").textValue());
     injectorContract.setCustom(false);
@@ -1250,15 +1305,23 @@ public class V1_DataImporter implements Importer {
     injectorContract.setInjector(createDummyInjector(importNode));
     injectorContract.setConvertedContent((ObjectNode) importNode.get("convertedContent"));
     injectorContract.setExternalId(importNode.get("injector_contract_external_id").textValue());
+    injectorContract.setAtomicTesting(
+        importNode.get("injector_contract_atomic_testing").booleanValue());
+    injectorContract.setManual(importNode.get("injector_contract_manual").booleanValue());
+    injectorContract.setNeedsExecutor(
+        importNode.get("injector_contract_needs_executor").booleanValue());
+    injectorContract.setPlatforms(
+        Endpoint.PLATFORM_TYPE.fromJsonNode(importNode.get("injector_contract_platforms")));
     injectorContract.setLabels(
         new ObjectMapper()
             .convertValue(importNode.get("injector_contract_labels"), new TypeReference<>() {}));
+    injectorContract.setPayload(payload);
     return injectorContractRepository.save(injectorContract);
   }
 
   public static ContractOutputType formatStringToContractOutputType(String value) {
     for (ContractOutputType type : ContractOutputType.values()) {
-      if (type.label.equalsIgnoreCase(value)) {
+      if (type.getLabel().equalsIgnoreCase(value)) {
         return type;
       }
     }
@@ -1277,6 +1340,7 @@ public class V1_DataImporter implements Importer {
     importTags(node, "contract_output_element_tags", baseIds);
     outputElement.setTagIds(
         resolveJsonIds(node, "contract_output_element_tags").stream()
+            .filter(baseIds::containsKey)
             .map(tid -> baseIds.get(tid).getId())
             .toList());
     ArrayNode regexGroupNodes = (ArrayNode) node.get("contract_output_element_regex_groups");
@@ -1353,8 +1417,10 @@ public class V1_DataImporter implements Importer {
     PayloadCreateInput payloadCreateInput = buildPayload(payloadNode);
     payloadCreateInput.setOutputParsers(
         buildOutputParsersFromPayloadJsonNode(payloadNode, baseIds));
+    payloadCreateInput.setDomainIds(importDomains(payloadNode, "payload_", baseIds));
 
     List<String> attackPatternIds = importAttackPattern(payloadNode, "payload_", baseIds);
+
     payloadCreateInput.setAttackPatternsIds(attackPatternIds);
     payloadCreateInput.setDetectionRemediations(buildDetectionRemediationsJsonNode(payloadNode));
     Payload payload = this.payloadCreationService.createPayload(payloadCreateInput);
@@ -1392,6 +1458,8 @@ public class V1_DataImporter implements Importer {
     payloadCreateInput.setOutputParsers(
         buildOutputParsersFromPayloadJsonNode(payloadNode, baseIds));
 
+    payloadCreateInput.setDomainIds(importDomains(payloadNode, "payload_", baseIds));
+
     List<String> attackPatternIds = importAttackPattern(payloadNode, "payload_", baseIds);
     payloadCreateInput.setAttackPatternsIds(attackPatternIds);
     payloadCreateInput.setDetectionRemediations(buildDetectionRemediationsJsonNode(payloadNode));
@@ -1409,7 +1477,9 @@ public class V1_DataImporter implements Importer {
       return injectorContractFromPayload;
     } else {
       log.warn("An error has occurred when importing the payload: {}", payload.getName());
-      return Optional.empty();
+      InjectorContract injectorContract = new InjectorContract();
+      injectorContract.setPayload(payload);
+      return Optional.of(injectorContract);
     }
   }
 

@@ -1,9 +1,9 @@
-import { DashboardOutlined, DescriptionOutlined, DevicesOtherOutlined, DnsOutlined, Groups3Outlined, GroupsOutlined, HubOutlined, InsertChartOutlined, MovieFilterOutlined, OnlinePredictionOutlined, PersonOutlined, RocketLaunchOutlined, RowingOutlined, SchoolOutlined, SettingsOutlined, SmartButtonOutlined, SubscriptionsOutlined, TerminalOutlined } from '@mui/icons-material';
+import { DashboardOutlined, DescriptionOutlined, DevicesOtherOutlined, DnsOutlined, Groups3Outlined, GroupsOutlined, HubOutlined, InsertChartOutlined, MovieFilterOutlined, OnlinePredictionOutlined, PersonOutlined, RocketLaunchOutlined, RowingOutlined, SchoolOutlined, SettingsOutlined, SmartButtonOutlined, SubscriptionsOutlined, TerminalOutlined, Widgets } from '@mui/icons-material';
 import { Binoculars, NewspaperVariantMultipleOutline, PostOutline, SecurityNetwork, SelectGroup, Target } from 'mdi-material-ui';
 import { useContext } from 'react';
 
 import LeftMenu from '../../../components/common/menu/leftmenu/LeftMenu';
-import { AbilityContext } from '../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { GETTING_STARTED_URI } from '../getting_started/GettingStartedRoutes';
 
@@ -161,6 +161,12 @@ const LeftBar = () => {
           href: 'integrations',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
           subItems: [
+            {
+              link: '/admin/integrations/catalog',
+              label: 'Catalog',
+              icon: () => (<Widgets fontSize="small" />),
+              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+            },
             {
               link: '/admin/integrations/injectors',
               label: 'Injectors',

@@ -17,9 +17,9 @@ import { type Organization } from '../../../utils/api-types';
 import { exportData } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
-import { Can } from '../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import useSearchAnFilter from '../../../utils/SortingFiltering';
+import useSearchAndFilter from '../../../utils/SortingFiltering';
 import { truncate } from '../../../utils/String';
 import TagsFilter from '../common/filters/TagsFilter';
 import SecurityMenu from '../settings/SecurityMenu';
@@ -103,7 +103,7 @@ const Organizations = () => {
   const [searchId] = searchParams.getAll('id');
 
   // Filter and sort hook
-  const filtering = useSearchAnFilter(
+  const filtering = useSearchAndFilter(
     'organization',
     'name',
     [

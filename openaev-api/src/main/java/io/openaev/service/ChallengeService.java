@@ -64,7 +64,11 @@ public class ChallengeService {
   }
 
   public Iterable<Challenge> getExerciseChallenges(@NotBlank final String exerciseId) {
-    Exercise exercise = exerciseRepository.findById(exerciseId).orElseThrow();
+    Exercise exercise =
+        exerciseRepository
+            .findById(exerciseId)
+            .orElseThrow(
+                () -> new ElementNotFoundException("Exercise not found with id: " + exerciseId));
     return StreamSupport.stream(getInjectsChallenges(exercise.getInjects()).spliterator(), false)
         .map(this::enrichChallengeWithExercisesOrScenarios)
         .toList();

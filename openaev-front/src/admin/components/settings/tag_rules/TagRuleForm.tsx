@@ -7,14 +7,13 @@ import { z } from 'zod';
 import TagFieldSingle from '../../../../components/fields/TagFieldSingle';
 import { useFormatter } from '../../../../components/i18n';
 import { type TagRuleInput, type TagRuleOutput } from '../../../../utils/api-types';
-import { Can } from '../../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { zodImplement } from '../../../../utils/Zod';
 import AssetGroupPopover from '../../assets/asset_groups/AssetGroupPopover';
 import AssetGroupsList from '../../assets/asset_groups/AssetGroupsList';
 import { PermissionsContext } from '../../common/Context';
 import InjectAddAssetGroups from '../../simulations/simulation/injects/asset_groups/InjectAddAssetGroups';
-import OPEN_CTI_TAG_NAME from './TagRuleConstants';
 
 interface Props {
   onSubmit: SubmitHandler<TagRuleInput>;
@@ -28,6 +27,7 @@ const TagRuleForm: FunctionComponent<Props> = ({
   initialValues = {
     tag_name: '',
     asset_groups: [],
+    tag_rule_protected: false,
   },
 }) => {
   // Standard hooks
@@ -83,8 +83,7 @@ const TagRuleForm: FunctionComponent<Props> = ({
               fieldOnChange={onChange}
               errors={errors}
               style={{ marginTop: 20 }}
-              disabled={value == OPEN_CTI_TAG_NAME}
-              forbiddenOptions={value !== OPEN_CTI_TAG_NAME ? [OPEN_CTI_TAG_NAME] : []}
+              disabled={initialValues?.tag_rule_protected}
             />
           );
         }}

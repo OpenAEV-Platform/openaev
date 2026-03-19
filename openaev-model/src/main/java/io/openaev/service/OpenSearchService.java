@@ -1,7 +1,6 @@
 package io.openaev.service;
 
-import static io.openaev.utils.CustomDashboardQueryUtils.calcEndDate;
-import static io.openaev.utils.CustomDashboardQueryUtils.calcStartDate;
+import static io.openaev.utils.CustomDashboardQueryUtils.*;
 import static io.openaev.utils.CustomDashboardTimeRange.ALL_TIME;
 import static io.openaev.utils.OpenSearchUtils.*;
 import static java.util.Optional.ofNullable;
@@ -24,9 +23,7 @@ import io.openaev.engine.api.*;
 import io.openaev.engine.api.WidgetConfiguration.Series;
 import io.openaev.engine.model.EsBase;
 import io.openaev.engine.model.EsSearch;
-import io.openaev.engine.query.EsCountInterval;
-import io.openaev.engine.query.EsSeries;
-import io.openaev.engine.query.EsSeriesData;
+import io.openaev.engine.query.*;
 import io.openaev.exception.AnalyticsEngineException;
 import io.openaev.schema.PropertySchema;
 import jakarta.annotation.Resource;
@@ -510,8 +507,6 @@ public class OpenSearchService implements EngineService {
 
   public EsCountInterval count(RawUserAuth user, CountRuntime runtime) {
     FlatConfiguration widgetConfig = runtime.getConfig();
-
-    BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
     try {
       Query countQuery =
           buildQuery(
@@ -525,7 +520,7 @@ public class OpenSearchService implements EngineService {
               runtime.getParameters(),
               runtime.getDefinitionParameters());
       if (widgetConfig.getTimeRange().equals(ALL_TIME)) {
-        Query query = queryBuilder.must(countQuery).build().toQuery();
+        Query query = new BoolQuery.Builder().must(countQuery).build().toQuery();
         long allTimeCount =
             openSearchClient
                 .count(c -> c.index(engineConfig.getIndexPrefix() + "*").query(query))
@@ -540,7 +535,10 @@ public class OpenSearchService implements EngineService {
             buildDateRangeQuery(
                 widgetConfig.getDateAttribute(), currentIntervalStart, currentIntervalEnd);
         Query currentIntervalQuery =
-            queryBuilder.must(currentIntervalDateRangeQuery, countQuery).build().toQuery();
+            new BoolQuery.Builder()
+                .must(currentIntervalDateRangeQuery, countQuery)
+                .build()
+                .toQuery();
         long currentIntervalCount =
             openSearchClient
                 .count(
@@ -555,7 +553,10 @@ public class OpenSearchService implements EngineService {
             buildDateRangeQuery(
                 widgetConfig.getDateAttribute(), previousIntervalStart, currentIntervalStart);
         Query previousIntervalQuery =
-            queryBuilder.must(previousIntervalDateRangeQuery, countQuery).build().toQuery();
+            new BoolQuery.Builder()
+                .must(previousIntervalDateRangeQuery, countQuery)
+                .build()
+                .toQuery();
         long previousIntervalCount =
             openSearchClient
                 .count(
@@ -571,6 +572,128 @@ public class OpenSearchService implements EngineService {
       log.error(String.format("count exception: %s", e.getMessage()), e);
     }
     return new EsCountInterval(0L, 0L, 0L);
+  }
+
+  public EsAvgs average(RawUserAuth user, AverageRuntime averageRuntime) {
+    AverageConfiguration widgetConfig = averageRuntime.getConfig();
+
+    BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
+    Query filterQuery =
+        buildQuery(
+            user,
+            null,
+            averageRuntime.getConfig().getSeries().getFirst().getFilter(),
+            averageRuntime.getParameters(),
+            averageRuntime.getDefinitionParameters());
+    Query query;
+    if (isAllTime(
+        widgetConfig, averageRuntime.getParameters(), averageRuntime.getDefinitionParameters())) {
+      query = queryBuilder.must(filterQuery).build().toQuery();
+    } else {
+      Instant finalStart =
+          calcStartDate(
+              widgetConfig,
+              averageRuntime.getParameters(),
+              averageRuntime.getDefinitionParameters());
+      Instant finalEnd =
+          calcEndDate(
+              widgetConfig,
+              averageRuntime.getParameters(),
+              averageRuntime.getDefinitionParameters());
+      Query dateRangeQuery =
+          buildDateRangeQuery(widgetConfig.getDateAttribute(), finalStart, finalEnd);
+      query = queryBuilder.must(dateRangeQuery, filterQuery).build().toQuery();
+    }
+
+    try {
+      Map<String, String> fields = averageRuntime.getConfig().getField();
+
+      String domainField = toElasticField(fields.get("domainField"));
+      String domainAggregationKey = "by_security_domain";
+
+      String typeField = toElasticField(fields.get("typeField"));
+      String typeAggregationKey = "by_inject_expectation_type";
+
+      String statusField = toElasticField(fields.get("statusField"));
+      String statusAggregationKey = "by_inject_expectation_status";
+
+      SearchRequest request =
+          new SearchRequest.Builder()
+              .index(engineConfig.getIndexPrefix() + "*")
+              .size(0)
+              .query(query)
+              .aggregations(
+                  domainAggregationKey,
+                  agg ->
+                      agg.terms(t -> t.field(domainField))
+                          .aggregations(
+                              typeAggregationKey,
+                              sub ->
+                                  sub.terms(t -> t.field(typeField))
+                                      .aggregations(
+                                          statusAggregationKey,
+                                          subAg -> subAg.terms(t -> t.field(statusField)))))
+              .build();
+
+      SearchResponse<Void> response = openSearchClient.search(request, Void.class);
+
+      Buckets<StringTermsBucket> domainBuckets =
+          response.aggregations().get(domainAggregationKey).sterms().buckets();
+
+      return averageSTerms(domainBuckets, user, typeAggregationKey, statusAggregationKey);
+
+    } catch (Exception e) {
+      log.error(String.format("Opensearch client failed to aggregate data: %s", e.getMessage()), e);
+    }
+    return new EsAvgs(new ArrayList<>());
+  }
+
+  private EsAvgs averageSTerms(
+      @NotNull Buckets<StringTermsBucket> domainBuckets,
+      @NotNull final RawUserAuth user,
+      String typeAggregationKey,
+      String statusAggregationKey) {
+    Map<String, String> resolutions = new HashMap<>();
+    List<String> ids =
+        domainBuckets.array().stream()
+            .flatMap(s -> Arrays.stream(s.key().split(",")))
+            .distinct()
+            .toList();
+    resolutions.putAll(resolveIdsRepresentative(user, ids));
+
+    List<EsDomainsAvgData> data =
+        domainBuckets.array().stream()
+            .map(
+                b -> {
+                  String key = b.key();
+                  String label = resolutions.get(key);
+                  Buckets<StringTermsBucket> typeBuckets =
+                      b.aggregations().get(typeAggregationKey).sterms().buckets();
+                  List<EsSeries> typesData =
+                      typeBuckets.array().stream()
+                          .map(
+                              t -> {
+                                String typeLabel = t.key();
+                                long typeCount = t.docCount();
+                                Buckets<StringTermsBucket> statusBuckets =
+                                    t.aggregations().get(statusAggregationKey).sterms().buckets();
+                                List<EsSeriesData> statusData =
+                                    statusBuckets.array().stream()
+                                        .map(
+                                            s -> {
+                                              String statusLabel = s.key();
+                                              return new EsSeriesData(
+                                                  statusLabel, statusLabel, s.docCount());
+                                            })
+                                        .toList();
+                                return new EsSeries(typeLabel, typeCount, statusData);
+                              })
+                          .toList();
+                  return new EsDomainsAvgData(label, typesData);
+                })
+            .toList();
+
+    return new EsAvgs(data);
   }
 
   public EsSeries termHistogram(

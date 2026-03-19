@@ -70,7 +70,7 @@ const ExerciseStatus: FunctionComponent<Props> = ({
       return (
         <Chip
           classes={{ root: style }}
-          style={colorStyles.white}
+          style={colorStyles.canceled}
           label={t('Canceled')}
         />
       );

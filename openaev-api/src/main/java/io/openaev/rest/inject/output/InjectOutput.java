@@ -2,6 +2,7 @@ package io.openaev.rest.inject.output;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.database.model.Domain;
 import io.openaev.database.model.InjectDependency;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.healthcheck.dto.HealthCheck;
@@ -96,6 +97,12 @@ public class InjectOutput {
   public boolean canBeTested() {
     return EmailContract.TYPE.equals(this.getInjectType())
         || OvhSmsContract.TYPE.equals(this.getInjectType());
+  }
+
+  @JsonProperty("inject_contract_domains")
+  @Schema(description = "Domain of the inject")
+  public Set<Domain> getDomains() {
+    return injectorContract != null ? injectorContract.getDomains() : new HashSet<>();
   }
 
   public InjectOutput(

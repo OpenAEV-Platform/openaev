@@ -44,6 +44,16 @@ public class InjectFixture {
     return inject;
   }
 
+  public static Inject createInjectWithManualExpectation(
+      InjectorContract injectorContract, String title, String manualExpectationTitle) {
+    Inject inject = createInjectWithTitle(title);
+    inject.setInjectorContract(injectorContract);
+    inject.setEnabled(true);
+    inject.setDependsDuration(0L);
+    inject.setContent(injectContent(manualExpectationTitle));
+    return inject;
+  }
+
   private static ObjectNode injectContent() {
     ObjectMapper objectMapper = new ObjectMapper();
     ObjectNode injectContent = objectMapper.createObjectNode();
@@ -52,6 +62,19 @@ public class InjectFixture {
         objectMapper.convertValue(
             List.of(
                 ExpectationFixture.createExpectation(InjectExpectation.EXPECTATION_TYPE.MANUAL)),
+            ArrayNode.class));
+    return injectContent;
+  }
+
+  private static ObjectNode injectContent(String expectationName) {
+    ObjectMapper objectMapper = new ObjectMapper();
+    ObjectNode injectContent = objectMapper.createObjectNode();
+    injectContent.set(
+        CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS,
+        objectMapper.convertValue(
+            List.of(
+                ExpectationFixture.createExpectation(
+                    InjectExpectation.EXPECTATION_TYPE.MANUAL, expectationName)),
             ArrayNode.class));
     return injectContent;
   }
@@ -121,10 +144,8 @@ public class InjectFixture {
     return inject;
   }
 
-  public static Inject createInjectWithPayloadArg(
-      InjectorContract injectorContract, Map<String, Object> payloadArguments) {
-
-    Inject inject = createInject(injectorContract, "Inject title");
+  public static Inject createInjectWithPayloadArg(Map<String, Object> payloadArguments) {
+    Inject inject = createInjectWithTitle("Inject title");
     ObjectMapper objectMapper = new ObjectMapper();
     ObjectNode injectContent = objectMapper.createObjectNode();
     payloadArguments.forEach(
@@ -144,7 +165,14 @@ public class InjectFixture {
         });
 
     inject.setContent(injectContent);
+    return inject;
+  }
 
+  public static Inject createInjectWithPayloadArg(
+      InjectorContract injectorContract, Map<String, Object> payloadArguments) {
+
+    Inject inject = createInjectWithPayloadArg(payloadArguments);
+    inject.setInjectorContract(injectorContract);
     return inject;
   }
 
@@ -155,6 +183,7 @@ public class InjectFixture {
   private static Inject createInjectWithTitle(String title) {
     String new_title = title == null ? "inject-%s".formatted(UUID.randomUUID()) : title;
     Inject inject = new Inject();
+    inject.setDependsDuration(0L);
     inject.setTitle(new_title);
     return inject;
   }

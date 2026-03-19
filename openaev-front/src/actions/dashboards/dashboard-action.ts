@@ -3,6 +3,10 @@ import { type WidgetToEntitiesInput } from '../../utils/api-types';
 
 export const DASHBOARD_URI = '/api/dashboards';
 
+export const average = (widgetId: string, parameters: Record<string, string | undefined>) => {
+  return simplePostCall(`${DASHBOARD_URI}/average/${widgetId}`, parameters);
+};
+
 export const count = (widgetId: string, parameters: Record<string, string | undefined>) => {
   return simplePostCall(`${DASHBOARD_URI}/count/${widgetId}`, parameters);
 };

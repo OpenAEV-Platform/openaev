@@ -4,6 +4,7 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
 import io.openaev.rest.user.form.login.LoginUserInput;
 import io.openaev.rest.user.form.login.ResetUserInput;
+import io.openaev.rest.user.form.user.ChangePasswordInput;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
@@ -80,5 +81,13 @@ public class UserFixture {
     resetUserInput.setLogin(EMAIL);
 
     return resetUserInput;
+  }
+
+  public static ChangePasswordInput getChangePasswordInput(String password) {
+    ChangePasswordInput input = new ChangePasswordInput();
+    input.setPassword(password);
+    input.setPasswordValidation(password);
+
+    return input;
   }
 }

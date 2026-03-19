@@ -5,7 +5,7 @@ import static java.time.Instant.now;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import io.openaev.helper.MultiIdSetDeserializer;
+import io.openaev.helper.MultiIdSetSerializer;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -79,7 +79,7 @@ public class ContractOutputElement implements Base {
       name = "contract_output_elements_tags",
       joinColumns = @JoinColumn(name = "contract_output_element_id"),
       inverseJoinColumns = @JoinColumn(name = "tag_id"))
-  @JsonSerialize(using = MultiIdSetDeserializer.class)
+  @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonProperty("contract_output_element_tags")
   private Set<Tag> tags = new HashSet<>();
 

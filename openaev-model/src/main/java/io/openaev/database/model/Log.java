@@ -5,8 +5,8 @@ import static java.time.Instant.now;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MonoIdDeserializer;
-import io.openaev.helper.MultiIdSetDeserializer;
+import io.openaev.helper.MonoIdSerializer;
+import io.openaev.helper.MultiIdSetSerializer;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -35,14 +35,14 @@ public class Log implements Base {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "log_exercise")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("log_exercise")
   @Schema(type = "string")
   private Exercise exercise;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "log_user")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("log_user")
   @Schema(type = "string")
   private User user;
@@ -73,7 +73,7 @@ public class Log implements Base {
       name = "logs_tags",
       joinColumns = @JoinColumn(name = "log_id"),
       inverseJoinColumns = @JoinColumn(name = "tag_id"))
-  @JsonSerialize(using = MultiIdSetDeserializer.class)
+  @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonProperty("log_tags")
   private Set<Tag> tags = new HashSet<>();
 
@@ -84,6 +84,9 @@ public class Log implements Base {
 
   @Override
   public boolean isUserHasAccess(User user) {
+    if (exercise == null) {
+      return user.isAdmin();
+    }
     return exercise.isUserHasAccess(user);
   }
 

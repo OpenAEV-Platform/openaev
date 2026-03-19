@@ -95,9 +95,7 @@ const useEntityToggle = <T extends Record<string, any>>(
   };
   let numberOfSelectedElements = Object.keys(selectedElements).length;
   if (selectAll) {
-    numberOfSelectedElements = selectAll
-      ? (totalNumberOfElements ?? 0) - Object.keys(deSelectedElements).length
-      : (knownElements.length ?? 0) - Object.keys(deSelectedElements).length;
+    numberOfSelectedElements = (totalNumberOfElements ?? 0) - Object.keys(deSelectedElements).length;
   }
   return {
     onToggleEntity,

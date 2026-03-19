@@ -16,7 +16,7 @@ import {
   type InjectAssistantInput,
 } from '../../../../../utils/api-types';
 import useEnterpriseEdition from '../../../../../utils/hooks/useEnterpriseEdition';
-import { AbilityContext, Can } from '../../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext, Can } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import AssetGroupPopover from '../../../assets/asset_groups/AssetGroupPopover';
 import AssetGroupsList from '../../../assets/asset_groups/AssetGroupsList';

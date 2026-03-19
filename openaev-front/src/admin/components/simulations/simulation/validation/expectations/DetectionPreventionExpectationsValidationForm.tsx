@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { type SecurityPlatformHelper } from '../../../../../../actions/assets/asset-helper';
 import { fetchSecurityPlatforms } from '../../../../../../actions/assets/securityPlatform-actions';
 import { updateInjectExpectation } from '../../../../../../actions/Exercise';
-import ExpandableText from '../../../../../../components/common/ExpendableText';
+import ExpandableText from '../../../../../../components/common/ExpandableText';
 import SecurityPlatformField from '../../../../../../components/fields/SecurityPlatformField';
 import { useFormatter } from '../../../../../../components/i18n';
 import ItemStatus from '../../../../../../components/ItemStatus';
@@ -16,7 +16,7 @@ import { useHelper } from '../../../../../../store';
 import { type InjectExpectationResult, type SecurityPlatform } from '../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../utils/hooks';
 import useDataLoader from '../../../../../../utils/hooks/useDataLoader';
-import { AbilityContext, Can } from '../../../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext, Can } from '../../../../../../utils/permissions/permissionsContext';
 import RestrictionAccess from '../../../../../../utils/permissions/RestrictionAccess';
 import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
 import { zodImplement } from '../../../../../../utils/Zod';
@@ -57,6 +57,7 @@ const DetectionPreventionExpectationsValidationForm: FunctionComponent<FormProps
       ...data,
       source_id: data.security_platform,
       source_type: 'security-platform',
+      source_platform: securityPlatformsMap[data.security_platform].security_platform_type,
       source_name: securityPlatformsMap[data.security_platform].asset_name,
     })).then(() => {
       onUpdate?.();

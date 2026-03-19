@@ -4,7 +4,7 @@ import { type ExercisesHelper } from '../../actions/exercises/exercise-helper';
 import { type LoggedHelper, type UserHelper } from '../../actions/helper';
 import { useHelper } from '../../store';
 import { type Exercise } from '../api-types';
-import { AbilityContext } from './PermissionsProvider';
+import { AbilityContext } from './permissionsContext';
 import { ACTIONS, SUBJECTS } from './types';
 
 const useSimulationPermissions = (exerciseId: string, fullExercise?: Exercise) => {

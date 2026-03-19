@@ -198,7 +198,20 @@ public class SimulationInjectApi extends RestBehavior {
       @PathVariable String exerciseId, @Valid @RequestBody InjectInput input) {
     Exercise exercise =
         exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
-    return this.injectService.createInject(exercise, null, input);
+    return this.injectService.createAndSaveInject(exercise, null, input);
+  }
+
+  @PostMapping(EXERCISE_URI + "/{exerciseId}/injects/bulk")
+  @RBAC(
+      resourceId = "#exerciseId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.SIMULATION)
+  @Transactional(rollbackFor = Exception.class)
+  public List<Inject> createInjectsForExercise(
+      @PathVariable String exerciseId, @Valid @RequestBody List<InjectInput> inputs) {
+    Exercise exercise =
+        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+    return this.injectService.createAndSaveInjectList(exercise, null, inputs);
   }
 
   @PostMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}")

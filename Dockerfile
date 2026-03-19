@@ -8,7 +8,7 @@ RUN yarn install
 COPY openaev-front /opt/openaev-build/openaev-front
 RUN yarn build
 
-FROM maven:3.9.11-eclipse-temurin-21 AS api-builder
+FROM maven:3.9.14-eclipse-temurin-21 AS api-builder
 
 WORKDIR /opt/openaev-build/openaev
 COPY openaev-model ./openaev-model
@@ -18,7 +18,7 @@ COPY pom.xml ./pom.xml
 COPY --from=front-builder /opt/openaev-build/openaev-front/builder/prod/build ./openaev-front/builder/prod/build
 RUN mvn install -DskipTests -Pdev
 
-FROM eclipse-temurin:21.0.9_10-jre AS app
+FROM eclipse-temurin:21.0.10_7-jre AS app
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update -q && DEBIAN_FRONTEND=noninteractive apt-get install -qq -y tini && rm -rf /var/lib/apt/lists/*
 COPY --from=api-builder /opt/openaev-build/openaev/openaev-api/target/openaev-api.jar ./

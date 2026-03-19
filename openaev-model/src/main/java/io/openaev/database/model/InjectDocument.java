@@ -3,7 +3,7 @@ package io.openaev.database.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import io.openaev.helper.MonoIdDeserializer;
+import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import java.util.Objects;
@@ -22,7 +22,7 @@ public class InjectDocument {
   @MapsId("injectId")
   @JoinColumn(name = "inject_id")
   @JsonProperty("inject_id")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @Schema(type = "string")
   private Inject inject;
 
@@ -30,7 +30,7 @@ public class InjectDocument {
   @MapsId("documentId")
   @JoinColumn(name = "document_id")
   @JsonProperty("document_id")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @Schema(type = "string")
   private Document document;
 

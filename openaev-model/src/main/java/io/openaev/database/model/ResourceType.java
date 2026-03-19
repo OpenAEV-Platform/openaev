@@ -38,9 +38,11 @@ public enum ResourceType {
   ORGANIZATION,
   COLLECTOR,
   STIX_BUNDLE,
+  DOMAIN,
   OBJECTIVE,
   EVALUATION,
-
+  CATALOG,
+  CONNECTOR_INSTANCE_LOG,
   // Special resource types
   UNKNOWN,
   SIMULATION_OR_SCENARIO, // Used to represent either a simulation or a scenario.

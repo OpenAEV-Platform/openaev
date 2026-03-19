@@ -11,6 +11,7 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.validation.constraints.NotNull;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import javax.annotation.Nullable;
@@ -30,16 +31,37 @@ public class SearchUtilsJpa {
     }
 
     return (root, query, cb) -> {
-      List<PropertySchema> propertySchemas = SchemaUtils.schema(root.getJavaType());
+      List<PropertySchema> propertySchemas;
+      try {
+        propertySchemas = SchemaUtils.schemaWithSubtypes(root.getJavaType());
+      } catch (ClassNotFoundException e) {
+        throw new RuntimeException("Error loading schema for search", e);
+      }
+
       List<PropertySchema> searchableProperties = getSearchableProperties(propertySchemas);
-      List<Predicate> predicates =
-          searchableProperties.stream()
-              .map(
-                  propertySchema -> {
-                    Expression<String> paths = toPath(propertySchema, root, new HashMap<>());
-                    return toPredicate(paths, search, cb, propertySchema.getType());
-                  })
-              .toList();
+      List<Predicate> predicates = new ArrayList<>();
+
+      for (PropertySchema propertySchema : searchableProperties) {
+        if (propertySchema.getPaths() != null && propertySchema.getPaths().length > 0) {
+          List<Predicate> multiPathPredicates = new ArrayList<>();
+          for (String path : propertySchema.getPaths()) {
+            PropertySchema singlePathPropertySchema =
+                PropertySchema.builder()
+                    .name(propertySchema.getName())
+                    .type(propertySchema.getType())
+                    .path(path)
+                    .build();
+
+            Expression<String> expression = toPath(singlePathPropertySchema, root, new HashMap<>());
+            multiPathPredicates.add(toPredicate(expression, search, cb, propertySchema.getType()));
+          }
+          predicates.add(cb.or(multiPathPredicates.toArray(Predicate[]::new)));
+
+        } else {
+          Expression<String> expression = toPath(propertySchema, root, new HashMap<>());
+          predicates.add(toPredicate(expression, search, cb, propertySchema.getType()));
+        }
+      }
       return cb.or(predicates.toArray(Predicate[]::new));
     };
   }

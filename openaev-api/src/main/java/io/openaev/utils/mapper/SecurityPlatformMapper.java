@@ -5,7 +5,9 @@ import io.openaev.rest.document.form.RelatedEntityOutput;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class SecurityPlatformMapper {
+public final class SecurityPlatformMapper {
+
+  private SecurityPlatformMapper() {}
 
   public static Set<RelatedEntityOutput> toRelatedEntityOutputs(
       Set<SecurityPlatform> securityPlatforms) {

@@ -3,6 +3,7 @@ package io.openaev.database.repository;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawScenario;
+import io.openaev.database.raw.RawScenarioSimple;
 import io.openaev.utils.Constants;
 import java.time.Instant;
 import java.util.List;
@@ -16,6 +17,27 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Repository interface for {@link Scenario} entities.
+ *
+ * <p>This repository provides data access operations for scenarios, which are reusable templates
+ * for security exercises. Scenarios define collections of injects, team configurations, and
+ * recurrence settings. It supports:
+ *
+ * <ul>
+ *   <li>Standard CRUD operations via {@link JpaRepository}
+ *   <li>Dynamic filtering via {@link JpaSpecificationExecutor}
+ *   <li>Statistical queries via {@link StatisticRepository}
+ *   <li>Access-controlled queries respecting user grants
+ *   <li>Search engine indexing support
+ *   <li>Category management and search
+ *   <li>Team assignment operations
+ * </ul>
+ *
+ * @see Scenario
+ * @see io.openaev.database.model.Exercise
+ * @see io.openaev.database.model.Inject
+ */
 @Repository
 public interface ScenarioRepository
     extends JpaRepository<Scenario, String>,
@@ -47,7 +69,7 @@ public interface ScenarioRepository
               + Constants.INDEXING_RECORD_SET_SIZE
               + ";",
       nativeQuery = true)
-  List<RawScenario> findForIndexing(@Param("from") Instant from);
+  List<RawScenarioSimple> findForIndexing(@Param("from") Instant from);
 
   @Query(
       value =
@@ -108,7 +130,7 @@ public interface ScenarioRepository
               + "WHERE users_groups.user_id = :userId "
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
-  List<RawScenario> rawAllGranted(@Param("userId") String userId);
+  List<RawScenarioSimple> rawAllGranted(@Param("userId") String userId);
 
   @Query(
       value =
@@ -122,7 +144,7 @@ public interface ScenarioRepository
               + "AND sce.scenario_id IN :scenarioIds "
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
-  List<RawScenario> rawGrantedByScenarioIds(
+  List<RawScenarioSimple> rawGrantedByScenarioIds(
       @Param("userId") String userId, @Param("scenarioIds") List<String> scenarioIds);
 
   @Query(
@@ -132,7 +154,7 @@ public interface ScenarioRepository
               + "LEFT JOIN scenarios_tags sct ON sct.scenario_id = sce.scenario_id "
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
-  List<RawScenario> rawAll();
+  List<RawScenarioSimple> rawAll();
 
   @Query(
       value =
@@ -142,18 +164,79 @@ public interface ScenarioRepository
               + "WHERE sce.scenario_id IN :scenarioIds "
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
-  List<RawScenario> rawByScenarioIds(@Param("scenarioIds") List<String> scenarioIds);
+  List<RawScenarioSimple> rawByScenarioIds(@Param("scenarioIds") List<String> scenarioIds);
 
   @Query(
       value =
-          "SELECT sce.scenario_id, "
-              + "coalesce(array_agg(inj.inject_id) FILTER (WHERE inj.inject_id IS NOT NULL), '{}') as scenario_injects "
-              + "FROM scenarios sce "
-              + "LEFT JOIN injects inj ON inj.inject_scenario = sce.scenario_id "
-              + "WHERE sce.scenario_id IN :ids "
-              + "GROUP BY sce.scenario_id",
+          "WITH "
+              + "all_users AS ( "
+              + "  SELECT st.scenario_id, COUNT(DISTINCT ut.user_id) AS scenario_all_users_number "
+              + "  FROM scenarios_teams st "
+              + "  JOIN users_teams ut ON ut.team_id = st.team_id "
+              + "  WHERE st.scenario_id = :scenarioId "
+              + "  GROUP BY st.scenario_id "
+              + "), "
+              + "scenario_users AS ( "
+              + "  SELECT scenario_id, "
+              + "         COUNT(DISTINCT user_id) AS scenario_users_number, "
+              + "         json_agg(DISTINCT stu.*) FILTER (WHERE stu IS NOT NULL) AS scenario_teams_users "
+              + "  FROM scenarios_teams_users stu "
+              + "  WHERE scenario_id = :scenarioId "
+              + "  GROUP BY scenario_id "
+              + "), "
+              + "exercises AS ( "
+              + "  SELECT scenario_id, "
+              + "         array_agg(DISTINCT exercise_id) FILTER (WHERE exercise_id IS NOT NULL) AS scenario_exercises "
+              + "  FROM scenarios_exercises "
+              + "  WHERE scenario_id = :scenarioId "
+              + "  GROUP BY scenario_id "
+              + "), "
+              + "kill_chain AS ( "
+              + "  SELECT i.inject_scenario AS scenario_id, "
+              + "         json_agg(DISTINCT kcp.*) FILTER (WHERE kcp IS NOT NULL) AS scenario_kill_chain_phases "
+              + "  FROM injects i "
+              + "  JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract "
+              + "  JOIN injectors_contracts_attack_patterns icap ON ic.injector_contract_id = icap.injector_contract_id "
+              + "  JOIN attack_patterns_kill_chain_phases apkcp ON icap.attack_pattern_id = apkcp.attack_pattern_id "
+              + "  JOIN kill_chain_phases kcp ON kcp.phase_id = apkcp.phase_id "
+              + "  WHERE i.inject_scenario = :scenarioId "
+              + "  GROUP BY i.inject_scenario "
+              + "), "
+              + "platforms AS ( "
+              + "  SELECT i.inject_scenario AS scenario_id, "
+              + "         array_union_agg(ic.injector_contract_platforms) "
+              + "           FILTER (WHERE ic.injector_contract_platforms IS NOT NULL) "
+              + "         AS scenario_platforms "
+              + "  FROM injects i "
+              + "  JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract "
+              + "  WHERE i.inject_scenario = :scenarioId "
+              + "  GROUP BY i.inject_scenario "
+              + "), "
+              + "tags AS ( "
+              + "  SELECT scenario_id, "
+              + "         array_agg(DISTINCT tag_id) FILTER (WHERE tag_id IS NOT NULL) AS scenario_tags "
+              + "  FROM scenarios_tags "
+              + "  WHERE scenario_id = :scenarioId "
+              + "  GROUP BY scenario_id "
+              + ") "
+              + "SELECT s.*, "
+              + "       au.scenario_all_users_number, "
+              + "       su.scenario_users_number, "
+              + "       ex.scenario_exercises, "
+              + "       kc.scenario_kill_chain_phases, "
+              + "       pf.scenario_platforms, "
+              + "       tg.scenario_tags, "
+              + "       su.scenario_teams_users "
+              + "FROM scenarios s "
+              + "LEFT JOIN all_users au ON au.scenario_id = s.scenario_id "
+              + "LEFT JOIN scenario_users su ON su.scenario_id = s.scenario_id "
+              + "LEFT JOIN exercises ex ON ex.scenario_id = s.scenario_id "
+              + "LEFT JOIN kill_chain kc ON kc.scenario_id = s.scenario_id "
+              + "LEFT JOIN platforms pf ON pf.scenario_id = s.scenario_id "
+              + "LEFT JOIN tags tg ON tg.scenario_id = s.scenario_id "
+              + "WHERE s.scenario_id = :scenarioId",
       nativeQuery = true)
-  List<RawScenario> rawInjectsFromScenarios(@Param("ids") List<String> ids);
+  RawScenario getScenarioById(@Param("scenarioId") final String scenarioId);
 
   // -- CATEGORY --
 

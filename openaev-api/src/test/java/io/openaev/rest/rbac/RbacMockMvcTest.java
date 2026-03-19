@@ -225,7 +225,7 @@ public class RbacMockMvcTest extends IntegrationTest {
       Grant.GRANT_RESOURCE_TYPE grantResourceType =
           Grant.GRANT_RESOURCE_TYPE.fromRbacResourceType(rbac.resourceType());
       Grant.GRANT_TYPE grantType = Grant.GRANT_TYPE.fromRbacAction(rbac.actionPerformed());
-      Grant grant = GrantFixture.getGrant(rbac.resourceId(), grantResourceType, grantType, group);
+      GrantFixture.getGrant(rbac.resourceId(), grantResourceType, grantType, group);
     }
 
     return buildAuthenticationToken(user);

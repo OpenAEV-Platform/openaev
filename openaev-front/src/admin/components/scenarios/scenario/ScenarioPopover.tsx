@@ -9,7 +9,7 @@ import ExportOptionsDialog from '../../../../components/common/export/ExportOpti
 import { useFormatter } from '../../../../components/i18n';
 import { type Scenario } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import ScenarioUpdate from './ScenarioUpdate';

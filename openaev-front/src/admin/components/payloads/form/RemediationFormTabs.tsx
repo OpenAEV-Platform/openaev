@@ -12,7 +12,7 @@ import { useHelper } from '../../../../store';
 import { type Collector } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import RestrictionAccess from '../../../../utils/permissions/RestrictionAccess';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import RemediationFormTab from './RemediationFormTab';
@@ -34,7 +34,7 @@ const RemediationFormTabs = ({ payloadId }: RemediationFormTabsProps) => {
 
   const hasPlatformSettingsCapabilities = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS);
 
-  const { collectors } = useHelper((helper: CollectorHelper) => ({ collectors: helper.getCollectors() }));
+  const { collectors } = useHelper((helper: CollectorHelper) => ({ collectors: helper.getExistingCollectors() }));
   useDataLoader(() => {
     if (hasPlatformSettingsCapabilities) {
       setLoading(true);

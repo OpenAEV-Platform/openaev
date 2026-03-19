@@ -19,7 +19,11 @@ public enum CommonProperties {
   OBJECT_MARKING_REFS("object_marking_refs"),
   GRANULAR_MARKINGS("granular_markings"),
   DEFANGED("defanged"),
-  EXTENSIONS("extensions");
+  EXTENSIONS("extensions"),
+  OBSERVABLE_VALUES("observable_values"),
+  VALUE("value"),
+  NAME("name"),
+  DESCRIPTION("description");
 
   private final String value;
 

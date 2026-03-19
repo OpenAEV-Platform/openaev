@@ -5,7 +5,7 @@ import static io.openaev.database.model.Endpoint.PLATFORM_TYPE.Linux;
 import static io.openaev.database.model.Filters.FilterOperator.contains;
 import static io.openaev.database.model.Payload.PAYLOAD_SOURCE.MANUAL;
 import static io.openaev.rest.payload.PayloadApi.PAYLOAD_URI;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.PayloadFixture.*;
 import static java.lang.String.valueOf;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -15,16 +15,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Document;
+import io.openaev.database.model.Domain;
 import io.openaev.database.model.Payload;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.utils.fixtures.DocumentFixture;
+import io.openaev.utils.fixtures.DomainFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
+import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -37,21 +41,26 @@ public class PayloadApiSearchTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private PayloadRepository payloadRepository;
   @Autowired private DocumentRepository documentRepository;
+  @Autowired private DomainComposer domainComposer;
 
   @BeforeAll
   void beforeAll() {
-    Payload command = createDefaultCommand();
+
+    Set<Domain> domains =
+        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
+
+    Payload command = createDefaultCommand(domains);
     Payload commandSaved = this.payloadRepository.save(command);
     PAYLOAD_COMMAND_IDS.add(commandSaved.getId());
 
-    Payload dnsResolution = createDefaultDnsResolution();
+    Payload dnsResolution = createDefaultDnsResolution(domains);
     Payload dnsResolutionSaved = this.payloadRepository.save(dnsResolution);
     PAYLOAD_COMMAND_IDS.add(dnsResolutionSaved.getId());
 
     Document document = DocumentFixture.getDocumentJpeg();
     Document documentSaved = this.documentRepository.save(document);
 
-    Payload executable = createDefaultExecutable(documentSaved);
+    Payload executable = createDefaultExecutable(documentSaved, domains);
     Payload executableSaved = this.payloadRepository.save(executable);
     PAYLOAD_COMMAND_IDS.add(executableSaved.getId());
   }

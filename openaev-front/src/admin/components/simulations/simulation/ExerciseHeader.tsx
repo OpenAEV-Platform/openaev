@@ -40,7 +40,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
   const permissions = useSimulationPermissions(exerciseId);
   const [openChangeStatus, setOpenChangeStatus] = useState<Exercise['exercise_status'] | null>(null);
   const submitUpdateStatus = (status: { exercise_status: Exercise['exercise_status'] | null }) => {
-    dispatch(updateExerciseStatus(exerciseId, status));
+    dispatch(updateExerciseStatus(exerciseId, { exercise_status: status.exercise_status ?? undefined }));
     setOpenChangeStatus(null);
   };
   const executionButton = () => {

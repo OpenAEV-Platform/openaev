@@ -11,10 +11,11 @@ import ItemMainFocus from '../../../../components/ItemMainFocus';
 import ItemSeverity from '../../../../components/ItemSeverity';
 import ItemTags from '../../../../components/ItemTags';
 import PlatformIcon from '../../../../components/PlatformIcon';
+import TypeAffinityChip from '../../../../components/TypeAffinityChip';
 import { SCENARIO_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
 import { type Exercise, type KillChainPhase } from '../../../../utils/api-types';
-import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 
 interface Props { exercise: Exercise }
@@ -122,6 +123,16 @@ const SimulationMainInformation: FunctionComponent<Props> = ({ exercise }) => {
           ) : exercise.exercise_platforms?.map(
             (platform: string) => <PlatformIcon key={platform} platform={platform} tooltip width={25} marginRight={theme.spacing(2)} />,
           )}
+        </Grid>
+        <Grid size={{ xs: 4 }}>
+          <Typography
+            variant="h3"
+            gutterBottom
+            style={{ marginTop: 20 }}
+          >
+            {t('Type Affinity')}
+          </Typography>
+          <TypeAffinityChip affinity_text={scenario?.scenario_type_affinity} />
         </Grid>
         <Grid size={{ xs: 4 }}>
           <Typography

@@ -22,7 +22,7 @@ import {
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import RestrictionAccess from '../../../../utils/permissions/RestrictionAccess';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { isNotEmptyField } from '../../../../utils/utils';
@@ -65,7 +65,7 @@ const AtomicTestingRemediations = () => {
   const hasPlatformSettingsCapabilities = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS);
   const [loading, setLoading] = useState(false);
 
-  const { collectors } = useHelper((helper: CollectorHelper) => ({ collectors: helper.getCollectors() }));
+  const { collectors } = useHelper((helper: CollectorHelper) => ({ collectors: helper.getExistingCollectors() }));
 
   const { snapshot, setSnapshot } = useSnapshotRemediation();
   const [activeDetectionRemediation, setActiveDetectionRemediation] = useState<DetectionRemediationOutput>();

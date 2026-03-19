@@ -23,6 +23,7 @@ public class AppPyroscopeConfig {
                 EventType.valueOf(pyroscopePropertiesConfig.getProfilerEventType().toUpperCase()))
             .setProfilingAlloc(pyroscopePropertiesConfig.getProfilerAllocSize())
             .setProfilingLock(pyroscopePropertiesConfig.getProfilerLockSize())
+            .setProfileExportTimeout(pyroscopePropertiesConfig.getProfileExportTimeout())
             .build());
   }
 }

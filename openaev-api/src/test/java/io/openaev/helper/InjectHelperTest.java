@@ -1,7 +1,6 @@
 package io.openaev.helper;
 
 import static io.openaev.database.model.ExerciseStatus.RUNNING;
-import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
@@ -9,6 +8,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.utils.fixtures.InjectorContractFixture;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +35,7 @@ public class InjectHelperTest extends IntegrationTest {
   @Autowired private UserRepository userRepository;
 
   @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private InjectorContractFixture injectorContractFixture;
 
   @Disabled
   @DisplayName("Retrieve simple inject to run")
@@ -69,8 +70,7 @@ public class InjectHelperTest extends IntegrationTest {
     // Executable Inject
     Inject inject = new Inject();
     inject.setTitle("Test inject");
-    inject.setInjectorContract(
-        this.injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow());
+    inject.setInjectorContract(injectorContractFixture.getWellKnownSingleEmailContract());
     inject.setEnabled(true);
     inject.setExercise(exerciseSaved);
     inject.setTeams(List.of(team));

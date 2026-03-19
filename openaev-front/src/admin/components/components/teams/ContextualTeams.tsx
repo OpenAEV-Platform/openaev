@@ -6,9 +6,9 @@ import { makeStyles } from 'tss-react/mui';
 
 import ItemTags from '../../../../components/ItemTags';
 import { type Team } from '../../../../utils/api-types';
-import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import useSearchAnFilter from '../../../../utils/SortingFiltering';
+import useSearchAndFilter from '../../../../utils/SortingFiltering';
 import { PermissionsContext, TeamContext } from '../../common/Context';
 import TeamPlayers from './TeamPlayers';
 import TeamPopover from './TeamPopover';
@@ -138,7 +138,7 @@ const ContextualTeams: FunctionComponent<Props> = ({ teams }) => {
   const [searchId] = searchParams.getAll('id');
 
   // Filter and sort hook
-  const filtering = useSearchAnFilter(
+  const filtering = useSearchAndFilter(
     'team',
     'name',
     [

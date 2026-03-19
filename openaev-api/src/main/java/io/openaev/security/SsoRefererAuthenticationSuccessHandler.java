@@ -15,11 +15,7 @@ import org.springframework.security.web.savedrequest.SavedRequest;
 
 public class SsoRefererAuthenticationSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
-  private RequestCache requestCache = new HttpSessionRequestCache();
-
-  public SsoRefererAuthenticationSuccessHandler() {
-    // Default constructor
-  }
+  private final RequestCache requestCache = new HttpSessionRequestCache();
 
   @Override
   public void onAuthenticationSuccess(
@@ -34,9 +30,5 @@ public class SsoRefererAuthenticationSuccessHandler extends SimpleUrlAuthenticat
       }
     }
     super.onAuthenticationSuccess(request, response, authentication);
-  }
-
-  public void setRequestCache(RequestCache requestCache) {
-    this.requestCache = requestCache;
   }
 }

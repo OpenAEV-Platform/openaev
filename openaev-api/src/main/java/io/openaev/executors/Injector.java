@@ -3,14 +3,10 @@ package io.openaev.executors;
 import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
 import static io.openaev.utils.InjectionUtils.isInInjectableRange;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.DocumentRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.model.ExecutionProcess;
-import io.openaev.service.FileService;
-import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotNull;
 import java.io.InputStream;
 import java.time.Instant;
@@ -18,23 +14,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.apache.commons.io.IOUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 public abstract class Injector {
 
-  @Resource protected ObjectMapper mapper;
-  private FileService fileService;
-  private DocumentRepository documentRepository;
+  protected final InjectorContext context;
 
-  @Autowired
-  public void setDocumentRepository(DocumentRepository documentRepository) {
-    this.documentRepository = documentRepository;
-  }
-
-  @Autowired
-  public void setFileService(FileService fileService) {
-    this.fileService = fileService;
+  protected Injector(InjectorContext context) {
+    this.context = context;
   }
 
   public abstract ExecutionProcess process(Execution execution, ExecutableInject injection)
@@ -85,7 +72,7 @@ public abstract class Injector {
       throws Exception {
     Inject inject = injection.getInjection().getInject();
     ObjectNode content = inject.getContent();
-    return this.mapper.treeToValue(content, converter);
+    return this.context.getMapper().treeToValue(content, converter);
   }
 
   public List<DataAttachment> resolveAttachments(
@@ -110,10 +97,11 @@ public abstract class Injector {
     documents.forEach(
         attachment -> {
           String documentId = attachment.getId();
-          Optional<Document> askedDocument = documentRepository.findById(documentId);
+          Optional<Document> askedDocument =
+              this.context.getDocumentRepository().findById(documentId);
           try {
             Document doc = askedDocument.orElseThrow();
-            InputStream fileInputStream = fileService.getFile(doc).orElseThrow();
+            InputStream fileInputStream = this.context.getFileService().getFile(doc).orElseThrow();
             byte[] content = IOUtils.toByteArray(fileInputStream);
             resolved.add(new DataAttachment(documentId, doc.getName(), content, doc.getType()));
           } catch (Exception e) {

@@ -5,8 +5,8 @@ import static java.time.Instant.now;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MonoIdDeserializer;
-import io.openaev.helper.MultiIdListDeserializer;
+import io.openaev.helper.MonoIdSerializer;
+import io.openaev.helper.MultiIdListSerializer;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -33,7 +33,7 @@ public class LessonsTemplateCategory implements Base {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "lessons_template_category_template")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("lessons_template_category_template")
   @Schema(type = "string")
   private LessonsTemplate template;
@@ -65,11 +65,14 @@ public class LessonsTemplateCategory implements Base {
   @ArraySchema(schema = @Schema(type = "string"))
   @OneToMany(mappedBy = "category", fetch = FetchType.EAGER)
   @JsonProperty("lessons_template_category_questions")
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   private List<LessonsTemplateQuestion> questions = new ArrayList<>();
 
   @Override
   public boolean isUserHasAccess(User user) {
+    if (template == null) {
+      return user.isAdmin();
+    }
     return template.isUserHasAccess(user);
   }
 }

@@ -19,9 +19,11 @@ import io.openaev.database.model.Variable.VariableType;
 import io.openaev.injector_contract.*;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractExpectations;
+import io.openaev.rest.domain.enums.PresetDomain;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -32,11 +34,6 @@ public class EmailContract extends Contractor {
   public static final String EMAIL_GLOBAL = "2790bd39-37d4-4e39-be7e-53f3ca783f86";
 
   @Override
-  public boolean isExpose() {
-    return true;
-  }
-
-  @Override
   public String getType() {
     return TYPE;
   }
@@ -44,7 +41,7 @@ public class EmailContract extends Contractor {
   @Override
   public ContractConfig getConfig() {
     return new ContractConfig(
-        TYPE, Map.of(en, "Email", fr, "Email"), "#cddc39", "#cddc39", "/img/email.png", isExpose());
+        TYPE, Map.of(en, "Email", fr, "Email"), "#cddc39", "#cddc39", "/img/email.png");
   }
 
   @Override
@@ -76,7 +73,8 @@ public class EmailContract extends Contractor {
             Map.of(en, "Send individual mails", fr, "Envoyer des mails individuels"),
             standardInstance,
             List.of(Endpoint.PLATFORM_TYPE.Service),
-            false);
+            false,
+            Set.of(PresetDomain.EMAIL_INFILTRATION, PresetDomain.TABLETOP));
     standardEmail.addVariable(documentUriVariable);
     // Global contract
     List<ContractElement> globalInstance =
@@ -94,7 +92,8 @@ public class EmailContract extends Contractor {
             Map.of(en, "Send multi-recipients mail", fr, "Envoyer un mail multi-destinataires"),
             globalInstance,
             List.of(Endpoint.PLATFORM_TYPE.Service),
-            false);
+            false,
+            Set.of(PresetDomain.EMAIL_INFILTRATION, PresetDomain.TABLETOP));
     globalEmail.addVariable(documentUriVariable);
     return List.of(standardEmail, globalEmail);
   }

@@ -1,6 +1,7 @@
 package io.openaev.rest.inject.service;
 
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_ASSET_SEPARATOR;
+import static io.openaev.executors.Executor.CMD;
 import static org.springframework.util.CollectionUtils.isEmpty;
 import static org.springframework.util.StringUtils.hasText;
 
@@ -143,7 +144,7 @@ public class ExecutableInjectService {
     return result.toString();
   }
 
-  private static String formatMultilineCommand(String command) {
+  public static String formatMultilineCommand(String command) {
     String[] lines = command.split("\n");
     StringBuilder formattedCommand = new StringBuilder();
 
@@ -176,12 +177,12 @@ public class ExecutableInjectService {
       ObjectNode injectContent,
       List<ObjectNode> injectorContractContentFields,
       String obfuscator) {
-    OpenAEVObfuscationMap obfuscationMap = new OpenAEVObfuscationMap();
+    OpenAEVObfuscationMap obfuscationMap = new OpenAEVObfuscationMap(executor);
     String computedCommand =
         replaceArgumentsByValue(
             command, defaultPayloadArguments, injectorContractContentFields, injectContent);
 
-    if (executor.equals("cmd")) {
+    if (CMD.equals(executor)) {
       computedCommand = replaceCmdVariables(computedCommand);
       computedCommand = formatMultilineCommand(computedCommand);
     }
@@ -276,21 +277,52 @@ public class ExecutableInjectService {
               obfuscator));
     }
 
-    // Command
-    if (contract.getPayload().getTypeEnum().equals(PayloadType.COMMAND)) {
-      Command payloadCommand = (Command) payloadToExecute;
-      payloadCommand.setExecutor(((Command) contract.getPayload()).getExecutor());
-      payloadCommand.setContent(
-          processAndEncodeCommand(
-              payloadCommand.getContent(),
-              payloadCommand.getExecutor(),
-              contract.getPayload().getArguments(),
-              inject.getContent(),
-              injectorContractFields,
-              obfuscator));
-      return payloadCommand;
-    }
+    return processPayloadToExecute(
+        payloadToExecute, contract, inject, injectorContractFields, obfuscator);
+  }
 
-    return payloadToExecute;
+  private Payload processPayloadToExecute(
+      Payload payloadToExecute,
+      InjectorContract contract,
+      Inject inject,
+      List<ObjectNode> injectorContractFields,
+      String obfuscator) {
+    switch (contract.getPayload().getTypeEnum()) {
+      case PayloadType.COMMAND:
+        return processCommandPayload(
+            payloadToExecute, contract, inject, injectorContractFields, obfuscator);
+      case PayloadType.DNS_RESOLUTION:
+        return processDnsResolutionPayload(payloadToExecute, inject);
+      default:
+        // All other payload types are intentionally passed through unchanged.
+        return payloadToExecute;
+    }
+  }
+
+  private Payload processCommandPayload(
+      Payload payloadToExecute,
+      InjectorContract contract,
+      Inject inject,
+      List<ObjectNode> injectorContractFields,
+      String obfuscator) {
+    Command payloadCommand = (Command) payloadToExecute;
+    payloadCommand.setExecutor(((Command) contract.getPayload()).getExecutor());
+    payloadCommand.setContent(
+        processAndEncodeCommand(
+            payloadCommand.getContent(),
+            payloadCommand.getExecutor(),
+            contract.getPayload().getArguments(),
+            inject.getContent(),
+            injectorContractFields,
+            obfuscator));
+    return payloadCommand;
+  }
+
+  private Payload processDnsResolutionPayload(Payload payloadToExecute, Inject inject) {
+    DnsResolution dnsResolution = (DnsResolution) payloadToExecute;
+    dnsResolution.setHostname(
+        replaceArgumentsByValue(
+            dnsResolution.getHostname(), dnsResolution.getArguments(), null, inject.getContent()));
+    return dnsResolution;
   }
 }

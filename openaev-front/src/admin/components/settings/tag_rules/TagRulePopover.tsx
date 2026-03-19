@@ -6,9 +6,8 @@ import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import { type TagRuleOutput } from '../../../../utils/api-types';
-import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import OPEN_CTI_TAG_NAME from './TagRuleConstants';
 import TagRuleUpdate from './TagRuleUpdate';
 
 interface Props {
@@ -50,7 +49,7 @@ const TagRulePopover: FunctionComponent<Props> = ({
   ];
 
   // we don't allow the deletion of the rule with the tag opencti
-  if (tagRule.tag_name != OPEN_CTI_TAG_NAME) {
+  if (!tagRule.tag_rule_protected) {
     entries.push({
       label: 'Delete',
       action: handleOpenDelete,

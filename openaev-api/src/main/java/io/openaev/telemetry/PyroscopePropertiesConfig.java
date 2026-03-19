@@ -1,5 +1,6 @@
 package io.openaev.telemetry;
 
+import java.time.Duration;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -22,6 +23,9 @@ public class PyroscopePropertiesConfig {
 
   @Value("${pyroscope.profiler.lock:#{''}}")
   private String profilerLockSize;
+
+  @Value("${pyroscope.profile.export.timeout:#{''}}")
+  private Duration profileExportTimeout;
 
   @Value("${pyroscope.server.address:#{'http://localhost:4040'}}")
   private String profilerServerAddress;

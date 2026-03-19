@@ -6,7 +6,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import { searchLessonsTemplates } from '../../../../actions/Lessons';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import PaginationComponent from '../../../../components/common/pagination/PaginationComponent.js';
+import PaginationComponent from '../../../../components/common/pagination/PaginationComponent';
 import SortHeadersComponent from '../../../../components/common/pagination/SortHeadersComponent';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
@@ -14,7 +14,7 @@ import useBodyItemsStyles from '../../../../components/common/queryable/style/st
 import { useFormatter } from '../../../../components/i18n';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { type LessonsTemplate, type SearchPaginationInput } from '../../../../utils/api-types';
-import { Can } from '../../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CreateLessonsTemplate from './CreateLessonsTemplate';
 

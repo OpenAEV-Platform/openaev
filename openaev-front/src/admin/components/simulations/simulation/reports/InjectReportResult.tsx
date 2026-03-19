@@ -50,7 +50,10 @@ const InjectReportResult: FunctionComponent<Props> = ({
     },
     {
       label: 'Execution date',
-      render: (inject: InjectResultOutput) => <>{fldt(inject.inject_status?.tracking_sent_date)}</>,
+      render: (inject: InjectResultOutput) => {
+        const trackingDate = inject.inject_status?.tracking_sent_date;
+        return <>{trackingDate ? fldt(trackingDate) : '-'}</>;
+      },
     },
     {
       label: 'Scores',

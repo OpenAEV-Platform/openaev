@@ -5,15 +5,12 @@ import static io.openaev.rest.stream.ai.AiPrompt.generatePrompt;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.RBAC;
-import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.rest.helper.RestBehavior;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
@@ -23,13 +20,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
-import reactor.util.function.Tuple2;
 
 @RestController
 public class AiApi extends RestBehavior {
   public static final String X_ACCEL_BUFFERING = "X-Accel-Buffering";
-  private final Map<String, Tuple2<OpenAEVPrincipal, FluxSink<Object>>> consumers = new HashMap<>();
   private AiConfig aiConfig;
 
   @Autowired

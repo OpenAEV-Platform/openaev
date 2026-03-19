@@ -8,7 +8,7 @@ import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import { type RoleOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import RoleForm from './RoleForm';
 
@@ -50,12 +50,12 @@ const RolePopover: FunctionComponent<RolePopoverProps> = ({ onDelete, onUpdate, 
   // Button Popover
   const entries = [];
   if (onUpdate) entries.push({
-    label: t('Update'),
+    label: 'Update',
     action: () => handleUpdate(),
     userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS),
   });
   if (onDelete) entries.push({
-    label: t('Delete'),
+    label: 'Delete',
     action: () => handleDelete(),
     userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS),
   });
@@ -87,7 +87,7 @@ const RolePopover: FunctionComponent<RolePopoverProps> = ({ onDelete, onUpdate, 
         handleClose={() => setOpenUpdate(false)}
         title={t('Update role')}
       >
-        <RoleForm onSubmit={onSubmit} handleClose={() => setOpenUpdate(false)} editing={true} initialValues={role} />
+        <RoleForm onSubmit={onSubmit} handleClose={() => setOpenUpdate(false)} editing initialValues={role} />
       </Drawer>
     </>
   );

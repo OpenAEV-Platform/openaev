@@ -67,15 +67,16 @@ public class StreamApi extends RestBehavior {
     flux.next(message);
   }
 
-  private static final EnumSet<ResourceType> RESOURCES_STREAM_BLACKLIST =
-      EnumSet.of(ResourceType.VULNERABILITY, ResourceType.PAYLOAD);
+  private static final EnumSet<ResourceType> RESOURCES_STREAM_EXCLUSION =
+      EnumSet.of(
+          ResourceType.VULNERABILITY, ResourceType.PAYLOAD, ResourceType.CONNECTOR_INSTANCE_LOG);
 
-  @Async
+  @Async("streamExecutor")
   @Transactional
   @TransactionalEventListener
   public void listenDatabaseUpdate(BaseEvent event) {
-    if (RESOURCES_STREAM_BLACKLIST.contains(event.getInstance().getResourceType())
-        | !event.isListened()) {
+    if (RESOURCES_STREAM_EXCLUSION.contains(event.getInstance().getResourceType())
+        || !event.isListened()) {
       return;
     }
     if (lastUpdate.isBefore(Instant.now().minus(5, ChronoUnit.MINUTES))) {
@@ -123,7 +124,7 @@ public class StreamApi extends RestBehavior {
               sendStreamEvent(fluxSink, userEvent);
             } catch (Exception e) {
               String simpleName = event.getInstance().getClass().getSimpleName();
-              log.warn(String.format("Class %s cant be streamed", simpleName), e);
+              log.warn(String.format("Class %s can't be streamed", simpleName), e);
             }
           } else {
             sendStreamEvent(fluxSink, event);

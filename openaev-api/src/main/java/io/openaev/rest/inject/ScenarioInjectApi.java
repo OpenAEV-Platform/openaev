@@ -18,6 +18,7 @@ import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.ScenarioInjectService;
 import io.openaev.service.*;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.persistence.criteria.Join;
@@ -87,7 +88,20 @@ public class ScenarioInjectApi extends RestBehavior {
   public Inject createInjectForScenario(
       @PathVariable @NotBlank final String scenarioId, @Valid @RequestBody InjectInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
-    return this.injectService.createInject(null, scenario, input);
+    return this.injectService.createAndSaveInject(null, scenario, input);
+  }
+
+  @PostMapping(SCENARIO_URI + "/{scenarioId}/injects/bulk")
+  @RBAC(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.SCENARIO)
+  @Transactional(rollbackFor = Exception.class)
+  public List<Inject> createInjectsForScenario(
+      @PathVariable @NotBlank final String scenarioId,
+      @Valid @RequestBody List<InjectInput> inputs) {
+    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    return this.injectService.createAndSaveInjectList(null, scenario, inputs);
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/injects/assistant")

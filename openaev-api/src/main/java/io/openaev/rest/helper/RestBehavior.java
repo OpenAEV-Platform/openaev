@@ -11,6 +11,7 @@ import io.openaev.aop.lock.LockAcquisitionException;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.*;
+import io.openaev.stix.parsing.ParsingException;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -96,6 +97,24 @@ public class RestBehavior {
     return bag;
   }
 
+  /**
+   * Method to automatically handle a STIX Parsing error as a BAD REQUEST
+   *
+   * @param ex the STIX parsing exception object
+   * @return Validation bag error structure
+   */
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  @ExceptionHandler(ParsingException.class)
+  public ValidationErrorBag handleInputValidationExceptions(ParsingException ex) {
+    ValidationErrorBag bag = new ValidationErrorBag();
+    ValidationError errors = new ValidationError();
+    Map<String, ValidationContent> errorsBag = new HashMap<>();
+    errorsBag.put("STIX Bundle", new ValidationContent(ex.getMessage()));
+    errors.setChildren(errorsBag);
+    bag.setErrors(errors);
+    return bag;
+  }
+
   @ResponseStatus(HttpStatus.BAD_REQUEST)
   @ExceptionHandler(ImportException.class)
   public ValidationErrorBag handleBadRequestExceptions(ImportException ex) {
@@ -137,7 +156,7 @@ public class RestBehavior {
       })
   public ValidationErrorBag handleValidationExceptions() {
     ValidationErrorBag bag =
-        new ValidationErrorBag(HttpStatus.UNAUTHORIZED.value(), "AUTHENTIFICATION_FAILED");
+        new ValidationErrorBag(HttpStatus.UNAUTHORIZED.value(), "AUTHENTICATION_FAILED");
     ValidationError errors = new ValidationError();
     Map<String, ValidationContent> errorsBag = new HashMap<>();
     errorsBag.put("username", new ValidationContent("Invalid user or password"));
@@ -218,7 +237,7 @@ public class RestBehavior {
       })
   public ResponseEntity<ErrorMessage> handleEntityNotFoundException(EntityNotFoundException ex) {
     ErrorMessage message = new ErrorMessage("Element not found: " + ex.getMessage());
-    log.warn(String.format("ElementNotFoundException: %s", ex.getMessage()), ex);
+    log.warn(String.format("EntityNotFoundException: %s", ex.getMessage()), ex);
     return new ResponseEntity<>(message, HttpStatus.NOT_FOUND);
   }
 
@@ -226,7 +245,7 @@ public class RestBehavior {
   public ResponseEntity<ErrorMessage> handleUnsupportedMediaTypeException(
       UnsupportedMediaTypeException ex) {
     ErrorMessage message = new ErrorMessage(ex.getMessage());
-    log.warn(String.format("UnsupportedMediaTypeException: " + ex.getMessage()), ex);
+    log.warn(String.format("UnsupportedMediaTypeException: %s", ex.getMessage()), ex);
     return new ResponseEntity<>(message, HttpStatus.UNSUPPORTED_MEDIA_TYPE);
   }
 

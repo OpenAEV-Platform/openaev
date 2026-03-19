@@ -12,7 +12,7 @@ import { useHelper } from '../../../../store';
 import { type PlayerInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { countryOption, type Option, organizationOption, tagOptions } from '../../../../utils/Option';
-import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { TeamContext } from '../../common/Context';
 import { type PlayerInputForm, type UserStore } from './Player';
@@ -126,19 +126,19 @@ const PlayerPopover: FunctionComponent<PlayerPopoverProps> = ({
   // Button Popover
   const entries = [];
   entries.push({
-    label: t('Update'),
+    label: 'Update',
     action: () => handleOpenEdit(),
     userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.TEAMS_AND_PLAYERS),
   });
   if (teamId) entries.push({
-    label: t('Remove from the team'),
+    label: 'Remove from the team',
     action: () => handleOpenRemove(),
     userRight: true,
   });
 
   // It's not possible to delete your own player
   if (user.user_id !== currentUser.user_id) entries.push({
-    label: t('Delete'),
+    label: 'Delete',
     action: () => handleOpenDelete(),
     userRight: ability.can(ACTIONS.DELETE, SUBJECTS.TEAMS_AND_PLAYERS),
   });
@@ -167,9 +167,9 @@ const PlayerPopover: FunctionComponent<PlayerPopoverProps> = ({
       </Drawer>
       <MuiDialog
         open={openRemove}
-        TransitionComponent={Transition}
+        slots={{ transition: Transition }}
         onClose={handleCloseRemove}
-        PaperProps={{ elevation: 1 }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogContent>
           <DialogContentText>

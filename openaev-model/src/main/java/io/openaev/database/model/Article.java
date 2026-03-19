@@ -6,8 +6,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MonoIdDeserializer;
-import io.openaev.helper.MultiIdListDeserializer;
+import io.openaev.helper.MonoIdSerializer;
+import io.openaev.helper.MultiIdListSerializer;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -72,21 +72,21 @@ public class Article implements Base {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "article_exercise")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("article_exercise")
   @Schema(type = "string")
   private Exercise exercise;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "article_scenario")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("article_scenario")
   @Schema(type = "string")
   private Scenario scenario;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "article_channel")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("article_channel")
   @NotNull
   @Schema(type = "string")
@@ -98,14 +98,20 @@ public class Article implements Base {
       name = "articles_documents",
       joinColumns = @JoinColumn(name = "article_id"),
       inverseJoinColumns = @JoinColumn(name = "document_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("article_documents")
   private List<Document> documents = new ArrayList<>();
 
   @JsonIgnore
   @Override
   public boolean isUserHasAccess(User user) {
-    return getExercise().isUserHasAccess(user);
+    if (getExercise() != null) {
+      return getExercise().isUserHasAccess(user);
+    }
+    if (getScenario() != null) {
+      return getScenario().isUserHasAccess(user);
+    }
+    return user.isAdmin();
   }
 
   @Transient private Instant virtualPublication;

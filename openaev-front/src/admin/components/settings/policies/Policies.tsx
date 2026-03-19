@@ -13,13 +13,13 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import SecurityMenu from '../SecurityMenu';
 import PolicyForm from './PolicyForm';
 
-const useStyles = makeStyles()(() => ({
+const useStyles = makeStyles()(theme => ({
   paper: {
     height: '100%',
     minHeight: '100%',
     margin: '10px 0 0 0',
     padding: 20,
-    borderRadius: 6,
+    borderRadius: theme.borderRadius,
   },
 }));
 

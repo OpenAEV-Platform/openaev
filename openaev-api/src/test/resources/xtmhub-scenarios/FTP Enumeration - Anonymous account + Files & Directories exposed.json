@@ -1,0 +1,862 @@
+{
+  "export_version" : 1,
+  "scenario_information" : {
+    "scenario_id" : "d0d1a373-8ea8-42c5-9c62-f3c004acc9a4",
+    "scenario_name" : "FTP Enumeration - Anonymous account + Files & Directories exposed",
+    "scenario_description" : "This scenario will allow you to easily identify FTP servers allowing Anonymous access",
+    "scenario_subtitle" : "",
+    "scenario_category" : "attack-scenario",
+    "scenario_main_focus" : "incident-response",
+    "scenario_severity" : "high",
+    "scenario_message_header" : "SIMULATION HEADER",
+    "scenario_message_footer" : "SIMULATION FOOTER",
+    "scenario_mail_from" : "no-reply@openbas.io",
+    "scenario_tags" : [ ],
+    "scenario_documents" : [ ]
+  },
+  "scenario_teams" : [ ],
+  "scenario_objectives" : null,
+  "scenario_users" : [ ],
+  "scenario_organizations" : [ ],
+  "scenario_injects" : [ {
+    "inject_id" : "a4302932-aa59-483c-ae99-baf78028f022",
+    "inject_title" : "FTP Enumeration - Anonymous account",
+    "inject_description" : "",
+    "inject_country" : null,
+    "inject_city" : null,
+    "inject_enabled" : true,
+    "inject_content" : {
+      "expectations" : [ {
+        "expectation_type" : "PREVENTION",
+        "expectation_name" : "Prevention",
+        "expectation_description" : null,
+        "expectation_score" : 100,
+        "expectation_expectation_group" : false,
+        "expectation_expiration_time" : 21600
+      }, {
+        "expectation_type" : "DETECTION",
+        "expectation_name" : "Detection",
+        "expectation_description" : null,
+        "expectation_score" : 100,
+        "expectation_expectation_group" : false,
+        "expectation_expiration_time" : 21600
+      } ],
+      "obfuscator" : "plain-text",
+      "IP" : "192.168.56.1"
+    },
+    "inject_all_teams" : false,
+    "inject_depends_on" : [ ],
+    "inject_depends_duration" : 120,
+    "inject_injector_contract" : {
+      "convertedContent" : {
+        "config" : {
+          "type" : "openbas_implant",
+          "expose" : true,
+          "label" : {
+            "en" : "OpenBAS Implant",
+            "fr" : "OpenBAS Implant"
+          },
+          "color_dark" : "#000000",
+          "color_light" : "#000000"
+        },
+        "label" : {
+          "en" : "FTP Enumeration - Anonymous account",
+          "fr" : "FTP Enumeration - Anonymous account"
+        },
+        "manual" : false,
+        "fields" : [ {
+          "key" : "assets",
+          "label" : "Assets",
+          "mandatory" : false,
+          "readOnly" : false,
+          "mandatoryGroups" : [ "assets", "assetgroups" ],
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "cardinality" : "n",
+          "defaultValue" : [ ],
+          "type" : "asset"
+        }, {
+          "key" : "assetgroups",
+          "label" : "Asset groups",
+          "mandatory" : false,
+          "readOnly" : false,
+          "mandatoryGroups" : [ "assets", "assetgroups" ],
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "cardinality" : "n",
+          "defaultValue" : [ ],
+          "type" : "asset-group"
+        }, {
+          "key" : "obfuscator",
+          "label" : "Obfuscators",
+          "mandatory" : false,
+          "readOnly" : false,
+          "mandatoryGroups" : null,
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "cardinality" : "1",
+          "defaultValue" : [ "plain-text" ],
+          "choices" : [ {
+            "label" : "plain-text",
+            "value" : "plain-text",
+            "information" : ""
+          }, {
+            "label" : "base64",
+            "value" : "base64",
+            "information" : "CMD does not support base64 obfuscation"
+          } ],
+          "type" : "choice"
+        }, {
+          "key" : "expectations",
+          "label" : "Expectations",
+          "mandatory" : false,
+          "readOnly" : false,
+          "mandatoryGroups" : null,
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "cardinality" : "n",
+          "defaultValue" : [ ],
+          "predefinedExpectations" : [ {
+            "expectation_type" : "PREVENTION",
+            "expectation_name" : "Prevention",
+            "expectation_description" : null,
+            "expectation_score" : 100.0,
+            "expectation_expectation_group" : false,
+            "expectation_expiration_time" : 21600
+          }, {
+            "expectation_type" : "DETECTION",
+            "expectation_name" : "Detection",
+            "expectation_description" : null,
+            "expectation_score" : 100.0,
+            "expectation_expectation_group" : false,
+            "expectation_expiration_time" : 21600
+          }, {
+            "expectation_type" : "VULNERABILITY",
+            "expectation_name" : "Not vulnerable",
+            "expectation_description" : "",
+            "expectation_score" : 100.0,
+            "expectation_expectation_group" : false,
+            "expectation_expiration_time" : 21600
+          } ],
+          "type" : "expectation"
+        }, {
+          "key" : "IP",
+          "label" : "IP",
+          "mandatory" : true,
+          "readOnly" : false,
+          "mandatoryGroups" : null,
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "defaultValue" : "192.168.56.1",
+          "type" : "text"
+        } ],
+        "variables" : [ {
+          "key" : "user",
+          "label" : "User that will receive the injection",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ {
+            "key" : "user.id",
+            "label" : "Id of the user in the platform",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "user.email",
+            "label" : "Email of the user",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "user.firstname",
+            "label" : "First name of the user",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "user.lastname",
+            "label" : "Last name of the user",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "user.lang",
+            "label" : "Language of the user",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          } ]
+        }, {
+          "key" : "exercise",
+          "label" : "Exercise of the current injection",
+          "type" : "Object",
+          "cardinality" : "1",
+          "children" : [ {
+            "key" : "exercise.id",
+            "label" : "Id of the user in the platform",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "exercise.name",
+            "label" : "Name of the exercise",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "exercise.description",
+            "label" : "Description of the exercise",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          } ]
+        }, {
+          "key" : "teams",
+          "label" : "List of team name for the injection",
+          "type" : "String",
+          "cardinality" : "n",
+          "children" : [ ]
+        }, {
+          "key" : "player_uri",
+          "label" : "Player interface platform link",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ ]
+        }, {
+          "key" : "challenges_uri",
+          "label" : "Challenges interface platform link",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ ]
+        }, {
+          "key" : "scoreboard_uri",
+          "label" : "Scoreboard interface platform link",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ ]
+        }, {
+          "key" : "lessons_uri",
+          "label" : "Lessons learned interface platform link",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ ]
+        } ],
+        "context" : { },
+        "contract_id" : "bb9e51f3-2802-408e-abe7-1226c1e385f4",
+        "contract_attack_patterns_external_ids" : [ ],
+        "is_atomic_testing" : true,
+        "needs_executor" : true,
+        "platforms" : [ "Windows" ]
+      },
+      "listened" : true,
+      "injector_contract_id" : "bb9e51f3-2802-408e-abe7-1226c1e385f4",
+      "injector_contract_labels" : {
+        "en" : "FTP Enumeration - Anonymous account",
+        "fr" : "FTP Enumeration - Anonymous account"
+      },
+      "injector_contract_manual" : false,
+      "injector_contract_content" : "{\"config\":{\"type\":\"openbas_implant\",\"expose\":true,\"label\":{\"en\":\"OpenBAS Implant\",\"fr\":\"OpenBAS Implant\"},\"color_dark\":\"#000000\",\"color_light\":\"#000000\"},\"label\":{\"en\":\"FTP Enumeration - Anonymous account\",\"fr\":\"FTP Enumeration - Anonymous account\"},\"manual\":false,\"fields\":[{\"key\":\"assets\",\"label\":\"Assets\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":[\"assets\",\"assetgroups\"],\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"type\":\"asset\"},{\"key\":\"assetgroups\",\"label\":\"Asset groups\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":[\"assets\",\"assetgroups\"],\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"type\":\"asset-group\"},{\"key\":\"obfuscator\",\"label\":\"Obfuscators\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"1\",\"defaultValue\":[\"plain-text\"],\"choices\":[{\"label\":\"plain-text\",\"value\":\"plain-text\",\"information\":\"\"},{\"label\":\"base64\",\"value\":\"base64\",\"information\":\"CMD does not support base64 obfuscation\"}],\"type\":\"choice\"},{\"key\":\"expectations\",\"label\":\"Expectations\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"predefinedExpectations\":[{\"expectation_type\":\"PREVENTION\",\"expectation_name\":\"Prevention\",\"expectation_description\":null,\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600},{\"expectation_type\":\"DETECTION\",\"expectation_name\":\"Detection\",\"expectation_description\":null,\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600},{\"expectation_type\":\"VULNERABILITY\",\"expectation_name\":\"Not vulnerable\",\"expectation_description\":\"\",\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600}],\"type\":\"expectation\"},{\"key\":\"IP\",\"label\":\"IP\",\"mandatory\":true,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"defaultValue\":\"192.168.56.1\",\"type\":\"text\"}],\"variables\":[{\"key\":\"user\",\"label\":\"User that will receive the injection\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[{\"key\":\"user.id\",\"label\":\"Id of the user in the platform\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.email\",\"label\":\"Email of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.firstname\",\"label\":\"First name of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.lastname\",\"label\":\"Last name of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.lang\",\"label\":\"Language of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}]},{\"key\":\"exercise\",\"label\":\"Exercise of the current injection\",\"type\":\"Object\",\"cardinality\":\"1\",\"children\":[{\"key\":\"exercise.id\",\"label\":\"Id of the user in the platform\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"exercise.name\",\"label\":\"Name of the exercise\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"exercise.description\",\"label\":\"Description of the exercise\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}]},{\"key\":\"teams\",\"label\":\"List of team name for the injection\",\"type\":\"String\",\"cardinality\":\"n\",\"children\":[]},{\"key\":\"player_uri\",\"label\":\"Player interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"challenges_uri\",\"label\":\"Challenges interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"scoreboard_uri\",\"label\":\"Scoreboard interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"lessons_uri\",\"label\":\"Lessons learned interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}],\"context\":{},\"contract_id\":\"bb9e51f3-2802-408e-abe7-1226c1e385f4\",\"contract_attack_patterns_external_ids\":[],\"is_atomic_testing\":true,\"needs_executor\":true,\"platforms\":[\"Windows\"]}",
+      "injector_contract_custom" : false,
+      "injector_contract_needs_executor" : true,
+      "injector_contract_platforms" : [ "Windows" ],
+      "injector_contract_payload" : {
+        "listened" : true,
+        "payload_id" : "11c4702f-7d02-4475-8d6f-8c3e34f0cfc9",
+        "payload_type" : "Command",
+        "payload_name" : "FTP Enumeration - Anonymous account",
+        "payload_description" : "Null session, also known as anonymous authentication, is a special kind of authentication during which the user doesn’t submit any credentials. When a user connects via a null session, he connects as a member of the “Anonymous Logon” group and inherits all ACL’s assigned to this group. Once we are connected as anonymous we here provide the directory & files everyone can access into your ftp server",
+        "payload_platforms" : [ "Windows" ],
+        "payload_attack_patterns" : [ {
+          "attack_pattern_id" : "bee9a713-1414-4908-8ca0-1899de7d7a26",
+          "attack_pattern_name" : "File and Directory Discovery",
+          "attack_pattern_description" : "Adversaries may enumerate files and directories or may search in specific locations of a host or network share for certain information within a file system. Adversaries may use the information from [File and Directory Discovery](https://attack.mitre.org/techniques/T1083) during automated discovery to shape follow-on behaviors, including whether or not the adversary fully infects the target and/or attempts specific actions.\n\nMany command shell utilities can be used to obtain this information. Examples include <code>dir</code>, <code>tree</code>, <code>ls</code>, <code>find</code>, and <code>locate</code>.(Citation: Windows Commands JPCERT) Custom tools may also be used to gather file and directory information and interact with the [Native API](https://attack.mitre.org/techniques/T1106). Adversaries may also leverage a [Network Device CLI](https://attack.mitre.org/techniques/T1059/008) on network devices to gather file and directory information (e.g. <code>dir</code>, <code>show flash</code>, and/or <code>nvram</code>).(Citation: US-CERT-TA18-106A)\n\nSome files and directories may require elevated or specific user permissions to access.",
+          "attack_pattern_external_id" : "T1083",
+          "attack_pattern_kill_chain_phases" : [ {
+            "phase_id" : "e0a815b3-1d61-4145-915a-d17482f5887d",
+            "phase_external_id" : "TA0007",
+            "phase_stix_id" : "x-mitre-tactic--c17c5845-175e-4421-9713-829d0573dbc9",
+            "phase_name" : "Discovery",
+            "phase_shortname" : "discovery",
+            "phase_kill_chain_name" : "mitre-attack",
+            "phase_description" : "The adversary is trying to figure out your environment.\n\nDiscovery consists of techniques an adversary may use to gain knowledge about the system and internal network. These techniques help adversaries observe the environment and orient themselves before deciding how to act. They also allow adversaries to explore what they can control and what’s around their entry point in order to discover how it could benefit their current objective. Native operating system tools are often used toward this post-compromise information-gathering objective. ",
+            "phase_order" : 8
+          } ]
+        }, {
+          "attack_pattern_id" : "853024a5-e051-4d81-b63a-1cdde660a397",
+          "attack_pattern_name" : "Remote System Discovery",
+          "attack_pattern_description" : "Adversaries may attempt to get a listing of other systems by IP address, hostname, or other logical identifier on a network that may be used for Lateral Movement from the current system. Functionality could exist within remote access tools to enable this, but utilities available on the operating system could also be used such as  [Ping](https://attack.mitre.org/software/S0097), <code>net view</code> using [Net](https://attack.mitre.org/software/S0039), or, on ESXi servers, `esxcli network diag ping`.\n\nAdversaries may also analyze data from local host files (ex: <code>C:\\Windows\\System32\\Drivers\\etc\\hosts</code> or <code>/etc/hosts</code>) or other passive means (such as local [Arp](https://attack.mitre.org/software/S0099) cache entries) in order to discover the presence of remote systems in an environment.\n\nAdversaries may also target discovery of network infrastructure as well as leverage [Network Device CLI](https://attack.mitre.org/techniques/T1059/008) commands on network devices to gather detailed information about systems within a network (e.g. <code>show cdp neighbors</code>, <code>show arp</code>).(Citation: US-CERT-TA18-106A)(Citation: CISA AR21-126A FIVEHANDS May 2021)  \n",
+          "attack_pattern_external_id" : "T1018",
+          "attack_pattern_kill_chain_phases" : [ {
+            "phase_id" : "e0a815b3-1d61-4145-915a-d17482f5887d",
+            "phase_external_id" : "TA0007",
+            "phase_stix_id" : "x-mitre-tactic--c17c5845-175e-4421-9713-829d0573dbc9",
+            "phase_name" : "Discovery",
+            "phase_shortname" : "discovery",
+            "phase_kill_chain_name" : "mitre-attack",
+            "phase_description" : "The adversary is trying to figure out your environment.\n\nDiscovery consists of techniques an adversary may use to gain knowledge about the system and internal network. These techniques help adversaries observe the environment and orient themselves before deciding how to act. They also allow adversaries to explore what they can control and what’s around their entry point in order to discover how it could benefit their current objective. Native operating system tools are often used toward this post-compromise information-gathering objective. ",
+            "phase_order" : 8
+          } ]
+        }, {
+          "attack_pattern_id" : "88d152fe-21af-49f0-bbd5-377598e9f6e9",
+          "attack_pattern_name" : "Network Service Discovery",
+          "attack_pattern_description" : "Adversaries may attempt to get a listing of services running on remote hosts and local network infrastructure devices, including those that may be vulnerable to remote software exploitation. Common methods to acquire this information include port, vulnerability, and/or wordlist scans using tools that are brought onto a system.(Citation: CISA AR21-126A FIVEHANDS May 2021)   \n\nWithin cloud environments, adversaries may attempt to discover services running on other cloud hosts. Additionally, if the cloud environment is connected to a on-premises environment, adversaries may be able to identify services running on non-cloud systems as well.\n\nWithin macOS environments, adversaries may use the native Bonjour application to discover services running on other macOS hosts within a network. The Bonjour mDNSResponder daemon automatically registers and advertises a host’s registered services on the network. For example, adversaries can use a mDNS query (such as <code>dns-sd -B _ssh._tcp .</code>) to find other systems broadcasting the ssh service.(Citation: apple doco bonjour description)(Citation: macOS APT Activity Bradley)",
+          "attack_pattern_external_id" : "T1046",
+          "attack_pattern_kill_chain_phases" : [ {
+            "phase_id" : "e0a815b3-1d61-4145-915a-d17482f5887d",
+            "phase_external_id" : "TA0007",
+            "phase_stix_id" : "x-mitre-tactic--c17c5845-175e-4421-9713-829d0573dbc9",
+            "phase_name" : "Discovery",
+            "phase_shortname" : "discovery",
+            "phase_kill_chain_name" : "mitre-attack",
+            "phase_description" : "The adversary is trying to figure out your environment.\n\nDiscovery consists of techniques an adversary may use to gain knowledge about the system and internal network. These techniques help adversaries observe the environment and orient themselves before deciding how to act. They also allow adversaries to explore what they can control and what’s around their entry point in order to discover how it could benefit their current objective. Native operating system tools are often used toward this post-compromise information-gathering objective. ",
+            "phase_order" : 8
+          } ]
+        }, {
+          "attack_pattern_id" : "0216449c-fc6e-4d3d-a78e-e93eb8f4d9ac",
+          "attack_pattern_name" : "Local Accounts",
+          "attack_pattern_description" : "Adversaries may obtain and abuse credentials of a local account as a means of gaining Initial Access, Persistence, Privilege Escalation, or Defense Evasion. Local accounts are those configured by an organization for use by users, remote support, services, or for administration on a single system or service.\n\nLocal Accounts may also be abused to elevate privileges and harvest credentials through [OS Credential Dumping](https://attack.mitre.org/techniques/T1003). Password reuse may allow the abuse of local accounts across a set of machines on a network for the purposes of Privilege Escalation and Lateral Movement. ",
+          "attack_pattern_external_id" : "T1078.003",
+          "attack_pattern_kill_chain_phases" : [ {
+            "phase_id" : "0a4b5f21-1067-4f02-ac43-9bf29c22b036",
+            "phase_external_id" : "TA0001",
+            "phase_stix_id" : "x-mitre-tactic--ffd5bcee-6e16-4dd2-8eca-7b3beedf33ca",
+            "phase_name" : "Initial Access",
+            "phase_shortname" : "initial-access",
+            "phase_kill_chain_name" : "mitre-attack",
+            "phase_description" : "The adversary is trying to get into your network.\n\nInitial Access consists of techniques that use various entry vectors to gain their initial foothold within a network. Techniques used to gain a foothold include targeted spearphishing and exploiting weaknesses on public-facing web servers. Footholds gained through initial access may allow for continued access, like valid accounts and use of external remote services, or may be limited-use due to changing passwords.",
+            "phase_order" : 2
+          }, {
+            "phase_id" : "85f85b70-0513-4765-a231-c6de150aad97",
+            "phase_external_id" : "TA0004",
+            "phase_stix_id" : "x-mitre-tactic--5e29b093-294e-49e9-a803-dab3d73b77dd",
+            "phase_name" : "Privilege Escalation",
+            "phase_shortname" : "privilege-escalation",
+            "phase_kill_chain_name" : "mitre-attack",
+            "phase_description" : "The adversary is trying to gain higher-level permissions.\n\nPrivilege Escalation consists of techniques that adversaries use to gain higher-level permissions on a system or network. Adversaries can often enter and explore a network with unprivileged access but require elevated permissions to follow through on their objectives. Common approaches are to take advantage of system weaknesses, misconfigurations, and vulnerabilities. Examples of elevated access include: \n\n* SYSTEM/root level\n* local administrator\n* user account with admin-like access \n* user accounts with access to specific system or perform specific function\n\nThese techniques often overlap with Persistence techniques, as OS features that let an adversary persist can execute in an elevated context.  ",
+            "phase_order" : 5
+          }, {
+            "phase_id" : "8bbdf37e-90c1-4e8a-98e9-a0fd61c92930",
+            "phase_external_id" : "TA0003",
+            "phase_stix_id" : "x-mitre-tactic--5bc1d813-693e-4823-9961-abf9af4b0e92",
+            "phase_name" : "Persistence",
+            "phase_shortname" : "persistence",
+            "phase_kill_chain_name" : "mitre-attack",
+            "phase_description" : "The adversary is trying to maintain their foothold.\n\nPersistence consists of techniques that adversaries use to keep access to systems across restarts, changed credentials, and other interruptions that could cut off their access. Techniques used for persistence include any access, action, or configuration changes that let them maintain their foothold on systems, such as replacing or hijacking legitimate code or adding startup code. ",
+            "phase_order" : 4
+          }, {
+            "phase_id" : "92c4f727-b17e-4641-825d-ac5e3bc97527",
+            "phase_external_id" : "TA0005",
+            "phase_stix_id" : "x-mitre-tactic--78b23412-0651-46d7-a540-170a1ce8bd5a",
+            "phase_name" : "Defense Evasion",
+            "phase_shortname" : "defense-evasion",
+            "phase_kill_chain_name" : "mitre-attack",
+            "phase_description" : "The adversary is trying to avoid being detected.\n\nDefense Evasion consists of techniques that adversaries use to avoid detection throughout their compromise. Techniques used for defense evasion include uninstalling/disabling security software or obfuscating/encrypting data and scripts. Adversaries also leverage and abuse trusted processes to hide and masquerade their malware. Other tactics’ techniques are cross-listed here when those techniques include the added benefit of subverting defenses. ",
+            "phase_order" : 6
+          } ]
+        } ],
+        "payload_cleanup_executor" : "psh",
+        "payload_cleanup_command" : "remove-item \"C:\\users\\public\\nxc-windows-latest\" -Recurse -Force",
+        "payload_elevation_required" : false,
+        "payload_arguments" : [ {
+          "type" : "text",
+          "key" : "IP",
+          "default_value" : "192.168.56.1",
+          "description" : null,
+          "separator" : null
+        } ],
+        "payload_prerequisites" : [ {
+          "executor" : "psh",
+          "get_command" : "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12;$zipUrl = \"https://github.com/Pennyw0rth/NetExec/releases/download/v1.4.0/nxc-windows-latest.zip\"; $tempZip = \"c:\\users\\public\\nxc-windows-latest.zip\"; $tempDir = \"c:\\users\\public\\nxc-windows-latest\"; $destPath = \"c:\\users\\public\\nxc-windows-latest\\nxc.exe\" ; Invoke-WebRequest -Uri $zipUrl -OutFile $tempZip; Expand-Archive -Path $tempZip -DestinationPath $tempDir -Force; Remove-Item -Path $tempZip -Force",
+          "check_command" : "if (Test-Path 'c:\\users\\public\\nxc-windows-latest\\nxc.exe') {exit 0} else {exit 1}",
+          "description" : null
+        } ],
+        "payload_external_id" : null,
+        "payload_source" : "MANUAL",
+        "payload_status" : "UNVERIFIED",
+        "payload_execution_arch" : "ALL_ARCHITECTURES",
+        "payload_collector" : null,
+        "payload_detection_remediations" : [ ],
+        "payload_tags" : [ ],
+        "payload_output_parsers" : [ {
+          "listened" : true,
+          "output_parser_id" : "5cf12fbd-6670-4d75-b446-48f8865d9917",
+          "output_parser_mode" : "STDOUT",
+          "output_parser_type" : "REGEX",
+          "output_parser_contract_output_elements" : [ {
+            "listened" : true,
+            "contract_output_element_id" : "e9be2eda-5914-4526-aec6-6b3a18f70ba8",
+            "contract_output_element_is_finding" : true,
+            "contract_output_element_rule" : "^\\s*FTP\\s+(\\d{1,3}(?:\\.\\d{1,3}){3})\\s+\\d+\\s+\\S+\\s+\\[\\+\\].*anonymous",
+            "contract_output_element_name" : "ftp_anonymous",
+            "contract_output_element_regex_groups" : [ {
+              "listened" : true,
+              "regex_group_id" : "35a07bd4-daf4-4c7e-8849-77a248ca8935",
+              "regex_group_field" : "ipv4",
+              "regex_group_index_values" : "$1",
+              "regex_group_created_at" : "2025-06-26T09:38:59.723559Z",
+              "regex_group_updated_at" : "2025-06-26T09:38:59.723559Z"
+            } ],
+            "contract_output_element_key" : "ftp_anonymous",
+            "contract_output_element_type" : "ipv4",
+            "contract_output_element_tags" : [ ],
+            "contract_output_element_created_at" : "2025-06-26T09:38:59.723370Z",
+            "contract_output_element_updated_at" : "2025-06-26T09:38:59.723370Z"
+          } ],
+          "output_parser_created_at" : "2025-06-26T09:38:59.723304Z",
+          "output_parser_updated_at" : "2025-06-26T09:38:59.723304Z"
+        } ],
+        "payload_created_at" : "2025-06-26T09:38:59.723151Z",
+        "payload_updated_at" : "2025-06-26T09:38:59.723152Z",
+        "command_executor" : "cmd",
+        "command_content" : "C:\\Users\\Public\\nxc-windows-latest\\nxc.exe ftp #{IP} -u anonymous -p test",
+        "payload_collector_type" : null
+      },
+      "injector_contract_created_at" : "2025-06-26T09:38:59.765025Z",
+      "injector_contract_updated_at" : "2025-06-26T09:38:59.765026Z",
+      "injector_contract_injector" : "49229430-b5b5-431f-ba5b-f36f599b0144",
+      "injector_contract_attack_patterns" : [ {
+        "attack_pattern_id" : "bee9a713-1414-4908-8ca0-1899de7d7a26",
+        "attack_pattern_name" : "File and Directory Discovery",
+        "attack_pattern_description" : "Adversaries may enumerate files and directories or may search in specific locations of a host or network share for certain information within a file system. Adversaries may use the information from [File and Directory Discovery](https://attack.mitre.org/techniques/T1083) during automated discovery to shape follow-on behaviors, including whether or not the adversary fully infects the target and/or attempts specific actions.\n\nMany command shell utilities can be used to obtain this information. Examples include <code>dir</code>, <code>tree</code>, <code>ls</code>, <code>find</code>, and <code>locate</code>.(Citation: Windows Commands JPCERT) Custom tools may also be used to gather file and directory information and interact with the [Native API](https://attack.mitre.org/techniques/T1106). Adversaries may also leverage a [Network Device CLI](https://attack.mitre.org/techniques/T1059/008) on network devices to gather file and directory information (e.g. <code>dir</code>, <code>show flash</code>, and/or <code>nvram</code>).(Citation: US-CERT-TA18-106A)\n\nSome files and directories may require elevated or specific user permissions to access.",
+        "attack_pattern_external_id" : "T1083",
+        "attack_pattern_kill_chain_phases" : [ {
+          "phase_id" : "e0a815b3-1d61-4145-915a-d17482f5887d",
+          "phase_external_id" : "TA0007",
+          "phase_stix_id" : "x-mitre-tactic--c17c5845-175e-4421-9713-829d0573dbc9",
+          "phase_name" : "Discovery",
+          "phase_shortname" : "discovery",
+          "phase_kill_chain_name" : "mitre-attack",
+          "phase_description" : "The adversary is trying to figure out your environment.\n\nDiscovery consists of techniques an adversary may use to gain knowledge about the system and internal network. These techniques help adversaries observe the environment and orient themselves before deciding how to act. They also allow adversaries to explore what they can control and what’s around their entry point in order to discover how it could benefit their current objective. Native operating system tools are often used toward this post-compromise information-gathering objective. ",
+          "phase_order" : 8
+        } ]
+      }, {
+        "attack_pattern_id" : "853024a5-e051-4d81-b63a-1cdde660a397",
+        "attack_pattern_name" : "Remote System Discovery",
+        "attack_pattern_description" : "Adversaries may attempt to get a listing of other systems by IP address, hostname, or other logical identifier on a network that may be used for Lateral Movement from the current system. Functionality could exist within remote access tools to enable this, but utilities available on the operating system could also be used such as  [Ping](https://attack.mitre.org/software/S0097), <code>net view</code> using [Net](https://attack.mitre.org/software/S0039), or, on ESXi servers, `esxcli network diag ping`.\n\nAdversaries may also analyze data from local host files (ex: <code>C:\\Windows\\System32\\Drivers\\etc\\hosts</code> or <code>/etc/hosts</code>) or other passive means (such as local [Arp](https://attack.mitre.org/software/S0099) cache entries) in order to discover the presence of remote systems in an environment.\n\nAdversaries may also target discovery of network infrastructure as well as leverage [Network Device CLI](https://attack.mitre.org/techniques/T1059/008) commands on network devices to gather detailed information about systems within a network (e.g. <code>show cdp neighbors</code>, <code>show arp</code>).(Citation: US-CERT-TA18-106A)(Citation: CISA AR21-126A FIVEHANDS May 2021)  \n",
+        "attack_pattern_external_id" : "T1018",
+        "attack_pattern_kill_chain_phases" : [ {
+          "phase_id" : "e0a815b3-1d61-4145-915a-d17482f5887d",
+          "phase_external_id" : "TA0007",
+          "phase_stix_id" : "x-mitre-tactic--c17c5845-175e-4421-9713-829d0573dbc9",
+          "phase_name" : "Discovery",
+          "phase_shortname" : "discovery",
+          "phase_kill_chain_name" : "mitre-attack",
+          "phase_description" : "The adversary is trying to figure out your environment.\n\nDiscovery consists of techniques an adversary may use to gain knowledge about the system and internal network. These techniques help adversaries observe the environment and orient themselves before deciding how to act. They also allow adversaries to explore what they can control and what’s around their entry point in order to discover how it could benefit their current objective. Native operating system tools are often used toward this post-compromise information-gathering objective. ",
+          "phase_order" : 8
+        } ]
+      }, {
+        "attack_pattern_id" : "88d152fe-21af-49f0-bbd5-377598e9f6e9",
+        "attack_pattern_name" : "Network Service Discovery",
+        "attack_pattern_description" : "Adversaries may attempt to get a listing of services running on remote hosts and local network infrastructure devices, including those that may be vulnerable to remote software exploitation. Common methods to acquire this information include port, vulnerability, and/or wordlist scans using tools that are brought onto a system.(Citation: CISA AR21-126A FIVEHANDS May 2021)   \n\nWithin cloud environments, adversaries may attempt to discover services running on other cloud hosts. Additionally, if the cloud environment is connected to a on-premises environment, adversaries may be able to identify services running on non-cloud systems as well.\n\nWithin macOS environments, adversaries may use the native Bonjour application to discover services running on other macOS hosts within a network. The Bonjour mDNSResponder daemon automatically registers and advertises a host’s registered services on the network. For example, adversaries can use a mDNS query (such as <code>dns-sd -B _ssh._tcp .</code>) to find other systems broadcasting the ssh service.(Citation: apple doco bonjour description)(Citation: macOS APT Activity Bradley)",
+        "attack_pattern_external_id" : "T1046",
+        "attack_pattern_kill_chain_phases" : [ {
+          "phase_id" : "e0a815b3-1d61-4145-915a-d17482f5887d",
+          "phase_external_id" : "TA0007",
+          "phase_stix_id" : "x-mitre-tactic--c17c5845-175e-4421-9713-829d0573dbc9",
+          "phase_name" : "Discovery",
+          "phase_shortname" : "discovery",
+          "phase_kill_chain_name" : "mitre-attack",
+          "phase_description" : "The adversary is trying to figure out your environment.\n\nDiscovery consists of techniques an adversary may use to gain knowledge about the system and internal network. These techniques help adversaries observe the environment and orient themselves before deciding how to act. They also allow adversaries to explore what they can control and what’s around their entry point in order to discover how it could benefit their current objective. Native operating system tools are often used toward this post-compromise information-gathering objective. ",
+          "phase_order" : 8
+        } ]
+      }, {
+        "attack_pattern_id" : "0216449c-fc6e-4d3d-a78e-e93eb8f4d9ac",
+        "attack_pattern_name" : "Local Accounts",
+        "attack_pattern_description" : "Adversaries may obtain and abuse credentials of a local account as a means of gaining Initial Access, Persistence, Privilege Escalation, or Defense Evasion. Local accounts are those configured by an organization for use by users, remote support, services, or for administration on a single system or service.\n\nLocal Accounts may also be abused to elevate privileges and harvest credentials through [OS Credential Dumping](https://attack.mitre.org/techniques/T1003). Password reuse may allow the abuse of local accounts across a set of machines on a network for the purposes of Privilege Escalation and Lateral Movement. ",
+        "attack_pattern_external_id" : "T1078.003",
+        "attack_pattern_kill_chain_phases" : [ {
+          "phase_id" : "0a4b5f21-1067-4f02-ac43-9bf29c22b036",
+          "phase_external_id" : "TA0001",
+          "phase_stix_id" : "x-mitre-tactic--ffd5bcee-6e16-4dd2-8eca-7b3beedf33ca",
+          "phase_name" : "Initial Access",
+          "phase_shortname" : "initial-access",
+          "phase_kill_chain_name" : "mitre-attack",
+          "phase_description" : "The adversary is trying to get into your network.\n\nInitial Access consists of techniques that use various entry vectors to gain their initial foothold within a network. Techniques used to gain a foothold include targeted spearphishing and exploiting weaknesses on public-facing web servers. Footholds gained through initial access may allow for continued access, like valid accounts and use of external remote services, or may be limited-use due to changing passwords.",
+          "phase_order" : 2
+        }, {
+          "phase_id" : "85f85b70-0513-4765-a231-c6de150aad97",
+          "phase_external_id" : "TA0004",
+          "phase_stix_id" : "x-mitre-tactic--5e29b093-294e-49e9-a803-dab3d73b77dd",
+          "phase_name" : "Privilege Escalation",
+          "phase_shortname" : "privilege-escalation",
+          "phase_kill_chain_name" : "mitre-attack",
+          "phase_description" : "The adversary is trying to gain higher-level permissions.\n\nPrivilege Escalation consists of techniques that adversaries use to gain higher-level permissions on a system or network. Adversaries can often enter and explore a network with unprivileged access but require elevated permissions to follow through on their objectives. Common approaches are to take advantage of system weaknesses, misconfigurations, and vulnerabilities. Examples of elevated access include: \n\n* SYSTEM/root level\n* local administrator\n* user account with admin-like access \n* user accounts with access to specific system or perform specific function\n\nThese techniques often overlap with Persistence techniques, as OS features that let an adversary persist can execute in an elevated context.  ",
+          "phase_order" : 5
+        }, {
+          "phase_id" : "8bbdf37e-90c1-4e8a-98e9-a0fd61c92930",
+          "phase_external_id" : "TA0003",
+          "phase_stix_id" : "x-mitre-tactic--5bc1d813-693e-4823-9961-abf9af4b0e92",
+          "phase_name" : "Persistence",
+          "phase_shortname" : "persistence",
+          "phase_kill_chain_name" : "mitre-attack",
+          "phase_description" : "The adversary is trying to maintain their foothold.\n\nPersistence consists of techniques that adversaries use to keep access to systems across restarts, changed credentials, and other interruptions that could cut off their access. Techniques used for persistence include any access, action, or configuration changes that let them maintain their foothold on systems, such as replacing or hijacking legitimate code or adding startup code. ",
+          "phase_order" : 4
+        }, {
+          "phase_id" : "92c4f727-b17e-4641-825d-ac5e3bc97527",
+          "phase_external_id" : "TA0005",
+          "phase_stix_id" : "x-mitre-tactic--78b23412-0651-46d7-a540-170a1ce8bd5a",
+          "phase_name" : "Defense Evasion",
+          "phase_shortname" : "defense-evasion",
+          "phase_kill_chain_name" : "mitre-attack",
+          "phase_description" : "The adversary is trying to avoid being detected.\n\nDefense Evasion consists of techniques that adversaries use to avoid detection throughout their compromise. Techniques used for defense evasion include uninstalling/disabling security software or obfuscating/encrypting data and scripts. Adversaries also leverage and abuse trusted processes to hide and masquerade their malware. Other tactics’ techniques are cross-listed here when those techniques include the added benefit of subverting defenses. ",
+          "phase_order" : 6
+        } ]
+      } ],
+      "injector_contract_atomic_testing" : true,
+      "injector_contract_import_available" : false,
+      "injector_contract_arch" : "ALL_ARCHITECTURES",
+      "injector_contract_injector_type" : "openbas_implant",
+      "injector_contract_injector_type_name" : "OpenBAS Implant"
+    },
+    "inject_tags" : [ ],
+    "inject_teams" : [ ],
+    "inject_documents" : [ ]
+  }, {
+    "inject_id" : "926fe8ee-b9de-45c6-baa2-2d5bb9786847",
+    "inject_title" : "FTP Anonymous - Files & Directories exposure",
+    "inject_description" : "",
+    "inject_country" : null,
+    "inject_city" : null,
+    "inject_enabled" : true,
+    "inject_content" : {
+      "expectations" : [ {
+        "expectation_type" : "PREVENTION",
+        "expectation_name" : "Prevention",
+        "expectation_description" : null,
+        "expectation_score" : 100,
+        "expectation_expectation_group" : false,
+        "expectation_expiration_time" : 21600
+      }, {
+        "expectation_type" : "DETECTION",
+        "expectation_name" : "Detection",
+        "expectation_description" : null,
+        "expectation_score" : 100,
+        "expectation_expectation_group" : false,
+        "expectation_expiration_time" : 21600
+      } ],
+      "obfuscator" : "plain-text",
+      "IP" : "192.168.56.1"
+    },
+    "inject_all_teams" : false,
+    "inject_depends_on" : [ ],
+    "inject_depends_duration" : 0,
+    "inject_injector_contract" : {
+      "convertedContent" : {
+        "config" : {
+          "type" : "openbas_implant",
+          "expose" : true,
+          "label" : {
+            "en" : "OpenBAS Implant",
+            "fr" : "OpenBAS Implant"
+          },
+          "color_dark" : "#000000",
+          "color_light" : "#000000"
+        },
+        "label" : {
+          "en" : "FTP Anonymous - Files & Directories exposure",
+          "fr" : "FTP Anonymous - Files & Directories exposure"
+        },
+        "manual" : false,
+        "fields" : [ {
+          "key" : "assets",
+          "label" : "Assets",
+          "mandatory" : false,
+          "readOnly" : false,
+          "mandatoryGroups" : [ "assets", "assetgroups" ],
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "cardinality" : "n",
+          "defaultValue" : [ ],
+          "type" : "asset"
+        }, {
+          "key" : "assetgroups",
+          "label" : "Asset groups",
+          "mandatory" : false,
+          "readOnly" : false,
+          "mandatoryGroups" : [ "assets", "assetgroups" ],
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "cardinality" : "n",
+          "defaultValue" : [ ],
+          "type" : "asset-group"
+        }, {
+          "key" : "obfuscator",
+          "label" : "Obfuscators",
+          "mandatory" : false,
+          "readOnly" : false,
+          "mandatoryGroups" : null,
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "cardinality" : "1",
+          "defaultValue" : [ "plain-text" ],
+          "choices" : [ {
+            "label" : "plain-text",
+            "value" : "plain-text",
+            "information" : ""
+          }, {
+            "label" : "base64",
+            "value" : "base64",
+            "information" : "CMD does not support base64 obfuscation"
+          } ],
+          "type" : "choice"
+        }, {
+          "key" : "expectations",
+          "label" : "Expectations",
+          "mandatory" : false,
+          "readOnly" : false,
+          "mandatoryGroups" : null,
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "cardinality" : "n",
+          "defaultValue" : [ ],
+          "predefinedExpectations" : [ {
+            "expectation_type" : "PREVENTION",
+            "expectation_name" : "Prevention",
+            "expectation_description" : null,
+            "expectation_score" : 100.0,
+            "expectation_expectation_group" : false,
+            "expectation_expiration_time" : 21600
+          }, {
+            "expectation_type" : "DETECTION",
+            "expectation_name" : "Detection",
+            "expectation_description" : null,
+            "expectation_score" : 100.0,
+            "expectation_expectation_group" : false,
+            "expectation_expiration_time" : 21600
+          }, {
+            "expectation_type" : "VULNERABILITY",
+            "expectation_name" : "Not vulnerable",
+            "expectation_description" : "",
+            "expectation_score" : 100.0,
+            "expectation_expectation_group" : false,
+            "expectation_expiration_time" : 21600
+          } ],
+          "type" : "expectation"
+        }, {
+          "key" : "IP",
+          "label" : "IP",
+          "mandatory" : true,
+          "readOnly" : false,
+          "mandatoryGroups" : null,
+          "mandatoryConditionField" : null,
+          "mandatoryConditionValue" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "defaultValue" : "192.168.56.1",
+          "type" : "text"
+        } ],
+        "variables" : [ {
+          "key" : "user",
+          "label" : "User that will receive the injection",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ {
+            "key" : "user.id",
+            "label" : "Id of the user in the platform",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "user.email",
+            "label" : "Email of the user",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "user.firstname",
+            "label" : "First name of the user",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "user.lastname",
+            "label" : "Last name of the user",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "user.lang",
+            "label" : "Language of the user",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          } ]
+        }, {
+          "key" : "exercise",
+          "label" : "Exercise of the current injection",
+          "type" : "Object",
+          "cardinality" : "1",
+          "children" : [ {
+            "key" : "exercise.id",
+            "label" : "Id of the user in the platform",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "exercise.name",
+            "label" : "Name of the exercise",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "exercise.description",
+            "label" : "Description of the exercise",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          } ]
+        }, {
+          "key" : "teams",
+          "label" : "List of team name for the injection",
+          "type" : "String",
+          "cardinality" : "n",
+          "children" : [ ]
+        }, {
+          "key" : "player_uri",
+          "label" : "Player interface platform link",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ ]
+        }, {
+          "key" : "challenges_uri",
+          "label" : "Challenges interface platform link",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ ]
+        }, {
+          "key" : "scoreboard_uri",
+          "label" : "Scoreboard interface platform link",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ ]
+        }, {
+          "key" : "lessons_uri",
+          "label" : "Lessons learned interface platform link",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ ]
+        } ],
+        "context" : { },
+        "contract_id" : "6057fa75-203d-4e99-ae5d-5b4b41120430",
+        "contract_attack_patterns_external_ids" : [ ],
+        "is_atomic_testing" : true,
+        "needs_executor" : true,
+        "platforms" : [ "Windows" ]
+      },
+      "listened" : true,
+      "injector_contract_id" : "6057fa75-203d-4e99-ae5d-5b4b41120430",
+      "injector_contract_labels" : {
+        "en" : "FTP Anonymous - Files & Directories exposure",
+        "fr" : "FTP Anonymous - Files & Directories exposure"
+      },
+      "injector_contract_manual" : false,
+      "injector_contract_content" : "{\"config\":{\"type\":\"openbas_implant\",\"expose\":true,\"label\":{\"en\":\"OpenBAS Implant\",\"fr\":\"OpenBAS Implant\"},\"color_dark\":\"#000000\",\"color_light\":\"#000000\"},\"label\":{\"en\":\"FTP Anonymous - Files & Directories exposure\",\"fr\":\"FTP Anonymous - Files & Directories exposure\"},\"manual\":false,\"fields\":[{\"key\":\"assets\",\"label\":\"Assets\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":[\"assets\",\"assetgroups\"],\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"type\":\"asset\"},{\"key\":\"assetgroups\",\"label\":\"Asset groups\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":[\"assets\",\"assetgroups\"],\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"type\":\"asset-group\"},{\"key\":\"obfuscator\",\"label\":\"Obfuscators\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"1\",\"defaultValue\":[\"plain-text\"],\"choices\":[{\"label\":\"plain-text\",\"value\":\"plain-text\",\"information\":\"\"},{\"label\":\"base64\",\"value\":\"base64\",\"information\":\"CMD does not support base64 obfuscation\"}],\"type\":\"choice\"},{\"key\":\"expectations\",\"label\":\"Expectations\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"predefinedExpectations\":[{\"expectation_type\":\"PREVENTION\",\"expectation_name\":\"Prevention\",\"expectation_description\":null,\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600},{\"expectation_type\":\"DETECTION\",\"expectation_name\":\"Detection\",\"expectation_description\":null,\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600},{\"expectation_type\":\"VULNERABILITY\",\"expectation_name\":\"Not vulnerable\",\"expectation_description\":\"\",\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600}],\"type\":\"expectation\"},{\"key\":\"IP\",\"label\":\"IP\",\"mandatory\":true,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionField\":null,\"mandatoryConditionValue\":null,\"linkedFields\":[],\"linkedValues\":[],\"defaultValue\":\"192.168.56.1\",\"type\":\"text\"}],\"variables\":[{\"key\":\"user\",\"label\":\"User that will receive the injection\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[{\"key\":\"user.id\",\"label\":\"Id of the user in the platform\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.email\",\"label\":\"Email of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.firstname\",\"label\":\"First name of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.lastname\",\"label\":\"Last name of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.lang\",\"label\":\"Language of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}]},{\"key\":\"exercise\",\"label\":\"Exercise of the current injection\",\"type\":\"Object\",\"cardinality\":\"1\",\"children\":[{\"key\":\"exercise.id\",\"label\":\"Id of the user in the platform\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"exercise.name\",\"label\":\"Name of the exercise\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"exercise.description\",\"label\":\"Description of the exercise\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}]},{\"key\":\"teams\",\"label\":\"List of team name for the injection\",\"type\":\"String\",\"cardinality\":\"n\",\"children\":[]},{\"key\":\"player_uri\",\"label\":\"Player interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"challenges_uri\",\"label\":\"Challenges interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"scoreboard_uri\",\"label\":\"Scoreboard interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"lessons_uri\",\"label\":\"Lessons learned interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}],\"context\":{},\"contract_id\":\"6057fa75-203d-4e99-ae5d-5b4b41120430\",\"contract_attack_patterns_external_ids\":[],\"is_atomic_testing\":true,\"needs_executor\":true,\"platforms\":[\"Windows\"]}",
+      "injector_contract_custom" : false,
+      "injector_contract_needs_executor" : true,
+      "injector_contract_platforms" : [ "Windows" ],
+      "injector_contract_payload" : {
+        "listened" : true,
+        "payload_id" : "156eea4f-26dc-4ad3-8b77-5b9549dab923",
+        "payload_type" : "Command",
+        "payload_name" : "FTP Anonymous - Files & Directories exposure",
+        "payload_description" : "Null session, also known as anonymous authentication, is a special kind of authentication during which the user doesn’t submit any credentials. When a user connects via a null session, he connects as a member of the “Anonymous Logon” group and inherits all ACL’s assigned to this group. Once we are connected as anonymous we here provide the directory & files everyone can access into your ftp server",
+        "payload_platforms" : [ "Windows" ],
+        "payload_attack_patterns" : [ ],
+        "payload_cleanup_executor" : "psh",
+        "payload_cleanup_command" : "remove-item \"C:\\users\\public\\nxc-windows-latest\" -Recurse -Force",
+        "payload_elevation_required" : false,
+        "payload_arguments" : [ {
+          "type" : "text",
+          "key" : "IP",
+          "default_value" : "192.168.56.1",
+          "description" : null,
+          "separator" : null
+        } ],
+        "payload_prerequisites" : [ {
+          "executor" : "psh",
+          "get_command" : "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12;$zipUrl = \"https://github.com/Pennyw0rth/NetExec/releases/download/v1.4.0/nxc-windows-latest.zip\"; $tempZip = \"c:\\users\\public\\nxc-windows-latest.zip\"; $tempDir = \"c:\\users\\public\\nxc-windows-latest\"; $destPath = \"c:\\users\\public\\nxc-windows-latest\\nxc.exe\" ; Invoke-WebRequest -Uri $zipUrl -OutFile $tempZip; Expand-Archive -Path $tempZip -DestinationPath $tempDir -Force; Remove-Item -Path $tempZip -Force",
+          "check_command" : "if (Test-Path 'c:\\users\\public\\nxc-windows-latest\\nxc.exe') {exit 0} else {exit 1}",
+          "description" : null
+        } ],
+        "payload_external_id" : null,
+        "payload_source" : "MANUAL",
+        "payload_status" : "UNVERIFIED",
+        "payload_execution_arch" : "ALL_ARCHITECTURES",
+        "payload_collector" : null,
+        "payload_detection_remediations" : [ ],
+        "payload_tags" : [ ],
+        "payload_output_parsers" : [ {
+          "listened" : true,
+          "output_parser_id" : "9d1ca943-8efb-4c2f-9fd5-094da1441e68",
+          "output_parser_mode" : "STDOUT",
+          "output_parser_type" : "REGEX",
+          "output_parser_contract_output_elements" : [ {
+            "listened" : true,
+            "contract_output_element_id" : "1d95aafb-34af-4bf6-ac96-fccb0c5abe1c",
+            "contract_output_element_is_finding" : true,
+            "contract_output_element_rule" : "(?:d|-)[rwx-]{9}\\s+\\d+\\s+\\S+\\s+\\S+\\s+\\d+\\s+\\w+\\s+\\d+\\s+(?:\\d{4}|\\d{2}:\\d{2})\\s+(.+)",
+            "contract_output_element_name" : "ftp_anonymous_files_and_dir",
+            "contract_output_element_regex_groups" : [ {
+              "listened" : true,
+              "regex_group_id" : "1b697379-27bc-4752-a04a-0de019db231d",
+              "regex_group_field" : "text",
+              "regex_group_index_values" : "$1",
+              "regex_group_created_at" : "2025-06-26T09:39:00.102448Z",
+              "regex_group_updated_at" : "2025-06-26T09:39:00.102448Z"
+            } ],
+            "contract_output_element_key" : "ftp_anonymous_files_and_dir",
+            "contract_output_element_type" : "text",
+            "contract_output_element_tags" : [ ],
+            "contract_output_element_created_at" : "2025-06-26T09:39:00.102129Z",
+            "contract_output_element_updated_at" : "2025-06-26T09:39:00.102129Z"
+          } ],
+          "output_parser_created_at" : "2025-06-26T09:39:00.102075Z",
+          "output_parser_updated_at" : "2025-06-26T09:39:00.102075Z"
+        } ],
+        "payload_created_at" : "2025-06-26T09:39:00.101950Z",
+        "payload_updated_at" : "2025-06-26T09:39:00.101950Z",
+        "command_executor" : "cmd",
+        "command_content" : "C:\\Users\\Public\\nxc-windows-latest\\nxc.exe ftp #{IP} -u anonymous -p test --ls",
+        "payload_collector_type" : null
+      },
+      "injector_contract_created_at" : "2025-06-26T09:39:00.133133Z",
+      "injector_contract_updated_at" : "2025-06-26T09:39:00.133134Z",
+      "injector_contract_injector" : "49229430-b5b5-431f-ba5b-f36f599b0144",
+      "injector_contract_attack_patterns" : [ ],
+      "injector_contract_atomic_testing" : true,
+      "injector_contract_import_available" : false,
+      "injector_contract_arch" : "ALL_ARCHITECTURES",
+      "injector_contract_injector_type" : "openbas_implant",
+      "injector_contract_injector_type_name" : "OpenBAS Implant"
+    },
+    "inject_tags" : [ ],
+    "inject_teams" : [ ],
+    "inject_documents" : [ ]
+  } ],
+  "scenario_tags" : [ ],
+  "scenario_documents" : [ ],
+  "scenario_channels" : [ ],
+  "scenario_articles" : [ ],
+  "scenario_challenges" : [ ],
+  "scenario_lessons_categories" : [ ],
+  "scenario_lessons_questions" : [ ],
+  "scenario_variables" : [ ]
+}

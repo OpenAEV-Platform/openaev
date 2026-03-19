@@ -15,16 +15,46 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Helper class for inject model operations and validation.
+ *
+ * <p>This utility provides methods for:
+ *
+ * <ul>
+ *   <li>Validating inject readiness based on contract requirements
+ *   <li>Computing inject execution dates with pause handling
+ *   <li>Extracting field values from inject content
+ *   <li>Determining expectation types (detection/prevention)
+ * </ul>
+ *
+ * @see Inject
+ * @see InjectorContract
+ */
 public class InjectModelHelper {
 
-  private InjectModelHelper() {}
+  private InjectModelHelper() {
+    // Utility class - prevent instantiation
+  }
 
+  /**
+   * Determines if an inject is ready for execution based on its contract requirements.
+   *
+   * <p>An inject is considered ready when all mandatory fields defined in its contract are
+   * populated. This includes validating mandatory groups, conditional mandatory fields, and
+   * target-specific requirements (teams, assets, asset groups).
+   *
+   * @param injectorContract the injector contract defining field requirements
+   * @param content the inject's content as JSON
+   * @param allTeams whether all teams are targeted
+   * @param teams list of targeted team IDs
+   * @param assets list of targeted asset IDs
+   * @param assetGroups list of targeted asset group IDs
+   * @return {@code true} if all mandatory requirements are met, {@code false} otherwise
+   */
   public static boolean isReady(
       InjectorContract injectorContract,
       ObjectNode content,
@@ -50,6 +80,9 @@ public class InjectModelHelper {
     }
 
     ObjectNode contractContent = injectorContract.getConvertedContent();
+    if (contractContent == null) {
+      return false;
+    }
     List<JsonNode> contractFields =
         stream(contractContent.get(CONTRACT_CONTENT_FIELDS).spliterator(), false).toList();
 
@@ -197,6 +230,25 @@ public class InjectModelHelper {
     return true;
   }
 
+  /**
+   * Computes the actual execution date for an inject, accounting for speed and pauses.
+   *
+   * <p>The calculation considers:
+   *
+   * <ul>
+   *   <li>The base execution time from the source timestamp
+   *   <li>The inject's dependency duration adjusted by speed multiplier
+   *   <li>All completed pause durations from the exercise
+   *   <li>Any currently active pause
+   *   <li>Alignment to minute boundaries for cleaner scheduling
+   * </ul>
+   *
+   * @param source the base timestamp (typically exercise start time)
+   * @param speed the speed multiplier (1 = normal, 2 = double speed, etc.)
+   * @param dependsDuration the inject's offset duration from start in seconds
+   * @param exercise the exercise containing pause information, or null
+   * @return the computed execution timestamp
+   */
   public static Instant computeInjectDate(
       Instant source, int speed, Long dependsDuration, Exercise exercise) {
     // Compute origin execution date
@@ -242,6 +294,23 @@ public class InjectModelHelper {
     return standardExecutionDate.plusSeconds(alignedPauseDelay);
   }
 
+  /**
+   * Computes the scheduled execution date for an inject.
+   *
+   * <p>Behavior varies based on context:
+   *
+   * <ul>
+   *   <li>Standalone inject (no exercise/scenario): Returns 30 seconds ago for immediate execution
+   *   <li>Scenario inject: Returns empty (scenarios don't have fixed dates)
+   *   <li>Exercise inject: Computes date based on exercise start time and inject offset
+   *   <li>Cancelled exercise: Returns empty
+   * </ul>
+   *
+   * @param exercise the parent exercise, or null
+   * @param scenario the parent scenario, or null
+   * @param dependsDuration the inject's offset from exercise start in seconds
+   * @return the computed date, or empty if not applicable
+   */
   public static Optional<Instant> getDate(
       Exercise exercise, Scenario scenario, Long dependsDuration) {
     if (exercise == null && scenario == null) {
@@ -252,22 +321,25 @@ public class InjectModelHelper {
       return Optional.empty();
     }
 
-    if (exercise != null) {
-      if (exercise.getStatus().equals(ExerciseStatus.CANCELED)) {
-        return Optional.empty();
-      }
-      return exercise
-          .getStart()
-          .map(source -> computeInjectDate(source, SPEED_STANDARD, dependsDuration, exercise));
+    // At this point exercise cannot be null (if both were null, we returned at first condition;
+    // if only scenario was not null, we returned above)
+    assert exercise != null;
+    if (exercise.getStatus().equals(ExerciseStatus.CANCELED)) {
+      return Optional.empty();
     }
-    return Optional.ofNullable(LocalDateTime.now().toInstant(ZoneOffset.UTC));
+    return exercise
+        .getStart()
+        .map(source -> computeInjectDate(source, SPEED_STANDARD, dependsDuration, exercise));
   }
 
+  /**
+   * Extracts the sent timestamp from an inject status.
+   *
+   * @param status the inject status, or empty if not yet executed
+   * @return the timestamp when the inject was sent, or {@code null} if not available
+   */
   public static Instant getSentAt(Optional<InjectStatus> status) {
-    if (status.isPresent()) {
-      return status.orElseThrow().getTrackingSentDate();
-    }
-    return null;
+    return status.map(InjectStatus::getTrackingSentDate).orElse(null);
   }
 
   private static boolean isFieldSet(
@@ -316,7 +388,16 @@ public class InjectModelHelper {
     return isSet;
   }
 
-  public static boolean isDetectionOrPrevention(@NotNull final ObjectNode content) {
+  /**
+   * Checks if the inject content includes detection or prevention expectations.
+   *
+   * <p>This is used to determine if an inject requires security tool validation (e.g., EDR
+   * detection, firewall blocking) rather than just execution completion.
+   *
+   * @param content the inject content JSON
+   * @return {@code true} if the inject has DETECTION or PREVENTION expectations
+   */
+  public static boolean isDetectionOrPrevention(final ObjectNode content) {
     if (content == null
         || content.get("expectations") == null
         || content.get("expectations").isNull()) {
@@ -325,18 +406,17 @@ public class InjectModelHelper {
 
     JsonNode valueNode = content.get("expectations");
 
-    List<InjectExpectation.EXPECTATION_TYPE> values = new ArrayList<>();
     if (valueNode.isArray()) {
       for (JsonNode node : valueNode) {
         if (!node.isNull()
-            && !node.get("expectation_type").isNull()
-            && (InjectExpectation.EXPECTATION_TYPE.DETECTION.equals(
-                    InjectExpectation.EXPECTATION_TYPE.valueOf(
-                        node.get("expectation_type").asText()))
-                || InjectExpectation.EXPECTATION_TYPE.PREVENTION.equals(
-                    InjectExpectation.EXPECTATION_TYPE.valueOf(
-                        node.get("expectation_type").asText())))) {
-          return true;
+            && node.get("expectation_type") != null
+            && !node.get("expectation_type").isNull()) {
+          InjectExpectation.EXPECTATION_TYPE type =
+              InjectExpectation.EXPECTATION_TYPE.valueOf(node.get("expectation_type").asText());
+          if (InjectExpectation.EXPECTATION_TYPE.DETECTION.equals(type)
+              || InjectExpectation.EXPECTATION_TYPE.PREVENTION.equals(type)) {
+            return true;
+          }
         }
       }
     }
@@ -344,6 +424,19 @@ public class InjectModelHelper {
     return false;
   }
 
+  /**
+   * Extracts the value(s) for a specific field from inject content.
+   *
+   * <p>For target-type fields (team, asset, asset_group), returns the corresponding ID list. For
+   * other field types, extracts the value from the content JSON.
+   *
+   * @param teams list of targeted team IDs
+   * @param assets list of targeted asset IDs
+   * @param assetGroups list of targeted asset group IDs
+   * @param jsonField the field definition from the contract
+   * @param content the inject content JSON
+   * @return the field value(s) as a list of strings, or empty list if not set
+   */
   public static List<String> getFieldValue(
       @NotNull final List<String> teams,
       @NotNull final List<String> assets,

@@ -2,7 +2,7 @@ package io.openaev.service;
 
 import static io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService.EXPIRED;
 import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.*;
-import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.expireEmptyResults;
+import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.expireEmptyResults;
 import static java.util.Optional.ofNullable;
 
 import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
@@ -15,7 +15,6 @@ import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.model.Expectation;
 import io.openaev.model.expectation.*;
 import jakarta.annotation.Nullable;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Objects;
@@ -32,7 +31,7 @@ public class InjectExpectationUtils {
   // -- SCORE --
 
   public static double computeScore(
-      @NotNull final InjectExpectation expectation, @NotBlank final boolean success) {
+      @NotNull final InjectExpectation expectation, final boolean success) {
     return success ? expectation.getExpectedScore() : FAILED_SCORE_VALUE;
   }
 

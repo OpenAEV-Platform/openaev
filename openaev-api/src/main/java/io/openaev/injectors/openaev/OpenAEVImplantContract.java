@@ -21,11 +21,6 @@ public class OpenAEVImplantContract extends Contractor {
   public static final String TYPE = "openaev_implant";
 
   @Override
-  public boolean isExpose() {
-    return true;
-  }
-
-  @Override
   public String getType() {
     return TYPE;
   }
@@ -38,8 +33,7 @@ public class OpenAEVImplantContract extends Contractor {
   @Override
   public ContractConfig getConfig() {
     Map<SupportedLanguage, String> labels = Map.of(en, "OpenAEV Implant", fr, "OpenAEV Implant");
-    return new ContractConfig(
-        TYPE, labels, "#8b0000", "#8b0000", "/img/icon-openaev.png", isExpose());
+    return new ContractConfig(TYPE, labels, "#8b0000", "#8b0000", "/img/icon-openaev.png");
   }
 
   @Override

@@ -1,8 +1,6 @@
 package io.openaev.rest.inject.service;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -11,7 +9,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.*;
+import io.openaev.database.repository.InjectDocumentRepository;
+import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.InjectStatusRepository;
+import io.openaev.database.repository.TeamRepository;
 import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
@@ -44,7 +45,9 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
@@ -466,13 +469,13 @@ class InjectServiceTest {
     // Arrange
     List<String> injectIds = List.of("id1", "id2");
 
-    doNothing().when(injectRepository).deleteAllById(injectIds);
+    doNothing().when(injectRepository).deleteByAllIdsNative(injectIds);
 
     // Act
     injectService.deleteAllByIds(injectIds);
 
     // Assert
-    verify(injectRepository, times(1)).deleteAllById(injectIds);
+    verify(injectRepository, times(1)).deleteByAllIdsNative(injectIds);
   }
 
   @DisplayName("Test delete all injects by empty IDs list")
@@ -485,7 +488,7 @@ class InjectServiceTest {
     injectService.deleteAllByIds(injectIds);
 
     // Assert
-    verify(injectRepository, never()).deleteAllById(any());
+    verify(injectRepository, never()).deleteByAllIdsNative(any());
   }
 
   @DisplayName("Test delete all injects by null IDs list")
@@ -498,7 +501,7 @@ class InjectServiceTest {
     injectService.deleteAllByIds(injectIds);
 
     // Assert
-    verify(injectRepository, never()).deleteAllById(any());
+    verify(injectRepository, never()).deleteByAllIdsNative(any());
   }
 
   @DisplayName("Test canApplyTargetType with manual inject")
@@ -565,23 +568,23 @@ class InjectServiceTest {
     String injectorContractId = "injectorContractId";
     String injectorContractString =
         """
-  {
-    "fields": [
-      {
-      "type": "defaultValue1",
-      "key": "value1",
-      "defaultValue": ["defaultValue1"],
-       "cardinality":"1"
-      },
-      {
-      "type": "asset",
-      "key": "value2",
-      "defaultValue": ["defaultValue2"],
-      "cardinality":"1"
-      }
-    ]
-  }
-""";
+              {
+                "fields": [
+                  {
+                  "type": "defaultValue1",
+                  "key": "value1",
+                  "defaultValue": ["defaultValue1"],
+                   "cardinality":"1"
+                  },
+                  {
+                  "type": "asset",
+                  "key": "value2",
+                  "defaultValue": ["defaultValue2"],
+                  "cardinality":"1"
+                  }
+                ]
+              }
+            """;
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setId(injectorContractId);
     injectorContract.setContent(injectorContractString);
@@ -593,7 +596,7 @@ class InjectServiceTest {
     injectInput.setInjectorContract(injectorContractId);
     when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
 
-    injectService.createInject(null, scenario, injectInput);
+    injectService.createAndSaveInject(null, scenario, injectInput);
 
     ArgumentCaptor<Inject> injectCaptor = ArgumentCaptor.forClass(Inject.class);
     verify(injectRepository).save(injectCaptor.capture());

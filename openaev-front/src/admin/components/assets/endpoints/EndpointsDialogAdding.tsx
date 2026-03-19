@@ -6,7 +6,7 @@ import { type FunctionComponent, useContext, useEffect, useMemo, useState } from
 
 import { arrayOfEndpoints } from '../../../../actions/assets/asset-schema';
 import { findEndpoints, searchEndpoints } from '../../../../actions/assets/endpoint-actions';
-import { fetchExecutors } from '../../../../actions/Executor';
+import { fetchExecutors } from '../../../../actions/executors/executor-action';
 import type { ExecutorHelper } from '../../../../actions/executors/executor-helper';
 import { buildFilter } from '../../../../components/common/queryable/filter/FilterUtils';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
@@ -23,7 +23,7 @@ import { type Endpoint, type EndpointOutput, type FilterGroup } from '../../../.
 import { getActiveMsgTooltip, getExecutorsCount } from '../../../../utils/endpoints/utils';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import AssetStatus from '../AssetStatus';
 
@@ -147,7 +147,11 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
 
                     if (count > 0) {
                       return (
-                        <Tooltip key={executorType} title={`${base.executor_name} : ${count}`} arrow>
+                        <Tooltip
+                          key={executorType}
+                          title={`${base.executor_name} : ${count}`}
+                          arrow
+                        >
                           <div style={{
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -202,7 +206,7 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
     ],
   };
   // only add an architecture filter if the payload is not compatible with all archs
-  if (quickFilter.filters && payloadArch && payloadArch != 'ALL_ARCHITECTURES') {
+  if (quickFilter.filters && payloadArch && payloadArch !== 'ALL_ARCHITECTURES') {
     quickFilter.filters?.push(buildFilter('endpoint_arch', [payloadArch], 'contains'));
   }
   const { queryableHelpers, searchPaginationInput } = useQueryable(buildSearchPagination({ filterGroup: quickFilter }));
@@ -222,15 +226,17 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
   return (
     <Dialog
       open={open}
-      TransitionComponent={Transition}
+      slots={{ transition: Transition }}
       onClose={handleClose}
       fullWidth
       maxWidth="lg"
-      PaperProps={{
-        elevation: 1,
-        sx: {
-          minHeight: 580,
-          maxHeight: 580,
+      slotProps={{
+        paper: {
+          elevation: 1,
+          sx: {
+            minHeight: 580,
+            maxHeight: 580,
+          },
         },
       }}
     >

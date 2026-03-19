@@ -3,6 +3,7 @@ package io.openaev.database.repository;
 import io.openaev.database.model.ScenarioTeamUser;
 import io.openaev.database.model.ScenarioTeamUserId;
 import jakarta.validation.constraints.NotNull;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -29,4 +30,16 @@ public interface ScenarioTeamUserRepository
       nativeQuery = true)
   @Transactional
   void deleteTeamFromAllReferences(@Param("teamIds") List<String> teamIds);
+
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query(
+      value =
+          "delete from scenarios_teams_users "
+              + "where scenario_id = :scenarioId and team_id in :teamIds",
+      nativeQuery = true)
+  @Transactional
+  void deleteByScenarioIdAndTeamIds(
+      @Param("scenarioId") String scenarioId, @Param("teamIds") Collection<String> teamIds);
+
+  boolean existsByScenarioIdAndTeamIdAndUserId(String scenarioId, String teamId, String userId);
 }

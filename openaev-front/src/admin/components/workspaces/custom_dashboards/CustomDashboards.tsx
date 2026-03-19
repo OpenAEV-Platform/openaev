@@ -17,7 +17,7 @@ import type { Header } from '../../../../components/common/SortHeadersList';
 import { useFormatter } from '../../../../components/i18n';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import type { CustomDashboard, SearchPaginationInput } from '../../../../utils/api-types';
-import { Can } from '../../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CustomDashboardCreation from './CustomDashboardCreation';
 import CustomDashboardPopover from './CustomDashboardPopover';

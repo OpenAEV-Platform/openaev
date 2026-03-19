@@ -1,5 +1,13 @@
 import { AddOutlined, LabelOutlined } from '@mui/icons-material';
-import { Autocomplete as MuiAutocomplete, Box, Dialog, DialogContent, DialogTitle, IconButton, TextField } from '@mui/material';
+import {
+  Autocomplete as MuiAutocomplete,
+  Box,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  TextField,
+} from '@mui/material';
 import * as R from 'ramda';
 import { type CSSProperties, type FunctionComponent, useState } from 'react';
 import { type GlobalError } from 'react-hook-form';
@@ -11,7 +19,7 @@ import TagForm from '../../admin/components/settings/tags/TagForm';
 import { useHelper } from '../../store';
 import { type Tag } from '../../utils/api-types';
 import { useAppDispatch } from '../../utils/hooks';
-import { Can } from '../../utils/permissions/PermissionsProvider';
+import { Can } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
 import { useFormatter } from '../i18n';
 

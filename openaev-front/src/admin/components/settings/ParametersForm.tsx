@@ -10,7 +10,7 @@ import SelectFieldController from '../../../components/fields/SelectFieldControl
 import TextFieldController from '../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../components/i18n';
 import type { SettingsUpdateInput } from '../../../utils/api-types';
-import { Can } from '../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { zodImplement } from '../../../utils/Zod';
 import { langItems, themeItems } from '../utils/OptionItems';

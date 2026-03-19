@@ -3,13 +3,15 @@ package io.openaev.service;
 import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.*;
 import static io.openaev.database.model.InjectExpectationSignature.EXPECTATION_SIGNATURE_TYPE_END_DATE;
 import static io.openaev.database.model.InjectExpectationSignature.EXPECTATION_SIGNATURE_TYPE_START_DATE;
+import static io.openaev.expectation.ExpectationType.VULNERABILITY;
 import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.service.InjectExpectationUtils.*;
+import static io.openaev.service.InjectExpectationUtils.computeScores;
+import static io.openaev.service.InjectExpectationUtils.expectationConverter;
 import static io.openaev.utils.AgentUtils.getPrimaryAgents;
 import static io.openaev.utils.ExpectationUtils.*;
-import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.*;
-import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.computeScore;
+import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.*;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
@@ -18,10 +20,12 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.model.Expectation;
+import io.openaev.rest.atomic_testing.form.InjectExpectationAgentOutput;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
+import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.utils.ExpectationUtils;
 import io.openaev.utils.TargetType;
 import jakarta.annotation.Nullable;
@@ -51,7 +55,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class InjectExpectationService {
 
   public static final String SUCCESS = "Success";
-  public static final String FAILED = "Failed";
   public static final String PENDING = "Pending";
   public static final String COLLECTOR = "collector";
   private final InjectExpectationRepository injectExpectationRepository;
@@ -211,7 +214,7 @@ public class InjectExpectationService {
         expectationsForPlayers,
         expectationForTeams,
         injectExpectation,
-        (score) -> buildForPlayerManualValidation(result, score));
+        score -> buildForPlayerManualValidation(result, score));
     return expectationForTeams;
   }
 
@@ -330,7 +333,7 @@ public class InjectExpectationService {
         updated,
         false,
         shouldPropagateLastInjectExpectationResult
-            ? (score) -> updated.getResults().getLast()
+            ? score -> updated.getResults().getLast()
             : null);
   }
 
@@ -368,6 +371,46 @@ public class InjectExpectationService {
         PageRequest.of(0, 10000, Sort.by(Sort.Direction.ASC, "createdAt")));
   }
 
+  // -- EXPECTATIONS BY TYPE --
+
+  public List<InjectExpectation> expectationsNotFilledAndNotExpiredBySourceId(
+      @NotNull InjectExpectation.EXPECTATION_TYPE type,
+      @NotNull Integer expirationTime,
+      @NotBlank String sourceId) {
+
+    Instant expirationThreshold = Instant.now().minus(expirationTime, ChronoUnit.MINUTES);
+
+    return injectExpectationRepository
+        .findAll(
+            Specification.where(
+                InjectExpectationSpecification.type(type)
+                    .and(InjectExpectationSpecification.agentNotNull())
+                    .and(InjectExpectationSpecification.assetNotNull())
+                    .and(InjectExpectationSpecification.from(expirationThreshold))))
+        .stream()
+        .filter(ExpectationUtils::isAgentExpectation)
+        .filter(e -> hasNoResult(e.getResults(), sourceId))
+        .toList();
+  }
+
+  public List<InjectExpectation> expectationsNotFilledAndNotExpired(
+      @NotNull InjectExpectation.EXPECTATION_TYPE type, @NotNull Integer expirationTime) {
+
+    Instant expirationThreshold = Instant.now().minus(expirationTime, ChronoUnit.MINUTES);
+
+    return injectExpectationRepository
+        .findAll(
+            Specification.where(
+                InjectExpectationSpecification.type(type)
+                    .and(InjectExpectationSpecification.agentNotNull())
+                    .and(InjectExpectationSpecification.assetNotNull())
+                    .and(InjectExpectationSpecification.from(expirationThreshold))))
+        .stream()
+        .filter(ExpectationUtils::isAgentExpectation)
+        .filter(e -> hasNoResults(e.getResults()))
+        .toList();
+  }
+
   // -- PREVENTION --
 
   public List<InjectExpectation> preventionExpectationsNotExpired(final Integer expirationTime) {
@@ -397,6 +440,16 @@ public class InjectExpectationService {
         .filter(ExpectationUtils::isAgentExpectation)
         .filter(e -> hasNoResults(e.getResults()))
         .toList();
+  }
+
+  public List<InjectExpectation> preventionExpectationsNotFillAndNotExpired(
+      @NotNull Integer expirationTime) {
+    return expectationsNotFilledAndNotExpired(PREVENTION, expirationTime);
+  }
+
+  public List<InjectExpectation> preventionExpectationsNotFilledAndNotExpired(
+      @NotNull Integer expirationTime, @NotBlank String sourceId) {
+    return expectationsNotFilledAndNotExpiredBySourceId(PREVENTION, expirationTime, sourceId);
   }
 
   // -- DETECTION --
@@ -430,6 +483,17 @@ public class InjectExpectationService {
         .toList();
   }
 
+  public List<InjectExpectation> detectionExpectationsNotFillAndNotExpired(
+      @NotNull Integer expirationTime) {
+    return expectationsNotFilledAndNotExpired(DETECTION, expirationTime);
+  }
+
+  public List<InjectExpectation> detectionExpectationsNotFilledAndNotExpired(
+      @NotNull Integer expirationTime, @NotBlank String sourceId) {
+
+    return expectationsNotFilledAndNotExpiredBySourceId(DETECTION, expirationTime, sourceId);
+  }
+
   // -- MANUAL
 
   public List<InjectExpectation> manualExpectationsNotExpired(final Integer expirationTime) {
@@ -457,6 +521,11 @@ public class InjectExpectationService {
         .stream()
         .filter(e -> hasNoResults(e.getResults()))
         .toList();
+  }
+
+  public List<InjectExpectation> manualExpectationsNotFillAndNotExpired(
+      @NotNull Integer expirationTime) {
+    return expectationsNotFilledAndNotExpired(MANUAL, expirationTime);
   }
 
   // -- BY TARGET TYPE
@@ -514,6 +583,40 @@ public class InjectExpectationService {
     }
   }
 
+  private static List<InjectExpectationAgentOutput> toInjectExpectationAgentsOutput(
+      List<InjectExpectation> injectExpectations, String assetId) {
+    return injectExpectations.stream()
+        .map(
+            ie ->
+                InjectExpectationAgentOutput.builder()
+                    .type(ie.getType())
+                    .id(ie.getId())
+                    .name(ie.getName())
+                    .results(ie.getResults())
+                    .score(ie.getScore())
+                    .status(ie.getResponse())
+                    .expirationTime(ie.getExpirationTime())
+                    .createdAt(ie.getCreatedAt())
+                    .expectationGroup(ie.isExpectationGroup())
+                    .agentId(ie.getAgent().getId())
+                    .agentName(ie.getAgent().getExecutedByUser())
+                    .assetId(assetId)
+                    .build())
+        .collect(Collectors.toList());
+  }
+
+  public List<InjectExpectationAgentOutput> findMergedExpectationsWithAgentsByInjectAndAsset(
+      String injectId, String assetId, String expectationType) {
+    List<InjectExpectationAgentOutput> injectExpectationAgentOutputs =
+        toInjectExpectationAgentsOutput(
+            injectExpectationRepository.findAllWithAgentsByInjectAndAsset(
+                injectId, assetId, InjectExpectation.EXPECTATION_TYPE.valueOf(expectationType)),
+            assetId);
+    injectExpectationAgentOutputs.sort(
+        Comparator.comparing(InjectExpectationAgentOutput::getAgentName));
+    return injectExpectationAgentOutputs;
+  }
+
   /**
    * Add a date signature to all inject expectations by agent.
    *
@@ -527,16 +630,8 @@ public class InjectExpectationService {
       @NotBlank final String agentId,
       @NotBlank final Instant date,
       @NotBlank final String signatureType) {
-    List<InjectExpectation> injectExpectations =
-        this.injectExpectationRepository.findAllByInjectAndAgent(injectId, agentId);
-
-    injectExpectations.forEach(
-        expectation -> {
-          List<InjectExpectationSignature> signatures = expectation.getSignatures();
-          signatures.add(new InjectExpectationSignature(signatureType, date.toString()));
-        });
-
-    injectExpectationRepository.saveAll(injectExpectations);
+    // Insert the signature for all agent and inject in one query
+    injectExpectationRepository.insertSignature(signatureType, date.toString(), injectId, agentId);
   }
 
   /**
@@ -561,6 +656,7 @@ public class InjectExpectationService {
    * @param agentId the agentId for which to add the start date signature
    * @param date the date to set as the start date signature
    */
+  @Transactional
   public void addStartDateSignatureToInjectExpectationsByAgent(
       @NotBlank final String injectId,
       @NotBlank final String agentId,
@@ -582,7 +678,9 @@ public class InjectExpectationService {
       }
 
       for (InjectExpectationResult expectationResult : expectation.getResults()) {
-        if (!notCopiedSourceTypes.contains(expectationResult.getSourceType())) {
+        if (!notCopiedSourceTypes.contains(expectationResult.getSourceType())
+            && expectationResult.getResult() != null
+            && expectationResult.getScore() != null) {
           electedExpectations
               .get(expectation.getType())
               .setResults(
@@ -626,8 +724,6 @@ public class InjectExpectationService {
 
     List<InjectExpectation> injectExpectations = new ArrayList<>();
     if (!teams.isEmpty()) {
-      final String exerciseId = executableInject.getInjection().getExercise().getId();
-
       List<InjectExpectation> injectExpectationsByUserAndTeam;
       // If atomicTesting, We create expectation for every player and every team
       if (isAtomicTesting) {
@@ -663,6 +759,7 @@ public class InjectExpectationService {
                                                     expectationPropertiesConfig))))
                 .toList();
       } else {
+        final String exerciseId = executableInject.getInjection().getExercise().getId();
         // Create expectations for every enabled player in every team
         injectExpectationsByUserAndTeam =
             teams.stream()
@@ -718,16 +815,141 @@ public class InjectExpectationService {
     }
 
     if (!injectExpectations.isEmpty()) {
-      setupExpectationResults(injectExpectations);
+      setupDefaultExpectationResults(injectExpectations);
       injectExpectationRepository.saveAll(injectExpectations);
     }
   }
 
-  private void setupExpectationResults(@NotNull final List<InjectExpectation> injectExpectations) {
+  /**
+   * Initializes the result field for each injectExpectation in the given list.
+   *
+   * <p>Correct initialization is critical: a simulation is considered finished when all
+   * InjectExpectation.results.result entries have a non-null result value.
+   *
+   * <p>For technical expectations (PREVENTION, DETECTION, VULNERABILITY), results are only set when
+   * an agent is assigned
+   *
+   * <p>So in this function for all expected result we will set injectExpectation.results[*].result
+   * = null
+   *
+   * @param injectExpectations the list of expectations to initialize
+   */
+  private void setupDefaultExpectationResults(
+      @NotNull final List<InjectExpectation> injectExpectations) {
     List<Collector> collectors = collectorService.securityPlatformCollectors();
-    injectExpectations.stream()
-        .filter(ie -> List.of(PREVENTION, DETECTION).contains(ie.getType()))
-        .forEach(
-            injectExpectation -> injectExpectation.setResults(setUpFromCollectors(collectors)));
+
+    injectExpectations.forEach(
+        ie -> {
+          switch (ie.getType()) {
+            case PREVENTION, DETECTION -> {
+              if (ie.getAgent() != null) {
+                ie.setResults(setUpFromCollectors(collectors));
+              }
+            }
+            case VULNERABILITY -> {
+              if (ie.getAgent() != null) {
+                ie.setResults(List.of(buildDefaultForVulnerabilityManagerInFailed()));
+              }
+            }
+            case MANUAL -> {
+              if (ie.getUser() != null) {
+                ie.setResults(List.of(buildDefaultForPlayerManualValidation()));
+              }
+            }
+            // TODO : The UI needs to be fixed: when the score and result are initialized to null,
+            // the user can no longer validate the flag.
+            // the user can not validate the flag anymore
+            //                case CHALLENGE -> {
+            //                  if (ie.getUser() != null) {
+            //
+            // ie.setResults(List.of(ChallengeExpectationUtils.buildDefaultChallengeInjectExpectationResult()));
+            //                  }
+            //                }
+            case ARTICLE -> {
+              if (ie.getUser() != null) {
+                ie.setResults(List.of(buildDefaultForMediaPressure()));
+              }
+            }
+            default -> {}
+          }
+        });
+  }
+
+  /**
+   * Function used to check if the output contains vulnerabilities and update the related inject
+   * expectations with the result.
+   *
+   * @param ctx the execution processing context containing the inject and agent information
+   * @param jsonNode the JSON node containing the output to check for vulnerabilities
+   */
+  public void matchesVulnerabilityExpectations(ExecutionProcessingContext ctx, JsonNode jsonNode) {
+    boolean vulnerable =
+        jsonNode != null
+            && !jsonNode.isMissingNode()
+            && jsonNode.isContainerNode()
+            && !jsonNode.isEmpty();
+
+    Inject inject = ctx.inject();
+    Agent agent = ctx.agent();
+
+    List<InjectExpectation> expectations = fetchVulnerabilityExpectations(inject, agent);
+
+    if (expectations.isEmpty()) {
+      return;
+    }
+
+    InjectExpectationResult result = buildForVulnerabilityManagerInFailed();
+
+    String label = vulnerable ? VULNERABILITY.failureLabel : VULNERABILITY.successLabel;
+
+    setResultExpectationVulnerable(expectations, result, label);
+
+    validateResultForAsset(expectations, result);
+    injectExpectationRepository.saveAll(expectations);
+  }
+
+  /**
+   * Function used to fetch inject expectations of type VULNERABILITY for a given inject and agent.
+   *
+   * @param inject the inject for which to fetch the expectations
+   * @param agent the agent for which to fetch the expectations
+   * @return the list of inject expectations of type VULNERABILITY for the given inject and agent
+   */
+  private static List<InjectExpectation> fetchVulnerabilityExpectations(
+      Inject inject, Agent agent) {
+    String agentId = agent != null ? agent.getId() : null;
+    return inject.getExpectations().stream()
+        .filter(exp -> InjectExpectation.EXPECTATION_TYPE.VULNERABILITY == exp.getType())
+        .filter(
+            exp -> {
+              Agent expAgent = exp.getAgent();
+              if (agentId == null) {
+                // For injector executions (agent == null), match expectations not bound to any
+                // agent
+                return expAgent == null;
+              }
+              return expAgent != null && agentId.equals(expAgent.getId());
+            })
+        .toList();
+  }
+
+  /**
+   * Function used to set the result of inject expectations of type VULNERABILITY with a label and a
+   * score.
+   *
+   * @param injectExpectations the list of inject expectations to update
+   * @param injectExpectationResult the result to set for the inject expectations
+   */
+  public void validateResultForAsset(
+      List<InjectExpectation> injectExpectations, InjectExpectationResult injectExpectationResult) {
+    injectExpectations.forEach(
+        injectExpectation ->
+            updateInjectExpectation(
+                injectExpectation.getId(),
+                InjectExpectationUpdateInput.builder()
+                    .collectorId(injectExpectationResult.getSourceId())
+                    .result(injectExpectationResult.getResult())
+                    .isSuccess(injectExpectationResult.getScore() != 0.0)
+                    .build()));
   }
 }
