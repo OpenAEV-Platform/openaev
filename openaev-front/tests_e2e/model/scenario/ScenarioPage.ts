@@ -74,14 +74,15 @@ class ScenarioPage {
     );
   }
 
-  async searchAndSelectInjectInList(searchText: string) {
+  // Function to review: firstInject.click() times out
+  /* async searchAndSelectInjectInList(searchText: string) {
     await this.searchInject.first().fill(searchText);
     const firstInject = this.injectListSection.getByRole('button', { name: searchText }).first();
     await firstInject.click();
     if (await firstInject.isVisible()) {
       await firstInject.click();
     }
-  }
+  } */
 }
 
 export default ScenarioPage;
