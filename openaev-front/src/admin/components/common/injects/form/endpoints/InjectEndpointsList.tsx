@@ -5,7 +5,7 @@ import { type EndpointHelper } from '../../../../../../actions/assets/asset-help
 import { useHelper } from '../../../../../../store';
 import type { EndpointOutput } from '../../../../../../utils/api-types';
 import { EndpointContext } from '../../../../../../utils/context/endpoint/EndpointContext';
-import { Can } from '../../../../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
 import EndpointPopover from '../../../../assets/endpoints/EndpointPopover';
 import EndpointsList from '../../../../assets/endpoints/EndpointsList';

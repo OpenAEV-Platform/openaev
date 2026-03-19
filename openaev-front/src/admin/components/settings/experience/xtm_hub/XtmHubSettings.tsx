@@ -10,7 +10,7 @@ import { useHelper } from '../../../../../store';
 import type { PlatformSettings } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useAuth from '../../../../../utils/hooks/useAuth';
-import { Can } from '../../../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import XtmHubRegisteredSection from './XtmHubRegisteredSection';
 import XtmHubTab from './XtmHubTab';

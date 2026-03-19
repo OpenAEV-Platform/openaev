@@ -2,7 +2,7 @@ import { type JSX, useContext } from 'react';
 import { useParams } from 'react-router';
 
 import NoAccess from './NoAccess';
-import { AbilityContext } from './PermissionsProvider';
+import { AbilityContext } from './permissionsContext';
 import type { Actions, Subjects } from './types';
 
 type GrantCheck = {
