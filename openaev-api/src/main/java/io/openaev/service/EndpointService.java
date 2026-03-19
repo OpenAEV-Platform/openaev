@@ -792,4 +792,83 @@ public class EndpointService {
         .map(i -> new FilterUtilsJpa.Option((String) i[0], (String) i[1]))
         .toList();
   }
+
+  /**
+   * Creates a new endpoint or updates an existing one based on the provided input.
+   *
+   * <p>If an endpoint matching the input is found (by external reference, hostname + IP, or
+   * hostname + MAC), it is updated with the new values. Otherwise, a new endpoint is created.
+   *
+   * @param input the endpoint input data
+   * @return the created or updated Endpoint entity
+   */
+  public Endpoint upsertEndpoint(EndpointInput input) {
+    Optional<Endpoint> endpoint = findExistingEndpoint(input);
+    if (endpoint.isPresent()) {
+      Endpoint endpointToUpdate = endpoint.get();
+      // Mandatory fields
+      endpointToUpdate.setName(input.getName());
+      Iterable<String> tags =
+          Stream.concat(
+                  endpointToUpdate.getTags().stream().map(Tag::getId).toList().stream(),
+                  input.getTagIds().stream())
+              .distinct()
+              .toList();
+      endpointToUpdate.setTags(iterableToSet(tagRepository.findAllById(tags)));
+      endpointToUpdate.setArch(input.getArch());
+      endpointToUpdate.setPlatform(input.getPlatform());
+      // Optional fields
+      if (input.getIps() != null) {
+        endpointToUpdate.setIps(EndpointMapper.setIps(input.getIps()));
+      }
+      if (input.getHostname() != null) {
+        endpointToUpdate.setHostname(input.getHostname());
+      }
+      if (input.getMacAddresses() != null) {
+        endpointToUpdate.setMacAddresses(input.getMacAddresses());
+      }
+      return updateEndpoint(endpointToUpdate);
+    }
+    return createEndpoint(input);
+  }
+
+  /**
+   * Attempts to find an existing endpoint matching the provided input.
+   *
+   * <p>The search is performed in the following order:
+   *
+   * <ol>
+   *   <li>By external reference
+   *   <li>By hostname and at least one IP address
+   *   <li>By hostname and at least one MAC address
+   * </ol>
+   *
+   * Returns the first match found, or {@code Optional.empty()} if no match exists.
+   *
+   * @param input the endpoint input data
+   * @return an Optional containing the found Endpoint, or empty if none found
+   */
+  public Optional<Endpoint> findExistingEndpoint(EndpointInput input) {
+    // 1. By external reference
+    if (input.getExternalReference() != null && !input.getExternalReference().isEmpty()) {
+      Optional<Endpoint> found = findEndpointByExternalReference(input.getExternalReference());
+      if (found.isPresent()) return found;
+    }
+
+    // 2. By hostname + at least one IP
+    if (input.getIps() != null) {
+      List<Endpoint> found =
+          findEndpointByHostnameAndAtLeastOneIp(input.getHostname(), input.getIps());
+      if (!found.isEmpty()) return Optional.of(found.getFirst());
+    }
+
+    // 3. By hostname + at least one MAC address
+    if (input.getMacAddresses() != null) {
+      List<Endpoint> found =
+          findEndpointByHostnameAndAtLeastOneMacAddress(
+              input.getHostname(), input.getMacAddresses());
+      if (!found.isEmpty()) return Optional.of(found.getFirst());
+    }
+    return Optional.empty();
+  }
 }

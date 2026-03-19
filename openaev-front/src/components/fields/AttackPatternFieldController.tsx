@@ -14,7 +14,7 @@ import { useHelper } from '../../store';
 import { type AttackPattern, type AttackPatternCreateInput } from '../../utils/api-types';
 import { useAppDispatch } from '../../utils/hooks';
 import { type Option } from '../../utils/Option';
-import { AbilityContext, Can } from '../../utils/permissions/PermissionsProvider';
+import { AbilityContext, Can } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
 import { useFormatter } from '../i18n';
 

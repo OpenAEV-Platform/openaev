@@ -4,20 +4,26 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.ContractOutputField;
 import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
+import io.openaev.rest.finding.FindingService;
+import io.openaev.rest.inject.service.ExecutionProcessingContext;
+import io.openaev.service.InjectExpectationService;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
-public class CVEOutputProcessor extends AbstractOutputProcessor {
+public class CVEOutputProcessor extends FindingCapableOutputProcessor {
 
   private static final String ASSET_ID = "asset_id";
   private static final String ID = "id";
   private static final String HOST = "host";
   private static final String SEVERITY = "severity";
 
-  public CVEOutputProcessor() {
+  private final InjectExpectationService injectExpectationService;
+
+  public CVEOutputProcessor(
+      FindingService findingService, InjectExpectationService injectExpectationService) {
     super(
         ContractOutputType.CVE,
         ContractOutputTechnicalType.Object,
@@ -26,7 +32,8 @@ public class CVEOutputProcessor extends AbstractOutputProcessor {
             new ContractOutputField(ID, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(SEVERITY, ContractOutputTechnicalType.Text, true)),
-        true);
+        findingService);
+    this.injectExpectationService = injectExpectationService;
   }
 
   @Override
@@ -34,7 +41,14 @@ public class CVEOutputProcessor extends AbstractOutputProcessor {
     return jsonNode.hasNonNull(ID) && jsonNode.hasNonNull(HOST) && jsonNode.hasNonNull(SEVERITY);
   }
 
-  // Findings
+  /** Matches vulnerability expectations after findings are generated. */
+  @Override
+  protected void afterFindings(
+      ExecutionProcessingContext executionContext, JsonNode structuredOutputNode) {
+    injectExpectationService.matchesVulnerabilityExpectations(
+        executionContext, structuredOutputNode);
+  }
+
   @Override
   public String toFindingValue(JsonNode jsonNode) {
     return buildString(jsonNode, ID);

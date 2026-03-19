@@ -11,7 +11,7 @@ import ItemBoolean from '../../../../../../components/ItemBoolean';
 import ItemTags from '../../../../../../components/ItemTags';
 import { useHelper } from '../../../../../../store';
 import { type Document } from '../../../../../../utils/api-types';
-import { Can } from '../../../../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
 import DocumentPopover from '../../../../components/documents/DocumentPopover';
 import DocumentType from '../../../../components/documents/DocumentType';

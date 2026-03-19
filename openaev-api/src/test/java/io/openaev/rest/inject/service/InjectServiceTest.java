@@ -1,8 +1,6 @@
 package io.openaev.rest.inject.service;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -11,7 +9,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.*;
+import io.openaev.database.repository.InjectDocumentRepository;
+import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.InjectStatusRepository;
+import io.openaev.database.repository.TeamRepository;
 import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
@@ -44,7 +45,9 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
@@ -565,23 +568,23 @@ class InjectServiceTest {
     String injectorContractId = "injectorContractId";
     String injectorContractString =
         """
-  {
-    "fields": [
-      {
-      "type": "defaultValue1",
-      "key": "value1",
-      "defaultValue": ["defaultValue1"],
-       "cardinality":"1"
-      },
-      {
-      "type": "asset",
-      "key": "value2",
-      "defaultValue": ["defaultValue2"],
-      "cardinality":"1"
-      }
-    ]
-  }
-""";
+              {
+                "fields": [
+                  {
+                  "type": "defaultValue1",
+                  "key": "value1",
+                  "defaultValue": ["defaultValue1"],
+                   "cardinality":"1"
+                  },
+                  {
+                  "type": "asset",
+                  "key": "value2",
+                  "defaultValue": ["defaultValue2"],
+                  "cardinality":"1"
+                  }
+                ]
+              }
+            """;
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setId(injectorContractId);
     injectorContract.setContent(injectorContractString);

@@ -4,8 +4,7 @@ import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.model.ExerciseStatus.RUNNING;
 import static io.openaev.database.model.InjectExpectationSignature.EXPECTATION_SIGNATURE_TYPE_END_DATE;
 import static io.openaev.database.model.InjectExpectationSignature.EXPECTATION_SIGNATURE_TYPE_START_DATE;
-import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_ASSET_SEPARATOR;
-import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
+import static io.openaev.database.model.InjectorContract.*;
 import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openaev.rest.atomic_testing.AtomicTestingApi.ATOMIC_TESTING_URI;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
@@ -41,7 +40,6 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.service.InjectStatusService;
-import io.openaev.scheduler.jobs.InjectsExecutionJob;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.fixtures.*;
@@ -63,7 +61,10 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import net.javacrumbs.jsonunit.core.Option;
 import org.awaitility.Awaitility;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
@@ -97,8 +98,6 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private ExerciseService exerciseService;
   @SpyBean private InjectStatusService injectStatusService;
 
-  @Autowired private InjectsExecutionJob injectsExecutionJob;
-
   @Autowired private AgentComposer agentComposer;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private InjectComposer injectComposer;
@@ -123,10 +122,7 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private CommunicationRepository communicationRepository;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
   @Autowired private TeamRepository teamRepository;
-  @Autowired private PayloadRepository payloadRepository;
-  @Autowired private InjectorRepository injectorRepository;
   @Autowired private FindingRepository findingRepository;
-  @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private UserRepository userRepository;
   @Resource private ObjectMapper objectMapper;
   @MockBean private JavaMailSender javaMailSender;
@@ -134,7 +130,6 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private InjectTestHelper injectTestHelper;
   @Autowired private InjectExpectationComposer injectExpectationComposer;
   @Autowired private InjectorContractFixture injectorContractFixture;
-  @Autowired private InjectorFixture injectorFixture;
   @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
 
@@ -936,7 +931,11 @@ class InjectApiTest extends IntegrationTest {
 
     private Inject getPendingInjectWithAssets() {
       return injectTestHelper.getPendingInjectWithAssets(
-          injectComposer, endpointComposer, agentComposer, injectStatusComposer);
+          injectComposer,
+          injectorContractComposer,
+          endpointComposer,
+          agentComposer,
+          injectStatusComposer);
     }
 
     private void performAgentlessCallbackRequest(String injectId, InjectExecutionInput input)
@@ -963,6 +962,45 @@ class InjectApiTest extends IntegrationTest {
           .andReturn()
           .getResponse()
           .getContentAsString();
+    }
+
+    /**
+     * Builds a pending inject backed by a Command payload that carries the given output parser, and
+     * returns {@code [inject, agentId]}.
+     */
+    private Object[] buildInjectWithOutputParser(OutputParser outputParser) throws Exception {
+      Domain domain = injectTestHelper.forceSaveDomain(DomainFixture.getRandomDomain());
+      Command command =
+          PayloadFixture.createCommand(
+              "bash", "echo test", null, null, new HashSet<>(Set.of(domain)));
+      command.setOutputParsers(Set.of(outputParser));
+      Payload payloadSaved = injectTestHelper.forceSavePayload(command);
+
+      Injector injector = InjectorFixture.createDefaultPayloadInjector();
+      injectTestHelper.forceSaveInjector(injector);
+
+      InjectorContract injectorContract =
+          InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
+              injector, payloadSaved, List.of());
+      injectorContract.setContent(injectorContract.getConvertedContent().toString());
+      InjectorContract injectorContractSaved =
+          injectTestHelper.forceSaveInjectorContract(injectorContract);
+
+      Inject inject = getPendingInjectWithAssets();
+      inject.setInjectorContract(injectorContractSaved);
+      injectTestHelper.forceSaveInject(inject);
+
+      String agentId = ((Endpoint) inject.getAssets().getFirst()).getAgents().getFirst().getId();
+      return new Object[] {inject, agentId};
+    }
+
+    /** Wraps stdout content in the expected JSON envelope used by the implant callback. */
+    private InjectExecutionInput buildStdoutInput(String stdoutContent) {
+      InjectExecutionInput input = new InjectExecutionInput();
+      input.setMessage("{\"stdout\":\"" + stdoutContent + "\"}");
+      input.setAction(InjectExecutionAction.command_execution);
+      input.setStatus("SUCCESS");
+      return input;
     }
 
     @Nested
@@ -1289,9 +1327,9 @@ class InjectApiTest extends IntegrationTest {
     }
 
     @Nested
-    @DisplayName("Finding Handling")
+    @DisplayName("Finding Processing Handling")
     @KeepRabbit
-    class FindingHandlingTest {
+    class FindingProcessingHandlingTest {
 
       @Test
       @DisplayName("Should link finding to targeted asset")
@@ -1360,6 +1398,1214 @@ class InjectApiTest extends IntegrationTest {
         assertEquals(endpointSaved.getId(), findings.getFirst().getAssets().getFirst().getId());
         assertEquals(1, findings.getLast().getAssets().size());
         assertEquals(endpointSaved.getId(), findings.getLast().getAssets().getFirst().getId());
+      }
+
+      // Deduplication
+
+      @Test
+      @DisplayName(
+          "Should consolidate duplicate CVE findings when structured output contains multiple entries with the same id")
+      void shouldConsolidateDuplicateCveFindingsWhenStructuredOutputContainsDuplicates()
+          throws Exception {
+        // -- PREPARE --
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage("Duplicate CVE findings test");
+        input.setOutputStructured(
+            """
+                {
+                  "cve": [
+                    {"id": "CVE-2025-99999", "host": "192.168.1.10", "severity": "critical"},
+                    {"id": "CVE-2025-99999", "host": "192.168.1.20", "severity": "critical"}
+                  ]
+                }
+                """);
+        input.setAction(InjectExecutionAction.complete);
+        input.setStatus("SUCCESS");
+
+        Inject inject = getPendingInjectWithAssets();
+        Injector injector = InjectorFixture.createDefaultPayloadInjector();
+        injectTestHelper.forceSaveInjector(injector);
+
+        ObjectNode convertedContent =
+            (ObjectNode)
+                mapper.readTree(
+                    """
+                        {
+                          "outputs": [
+                            {
+                              "field": "cve",
+                              "isFindingCompatible": true,
+                              "isMultiple": true,
+                              "labels": [],
+                              "type": "cve"
+                            }
+                          ]
+                        }
+                        """);
+        convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
+        InjectorContract injectorContract =
+            InjectorContractFixture.createInjectorContract(convertedContent);
+        injectorContract.setInjector(injector);
+        InjectorContract injectorContractSaved =
+            injectTestHelper.forceSaveInjectorContract(injectorContract);
+        inject.setInjectorContract(injectorContractSaved);
+        inject.setContent(convertedContent);
+        injectTestHelper.forceSaveInject(inject);
+
+        // -- EXECUTE --
+        performAgentlessCallbackRequest(inject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> !injectTestHelper.findFindingsByInjectId(inject.getId()).isEmpty());
+
+        List<Finding> findings = findingRepository.findAllByInjectId(inject.getId());
+        assertEquals(
+            1,
+            findings.size(),
+            "Duplicate CVE findings with the same id must be consolidated into one");
+        assertEquals(ContractOutputType.CVE, findings.getFirst().getType());
+        assertEquals("CVE-2025-99999", findings.getFirst().getValue());
+      }
+
+      @Test
+      @DisplayName(
+          "Should consolidate duplicate Port findings when two scanned hosts both have the same port open")
+      void shouldConsolidateDuplicatePortFindingsWhenTwoHostsHaveSamePortOpen() throws Exception {
+        // -- PREPARE --
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage("nmap TCP connect scan");
+        input.setOutputStructured(
+            """
+                {
+                  "ports": [22, 8080, 8080]
+                }
+                """);
+        input.setAction(InjectExecutionAction.complete);
+        input.setStatus("SUCCESS");
+
+        Inject inject = getPendingInjectWithAssets();
+        Injector injector = InjectorFixture.createDefaultPayloadInjector();
+        injectTestHelper.forceSaveInjector(injector);
+
+        ObjectNode convertedContent =
+            (ObjectNode)
+                mapper.readTree(
+                    """
+                        {
+                          "outputs": [
+                            {
+                              "field": "ports",
+                              "isFindingCompatible": true,
+                              "isMultiple": true,
+                              "labels": ["scan"],
+                              "type": "port"
+                            }
+                          ]
+                        }
+                        """);
+        convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
+        InjectorContract injectorContract =
+            InjectorContractFixture.createInjectorContract(convertedContent);
+        injectorContract.setInjector(injector);
+        InjectorContract injectorContractSaved =
+            injectTestHelper.forceSaveInjectorContract(injectorContract);
+        inject.setInjectorContract(injectorContractSaved);
+        inject.setContent(convertedContent);
+        injectTestHelper.forceSaveInject(inject);
+
+        // -- EXECUTE --
+        performAgentlessCallbackRequest(inject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.findFindingsByInjectId(inject.getId()).size() >= 2);
+
+        List<Finding> findings = findingRepository.findAllByInjectId(inject.getId());
+        assertEquals(
+            2,
+            findings.size(),
+            "Port 22 and port 8080 (deduplicated) must produce exactly 2 findings");
+        assertTrue(
+            findings.stream().anyMatch(f -> f.getValue().equals("22")),
+            "Expected finding for port 22");
+        assertTrue(
+            findings.stream().anyMatch(f -> f.getValue().equals("8080")),
+            "Expected deduplicated finding for port 8080");
+        findings.forEach(f -> assertEquals(ContractOutputType.Port, f.getType()));
+      }
+
+      @Test
+      @DisplayName(
+          "Should merge assets of duplicate PortsScan findings when two assets expose the same host/port/service")
+      void shouldMergeAssetsOfDuplicatePortScanFindingsWhenTwoAssetsHaveSameHostPortService()
+          throws Exception {
+        // -- PREPARE --
+        Endpoint endpointA = EndpointFixture.createEndpoint();
+        Endpoint endpointASaved = injectTestHelper.forceSaveEndpoint(endpointA);
+        Endpoint endpointB = EndpointFixture.createEndpoint();
+        Endpoint endpointBSaved = injectTestHelper.forceSaveEndpoint(endpointB);
+
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage("nmap scan_results two assets both expose 192.168.1.10:8080/http");
+        input.setOutputStructured(
+            String.format(
+                """
+                    {
+                      "scan_results": [
+                        {"asset_id": "%s", "host": "192.168.1.10", "port": "8080", "service": "http"},
+                        {"asset_id": "%s", "host": "192.168.1.10", "port": "8080", "service": "http"}
+                      ]
+                    }
+                    """,
+                endpointASaved.getId(), endpointBSaved.getId()));
+        input.setAction(InjectExecutionAction.complete);
+        input.setStatus("SUCCESS");
+
+        Inject inject = getPendingInjectWithAssets();
+        Injector injector = InjectorFixture.createDefaultPayloadInjector();
+        injectTestHelper.forceSaveInjector(injector);
+
+        ObjectNode convertedContent =
+            (ObjectNode)
+                mapper.readTree(
+                    """
+                        {
+                          "outputs": [
+                            {
+                              "field": "scan_results",
+                              "isFindingCompatible": true,
+                              "isMultiple": true,
+                              "labels": ["scan"],
+                              "type": "portscan"
+                            }
+                          ]
+                        }
+                        """);
+        convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
+        InjectorContract injectorContract =
+            InjectorContractFixture.createInjectorContract(convertedContent);
+        injectorContract.setInjector(injector);
+        InjectorContract injectorContractSaved =
+            injectTestHelper.forceSaveInjectorContract(injectorContract);
+        inject.setInjectorContract(injectorContractSaved);
+        inject.setContent(convertedContent);
+        injectTestHelper.forceSaveInject(inject);
+
+        // -- EXECUTE --
+        performAgentlessCallbackRequest(inject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> !injectTestHelper.findFindingsByInjectId(inject.getId()).isEmpty());
+
+        List<Finding> findings = findingRepository.findAllByInjectId(inject.getId());
+        assertEquals(
+            1,
+            findings.size(),
+            "Two PortsScan entries with same host/port/service must be consolidated into one finding");
+        Finding merged = findings.getFirst();
+        assertEquals(ContractOutputType.PortsScan, merged.getType());
+        assertEquals("192.168.1.10:8080 (http)", merged.getValue());
+        List<String> assetIds = merged.getAssets().stream().map(Asset::getId).toList();
+        assertTrue(
+            assetIds.contains(endpointASaved.getId()), "Merged finding must be linked to asset A");
+        assertTrue(
+            assetIds.contains(endpointBSaved.getId()), "Merged finding must be linked to asset B");
+      }
+
+      // CVE
+
+      @Test
+      @DisplayName("Should create findings for each CVE extracted from raw output")
+      void shouldCreateFindingsForEachCveExtractedFromRawOutput() throws Exception {
+        // -- PREPARE --
+        ContractOutputElement cveElement = OutputParserFixture.getCVEOutputElement();
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(cveElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject cveInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage(
+            "{\"stdout\":\"[CVE-2025-25241] [http] [critical] http://192.168.1.10/\\n"
+                + "[CVE-2025-99999] [http] [high] http://192.168.1.20/\\n\"}");
+        input.setAction(InjectExecutionAction.command_execution);
+        input.setStatus("SUCCESS");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, cveInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.findFindingsByInjectId(cveInject.getId()).size() >= 2);
+
+        List<Finding> cveFindings = injectTestHelper.findFindingsByInjectId(cveInject.getId());
+        assertEquals(2, cveFindings.size());
+        assertTrue(
+            cveFindings.stream().anyMatch(f -> f.getValue().contains("CVE-2025-25241")),
+            "Expected finding for CVE-2025-25241");
+        assertTrue(
+            cveFindings.stream().anyMatch(f -> f.getValue().contains("CVE-2025-99999")),
+            "Expected finding for CVE-2025-99999");
+        cveFindings.forEach(f -> assertEquals(ContractOutputType.CVE, f.getType()));
+      }
+
+      @Test
+      @DisplayName("Should not create CVE findings when raw output contains no CVE matches")
+      void shouldNotCreateCveFindingsWhenRawOutputContainsNoCveMatches() throws Exception {
+        // -- PREPARE --
+        ContractOutputElement cveElement = OutputParserFixture.getCVEOutputElement();
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(cveElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject cveInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = buildStdoutInput("no vulnerabilities found");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, cveInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.hasInjectStatusTrace(cveInject.getId()));
+        assertTrue(
+            injectTestHelper.findFindingsByInjectId(cveInject.getId()).isEmpty(),
+            "No findings expected when output has no CVE match");
+      }
+
+      // Credentials
+
+      @Test
+      @DisplayName("Should create a finding for each credential pair extracted from raw output")
+      void shouldCreateFindingForEachCredentialPairExtractedFromRawOutput() throws Exception {
+        // -- PREPARE --
+        RegexGroup usernameGroup = OutputParserFixture.getRegexGroup("username", "$2");
+        RegexGroup passwordGroup = OutputParserFixture.getRegexGroup("password", "$3");
+        ContractOutputElement credElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Credentials,
+                "(\\S+)\\\\(\\S+):(\\S+)",
+                Set.of(usernameGroup, passwordGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(credElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject credInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        // domain\\user:pass format, each line produces one finding
+        String rawOutput =
+            "SMB 192.168.11.23 445 SERVER [+] WORKGROUP\\\\alice:secret123 (Pwn3d!)\\n"
+                + "SMB 192.168.11.23 445 SERVER [+] WORKGROUP\\\\bob:hunter2 (Pwn3d!)\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, credInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.findFindingsByInjectId(credInject.getId()).size() >= 2);
+
+        List<Finding> credFindings = injectTestHelper.findFindingsByInjectId(credInject.getId());
+        assertEquals(2, credFindings.size());
+        assertTrue(
+            credFindings.stream().anyMatch(f -> f.getValue().contains("alice:secret123")),
+            "Expected finding for alice:secret123");
+        assertTrue(
+            credFindings.stream().anyMatch(f -> f.getValue().contains("bob:hunter2")),
+            "Expected finding for bob:hunter2");
+        credFindings.forEach(f -> assertEquals(ContractOutputType.Credentials, f.getType()));
+      }
+
+      @Test
+      @DisplayName("Should not create credentials findings when raw output contains no credentials")
+      void shouldNotCreateCredentialsFindingsWhenRawOutputContainsNoCredentials() throws Exception {
+        // -- PREPARE --
+        RegexGroup usernameGroup = OutputParserFixture.getRegexGroup("username", "$2");
+        RegexGroup passwordGroup = OutputParserFixture.getRegexGroup("password", "$3");
+        ContractOutputElement credElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Credentials,
+                "(\\S+)\\\\(\\S+):(\\S+)",
+                Set.of(usernameGroup, passwordGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(credElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject credInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = buildStdoutInput("no credentials here");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, credInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.hasInjectStatusTrace(credInject.getId()));
+        assertTrue(injectTestHelper.findFindingsByInjectId(credInject.getId()).isEmpty());
+      }
+
+      // PortScan
+
+      @Test
+      @DisplayName("Should create a finding for each open port/service extracted from raw output")
+      void shouldCreateFindingForEachOpenPortServiceExtractedFromRawOutput() throws Exception {
+        // -- PREPARE --
+        RegexGroup hostGroup = OutputParserFixture.getRegexGroup("host", "$1");
+        RegexGroup portGroup = OutputParserFixture.getRegexGroup("port", "$2");
+        RegexGroup serviceGroup = OutputParserFixture.getRegexGroup("service", "$3");
+        ContractOutputElement portScanElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.PortsScan,
+                "(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}):(\\d+)\\s+\\S+\\s+(LISTENING)",
+                Set.of(hostGroup, portGroup, serviceGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(portScanElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject portScanInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage(
+            "{\"stdout\":\"192.168.1.10:135 0.0.0.0:0 LISTENING\\n"
+                + "10.0.0.5:443 0.0.0.0:0 LISTENING\\n\"}");
+        input.setAction(InjectExecutionAction.command_execution);
+        input.setStatus("SUCCESS");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, portScanInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () -> injectTestHelper.findFindingsByInjectId(portScanInject.getId()).size() >= 2);
+
+        List<Finding> portScanFindings =
+            injectTestHelper.findFindingsByInjectId(portScanInject.getId());
+        assertEquals(2, portScanFindings.size());
+        assertTrue(
+            portScanFindings.stream().anyMatch(f -> f.getValue().contains("192.168.1.10")),
+            "Expected finding for 192.168.1.10:135");
+        assertTrue(
+            portScanFindings.stream().anyMatch(f -> f.getValue().contains("10.0.0.5")),
+            "Expected finding for 10.0.0.5:443");
+        portScanFindings.forEach(f -> assertEquals(ContractOutputType.PortsScan, f.getType()));
+      }
+
+      @Test
+      @DisplayName("Should not create PortScan findings when raw output has no port scan matches")
+      void shouldNotCreatePortScanFindingsWhenRawOutputHasNoPortScanMatches() throws Exception {
+        // -- PREPARE --
+        RegexGroup hostGroup = OutputParserFixture.getRegexGroup("host", "$1");
+        RegexGroup portGroup = OutputParserFixture.getRegexGroup("port", "$2");
+        RegexGroup serviceGroup = OutputParserFixture.getRegexGroup("service", "$3");
+        ContractOutputElement portScanElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.PortsScan,
+                "(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}):(\\d+)\\s+\\S+\\s+(LISTENING)",
+                Set.of(hostGroup, portGroup, serviceGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(portScanElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject portScanInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = buildStdoutInput("nothing to scan");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, portScanInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.hasInjectStatusTrace(portScanInject.getId()));
+        assertTrue(injectTestHelper.findFindingsByInjectId(portScanInject.getId()).isEmpty());
+      }
+
+      // Port
+
+      @Test
+      @DisplayName("Should create a finding for each port number extracted from raw output")
+      void shouldCreateFindingForEachPortNumberExtractedFromRawOutput() throws Exception {
+        // -- PREPARE --
+        RegexGroup portGroup = OutputParserFixture.getRegexGroup("port", "$1");
+        ContractOutputElement portElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Port,
+                "(?:TCP|UDP)\\s+[\\d\\.]+:(\\d+)",
+                Set.of(portGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(portElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject portInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        String rawOutput =
+            "  TCP    192.168.1.10:8080            0.0.0.0:0              LISTENING\\n"
+                + "  TCP    192.168.1.10:443            0.0.0.0:0              LISTENING\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, portInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.findFindingsByInjectId(portInject.getId()).size() >= 2);
+
+        List<Finding> portFindings = injectTestHelper.findFindingsByInjectId(portInject.getId());
+        assertEquals(2, portFindings.size());
+        assertTrue(
+            portFindings.stream().anyMatch(f -> f.getValue().equals("8080")),
+            "Expected finding for port 8080");
+        assertTrue(
+            portFindings.stream().anyMatch(f -> f.getValue().equals("443")),
+            "Expected finding for port 443");
+        portFindings.forEach(f -> assertEquals(ContractOutputType.Port, f.getType()));
+      }
+
+      @Test
+      @DisplayName("Should not create Port findings when raw output contains no port matches")
+      void shouldNotCreatePortFindingsWhenRawOutputContainsNoPortMatches() throws Exception {
+        // -- PREPARE --
+        RegexGroup portGroup = OutputParserFixture.getRegexGroup("port", "$1");
+        ContractOutputElement portElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Port,
+                "(?:TCP|UDP)\\s+[\\d\\.]+:(\\d+)",
+                Set.of(portGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(portElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject portInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = buildStdoutInput("no ports here");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, portInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.hasInjectStatusTrace(portInject.getId()));
+        assertTrue(injectTestHelper.findFindingsByInjectId(portInject.getId()).isEmpty());
+      }
+
+      // Text
+
+      @Test
+      @DisplayName("Should create findings for each text value extracted from raw output")
+      void shouldCreateFindingsForEachTextValueExtractedFromRawOutput() throws Exception {
+        // -- PREPARE --
+        RegexGroup textGroup = OutputParserFixture.getRegexGroup("text", "$0");
+        ContractOutputElement textElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Text, "^(\\S+)", Set.of(textGroup), true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(textElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject textInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        String rawOutput = "System\\nRegistry\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, textInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> !injectTestHelper.findFindingsByInjectId(textInject.getId()).isEmpty());
+
+        List<Finding> textFindings = injectTestHelper.findFindingsByInjectId(textInject.getId());
+        assertFalse(textFindings.isEmpty(), "Expected at least one text finding");
+        textFindings.forEach(f -> assertEquals(ContractOutputType.Text, f.getType()));
+      }
+
+      @Test
+      @DisplayName("Should not create Text findings when raw output contains no matches")
+      void shouldNotCreateTextFindingsWhenRawOutputContainsNoMatches() throws Exception {
+        // -- PREPARE --
+        RegexGroup textGroup = OutputParserFixture.getRegexGroup("text", "$1");
+        ContractOutputElement textElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Text, "IMPOSSIBLE_PATTERN_XYZ_123", Set.of(textGroup), true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(textElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject textInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = buildStdoutInput("some random text");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, textInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.hasInjectStatusTrace(textInject.getId()));
+        assertTrue(injectTestHelper.findFindingsByInjectId(textInject.getId()).isEmpty());
+      }
+
+      // Number
+
+      @Test
+      @DisplayName("Should create findings for each number extracted from raw output")
+      void shouldCreateFindingsForEachNumberExtractedFromRawOutput() throws Exception {
+        // -- PREPARE --
+        RegexGroup numberGroup = OutputParserFixture.getRegexGroup("number", "$1");
+        ContractOutputElement numberElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Number, "(\\d{4,})", Set.of(numberGroup), true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(numberElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject numberInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        String rawOutput = "Process 1234 used 5678 bytes\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, numberInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.findFindingsByInjectId(numberInject.getId()).size() >= 2);
+
+        List<Finding> numberFindings =
+            injectTestHelper.findFindingsByInjectId(numberInject.getId());
+        assertEquals(2, numberFindings.size());
+        assertTrue(numberFindings.stream().anyMatch(f -> f.getValue().equals("1234")));
+        assertTrue(numberFindings.stream().anyMatch(f -> f.getValue().equals("5678")));
+        numberFindings.forEach(f -> assertEquals(ContractOutputType.Number, f.getType()));
+      }
+
+      @Test
+      @DisplayName("Should not create Number findings when raw output contains no numeric matches")
+      void shouldNotCreateNumberFindingsWhenRawOutputContainsNoNumericMatches() throws Exception {
+        // -- PREPARE --
+        RegexGroup numberGroup = OutputParserFixture.getRegexGroup("number", "$1");
+        ContractOutputElement numberElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Number, "(\\d{4,})", Set.of(numberGroup), true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(numberElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject numberInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = buildStdoutInput("no big numbers here");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, numberInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.hasInjectStatusTrace(numberInject.getId()));
+        assertTrue(injectTestHelper.findFindingsByInjectId(numberInject.getId()).isEmpty());
+      }
+
+      // IPv4
+
+      @Test
+      @DisplayName("Should create a finding for each valid IPv4 address extracted from raw output")
+      void shouldCreateFindingForEachValidIPv4AddressExtractedFromRawOutput() throws Exception {
+        // -- PREPARE --
+        RegexGroup ipv4Group = OutputParserFixture.getRegexGroup("ipv4", "$0");
+        ContractOutputElement ipv4Element =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.IPv4,
+                "\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b",
+                Set.of(ipv4Group),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(ipv4Element));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject ipv4Inject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        String rawOutput =
+            "  TCP    192.168.1.10:135            0.0.0.0:0              LISTENING\\n"
+                + "  TCP    10.0.0.5:443            0.0.0.0:0              LISTENING\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, ipv4Inject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> !injectTestHelper.findFindingsByInjectId(ipv4Inject.getId()).isEmpty());
+
+        List<Finding> ipv4Findings = injectTestHelper.findFindingsByInjectId(ipv4Inject.getId());
+        assertFalse(ipv4Findings.isEmpty(), "Expected at least one IPv4 finding");
+        assertTrue(
+            ipv4Findings.stream().anyMatch(f -> f.getValue().equals("192.168.1.10")),
+            "Expected finding for 192.168.1.10");
+        assertTrue(
+            ipv4Findings.stream().anyMatch(f -> f.getValue().equals("10.0.0.5")),
+            "Expected finding for 10.0.0.5");
+        ipv4Findings.forEach(f -> assertEquals(ContractOutputType.IPv4, f.getType()));
+      }
+
+      @Test
+      @DisplayName(
+          "Should not create IPv4 findings when raw output contains no valid IPv4 addresses")
+      void shouldNotCreateIPv4FindingsWhenRawOutputContainsNoValidIPv4Addresses() throws Exception {
+        // -- PREPARE --
+        RegexGroup ipv4Group = OutputParserFixture.getRegexGroup("ipv4", "$0");
+        ContractOutputElement ipv4Element =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.IPv4,
+                "\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b",
+                Set.of(ipv4Group),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(ipv4Element));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject ipv4Inject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        // 999.x.x.x is not a valid IPv4, the processor's validate() rejects it
+        InjectExecutionInput input = buildStdoutInput("host 999.999.999.999 is unknown");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, ipv4Inject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.hasInjectStatusTrace(ipv4Inject.getId()));
+        assertTrue(injectTestHelper.findFindingsByInjectId(ipv4Inject.getId()).isEmpty());
+      }
+
+      // IPv6
+
+      @Test
+      @DisplayName("Should create a finding for each valid IPv6 address extracted from raw output")
+      void shouldCreateFindingForEachValidIPv6AddressExtractedFromRawOutput() throws Exception {
+        // -- PREPARE --
+        RegexGroup ipv6Group = OutputParserFixture.getRegexGroup("ipv6", "$1");
+        String ipv6Regex = "\\[([a-fA-F0-9:]+(?:%[a-zA-Z0-9]+)?)\\]:\\d+";
+        ContractOutputElement ipv6Element =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.IPv6, ipv6Regex, Set.of(ipv6Group), true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(ipv6Element));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject ipv6Inject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        String rawOutput =
+            " UDP [fe80::1b03:a1ff:ccdb:b464%66]:1900 *:*\\n" + " UDP [2001:db8::1]:8080 *:*\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, ipv6Inject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.findFindingsByInjectId(ipv6Inject.getId()).size() >= 2);
+
+        List<Finding> ipv6Findings = injectTestHelper.findFindingsByInjectId(ipv6Inject.getId());
+        assertEquals(2, ipv6Findings.size());
+        assertTrue(
+            ipv6Findings.stream().anyMatch(f -> f.getValue().contains("fe80::1b03:a1ff:ccdb:b464")),
+            "Expected finding for fe80::1b03:a1ff:ccdb:b464");
+        assertTrue(
+            ipv6Findings.stream().anyMatch(f -> f.getValue().contains("2001:db8::1")),
+            "Expected finding for 2001:db8::1");
+        ipv6Findings.forEach(f -> assertEquals(ContractOutputType.IPv6, f.getType()));
+      }
+
+      @Test
+      @DisplayName("Should not create IPv6 findings when raw output contains no IPv6 addresses")
+      void shouldNotCreateIPv6FindingsWhenRawOutputContainsNoIPv6Addresses() throws Exception {
+        // -- PREPARE --
+        RegexGroup ipv6Group = OutputParserFixture.getRegexGroup("ipv6", "$1");
+        String ipv6Regex = "\\[([a-fA-F0-9:]+(?:%[a-zA-Z0-9]+)?)\\]:\\d+";
+        ContractOutputElement ipv6Element =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.IPv6, ipv6Regex, Set.of(ipv6Group), true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(ipv6Element));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject ipv6Inject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = buildStdoutInput("no ipv6 addresses");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, ipv6Inject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.hasInjectStatusTrace(ipv6Inject.getId()));
+        assertTrue(injectTestHelper.findFindingsByInjectId(ipv6Inject.getId()).isEmpty());
+      }
+    }
+
+    @Nested
+    @DisplayName("Asset Processing Handling")
+    @KeepRabbit
+    class AssetProcessingHandlingTest {
+
+      @Test
+      @DisplayName("Should create an asset agentless")
+      void shouldCreateAssetFromStructuredOutput() throws Exception {
+        // -- PREPARE --
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage("Creation Assets");
+        input.setOutputStructured(
+            """
+                            {
+                             	"found_assets": [
+                             		{
+                             			"name": "Asset A",
+                             			"type": "Endpoint",
+                             			"description": "describe asset A",
+                             			"external_reference": "https://shodan.io/.../assetA",
+                             			"tags": ["source:shodan.io"],
+                             			"extended_attributes": {
+                             				"ip_addresses": ["192.168.0.2"],
+                             				"platform": "Windows",
+                             				"hostname": "test.if",
+                             				"mac_addresses": ["1::22:45:67:89:AB"],
+                             				"arch": "x86_64",
+                             				"end_of_life": true
+                             			}
+                             		},
+                             		{
+                             			"name": "Asset B",
+                             			"type": "Endpoint",
+                             			"description": "describe asset B",
+                             			"external_reference": "https://shodan.io/.../assetB",
+                             			"tags": ["source:shodan.io"],
+                             			"extended_attributes": {
+                             				"ip_addresses": ["192.168.0.10"],
+                             				"platform": "Linux",
+                             				"hostname": "test.io",
+                             				"mac_addresses": ["1::23:45:67:89:AB"],
+                             				"arch": "arm64",
+                             				"end_of_life": false
+                             			}
+                             		}
+                             	]
+                             }
+                """);
+        input.setAction(InjectExecutionAction.complete);
+        input.setStatus("SUCCESS");
+        Inject inject = getPendingInjectWithAssets();
+        Injector injector = InjectorFixture.createDefaultPayloadInjector();
+        injectTestHelper.forceSaveInjector(injector);
+        ObjectNode convertedContent =
+            (ObjectNode)
+                mapper.readTree(
+                    """
+                        {
+                          "outputs": [
+                            {
+                               "field": "found_assets",
+                               "isFindingCompatible": false,
+                               "isMultiple": true,
+                               "labels": [
+                                   "shodan"
+                               ],
+                               "type": "asset"
+                           }
+                          ]
+                        }
+                        """);
+        convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
+        InjectorContract injectorContract =
+            InjectorContractFixture.createInjectorContract(convertedContent);
+        injectorContract.setInjector(injector);
+        InjectorContract injectorContractSaved =
+            injectTestHelper.forceSaveInjectorContract(injectorContract);
+        inject.setInjectorContract(injectorContractSaved);
+        inject.setContent(convertedContent);
+        injectTestHelper.forceSaveInject(inject);
+
+        // -- EXECUTE --
+        performAgentlessCallbackRequest(inject.getId(), input);
+
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () -> {
+                  List<Endpoint> endpointsA =
+                      endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
+                  List<Endpoint> endpointsB =
+                      endpointRepository.findByExternalReference("https://shodan.io/.../assetB");
+                  return endpointsA.size() == 1 && endpointsB.size() == 1;
+                });
+
+        List<Endpoint> endpointsA =
+            endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
+        List<Endpoint> endpointsB =
+            endpointRepository.findByExternalReference("https://shodan.io/.../assetB");
+        assertEquals(1, endpointsA.size());
+        assertEquals(1, endpointsB.size());
+        assertEquals("test.if", endpointsA.getFirst().getHostname());
+        assertEquals("test.io", endpointsB.getFirst().getHostname());
+      }
+
+      @Test
+      @DisplayName("Should find asset from structured output and not create a new one")
+      void shouldFindAssetFromStructuredOutputAndNotCreateNewAsset() throws Exception {
+        // -- PREPARE --
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage("Creation Assets");
+        input.setOutputStructured(
+            """
+                            {
+                             	"found_assets": [
+                             		{
+                             			"name": "Asset A",
+                             			"type": "Endpoint",
+                             			"description": "describe asset A",
+                             			"external_reference": "https://shodan.io/.../assetA",
+                             			"tags": ["source:shodan.io"],
+                             			"extended_attributes": {
+                             				"ip_addresses": ["192.168.0.2"],
+                             				"platform": "Windows",
+                             				"hostname": "test.if",
+                             				"mac_addresses": ["1::22:45:67:89:AB"],
+                             				"arch": "x86_64",
+                             				"end_of_life": true
+                             			}
+                             		},
+                             		{
+                             			"name": "Asset B",
+                             			"type": "Endpoint",
+                             			"description": "describe asset B",
+                             			"external_reference": "https://shodan.io/.../assetA",
+                             			"tags": ["source:shodan.io"],
+                             			"extended_attributes": {
+                             				"ip_addresses": ["192.168.0.2"],
+                             				"platform": "Windows",
+                             				"hostname": "test.if",
+                             				"mac_addresses": ["1::22:45:67:89:AB"],
+                             				"arch": "arm64",
+                             				"end_of_life": false
+                             			}
+                             		}
+                             	]
+                             }
+                """);
+        input.setAction(InjectExecutionAction.complete);
+        input.setStatus("SUCCESS");
+        Inject inject = getPendingInjectWithAssets();
+        Injector injector = InjectorFixture.createDefaultPayloadInjector();
+        injectTestHelper.forceSaveInjector(injector);
+        ObjectNode convertedContent =
+            (ObjectNode)
+                mapper.readTree(
+                    """
+                        {
+                          "outputs": [
+                            {
+                               "field": "found_assets",
+                               "isFindingCompatible": false,
+                               "isMultiple": true,
+                               "labels": [
+                                   "shodan"
+                               ],
+                               "type": "asset"
+                           }
+                          ]
+                        }
+                        """);
+        convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
+        InjectorContract injectorContract =
+            InjectorContractFixture.createInjectorContract(convertedContent);
+        injectorContract.setInjector(injector);
+        InjectorContract injectorContractSaved =
+            injectTestHelper.forceSaveInjectorContract(injectorContract);
+        inject.setInjectorContract(injectorContractSaved);
+        inject.setContent(convertedContent);
+        injectTestHelper.forceSaveInject(inject);
+
+        // -- EXECUTE --
+        performAgentlessCallbackRequest(inject.getId(), input);
+
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () -> {
+                  List<Endpoint> endpointsA =
+                      endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
+                  return endpointsA.size() == 1;
+                });
+
+        List<Endpoint> endpointsA =
+            endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
+        assertEquals(1, endpointsA.size());
+        assertEquals("test.if", endpointsA.getFirst().getHostname());
+      }
+
+      @Test
+      @DisplayName("Should not produce anything when contract has no asset outputType")
+      void shouldNotProduceAnythingWhenContractHasNoAssetOutputType() throws Exception {
+        // -- PREPARE --
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage("Creation Assets");
+        input.setOutputStructured(
+            """
+                            {
+                             	"found_assets": [
+                             		{
+                             			"name": "Asset A",
+                             			"type": "Endpoint",
+                             			"description": "describe asset A",
+                             			"external_reference": "https://shodan.io/.../assetA",
+                             			"tags": ["source:shodan.io"],
+                             			"extended_attributes": {
+                             				"ip_addresses": ["192.168.0.2"],
+                             				"platform": "Windows",
+                             				"hostname": "test.if",
+                             				"mac_addresses": ["1::22:45:67:89:AB"],
+                             				"arch": "x86_64",
+                             				"end_of_life": true
+                             			}
+                             		}
+                             	]
+                             }
+                """);
+        input.setAction(InjectExecutionAction.complete);
+        input.setStatus("SUCCESS");
+        Inject inject = getPendingInjectWithAssets();
+        Injector injector = InjectorFixture.createDefaultPayloadInjector();
+        injectTestHelper.forceSaveInjector(injector);
+        ObjectNode convertedContent =
+            (ObjectNode)
+                mapper.readTree(
+                    """
+                        {
+                          "outputs": [
+                            {
+                               "field": "cve",
+                               "isFindingCompatible": true,
+                               "isMultiple": true,
+                               "labels": [
+                                   "shodan"
+                               ],
+                               "type": "cve"
+                           }
+                          ]
+                        }
+                        """);
+        convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
+        InjectorContract injectorContract =
+            InjectorContractFixture.createInjectorContract(convertedContent);
+        injectorContract.setInjector(injector);
+        InjectorContract injectorContractSaved =
+            injectTestHelper.forceSaveInjectorContract(injectorContract);
+        inject.setInjectorContract(injectorContractSaved);
+        inject.setContent(convertedContent);
+        injectTestHelper.forceSaveInject(inject);
+
+        // -- EXECUTE --
+        performAgentlessCallbackRequest(inject.getId(), input);
+
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () -> {
+                  List<Finding> findings = findingRepository.findAllByInjectId(inject.getId());
+                  return findings.isEmpty();
+                });
+      }
+
+      @Test
+      @DisplayName("Should Not Produce Nothing When StructuredOutput Is Empty")
+      void shouldNotProduceNothingWhenStructuredOutputIsEmpty() throws Exception {
+        // -- PREPARE --
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage("Creation Assets");
+        input.setOutputStructured("{}");
+        input.setAction(InjectExecutionAction.complete);
+        input.setStatus("SUCCESS");
+        Inject inject = getPendingInjectWithAssets();
+        Injector injector = InjectorFixture.createDefaultPayloadInjector();
+        injectTestHelper.forceSaveInjector(injector);
+        ObjectNode convertedContent =
+            (ObjectNode)
+                mapper.readTree(
+                    """
+                        {
+                          "outputs": [
+                            {
+                               "field": "found_assets",
+                               "isFindingCompatible": false,
+                               "isMultiple": true,
+                               "labels": [
+                                   "shodan"
+                               ],
+                               "type": "asset"
+                           }
+                          ]
+                        }
+                        """);
+        convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
+        InjectorContract injectorContract =
+            InjectorContractFixture.createInjectorContract(convertedContent);
+        injectorContract.setInjector(injector);
+        InjectorContract injectorContractSaved =
+            injectTestHelper.forceSaveInjectorContract(injectorContract);
+        inject.setInjectorContract(injectorContractSaved);
+        inject.setContent(convertedContent);
+        injectTestHelper.forceSaveInject(inject);
+
+        // -- EXECUTE --
+        performAgentlessCallbackRequest(inject.getId(), input);
+
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () -> {
+                  List<Endpoint> endpointsA =
+                      endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
+                  return endpointsA.isEmpty();
+                });
+      }
+
+      @Test
+      @DisplayName("Should Create Asset Even If Some Informations Are Null")
+      void shouldCreateAssetEvenIfSomeInformationAreNull() throws Exception {
+        // -- PREPARE --
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage("Creation Assets");
+        input.setOutputStructured(
+            """
+                            {
+                             	"found_assets": [
+                             		{
+                             			"name": "Asset C",
+                             			"type": "Endpoint",
+                             			"description": "describe asset C",
+                             			"external_reference": "https://shodan.io/.../assetC",
+                             			"tags": ["source:shodan.io"],
+                             			"extended_attributes": {
+                             				"ip_addresses": [],
+                             				"platform": "Unknown",
+                             				"mac_addresses": ["1::22:45:67:89:AB"],
+                             				"arch": "x86_64",
+                             				"end_of_life": true
+                             			}
+                             		}
+                             	]
+                             }
+                """);
+        input.setAction(InjectExecutionAction.complete);
+        input.setStatus("SUCCESS");
+        Inject inject = getPendingInjectWithAssets();
+        Injector injector = InjectorFixture.createDefaultPayloadInjector();
+        injectTestHelper.forceSaveInjector(injector);
+        ObjectNode convertedContent =
+            (ObjectNode)
+                mapper.readTree(
+                    """
+                        {
+                          "outputs": [
+                            {
+                               "field": "found_assets",
+                               "isFindingCompatible": false,
+                               "isMultiple": true,
+                               "labels": [
+                                   "shodan:asset"
+                               ],
+                               "type": "asset"
+                           }
+                          ]
+                        }
+                        """);
+        convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
+        InjectorContract injectorContract =
+            InjectorContractFixture.createInjectorContract(convertedContent);
+        injectorContract.setInjector(injector);
+        InjectorContract injectorContractSaved =
+            injectTestHelper.forceSaveInjectorContract(injectorContract);
+        inject.setInjectorContract(injectorContractSaved);
+        inject.setContent(convertedContent);
+        injectTestHelper.forceSaveInject(inject);
+
+        // -- EXECUTE --
+        performAgentlessCallbackRequest(inject.getId(), input);
+
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () -> {
+                  List<Endpoint> endpointsA =
+                      endpointRepository.findByExternalReference("https://shodan.io/.../assetC");
+                  return endpointsA.size() == 1;
+                });
+
+        List<Endpoint> endpointsA =
+            endpointRepository.findByExternalReference("https://shodan.io/.../assetC");
+        assertEquals(1, endpointsA.size());
+        assertEquals("", endpointsA.getFirst().getHostname());
+        assertEquals(Endpoint.PLATFORM_TYPE.Unknown, endpointsA.getFirst().getPlatform());
+        assertEquals(Endpoint.PLATFORM_ARCH.x86_64, endpointsA.getFirst().getArch());
+        assertTrue(endpointsA.getFirst().isEoL());
+        assertEquals(0, endpointsA.getFirst().getIps().length);
       }
     }
   }

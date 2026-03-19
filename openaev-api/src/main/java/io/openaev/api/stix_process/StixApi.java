@@ -1,5 +1,6 @@
 package io.openaev.api.stix_process;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.RBAC;
@@ -7,9 +8,10 @@ import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Scenario;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
-import io.openaev.rest.exception.BadRequestException;
+import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.stix.StixService;
+import io.openaev.service.stix.error.BundleValidationError;
 import io.openaev.stix.parsing.ParsingException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -54,7 +56,8 @@ public class StixApi extends RestBehavior {
     @ApiResponse(responseCode = "500", description = "Unexpected server error")
   })
   @RBAC(actionPerformed = Action.PROCESS, resourceType = ResourceType.STIX_BUNDLE)
-  public ResponseEntity<?> processBundle(@RequestBody String ctiEvent) {
+  public ResponseEntity<?> processBundle(@RequestBody String ctiEvent)
+      throws ParsingException, ConnectorError, IOException {
     String workId = null;
     try {
       JsonNode root = objectMapper.readTree(ctiEvent);
@@ -72,27 +75,47 @@ public class StixApi extends RestBehavior {
           workId, "Coverage successfully created or updated", false);
       // Generate response
       String summary = stixService.generateBundleImportReport(scenario);
-      BundleImportReport importReport = new BundleImportReport(scenario.getId(), summary);
-      return ResponseEntity.ok(importReport);
-    } catch (BadRequestException | ParsingException | IOException e) {
+      return ResponseEntity.ok(new BundleImportReport(scenario.getId(), summary));
+    } catch (BundleValidationError e) {
+      // OCTI-specific behaviour
+      // in the case of a Bundle validation error,
+      // we will submit to the specific behaviour of the OCTI worker which is unable
+      // to recover in the event of a permanent error.
+      // we will signal the failure with a log in the OAEV process and an "isError" ack
+      // for OpenCTI
       log.error(
           String.format(
-              "Parsing error while processing STIX bundle (workId=%s). ctiEvent=%s. Error: %s",
+              "OpenAEV did not process this STIX bundle due to processing rules (workId=%s). ctiEvent=%s. Error: %s",
               workId, ctiEvent, e.getMessage()),
           e);
       openCTIService.acknowledgeProcessedOfCoverage(
-          workId, "Parsing error while processing STIX bundle", true);
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-          .body("Parsing error while processing STIX bundle.");
+          workId,
+          "OpenAEV did not process this STIX bundle due to processing rules: %s"
+              .formatted(e.getMessage()),
+          true);
+      // here we explicitly return a status of HTTP 200 OK
+      // it's a silent error
+      return ResponseEntity.status(HttpStatus.OK).build();
+    } catch (JsonParseException e) {
+      log.error(
+          String.format(
+              "Input STIX bundle is malformed (workId=%s). ctiEvent=%s. Error: %s",
+              workId, ctiEvent, e.getMessage()),
+          e);
+      openCTIService.acknowledgeProcessedOfCoverage(
+          workId, "Input STIX bundle is malformed: %s".formatted(e.getMessage()), true);
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
     } catch (Exception e) {
       log.error(
           String.format(
-              "Unexpected error while processing STIX bundle (workId=%s). ctiEvent=%s. Error: %s",
+              "An error occurred while processing STIX bundle (workId=%s). ctiEvent=%s. Error: %s",
               workId, ctiEvent, e.getMessage()),
           e);
       openCTIService.acknowledgeProcessedOfCoverage(
-          workId, "An unexpected server error occurred", true);
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+          workId,
+          "An error occurred while processing STIX bundle: %s".formatted(e.getMessage()),
+          true);
+      throw e;
     }
   }
 
