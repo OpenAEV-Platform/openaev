@@ -24,13 +24,11 @@
         <minio.version>8.6.0</minio.version>
         <minio.okhttp3.version>4.11.0</minio.okhttp3.version>
         <gson.version>2.10.1</gson.version>
-        <validation-api.version>2.0.1.Final</validation-api.version>
         <commons-io.version>2.21.0</commons-io.version>
         <commons-validator.version>1.10.0</commons-validator.version>
         <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
         <jacoco-plugin.version>0.8.14</jacoco-plugin.version>
         <pyroscope.version>2.4.0</pyroscope.version>
-        <spring-security-crypto.version>6.5.8</spring-security-crypto.version>
     </properties>
 
     <distributionManagement>
@@ -72,7 +70,6 @@
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
-            <version>42.7.10</version>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
@@ -99,7 +96,6 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-crypto</artifactId>
-            <version>${spring-security-crypto.version}</version>
         </dependency>
     </dependencies>
 
