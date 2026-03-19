@@ -1,0 +1,28 @@
+name: "Test GitHub Actions scripts"
+
+on:
+  pull_request:
+    branches: [master, release/current]
+    paths:
+      - '.github/actions/**'
+  push:
+    branches: [master, release/current]
+    paths:
+      - '.github/actions/**'
+
+permissions:
+  contents: read
+
+jobs:
+  test-github-actions-scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run tests
+        run: node --test .github/actions/**/*.test.js
+
