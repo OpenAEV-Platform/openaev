@@ -488,14 +488,7 @@ public class SecurityCoverageService {
           objects);
     }
 
-    List<String> platformNames =
-        simulation.getInjects().stream()
-            .flatMap(inject -> inject.getExpectations().stream())
-            .flatMap(expectation -> expectation.getResults().stream())
-            .map(InjectExpectationResult::getSourceName)
-            .filter(Objects::nonNull)
-            .distinct()
-            .toList();
+    List<String> platformNames = getPlatformNames(simulation.getInjects());
 
     for (SecurityPlatform securityPlatform : assetService.securityPlatformsByNames(platformNames)) {
       DomainObject platformIdentity = securityPlatform.toStixDomainObject();
@@ -572,6 +565,16 @@ public class SecurityCoverageService {
       }
       objects.add(sro);
     }
+  }
+
+  private List<String> getPlatformNames(List<Inject> injects) {
+    return injects.stream()
+        .flatMap(inject -> inject.getExpectations().stream())
+        .flatMap(expectation -> expectation.getResults().stream())
+        .map(InjectExpectationResult::getSourceName)
+        .filter(Objects::nonNull)
+        .distinct()
+        .toList();
   }
 
   private BaseType<?> getOverallCoverage(Exercise simulation) {
