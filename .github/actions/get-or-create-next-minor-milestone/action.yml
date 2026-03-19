@@ -1,7 +1,8 @@
 name: Get or Create Next Minor Milestone
 
 description: >-
-  Finds the latest closed "Release X.Y.Z" milestone and returns (or creates) the next minor one (X.Y.Z+1).
+  Finds the latest closed "Release X.Y.Z" milestone and returns
+  (or creates) the next minor one (X.Y.Z+1).
 
 outputs:
   milestone_number:
@@ -20,12 +21,19 @@ runs:
       with:
         github-token: ${{ github.token }}
         script: |
-          const { findLastClosedMilestone } = require('./.github/actions/get-or-create-next-minor-milestone/find-last-closed.js');
-          const { getOrCreateNextMinorMilestone } = require('./.github/actions/get-or-create-next-minor-milestone/get-or-create.js');
+          const { findLastClosedMilestone } = require(
+            './.github/actions/get-or-create-next-minor-milestone/find-last-closed.js'
+          );
+          const { getOrCreateNextMinorMilestone } = require(
+            './.github/actions/get-or-create-next-minor-milestone/get-or-create.js'
+          );
 
-          const lastClosed = await findLastClosedMilestone({ github, context, core });
-          const next = await getOrCreateNextMinorMilestone({ github, context, core, lastClosed });
+          try {
+            const lastClosed = await findLastClosedMilestone({ github, context, core });
+            const next = await getOrCreateNextMinorMilestone({ github, context, core, lastClosed });
 
-          core.setOutput('milestone_number', String(next.number));
-          core.setOutput('milestone_title', next.title);
-
+            core.setOutput('milestone_number', String(next.number));
+            core.setOutput('milestone_title', next.title);
+          } catch (err) {
+            core.setFailed(err.message);
+          }
