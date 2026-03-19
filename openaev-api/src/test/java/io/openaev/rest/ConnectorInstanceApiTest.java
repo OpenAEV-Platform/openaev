@@ -27,10 +27,8 @@ import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import io.openaev.rest.connector_instance.dto.UpdateConnectorInstanceRequestedStatus;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.connector_instances.XtmComposerEncryptionService;
-import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
-import io.openaev.utils.fixtures.composers.CatalogConnectorConfigurationComposer;
-import io.openaev.utils.fixtures.composers.ConnectorInstanceComposer;
-import io.openaev.utils.fixtures.composers.ConnectorInstanceConfigurationComposer;
+import io.openaev.utils.fixtures.CollectorFixture;
+import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
@@ -69,6 +67,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
   @Autowired private CatalogConnectorConfigurationComposer catalogConfigurationComposer;
   @Autowired private ConnectorInstanceComposer connectorInstanceComposer;
   @Autowired private ConnectorInstanceConfigurationComposer connectorInstanceConfigurationComposer;
+  @Autowired private CollectorComposer collectorComposer;
 
   private ConnectorInstancePersisted getConnectorInstance(
       CatalogConnector catalogConnector, Set<ConnectorInstanceConfiguration> configurationsValues) {
@@ -199,6 +198,180 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
                             + catalogConnector.getId()
                             + " already exists"));
               });
+    }
+
+    @Test
+    @DisplayName(
+        "Given a collector of the same type already exists should throw an error on create")
+    void givenCollectorOfSameTypeAlreadyExists_should_throwError() throws Exception {
+      when(eeService.isLicenseActive(any())).thenReturn(true);
+
+      CatalogConnector catalogConnector = getCatalogConnector();
+
+      // Create a collector with a type matching the catalog connector slug
+      collectorComposer
+          .forCollector(CollectorFixture.createDefaultCollector(catalogConnector.getSlug()))
+          .persist();
+
+      Map<String, String> composerSettings = new HashMap<>();
+      composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
+      composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
+      composerSettings.put(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key(), Instant.now().toString());
+      platformSettingsService.saveSettings(composerSettings);
+
+      CreateConnectorInstanceInput input = new CreateConnectorInstanceInput();
+      input.setCatalogConnectorId(catalogConnector.getId());
+
+      mvc.perform(
+              post(CONNECTOR_INSTANCE_URI)
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().is4xxClientError())
+          .andExpect(
+              result -> {
+                String errorMessage = result.getResolvedException().getMessage();
+                assertTrue(
+                    errorMessage.contains(
+                        "Connector with slug " + catalogConnector.getSlug() + " already exists"));
+              });
+    }
+
+    @Test
+    @DisplayName(
+        "Given a collector of the same type already exists should successfully migrate it when COLLECTOR_ID is provided")
+    void givenCollectorOfSameTypeAlreadyExists_should_successfullyMigrateWhenCollectorIdProvided()
+        throws Exception {
+      when(eeService.isLicenseActive(any())).thenReturn(true);
+      when(xtmComposerEncryptionService.encrypt(any())).thenReturn("fake-encrypted-value");
+      Token token = new Token();
+      token.setValue("fake-token-value");
+      when(tokenRepository.findAll(any())).thenReturn(List.of(token));
+
+      CatalogConnectorConfiguration confDef1 =
+          createCatalogConfiguration(
+              "key-string",
+              CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_TYPE.STRING,
+              true,
+              null,
+              null,
+              null);
+      CatalogConnectorConfiguration confDef2 =
+          createCatalogConfiguration(
+              "COLLECTOR_ID",
+              CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_TYPE.STRING,
+              true,
+              null,
+              null,
+              CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT.DEFAULT);
+      CatalogConnector catalogConnector =
+          getCatalogConnectorWithConfiguration(Set.of(confDef1, confDef2));
+
+      // Create a collector with a type matching the catalog connector slug
+      Collector existingCollector =
+          CollectorFixture.createDefaultCollector(catalogConnector.getSlug());
+      collectorComposer.forCollector(existingCollector).persist();
+
+      Map<String, String> composerSettings = new HashMap<>();
+      composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
+      composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
+      composerSettings.put(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key(), Instant.now().toString());
+      platformSettingsService.saveSettings(composerSettings);
+
+      CreateConnectorInstanceInput input = new CreateConnectorInstanceInput();
+      input.setCatalogConnectorId(catalogConnector.getId());
+      CreateConnectorInstanceInput.ConfigurationInput confInput1 =
+          createConfigurationInput(confDef1.getConnectorConfigurationKey(), "value-string");
+      CreateConnectorInstanceInput.ConfigurationInput confInputCollectorId =
+          createConfigurationInput("COLLECTOR_ID", existingCollector.getId());
+      input.setConfigurations(List.of(confInput1, confInputCollectorId));
+
+      mvc.perform(
+              post(CONNECTOR_INSTANCE_URI)
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().is2xxSuccessful());
+
+      List<ConnectorInstancePersisted> instanceDb =
+          connectorInstanceRepository.findAllByCatalogConnectorId(catalogConnector.getId());
+      assertEquals(1, instanceDb.size());
+      assertEquals(
+          ConnectorInstance.CURRENT_STATUS_TYPE.stopped, instanceDb.getFirst().getCurrentStatus());
+      assertEquals(
+          ConnectorInstance.REQUESTED_STATUS_TYPE.stopping,
+          instanceDb.getFirst().getRequestedStatus());
+      assertEquals(ConnectorInstance.SOURCE.CATALOG_DEPLOYMENT, instanceDb.getFirst().getSource());
+
+      Set<ConnectorInstanceConfiguration> configurations =
+          instanceDb.getFirst().getConfigurations();
+      // 2 from input + token = 3 (COLLECTOR_ID is already in input, not auto-generated)
+      assertEquals(3, configurations.size());
+
+      // Verify the COLLECTOR_ID matches the existing collector
+      Optional<ConnectorInstanceConfiguration> confValueCollectorId =
+          configurations.stream().filter(c -> "COLLECTOR_ID".equals(c.getKey())).findFirst();
+      assertTrue(confValueCollectorId.isPresent());
+      assertEquals(existingCollector.getId(), confValueCollectorId.get().getValue().asText());
+      assertFalse(confValueCollectorId.get().isEncrypted());
+    }
+
+    @Test
+    @DisplayName(
+        "Given a COLLECTOR_ID that does not match any existing collector should throw an error")
+    void givenCollectorIdNotMatchingAnyCollector_should_throwError() throws Exception {
+      when(eeService.isLicenseActive(any())).thenReturn(true);
+
+      CatalogConnectorConfiguration confDef1 =
+          createCatalogConfiguration(
+              "key-string",
+              CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_TYPE.STRING,
+              true,
+              null,
+              null,
+              null);
+      CatalogConnectorConfiguration confDef2 =
+          createCatalogConfiguration(
+              "COLLECTOR_ID",
+              CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_TYPE.STRING,
+              true,
+              null,
+              null,
+              CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT.DEFAULT);
+      CatalogConnector catalogConnector =
+          getCatalogConnectorWithConfiguration(Set.of(confDef1, confDef2));
+      Map<String, String> composerSettings = new HashMap<>();
+      composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
+      composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
+      composerSettings.put(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key(), Instant.now().toString());
+      platformSettingsService.saveSettings(composerSettings);
+
+      String fakeCollectorId = "non-existent-collector-id";
+      CreateConnectorInstanceInput input = new CreateConnectorInstanceInput();
+      input.setCatalogConnectorId(catalogConnector.getId());
+      CreateConnectorInstanceInput.ConfigurationInput confInput1 =
+          createConfigurationInput(confDef1.getConnectorConfigurationKey(), "value-string");
+      CreateConnectorInstanceInput.ConfigurationInput confInputCollectorId =
+          createConfigurationInput("COLLECTOR_ID", fakeCollectorId);
+      input.setConfigurations(List.of(confInput1, confInputCollectorId));
+
+      mvc.perform(
+              post(CONNECTOR_INSTANCE_URI)
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().is4xxClientError())
+          .andExpect(
+              result -> {
+                String errorMessage = result.getResolvedException().getMessage();
+                assertTrue(
+                    errorMessage.contains(
+                        "Connector with id " + fakeCollectorId + " does not exist"));
+              });
+
+      List<ConnectorInstancePersisted> instanceDb =
+          connectorInstanceRepository.findAllByCatalogConnectorId(catalogConnector.getId());
+      assertEquals(0, instanceDb.size());
     }
 
     @Test

@@ -554,6 +554,7 @@ public class V1_DataImporter implements Importer {
     // need to get real database-bound ids for tags
     List<String> tagIds =
         resolveJsonIds(nodeDoc, "document_tags").stream()
+            .filter(baseIds::containsKey)
             .map(tid -> baseIds.get(tid).getId())
             .toList();
     document.setTags(iterableToSet(tagRepository.findAllById(tagIds)));
@@ -1105,15 +1106,17 @@ public class V1_DataImporter implements Importer {
           }
 
           if (injectorContractId == null) {
-            if (scenario.getDependencies() != null
+            if (scenario != null
+                && scenario.getDependencies() != null
                 && Arrays.asList(scenario.getDependencies())
                     .contains(Scenario.Dependency.STARTERPACK)) {
               // if we are importing the starter pack, we will create the injector contract so the
               // injects are created before the injector registered
               // once the injector register the contract will be overriden and will be the one
               // provided by the injector
+              Payload createdPayload = injectorContract.map(ic -> ic.getPayload()).orElse(null);
               injectorContractId =
-                  importInjectorContractFromStarterPack(injectContractNode).getId();
+                  importInjectorContractFromStarterPack(injectContractNode, createdPayload).getId();
             } else {
               log.warn(
                   "Import Inject Failed: Unresolved injector contract ID on inject: {}", injectId);
@@ -1290,9 +1293,11 @@ public class V1_DataImporter implements Importer {
    * injector, this contract will be overriden
    *
    * @param importNode contract node
+   * @param payload to set on contract
    * @return
    */
-  private InjectorContract importInjectorContractFromStarterPack(JsonNode importNode) {
+  private InjectorContract importInjectorContractFromStarterPack(
+      JsonNode importNode, Payload payload) {
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setId(importNode.get("injector_contract_id").textValue());
     injectorContract.setCustom(false);
@@ -1300,9 +1305,17 @@ public class V1_DataImporter implements Importer {
     injectorContract.setInjector(createDummyInjector(importNode));
     injectorContract.setConvertedContent((ObjectNode) importNode.get("convertedContent"));
     injectorContract.setExternalId(importNode.get("injector_contract_external_id").textValue());
+    injectorContract.setAtomicTesting(
+        importNode.get("injector_contract_atomic_testing").booleanValue());
+    injectorContract.setManual(importNode.get("injector_contract_manual").booleanValue());
+    injectorContract.setNeedsExecutor(
+        importNode.get("injector_contract_needs_executor").booleanValue());
+    injectorContract.setPlatforms(
+        Endpoint.PLATFORM_TYPE.fromJsonNode(importNode.get("injector_contract_platforms")));
     injectorContract.setLabels(
         new ObjectMapper()
             .convertValue(importNode.get("injector_contract_labels"), new TypeReference<>() {}));
+    injectorContract.setPayload(payload);
     return injectorContractRepository.save(injectorContract);
   }
 
@@ -1327,6 +1340,7 @@ public class V1_DataImporter implements Importer {
     importTags(node, "contract_output_element_tags", baseIds);
     outputElement.setTagIds(
         resolveJsonIds(node, "contract_output_element_tags").stream()
+            .filter(baseIds::containsKey)
             .map(tid -> baseIds.get(tid).getId())
             .toList());
     ArrayNode regexGroupNodes = (ArrayNode) node.get("contract_output_element_regex_groups");
@@ -1463,7 +1477,9 @@ public class V1_DataImporter implements Importer {
       return injectorContractFromPayload;
     } else {
       log.warn("An error has occurred when importing the payload: {}", payload.getName());
-      return Optional.empty();
+      InjectorContract injectorContract = new InjectorContract();
+      injectorContract.setPayload(payload);
+      return Optional.of(injectorContract);
     }
   }
 

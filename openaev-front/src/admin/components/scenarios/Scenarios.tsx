@@ -22,7 +22,7 @@ import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import PlatformIcon from '../../../components/PlatformIcon';
 import { type Scenario, type SearchPaginationInput } from '../../../utils/api-types';
 import useAuth from '../../../utils/hooks/useAuth';
-import { Can } from '../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import ImportFromHubButton from '../common/ImportFromHubButton';
 import ImportUploaderScenario from './ImportUploaderScenario';

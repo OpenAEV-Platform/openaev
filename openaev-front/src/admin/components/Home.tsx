@@ -11,7 +11,7 @@ import { useHelper } from '../../store';
 import type { PlatformSettings } from '../../utils/api-types';
 import { useAppDispatch } from '../../utils/hooks';
 import useDataLoader from '../../utils/hooks/useDataLoader';
-import { Can } from '../../utils/permissions/PermissionsProvider';
+import { Can } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
 import CustomDashboardWrapper from './workspaces/custom_dashboards/CustomDashboardWrapper';
 import NoDashboardComponent from './workspaces/custom_dashboards/NoDashboardComponent';

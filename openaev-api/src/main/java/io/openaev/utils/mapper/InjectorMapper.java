@@ -29,8 +29,11 @@ public class InjectorMapper {
         .catalog(catalogConnectorMapper.toCatalogSimpleOutput(catalogConnector))
         .verified(connectorInstance != null)
         .updatedAt(injector.getUpdatedAt())
-        .currentStatus(connectorInstance != null ? connectorInstance.getCurrentStatus() : null)
         .existing(existingInjector)
+        .connectorInstance(
+            connectorInstance != null
+                ? connectorInstanceMapper.toConnectorInstanceOutput(connectorInstance)
+                : null)
         .build();
   }
 }

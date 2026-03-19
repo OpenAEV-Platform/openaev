@@ -13,7 +13,7 @@ import {
 } from '../../../../actions/dashboards/dashboard-action';
 import { useFormatter } from '../../../../components/i18n';
 import type { CustomDashboard, WidgetToEntitiesInput } from '../../../../utils/api-types';
-import { AbilityContext, Can } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CustomDashboardEditHeader from './CustomDashboardEditHeader';
 import CustomDashboardWrapper from './CustomDashboardWrapper';

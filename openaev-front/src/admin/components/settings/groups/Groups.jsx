@@ -17,7 +17,7 @@ import { initSorting } from '../../../../components/common/queryable/Page';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { Can } from '../../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import SecurityMenu from '../SecurityMenu';
 import CreateGroup from './CreateGroup';

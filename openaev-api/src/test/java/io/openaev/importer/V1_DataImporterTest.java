@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -228,6 +229,79 @@ class V1_DataImporterTest extends IntegrationTest {
 
     assertEquals(1, importDomainIds.size());
     assertEquals(domainToClassify.getId(), importDomainIds.get(0));
+  }
+
+  @Test
+  @Transactional
+  void testImportScenario_givenPayloadWithMissingArrayFields_shouldImportWithoutError()
+      throws IOException {
+    // -- PREPARE --
+    // Fixture has no payload_arguments or payload_prerequisites keys at all
+    // buildPayload must fall back to safe empty iterables via safeArray() without NPE.
+    ObjectMapper mapper = new ObjectMapper();
+    String jsonContent =
+        new String(
+            Files.readAllBytes(
+                Paths.get(
+                    "src/test/resources/importer-v1/import-scenario-payload-missing-arrays.json")));
+    this.importNode = mapper.readTree(jsonContent);
+
+    // -- EXECUTE --
+    this.importer.importData(
+        this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // -- ASSERT --
+    List<Payload> payloads = new ArrayList<>();
+    payloadRepository.findAll().forEach(payloads::add);
+    assertFalse(payloads.isEmpty(), "Payload should have been created");
+    Payload payload = payloads.getFirst();
+    assertEquals("echo missing arrays", payload.getName());
+    // No NPE: missing array fields should result in empty/null collections, not an exception
+    List<PayloadArgument> arguments = payload.getArguments();
+    List<PayloadPrerequisite> prerequisites = payload.getPrerequisites();
+    assertTrue(
+        arguments == null || arguments.isEmpty(),
+        "Arguments should be empty when field is absent from JSON");
+    assertTrue(
+        prerequisites == null || prerequisites.isEmpty(),
+        "Prerequisites should be empty when field is absent from JSON");
+  }
+
+  @Test
+  @Transactional
+  void testImportScenario_givenPayloadWithExplicitNullArrayFields_shouldImportWithoutError()
+      throws IOException {
+    // -- PREPARE --
+    // Fixture has payload_arguments and payload_prerequisites set to JSON null
+    // (payload_platforms is provided because it is @NotEmpty on the entity).
+    // buildPayload must handle null nodes via safeArray() without NPE or ClassCastException.
+    ObjectMapper mapper = new ObjectMapper();
+    String jsonContent =
+        new String(
+            Files.readAllBytes(
+                Paths.get(
+                    "src/test/resources/importer-v1/import-scenario-payload-null-arrays.json")));
+    this.importNode = mapper.readTree(jsonContent);
+
+    // -- EXECUTE --
+    this.importer.importData(
+        this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // -- ASSERT --
+    List<Payload> payloads = new ArrayList<>();
+    payloadRepository.findAll().forEach(payloads::add);
+    assertFalse(payloads.isEmpty(), "Payload should have been created");
+    Payload payload = payloads.getFirst();
+    assertEquals("echo null arrays", payload.getName());
+    // No NPE/ClassCastException: explicit null arrays should result in empty/null collections
+    List<PayloadArgument> arguments = payload.getArguments();
+    List<PayloadPrerequisite> prerequisites = payload.getPrerequisites();
+    assertTrue(
+        arguments == null || arguments.isEmpty(),
+        "Arguments should be empty when field is explicit null in JSON");
+    assertTrue(
+        prerequisites == null || prerequisites.isEmpty(),
+        "Prerequisites should be empty when field is explicit null in JSON");
   }
 
   // -- UTILS --

@@ -95,6 +95,7 @@ class StixApiTest extends IntegrationTest {
   @Autowired private OpenCTIConnectorService openCTIConnectorService;
 
   private JsonNode stixSecurityCoverage;
+  private JsonNode stixSecurityCoverageTwoCoverages;
   private JsonNode stixSecurityCoverageNoDuration;
   private JsonNode stixSecurityCoverageNoPlatformAffinity;
   private JsonNode stixSecurityCoverageWithoutTtps;
@@ -119,6 +120,10 @@ class StixApiTest extends IntegrationTest {
 
     stixSecurityCoverage =
         loadJsonWithStixObjects("src/test/resources/stix-bundles/security-coverage.json");
+
+    stixSecurityCoverageTwoCoverages =
+        loadJsonWithStixObjects(
+            "src/test/resources/stix-bundles/security-coverage-two-coverage-objects.json");
 
     stixSecurityCoverageNoDuration =
         loadJsonWithStixObjects(
@@ -308,8 +313,8 @@ class StixApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Should return 400 when STIX bundle has no security coverage")
-    void shouldReturnBadRequestWhenNoSecurityCoverage() throws Exception {
+    @DisplayName("Should return 200 OK when STIX bundle has no security coverage")
+    void shouldReturn200OKWhenNoSecurityCoverage() throws Exception {
       JsonNode updated =
           updateStixObjectField(
               stixSecurityCoverage,
@@ -322,21 +327,20 @@ class StixApiTest extends IntegrationTest {
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(mapper.writeValueAsString(updated)))
-          .andExpect(status().isBadRequest());
+          .andExpect(status().isOk());
     }
 
     @Test
-    @DisplayName("Should return 400 when STIX bundle has multiple security coverages")
-    void shouldReturnBadRequestWhenMultipleSecurityCoverages() throws Exception {
+    @DisplayName("Should return 200 OK when STIX bundle has multiple security coverages")
+    void shouldReturn200OKWhenMultipleSecurityCoverages() throws Exception {
       // Simulate bundle with two identical security coverages
-      String content = mapper.writeValueAsString(stixSecurityCoverage);
-      String duplicatedCoverage = content.replace("]", ", " + content.split("\\[")[1]);
+      String content = mapper.writeValueAsString(stixSecurityCoverageTwoCoverages);
 
       mvc.perform(
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(duplicatedCoverage))
-          .andExpect(status().isBadRequest());
+                  .content(content))
+          .andExpect(status().isOk());
     }
 
     @Test
@@ -344,10 +348,10 @@ class StixApiTest extends IntegrationTest {
     void shouldReturnBadRequestWhenStixJsonIsInvalid() throws Exception {
       String invalidJson =
           """
-                    {
-                      "not-a-valid-json":
-                    }
-                    """;
+          {
+            "not-a-valid-json":
+          }
+          """;
 
       mvc.perform(
               post(STIX_URI + "/process-bundle")
@@ -404,8 +408,8 @@ class StixApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Should throw bad request when security coverage is already saved")
-    void shouldThrowBadRequestWhenSecurityCoverageIsAlreadySaved() throws Exception {
+    @DisplayName("Should return 200 OK even when security coverage is already saved")
+    void shouldReturn200OKEvenWhenSecurityCoverageIsAlreadySaved() throws Exception {
       mvc.perform(
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
@@ -419,12 +423,12 @@ class StixApiTest extends IntegrationTest {
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(mapper.writeValueAsString(stixSecurityCoverage)))
-          .andExpect(status().isBadRequest());
+          .andExpect(status().isOk());
     }
 
     @Test
-    @DisplayName("Should throw bad request when security coverage is Obsolete")
-    void shouldThrowBadRequestWhenSecurityCoverageIsObsolete() throws Exception {
+    @DisplayName("Should return 200 OK even when security coverage is Obsolete")
+    void shouldReturn200OKEvenWhenSecurityCoverageIsObsolete() throws Exception {
       Instant reference = Instant.parse("2025-12-31T10:43:56Z");
       JsonNode referenceInput =
           updateStixObjectField(
@@ -456,7 +460,7 @@ class StixApiTest extends IntegrationTest {
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(mapper.writeValueAsString(updated)))
-          .andExpect(status().isBadRequest());
+          .andExpect(status().isOk());
     }
 
     @Test

@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 
 import { registerPlatform, unregisterPlatform } from '../../../../../actions/xtmhub/xtmhub-actions';
 import { useFormatter } from '../../../../../components/i18n';
-import { MESSAGING$ } from '../../../../../utils/Environment';
+import { isDemoInstance, MESSAGING$, XTM_HUB_DEFAULT_URL } from '../../../../../utils/Environment';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useAuth from '../../../../../utils/hooks/useAuth';
 import useExternalTab from '../../../../../utils/hooks/useExternalTab';
@@ -32,7 +32,8 @@ const XtmHubTab: React.FC = () => {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const { settings } = useAuth();
   const isEnterpriseEdition = settings.platform_license?.license_is_validated === true;
-  const registrationHubUrl = settings?.xtm_hub_url ?? 'https://hub.filigran.io';
+  const isDemoMode = isDemoInstance(settings);
+  const registrationHubUrl = settings?.xtm_hub_url ?? XTM_HUB_DEFAULT_URL;
   const [processStep, setProcessStep] = useState<ProcessSteps>(
     ProcessSteps.INSTRUCTIONS,
   );
@@ -113,6 +114,8 @@ const XtmHubTab: React.FC = () => {
     onMessage: handleTabMessage,
     onClosingTab: handleClosingTab,
   });
+
+  if (isDemoMode) return null;
 
   const handleOpenDialog = () => {
     setOperationType(

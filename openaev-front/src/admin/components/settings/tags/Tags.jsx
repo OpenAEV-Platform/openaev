@@ -10,7 +10,7 @@ import SortHeadersComponent from '../../../../components/common/pagination/SortH
 import { initSorting } from '../../../../components/common/queryable/Page';
 import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
 import { useFormatter } from '../../../../components/i18n';
-import { Can } from '../../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import TaxonomiesMenu from '../TaxonomiesMenu';
 import CreateTag from './CreateTag';

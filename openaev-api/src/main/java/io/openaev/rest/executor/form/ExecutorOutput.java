@@ -1,16 +1,15 @@
 package io.openaev.rest.executor.form;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.model.ConnectorInstance;
-import io.openaev.rest.catalog_connector.dto.CatalogConnectorSimpleOutput;
+import io.openaev.rest.connector.dto.ConnectorOutput;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
-import lombok.Builder;
+import lombok.experimental.SuperBuilder;
 
-@Builder
+@SuperBuilder
 @Schema(description = "Executor output")
-public class ExecutorOutput {
+public class ExecutorOutput extends ConnectorOutput {
 
   @Schema(description = "Executor id")
   @JsonProperty("executor_id")
@@ -28,20 +27,11 @@ public class ExecutorOutput {
   @JsonProperty("executor_updated_at")
   private Instant updatedAt;
 
-  @JsonProperty("catalog")
-  private CatalogConnectorSimpleOutput catalog;
-
-  @JsonProperty("is_verified")
-  private boolean verified = false;
-
   @JsonProperty("executor_platforms")
   private String[] platforms;
 
   @JsonProperty("executor_doc")
   private String doc;
-
-  @JsonProperty("current_status")
-  private ConnectorInstance.CURRENT_STATUS_TYPE currentStatus;
 
   @JsonProperty("existing_executor")
   private boolean existing;

@@ -419,9 +419,9 @@ public class InjectsExecutionJob implements Job {
                 }
               });
       // Change status of finished exercises.
+      handleInjectExpectationCollectStatus();
       handleAutoClosingExercises();
       handlePendingInject();
-      handleInjectExpectationCollectStatus();
     } catch (Exception e) {
       log.error(e.getMessage(), e);
       throw new JobExecutionException(e);

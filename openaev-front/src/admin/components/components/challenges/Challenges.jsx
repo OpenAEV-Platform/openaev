@@ -15,7 +15,7 @@ import ItemTags from '../../../../components/ItemTags';
 import SearchFilter from '../../../../components/SearchFilter';
 import { useHelper } from '../../../../store';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { AbilityContext, Can } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import useSearchAndFilter from '../../../../utils/SortingFiltering';
 import TagsFilter from '../../common/filters/TagsFilter';

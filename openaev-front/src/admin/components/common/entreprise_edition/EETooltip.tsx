@@ -4,7 +4,7 @@ import { type ReactElement, useContext, useState } from 'react';
 import { useFormatter } from '../../../../components/i18n';
 import useAI from '../../../../utils/hooks/useAI';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
-import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 
 const EETooltip = ({

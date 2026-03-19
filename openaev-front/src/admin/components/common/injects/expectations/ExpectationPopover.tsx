@@ -7,7 +7,7 @@ import DialogDelete from '../../../../../components/common/DialogDelete';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
 import { type InjectExpectation, type PlatformSettings } from '../../../../../utils/api-types';
-import { AbilityContext } from '../../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, INHERITED_CONTEXT, SUBJECTS } from '../../../../../utils/permissions/types';
 import { PermissionsContext } from '../../Context';
 import { type ExpectationInput, type ExpectationInputForm } from './Expectation';

@@ -13,7 +13,7 @@ import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import inject18n from '../../../../components/i18n';
 import { tagOptions } from '../../../../utils/Option';
-import { Can } from '../../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import OrganizationForm from './OrganizationForm';
 

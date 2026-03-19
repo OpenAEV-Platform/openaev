@@ -12,8 +12,10 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.CatalogConnectorConfiguration;
+import io.openaev.utils.fixtures.ConnectorInstanceFixture;
 import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import io.openaev.utils.fixtures.composers.CatalogConnectorConfigurationComposer;
+import io.openaev.utils.fixtures.composers.ConnectorInstanceComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.transaction.Transactional;
 import java.util.List;
@@ -32,6 +34,7 @@ public class CatalogConnectorApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private CatalogConnectorComposer catalogConnectorComposer;
+  @Autowired private ConnectorInstanceComposer connectorInstanceComposer;
   @Autowired private CatalogConnectorConfigurationComposer catalogConfigurationComposer;
 
   @Test
@@ -92,5 +95,71 @@ public class CatalogConnectorApiTest extends IntegrationTest {
         .inPath("[*].connector_configuration_key")
         .isArray()
         .containsExactlyInAnyOrderElementsOf(List.of("key-string", "key-string-01"));
+  }
+
+  @Test
+  @DisplayName("Should retrieve all catalog connector")
+  void should_retrieveAllCatalogConnector() throws Exception {
+    // Arrange
+    catalogConnectorComposer
+        .forCatalogConnector(createDefaultCatalogConnectorManagedByXtmComposer("Collector1"))
+        .persist();
+    catalogConnectorComposer
+        .forCatalogConnector(createDefaultCatalogConnectorManagedByXtmComposer("Collector2"))
+        .withConnectorInstance(
+            connectorInstanceComposer.forConnectorInstance(
+                ConnectorInstanceFixture.createMigratedInstance()))
+        .persist();
+
+    // Act
+    String response =
+        mvc.perform(
+                get(CATALOG_CONNECTOR_URI)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // Assert
+    assertThatJson(response).isArray().size().isEqualTo(2);
+    assertThatJson(response)
+        .inPath("[*].catalog_connector_title")
+        .isArray()
+        .containsExactlyInAnyOrderElementsOf(List.of("Collector1", "Collector2"));
+  }
+
+  @Test
+  @DisplayName("Should retrieve all undeployed catalog connector")
+  void should_retrieveAllUndeployedCatalogConnector() throws Exception {
+    // Arrange
+    catalogConnectorComposer
+        .forCatalogConnector(createDefaultCatalogConnectorManagedByXtmComposer("Collector1"))
+        .persist();
+    catalogConnectorComposer
+        .forCatalogConnector(createDefaultCatalogConnectorManagedByXtmComposer("Collector2"))
+        .withConnectorInstance(
+            connectorInstanceComposer.forConnectorInstance(
+                ConnectorInstanceFixture.createMigratedInstance()))
+        .persist();
+
+    // Act
+    String response =
+        mvc.perform(
+                get(CATALOG_CONNECTOR_URI + "/undeployed")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // Assert
+    assertThatJson(response).isArray().size().isEqualTo(1);
+    assertThatJson(response)
+        .inPath("[*].catalog_connector_title")
+        .isArray()
+        .containsExactlyInAnyOrderElementsOf(List.of("Collector1"));
   }
 }

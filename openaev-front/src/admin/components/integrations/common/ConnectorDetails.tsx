@@ -3,7 +3,7 @@ import { useOutletContext } from 'react-router';
 
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
-import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { type CatalogContextType } from '../catalog_connectors/CatalogLayout';
 import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
