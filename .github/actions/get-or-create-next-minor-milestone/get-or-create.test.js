@@ -7,17 +7,15 @@ const { mockCore, mockContext, mockGithub } = require('./test-helpers.js');
 
 describe('getOrCreateNextMinorMilestone', () => {
   it('should fail when lastClosed is null', async () => {
-    const core = mockCore();
-
-    await getOrCreateNextMinorMilestone({
-      github: mockGithub(),
-      context: mockContext(),
-      core,
-      lastClosed: null,
-    });
-
-    assert.ok(core.failedMessage);
-    assert.ok(core.failedMessage.includes('cannot determine next version'));
+    await assert.rejects(
+      () => getOrCreateNextMinorMilestone({
+        github: mockGithub(),
+        context: mockContext(),
+        core: mockCore(),
+        lastClosed: null,
+      }),
+      { message: /cannot determine next version/ },
+    );
   });
 
   it('should increment patch version (v2.2.0 → v2.2.1)', async () => {
