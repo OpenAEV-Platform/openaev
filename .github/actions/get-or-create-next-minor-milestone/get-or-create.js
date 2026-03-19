@@ -2,12 +2,17 @@ const { REGEX_PATTERN } = require('./find-last-closed.js');
 
 async function getOrCreateNextMinorMilestone({ github, context, core, lastClosed }) {
   if (!lastClosed) {
-    core.setFailed('No closed "Release X.Y.Z" milestone found — cannot determine next version.');
-    return;
+    throw new Error('No closed "Release X.Y.Z" milestone found — cannot determine next version.');
   }
 
   // Increment patch version (X.Y.Z → X.Y.Z+1)
-  const [, major, minor, patch] = lastClosed.title.match(REGEX_PATTERN);
+  const match = lastClosed.title.match(REGEX_PATTERN);
+  if (!match) {
+    throw new Error(
+      `Milestone title "${lastClosed.title}" does not match expected pattern "Release X.Y.Z"`
+    );
+  }
+  const [, major, minor, patch] = match;
   const nextTitle = `Release ${major}.${minor}.${Number(patch) + 1}`;
 
   core.info(`Target milestone: ${nextTitle}`);
