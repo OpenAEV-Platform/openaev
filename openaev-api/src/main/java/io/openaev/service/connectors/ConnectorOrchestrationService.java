@@ -114,38 +114,27 @@ public class ConnectorOrchestrationService {
     return connectorInstanceService.updateRequestedStatus(instance, requestedStatus);
   }
 
-  private void throwIfConnectorInstanceAlreadyExist(String catalogId)
-      throws DataIntegrityViolationException {
-    List<ConnectorInstancePersisted> existingInstances =
-        connectorInstanceService.findAllByCatalogConnectorId(catalogId);
-    if (!existingInstances.isEmpty()) {
-      throw new DataIntegrityViolationException(
-          "ConnectorInstance with CatalogConnector id " + catalogId + " already exists");
-    }
+  /**
+   * Validates that no connector instance already exists for this catalog connector.
+   *
+   * <p>This check is intentionally disabled: multi-connector support allows deploying multiple
+   * instances of the same catalog connector. Kept as a no-op for documentation purposes.
+   */
+  @SuppressWarnings("unused")
+  private void throwIfConnectorInstanceAlreadyExist(String catalogId) {
+    // Multi-connector is now always allowed — no duplicate check needed.
   }
 
+  /**
+   * Validates that no connector entity with the same type/slug already exists.
+   *
+   * <p>This check is intentionally disabled: multi-connector support allows multiple connectors of
+   * the same type. Kept as a no-op for documentation purposes.
+   */
+  @SuppressWarnings("unused")
   private void throwIfConnectorAlreadyExist(
-      String catalogConnectorSlug, ConnectorType catalogConnectorType)
-      throws DataIntegrityViolationException {
-    BaseConnectorEntity connector;
-    if (ConnectorType.COLLECTOR.equals(catalogConnectorType)) {
-      connector = collectorService.findCollectorByType(catalogConnectorSlug).orElse(null);
-    } else if (ConnectorType.INJECTOR.equals(catalogConnectorType)) {
-      connector = injectorService.injectorByType(catalogConnectorSlug).orElse(null);
-    } else {
-      connector = executorService.executorByType(catalogConnectorSlug).orElse(null);
-    }
-    if (connector != null) {
-      throw new DataIntegrityViolationException(
-          "Connector with slug " + catalogConnectorSlug + " already exists");
-    }
-  }
-
-  private void throwIfInstanceOrConnectorAlreadyExist(
-      String catalogConnectorId, String catalogConnectorSlug, ConnectorType catalogConnectorType)
-      throws DataIntegrityViolationException {
-    throwIfConnectorInstanceAlreadyExist(catalogConnectorId);
-    throwIfConnectorAlreadyExist(catalogConnectorSlug, catalogConnectorType);
+      String catalogConnectorSlug, ConnectorType catalogConnectorType) {
+    // Multi-connector is now always allowed — no duplicate check needed.
   }
 
   private void throwIfConnectorIdDoesNotExist(
@@ -243,8 +232,8 @@ public class ConnectorOrchestrationService {
                     .equals(
                         catalogConnectorWithConfigMap.catalogConnector.getContainerType()
                             + "_ID"))) {
-      throwIfInstanceOrConnectorAlreadyExist(
-          catalogConnectorWithConfigMap.catalogConnector.getId(),
+      throwIfConnectorInstanceAlreadyExist(catalogConnectorWithConfigMap.catalogConnector.getId());
+      throwIfConnectorAlreadyExist(
           catalogConnectorWithConfigMap.catalogConnector.getSlug(),
           catalogConnectorWithConfigMap.catalogConnector.getContainerType());
     } else {

@@ -51,6 +51,10 @@ public class InjectorContractFullOutput extends InjectorContractBaseOutput {
   @JsonProperty("injector_contract_arch")
   private Payload.PAYLOAD_EXECUTION_ARCH arch;
 
+  @Schema(description = "Injector IDs linked to this contract")
+  @JsonProperty("injector_contract_injectors")
+  private List<String> injectorIds;
+
   public InjectorContractFullOutput(
       String id,
       String externalId,
@@ -64,7 +68,8 @@ public class InjectorContractFullOutput extends InjectorContractBaseOutput {
       String[] attackPatterns,
       List<String> domains,
       Instant updatedAt,
-      Payload.PAYLOAD_EXECUTION_ARCH arch) {
+      Payload.PAYLOAD_EXECUTION_ARCH arch,
+      List<String> injectorIds) {
     super(id, externalId, updatedAt);
     this.setLabels(labels);
     this.setContent(content);
@@ -79,6 +84,7 @@ public class InjectorContractFullOutput extends InjectorContractBaseOutput {
     this.setDomains(domains != null ? new ArrayList<>(domains) : new ArrayList<>());
 
     this.setArch(arch);
+    this.setInjectorIds(injectorIds != null ? new ArrayList<>(injectorIds) : new ArrayList<>());
     this.setHasFullDetails(true);
   }
 
@@ -105,9 +111,8 @@ public class InjectorContractFullOutput extends InjectorContractBaseOutput {
                     .toArray(String[]::new)
                 : new String[0]),
         sourceContract.getUpdatedAt(),
-        sourceContract.getPayload() == null
-            ? null
-            : sourceContract.getPayload().getExecutionArch());
+        sourceContract.getPayload() == null ? null : sourceContract.getPayload().getExecutionArch(),
+        sourceContract.getInjectors().stream().map(Injector::getId).toList());
   }
 
   private static List<String> resolveEffectiveDomains(

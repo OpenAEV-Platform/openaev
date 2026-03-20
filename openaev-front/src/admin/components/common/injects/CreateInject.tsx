@@ -662,6 +662,7 @@ const CreateInject: FunctionComponent<Props> = ({
                   articlesFromExerciseOrScenario={articlesFromExerciseOrScenario}
                   uriVariable={uriVariable}
                   variablesFromExerciseOrScenario={variablesFromExerciseOrScenario}
+                  injectorIds={selectedContract?.injector_contract_injectors}
                 />
               </div>
             </Slide>

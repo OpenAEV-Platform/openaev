@@ -60,7 +60,6 @@ public class CrowdStrikeExecutorIntegration extends Integration {
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final ConnectorInstanceService connectorInstanceService;
-  private final ConnectorInstance connectorInstance;
   private final HttpClientFactory httpClientFactory;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
@@ -86,7 +85,6 @@ public class CrowdStrikeExecutorIntegration extends Integration {
     this.enterpriseEditionService = enterpriseEditionService;
     this.licenseCacheManager = licenseCacheManager;
     this.connectorInstanceService = connectorInstanceService;
-    this.connectorInstance = connectorInstance;
     this.httpClientFactory = httpClientFactory;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
 
@@ -102,15 +100,26 @@ public class CrowdStrikeExecutorIntegration extends Integration {
 
   @Override
   protected void innerStart() throws Exception {
+    String instanceId = getConnectorInstance().getId();
     String executorId =
         connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
-            connectorInstance.getId(), ConnectorType.EXECUTOR.getIdKeyName());
+            instanceId, ConnectorType.EXECUTOR.getIdKeyName());
+    String executorName =
+        connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
+            instanceId, "EXECUTOR_NAME");
+
+    log.info(
+        "CrowdStrike innerStart: connectorInstanceId={}, executorId={}, executorName={}, apiUrl={}",
+        instanceId,
+        executorId,
+        executorName,
+        config != null ? config.getApiUrl() : "null");
 
     Executor executor =
         executorService.register(
             executorId,
             CROWDSTRIKE_EXECUTOR_TYPE,
-            CROWDSTRIKE_EXECUTOR_NAME,
+            executorName != null ? executorName : CROWDSTRIKE_EXECUTOR_NAME,
             CROWDSTRIKE_EXECUTOR_DOCUMENTATION_LINK,
             CROWDSTRIKE_EXECUTOR_BACKGROUND_COLOR,
             getClass().getResourceAsStream("/img/icon-crowdstrike.png"),
@@ -130,7 +139,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
             executor, client, config, endpointService, agentService, assetGroupService);
     crowdStrikeGarbageCollectorService =
         new CrowdStrikeGarbageCollectorService(
-            config, crowdStrikeExecutorContextService, agentService);
+            config, crowdStrikeExecutorContextService, agentService, executorId);
 
     timers.add(
         taskScheduler.scheduleAtFixedRate(

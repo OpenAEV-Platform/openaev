@@ -62,6 +62,7 @@ public abstract class Integration {
       if (connectorInstance == null) {
         // the instance cannot be found again in the DB
         // exit early to finally block
+        log.warn("Integration initialise: instance not found in DB, stopping.");
         this.stop();
         return;
       }
@@ -91,6 +92,8 @@ public abstract class Integration {
         return;
       }
       if (isRunning && hasHashChanged) {
+        log.info(
+            "Integration: restarting instance {} (hash changed)", this.connectorInstance.getId());
         this.stop();
         this.start();
         return;
@@ -98,7 +101,12 @@ public abstract class Integration {
       if (isStartingRequested && isStopped) {
         this.start();
       }
-
+    } catch (Exception e) {
+      log.error(
+          "Error during initialization of integration for instance id '{}'",
+          this.connectorInstance.getId(),
+          e);
+      throw e;
     } finally {
       // always save instance if applicable (e.g. state has changed)
       // even if something went wrong when starting the integration

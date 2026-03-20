@@ -196,6 +196,7 @@ const UpdateInject: React.FC<Props> = ({
               articlesFromExerciseOrScenario={articlesFromExerciseOrScenario}
               uriVariable={uriVariable}
               variablesFromExerciseOrScenario={variablesFromExerciseOrScenario}
+              injectorIds={inject?.inject_injector_contract?.injector_contract_injectors}
             />
           )}
         </TabPanel>

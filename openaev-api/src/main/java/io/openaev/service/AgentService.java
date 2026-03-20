@@ -34,8 +34,8 @@ public class AgentService {
         assetId, user, deploymentMode.name(), privilege.name(), executorId);
   }
 
-  public List<Agent> getAgentsByExecutorType(String executor, String tenantId) {
-    return agentRepository.findByExecutorType(executor, tenantId);
+  public List<Agent> getAgentsByExecutorId(String executorId) {
+    return agentRepository.findByExecutorId(executorId);
   }
 
   public Agent createOrUpdateAgent(@NotNull final Agent agent) {

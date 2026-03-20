@@ -58,6 +58,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.query.criteria.HibernateCriteriaBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -520,52 +521,66 @@ public class InjectorContractService implements DependenciesManager {
     Expression<String[]> payloadDomainsIdsExpression =
         createJoinArrayAggOnIdForJoin(cb, injectorContractPayloadJoin, "domains");
 
+    Expression<String[]> injectorIdsExpression =
+        arrayAggOnId((HibernateCriteriaBuilder) cb, injectorContractInjectorJoin);
+
     // SELECT
     cq.multiselect(
-        injectorContractRoot.get("compositeId").get("id").alias("injector_contract_id"),
-        injectorContractRoot.get("externalId").alias("injector_contract_external_id"),
-        injectorContractRoot.get("labels").alias("injector_contract_labels"),
-        injectorContractRoot.get("content").alias("injector_contract_content"),
-        injectorContractRoot.get("platforms").alias("injector_contract_platforms"),
-        injectorContractPayloadJoin.get("type").alias("payload_type"),
-        payloadCollectorTypeJoin.get("name").alias("collector_type"),
-        injectorContractInjectorJoin.get("type").alias("injector_contract_injector_type"),
-        injectorContractInjectorJoin.get("name").alias("injector_contract_injector_name"),
-        attackPatternIdsExpression.alias("injector_contract_attack_patterns"),
-        payloadDomainsIdsExpression.alias("payload_domains"),
-        domainsIdsExpression.alias("injector_contract_domains"),
-        injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"),
-        injectorContractPayloadJoin.get("executionArch").alias("payload_execution_arch"));
+            injectorContractRoot.get("compositeId").get("id").alias("injector_contract_id"),
+            injectorContractRoot.get("externalId").alias("injector_contract_external_id"),
+            injectorContractRoot.get("labels").alias("injector_contract_labels"),
+            injectorContractRoot.get("content").alias("injector_contract_content"),
+            injectorContractRoot.get("platforms").alias("injector_contract_platforms"),
+            injectorContractPayloadJoin.get("type").alias("payload_type"),
+            payloadCollectorTypeJoin.get("name").alias("collector_type"),
+            cb.least(injectorContractInjectorJoin.<String>get("type"))
+                .alias("injector_contract_injector_type"),
+            cb.least(injectorContractInjectorJoin.<String>get("name"))
+                .alias("injector_contract_injector_name"),
+            attackPatternIdsExpression.alias("injector_contract_attack_patterns"),
+            payloadDomainsIdsExpression.alias("payload_domains"),
+            domainsIdsExpression.alias("injector_contract_domains"),
+            injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"),
+            injectorContractPayloadJoin.get("executionArch").alias("payload_execution_arch"),
+            injectorIdsExpression.alias("injector_contract_injector_ids"))
+        .distinct(true);
 
     // GROUP BY — compositeId expands to both PK columns (injector_contract_id + tenant_id)
     cq.groupBy(
         Arrays.asList(
             injectorContractRoot.get("compositeId"),
             injectorContractPayloadJoin.get("id"),
-            payloadCollectorTypeJoin.get("id"),
-            injectorContractInjectorJoin.get("id")));
+            payloadCollectorTypeJoin.get("id")));
   }
 
   private List<InjectorContractFullOutput> execInjectorFullContract(TypedQuery<Tuple> query) {
     return query.getResultList().stream()
         .map(
-            tuple ->
-                new InjectorContractFullOutput(
-                    tuple.get("injector_contract_id", String.class),
-                    tuple.get("injector_contract_external_id", String.class),
-                    tuple.get("injector_contract_labels", Map.class),
-                    tuple.get("injector_contract_content", String.class),
-                    tuple.get("injector_contract_platforms", Endpoint.PLATFORM_TYPE[].class),
-                    tuple.get("payload_type", String.class),
-                    tuple.get("injector_contract_injector_name", String.class),
-                    tuple.get("collector_type", String.class),
-                    tuple.get("injector_contract_injector_type", String.class),
-                    tuple.get("injector_contract_attack_patterns", String[].class),
-                    resolveEffectiveDomains(
-                        tuple.get("injector_contract_domains", String[].class),
-                        tuple.get("payload_domains", String[].class)),
-                    tuple.get("injector_contract_updated_at", Instant.class),
-                    tuple.get("payload_execution_arch", Payload.PAYLOAD_EXECUTION_ARCH.class)))
+            tuple -> {
+              String[] injectorIdsArray =
+                  tuple.get("injector_contract_injector_ids", String[].class);
+              List<String> injectorIds =
+                  injectorIdsArray != null
+                      ? Arrays.stream(injectorIdsArray).filter(Objects::nonNull).distinct().toList()
+                      : List.of();
+              return new InjectorContractFullOutput(
+                  tuple.get("injector_contract_id", String.class),
+                  tuple.get("injector_contract_external_id", String.class),
+                  tuple.get("injector_contract_labels", Map.class),
+                  tuple.get("injector_contract_content", String.class),
+                  tuple.get("injector_contract_platforms", Endpoint.PLATFORM_TYPE[].class),
+                  tuple.get("payload_type", String.class),
+                  tuple.get("injector_contract_injector_name", String.class),
+                  tuple.get("collector_type", String.class),
+                  tuple.get("injector_contract_injector_type", String.class),
+                  tuple.get("injector_contract_attack_patterns", String[].class),
+                  resolveEffectiveDomains(
+                      tuple.get("injector_contract_domains", String[].class),
+                      tuple.get("payload_domains", String[].class)),
+                  tuple.get("injector_contract_updated_at", Instant.class),
+                  tuple.get("payload_execution_arch", Payload.PAYLOAD_EXECUTION_ARCH.class),
+                  injectorIds);
+            })
         .toList();
   }
 

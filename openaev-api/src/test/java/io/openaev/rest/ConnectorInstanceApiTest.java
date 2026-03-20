@@ -165,14 +165,23 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Duplicate catalog connector instance id should throw an error")
-    void duplicateCatalogConnectorInstance_should_throwError() throws Exception {
+    @DisplayName("Creating multiple instances of the same catalog connector should succeed")
+    void givenExistingInstance_creatingAnotherInstance_shouldSucceed() throws Exception {
       when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
-      CatalogConnector catalogConnector = getCatalogConnector();
-      ConnectorInstancePersisted instance = createDefaultConnectorInstance();
-      instance.setCatalogConnector(catalogConnector);
-      instance.setConfigurations(new HashSet<>());
-      connectorInstanceRepository.save(instance);
+      when(xtmComposerEncryptionService.encrypt(any())).thenReturn("fake-encrypted-value");
+      Token token = new Token();
+      token.setValue("fake-token-value");
+      when(tokenRepository.findAll(any())).thenReturn(List.of(token));
+
+      CatalogConnectorConfiguration confDef1 =
+          createCatalogConfiguration(
+              "key-string",
+              CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_TYPE.STRING,
+              true,
+              null,
+              null,
+              null);
+      CatalogConnector catalogConnector = getCatalogConnectorWithConfiguration(Set.of(confDef1));
 
       Map<String, String> composerSettings = new HashMap<>();
       composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
@@ -180,38 +189,68 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       composerSettings.put(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key(), Instant.now().toString());
       platformSettingsService.saveSettings(composerSettings);
 
-      CreateConnectorInstanceInput input = new CreateConnectorInstanceInput();
-      input.setCatalogConnectorId(catalogConnector.getId());
+      // -- Create first instance --
+      CreateConnectorInstanceInput input1 = new CreateConnectorInstanceInput();
+      input1.setCatalogConnectorId(catalogConnector.getId());
+      CreateConnectorInstanceInput.ConfigurationInput confInput1 =
+          createConfigurationInput(confDef1.getConnectorConfigurationKey(), "value-1");
+      input1.setConfigurations(List.of(confInput1));
 
       mvc.perform(
               post(CONNECTOR_INSTANCE_URI)
-                  .content(asJsonString(input))
+                  .content(asJsonString(input1))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON))
-          .andExpect(status().is4xxClientError())
-          .andExpect(
-              result -> {
-                String errorMessage = result.getResolvedException().getMessage();
-                assertTrue(
-                    errorMessage.contains(
-                        "ConnectorInstance with CatalogConnector id "
-                            + catalogConnector.getId()
-                            + " already exists"));
-              });
+          .andExpect(status().is2xxSuccessful());
+
+      // -- Create second instance of the same catalog connector --
+      CreateConnectorInstanceInput input2 = new CreateConnectorInstanceInput();
+      input2.setCatalogConnectorId(catalogConnector.getId());
+      CreateConnectorInstanceInput.ConfigurationInput confInput2 =
+          createConfigurationInput(confDef1.getConnectorConfigurationKey(), "value-2");
+      input2.setConfigurations(List.of(confInput2));
+
+      mvc.perform(
+              post(CONNECTOR_INSTANCE_URI)
+                  .content(asJsonString(input2))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().is2xxSuccessful());
+
+      // -- Verify both instances exist --
+      List<ConnectorInstancePersisted> instanceDb =
+          connectorInstanceRepository.findAllByCatalogConnectorId(catalogConnector.getId());
+      assertEquals(2, instanceDb.size());
+
+      // Verify each instance has a distinct COLLECTOR_ID configuration
+      Set<String> collectorIds = new HashSet<>();
+      for (ConnectorInstancePersisted inst : instanceDb) {
+        inst.getConfigurations().stream()
+            .filter(c -> "COLLECTOR_ID".equals(c.getKey()))
+            .map(c -> c.getValue().asText())
+            .forEach(collectorIds::add);
+      }
+      assertEquals(2, collectorIds.size(), "Each instance should have a unique COLLECTOR_ID");
     }
 
     @Test
-    @DisplayName(
-        "Given a collector of the same type already exists should throw an error on create")
-    void givenCollectorOfSameTypeAlreadyExists_should_throwError() throws Exception {
+    @DisplayName("Deleting one instance should not delete other instances of the same catalog")
+    void givenTwoInstances_deletingOne_shouldKeepTheOther() throws Exception {
       when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
+      when(xtmComposerEncryptionService.encrypt(any())).thenReturn("fake-encrypted-value");
+      Token token = new Token();
+      token.setValue("fake-token-value");
+      when(tokenRepository.findAll(any())).thenReturn(List.of(token));
 
-      CatalogConnector catalogConnector = getCatalogConnector();
-
-      // Create a collector with a type matching the catalog connector slug
-      collectorComposer
-          .forCollector(CollectorFixture.createDefaultCollector(catalogConnector.getSlug()))
-          .persist();
+      CatalogConnectorConfiguration confDef1 =
+          createCatalogConfiguration(
+              "key-string",
+              CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_TYPE.STRING,
+              true,
+              null,
+              null,
+              null);
+      CatalogConnector catalogConnector = getCatalogConnectorWithConfiguration(Set.of(confDef1));
 
       Map<String, String> composerSettings = new HashMap<>();
       composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
@@ -219,22 +258,47 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       composerSettings.put(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key(), Instant.now().toString());
       platformSettingsService.saveSettings(composerSettings);
 
-      CreateConnectorInstanceInput input = new CreateConnectorInstanceInput();
-      input.setCatalogConnectorId(catalogConnector.getId());
+      // -- Create two instances --
+      CreateConnectorInstanceInput input1 = new CreateConnectorInstanceInput();
+      input1.setCatalogConnectorId(catalogConnector.getId());
+      input1.setConfigurations(
+          List.of(createConfigurationInput(confDef1.getConnectorConfigurationKey(), "value-1")));
 
       mvc.perform(
               post(CONNECTOR_INSTANCE_URI)
-                  .content(asJsonString(input))
+                  .content(asJsonString(input1))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON))
-          .andExpect(status().is4xxClientError())
-          .andExpect(
-              result -> {
-                String errorMessage = result.getResolvedException().getMessage();
-                assertTrue(
-                    errorMessage.contains(
-                        "Connector with slug " + catalogConnector.getSlug() + " already exists"));
-              });
+          .andExpect(status().is2xxSuccessful());
+
+      CreateConnectorInstanceInput input2 = new CreateConnectorInstanceInput();
+      input2.setCatalogConnectorId(catalogConnector.getId());
+      input2.setConfigurations(
+          List.of(createConfigurationInput(confDef1.getConnectorConfigurationKey(), "value-2")));
+
+      mvc.perform(
+              post(CONNECTOR_INSTANCE_URI)
+                  .content(asJsonString(input2))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().is2xxSuccessful());
+
+      List<ConnectorInstancePersisted> instances =
+          connectorInstanceRepository.findAllByCatalogConnectorId(catalogConnector.getId());
+      assertEquals(2, instances.size());
+
+      // -- Delete the first instance --
+      String deletedId = instances.getFirst().getId();
+      String keptId = instances.get(1).getId();
+
+      mvc.perform(delete(CONNECTOR_INSTANCE_URI + "/" + deletedId))
+          .andExpect(status().is2xxSuccessful());
+
+      // -- Verify only the second instance remains --
+      List<ConnectorInstancePersisted> remaining =
+          connectorInstanceRepository.findAllByCatalogConnectorId(catalogConnector.getId());
+      assertEquals(1, remaining.size());
+      assertEquals(keptId, remaining.getFirst().getId());
     }
 
     @Test

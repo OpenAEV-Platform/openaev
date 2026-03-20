@@ -30,9 +30,9 @@ const ConnectorPopover = ({ connectorInstanceId, connectorName, disabled = false
 
   const [openDialogDelete, setOpenDialogDelete] = useState(false);
 
-  // const handleDelete = () => {
-  //   setOpenDialogDelete(true);
-  // };
+  const handleDelete = () => {
+    setOpenDialogDelete(true);
+  };
 
   const submitDeleteConnectorInstance = () => {
     dispatch(deleteConnectorInstance(connectorInstanceId));
@@ -45,12 +45,13 @@ const ConnectorPopover = ({ connectorInstanceId, connectorName, disabled = false
   // Button Popover
   const entries = [
     {
-      //   label: 'Delete',
-      //   action: handleDelete,
-      //   userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS),
-      // }, {
       label: 'Update',
       action: () => onOpenUpdateConnectorInstanceDrawer(),
+      userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS),
+    },
+    {
+      label: 'Delete',
+      action: handleDelete,
       userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS),
     }];
 
