@@ -53,7 +53,6 @@ const Root = () => {
     dispatch(fetchPlatformParameters());
   }, []);
 
-
   const { isReachable } = useNetworkCheck(settings?.xtm_hub_url && `${settings?.xtm_hub_url}/health`);
   if (logged && typeof logged === 'object' && Object.keys(logged).length === 0) {
     return <div />;

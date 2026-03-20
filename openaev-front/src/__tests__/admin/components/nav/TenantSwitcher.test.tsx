@@ -1,5 +1,5 @@
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { IntlProvider } from 'react-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -63,9 +63,13 @@ const renderTenantSwitcher = (contextOverrides: Partial<UserContextType> = {}) =
   };
 };
 
-const openMenu = () => {
-  const button = screen.getByRole('button');
-  fireEvent.click(button);
+/**
+ * Opens the Autocomplete dropdown by clicking on the combobox input.
+ */
+const openDropdown = () => {
+  const combobox = screen.getByRole('combobox');
+  fireEvent.click(combobox);
+  fireEvent.mouseDown(combobox);
 };
 
 // -- TESTS --
@@ -74,90 +78,86 @@ describe('TenantSwitcher', () => {
   afterEach(cleanup);
 
   describe('Rendering', () => {
-    it('renders the current tenant name in the button', () => {
+    it('renders the current tenant name in the input', () => {
       renderTenantSwitcher();
 
-      expect(screen.getByRole('button').textContent).toContain('Alpha Corp');
+      const combobox = screen.getByRole('combobox') as HTMLInputElement;
+      expect(combobox.value).toBe('Alpha Corp');
     });
 
-    it('shows fallback text when no current tenant is set', () => {
+    it('shows an empty input when no current tenant is set', () => {
       renderTenantSwitcher({ currentUserTenant: null });
 
-      // useFormatter returns the message id when no translation is found
-      expect(screen.getByRole('button').textContent).toContain('Select tenant');
+      const combobox = screen.getByRole('combobox') as HTMLInputElement;
+      expect(combobox.value).toBe('');
     });
 
-    it('renders the button as enabled', () => {
+    it('renders the input as enabled', () => {
       renderTenantSwitcher();
 
-      expect(screen.getByRole('button').hasAttribute('disabled')).toBe(false);
+      expect(screen.getByRole('combobox').hasAttribute('disabled')).toBe(false);
     });
   });
 
-  describe('Menu interaction', () => {
-    it('opens the menu when the button is clicked', () => {
+  describe('Dropdown interaction', () => {
+    it('opens the dropdown when the input is clicked', () => {
       renderTenantSwitcher();
 
-      expect(screen.queryByRole('menu')).toBeNull();
+      expect(screen.queryByRole('listbox')).toBeNull();
 
-      openMenu();
+      openDropdown();
 
-      expect(screen.getByRole('menu')).toBeDefined();
+      expect(screen.getByRole('listbox')).toBeDefined();
     });
 
-    it('displays all available tenants in the menu', () => {
+    it('displays all available tenants in the dropdown', () => {
       renderTenantSwitcher();
-      openMenu();
+      openDropdown();
 
-      const menuItems = screen.getAllByRole('menuitem');
-      expect(menuItems).toHaveLength(2);
-      expect(menuItems[0].textContent).toContain('Alpha Corp');
-      expect(menuItems[1].textContent).toContain('Beta Industries');
+      const options = screen.getAllByRole('option');
+      expect(options).toHaveLength(2);
+      expect(options[0].textContent).toContain('Alpha Corp');
+      expect(options[1].textContent).toContain('Beta Industries');
     });
 
     it('displays tenant descriptions as secondary text', () => {
       renderTenantSwitcher();
-      openMenu();
+      openDropdown();
 
       expect(screen.getByText('Primary tenant')).toBeDefined();
       expect(screen.getByText('Secondary tenant')).toBeDefined();
     });
 
-    it('marks the current tenant as selected', () => {
+    it('marks the current tenant as selected via aria-selected', () => {
       renderTenantSwitcher();
-      openMenu();
+      openDropdown();
 
-      const menuItems = screen.getAllByRole('menuitem');
-      // MUI adds aria-selected on the selected MenuItem
-      expect(menuItems[0].getAttribute('aria-selected')
-        || menuItems[0].classList.contains('Mui-selected')).toBeTruthy();
+      const options = screen.getAllByRole('option');
+      expect(options[0].getAttribute('aria-selected')).toBe('true');
+      expect(options[1].getAttribute('aria-selected')).toBe('false');
     });
 
     it('shows a check icon next to the current tenant', () => {
       renderTenantSwitcher();
-      openMenu();
+      openDropdown();
 
-      // CheckIcon is rendered via MUI's SvgIcon — find the testid or svg
-      const menuItems = screen.getAllByRole('menuitem');
-      const firstItemSvgs = menuItems[0].querySelectorAll('svg');
-      const secondItemSvgs = menuItems[1].querySelectorAll('svg');
-
-      // Current tenant (Alpha Corp) should have more SVG icons (avatar + check)
-      // than the non-selected tenant (avatar only)
-      expect(firstItemSvgs.length).toBeGreaterThan(secondItemSvgs.length);
+      const options = screen.getAllByRole('option');
+      // The selected option (Alpha Corp) should have a CheckOutlinedIcon
+      expect(within(options[0]).getByTestId('CheckOutlinedIcon')).toBeDefined();
+      // The non-selected option should not
+      expect(within(options[1]).queryByTestId('CheckOutlinedIcon')).toBeNull();
     });
 
-    it('closes the menu when clicking outside', async () => {
+    it('closes the dropdown when pressing Escape', async () => {
       renderTenantSwitcher();
-      openMenu();
+      openDropdown();
 
-      expect(screen.getByRole('menu')).toBeDefined();
+      expect(screen.getByRole('listbox')).toBeDefined();
 
-      // MUI Menu uses a backdrop — pressing Escape is the reliable way to close
-      fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
+      fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' });
 
       await waitFor(() => {
-        expect(screen.queryByRole('menu')).toBeNull();
+        expect(screen.queryByRole('listbox')).toBeNull();
       });
     });
   });
@@ -167,8 +167,8 @@ describe('TenantSwitcher', () => {
       const switchUserTenant = vi.fn().mockResolvedValue(undefined);
       renderTenantSwitcher({ switchUserTenant });
 
-      openMenu();
-      fireEvent.click(screen.getAllByRole('menuitem')[1]); // click Beta Industries
+      openDropdown();
+      fireEvent.click(screen.getAllByRole('option')[1]); // click Beta Industries
 
       await waitFor(() => {
         expect(switchUserTenant).toHaveBeenCalledWith('tenant-beta-id');
@@ -179,8 +179,8 @@ describe('TenantSwitcher', () => {
       const switchUserTenant = vi.fn().mockResolvedValue(undefined);
       renderTenantSwitcher({ switchUserTenant });
 
-      openMenu();
-      fireEvent.click(screen.getAllByRole('menuitem')[0]); // click Alpha Corp (current)
+      openDropdown();
+      fireEvent.click(screen.getAllByRole('option')[0]); // click Alpha Corp (current)
 
       // Give time for any async work
       await waitFor(() => {
@@ -188,23 +188,10 @@ describe('TenantSwitcher', () => {
       });
     });
 
-    it('closes the menu after a successful switch', async () => {
-      const switchUserTenant = vi.fn().mockResolvedValue(undefined);
-      renderTenantSwitcher({ switchUserTenant });
-
-      openMenu();
-      fireEvent.click(screen.getAllByRole('menuitem')[1]);
-
-      await waitFor(() => {
-        expect(screen.queryByRole('menu')).toBeNull();
-      });
-    });
-
     it('shows an error notification when switching fails', async () => {
       const switchUserTenant = vi.fn().mockRejectedValue(new Error('Network error'));
 
       const notifyErrorSpy = vi.fn();
-      // Mock MESSAGING$.notifyError via module mock
       vi.doMock('../../../../utils/Environment', async (importOriginal) => {
         // eslint-disable-next-line @typescript-eslint/consistent-type-imports
         const original = await importOriginal<typeof import('../../../../utils/Environment')>();
@@ -217,11 +204,10 @@ describe('TenantSwitcher', () => {
         };
       });
 
-      // Re-import after mock — for now, just verify the switchUserTenant was called
       renderTenantSwitcher({ switchUserTenant });
 
-      openMenu();
-      fireEvent.click(screen.getAllByRole('menuitem')[1]);
+      openDropdown();
+      fireEvent.click(screen.getAllByRole('option')[1]);
 
       await waitFor(() => {
         expect(switchUserTenant).toHaveBeenCalledWith('tenant-beta-id');
@@ -236,9 +222,9 @@ describe('TenantSwitcher', () => {
         currentUserTenant: TENANT_ALPHA,
       });
 
-      openMenu();
+      openDropdown();
 
-      expect(screen.getAllByRole('menuitem')).toHaveLength(1);
+      expect(screen.getAllByRole('option')).toHaveLength(1);
     });
 
     it('renders correctly with no tenants', () => {
@@ -247,34 +233,19 @@ describe('TenantSwitcher', () => {
         currentUserTenant: null,
       });
 
-      openMenu();
+      openDropdown();
 
-      expect(screen.queryAllByRole('menuitem')).toHaveLength(0);
+      expect(screen.queryAllByRole('option')).toHaveLength(0);
     });
 
-    it('handles long tenant names with ellipsis (no layout overflow)', () => {
+    it('handles long tenant names (truncation is CSS-based)', () => {
       renderTenantSwitcher({
         userTenants: [TENANT_LONG_NAME],
         currentUserTenant: TENANT_LONG_NAME,
       });
 
-      // The button should contain the tenant name (truncation is CSS, not DOM)
-      const button = screen.getByRole('button');
-      expect(button.textContent).toContain(TENANT_LONG_NAME.tenant_name);
-
-      // The span wrapping the name should have overflow:hidden style
-      const nameSpan = button.querySelector('span[style]');
-      expect(nameSpan).toBeTruthy();
-      expect(nameSpan!.getAttribute('style')).toContain('overflow');
-    });
-
-    it('renders the first letter of tenant name as avatar in menu items', () => {
-      renderTenantSwitcher();
-      openMenu();
-
-      // Each menu item has an Avatar with the first letter
-      expect(screen.getByText('A')).toBeDefined(); // Alpha Corp
-      expect(screen.getByText('B')).toBeDefined(); // Beta Industries
+      const combobox = screen.getByRole('combobox') as HTMLInputElement;
+      expect(combobox.value).toBe(TENANT_LONG_NAME.tenant_name);
     });
   });
 });

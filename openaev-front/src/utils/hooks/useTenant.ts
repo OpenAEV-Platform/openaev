@@ -61,8 +61,11 @@ const useTenant = (me: User | undefined, logged: unknown) => {
     }, 0);
   }, [currentUserTenant, userTenants]);
 
-  return { userTenants, currentUserTenant, switchUserTenant };
+  return {
+    userTenants,
+    currentUserTenant,
+    switchUserTenant,
+  };
 };
 
 export default useTenant;
-
