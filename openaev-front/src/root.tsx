@@ -103,7 +103,7 @@ const Root = () => {
       if (current) {
         setCurrentUserTenant(current);
       }
-      // TODO: tenant routing
+      // TODO multi-tenancy: tenant routing
       // window.location.replace(window.location.href);
     }, 0);
   }, [currentUserTenant, userTenants]);

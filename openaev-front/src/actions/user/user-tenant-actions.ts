@@ -18,7 +18,7 @@ export const fetchUserTenants = async (): Promise<UserTenantsResponse> => {
   // const response = await simplePostCall(uri, {});
   // return response as UserTenantsResponse;
 
-  // TODO: Remove mock data once backend endpoints are implemented
+  // TODO multi-tenancy: Remove mock data once backend endpoints are implemented
   // Mock data for development:
   return {
     tenants: [
