@@ -1,12 +1,10 @@
 import { CssBaseline } from '@mui/material';
 import { StyledEngineProvider } from '@mui/material/styles';
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
-import { useLocalStorage } from 'usehooks-ts';
 
 import { fetchMe, fetchPlatformParameters } from './actions/Application';
 import { type LoggedHelper } from './actions/helper';
-import { fetchUserTenants } from './actions/user/user-tenant-actions';
 import EnterpriseEditionAgreementDialog from './admin/components/common/entreprise_edition/EnterpriseEditionAgreementDialog';
 import ConnectedIntlProvider from './components/AppIntlProvider';
 import ConnectedThemeProvider from './components/AppThemeProvider';
@@ -19,11 +17,11 @@ import SystemBanners from './public/components/systembanners/SystemBanners';
 import LicenseBanner from './public/components/trialbanners/LicenseBanner';
 import StartTrialBanner from './public/components/trialbanners/StartTrialBanner';
 import { useHelper } from './store';
-import { type TenantOutput } from './utils/api-types';
 import ErrorHandler from './utils/error/ErrorHandler';
 import { useAppDispatch } from './utils/hooks';
 import { UserContext } from './utils/hooks/useAuth';
 import useNetworkCheck from './utils/hooks/useCheckNetwork';
+import useTenant from './utils/hooks/useTenant';
 import { PermissionsProvider } from './utils/permissions/PermissionsProvider';
 
 const RootPublic = lazy(() => import('./public/Root'));
@@ -38,12 +36,6 @@ const ScenarioViewLessons = lazy(() => import('./public/components/lessons/Scena
 const SimulationChallengesPreview = lazy(() => import('./admin/components/simulations/simulation/challenges/SimulationChallengesPreview'));
 const ScenarioChallengesPreview = lazy(() => import('./admin/components/scenarios/scenario/challenges/ScenarioChallengesPreview'));
 
-const DEFAULT_TENANT: TenantOutput = {
-  tenant_id: '2cffad3a-0001-4078-b0e2-ef74274022c3', // DEFAULT_TENANT_UUID
-  tenant_name: 'Default Tenant',
-  tenant_description: 'Default tenant auto created',
-};
-
 const Root = () => {
   const { logged, me, settings } = useHelper((helper: LoggedHelper) => {
     return {
@@ -54,59 +46,13 @@ const Root = () => {
   });
   const dispatch = useAppDispatch();
 
-  // User tenant state
-  const [userTenants, setUserTenants] = useState<TenantOutput[]>([]);
-  const [currentTenantStorage, setCurrentTenantStorage] = useLocalStorage('current-tenant-storage', DEFAULT_TENANT);
-  const [currentUserTenant, setCurrentUserTenant] = useState<TenantOutput>(DEFAULT_TENANT);
+  const { userTenants, currentUserTenant, switchUserTenant } = useTenant(me, logged);
 
   useEffect(() => {
     dispatch(fetchMe());
     dispatch(fetchPlatformParameters());
   }, []);
 
-  // Load user tenants when user is logged in
-  const loadUserTenants = useCallback(async () => {
-    if (!me) return;
-
-    const result = await fetchUserTenants();
-
-    if (result && result.tenants) {
-      setUserTenants(result.tenants);
-      // if local storage tenant is still valid use it, otherwise switch to first tenant in list
-      const currentTenant = result.tenants.find(tenant => (tenant.tenant_id === currentTenantStorage.tenant_id));
-      if (currentTenant) {
-        setCurrentUserTenant(currentTenant);
-        setCurrentTenantStorage(currentTenant);
-      } else {
-        setCurrentUserTenant(result.tenants[0]);
-        setCurrentTenantStorage(result.tenants[0]);
-      }
-    }
-  }, [me]);
-
-  useEffect(() => {
-    if (me && logged) {
-      loadUserTenants();
-    }
-  }, [me, logged, loadUserTenants]);
-
-  const switchUserTenant = useCallback(async (tenantId: string) => {
-    // If already on this tenant, just close
-    if (tenantId === currentUserTenant?.tenant_id) {
-      return;
-    }
-
-    // Reload page to refresh all data in new tenant context
-    // Use setTimeout to ensure state updates complete before reload
-    setTimeout(() => {
-      const current = userTenants.find(t => (t.tenant_id === tenantId));
-      if (current) {
-        setCurrentUserTenant(current);
-      }
-      // TODO multi-tenancy: tenant routing
-      // window.location.replace(window.location.href);
-    }, 0);
-  }, [currentUserTenant, userTenants]);
 
   const { isReachable } = useNetworkCheck(settings?.xtm_hub_url && `${settings?.xtm_hub_url}/health`);
   if (logged && typeof logged === 'object' && Object.keys(logged).length === 0) {
