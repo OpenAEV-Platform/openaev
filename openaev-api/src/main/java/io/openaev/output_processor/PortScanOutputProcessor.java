@@ -6,18 +6,20 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.ContractOutputField;
 import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
+import io.openaev.rest.finding.FindingService;
+import java.util.Collections;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
-public class PortScanOutputProcessor extends AbstractOutputProcessor {
+public class PortScanOutputProcessor extends FindingCapableOutputProcessor {
 
   private static final String ASSET_ID = "asset_id";
   private static final String HOST = "host";
   private static final String PORT = "port";
   private static final String SERVICE = "service";
 
-  public PortScanOutputProcessor() {
+  public PortScanOutputProcessor(FindingService findingService) {
     super(
         ContractOutputType.PortsScan,
         ContractOutputTechnicalType.Object,
@@ -26,7 +28,7 @@ public class PortScanOutputProcessor extends AbstractOutputProcessor {
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(PORT, ContractOutputTechnicalType.Number, true),
             new ContractOutputField(SERVICE, ContractOutputTechnicalType.Text, true)),
-        true);
+        findingService);
   }
 
   @Override
@@ -48,6 +50,6 @@ public class PortScanOutputProcessor extends AbstractOutputProcessor {
     if (assetIdNode != null) {
       return List.of(assetIdNode.asText());
     }
-    return List.of();
+    return Collections.emptyList();
   }
 }

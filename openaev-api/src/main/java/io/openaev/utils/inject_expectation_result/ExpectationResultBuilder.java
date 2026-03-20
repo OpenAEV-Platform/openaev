@@ -200,7 +200,7 @@ public final class ExpectationResultBuilder {
     return buildForMediaPressure(NO_RESULT, NO_SCORE);
   }
 
-  private static InjectExpectationResult buildForVulnerabilityManager(
+  public static InjectExpectationResult buildForVulnerabilityManager(
       @Nullable final String result, @Nullable final Double score) {
     return InjectExpectationResult.builder()
         .sourceId(EXPECTATIONS_VULNERABILITY_COLLECTOR_ID)

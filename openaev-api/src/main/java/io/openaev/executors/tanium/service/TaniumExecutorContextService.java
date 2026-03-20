@@ -10,7 +10,6 @@ import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorHelper;
 import io.openaev.executors.ExecutorService;
-import io.openaev.executors.exception.ExecutorException;
 import io.openaev.executors.tanium.client.TaniumExecutorClient;
 import io.openaev.executors.tanium.config.TaniumExecutorConfig;
 import io.openaev.executors.tanium.model.TaniumAction;
@@ -43,7 +42,9 @@ public class TaniumExecutorContextService extends ExecutorContextService {
   public void launchExecutorSubprocess(
       @NotNull final Inject inject,
       @NotNull final Endpoint assetEndpoint,
-      @NotNull final Agent agent) {}
+      @NotNull final Agent agent) {
+    // launchBatchExecutorSubprocess is used here for better performances
+  }
 
   @Override
   public List<Agent> launchBatchExecutorSubprocess(
@@ -51,11 +52,6 @@ public class TaniumExecutorContextService extends ExecutorContextService {
 
     eeService.throwEEExecutorService(
         licenseCacheManager.getEnterpriseEditionInfo(), SERVICE_NAME, injectStatus);
-
-    if (!this.taniumExecutorConfig.isEnable()) {
-      throw new ExecutorException(
-          "Fatal error: Tanium executor is not enabled", TANIUM_EXECUTOR_NAME);
-    }
 
     List<Agent> taniumAgents = new ArrayList<>(agents);
 
@@ -129,8 +125,8 @@ public class TaniumExecutorContextService extends ExecutorContextService {
       List<Agent> agents, Injector injector, String injectId, Endpoint.PLATFORM_ARCH arch) {
     List<TaniumAction> actions = new ArrayList<>();
     for (Agent agent : agents) {
-      TaniumAction actionUnix = new TaniumAction();
-      actionUnix.setScriptId(this.taniumExecutorConfig.getWindowsPackageId());
+      TaniumAction actionWindows = new TaniumAction();
+      actionWindows.setScriptId(this.taniumExecutorConfig.getWindowsPackageId());
       String implantLocation =
           "$location="
               + ExecutorHelper.IMPLANT_LOCATION_WINDOWS
@@ -144,9 +140,9 @@ public class TaniumExecutorContextService extends ExecutorContextService {
           command.replaceFirst(
               "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",
               Matcher.quoteReplacement(implantLocation));
-      actionUnix.setCommandEncoded(Base64.getEncoder().encodeToString(command.getBytes()));
-      actionUnix.setAgentExternalReference(agent.getExternalReference());
-      actions.add(actionUnix);
+      actionWindows.setCommandEncoded(Base64.getEncoder().encodeToString(command.getBytes()));
+      actionWindows.setAgentExternalReference(agent.getExternalReference());
+      actions.add(actionWindows);
     }
     return actions;
   }

@@ -7,6 +7,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE;
 import static io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID;
+import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_TYPE;
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
 import static io.openaev.utils.ArchitectureFilterUtils.handleEndpointFilter;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
@@ -19,11 +20,7 @@ import static java.util.stream.Collectors.toList;
 
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.AssetAgentJobRepository;
-import io.openaev.database.repository.AssetGroupRepository;
-import io.openaev.database.repository.EndpointRepository;
-import io.openaev.database.repository.ExecutorRepository;
-import io.openaev.database.repository.TagRepository;
+import io.openaev.database.repository.*;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
@@ -41,13 +38,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -321,8 +312,7 @@ public class EndpointService {
   // -- INSTALLATION AGENT --
 
   /**
-   * Get agents from SentinelOne, Crowdstrike API and register them into OpenAEV agents and
-   * endpoints
+   * Get agents from external executor API and register them into OpenAEV agents and endpoints
    *
    * @param inputs from the API
    * @param existingAgents in the database
@@ -380,7 +370,7 @@ public class EndpointService {
                                     Arrays.asList(input.getMacAddresses()).contains(macAddress)))
                 .findFirst();
         if (optionalInputToSave.isPresent()) {
-          // If no existing agent Crowdstrike/SentinelOne in this endpoint, add to it
+          // If no existing agent in this endpoint, add to it
           if (existingAgents.stream()
               .noneMatch(agent -> agent.getAsset().getId().equals(endpointToUpdate.getId()))) {
             final AgentRegisterInput inputToSave = optionalInputToSave.get();
@@ -544,9 +534,12 @@ public class EndpointService {
 
   private void setUpdatedEndpointAttributes(Endpoint endpoint, AgentRegisterInput input) {
     // Hostname and arch not updated by Crowdstrike because Crowdstrike hostname is 15 length max
-    // and arch is hard coded
+    // and arch is hard coded for Crowdstrike and Palo Alto Cortex
     if (!CROWDSTRIKE_EXECUTOR_TYPE.equals(input.getExecutor().getType())) {
       endpoint.setHostname(input.getHostname());
+      endpoint.setArch(input.getArch());
+    }
+    if (!PALOALTOCORTEX_EXECUTOR_TYPE.equals(input.getExecutor().getType())) {
       endpoint.setArch(input.getArch());
     }
     endpoint.setIps(EndpointMapper.mergeAddressArrays(endpoint.getIps(), input.getIps()));
@@ -578,6 +571,8 @@ public class EndpointService {
   }
 
   private void setNewAgentAttributes(AgentRegisterInput input, Agent agent) {
+    // External reference needs to be the id for Crowdstrike and SentinelOne for the batch "execute
+    // scripts"
     if (CROWDSTRIKE_EXECUTOR_TYPE.equals(input.getExecutor().getType())
         || SENTINELONE_EXECUTOR_TYPE.equals(input.getExecutor().getType())) {
       agent.setId(input.getExternalReference());
@@ -796,5 +791,84 @@ public class EndpointService {
     return results.stream()
         .map(i -> new FilterUtilsJpa.Option((String) i[0], (String) i[1]))
         .toList();
+  }
+
+  /**
+   * Creates a new endpoint or updates an existing one based on the provided input.
+   *
+   * <p>If an endpoint matching the input is found (by external reference, hostname + IP, or
+   * hostname + MAC), it is updated with the new values. Otherwise, a new endpoint is created.
+   *
+   * @param input the endpoint input data
+   * @return the created or updated Endpoint entity
+   */
+  public Endpoint upsertEndpoint(EndpointInput input) {
+    Optional<Endpoint> endpoint = findExistingEndpoint(input);
+    if (endpoint.isPresent()) {
+      Endpoint endpointToUpdate = endpoint.get();
+      // Mandatory fields
+      endpointToUpdate.setName(input.getName());
+      Iterable<String> tags =
+          Stream.concat(
+                  endpointToUpdate.getTags().stream().map(Tag::getId).toList().stream(),
+                  input.getTagIds().stream())
+              .distinct()
+              .toList();
+      endpointToUpdate.setTags(iterableToSet(tagRepository.findAllById(tags)));
+      endpointToUpdate.setArch(input.getArch());
+      endpointToUpdate.setPlatform(input.getPlatform());
+      // Optional fields
+      if (input.getIps() != null) {
+        endpointToUpdate.setIps(EndpointMapper.setIps(input.getIps()));
+      }
+      if (input.getHostname() != null) {
+        endpointToUpdate.setHostname(input.getHostname());
+      }
+      if (input.getMacAddresses() != null) {
+        endpointToUpdate.setMacAddresses(input.getMacAddresses());
+      }
+      return updateEndpoint(endpointToUpdate);
+    }
+    return createEndpoint(input);
+  }
+
+  /**
+   * Attempts to find an existing endpoint matching the provided input.
+   *
+   * <p>The search is performed in the following order:
+   *
+   * <ol>
+   *   <li>By external reference
+   *   <li>By hostname and at least one IP address
+   *   <li>By hostname and at least one MAC address
+   * </ol>
+   *
+   * Returns the first match found, or {@code Optional.empty()} if no match exists.
+   *
+   * @param input the endpoint input data
+   * @return an Optional containing the found Endpoint, or empty if none found
+   */
+  public Optional<Endpoint> findExistingEndpoint(EndpointInput input) {
+    // 1. By external reference
+    if (input.getExternalReference() != null && !input.getExternalReference().isEmpty()) {
+      Optional<Endpoint> found = findEndpointByExternalReference(input.getExternalReference());
+      if (found.isPresent()) return found;
+    }
+
+    // 2. By hostname + at least one IP
+    if (input.getIps() != null) {
+      List<Endpoint> found =
+          findEndpointByHostnameAndAtLeastOneIp(input.getHostname(), input.getIps());
+      if (!found.isEmpty()) return Optional.of(found.getFirst());
+    }
+
+    // 3. By hostname + at least one MAC address
+    if (input.getMacAddresses() != null) {
+      List<Endpoint> found =
+          findEndpointByHostnameAndAtLeastOneMacAddress(
+              input.getHostname(), input.getMacAddresses());
+      if (!found.isEmpty()) return Optional.of(found.getFirst());
+    }
+    return Optional.empty();
   }
 }

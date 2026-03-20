@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.EsQueryable;
 import io.openaev.annotation.Indexable;
 import io.openaev.annotation.Queryable;
+import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.persistence.Column;
 import jakarta.persistence.JoinTable;
 import jakarta.validation.constraints.Email;
@@ -149,8 +150,17 @@ public class SchemaUtils {
 
   private static List<String> getEnumNames(Class<?> enumType) {
     return Arrays.stream(enumType.getEnumConstants())
+        .filter(
+            constant -> {
+              try {
+                Field enumField = enumType.getField(((Enum<?>) constant).name());
+                return !enumField.isAnnotationPresent(Hidden.class);
+              } catch (NoSuchFieldException e) {
+                return true;
+              }
+            })
         .map(Object::toString)
-        .collect(Collectors.toList());
+        .toList();
   }
 
   private static void processAnnotations(

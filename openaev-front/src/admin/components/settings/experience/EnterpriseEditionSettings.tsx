@@ -10,7 +10,7 @@ import ItemBoolean from '../../../../components/ItemBoolean';
 import { useHelper } from '../../../../store';
 import type { PlatformSettings, SettingsEnterpriseEditionUpdateInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { Can } from '../../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import EnterpriseEditionButton from '../../common/entreprise_edition/EnterpriseEditionButton';
 

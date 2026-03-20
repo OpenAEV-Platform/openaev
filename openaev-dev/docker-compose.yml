@@ -251,7 +251,7 @@ services:
       - MANAGER__CREDENTIALS_KEY_FILEPATH=/keys/private_key.pem
       - OPENAEV__ENABLE=true
       - OPENCTI__ENABLE=false
-      - OPENAEV__URL=http://localhost:8080
+      - OPENAEV__URL=${OPENAEV_URL:-http://localhost:8080}
       - OPENAEV__TOKEN=${OPENAEV_ADMIN_TOKEN}
       - OPENAEV__DAEMON__SELECTOR=docker
       # Workaround: pending https://github.com/FiligranHQ/xtm-composer/issues/64,

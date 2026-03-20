@@ -35,7 +35,23 @@ public class Endpoint extends Asset {
     @JsonProperty("arm64")
     arm64,
     @JsonProperty("Unknown")
-    Unknown,
+    Unknown;
+
+    /**
+     * Returns the PLATFORM_ARCH enum constant corresponding to the given string value. If the value
+     * is null or does not match any known architecture, returns Unknown.
+     *
+     * @param value the string representation of the platform architecture
+     * @return the corresponding PLATFORM_ARCH, or Unknown if not recognized
+     */
+    public static PLATFORM_ARCH fromString(String value) {
+      if (value == null) return Unknown;
+      return switch (value.toLowerCase()) {
+        case "x86_64" -> x86_64;
+        case "arm64", "aarch64" -> arm64;
+        default -> Unknown;
+      };
+    }
   }
 
   public enum PLATFORM_TYPE {
@@ -59,6 +75,22 @@ public class Endpoint extends Asset {
     /** Returns all enum constant names as strings. */
     public static List<String> getAllNamesAsStrings() {
       return Arrays.stream(values()).map(Enum::name).toList();
+    }
+
+    /**
+     * Returns the PLATFORM_TYPE enum constant corresponding to the given string value. If the value
+     * is null or does not match any known type, returns Unknown.
+     *
+     * @param value the string representation of the platform type
+     * @return the corresponding PLATFORM_TYPE, or Unknown if not recognized
+     */
+    public static PLATFORM_TYPE fromString(String value) {
+      if (value == null) return Unknown;
+      try {
+        return PLATFORM_TYPE.valueOf(value);
+      } catch (IllegalArgumentException e) {
+        return Unknown;
+      }
     }
 
     /**
