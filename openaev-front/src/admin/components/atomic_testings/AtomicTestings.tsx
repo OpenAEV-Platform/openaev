@@ -12,7 +12,7 @@ import { useFormatter } from '../../../components/i18n';
 import { type AtomicTestingInput, type InjectResultOverviewOutput } from '../../../utils/api-types';
 import { EndpointContext } from '../../../utils/context/endpoint/EndpointContext';
 import endpointContextForAtomicTesting from '../../../utils/context/endpoint/EndpointContextForAtomicTesting';
-import { Can } from '../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { TeamContext } from '../common/Context';
 import CreateInject from '../common/injects/CreateInject';

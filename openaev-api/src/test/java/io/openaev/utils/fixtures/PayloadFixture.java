@@ -7,7 +7,6 @@ import static io.openaev.database.model.Payload.PAYLOAD_STATUS.VERIFIED;
 
 import io.openaev.database.model.*;
 import io.openaev.injector_contract.fields.ContractFieldType;
-import io.openaev.utils.fixtures.composers.DomainComposer;
 import jakarta.annotation.Nullable;
 import java.util.*;
 
@@ -17,7 +16,6 @@ public class PayloadFixture {
   private static final Endpoint.PLATFORM_TYPE[] MACOS_PLATFORM = {Endpoint.PLATFORM_TYPE.MacOS};
   private static final Endpoint.PLATFORM_TYPE[] WINDOWS_PLATFORM = {Endpoint.PLATFORM_TYPE.Windows};
   public static final String COMMAND_PAYLOAD_NAME = "command payload";
-  private DomainComposer domainComposer;
 
   private static void initializeDefaultPayload(
       final Payload payload, final Endpoint.PLATFORM_TYPE[] platforms, Set<Domain> domains) {

@@ -1,38 +1,31 @@
 package io.openaev.rest.exercise.service;
 
-import static io.openaev.utils.InjectExpectationResultUtils.getResultDetail;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.database.model.*;
-import io.openaev.database.repository.*;
-import io.openaev.ee.EnterpriseEditionService;
-import io.openaev.expectation.ExpectationType;
-import io.openaev.rest.document.DocumentService;
-import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.exercise.form.ExercisesGlobalScoresInput;
-import io.openaev.rest.inject.service.InjectDuplicateService;
-import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.settings.PreviewFeature;
-import io.openaev.service.*;
-import io.openaev.service.chaining.WorkflowService;
-import io.openaev.service.period.CronService;
-import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
-import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
-import io.openaev.utils.ResultUtils;
-import io.openaev.utils.TargetType;
-import io.openaev.utils.fixtures.AssetGroupFixture;
-import io.openaev.utils.fixtures.ExerciseFixture;
-import io.openaev.utils.fixtures.ExpectationResultsByTypeFixture;
-import io.openaev.utils.fixtures.TagFixture;
-import io.openaev.utils.mapper.ExerciseMapper;
-import io.openaev.utils.mapper.InjectExpectationMapper;
-import io.openaev.utils.mapper.InjectMapper;
-import java.util.*;
+import io.openaev.database.model.Exercise;
+import io.openaev.database.model.Team;
+import io.openaev.database.model.User;
+import io.openaev.database.repository.ExerciseRepository;
+import io.openaev.database.repository.ExerciseTeamUserRepository;
+import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.LessonsCategoryRepository;
+import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.repository.UserRepository;
+import io.openaev.service.TeamService;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import io.openaev.database.model.Inject;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -47,32 +40,18 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class ExerciseServiceUnitTest {
 
   @Mock private EnterpriseEditionService enterpriseEditionService;
-  @Mock private InjectDuplicateService injectDuplicateService;
   @Mock private TeamService teamService;
-  @Mock private VariableService variableService;
   @Mock private TagRuleService tagRuleService;
-  @Mock private DocumentService documentService;
   @Mock private InjectService injectService;
-  @Mock private UserService userService;
 
-  @Mock private ExerciseMapper exerciseMapper;
-  @Mock private InjectMapper injectMapper;
   @Mock private ResultUtils resultUtils;
-  @Mock private ActionMetricCollector actionMetricCollector;
-  @Mock private LicenseCacheManager licenseCacheManager;
 
-  @Mock private AssetRepository assetRepository;
-  @Mock private AssetGroupRepository assetGroupRepository;
-  @Mock private InjectExpectationRepository injectExpectationRepository;
-  @Mock private ArticleRepository articleRepository;
   @Mock private ExerciseRepository exerciseRepository;
   @Mock private TeamRepository teamRepository;
   @Mock private UserRepository userRepository;
   @Mock private ExerciseTeamUserRepository exerciseTeamUserRepository;
   @Mock private InjectRepository injectRepository;
   @Mock private LessonsCategoryRepository lessonsCategoryRepository;
-  @Mock private CronService cronService;
-  @Mock private InjectExpectationMapper injectExpectationMapper;
 
   @Mock private WorkflowService workflowService;
   @Mock private LessonsService lessonsService;
@@ -379,7 +358,6 @@ class ExerciseServiceUnitTest {
       assertThrows(ElementNotFoundException.class, () -> mockedExerciseService.findById("id"));
     }
   }
-
   /* ============================================================
    * findAllById / save / delete
    * ============================================================ */
@@ -470,4 +448,102 @@ class ExerciseServiceUnitTest {
       verify(injectService).throwIfInjectNotLaunchable(inject2);
     }
   }
+
+  /* ============================================================
+   * replaceTeams
+   * ============================================================ */
+  @Nested
+  class ReplaceTeams {
+
+    @Test
+    void shouldFullyRemoveDeselectedTeamAndEnableOnlyNewTeams() {
+      String exerciseId = "exercise-123";
+
+      Team existingTeam1 = new Team();
+      existingTeam1.setId("team-1");
+      existingTeam1.setUsers(new ArrayList<>());
+
+      Team existingTeam2 = new Team();
+      existingTeam2.setId("team-2");
+      existingTeam2.setUsers(new ArrayList<>());
+
+      User newPlayer = new User();
+      newPlayer.setId("user-1");
+
+      Team newTeam = new Team();
+      newTeam.setId("team-3");
+      newTeam.setUsers(List.of(newPlayer));
+
+      Exercise exercise = new Exercise();
+      exercise.setId(exerciseId);
+      exercise.setTeams(new ArrayList<>(List.of(existingTeam1, existingTeam2)));
+
+      when(exerciseRepository.findById(exerciseId)).thenReturn(Optional.of(exercise));
+      when(teamRepository.findAllById(any()))
+          .thenAnswer(
+              invocation -> {
+                Iterable<String> ids = invocation.getArgument(0);
+                Map<String, Team> teamsById = Map.of("team-2", existingTeam2, "team-3", newTeam);
+                List<Team> result = new ArrayList<>();
+                ids.forEach(
+                    id -> {
+                      Team team = teamsById.get(id);
+                      if (team != null) {
+                        result.add(team);
+                      }
+                    });
+                return result;
+              });
+      when(userRepository.findById("user-1")).thenReturn(Optional.of(newPlayer));
+      when(exerciseTeamUserRepository.existsByExerciseIdAndTeamIdAndUserId(
+          exerciseId, "team-3", "user-1"))
+          .thenReturn(false);
+      when(teamService.find(any())).thenReturn(List.of());
+
+      mockedExerciseService.replaceTeams(exerciseId, List.of("team-2", "team-3", "team-3"));
+
+      verify(exerciseTeamUserRepository)
+          .deleteByExerciseIdAndTeamIds(
+              eq(exerciseId), argThat(ids -> ids.size() == 1 && ids.contains("team-1")));
+      verify(injectRepository)
+          .removeTeamsForExercise(
+              eq(exerciseId), argThat(ids -> ids.size() == 1 && ids.contains("team-1")));
+      verify(lessonsCategoryRepository)
+          .removeTeamsForExercise(
+              eq(exerciseId), argThat(ids -> ids.size() == 1 && ids.contains("team-1")));
+
+      verify(exerciseTeamUserRepository)
+          .existsByExerciseIdAndTeamIdAndUserId(exerciseId, "team-3", "user-1");
+      verify(exerciseTeamUserRepository, never())
+          .existsByExerciseIdAndTeamIdAndUserId(exerciseId, "team-2", "user-1");
+
+      assertEquals(2, exercise.getTeams().size());
+      assertTrue(exercise.getTeams().stream().anyMatch(team -> "team-2".equals(team.getId())));
+      assertTrue(exercise.getTeams().stream().anyMatch(team -> "team-3".equals(team.getId())));
+    }
+
+    @Test
+    void shouldNotCallCleanupWhenNoTeamIsRemoved() {
+      String exerciseId = "exercise-123";
+
+      Team existingTeam = new Team();
+      existingTeam.setId("team-1");
+      existingTeam.setUsers(new ArrayList<>());
+
+      Exercise exercise = new Exercise();
+      exercise.setId(exerciseId);
+      exercise.setTeams(new ArrayList<>(List.of(existingTeam)));
+
+      when(exerciseRepository.findById(exerciseId)).thenReturn(Optional.of(exercise));
+      when(teamRepository.findAllById(any())).thenReturn(List.of(existingTeam));
+      when(teamService.find(any())).thenReturn(List.of());
+
+      mockedExerciseService.replaceTeams(exerciseId, List.of("team-1"));
+
+      verify(exerciseTeamUserRepository, never()).deleteByExerciseIdAndTeamIds(any(), any());
+      verify(injectRepository, never()).removeTeamsForExercise(any(), any());
+      verify(lessonsCategoryRepository, never()).removeTeamsForExercise(any(), any());
+    }
+  }
+
 }

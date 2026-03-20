@@ -17,7 +17,7 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { useHelper } from '../../../../store';
-import { Can } from '../../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CreateDocument from './CreateDocument';
 import DocumentPopover from './DocumentPopover';
@@ -204,7 +204,7 @@ const Documents = () => {
                 fontSize: 12,
               }}
             >
-            &nbsp;
+              &nbsp;
             </span>
           </ListItemIcon>
           <ListItemText

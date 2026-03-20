@@ -353,4 +353,169 @@ class ScenarioTeamApiTest extends IntegrationTest {
                       scenarioTeams.stream().map(Team::getId).toArray(String[]::new))));
     }
   }
+
+  @DisplayName("replaceTeams - scoped cleanup and no cross-scenario side effects")
+  @Nested
+  @WithMockUser(isAdmin = true)
+  class ReplaceTeamsIntegration {
+
+    @Test
+    @DisplayName(
+        "Deselecting a team should remove its scenario-team-user links only for that scenario")
+    void deselectedTeamShouldRemoveLinksOnlyForCurrentScenario() throws Exception {
+      // -- PREPARE --
+      User userTom = userRepository.save(UserFixture.getUser("Tom", "RT1", "tom-rt1sc@fake.email"));
+
+      Team sharedTeam = new Team();
+      sharedTeam.setName("SharedTeam-SC-RT1");
+      sharedTeam.setUsers(List.of(userTom));
+      teamRepository.save(sharedTeam);
+
+      // scenarioA
+      Scenario scenarioA = getScenario();
+      scenarioA.setTeams(List.of(sharedTeam));
+      Scenario scenarioASaved = scenarioRepository.save(scenarioA);
+
+      ScenarioTeamUser linkA = new ScenarioTeamUser();
+      linkA.setScenario(scenarioASaved);
+      linkA.setTeam(sharedTeam);
+      linkA.setUser(userTom);
+      scenarioTeamUserRepository.save(linkA);
+
+      // scenarioB
+      Scenario scenarioB = getScenario();
+      scenarioB.setTeams(List.of(sharedTeam));
+      Scenario scenarioBSaved = scenarioRepository.save(scenarioB);
+
+      ScenarioTeamUser linkB = new ScenarioTeamUser();
+      linkB.setScenario(scenarioBSaved);
+      linkB.setTeam(sharedTeam);
+      linkB.setUser(userTom);
+      scenarioTeamUserRepository.save(linkB);
+
+      // -- ACT : We remove sharedTeam from scenarioA --
+      ScenarioUpdateTeamsInput input = new ScenarioUpdateTeamsInput();
+      input.setTeamIds(List.of());
+
+      mvc.perform(
+              put(SCENARIO_URI + "/" + scenarioASaved.getId() + "/teams/replace")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().is2xxSuccessful());
+
+      // -- ASSERT --
+      List<ScenarioTeamUser> linksA =
+          fromIterable(scenarioTeamUserRepository.findAll()).stream()
+              .filter(l -> l.getScenario().getId().equals(scenarioASaved.getId()))
+              .toList();
+      assertTrue(
+          linksA.isEmpty(),
+          "The scenario-team-user links of scenarioA must be deleted when the team is removed from scenarioA");
+
+      List<ScenarioTeamUser> linksB =
+          fromIterable(scenarioTeamUserRepository.findAll()).stream()
+              .filter(l -> l.getScenario().getId().equals(scenarioBSaved.getId()))
+              .toList();
+      assertEquals(
+          1,
+          linksB.size(),
+          "The scenario-team-user links of scenarioB must not be deleted when the team is removed from scenarioA");
+
+      Scenario scenarioAReloaded =
+          scenarioRepository.findById(scenarioASaved.getId()).orElseThrow();
+      assertTrue(scenarioAReloaded.getTeams().isEmpty());
+
+      Scenario scenarioBReloaded =
+          scenarioRepository.findById(scenarioBSaved.getId()).orElseThrow();
+      assertEquals(1, scenarioBReloaded.getTeams().size());
+    }
+
+    @Test
+    @DisplayName("Calling replaceTeams twice with same payload must not cause duplicate key error")
+    void callingReplaceTeamsTwiceShouldNotCauseDuplicateKey() throws Exception {
+      // -- PREPARE --
+      User userTom = userRepository.save(UserFixture.getUser("Tom", "RT2", "tom-rt2sc@fake.email"));
+
+      Team team = new Team();
+      team.setName("Team-SC-RT2");
+      team.setUsers(List.of(userTom));
+      teamRepository.save(team);
+
+      Scenario scenario = getScenario();
+      scenario.setTeams(List.of());
+      Scenario scenarioSaved = scenarioRepository.save(scenario);
+
+      ScenarioUpdateTeamsInput input = new ScenarioUpdateTeamsInput();
+      input.setTeamIds(List.of(team.getId()));
+
+      // -- ACT: two identical calls to replaceTeams with the same team list --
+      mvc.perform(
+              put(SCENARIO_URI + "/" + scenarioSaved.getId() + "/teams/replace")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().is2xxSuccessful());
+
+      mvc.perform(
+              put(SCENARIO_URI + "/" + scenarioSaved.getId() + "/teams/replace")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().is2xxSuccessful());
+
+      // -- ASSERT --
+      List<ScenarioTeamUser> links =
+          fromIterable(scenarioTeamUserRepository.findAll()).stream()
+              .filter(l -> l.getScenario().getId().equals(scenarioSaved.getId()))
+              .toList();
+      assertEquals(
+          1, links.size(), "Only one scenario-team-user link should exist for the team and user");
+      assertEquals(team.getId(), links.getFirst().getTeam().getId());
+      assertEquals(userTom.getId(), links.getFirst().getUser().getId());
+    }
+
+    @Test
+    @DisplayName("Replacing teams should update the scenario team list in database")
+    void replacingTeamsShouldPersistNewTeamListInDatabase() throws Exception {
+      // -- PREPARE --
+      Team teamToRemove = new Team();
+      teamToRemove.setName("TeamToRemove-SC-RT3");
+      teamRepository.save(teamToRemove);
+
+      Team teamToKeep = new Team();
+      teamToKeep.setName("TeamToKeep-SC-RT3");
+      teamRepository.save(teamToKeep);
+
+      Team teamToAdd = new Team();
+      teamToAdd.setName("TeamToAdd-SC-RT3");
+      teamRepository.save(teamToAdd);
+
+      Scenario scenario = getScenario();
+      scenario.setTeams(List.of(teamToRemove, teamToKeep));
+      Scenario scenarioSaved = scenarioRepository.save(scenario);
+
+      ScenarioUpdateTeamsInput input = new ScenarioUpdateTeamsInput();
+      input.setTeamIds(List.of(teamToKeep.getId(), teamToAdd.getId()));
+
+      // -- ACT --
+      mvc.perform(
+              put(SCENARIO_URI + "/" + scenarioSaved.getId() + "/teams/replace")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().is2xxSuccessful());
+
+      // -- ASSERT --
+      Scenario reloaded = scenarioRepository.findById(scenarioSaved.getId()).orElseThrow();
+      List<String> teamIds = reloaded.getTeams().stream().map(Team::getId).toList();
+
+      assertEquals(2, teamIds.size());
+      assertTrue(teamIds.contains(teamToKeep.getId()), "teamToKeep should still be present");
+      assertTrue(teamIds.contains(teamToAdd.getId()), "teamToAdd should be present");
+      assertFalse(
+          teamIds.contains(teamToRemove.getId()),
+          "teamToRemove should have been removed from the scenario");
+    }
+  }
 }

@@ -49,11 +49,11 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.stream.Stream;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -580,23 +580,23 @@ class InjectServiceTest {
     String injectorContractId = "injectorContractId";
     String injectorContractString =
         """
-  {
-    "fields": [
-      {
-      "type": "defaultValue1",
-      "key": "value1",
-      "defaultValue": ["defaultValue1"],
-       "cardinality":"1"
-      },
-      {
-      "type": "asset",
-      "key": "value2",
-      "defaultValue": ["defaultValue2"],
-      "cardinality":"1"
-      }
-    ]
-  }
-""";
+              {
+                "fields": [
+                  {
+                  "type": "defaultValue1",
+                  "key": "value1",
+                  "defaultValue": ["defaultValue1"],
+                   "cardinality":"1"
+                  },
+                  {
+                  "type": "asset",
+                  "key": "value2",
+                  "defaultValue": ["defaultValue2"],
+                  "cardinality":"1"
+                  }
+                ]
+              }
+            """;
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setId(injectorContractId);
     injectorContract.setContent(injectorContractString);

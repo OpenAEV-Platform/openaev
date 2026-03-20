@@ -2,7 +2,7 @@ import { useTheme } from '@mui/material/styles';
 import { type SyntheticEvent, useCallback, useContext, useEffect, useRef, useState } from 'react';
 
 import usePaginationState from '../../../../../components/common/queryable/pagination/usePaginationState';
-import { ErrorBoundary } from '../../../../../components/Error';
+import ErrorBoundary from '../../../../../components/ErrorBoundary';
 import Loader from '../../../../../components/Loader';
 import {
   type EsAttackPath,

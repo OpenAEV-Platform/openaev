@@ -11,7 +11,7 @@ import { emptyFilterGroup } from '../../../../components/common/queryable/filter
 import { useFormatter } from '../../../../components/i18n';
 import { type AssetGroup, type AssetGroupInput, type AssetGroupOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import EndpointsDialogAdding from '../endpoints/EndpointsDialogAdding';
 import AssetGroupForm from './AssetGroupForm';
