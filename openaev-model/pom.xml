@@ -14,7 +14,7 @@
     <description>OpenAEV model</description>
 
     <properties>
-        <elasticsearch.version>8.19.12</elasticsearch.version>
+        <elasticsearch.version>8.19.13</elasticsearch.version>
         <opensearch.version>3.7.0</opensearch.version>
     </properties>
 
