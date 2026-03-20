@@ -1,8 +1,9 @@
 import { CheckOutlined } from '@mui/icons-material';
-import { Autocomplete, Box, CircularProgress, TextField, Typography } from '@mui/material';
+import { Autocomplete, Box, TextField, Typography } from '@mui/material';
 import { type FunctionComponent, useCallback, useState } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
+import Loader from '../../../components/Loader';
 import type { TenantOutput } from '../../../utils/api-types';
 import { MESSAGING$ } from '../../../utils/Environment';
 import useAuth from '../../../utils/hooks/useAuth';
@@ -66,7 +67,7 @@ const TenantSwitcher: FunctionComponent = () => {
               sx: theme => ({ backgroundColor: theme.palette.background.paper }),
               endAdornment: (
                 <>
-                  {switching ? <CircularProgress size={16} /> : null}
+                  {switching ? <Loader variant="inElement" size="xs" /> : null}
                   {params.InputProps.endAdornment}
                 </>
               ),
@@ -90,9 +91,19 @@ const TenantSwitcher: FunctionComponent = () => {
                 flex: 1,
               }}
               >
-                <Typography noWrap>{option.tenant_name}</Typography>
+                <Typography noWrap sx={{ textOverflow: 'ellipsis' }}>{option.tenant_name}</Typography>
                 {option.tenant_description && (
-                  <Typography variant="caption" color="text.secondary" noWrap>{option.tenant_description}</Typography>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    noWrap
+                    sx={{
+                      display: 'block',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {option.tenant_description}
+                  </Typography>
                 )}
               </Box>
               {selected && (

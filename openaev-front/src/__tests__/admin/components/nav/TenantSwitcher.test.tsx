@@ -25,7 +25,7 @@ const TENANT_BETA: TenantOutput = {
 const TENANT_LONG_NAME: TenantOutput = {
   tenant_id: 'tenant-long-id',
   tenant_name: 'A Very Long Tenant Name That Should Be Truncated With Ellipsis In The UI',
-  tenant_description: 'Testing overflow',
+  tenant_description: 'An equally long description that should also be truncated with an ellipsis when it overflows',
 };
 
 // -- HELPERS --
@@ -246,6 +246,23 @@ describe('TenantSwitcher', () => {
 
       const combobox = screen.getByRole('combobox') as HTMLInputElement;
       expect(combobox.value).toBe(TENANT_LONG_NAME.tenant_name);
+    });
+
+    it('applies ellipsis on long tenant name and description in dropdown options', () => {
+      renderTenantSwitcher({
+        userTenants: [TENANT_LONG_NAME],
+        currentUserTenant: TENANT_LONG_NAME,
+      });
+
+      openDropdown();
+
+      const nameElement = screen.getByText(TENANT_LONG_NAME.tenant_name);
+      expect(nameElement.classList.toString()).toContain('MuiTypography-noWrap');
+      expect(nameElement.style.textOverflow || window.getComputedStyle(nameElement).textOverflow).toBeDefined();
+
+      const descriptionElement = screen.getByText(TENANT_LONG_NAME.tenant_description!);
+      expect(descriptionElement.classList.toString()).toContain('MuiTypography-noWrap');
+      expect(descriptionElement.style.textOverflow || window.getComputedStyle(descriptionElement).textOverflow).toBeDefined();
     });
   });
 });
