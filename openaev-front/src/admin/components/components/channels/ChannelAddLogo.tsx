@@ -6,7 +6,7 @@ import FileTransferDialog from '../../../../components/fields/FileTransferDialog
 import { useFormatter } from '../../../../components/i18n';
 import { type RawDocument } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { Can } from '../../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 
 interface Props { handleAddLogo: (documentId: string) => void }

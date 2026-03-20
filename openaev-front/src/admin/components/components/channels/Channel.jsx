@@ -9,7 +9,7 @@ import { fetchDocumentsChannels, updateChannel, updateChannelLogos } from '../..
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { AbilityContext, Can } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import ChannelAddLogo from './ChannelAddLogo';
 import ChannelOverviewMicroblogging from './ChannelOverviewMicroblogging';

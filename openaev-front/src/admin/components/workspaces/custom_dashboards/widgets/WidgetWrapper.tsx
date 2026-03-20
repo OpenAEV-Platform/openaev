@@ -1,7 +1,7 @@
 import { useTheme } from '@mui/material/styles';
 import { type SyntheticEvent, useContext, useEffect, useRef, useState } from 'react';
 
-import { ErrorBoundary } from '../../../../../components/Error';
+import ErrorBoundary from '../../../../../components/ErrorBoundary';
 import Loader from '../../../../../components/Loader';
 import {
   type EsAttackPath,

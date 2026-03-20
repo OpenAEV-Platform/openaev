@@ -639,10 +639,10 @@ public class ScenarioService {
   @Transactional(rollbackFor = Exception.class)
   public Iterable<TeamOutput> removeTeams(
       @NotBlank final String scenarioId, @NotNull final List<String> teamIds) {
-    // Remove teams from exercise
+    // Remove teams from scenario
     this.scenarioRepository.removeTeams(scenarioId, teamIds);
-    // Remove all association between users / exercises / teams
-    this.scenarioTeamUserRepository.deleteTeamFromAllReferences(teamIds);
+    // Remove only associations for this scenario
+    this.scenarioTeamUserRepository.deleteByScenarioIdAndTeamIds(scenarioId, teamIds);
     // Remove all association between injects and teams
     this.injectRepository.removeTeamsForScenario(scenarioId, teamIds);
     // Remove all association between lessons learned and teams
@@ -650,17 +650,30 @@ public class ScenarioService {
     return teamService.find(fromIds(teamIds));
   }
 
+  @Transactional(rollbackFor = Exception.class)
   public List<TeamOutput> replaceTeams(
       @NotBlank final String scenarioId, @NotNull final List<String> teamIds) {
     Scenario scenario = this.scenario(scenarioId);
-    List<String> previousTeamList = scenario.getTeams().stream().map(Team::getId).toList();
+    Set<String> previousTeamIds =
+        scenario.getTeams().stream().map(Team::getId).collect(Collectors.toSet());
+    Set<String> targetTeamIds = new LinkedHashSet<>(teamIds);
 
-    // Replace teams from exercise
-    List<Team> teams = fromIterable(this.teamRepository.findAllById(teamIds));
+    Set<String> removedTeamIds = new HashSet<>(previousTeamIds);
+    removedTeamIds.removeAll(targetTeamIds);
+    if (!removedTeamIds.isEmpty()) {
+      List<String> removedTeamIdsList = new ArrayList<>(removedTeamIds);
+      this.scenarioTeamUserRepository.deleteByScenarioIdAndTeamIds(scenarioId, removedTeamIdsList);
+      this.injectRepository.removeTeamsForScenario(scenarioId, removedTeamIdsList);
+      this.lessonsCategoryRepository.removeTeamsForScenario(scenarioId, removedTeamIdsList);
+    }
+
+    // Replace teams from a scenario
+    List<Team> teams = fromIterable(this.teamRepository.findAllById(targetTeamIds));
     scenario.setTeams(teams);
+    this.scenarioRepository.save(scenario);
 
     List<String> teamIdsAdded =
-        teamIds.stream().filter(id -> !previousTeamList.contains(id)).toList();
+        targetTeamIds.stream().filter(id -> !previousTeamIds.contains(id)).toList();
 
     List<Team> teamsAdded = fromIterable(this.teamRepository.findAllById(teamIdsAdded));
 
@@ -673,7 +686,7 @@ public class ScenarioService {
 
     // You must return all the modified teams to ensure the frontend store updates correctly
     List<String> modifiedTeamIds =
-        Stream.concat(previousTeamList.stream(), teams.stream().map(Team::getId))
+        Stream.concat(previousTeamIds.stream(), teams.stream().map(Team::getId))
             .distinct()
             .toList();
     return teamService.find(fromIds(modifiedTeamIds));
@@ -705,6 +718,12 @@ public class ScenarioService {
     Scenario scenario = this.scenario(scenarioId);
     playerIds.forEach(
         playerId -> {
+          boolean alreadyLinked =
+              this.scenarioTeamUserRepository.existsByScenarioIdAndTeamIdAndUserId(
+                  scenarioId, team.getId(), playerId);
+          if (alreadyLinked) {
+            return;
+          }
           ScenarioTeamUser scenarioTeamUser = new ScenarioTeamUser();
           scenarioTeamUser.setScenario(scenario);
           scenarioTeamUser.setTeam(team);

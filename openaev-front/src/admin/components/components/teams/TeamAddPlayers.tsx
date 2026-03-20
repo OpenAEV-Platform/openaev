@@ -30,7 +30,7 @@ import { type Organization, type Team, type User } from '../../../../utils/api-t
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { type Option } from '../../../../utils/Option';
-import { Can } from '../../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { resolveUserName, truncate } from '../../../../utils/String';
 import { TeamContext } from '../../common/Context';

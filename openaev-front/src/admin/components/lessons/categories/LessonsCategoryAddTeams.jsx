@@ -23,7 +23,7 @@ import Transition from '../../../../components/common/Transition';
 import inject18n from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import SearchFilter from '../../../../components/SearchFilter';
-import { Can } from '../../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { truncate } from '../../../../utils/String';
 import TagsFilter from '../../common/filters/TagsFilter';
