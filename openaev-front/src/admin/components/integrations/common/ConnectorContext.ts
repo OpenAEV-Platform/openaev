@@ -21,7 +21,7 @@ export interface ConnectorOutput {
   catalog?: CatalogConnectorSimpleOutput;
   updatedAt?: string;
   isVerified: boolean;
-  currentStatus?: ConnectorInstanceOutput['connector_instance_current_status'];
+  connectorInstance?: ConnectorInstanceOutput;
   isExternal?: boolean;
   isExisting?: boolean;
 }
@@ -63,7 +63,7 @@ export const injectorConfig: ConnectorContextType<InjectorOutput> = {
     catalog: data?.catalog,
     updatedAt: data?.injector_updated_at,
     isVerified: data?.is_verified ?? false,
-    currentStatus: data?.current_status,
+    connectorInstance: data?.connector_instance,
     isExternal: data?.injector_external,
     isExisting: data?.existing_injector,
   }),
@@ -84,7 +84,7 @@ export const collectorConfig: ConnectorContextType<CollectorOutput & Collector> 
     catalog: data?.catalog,
     updatedAt: data?.collector_last_execution || data?.collector_updated_at,
     isVerified: data?.is_verified ?? false,
-    currentStatus: data?.current_status,
+    connectorInstance: data?.connector_instance,
     isExternal: data?.collector_external,
     isExisting: data?.existing_collector,
   }),
@@ -113,7 +113,7 @@ export const executorConfig: ConnectorContextType<ExecutorOutput> = {
     catalog: data?.catalog,
     updatedAt: data?.executor_updated_at,
     isVerified: data?.is_verified ?? false,
-    currentStatus: data?.current_status,
+    connectorInstance: data?.connector_instance,
     isExisting: data?.existing_executor,
   }),
 };

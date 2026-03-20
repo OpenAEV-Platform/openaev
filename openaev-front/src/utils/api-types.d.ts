@@ -541,7 +541,6 @@ interface BasePayload {
   payload_attack_patterns?: string[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
-  payload_collector?: string;
   payload_collector_type?: string;
   /** @format date-time */
   payload_created_at: string;
@@ -1013,7 +1012,7 @@ export interface CollectorOutput {
   collector_name: string;
   /** @minLength 1 */
   collector_type: string;
-  current_status?: "started" | "stopped";
+  connector_instance?: ConnectorInstanceOutput;
   existing_collector?: boolean;
   is_verified?: boolean;
 }
@@ -1073,7 +1072,6 @@ export interface Command {
   payload_attack_patterns?: string[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
-  payload_collector?: string;
   payload_collector_type?: string;
   /** @format date-time */
   payload_created_at: string;
@@ -1730,7 +1728,6 @@ export interface DnsResolution {
   payload_attack_patterns?: string[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
-  payload_collector?: string;
   payload_collector_type?: string;
   /** @format date-time */
   payload_created_at: string;
@@ -2566,7 +2563,6 @@ export interface Executable {
   payload_attack_patterns?: string[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
-  payload_collector?: string;
   payload_collector_type?: string;
   /** @format date-time */
   payload_created_at: string;
@@ -2725,7 +2721,7 @@ export interface ExecutorCreateInput {
 export interface ExecutorOutput {
   /** Catalog simple output */
   catalog?: CatalogConnectorSimpleOutput;
-  current_status?: "started" | "stopped";
+  connector_instance?: ConnectorInstanceOutput;
   executor_background_color?: string;
   executor_doc?: string;
   /**
@@ -2968,7 +2964,6 @@ export interface FileDrop {
   payload_attack_patterns?: string[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
-  payload_collector?: string;
   payload_collector_type?: string;
   /** @format date-time */
   payload_created_at: string;
@@ -3332,6 +3327,7 @@ export interface Inject {
   inject_expectations?: string[];
   /** @minLength 1 */
   inject_id: string;
+  inject_injector?: string;
   inject_injector_contract?: InjectorContract;
   inject_kill_chain_phases?: KillChainPhase[];
   inject_scenario?: string;
@@ -3673,6 +3669,7 @@ export interface InjectInput {
   inject_description?: string;
   inject_documents?: InjectDocumentInput[];
   inject_enabled?: boolean;
+  inject_injector?: string;
   inject_injector_contract?: string;
   inject_tags?: string[];
   inject_teams?: string[];
@@ -4224,7 +4221,7 @@ export interface InjectorCreateInput {
 export interface InjectorOutput {
   /** Catalog simple output */
   catalog?: CatalogConnectorSimpleOutput;
-  current_status?: "started" | "stopped";
+  connector_instance?: ConnectorInstanceOutput;
   existing_injector?: boolean;
   injector_external?: boolean;
   /**
@@ -4699,7 +4696,6 @@ export interface NetworkTraffic {
   payload_attack_patterns?: string[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
-  payload_collector?: string;
   payload_collector_type?: string;
   /** @format date-time */
   payload_created_at: string;

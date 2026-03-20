@@ -2,10 +2,8 @@ package io.openaev.executors.paloaltocortex.service;
 
 import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_TYPE;
 
-import io.openaev.database.model.Agent;
-import io.openaev.database.model.AssetGroup;
-import io.openaev.database.model.Endpoint;
-import io.openaev.database.model.Executor;
+import com.google.common.annotations.VisibleForTesting;
+import io.openaev.database.model.*;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.executors.paloaltocortex.client.PaloAltoCortexExecutorClient;
 import io.openaev.executors.paloaltocortex.config.PaloAltoCortexExecutorConfig;
@@ -27,8 +25,7 @@ public class PaloAltoCortexExecutorService implements Runnable {
   private final EndpointService endpointService;
   private final AgentService agentService;
   private final AssetGroupService assetGroupService;
-
-  private Executor executor = null;
+  private Executor executor;
 
   public static Endpoint.PLATFORM_TYPE toPlatform(@NotBlank final String platform) {
     return switch (platform.toLowerCase()) {
@@ -54,6 +51,7 @@ public class PaloAltoCortexExecutorService implements Runnable {
     this.assetGroupService = assetGroupService;
   }
 
+  // TODO multi-tenancy: Multi executors dev
   @Override
   public void run() {
     log.info("Running Palo Alto Cortex executor endpoints gathering...");
@@ -63,13 +61,14 @@ public class PaloAltoCortexExecutorService implements Runnable {
       if (!paloAltoCortexEndpoints.isEmpty()) {
         Optional<AssetGroup> existingAssetGroup =
             assetGroupService.findByExternalReference(
-                PALOALTOCORTEX_EXECUTOR_TYPE + "_" + groupName);
+                PALOALTOCORTEX_EXECUTOR_TYPE + "_" + groupName, executor.getTenant().getId());
         AssetGroup assetGroup;
         if (existingAssetGroup.isPresent()) {
           assetGroup = existingAssetGroup.get();
         } else {
           assetGroup = new AssetGroup();
           assetGroup.setExternalReference(PALOALTOCORTEX_EXECUTOR_TYPE + "_" + groupName);
+          assetGroup.setTenant(executor.getTenant());
         }
         assetGroup.setName(groupName);
         log.info(
@@ -80,7 +79,8 @@ public class PaloAltoCortexExecutorService implements Runnable {
         List<Agent> agents =
             endpointService.syncAgentsEndpoints(
                 toAgentEndpoint(paloAltoCortexEndpoints),
-                agentService.getAgentsByExecutorType(PALOALTOCORTEX_EXECUTOR_TYPE));
+                agentService.getAgentsByExecutorType(
+                    PALOALTOCORTEX_EXECUTOR_TYPE, executor.getTenant().getId()));
         assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
         assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
       }
@@ -111,5 +111,10 @@ public class PaloAltoCortexExecutorService implements Runnable {
               return input;
             })
         .collect(Collectors.toList());
+  }
+
+  @VisibleForTesting
+  protected void setExecutor(Executor executor) {
+    this.executor = executor;
   }
 }

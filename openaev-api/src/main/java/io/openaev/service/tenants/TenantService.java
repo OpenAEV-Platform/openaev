@@ -5,6 +5,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.multitenancy.DependenciesManager;
+import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
@@ -24,16 +25,14 @@ public class TenantService {
 
   // -- CREATE --
 
-  public Tenant create(Tenant tenant) throws Exception {
+  public Tenant create(Tenant tenant) throws DependenciesManagerException {
     Objects.requireNonNull(tenant, "tenant must not be null");
     Objects.requireNonNull(tenant.getName(), "tenant name must not be null");
 
     Tenant createdTenant = tenantRepository.save(tenant);
-
-    for (DependenciesManager dependenciesManager : dependencies) {
-      dependenciesManager.createDependencyForTenant(createdTenant.getId());
+    for (DependenciesManager dependency : dependencies) {
+      dependency.createDependencyForTenant(createdTenant.getId());
     }
-
     return createdTenant;
   }
 
@@ -61,12 +60,9 @@ public class TenantService {
 
   // -- DELETE --
 
-  public void delete(String tenantId) throws Exception {
-    if (!tenantRepository.existsById(tenantId)) {
-      throw new EntityNotFoundException("Tenant not found: " + tenantId);
-    }
-    for (DependenciesManager dependenciesManager : dependencies) {
-      dependenciesManager.deleteDependencyForTenant(tenantId);
+  public void delete(String tenantId) throws DependenciesManagerException {
+    for (DependenciesManager dependency : dependencies) {
+      dependency.deleteDependencyForTenant(tenantId);
     }
     tenantRepository.deleteByIdNative(tenantId);
   }

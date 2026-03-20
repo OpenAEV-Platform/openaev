@@ -2,6 +2,7 @@ package io.openaev.executors.crowdstrike.service;
 
 import static io.openaev.utils.time.TimeUtils.toInstant;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.openaev.database.model.*;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
@@ -28,8 +29,7 @@ public class CrowdStrikeExecutorService implements Runnable {
   private final EndpointService endpointService;
   private final AgentService agentService;
   private final AssetGroupService assetGroupService;
-
-  private Executor executor = null;
+  private Executor executor;
 
   public static Endpoint.PLATFORM_TYPE toPlatform(@NotBlank final String platform) {
     return switch (platform) {
@@ -63,6 +63,7 @@ public class CrowdStrikeExecutorService implements Runnable {
     this.executor = executor;
   }
 
+  // TODO multi-tenancy: Multi executors dev
   @Override
   public void run() {
     log.info("Running CrowdStrike executor endpoints gathering...");
@@ -79,13 +80,14 @@ public class CrowdStrikeExecutorService implements Runnable {
       List<CrowdStrikeDevice> devices = this.client.devices(hostGroup);
       if (!devices.isEmpty()) {
         Optional<AssetGroup> existingAssetGroup =
-            assetGroupService.findByExternalReference(hostGroup);
+            assetGroupService.findByExternalReference(hostGroup, executor.getTenant().getId());
         AssetGroup assetGroup;
         if (existingAssetGroup.isPresent()) {
           assetGroup = existingAssetGroup.get();
         } else {
           assetGroup = new AssetGroup();
           assetGroup.setExternalReference(hostGroup);
+          assetGroup.setTenant(executor.getTenant());
         }
         crowdStrikeHostGroup = crowdStrikeResourceGroup.getResources().getFirst();
         assetGroup.setName(crowdStrikeHostGroup.getName());
@@ -99,7 +101,8 @@ public class CrowdStrikeExecutorService implements Runnable {
             endpointService.syncAgentsEndpoints(
                 toAgentEndpoint(devices),
                 agentService.getAgentsByExecutorType(
-                    CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE));
+                    CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE,
+                    executor.getTenant().getId()));
         assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
         assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
       }
@@ -159,5 +162,10 @@ public class CrowdStrikeExecutorService implements Runnable {
               return input;
             })
         .collect(Collectors.toList());
+  }
+
+  @VisibleForTesting
+  protected void setExecutor(Executor executor) {
+    this.executor = executor;
   }
 }

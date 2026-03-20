@@ -3,16 +3,13 @@ package io.openaev.rest.user;
 import static io.openaev.utils.JpaUtils.createJoinArrayAggOnId;
 import static io.openaev.utils.JpaUtils.createLeftJoin;
 
+import io.openaev.database.model.Organization;
 import io.openaev.database.model.User;
 import io.openaev.rest.user.form.player.PlayerOutput;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
-import jakarta.persistence.criteria.Expression;
-import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.*;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,8 +22,7 @@ public class PlayerQueryHelper {
   public static void select(CriteriaBuilder cb, CriteriaQuery<Tuple> cq, Root<User> userRoot) {
     // Array aggregations
     Expression<String[]> tagIdsExpression = createJoinArrayAggOnId(cb, userRoot, "tags");
-    Expression<String[]> organizationIdExpression =
-        createLeftJoin(userRoot, "organization").get("id");
+    Join<User, Organization> organizationJoin = createLeftJoin(userRoot, "organization");
 
     // Multiselect
     cq.multiselect(
@@ -38,12 +34,12 @@ public class PlayerQueryHelper {
             userRoot.get("phone").alias("user_phone"),
             userRoot.get("phone2").alias("user_phone2"),
             userRoot.get("pgpKey").alias("user_pgp_key"),
-            organizationIdExpression.alias("user_organization"),
+            organizationJoin.get("id").alias("user_organization"),
             tagIdsExpression.alias("user_tags"))
         .distinct(true);
 
     // Group by
-    cq.groupBy(Collections.singletonList(userRoot.get("id")));
+    cq.groupBy(userRoot.get("id"), organizationJoin.get("id"));
   }
 
   // -- EXECUTION --

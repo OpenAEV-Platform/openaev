@@ -6,7 +6,7 @@
     <parent>
         <groupId>io.openaev</groupId>
         <artifactId>openaev-platform</artifactId>
-        <version>2.2.1</version>
+        <version>2.3.0</version>
     </parent>
 
     <artifactId>openaev-model</artifactId>
@@ -14,8 +14,8 @@
     <description>OpenAEV model</description>
 
     <properties>
-        <elasticsearch.version>8.19.11</elasticsearch.version>
-        <opensearch.version>3.4.0</opensearch.version>
+        <elasticsearch.version>8.19.12</elasticsearch.version>
+        <opensearch.version>3.7.0</opensearch.version>
     </properties>
 
     <dependencies>
@@ -108,12 +108,12 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>apache-client</artifactId>
-            <version>2.42.3</version>
+            <version>2.42.9</version>
         </dependency>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>regions</artifactId>
-            <version>2.42.3</version>
+            <version>2.42.9</version>
         </dependency>
         <dependency>
             <groupId>io.swagger.core.v3</groupId>

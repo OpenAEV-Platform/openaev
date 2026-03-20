@@ -2,10 +2,10 @@ package io.openaev.rest.payload;
 
 import static java.time.Instant.now;
 
-import io.openaev.database.model.Collector;
+import io.openaev.database.model.CollectorType;
 import io.openaev.database.model.DetectionRemediation;
 import io.openaev.database.model.Payload;
-import io.openaev.database.repository.CollectorRepository;
+import io.openaev.database.repository.CollectorTypeRepository;
 import io.openaev.rest.payload.form.DetectionRemediationInput;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class DetectionRemediationUtils {
 
-  private final CollectorRepository collectorRepository;
+  private final CollectorTypeRepository collectorTypeRepository;
 
   public <T> void copy(List<T> detectionRemediations, Payload target, boolean copyId) {
     if (detectionRemediations == null) {
@@ -58,8 +58,9 @@ public class DetectionRemediationUtils {
       boolean copyId) {
     BeanUtils.copyProperties(input, newDetectionRemediation, "id");
 
-    Collector collector = collectorRepository.findByType(input.getCollectorType()).orElseThrow();
-    newDetectionRemediation.setCollector(collector);
+    CollectorType collectorType =
+        collectorTypeRepository.findByName(input.getCollectorType()).orElseThrow();
+    newDetectionRemediation.setCollectorType(collectorType);
 
     if (copyId) {
       newDetectionRemediation.setId(input.getId());
@@ -70,7 +71,7 @@ public class DetectionRemediationUtils {
       DetectionRemediation origin, DetectionRemediation newDetectionRemediation, boolean copyId) {
     BeanUtils.copyProperties(origin, newDetectionRemediation, "id");
 
-    newDetectionRemediation.setCollector(origin.getCollector());
+    newDetectionRemediation.setCollectorType(origin.getCollectorType());
 
     if (copyId) {
       newDetectionRemediation.setId(origin.getId());

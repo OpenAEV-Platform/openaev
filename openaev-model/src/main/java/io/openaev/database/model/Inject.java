@@ -176,6 +176,15 @@ public class Inject implements GrantableBase, Injection, TenantBase {
 
   @Getter
   @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "inject_injector")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
+  @JsonProperty("inject_injector")
+  @Schema(type = "string")
+  private Injector injector;
+
+  @Getter
+  @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "inject_user")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonDeserialize(using = MonoIdDeserializerHelper.class)

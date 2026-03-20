@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Agent;
 import io.openaev.executors.tanium.config.TaniumExecutorConfig;
 import io.openaev.executors.tanium.model.TaniumAction;
@@ -33,7 +34,9 @@ public class TaniumGarbageCollectorServiceTest {
     // Init datas
     Agent agent = AgentFixture.createDefaultAgentService();
     agent.setAsset(EndpointFixture.createEndpoint());
-    when(agentService.getAgentsByExecutorType(TANIUM_EXECUTOR_TYPE)).thenReturn(List.of(agent));
+    when(agentService.getAgentsByExecutorType(
+            TANIUM_EXECUTOR_TYPE, TenantContext.getCurrentTenant()))
+        .thenReturn(List.of(agent));
     when(config.getWindowsPackageId()).thenReturn(12345);
     // Run method to test
     taniumGarbageCollectorService.run();

@@ -960,7 +960,9 @@ public class InjectExpectationService {
       }
 
       for (InjectExpectationResult expectationResult : expectation.getResults()) {
-        if (!notCopiedSourceTypes.contains(expectationResult.getSourceType())) {
+        if (!notCopiedSourceTypes.contains(expectationResult.getSourceType())
+            && expectationResult.getResult() != null
+            && expectationResult.getScore() != null) {
           electedExpectations
               .get(expectation.getType())
               .setResults(
@@ -1116,22 +1118,63 @@ public class InjectExpectationService {
     }
 
     if (!injectExpectations.isEmpty()) {
-      setupExpectationResults(injectExpectations);
+      setupDefaultExpectationResults(injectExpectations);
       injectExpectationRepository.saveAll(injectExpectations);
     }
   }
 
   /**
-   * Sets up initial results for detection and prevention expectations from security platform
-   * collectors.
+   * Initializes the result field for each injectExpectation in the given list.
    *
-   * @param injectExpectations the list of expectations to set up
+   * <p>Correct initialization is critical: a simulation is considered finished when all
+   * InjectExpectation.results.result entries have a non-null result value.
+   *
+   * <p>For technical expectations (PREVENTION, DETECTION, VULNERABILITY), results are only set when
+   * an agent is assigned
+   *
+   * <p>So in this function for all expected result we will set injectExpectation.results[*].result
+   * = null
+   *
+   * @param injectExpectations the list of expectations to initialize
    */
-  private void setupExpectationResults(@NotNull final List<InjectExpectation> injectExpectations) {
+  private void setupDefaultExpectationResults(
+      @NotNull final List<InjectExpectation> injectExpectations) {
     List<Collector> collectors = collectorService.securityPlatformCollectors();
-    injectExpectations.stream()
-        .filter(ie -> List.of(PREVENTION, DETECTION).contains(ie.getType()))
-        .forEach(
-            injectExpectation -> injectExpectation.setResults(setUpFromCollectors(collectors)));
+
+    injectExpectations.forEach(
+        ie -> {
+          switch (ie.getType()) {
+            case PREVENTION, DETECTION -> {
+              if (ie.getAgent() != null) {
+                ie.setResults(setUpFromCollectors(collectors));
+              }
+            }
+            case VULNERABILITY -> {
+              if (ie.getAgent() != null) {
+                ie.setResults(List.of(buildDefaultForVulnerabilityManagerInFailed()));
+              }
+            }
+            case MANUAL -> {
+              if (ie.getUser() != null) {
+                ie.setResults(List.of(buildDefaultForPlayerManualValidation()));
+              }
+            }
+            // TODO : The UI needs to be fixed: when the score and result are initialized to null,
+            // the user can no longer validate the flag.
+            // the user can not validate the flag anymore
+            //                case CHALLENGE -> {
+            //                  if (ie.getUser() != null) {
+            //
+            // ie.setResults(List.of(ChallengeExpectationUtils.buildDefaultChallengeInjectExpectationResult()));
+            //                  }
+            //                }
+            case ARTICLE -> {
+              if (ie.getUser() != null) {
+                ie.setResults(List.of(buildDefaultForMediaPressure()));
+              }
+            }
+            default -> {}
+          }
+        });
   }
 }

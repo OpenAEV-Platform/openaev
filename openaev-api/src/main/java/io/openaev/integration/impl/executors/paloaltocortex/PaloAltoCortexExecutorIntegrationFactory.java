@@ -93,8 +93,8 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
     connector.setLogoUrl(logoFilename);
     connector.setDescription(
         """
-                    With Palo Alto Cortex executor register your asset in OpenAEV and enable execution of OpenAEV scenarios through your Palo Alto Cortex instance.
-                    """);
+        With Palo Alto Cortex executor register your asset in OpenAEV and enable execution of OpenAEV scenarios through your Palo Alto Cortex instance.
+        """);
     connector.setShortDescription(
         "Enable execution of OpenAEV scenarios through your Palo Alto Cortex instance.");
     connector.setClassName(getClassName());

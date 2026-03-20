@@ -12,6 +12,7 @@ import io.openaev.database.model.InjectExpectationResult;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.service.InjectExpectationUtils;
+import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -50,7 +51,10 @@ public final class ExpectationResultBuilder {
   public static final String TEAM_MANUAL_VALIDATION_SOURCE_ID = "team-manual-validation";
   public static final String TEAM_MANUAL_VALIDATION_SOURCE_TYPE = "team-manual-validation";
   public static final String TEAM_MANUAL_VALIDATION_SOURCE_NAME = "Team Manual Validation";
+
   private static final String NOT_APPLICABLE = null;
+  private static final String NO_RESULT = null;
+  private static final Double NO_SCORE = null;
 
   // -- SCORE --
 
@@ -174,29 +178,51 @@ public final class ExpectationResultBuilder {
     expectation.setScore(score);
   }
 
-  public static InjectExpectationResult buildForMediaPressure(
-      @NotNull final InjectExpectation injectExpectation) {
+  private static InjectExpectationResult buildForMediaPressure(
+      @Nullable final String result, @Nullable final Double score) {
     return InjectExpectationResult.builder()
         .sourceId(MEDIA_PRESSURE_SOURCE_ID)
         .sourceType(MEDIA_PRESSURE_SOURCE_TYPE)
         .sourceName(MEDIA_PRESSURE_SOURCE_NAME)
         .sourcePlatform(NOT_APPLICABLE)
-        .result(Instant.now().toString())
+        .result(result)
         .date(Instant.now().toString())
-        .score(injectExpectation.getExpectedScore())
+        .score(score)
         .build();
   }
 
-  public static InjectExpectationResult buildForVulnerabilityManager() {
+  public static InjectExpectationResult buildForMediaPressure(
+      @NotNull final InjectExpectation injectExpectation) {
+    return buildForMediaPressure(Instant.now().toString(), injectExpectation.getExpectedScore());
+  }
+
+  public static InjectExpectationResult buildDefaultForMediaPressure() {
+    return buildForMediaPressure(NO_RESULT, NO_SCORE);
+  }
+
+  private static InjectExpectationResult buildForVulnerabilityManager(
+      @Nullable final String result, @Nullable final Double score) {
     return InjectExpectationResult.builder()
         .sourceId(EXPECTATIONS_VULNERABILITY_COLLECTOR_ID)
         .sourceType(EXPECTATIONS_VULNERABILITY_COLLECTOR_TYPE)
         .sourceName(EXPECTATIONS_VULNERABILITY_COLLECTOR_NAME)
         .sourcePlatform(NOT_APPLICABLE)
-        .score(0.0)
-        .result(VULNERABILITY.failureLabel)
+        .score(score)
+        .result(result)
         .date(String.valueOf(Instant.now()))
         .build();
+  }
+
+  public static InjectExpectationResult buildForVulnerabilityManagerInFailed() {
+    return buildForVulnerabilityManager(VULNERABILITY.failureLabel, 0.0);
+  }
+
+  public static InjectExpectationResult buildDefaultForVulnerabilityManagerInFailed() {
+    return buildForVulnerabilityManager(NO_RESULT, NO_SCORE);
+  }
+
+  public static InjectExpectationResult buildDefaultForPlayerManualValidation() {
+    return buildForPlayerManualValidation(NO_RESULT, NO_SCORE);
   }
 
   public static InjectExpectationResult buildForPlayerManualValidation(

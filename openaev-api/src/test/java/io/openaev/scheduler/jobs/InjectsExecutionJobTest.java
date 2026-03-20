@@ -3,11 +3,18 @@ package io.openaev.scheduler.jobs;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.ComcheckRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.SecurityCoverageSendJobRepository;
+import io.openaev.database.repository.UserRepository;
+import io.openaev.execution.ExecutableInject;
+import io.openaev.integration.Manager;
+import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
@@ -17,11 +24,15 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import org.quartz.JobExecutionException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
@@ -41,6 +52,17 @@ class InjectsExecutionJobTest extends IntegrationTest {
   @Autowired private EntityManager entityManager;
   @Autowired private SecurityCoverageSendJobRepository securityCoverageSendJobRepository;
   @Autowired private SecurityCoverageComposer securityCoverageComposer;
+
+  @Autowired private ComchecksExecutionJob comchecksExecutionJob;
+  @Autowired private ComcheckRepository comcheckRepository;
+  @Autowired private UserRepository userRepository;
+  @Autowired private InjectorContractFixture injectorContractFixture;
+  @MockitoSpyBean private ManagerFactory managerFactory;
+
+  @AfterEach
+  void resetMocks() {
+    Mockito.reset(managerFactory);
+  }
 
   @DisplayName("Not start children injects at the same time as parent injects")
   @Test
@@ -186,5 +208,57 @@ class InjectsExecutionJobTest extends IntegrationTest {
     Optional<SecurityCoverageSendJob> job =
         securityCoverageSendJobRepository.findBySimulation(exerciseWrapper.get());
     assertThat(job).isEmpty();
+  }
+
+  @Test
+  @DisplayName("buildComcheckEmail should set injector from email contract on the inject")
+  void givenComcheckNeedingExecution_shouldBuildInjectWithInjectorSet()
+      throws JobExecutionException {
+    // -- ARRANGE --
+    // Ensure the email injector contract exists in the database
+    injectorContractFixture.getWellKnownSingleEmailContract();
+
+    Exercise exercise = ExerciseFixture.getExercise();
+    exercise.setStart(Instant.now().minus(1, ChronoUnit.MINUTES));
+    Exercise exerciseSaved = exerciseService.createExercise(exercise);
+
+    User user = userRepository.findAll().getFirst();
+
+    Comcheck comcheck = new Comcheck();
+    comcheck.setName("Test comcheck");
+    comcheck.setStart(Instant.now().minus(1, ChronoUnit.HOURS));
+    comcheck.setEnd(Instant.now().plus(1, ChronoUnit.HOURS));
+    comcheck.setState(Comcheck.COMCHECK_STATUS.RUNNING);
+    comcheck.setSubject("Comcheck subject");
+    comcheck.setMessage("Comcheck message");
+    comcheck.setExercise(exerciseSaved);
+
+    ComcheckStatus status = new ComcheckStatus(user);
+    status.setComcheck(comcheck);
+    // lastSent = null, receiveDate = null => matches thatNeedExecution()
+    comcheck.setComcheckStatus(new ArrayList<>(List.of(status)));
+    comcheckRepository.save(comcheck);
+    entityManager.flush();
+
+    // Mock the email executor to capture the ExecutableInject
+    io.openaev.executors.Injector mockEmailExecutor = mock(io.openaev.executors.Injector.class);
+    Execution successExecution = new Execution(false);
+    when(mockEmailExecutor.executeInjection(any())).thenReturn(successExecution);
+
+    Manager mockManager = mock(Manager.class);
+    when(mockManager.requestEmailInjector()).thenReturn(mockEmailExecutor);
+    doReturn(mockManager).when(managerFactory).getManager();
+
+    // -- ACT --
+    comchecksExecutionJob.execute(null);
+
+    // -- ASSERT --
+    ArgumentCaptor<ExecutableInject> captor = ArgumentCaptor.forClass(ExecutableInject.class);
+    verify(mockEmailExecutor).executeInjection(captor.capture());
+
+    Inject emailInject = captor.getValue().getInjection().getInject();
+    assertNotNull(
+        emailInject.getInjectorContract().orElse(null), "Injector contract should be set");
+    assertNotNull(emailInject.getInjector(), "Injector should be set from the email contract");
   }
 }

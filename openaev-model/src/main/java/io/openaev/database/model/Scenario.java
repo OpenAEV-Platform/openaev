@@ -9,6 +9,7 @@ import static lombok.AccessLevel.NONE;
 import com.fasterxml.jackson.annotation.*;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
+import io.openaev.annotation.OnDeleteAction;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
@@ -73,7 +74,7 @@ import org.hibernate.annotations.*;
       attributeNodes = {@NamedAttributeNode("tags"), @NamedAttributeNode("injects")})
 })
 @Grantable(Grant.GRANT_RESOURCE_TYPE.SCENARIO)
-public class Scenario implements GrantableBase, TenantBase {
+public class Scenario extends ModelBehaviour implements GrantableBase, TenantBase {
 
   /** Status of scenario recurrence scheduling. */
   public enum RECURRENCE_STATUS {
@@ -180,6 +181,9 @@ public class Scenario implements GrantableBase, TenantBase {
   @OneToOne(mappedBy = "scenario")
   @JsonProperty("scenario_security_coverage")
   @JsonIgnore
+  @io.openaev.annotation.OnDelete(
+      action = OnDeleteAction.SET_REFERENCE_NULL,
+      fieldName = "scenario")
   private SecurityCoverage securityCoverage;
 
   // -- RECURRENCE --
@@ -259,7 +263,7 @@ public class Scenario implements GrantableBase, TenantBase {
   private List<Grant> grants = new ArrayList<>();
 
   @Schema(implementation = String[].class)
-  @OneToMany(mappedBy = "scenario", fetch = FetchType.LAZY)
+  @OneToMany(mappedBy = "scenario", cascade = CascadeType.REMOVE, fetch = FetchType.LAZY)
   @JsonProperty("scenario_injects")
   @JsonSerialize(using = MultiIdListSerializer.class)
   @Getter(NONE)
@@ -268,7 +272,8 @@ public class Scenario implements GrantableBase, TenantBase {
   // UpdatedAt now used to sync with linked object
   public void setInjects(Set<Inject> injects) {
     this.updatedAt = now();
-    this.injects = injects;
+    this.injects.clear();
+    this.injects.addAll(injects);
   }
 
   @Schema(implementation = String[].class)
@@ -346,6 +351,9 @@ public class Scenario implements GrantableBase, TenantBase {
 
   @Schema(implementation = String[].class)
   @OneToMany(fetch = FetchType.LAZY)
+  @io.openaev.annotation.OnDelete(
+      action = OnDeleteAction.SET_REFERENCE_NULL,
+      fieldName = "scenario")
   @JoinTable(
       name = "scenarios_exercises",
       joinColumns = @JoinColumn(name = "scenario_id"),

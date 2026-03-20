@@ -1,16 +1,15 @@
 package io.openaev.rest.collector.form;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.model.ConnectorInstance;
-import io.openaev.rest.catalog_connector.dto.CatalogConnectorSimpleOutput;
+import io.openaev.rest.connector.dto.ConnectorOutput;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
-import lombok.Builder;
+import lombok.experimental.SuperBuilder;
 
-@Builder
+@SuperBuilder
 @Schema(description = "Collector output")
-public class CollectorOutput {
+public class CollectorOutput extends ConnectorOutput {
 
   @Schema(description = "Collector id")
   @JsonProperty("collector_id")
@@ -31,15 +30,6 @@ public class CollectorOutput {
   @JsonProperty("collector_last_execution")
   private Instant lastExecution;
 
-  @JsonProperty("catalog")
-  private CatalogConnectorSimpleOutput catalog;
-
-  @JsonProperty("current_status")
-  private ConnectorInstance.CURRENT_STATUS_TYPE currentStatus;
-
   @JsonProperty("existing_collector")
   private boolean existing;
-
-  @JsonProperty("is_verified")
-  private boolean verified = false;
 }

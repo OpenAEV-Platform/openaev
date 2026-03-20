@@ -301,9 +301,10 @@ public class InjectUtils {
     duplicatedInject.setCountry(injectOrigin.getCountry());
     duplicatedInject.setCity(injectOrigin.getCity());
     duplicatedInject.setInjectorContract(injectOrigin.getInjectorContract().orElse(null));
-    duplicatedInject.setAssetGroups(injectOrigin.getAssetGroups().stream().toList());
-    duplicatedInject.setAssets(injectOrigin.getAssets().stream().toList());
-    duplicatedInject.setCommunications(injectOrigin.getCommunications().stream().toList());
+    duplicatedInject.setInjector(injectOrigin.getInjector());
+    duplicatedInject.setAssetGroups(new ArrayList<>(injectOrigin.getAssetGroups()));
+    duplicatedInject.setAssets(new ArrayList<>(injectOrigin.getAssets()));
+    duplicatedInject.setCommunications(new ArrayList<>(injectOrigin.getCommunications()));
     duplicatedInject.setTags(new HashSet<>(injectOrigin.getTags()));
 
     duplicatedInject.setExercise(injectOrigin.getExercise());

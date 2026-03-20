@@ -96,8 +96,9 @@ public class AssetGroupService {
     return computeDynamicAssets(assetGroup);
   }
 
-  public Optional<AssetGroup> findByExternalReference(String externalReference) {
-    return this.assetGroupRepository.findByExternalReference(externalReference);
+  public Optional<AssetGroup> findByExternalReference(String externalReference, String tenantId) {
+    return this.assetGroupRepository.findByExternalReferenceAndTenantId(
+        externalReference, tenantId);
   }
 
   public AssetGroup updateAssetGroup(@NotNull final AssetGroup assetGroup) {

@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Utility class for field-level reflection operations.
@@ -86,6 +87,12 @@ public class FieldUtils {
     return fields;
   }
 
+  public static Optional<Field> getFieldByName(final Class<?> type, String fieldName) {
+    return getAllFields(type).stream()
+        .filter(field -> fieldName.equals(field.getName()))
+        .findFirst();
+  }
+
   /**
    * Returns all fields with a specific annotation from a class and its superclasses.
    *
@@ -98,6 +105,20 @@ public class FieldUtils {
     return getAllFields(type).stream()
         .filter(field -> field.getAnnotation(annotationType) != null)
         .toList();
+  }
+
+  /**
+   * Returns all fields with a specific annotation from a class and its superclasses.
+   *
+   * @param type the class to inspect
+   * @param annotationType the annotation to filter by
+   * @return a map of fields having the specified annotation, and the specific annotation
+   */
+  public static <T extends Annotation> Map<Field, T> getAllDeclaredAnnotatedFieldsWithAnnotation(
+      final Class<?> type, final Class<T> annotationType) {
+    return getAllFields(type).stream()
+        .filter(field -> field.getAnnotation(annotationType) != null)
+        .collect(Collectors.toMap(field -> field, field -> field.getAnnotation(annotationType)));
   }
 
   /**

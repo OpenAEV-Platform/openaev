@@ -11,7 +11,7 @@
 
     <groupId>io.openaev</groupId>
     <artifactId>openaev-platform</artifactId>
-    <version>2.2.1</version>
+    <version>2.3.0</version>
     <packaging>pom</packaging>
 
     <name>OpenAEV platform</name>
@@ -27,9 +27,9 @@
         <validation-api.version>2.0.1.Final</validation-api.version>
         <commons-io.version>2.21.0</commons-io.version>
         <commons-validator.version>1.10.0</commons-validator.version>
-        <maven-compiler-plugin.version>3.14.1</maven-compiler-plugin.version>
+        <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
         <jacoco-plugin.version>0.8.14</jacoco-plugin.version>
-        <pyroscope.version>2.1.4</pyroscope.version>
+        <pyroscope.version>2.4.0</pyroscope.version>
         <spring-security-crypto.version>6.5.8</spring-security-crypto.version>
     </properties>
 
@@ -132,7 +132,7 @@
             <plugin>
                 <groupId>com.diffplug.spotless</groupId>
                 <artifactId>spotless-maven-plugin</artifactId>
-                <version>3.2.1</version>
+                <version>3.3.0</version>
                 <configuration>
                     <java>
                         <includes>

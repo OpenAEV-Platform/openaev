@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.CollectorTypeSerializer;
+import io.openaev.helper.CollectorTypeNameSerializer;
 import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -54,12 +54,12 @@ public class DetectionRemediation implements Base {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(
       name = "detection_remediation_collector_type",
-      referencedColumnName = "collector_type")
-  @JsonSerialize(using = CollectorTypeSerializer.class)
+      referencedColumnName = "collector_type_name")
+  @JsonSerialize(using = CollectorTypeNameSerializer.class)
   @JsonProperty("detection_remediation_collector_type")
   @Schema(implementation = String.class)
   @NotNull
-  private Collector collector;
+  private CollectorType collectorType;
 
   @Column(name = "detection_remediation_values", columnDefinition = "JSONB")
   @JsonProperty("detection_remediation_values")

@@ -14,28 +14,35 @@ public class DetectionRemediationComposer extends ComposerBase<DetectionRemediat
   public class Composer extends InnerComposerBase<DetectionRemediation> {
 
     private final DetectionRemediation detectionRemediation;
-    private Optional<CollectorComposer.Composer> collectorComposer = Optional.empty();
+    private Optional<CollectorTypeComposer.Composer> collectorTypeComposer = Optional.empty();
 
     public Composer(DetectionRemediation detectionRemediation) {
       this.detectionRemediation = detectionRemediation;
     }
 
-    public Composer withCollector(CollectorComposer.Composer newCollector) {
-      collectorComposer = Optional.of(newCollector);
-      detectionRemediation.setCollector(newCollector.get());
+    public Composer withCollectorType(CollectorTypeComposer.Composer newCollectorType) {
+      collectorTypeComposer = Optional.of(newCollectorType);
+      detectionRemediation.setCollectorType(newCollectorType.get());
       return this;
+    }
+
+    public void persistCollectorTypeDependency() {
+      collectorTypeComposer.ifPresent(
+          ctc -> {
+            ctc.persist();
+            detectionRemediation.setCollectorType(ctc.get());
+          });
     }
 
     @Override
     public Composer persist() {
-      collectorComposer.ifPresent(CollectorComposer.Composer::persist);
+      persistCollectorTypeDependency();
       detectionRemediationRepository.save(this.detectionRemediation);
       return this;
     }
 
     @Override
     public Composer delete() {
-      collectorComposer.ifPresent(CollectorComposer.Composer::delete);
       detectionRemediationRepository.delete(this.detectionRemediation);
       return this;
     }

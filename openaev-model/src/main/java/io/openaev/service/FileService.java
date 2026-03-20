@@ -1,6 +1,5 @@
 package io.openaev.service;
 
-import io.openaev.config.MinioConfig;
 import io.openaev.database.model.Document;
 import java.io.InputStream;
 import java.util.Optional;
@@ -22,9 +21,6 @@ import org.springframework.web.multipart.MultipartFile;
  * </ul>
  *
  * <p>Files are organized in predefined directory structures within the MinIO bucket.
- *
- * @see MinioConfig
- * @see FileContainer
  */
 @Service
 @Slf4j
@@ -62,8 +58,7 @@ public class FileService {
    */
   public void uploadFile(String name, InputStream data, long size, String contentType)
       throws Exception {
-
-    minioService.uploadFileInTenantBucket(name, data, size, contentType);
+    minioService.uploadFileInTenantPath(name, data, size, contentType);
   }
 
   /**
@@ -77,7 +72,7 @@ public class FileService {
    */
   public String uploadStream(String path, String name, InputStream data) throws Exception {
     String file = path + "/" + name;
-    minioService.uploadStreamInTenantBucket(file, name, data);
+    minioService.uploadStreamInTenantPath(file, name, data);
     return file;
   }
 
@@ -88,7 +83,7 @@ public class FileService {
    * @throws Exception if the deletion fails
    */
   public void deleteFile(String name) throws Exception {
-    minioService.deleteFileInTenantBucket(name);
+    minioService.deleteFileInTenantPath(name);
   }
 
   /**
@@ -100,7 +95,7 @@ public class FileService {
    * @param directory the directory prefix to delete
    */
   public void deleteDirectory(String directory) {
-    minioService.deleteDirectoryInTenantBucket(directory);
+    minioService.deleteDirectoryInTenantPath(directory);
   }
 
   /**

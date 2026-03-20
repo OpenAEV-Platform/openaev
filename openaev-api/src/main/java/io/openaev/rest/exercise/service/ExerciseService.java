@@ -2,6 +2,7 @@ package io.openaev.rest.exercise.service;
 
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
+import static io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE.SIMULATION;
 import static io.openaev.database.specification.ExerciseSpecification.*;
 import static io.openaev.database.specification.TeamSpecification.fromIds;
 import static io.openaev.helper.StreamHelper.fromIterable;
@@ -90,6 +91,8 @@ public class ExerciseService {
   private final DocumentService documentService;
   private final InjectService injectService;
   private final UserService userService;
+  private final GrantService grantService;
+  private final ExerciseTeamUserService exerciseTeamUserService;
 
   private final ExerciseMapper exerciseMapper;
   private final InjectMapper injectMapper;
@@ -199,13 +202,15 @@ public class ExerciseService {
     Exercise exercise = copyExercice(exerciseOrigin);
     Exercise exerciseDuplicate = exerciseRepository.save(exercise);
     actionMetricCollector.addSimulationCreatedCount();
+    duplicateGrants(exerciseDuplicate, exerciseOrigin);
     getListOfDuplicatedInjects(exerciseDuplicate, exerciseOrigin);
-    getListOfExerciseTeams(exerciseDuplicate, exerciseOrigin);
+    Map<String, Team> contextualTeams = getListOfExerciseTeams(exerciseDuplicate, exerciseOrigin);
+    duplicateTeamUsers(exerciseDuplicate, exerciseOrigin, contextualTeams);
     getListOfArticles(exerciseDuplicate, exerciseOrigin);
     getListOfVariables(exerciseDuplicate, exerciseOrigin);
     getObjectives(exerciseDuplicate, exerciseOrigin);
     getLessonsCategories(exerciseDuplicate, exerciseOrigin);
-    return exerciseRepository.save(exercise);
+    return exerciseRepository.save(exerciseDuplicate);
   }
 
   private Exercise copyExercice(Exercise exerciseOrigin) {
@@ -222,9 +227,7 @@ public class ExerciseService {
     exerciseDuplicate.setSubtitle(exerciseOrigin.getSubtitle());
     exerciseDuplicate.setLogoDark(exerciseOrigin.getLogoDark());
     exerciseDuplicate.setLogoLight(exerciseOrigin.getLogoLight());
-    exerciseDuplicate.setGrants(new ArrayList<>(exerciseOrigin.getGrants()));
     exerciseDuplicate.setTags(new HashSet<>(exerciseOrigin.getTags()));
-    exerciseDuplicate.setTeamUsers(new ArrayList<>(exerciseOrigin.getTeamUsers()));
     exerciseDuplicate.setReplyTos(new ArrayList<>(exerciseOrigin.getReplyTos()));
     exerciseDuplicate.setDocuments(new ArrayList<>(exerciseOrigin.getDocuments()));
     exerciseDuplicate.setLessonsAnonymized(exerciseOrigin.isLessonsAnonymized());
@@ -256,7 +259,7 @@ public class ExerciseService {
         : Optional.empty();
   }
 
-  private void getListOfExerciseTeams(
+  private Map<String, Team> getListOfExerciseTeams(
       @NotNull Exercise exercise, @NotNull Exercise exerciseOrigin) {
     Map<String, Team> contextualTeams = new HashMap<>();
     List<Team> exerciseTeams = new ArrayList<>();
@@ -292,6 +295,7 @@ public class ExerciseService {
                       });
               inject.setTeams(teams);
             });
+    return contextualTeams;
   }
 
   private void getListOfDuplicatedInjects(Exercise exercise, Exercise exerciseOrigin) {
@@ -418,6 +422,19 @@ public class ExerciseService {
       duplicatedObjectives.add(duplicatedObjective);
     }
     duplicatedExercise.setObjectives(duplicatedObjectives);
+  }
+
+  private void duplicateGrants(@NotNull Exercise target, @NotNull Exercise source) {
+    List<Grant> duplicatedGrants =
+        grantService.duplicateGrants(source.getGrants(), target.getId(), SIMULATION);
+    target.setGrants(duplicatedGrants);
+  }
+
+  private void duplicateTeamUsers(
+      @NotNull Exercise target,
+      @NotNull Exercise source,
+      @NotNull Map<String, Team> contextualTeams) {
+    exerciseTeamUserService.duplicateTeamUsers(target, source.getTeamUsers(), contextualTeams);
   }
 
   // -- EXERCISES --

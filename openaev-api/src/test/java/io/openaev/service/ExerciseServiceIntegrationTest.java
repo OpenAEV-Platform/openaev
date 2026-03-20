@@ -18,7 +18,6 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.chaining.WorkflowService;
-import io.openaev.service.period.CronService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.ResultUtils;
@@ -54,6 +53,8 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private DocumentService documentService;
   @Autowired private InjectService injectService;
   @Autowired private UserService userService;
+  @Autowired private GrantService grantService;
+  @Autowired private ExerciseTeamUserService exerciseTeamUserService;
 
   @Autowired private ExerciseMapper exerciseMapper;
   @Autowired private InjectMapper injectMapper;
@@ -69,11 +70,8 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private UserRepository userRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private ExerciseTeamUserRepository exerciseTeamUserRepository;
-  @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private LicenseCacheManager licenseCacheManager;
   @Autowired private InjectExpectationMapper injectExpectationMapper;
-  @Autowired private CronService cronService;
-
   @Autowired private ScenarioRecurrenceService scenarioRecurrenceService;
   @Autowired private InjectorContractFixture injectorContractFixture;
 
@@ -98,6 +96,8 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             documentService,
             injectService,
             userService,
+            grantService,
+            exerciseTeamUserService,
             exerciseMapper,
             injectMapper,
             resultUtils,

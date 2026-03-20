@@ -96,6 +96,7 @@ public class InjectService {
   private final InjectRepository injectRepository;
   private final InjectDocumentRepository injectDocumentRepository;
   private final InjectorService injectorService;
+  private final InjectorRepository injectorRepository;
   private final InjectStatusRepository injectStatusRepository;
   private final InjectMapper injectMapper;
   private final MethodSecurityExpressionHandler methodSecurityExpressionHandler;
@@ -118,6 +119,31 @@ public class InjectService {
 
   private SecurityExpression getAmbientSecurityExpression() {
     return ((SecurityExpressionHandler) methodSecurityExpressionHandler).getSecurityExpression();
+  }
+
+  /**
+   * Resolves the {@link Injector} for an inject being created or updated.
+   *
+   * <p>If {@code injectorId} is provided (non-blank), it is looked up by ID. Otherwise, the
+   * injector is auto-resolved from the contract's linked injector (current ManyToOne relationship).
+   *
+   * @param injectorId explicit injector ID from the input (may be null/blank)
+   * @param injectorContract the contract associated with the inject
+   * @return the resolved Injector, or {@code null} if no contract is provided
+   */
+  private Injector resolveInjector(
+      @Nullable String injectorId, @Nullable InjectorContract injectorContract) {
+    if (StringUtils.isNotBlank(injectorId)) {
+      return injectorRepository
+          .findById(injectorId)
+          .orElseThrow(
+              () -> new ElementNotFoundException("Injector not found with id: " + injectorId));
+    }
+    // Auto-resolve from the contract's linked injector (single-instance fallback)
+    if (injectorContract != null && injectorContract.getInjector() != null) {
+      return injectorContract.getInjector();
+    }
+    return null;
   }
 
   // -- CRUD --
@@ -151,6 +177,7 @@ public class InjectService {
         this.injectorContractService.injectorContract(input.getInjectorContract());
     // Get common attributes
     Inject inject = input.toInject(injectorContract);
+    inject.setInjector(resolveInjector(input.getInjectorId(), injectorContract));
     inject.setUser(this.userService.currentUser());
     inject.setTeams(fromIterable(teamRepository.findAllById(input.getTeams())));
     inject.setAssets(fromIterable(assetService.assets(input.getAssets())));
@@ -258,6 +285,7 @@ public class InjectService {
     inject.setTitle(title);
     inject.setDescription(description);
     inject.setInjectorContract(injectorContract);
+    inject.setInjector(resolveInjector(null, injectorContract));
     inject.setDependsDuration(0L);
     inject.setEnabled(enabled);
     inject.setContent(
@@ -672,6 +700,11 @@ public class InjectService {
       input.setDependsDuration(inject.getDependsDuration());
     }
     inject.setUpdateAttributes(input);
+
+    // Resolve injector explicitly (BeanUtils cannot copy String → Injector)
+    if (StringUtils.isNotBlank(input.getInjectorId())) {
+      inject.setInjector(resolveInjector(input.getInjectorId(), null));
+    }
 
     // Set dependencies
     if (input.getDependsOn() != null) {

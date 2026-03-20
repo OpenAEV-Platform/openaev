@@ -8,6 +8,7 @@ import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecu
 import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME;
 import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Executor;
 import io.openaev.database.repository.ExecutorRepository;
 import java.util.Optional;
@@ -37,7 +38,9 @@ public class ExecutorFixture {
   }
 
   public Executor getDefaultExecutor() {
-    Optional<Executor> executorOptional = executorRepository.findByType(OPENAEV_EXECUTOR_TYPE);
+    Optional<Executor> executorOptional =
+        executorRepository.findByTypeAndTenantId(
+            OPENAEV_EXECUTOR_TYPE, TenantContext.getCurrentTenant());
     return executorOptional.orElseGet(() -> executorRepository.save(createOAEVExecutor()));
   }
 
@@ -66,17 +69,23 @@ public class ExecutorFixture {
   }
 
   public Executor getCrowdstrikeExecutor() {
-    Optional<Executor> executorOptional = executorRepository.findByType(CROWDSTRIKE_EXECUTOR_TYPE);
+    Optional<Executor> executorOptional =
+        executorRepository.findByTypeAndTenantId(
+            CROWDSTRIKE_EXECUTOR_TYPE, TenantContext.getCurrentTenant());
     return executorOptional.orElseGet(() -> executorRepository.save(createCrowdstrikeExecutor()));
   }
 
   public Executor getTaniumExecutor() {
-    Optional<Executor> executorOptional = executorRepository.findByType(TANIUM_EXECUTOR_TYPE);
+    Optional<Executor> executorOptional =
+        executorRepository.findByTypeAndTenantId(
+            TANIUM_EXECUTOR_TYPE, TenantContext.getCurrentTenant());
     return executorOptional.orElseGet(() -> executorRepository.save(createTaniumExecutor()));
   }
 
   public Executor getSentineloneExecutor() {
-    Optional<Executor> executorOptional = executorRepository.findByType(SENTINELONE_EXECUTOR_TYPE);
+    Optional<Executor> executorOptional =
+        executorRepository.findByTypeAndTenantId(
+            SENTINELONE_EXECUTOR_TYPE, TenantContext.getCurrentTenant());
     return executorOptional.orElseGet(() -> executorRepository.save(createSentineloneExecutor()));
   }
 }
