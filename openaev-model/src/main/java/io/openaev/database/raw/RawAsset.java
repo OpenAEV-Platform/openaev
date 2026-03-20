@@ -84,4 +84,11 @@ public interface RawAsset {
    * @return set of associated tag IDs
    */
   Set<String> getAsset_tags();
+
+  /**
+   * Returns the tenant ID to which this asset belongs.
+   *
+   * @return the tenant ID
+   */
+  String getAsset_tenant_id();
 }
