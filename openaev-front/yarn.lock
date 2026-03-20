@@ -2860,6 +2860,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@noble/ciphers@npm:^1.0.0":
+  version: 1.3.0
+  resolution: "@noble/ciphers@npm:1.3.0"
+  checksum: 10c0/3ba6da645ce45e2f35e3b2e5c87ceba86b21dfa62b9466ede9edfb397f8116dae284f06652c0cd81d99445a2262b606632e868103d54ecc99fd946ae1af8cd37
+  languageName: node
+  linkType: hard
+
+"@noble/hashes@npm:^1.6.0":
+  version: 1.8.0
+  resolution: "@noble/hashes@npm:1.8.0"
+  checksum: 10c0/06a0b52c81a6fa7f04d67762e08b2c476a00285858150caeaaff4037356dd5e119f45b2a530f638b77a5eeca013168ec1b655db41bae3236cb2e9d511484fc77
+  languageName: node
+  linkType: hard
+
 "@npmcli/agent@npm:^3.0.0":
   version: 3.0.0
   resolution: "@npmcli/agent@npm:3.0.0"
@@ -5479,13 +5493,6 @@ __metadata:
     shebang-command: "npm:^2.0.0"
     which: "npm:^2.0.1"
   checksum: 10c0/053ea8b2135caff68a9e81470e845613e374e7309a47731e81639de3eaeb90c3d01af0e0b44d2ab9d50b43467223b88567dfeb3262db942dc063b9976718ffc1
-  languageName: node
-  linkType: hard
-
-"crypto-js@npm:^4.2.0":
-  version: 4.2.0
-  resolution: "crypto-js@npm:4.2.0"
-  checksum: 10c0/8fbdf9d56f47aea0794ab87b0eb9833baf80b01a7c5c1b0edc7faf25f662fb69ab18dc2199e2afcac54670ff0cd9607a9045a3f7a80336cccd18d77a55b9fdf0
   languageName: node
   linkType: hard
 
@@ -8594,17 +8601,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jpeg-exif@npm:^1.1.4":
-  version: 1.1.4
-  resolution: "jpeg-exif@npm:1.1.4"
-  checksum: 10c0/0f9225b2423184d60c66b3d7361176801c17ede92fc9b3c044fcf00f379a5a1d424b360ecf0027dda47d405d253c7b62bf5b353fb08b2589e3650f38cc575e82
-  languageName: node
-  linkType: hard
-
 "js-file-download@npm:0.4.12":
   version: 0.4.12
   resolution: "js-file-download@npm:0.4.12"
   checksum: 10c0/3caec1491fa744214409e0bcb1fb18d76e3d56715c477ee033cb7d8becb5cf777803409dc1995c913bf1a2270dac98d78f07d83bba319b8e800bc7bf2a7266a7
+  languageName: node
+  linkType: hard
+
+"js-md5@npm:^0.8.3":
+  version: 0.8.3
+  resolution: "js-md5@npm:0.8.3"
+  checksum: 10c0/f7e41e95f8e5eb5eeb43085bec3832ae3dfe0020c42fcca5a4efe571213391a9e9594db31bd34624b7280af4f1f12c751b6a50074a15346ecf40a0d54115d77f
   languageName: node
   linkType: hard
 
@@ -10454,7 +10461,7 @@ __metadata:
     monocart-coverage-reports: "npm:2.12.9"
     monocart-reporter: "npm:2.10.0"
     normalizr: "npm:3.6.2"
-    pdfmake: "npm:0.3.6"
+    pdfmake: "npm:0.3.7"
     prop-types: "npm:15.8.1"
     qs: "npm:6.15.0"
     ramda: "npm:0.32.0"
@@ -10699,27 +10706,28 @@ __metadata:
   languageName: node
   linkType: hard
 
-"pdfkit@npm:^0.17.2":
-  version: 0.17.2
-  resolution: "pdfkit@npm:0.17.2"
+"pdfkit@npm:^0.18.0":
+  version: 0.18.0
+  resolution: "pdfkit@npm:0.18.0"
   dependencies:
-    crypto-js: "npm:^4.2.0"
+    "@noble/ciphers": "npm:^1.0.0"
+    "@noble/hashes": "npm:^1.6.0"
     fontkit: "npm:^2.0.4"
-    jpeg-exif: "npm:^1.1.4"
+    js-md5: "npm:^0.8.3"
     linebreak: "npm:^1.1.0"
     png-js: "npm:^1.0.0"
-  checksum: 10c0/d6344391fb882613e7e71afd369a1bb06264de4c38d56ae727e043895c3711b5d563f5d1e408ea766a196677d156502bf7baf94ddd011a57927c59c8c36f09ba
+  checksum: 10c0/09a0e2eb704269603db397a199bcbb0bcae90e3e4a548b5f5009acf8baefb237a6adf524146805d10e96ed53abac34f7db4f534fdfc870c93a72d967660624ae
   languageName: node
   linkType: hard
 
-"pdfmake@npm:0.3.6":
-  version: 0.3.6
-  resolution: "pdfmake@npm:0.3.6"
+"pdfmake@npm:0.3.7":
+  version: 0.3.7
+  resolution: "pdfmake@npm:0.3.7"
   dependencies:
     linebreak: "npm:^1.1.0"
-    pdfkit: "npm:^0.17.2"
+    pdfkit: "npm:^0.18.0"
     xmldoc: "npm:^2.0.3"
-  checksum: 10c0/f42dc71bcd1df9a84d88d379f752e1c5a7652ec3c974111d29164a56b66594dd04e2def7182db626d31c7694b23189145de92874172af00ab9c349b1e6d0c71f
+  checksum: 10c0/3a29401180f09ce09a884a9eb4b88e43d7f0965fb8ebb7ff528bd2bf8676903dbfd4267d3a728bcd09bdeb53a61a2475904a988873a61e738a80ae1eeaeb828f
   languageName: node
   linkType: hard
 
