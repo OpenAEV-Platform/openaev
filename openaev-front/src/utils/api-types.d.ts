@@ -4198,6 +4198,8 @@ export interface InjectorContractFullOutput {
   injector_contract_id: string;
   /** Injector name */
   injector_contract_injector_name?: string;
+  /** Injector IDs linked to this contract */
+  injector_contract_injectors?: string[];
   /** Injector type */
   injector_contract_injector_type?: string;
   /** Labels */
@@ -6001,6 +6003,7 @@ export interface PlatformSettings {
     | "PALO_ALTO_CORTEX_EXECUTOR"
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
+    | "MULTI_CONNECTOR"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;

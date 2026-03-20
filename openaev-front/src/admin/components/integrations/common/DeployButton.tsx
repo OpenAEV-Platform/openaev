@@ -3,6 +3,7 @@ import { type CSSProperties, type SyntheticEvent } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import EEChip from '../../common/entreprise_edition/EEChip';
 
 interface Props {
@@ -19,6 +20,9 @@ const DeployButton = ({ onDeployBtnClick, style = {}, deploymentCount }: Props) 
     setEEFeatureDetectedInfo,
   } = useEnterpriseEdition();
 
+  const multiConnectorEnabled = isFeatureEnabled('MULTI_CONNECTOR');
+  const isDeployDisabled = !multiConnectorEnabled && deploymentCount > 0;
+
   const onDeployClickAction = (e: SyntheticEvent) => {
     if (!isEnterpriseEdition) {
       setEEFeatureDetectedInfo(t('Connectors deployment'));
@@ -27,39 +31,47 @@ const DeployButton = ({ onDeployBtnClick, style = {}, deploymentCount }: Props) 
       onDeployBtnClick(e);
     }
   };
-  return (
-    <Tooltip title={t('Can not deploy more than one instance')}>
-      <div style={{
-        ...style,
-        position: 'relative',
-      }}
-      >
-        <Button
-          variant={isEnterpriseEdition ? 'contained' : 'outlined'}
-          sx={{
-            color: isEnterpriseEdition ? 'primary' : 'action.disabled',
-            borderColor: isEnterpriseEdition ? 'primary' : 'action.disabledBackground',
-          }}
-          size="small"
-          onClick={onDeployClickAction}
-          disabled={deploymentCount > 0}
-          endIcon={isEnterpriseEdition ? null : <span><EEChip /></span>}
-        >
-          {t('Deploy')}
-        </Button>
-        <Badge
-          badgeContent={deploymentCount}
-          color="warning"
-          sx={{
-            position: 'absolute',
-            top: '10px',
-            right: 0,
-          }}
-        />
-      </div>
-    </Tooltip>
 
+  const button = (
+    <div style={{
+      ...style,
+      position: 'relative',
+    }}
+    >
+      <Button
+        variant={isEnterpriseEdition ? 'contained' : 'outlined'}
+        sx={{
+          color: isEnterpriseEdition ? 'primary' : 'action.disabled',
+          borderColor: isEnterpriseEdition ? 'primary' : 'action.disabledBackground',
+        }}
+        size="small"
+        onClick={onDeployClickAction}
+        disabled={isDeployDisabled}
+        endIcon={isEnterpriseEdition ? null : <span><EEChip /></span>}
+      >
+        {t('Deploy')}
+      </Button>
+      <Badge
+        badgeContent={deploymentCount}
+        color="warning"
+        sx={{
+          position: 'absolute',
+          top: '10px',
+          right: 0,
+        }}
+      />
+    </div>
   );
+
+  if (isDeployDisabled) {
+    return (
+      <Tooltip title={t('Can not deploy more than one instance')}>
+        {button}
+      </Tooltip>
+    );
+  }
+
+  return button;
 };
 
 export default DeployButton;

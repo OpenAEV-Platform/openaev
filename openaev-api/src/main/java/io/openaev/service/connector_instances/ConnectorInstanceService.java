@@ -7,9 +7,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
-import io.openaev.database.repository.ConnectorInstanceRepository;
-import io.openaev.database.repository.TokenRepository;
+import io.openaev.database.repository.*;
 import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.Manager;
 import io.openaev.integration.ManagerFactory;
@@ -38,6 +36,10 @@ public class ConnectorInstanceService {
   private final ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
   private final TokenRepository tokenRepository;
 
+  private final CollectorRepository collectorRepository;
+  private final ExecutorRepository executorRepository;
+  private final InjectorRepository injectorRepository;
+
   private final EncryptionFactory encryptionFactory;
   private final ManagerFactory managerFactory;
 
@@ -48,6 +50,9 @@ public class ConnectorInstanceService {
       ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository,
       TokenRepository tokenRepository,
       EncryptionFactory encryptionFactory,
+      CollectorRepository collectorRepository,
+      ExecutorRepository executorRepository,
+      InjectorRepository injectorRepository,
       // Use lazy injection to break a circular dependency
       @Lazy ManagerFactory managerFactory) {
     this.objectMapper = objectMapper;
@@ -56,6 +61,9 @@ public class ConnectorInstanceService {
     this.connectorInstanceConfigurationRepository = connectorInstanceConfigurationRepository;
     this.tokenRepository = tokenRepository;
     this.encryptionFactory = encryptionFactory;
+    this.collectorRepository = collectorRepository;
+    this.executorRepository = executorRepository;
+    this.injectorRepository = injectorRepository;
     this.managerFactory = managerFactory;
   }
 
@@ -274,6 +282,34 @@ public class ConnectorInstanceService {
    * @param id the connector instance ID to delete
    */
   public void deleteById(String id) {
+    ConnectorInstancePersisted connectorInstance =
+        connectorInstanceRepository
+            .findById(id)
+            .orElseThrow(
+                () ->
+                    new EntityNotFoundException("ConnectorInstance with id " + id + " not found"));
+
+    String connectorId =
+        connectorInstance.getConfigurations().stream()
+            .filter(
+                c ->
+                    connectorInstance
+                        .getCatalogConnector()
+                        .getContainerType()
+                        .getIdKeyName()
+                        .equals(c.getKey()))
+            .map(c -> c.getValue().asText())
+            .findFirst()
+            .orElse(null);
+
+    if (connectorId != null) {
+      switch (connectorInstance.getCatalogConnector().getContainerType()) {
+        case EXECUTOR -> executorRepository.deleteById(connectorId);
+        case INJECTOR -> injectorRepository.deleteById(connectorId);
+        case COLLECTOR -> collectorRepository.deleteById(connectorId);
+      }
+    }
+
     connectorInstanceRepository.deleteById(id);
   }
 

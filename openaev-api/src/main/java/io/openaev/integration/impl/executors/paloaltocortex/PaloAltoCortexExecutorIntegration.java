@@ -57,7 +57,6 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final ConnectorInstanceService connectorInstanceService;
-  private final ConnectorInstance connectorInstance;
   private final HttpClientFactory httpClientFactory;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
@@ -85,7 +84,6 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
     this.executorService = executorService;
     this.taskScheduler = taskScheduler;
     this.connectorInstanceService = connectorInstanceService;
-    this.connectorInstance = connectorInstance;
     this.httpClientFactory = httpClientFactory;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
 
@@ -103,13 +101,16 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
   protected void innerStart() throws Exception {
     String executorId =
         connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
-            connectorInstance.getId(), ConnectorType.EXECUTOR.getIdKeyName());
+            getConnectorInstance().getId(), ConnectorType.EXECUTOR.getIdKeyName());
+    String executorName =
+        connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
+            getConnectorInstance().getId(), "EXECUTOR_NAME");
 
     Executor executor =
         executorService.register(
             executorId,
             PALOALTOCORTEX_EXECUTOR_TYPE,
-            PALOALTOCORTEX_EXECUTOR_NAME,
+            executorName != null ? executorName : PALOALTOCORTEX_EXECUTOR_NAME,
             PALOALTOCORTEX_EXECUTOR_DOCUMENTATION_LINK,
             PALOALTOCORTEX_EXECUTOR_BACKGROUND_COLOR,
             getClass().getResourceAsStream("/img/icon-paloaltocortex.png"),
@@ -129,7 +130,7 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
             executor, client, config, endpointService, agentService, assetGroupService);
     paloAltoCortexGarbageCollectorService =
         new PaloAltoCortexGarbageCollectorService(
-            config, paloAltoCortexExecutorContextService, agentService);
+            config, paloAltoCortexExecutorContextService, agentService, executorId);
 
     timers.add(
         taskScheduler.scheduleAtFixedRate(

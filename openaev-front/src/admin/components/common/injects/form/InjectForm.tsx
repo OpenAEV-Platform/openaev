@@ -1,15 +1,19 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTheme } from '@mui/material/styles';
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 import { z, type ZodObject } from 'zod/v4';
 
+import { fetchInjectors } from '../../../../../actions/injectors/injector-action';
+import { type InjectorHelper } from '../../../../../actions/injectors/injector-helper';
+import SelectFieldController from '../../../../../components/fields/SelectFieldController';
 import Button from '../../../../../components/common/button/Button';
 import TagFieldController from '../../../../../components/fields/TagFieldController';
 import TextFieldController from '../../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
+import { useHelper } from '../../../../../store';
 import {
   type Article,
   type AttackPattern,
@@ -18,7 +22,10 @@ import {
   type Variable,
 } from '../../../../../utils/api-types';
 import { type ContractElement, type EnhancedContractElement, type InjectorContractConverted } from '../../../../../utils/api-types-custom';
+import { useAppDispatch } from '../../../../../utils/hooks';
+import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { splitDuration } from '../../../../../utils/Time';
+import { isFeatureEnabled } from '../../../../../utils/utils';
 import { PermissionsContext } from '../../Context';
 import { getValidatingRule, isInjectContentType, isRequiredField, isVisibleField } from '../utils';
 import InjectContentForm from './InjectContentForm';
@@ -86,6 +93,7 @@ interface Props {
   articlesFromExerciseOrScenario: Article[];
   uriVariable: string;
   variablesFromExerciseOrScenario: Variable[];
+  injectorIds?: string[];
 }
 
 const initialZodSchema = z.object({ inject_content: z.object({}) });
@@ -101,11 +109,31 @@ const InjectForm = ({
   articlesFromExerciseOrScenario,
   uriVariable,
   variablesFromExerciseOrScenario,
+  injectorIds = [],
 }: Props) => {
   const { classes } = useStyles();
   const { t } = useFormatter();
   const theme = useTheme();
   const { permissions } = useContext(PermissionsContext);
+
+  // Multi-connector: injector selector
+  const multiConnectorEnabled = isFeatureEnabled('MULTI_CONNECTOR');
+  const dispatch = useAppDispatch();
+  const { injectorsMap } = useHelper((helper: InjectorHelper) => ({ injectorsMap: helper.getInjectorsMap() }));
+  const showInjectorSelector = multiConnectorEnabled && injectorIds.length > 1;
+  useDataLoader(() => {
+    if (showInjectorSelector) {
+      dispatch(fetchInjectors());
+    }
+  });
+  const injectorItems = useMemo(() => {
+    if (!showInjectorSelector) return [];
+    return injectorIds
+      .map(id => ({
+        value: id,
+        label: injectorsMap[id]?.injector_name ?? id,
+      }));
+  }, [showInjectorSelector, injectorIds, injectorsMap]);
   const [fieldsMapByKey, setFieldsMapByKey] = useState<Record<ContractElement['key'], ContractElement>>({});
   const [enhancedFields, setEnhancedFields] = useState<EnhancedContractElement[]>([]);
   const [enhancedFieldsMapByType, setEnhancedFieldsMapByType] = useState<Map<ContractElement['type'], EnhancedContractElement>>(new Map());
@@ -133,6 +161,7 @@ const InjectForm = ({
       inject_depends_duration_minutes: duration.minutes,
       inject_all_teams: defaultInject?.inject_all_teams ?? false,
       inject_teams: defaultInject?.inject_teams ?? [],
+      inject_injector: (defaultInject as Inject)?.inject_injector ?? (injectorIds.length > 0 ? injectorIds[0] : ''),
     };
 
     // Enrich initialValues with default contract value
@@ -275,6 +304,7 @@ const InjectForm = ({
         inject_documents: data.inject_documents,
         inject_depends_duration,
         inject_depends_on: data.inject_depends_on ? data.inject_depends_on : [],
+        ...(data.inject_injector ? { inject_injector: data.inject_injector } : {}),
       } as InjectInput;
       cleanInvisibleFields(values);
       await onSubmitInject(values);
@@ -481,6 +511,15 @@ const InjectForm = ({
         <TextFieldController name="inject_title" label={t('Title')} required disabled={isSubmitting || disabled || permissions.readOnly} />
         <TextFieldController name="inject_description" label={t('Description')} multiline rows={2} disabled={isSubmitting || disabled || permissions.readOnly} />
         <TagFieldController name="inject_tags" label={t('Tags')} disabled={isSubmitting || disabled || permissions.readOnly} />
+
+        {showInjectorSelector && (
+          <SelectFieldController
+            name="inject_injector"
+            label={t('Injector')}
+            items={injectorItems}
+            disabled={isSubmitting || disabled || permissions.readOnly}
+          />
+        )}
 
         {!isAtomic && (
           <div className={`${classes.triggerBox} ${isSubmitting || disabled || permissions.readOnly ? classes.triggerBoxColorDisabled : classes.triggerBoxColor}`}>

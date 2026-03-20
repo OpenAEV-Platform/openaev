@@ -47,7 +47,6 @@ public class CalderaExecutorIntegration extends Integration {
   private final ExecutorService executorService;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final ConnectorInstanceService connectorInstanceService;
-  private final ConnectorInstance connectorInstance;
   private final HttpClientFactory httpClientFactory;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
@@ -73,7 +72,6 @@ public class CalderaExecutorIntegration extends Integration {
     this.taskScheduler = taskScheduler;
     this.executorService = executorService;
     this.connectorInstanceService = connectorInstanceService;
-    this.connectorInstance = connectorInstance;
     this.httpClientFactory = httpClientFactory;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
 
@@ -91,13 +89,16 @@ public class CalderaExecutorIntegration extends Integration {
   protected void innerStart() throws Exception {
     String executorId =
         connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
-            connectorInstance.getId(), ConnectorType.EXECUTOR.getIdKeyName());
+            getConnectorInstance().getId(), ConnectorType.EXECUTOR.getIdKeyName());
+    String executorName =
+        connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
+            getConnectorInstance().getId(), "EXECUTOR_NAME");
 
     Executor executor =
         executorService.register(
             executorId,
             CALDERA_EXECUTOR_TYPE,
-            CALDERA_EXECUTOR_NAME,
+            executorName != null ? executorName : CALDERA_EXECUTOR_NAME,
             null,
             CALDERA_BACKGROUND_COLOR,
             getClass().getResourceAsStream("/img/icon-caldera.png"),

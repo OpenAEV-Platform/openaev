@@ -45,23 +45,19 @@ public class CatalogConnectorService {
   }
 
   /**
-   * Retrieves all unDeployed catalog connectors in CatalogConnectorOutput format.
+   * Retrieves all catalog connectors in CatalogConnectorOutput format.
+   *
+   * <p>Previously, this method only returned connectors without deployed instances. With
+   * multi-instance support, the catalog page always shows all connectors regardless of deployment
+   * status.
    *
    * @return a list of catalog connector outputs with associated instance counts
+   * @deprecated Use {@link #getCatalogConnectors()} instead. This method is kept for backward
+   *     compatibility of the {@code /undeployed} endpoint.
    */
+  @Deprecated(forRemoval = true)
   public List<CatalogConnectorOutput> getUnDeployedCatalogConnectors() {
-    List<ConnectorInstancePersisted> instances = connectorInstanceService.connectorInstances();
-    return fromIterable(catalogConnectorRepository.findAll()).stream()
-        .filter(
-            c -> {
-              List<ConnectorInstancePersisted> instancesMatching =
-                  instances.stream()
-                      .filter(i -> i.getCatalogConnector().getId().equals(c.getId()))
-                      .toList();
-              return instancesMatching.isEmpty();
-            })
-        .map(c -> catalogConnectorMapper.toCatalogConnectorOutput(c, 0))
-        .toList();
+    return getCatalogConnectors();
   }
 
   /**

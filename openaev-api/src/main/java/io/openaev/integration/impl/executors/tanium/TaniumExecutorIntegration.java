@@ -56,7 +56,6 @@ public class TaniumExecutorIntegration extends Integration {
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final ConnectorInstanceService connectorInstanceService;
-  private final ConnectorInstance connectorInstance;
   private final HttpClientFactory httpClientFactory;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
@@ -84,7 +83,6 @@ public class TaniumExecutorIntegration extends Integration {
     this.executorService = executorService;
     this.taskScheduler = taskScheduler;
     this.connectorInstanceService = connectorInstanceService;
-    this.connectorInstance = connectorInstance;
     this.httpClientFactory = httpClientFactory;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
 
@@ -102,13 +100,16 @@ public class TaniumExecutorIntegration extends Integration {
   protected void innerStart() throws Exception {
     String executorId =
         connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
-            connectorInstance.getId(), ConnectorType.EXECUTOR.getIdKeyName());
+            getConnectorInstance().getId(), ConnectorType.EXECUTOR.getIdKeyName());
+    String executorName =
+        connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
+            getConnectorInstance().getId(), "EXECUTOR_NAME");
 
     Executor executor =
         executorService.register(
             executorId,
             TANIUM_EXECUTOR_TYPE,
-            TANIUM_EXECUTOR_NAME,
+            executorName != null ? executorName : TANIUM_EXECUTOR_NAME,
             TANIUM_EXECUTOR_DOCUMENTATION_LINK,
             TANIUM_EXECUTOR_BACKGROUND_COLOR,
             getClass().getResourceAsStream("/img/icon-tanium.png"),
@@ -127,7 +128,8 @@ public class TaniumExecutorIntegration extends Integration {
         new TaniumExecutorService(
             executor, client, config, endpointService, agentService, assetGroupService);
     taniumGarbageCollectorService =
-        new TaniumGarbageCollectorService(config, taniumExecutorContextService, agentService);
+        new TaniumGarbageCollectorService(
+            config, taniumExecutorContextService, agentService, executorId);
 
     timers.add(
         taskScheduler.scheduleAtFixedRate(

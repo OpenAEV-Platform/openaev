@@ -76,11 +76,9 @@ public class TaniumExecutorServiceTest {
     // Run method to test
     taniumExecutorService.run();
     // Asserts
-    ArgumentCaptor<String> executorTypeCaptor = ArgumentCaptor.forClass(String.class);
-    ArgumentCaptor<String> tenantIdCaptor = ArgumentCaptor.forClass(String.class);
-    verify(agentService)
-        .getAgentsByExecutorType(executorTypeCaptor.capture(), tenantIdCaptor.capture());
-    assertEquals(taniumExecutor.getType(), executorTypeCaptor.getValue());
+    ArgumentCaptor<String> executorIdCaptor = ArgumentCaptor.forClass(String.class);
+    verify(agentService).getAgentsByExecutorId(executorIdCaptor.capture());
+    assertEquals(taniumExecutor.getId(), executorIdCaptor.getValue());
 
     ArgumentCaptor<List<AgentRegisterInput>> inputsCaptor = ArgumentCaptor.forClass(List.class);
     ArgumentCaptor<List<Agent>> agents = ArgumentCaptor.forClass(List.class);

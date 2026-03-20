@@ -122,6 +122,14 @@ public class Manager {
               .filter(ci -> !spawnedIntegrations.containsKey(ci))
               .toList();
 
+      if (!newInstances.isEmpty()) {
+        log.info(
+            "monitorIntegrations: found {} new instance(s) for factory {}: {}",
+            newInstances.size(),
+            factory.getClassName(),
+            newInstances.stream().map(ConnectorInstance::getId).toList());
+      }
+
       List<Integration> newIntegrations = factory.sync(newInstances);
 
       for (Integration integration : newIntegrations) {

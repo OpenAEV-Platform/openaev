@@ -31,12 +31,9 @@ public interface AgentRepository
       @Param("executorId") String executorId);
 
   @Query(
-      value =
-          "SELECT a.* FROM agents a left join executors ex on a.agent_executor = ex.executor_id "
-              + "where ex.executor_type = :executor and a.tenant_id = :tenantId",
+      value = "SELECT a.* FROM agents a WHERE a.agent_executor = :executorId",
       nativeQuery = true)
-  List<Agent> findByExecutorType(
-      @Param("executor") String executor, @Param("tenantId") String tenantId);
+  List<Agent> findByExecutorId(@Param("executorId") String executorId);
 
   List<Agent> findByExternalReferenceAndTenantId(String externalReference, String tenantId);
 
