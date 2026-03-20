@@ -70,7 +70,11 @@ public Page<PlatformRoleOutput> search(...) { return service.search(input).map(M
 
 ## Services
 
-- `@Service @RequiredArgsConstructor @Transactional(rollbackFor = Exception.class)`
+- Every new service class should have these annotations:
+@Service — marks the class as a Spring-managed service bean
+@RequiredArgsConstructor — Lombok generates a constructor for all private final fields (replacing @Autowired)
+- Methods on Service class should uses
+@Transactional(rollbackFor = Exception.class) — wraps every public method in a transaction that rolls back on any exception (not just unchecked ones, which is the Spring default)
 - Read methods: `@Transactional(readOnly = true)`
 - Always use `org.springframework.transaction.annotation.Transactional` — **never** `jakarta.transaction.Transactional` (which lacks `rollbackFor`, `readOnly`, etc.)
 - Organize methods with section comments in this order: `// -- CREATE --`, `// -- READ --`, `// -- UPDATE --`, `// -- DELETE --`
