@@ -26,7 +26,6 @@ const useStyles = makeStyles()(theme => ({
     fontSize: theme.typography.pxToRem(12),
     height: theme.spacing(2.5),
     float: 'left',
-    textTransform: 'uppercase',
   },
 }));
 

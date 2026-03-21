@@ -11,7 +11,6 @@ const useStyles = makeStyles()(() => ({
   chipInList: {
     height: 20,
     borderRadius: 4,
-    textTransform: 'uppercase',
     width: 200,
   },
   points: {

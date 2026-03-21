@@ -36,7 +36,6 @@ const useStyles = makeStyles()(() => ({
   autoCompleteIndicator: { display: 'none' },
   itemHead: {
     paddingLeft: 10,
-    textTransform: 'uppercase',
     cursor: 'pointer',
   },
   item: {

@@ -131,7 +131,6 @@ const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, hand
           margin: 0,
           fontSize: 12,
           fontWeight: 500,
-          textTransform: 'uppercase',
           whiteSpace: 'nowrap',
           overflow: 'hidden',
           textOverflow: 'ellipsis',

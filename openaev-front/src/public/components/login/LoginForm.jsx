@@ -1,12 +1,13 @@
-import { Button } from '@mui/material';
+import { Stack } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import { Form } from 'react-final-form';
 
+import Button from '../../../components/common/button/Button';
 import OldTextField from '../../../components/fields/OldTextField';
 import inject18n from '../../../components/i18n';
 
 const LoginFormComponent = (props) => {
-  const { t, onSubmit } = props;
+  const { t, onSubmit, onForgotPassword } = props;
   const validate = (values) => {
     const errors = {};
     const requiredFields = ['username', 'password'];
@@ -18,39 +19,51 @@ const LoginFormComponent = (props) => {
     return errors;
   };
   return (
-    <div style={{ padding: 15 }}>
-      <Form onSubmit={onSubmit} validate={validate}>
-        {({ handleSubmit, submitting, pristine }) => (
-          <form onSubmit={handleSubmit}>
-            <OldTextField
-              name="username"
-              type="text"
-              variant="standard"
-              label={t('Login')}
-              fullWidth={true}
-              style={{ marginTop: 5 }}
-            />
-            <OldTextField
-              name="password"
-              type="password"
-              variant="standard"
-              label={t('Password')}
-              fullWidth={true}
-              style={{ marginTop: 20 }}
-            />
+    <Form onSubmit={onSubmit} validate={validate}>
+      {({ handleSubmit, submitting, pristine }) => (
+        <form onSubmit={handleSubmit}>
+          <OldTextField
+            name="username"
+            type="text"
+            variant="standard"
+            label={t('Login')}
+            fullWidth={true}
+            style={{ marginTop: 5 }}
+          />
+          <OldTextField
+            name="password"
+            type="password"
+            variant="standard"
+            label={t('Password')}
+            fullWidth={true}
+            style={{ marginTop: 20 }}
+          />
+          <Stack
+            mt={3}
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+          >
+            {onForgotPassword ? (
+              <Button
+                variant="tertiary"
+                onClick={onForgotPassword}
+                sx={{ ml: -2 }}
+              >
+                {t('I forgot my password')}
+              </Button>
+            ) : (<span />)}
             <Button
               type="submit"
-              variant="contained"
               disabled={pristine || submitting}
               onClick={handleSubmit}
-              style={{ marginTop: 30 }}
             >
               {t('Sign in')}
             </Button>
-          </form>
-        )}
-      </Form>
-    </div>
+          </Stack>
+        </form>
+      )}
+    </Form>
   );
 };
 
@@ -59,6 +72,7 @@ LoginFormComponent.propTypes = {
   error: PropTypes.string,
   onSubmit: PropTypes.func.isRequired,
   handleSubmit: PropTypes.func,
+  onForgotPassword: PropTypes.func,
 };
 
 const LoginForm = inject18n(LoginFormComponent);

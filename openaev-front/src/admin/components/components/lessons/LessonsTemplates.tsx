@@ -21,7 +21,6 @@ import CreateLessonsTemplate from './CreateLessonsTemplate';
 const useStyles = makeStyles()(() => ({
   itemHead: {
     paddingLeft: 17,
-    textTransform: 'uppercase',
     cursor: 'pointer',
   },
   item: { height: 50 },

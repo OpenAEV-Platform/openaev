@@ -12,7 +12,6 @@ const styles = () => ({
     lineHeight: '12px',
     height: 25,
     marginRight: 7,
-    textTransform: 'uppercase',
     borderRadius: 4,
     width: 120,
   },
@@ -21,7 +20,6 @@ const styles = () => ({
     lineHeight: '12px',
     height: 25,
     marginRight: 7,
-    textTransform: 'uppercase',
     borderRadius: 4,
     width: 150,
   },
@@ -30,7 +28,6 @@ const styles = () => ({
     lineHeight: '12px',
     height: 25,
     marginRight: 7,
-    textTransform: 'uppercase',
     borderRadius: 4,
     width: 250,
   },
@@ -39,7 +36,6 @@ const styles = () => ({
     lineHeight: '12px',
     height: 20,
     float: 'left',
-    textTransform: 'uppercase',
     borderRadius: 4,
     width: 140,
   },
@@ -47,16 +43,16 @@ const styles = () => ({
 
 const computeInlineStyles = theme => ({
   green: {
-    backgroundColor: 'rgba(76, 175, 80, 0.08)',
-    color: '#4caf50',
+    backgroundColor: 'rgba(23, 171, 31, 0.2)',
+    color: theme.palette.success?.main ?? '#17AB1F',
   },
   red: {
-    backgroundColor: 'rgba(244, 67, 54, 0.08)',
-    color: '#f44336',
+    backgroundColor: 'rgba(241, 67, 55, 0.2)',
+    color: theme.palette.error?.main ?? '#F14337',
   },
   blue: {
-    backgroundColor: 'rgba(92, 123, 245, 0.08)',
-    color: '#5c7bf5',
+    backgroundColor: 'rgba(15, 188, 255, 0.2)',
+    color: theme.palette.primary?.main ?? '#0FBCFF',
   },
   ee: {
     backgroundColor: theme.palette.ee.lightBackground,

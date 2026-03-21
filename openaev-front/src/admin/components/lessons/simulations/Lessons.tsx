@@ -48,7 +48,6 @@ const useStyles = makeStyles()(theme => ({
     overflow: 'hidden',
   },
   title: {
-    textTransform: 'uppercase',
     fontSize: 12,
     fontWeight: 500,
     color: theme.palette.secondary.main,

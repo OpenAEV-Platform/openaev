@@ -26,7 +26,6 @@ import GroupPopover from './GroupPopover';
 const useStyles = makeStyles()(() => ({
   itemHead: {
     paddingLeft: 10,
-    textTransform: 'uppercase',
     cursor: 'pointer',
   },
   item: {

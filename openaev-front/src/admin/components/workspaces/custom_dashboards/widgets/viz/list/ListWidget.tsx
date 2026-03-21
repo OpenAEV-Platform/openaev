@@ -29,7 +29,7 @@ import listConfigRenderer, { defaultRenderer } from './elements/ListColumnConfig
 import navigationHandlers from './elements/ListNavigationHandler';
 
 const useStyles = makeStyles()(() => ({
-  itemHead: { textTransform: 'uppercase' },
+  itemHead: {},
   item: { height: 50 },
 }));
 

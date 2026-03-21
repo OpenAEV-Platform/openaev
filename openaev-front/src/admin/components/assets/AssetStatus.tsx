@@ -8,7 +8,6 @@ const useStyles = makeStyles()(() => ({
   chip: {
     fontSize: 20,
     fontWeight: 800,
-    textTransform: 'uppercase',
     borderRadius: 4,
   },
   chipInList: {
@@ -16,7 +15,6 @@ const useStyles = makeStyles()(() => ({
     lineHeight: '12px',
     height: 20,
     float: 'left',
-    textTransform: 'uppercase',
     borderRadius: 4,
     width: 120,
   },

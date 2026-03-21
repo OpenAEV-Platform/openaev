@@ -1,4 +1,4 @@
-import { Chip } from '@mui/material';
+import { alpha, Chip, useTheme } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -7,7 +7,6 @@ const useStyles = makeStyles()(() => ({
     fontSize: 12,
     height: 25,
     marginRight: 7,
-    textTransform: 'uppercase',
     borderRadius: 4,
     width: 100,
   },
@@ -15,35 +14,10 @@ const useStyles = makeStyles()(() => ({
     fontSize: 12,
     height: 20,
     float: 'left',
-    textTransform: 'uppercase',
     borderRadius: 4,
     width: 100,
   },
 }));
-
-const inlineStyles = {
-  green: {
-    backgroundColor: 'rgba(76, 175, 80, 0.08)',
-    color: '#4caf50',
-  },
-  blue: {
-    backgroundColor: 'rgba(92, 123, 245, 0.08)',
-    color: '#5c7bf5',
-  },
-  red: {
-    backgroundColor: 'rgba(244, 67, 54, 0.08)',
-    color: '#f44336',
-  },
-  orange: {
-    backgroundColor: 'rgba(255, 152, 0, 0.08)',
-    color: '#ff9800',
-  },
-  blueGrey: {
-    backgroundColor: 'rgba(96, 125, 139, 0.08)',
-    color: '#607d8b',
-    fontStyle: 'italic',
-  },
-};
 
 interface ItemSeverityProps {
   label: string;
@@ -51,31 +25,38 @@ interface ItemSeverityProps {
   variant?: 'inList';
 }
 
-const computeSeverityStyle = (severity: string | undefined | null) => {
-  switch (severity) {
-    case 'low':
-      return inlineStyles.green;
-    case 'medium':
-      return inlineStyles.blue;
-    case 'high':
-      return inlineStyles.orange;
-    case 'critical':
-      return inlineStyles.red;
-    default:
-      return inlineStyles.blueGrey;
-  }
-};
-
 const ItemSeverity: FunctionComponent<ItemSeverityProps> = ({
   label,
   severity,
   variant,
 }) => {
   const { classes } = useStyles();
+  const theme = useTheme();
   const style = variant === 'inList' ? classes.chipInList : classes.chip;
-  const classStyle = computeSeverityStyle(severity);
+
+  const getSeverityColor = () => {
+    switch (severity) {
+      case 'low':
+        return theme.palette.severity?.low ?? '#16AD34';
+      case 'medium':
+        return theme.palette.severity?.medium ?? '#E1B823';
+      case 'high':
+        return theme.palette.severity?.high ?? '#E6700F';
+      case 'critical':
+        return theme.palette.severity?.critical ?? '#EE3838';
+      default:
+        return theme.palette.severity?.none ?? '#607d8b';
+    }
+  };
+
+  const color = getSeverityColor();
+  const inlineStyle = {
+    backgroundColor: alpha(color, 0.2),
+    color,
+  };
+
   return (
-    <Chip classes={{ root: style }} style={classStyle} label={label} />
+    <Chip classes={{ root: style }} style={inlineStyle} label={label} />
   );
 };
 

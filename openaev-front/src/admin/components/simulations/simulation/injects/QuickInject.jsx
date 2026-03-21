@@ -68,7 +68,6 @@ const styles = theme => ({
   },
   itemHead: {
     paddingLeft: 10,
-    textTransform: 'uppercase',
     cursor: 'pointer',
   },
   item: {
