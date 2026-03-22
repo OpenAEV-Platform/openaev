@@ -52,7 +52,7 @@ const AskArianeButton: FunctionComponent = () => {
           )}
         >
           {t('Ask Ariane')}
-          <EEChip />
+          {!isEnterpriseEdition && <EEChip />}
         </Button>
       </EETooltip>
 
