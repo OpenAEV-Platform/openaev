@@ -1,31 +1,16 @@
 import type { ChatMode } from '@filigran/chatbot';
 import type React from 'react';
-import { createContext, type ReactNode, useCallback, useMemo, useState } from 'react';
+import { type ReactNode, useCallback, useMemo, useState } from 'react';
 
-export interface ChatbotContextType {
-  isOpen: boolean;
-  mode: ChatMode;
-  sidebarWidth: number;
-  isResizing: boolean;
-  openChat: () => void;
-  closeChat: () => void;
-  toggleChat: () => void;
-  setMode: (mode: ChatMode) => void;
-  setSidebarWidth: (width: number) => void;
-  setIsResizing: (isResizing: boolean) => void;
-}
-
-// eslint-disable-next-line react-refresh/only-export-components
-export const ChatbotContext = createContext<ChatbotContextType | null>(null);
+import { ChatbotContext } from './chatbotContext';
 
 const SIDEBAR_WIDTH_STORAGE_KEY = 'arianeChatSidebarWidth';
 const CHAT_MODE_STORAGE_KEY = 'arianeChatMode';
 const DEFAULT_SIDEBAR_WIDTH = 400;
-export const SIDEBAR_GAP = 6;
 
 interface ChatbotProviderProps { children: ReactNode }
 
-export const ChatbotProvider: React.FC<ChatbotProviderProps> = ({ children }) => {
+const ChatbotProvider: React.FC<ChatbotProviderProps> = ({ children }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setModeState] = useState<ChatMode>(() => {
     const stored = localStorage.getItem(CHAT_MODE_STORAGE_KEY);
@@ -74,3 +59,5 @@ export const ChatbotProvider: React.FC<ChatbotProviderProps> = ({ children }) =>
     </ChatbotContext.Provider>
   );
 };
+
+export default ChatbotProvider;

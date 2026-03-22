@@ -1,6 +1,6 @@
 import { useContext } from 'react';
 
-import { ChatbotContext, type ChatbotContextType, SIDEBAR_GAP } from './ChatbotContext';
+import { ChatbotContext, type ChatbotContextType, SIDEBAR_GAP } from './chatbotContext';
 
 export const useChatbot = (): ChatbotContextType => {
   const context = useContext(ChatbotContext);
