@@ -15,7 +15,7 @@ const useStyles = makeStyles()(() => ({
   },
   points: {
     height: 20,
-    backgroundColor: 'rgba(236, 64, 122, 0.08)',
+    backgroundColor: 'rgba(236, 64, 122, 0.2)',
     border: '1px solid #ec407a',
     color: '#ec407a',
   },

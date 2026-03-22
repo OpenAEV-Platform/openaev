@@ -288,7 +288,7 @@ const DocumentPopover = (props) => {
           <Button onClick={handleCloseRemove}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={submitRemove}>
+          <Button color="primary" onClick={submitRemove}>
             {t('Remove')}
           </Button>
         </DialogActions>

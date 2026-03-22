@@ -94,7 +94,7 @@ const EnterpriseEditionSettings: React.FC = () => {
                       {t('Cancel')}
                     </Button>
                     <Button
-                      color="secondary"
+                      color="primary"
                       onClick={() => {
                         setOpenEEChanges(false);
                         updateEnterpriseEdition({ platform_enterprise_license: '' });

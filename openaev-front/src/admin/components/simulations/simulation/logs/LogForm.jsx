@@ -70,7 +70,7 @@ class LogFormComponent extends Component {
                 {t('Cancel')}
               </Button>
               <Button
-                color="secondary"
+                color="primary"
                 type="submit"
                 disabled={pristine || submitting}
               >

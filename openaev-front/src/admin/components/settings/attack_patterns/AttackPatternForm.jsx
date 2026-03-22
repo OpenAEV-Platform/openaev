@@ -75,7 +75,7 @@ const AttackPatternForm = (props) => {
             </Button>
             <Button
               variant="contained"
-              color="secondary"
+              color="primary"
               type="submit"
               disabled={pristine || submitting}
             >

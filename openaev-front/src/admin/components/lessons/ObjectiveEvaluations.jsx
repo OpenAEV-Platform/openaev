@@ -182,7 +182,7 @@ const ObjectiveEvaluations = ({ objectiveId, handleClose, isUpdatable }) => {
         </Button>
         {isUpdatable && (
           <Button
-            color="secondary"
+            color="primary"
             onClick={submitEvaluation}
             disabled={submitting}
           >

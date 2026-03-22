@@ -295,7 +295,7 @@ const InjectPopover: FunctionComponent<Props> = ({
           <Button onClick={handleCloseDone}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={submitDone}>
+          <Button color="primary" onClick={submitDone}>
             {t('Mark')}
           </Button>
         </DialogActions>
@@ -327,7 +327,7 @@ const InjectPopover: FunctionComponent<Props> = ({
           <Button onClick={handleCloseEnable}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={submitEnable}>
+          <Button color="primary" onClick={submitEnable}>
             {t('Enable')}
           </Button>
         </DialogActions>
@@ -347,7 +347,7 @@ const InjectPopover: FunctionComponent<Props> = ({
           <Button onClick={handleCloseDisable}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={submitDisable}>
+          <Button color="primary" onClick={submitDisable}>
             {t('Disable')}
           </Button>
         </DialogActions>
@@ -367,7 +367,7 @@ const InjectPopover: FunctionComponent<Props> = ({
           <Button onClick={handleCloseTrigger}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={submitTrigger}>
+          <Button color="primary" onClick={submitTrigger}>
             {t('Trigger')}
           </Button>
         </DialogActions>

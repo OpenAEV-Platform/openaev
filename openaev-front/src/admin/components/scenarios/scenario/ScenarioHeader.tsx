@@ -246,7 +246,7 @@ const ScenarioHeader = ({
             {t('Cancel')}
           </Button>
           <Button
-            color="secondary"
+            color="primary"
             onClick={async () => {
               setOpenInstantiateSimulationAndStart(false);
               const exercise: Exercise = (await createRunningExerciseFromScenario(scenarioId)).data;

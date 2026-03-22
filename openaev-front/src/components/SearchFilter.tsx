@@ -87,8 +87,9 @@ const SearchInput: FunctionComponent<Props> = ({
       sx={{
         '& .MuiOutlinedInput-root': {
           '& fieldset': { borderColor: 'transparent' },
-          '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.15)' },
-          '&.Mui-focused fieldset': { borderWidth: '1px' },
+          '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.7)' },
+          '&.Mui-focused fieldset': { borderColor: 'primary.main' },
+          '&.Mui-focused:hover fieldset': { borderColor: 'primary.main' },
         },
         '& .MuiInputBase-input::placeholder': { opacity: 0.7 },
       }}

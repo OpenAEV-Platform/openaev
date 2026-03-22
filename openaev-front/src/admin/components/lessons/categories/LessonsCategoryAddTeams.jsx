@@ -151,7 +151,7 @@ class LessonsCategoryAddTeamsComponent extends Component {
           onClick={this.handleOpen.bind(this)}
           aria-haspopup="true"
           size="small"
-          color="secondary"
+          color="primary"
         >
           <Add fontSize="small" />
         </IconButton>
@@ -266,7 +266,7 @@ class LessonsCategoryAddTeamsComponent extends Component {
           <DialogActions>
             <Button onClick={this.handleClose.bind(this)}>{t('Cancel')}</Button>
             <Button
-              color="secondary"
+              color="primary"
               onClick={this.submitAddTeams.bind(this)}
             >
               {t('Add')}

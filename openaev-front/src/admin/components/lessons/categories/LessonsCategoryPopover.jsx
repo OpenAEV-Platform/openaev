@@ -86,7 +86,7 @@ const LessonsCategoryPopover = ({ lessonsCategory }) => {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDelete}>{t('Cancel')}</Button>
-          <Button color="secondary" onClick={submitDelete}>
+          <Button color="primary" onClick={submitDelete}>
             {t('Delete')}
           </Button>
         </DialogActions>

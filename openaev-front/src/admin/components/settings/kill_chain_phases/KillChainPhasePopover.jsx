@@ -117,7 +117,7 @@ class KillChainPhasePopoverComponent extends Component {
             <Button onClick={this.handleCloseDelete.bind(this)}>
               {t('Cancel')}
             </Button>
-            <Button color="secondary" onClick={this.submitDelete.bind(this)}>
+            <Button color="primary" onClick={this.submitDelete.bind(this)}>
               {t('Delete')}
             </Button>
           </DialogActions>

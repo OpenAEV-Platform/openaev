@@ -373,7 +373,7 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
                 handleCloseGenMessageOptions();
                 handleAskAi('genMessage');
               }}
-              color="secondary"
+              color="primary"
             >
               {t('Generate')}
             </Button>
@@ -452,7 +452,7 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
                 handleCloseGenMediaOptions();
                 handleAskAi('genMedia');
               }}
-              color="secondary"
+              color="primary"
             >
               {t('Generate')}
             </Button>
@@ -497,7 +497,7 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
                 handleCloseToneOptions();
                 handleAskAi('tone');
               }}
-              color="secondary"
+              color="primary"
             >
               {t('Generate')}
             </Button>

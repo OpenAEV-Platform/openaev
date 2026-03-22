@@ -64,7 +64,7 @@ class SendLessonsFormComponent extends Component {
               >
                 {t('Cancel')}
               </Button>
-              <Button color="secondary" type="submit" disabled={submitting}>
+              <Button color="primary" type="submit" disabled={submitting}>
                 {t('Send')}
               </Button>
             </div>

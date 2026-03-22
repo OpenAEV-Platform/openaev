@@ -78,7 +78,7 @@ const LessonsPlayer = (props) => {
       <div className={classes.root}>
         {permissions.isLoggedIn && permissions.canAccess && (
           <Button
-            color="secondary"
+            color="primary"
             variant="outlined"
             component={Link}
             to={`/lessons/${source.type}/${source.id}?user=${source.finalUserId}&preview=true`}
@@ -245,7 +245,7 @@ const LessonsPlayer = (props) => {
                   }}
                   >
                     <Button
-                      color="secondary"
+                      color="primary"
                       variant="contained"
                       onClick={() => setOpenValidate(true)}
                       disabled={lessonsAnswers.length > 0 || submitting || source.isUserAbsent}
@@ -274,7 +274,7 @@ const LessonsPlayer = (props) => {
                       {t('Cancel')}
                     </Button>
                     <Button
-                      color="secondary"
+                      color="primary"
                       onClick={handleSubmit}
                       disabled={submitting}
                     >

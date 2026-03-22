@@ -178,7 +178,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
             {t('Cancel')}
           </Button>
           <Button
-            color="secondary"
+            color="primary"
             onClick={() => submitUpdateStatus({ exercise_status: openChangeStatus })}
           >
             {t('Confirm')}

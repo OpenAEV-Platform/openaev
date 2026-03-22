@@ -1,23 +1,7 @@
-import { alpha, Chip, useTheme } from '@mui/material';
+import { useTheme } from '@mui/material';
 import { type FunctionComponent } from 'react';
-import { makeStyles } from 'tss-react/mui';
 
-const useStyles = makeStyles()(() => ({
-  chip: {
-    fontSize: 12,
-    height: 25,
-    marginRight: 7,
-    borderRadius: 4,
-    width: 100,
-  },
-  chipInList: {
-    fontSize: 12,
-    height: 20,
-    float: 'left',
-    borderRadius: 4,
-    width: 100,
-  },
-}));
+import Tag from './common/tag/Tag';
 
 interface ItemSeverityProps {
   label: string;
@@ -30,9 +14,7 @@ const ItemSeverity: FunctionComponent<ItemSeverityProps> = ({
   severity,
   variant,
 }) => {
-  const { classes } = useStyles();
   const theme = useTheme();
-  const style = variant === 'inList' ? classes.chipInList : classes.chip;
 
   const getSeverityColor = () => {
     switch (severity) {
@@ -45,18 +27,20 @@ const ItemSeverity: FunctionComponent<ItemSeverityProps> = ({
       case 'critical':
         return theme.palette.severity?.critical ?? '#EE3838';
       default:
-        return theme.palette.severity?.none ?? '#607d8b';
+        return null;
     }
   };
 
   const color = getSeverityColor();
-  const inlineStyle = {
-    backgroundColor: alpha(color, 0.2),
-    color,
-  };
+  const maxWidth = variant === 'inList' ? 100 : 100;
 
   return (
-    <Chip classes={{ root: style }} style={inlineStyle} label={label} />
+    <Tag
+      label={label}
+      color={color}
+      maxWidth={maxWidth}
+      disableTooltip
+    />
   );
 };
 

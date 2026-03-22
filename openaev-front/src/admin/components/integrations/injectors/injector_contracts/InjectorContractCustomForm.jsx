@@ -216,7 +216,7 @@ const InjectorContractForm = (props) => {
             </Button>
 
             <Button
-              color="secondary"
+              color="primary"
               type="submit"
               variant="contained"
               disabled={submitting}

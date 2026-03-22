@@ -65,7 +65,7 @@ const LessonsCategoryForm = (props) => {
               {t('Cancel')}
             </Button>
             <Button
-              color="secondary"
+              color="primary"
               type="submit"
               disabled={submitting || Object.keys(errors).length > 0}
             >

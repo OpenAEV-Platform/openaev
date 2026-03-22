@@ -752,7 +752,7 @@ class ToolBarComponent extends Component {
                 <Button
                   disabled={!this.areStepValid()}
                   variant="contained"
-                  color="secondary"
+                  color="primary"
                   size="small"
                   onClick={this.handleAddStep.bind(this)}
                   classes={{ root: classes.buttonAdd }}

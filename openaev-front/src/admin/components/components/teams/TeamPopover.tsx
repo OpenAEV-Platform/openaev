@@ -203,7 +203,7 @@ const TeamPopover: FunctionComponent<TeamPopoverProps> = ({
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseRemove}>{t('Cancel')}</Button>
-          <Button color="secondary" onClick={submitRemove}>
+          <Button color="primary" onClick={submitRemove}>
             {t('Remove')}
           </Button>
         </DialogActions>
@@ -221,7 +221,7 @@ const TeamPopover: FunctionComponent<TeamPopoverProps> = ({
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseRemoveFromInject}>{t('Cancel')}</Button>
-          <Button color="secondary" onClick={submitRemoveFromInject}>
+          <Button color="primary" onClick={submitRemoveFromInject}>
             {t('Remove')}
           </Button>
         </DialogActions>

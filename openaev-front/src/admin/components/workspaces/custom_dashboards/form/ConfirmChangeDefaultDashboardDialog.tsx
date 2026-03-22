@@ -22,7 +22,7 @@ const ConfirmChangeDefaultDashboardDialog = ({ open, onClose, onSubmit, existing
       actions={(
         <>
           <Button onClick={onClose}>{t('Cancel')}</Button>
-          <Button color="secondary" onClick={onSubmit}>
+          <Button color="primary" onClick={onSubmit}>
             {t('Continue')}
           </Button>
         </>

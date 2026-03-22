@@ -522,7 +522,7 @@ const InjectForm = ({
           </Button>
           <Button
             variant="contained"
-            color="secondary"
+            color="primary"
             data-testid="inject-form-submit-button"
             onClick={() => {
               onSubmit(getValues());

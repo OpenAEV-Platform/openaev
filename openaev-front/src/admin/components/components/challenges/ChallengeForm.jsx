@@ -412,7 +412,7 @@ const ChallengeForm = (props) => {
             </Button>
             <Button
               variant="contained"
-              color="secondary"
+              color="primary"
               type="submit"
               disabled={submitting || Object.keys(errors).length > 0}
             >

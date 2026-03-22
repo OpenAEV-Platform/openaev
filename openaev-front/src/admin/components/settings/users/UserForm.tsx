@@ -158,7 +158,7 @@ const UserForm = ({ onSubmit, initialValues = {}, editing, handleClose }: UserFo
             </Button>
             <Button
               variant="contained"
-              color="secondary"
+              color="primary"
               type="submit"
               disabled={pristine || submitting}
             >

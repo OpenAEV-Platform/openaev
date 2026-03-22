@@ -252,7 +252,7 @@ const TeamAddPlayers: FunctionComponent<Props> = ({ addedUsersIds, teamId }) => 
           >
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={submitAddUsers}>
+          <Button color="primary" onClick={submitAddUsers}>
             {t('Add')}
           </Button>
         </DialogActions>

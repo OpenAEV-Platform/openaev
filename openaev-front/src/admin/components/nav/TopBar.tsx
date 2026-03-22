@@ -156,7 +156,7 @@ const TopBar: FunctionComponent = () => {
             alt="logo"
             style={{
               height: 35,
-              maxWidth: navOpen ? '130px' : '23px',
+              maxWidth: navOpen ? '130px' : '28px',
               objectFit: 'contain',
             }}
           />
@@ -277,7 +277,7 @@ const TopBar: FunctionComponent = () => {
             </ListItemButton>
           </List>
         </Popover>
-        <div className={classes.menuContainer} style={{ marginLeft: navOpen ? 20 : 30 }}>
+        <div className={classes.menuContainer} style={{ marginLeft: 20 }}>
           <SearchInput
             variant="topBar"
             placeholder={`${t('Search the platform')}...`}

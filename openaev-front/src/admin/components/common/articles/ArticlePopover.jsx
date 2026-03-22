@@ -100,7 +100,7 @@ const ArticlePopover = ({ article, onRemoveArticle, disabled = false }) => {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDelete}>{t('Cancel')}</Button>
-          <Button color="secondary" onClick={submitDelete}>
+          <Button color="primary" onClick={submitDelete}>
             {t('Delete')}
           </Button>
         </DialogActions>
@@ -137,7 +137,7 @@ const ArticlePopover = ({ article, onRemoveArticle, disabled = false }) => {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseRemove}>{t('Cancel')}</Button>
-          <Button color="secondary" onClick={submitRemove}>
+          <Button color="primary" onClick={submitRemove}>
             {t('Remove')}
           </Button>
         </DialogActions>

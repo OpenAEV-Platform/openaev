@@ -309,7 +309,7 @@ const PayloadForm = ({
           >
             <Button
               variant="contained"
-              color="secondary"
+              color="primary"
               type="submit"
               disabled={isSubmitting || !isDirty}
             >

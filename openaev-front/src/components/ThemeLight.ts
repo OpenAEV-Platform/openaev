@@ -366,6 +366,14 @@ const ThemeLight = (
   },
   components: {
     MuiAccordion: { defaultProps: { slotProps: { transition: { unmountOnExit: true } } } },
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 4,
+          padding: 6,
+        },
+      },
+    },
     MuiButton: {
       styleOverrides: {
         root: {
@@ -404,8 +412,8 @@ const ThemeLight = (
       styleOverrides: {
         root: ({ theme }) => ({
           'gap': theme.spacing(1),
-          'padding': 0,
-          'marginTop': theme.spacing(4),
+          'padding': theme.spacing(2, 3),
+          'marginTop': theme.spacing(2),
           'marginLeft': 0,
           '& .MuiButton-root': { textTransform: 'none' },
           '& > :not(style) ~ :not(style)': { marginLeft: 0 },
@@ -475,7 +483,7 @@ const ThemeLight = (
           background: paper === THEME_LIGHT_DEFAULT_PAPER
             ? '#FFFFFF'
             : (paper ?? '#FFFFFF'),
-          borderColor: 'rgba(0, 0, 0, 0.08)',
+          borderColor: 'transparent',
         },
       },
     },

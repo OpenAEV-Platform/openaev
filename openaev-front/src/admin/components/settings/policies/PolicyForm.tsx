@@ -73,7 +73,7 @@ const PolicyForm: FunctionComponent<Props> = ({
           <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
             <Button
               variant="contained"
-              color="secondary"
+              color="primary"
               type="submit"
               disabled={!isDirty || isSubmitting}
             >

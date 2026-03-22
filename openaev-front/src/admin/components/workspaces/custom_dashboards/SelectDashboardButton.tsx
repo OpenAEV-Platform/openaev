@@ -48,7 +48,7 @@ const SelectDashboardButton = ({ defaultDashboardId = '', variant = 'popover', h
         actions={(
           <>
             <Button onClick={handleCloseSelectDashboardDialog}>{t('Cancel')}</Button>
-            <Button color="secondary" onClick={onHandleSubmit}>
+            <Button color="primary" onClick={onHandleSubmit}>
               {t('Continue')}
             </Button>
           </>

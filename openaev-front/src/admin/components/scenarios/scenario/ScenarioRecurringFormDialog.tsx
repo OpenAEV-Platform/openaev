@@ -414,7 +414,7 @@ const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ cronObject, set
                 {t('Cancel')}
               </Button>
               <Button
-                color="secondary"
+                color="primary"
                 type="submit"
               >
                 {t('Save')}

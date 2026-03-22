@@ -91,7 +91,7 @@ const TeamForm: FunctionComponent<TeamFormProps> = ({
             </Button>
             <Button
               variant="contained"
-              color="secondary"
+              color="primary"
               type="submit"
               data-testid="team-form-submit-button"
               disabled={pristine || submitting}

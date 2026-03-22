@@ -36,7 +36,7 @@ const ChannelAddLogo: FunctionComponent<Props> = ({ handleAddLogo }) => {
       <Can I={ACTIONS.MANAGE} a={SUBJECTS.DOCUMENTS}>
         <Button
           variant="outlined"
-          color="secondary"
+          color="primary"
           onClick={handleOpen}
           style={{ marginTop: 20 }}
         >

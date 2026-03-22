@@ -107,7 +107,7 @@ const ExportOptionsDialog: FunctionComponent<ExportOptionsProps> = ({
       </DialogContent>
       <DialogActions>
         <Button onClick={onCancel}>{t('Cancel')}</Button>
-        <Button color="secondary" onClick={doSubmit}>
+        <Button color="primary" onClick={doSubmit}>
           {t('Export')}
         </Button>
       </DialogActions>

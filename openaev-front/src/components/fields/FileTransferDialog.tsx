@@ -243,7 +243,7 @@ const FileTransferDialog: FunctionComponent<Props> = ({
         <Button onClick={handleClose}>{t('Cancel')}</Button>
         {multiple && (
           <Button
-            color="secondary"
+            color="primary"
             onClick={handleSubmitAddDocuments}
           >
             {t('Add')}

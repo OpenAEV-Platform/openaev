@@ -232,7 +232,7 @@ const ChallengesPlayer = () => {
       <div className={classes.root}>
         {permissions.isLoggedIn && permissions.canAccess && (
           <Button
-            color="secondary"
+            color="primary"
             variant="outlined"
             component={Link}
             to={`/admin/simulations/${exerciseId}/challenges`}
@@ -499,7 +499,7 @@ const ChallengesPlayer = () => {
                         {t('Cancel')}
                       </Button>
                       <Button
-                        color="secondary"
+                        color="primary"
                         type="submit"
                         disabled={
                           submitting || Object.keys(errors).length > 0

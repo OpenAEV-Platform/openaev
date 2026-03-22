@@ -173,7 +173,7 @@ const PayloadPopover = ({ payload, onUpdate, onDelete, onDuplicate, disableUpdat
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDuplicate}>{t('Cancel')}</Button>
-          <Button color="secondary" onClick={submitDuplicate}>
+          <Button color="primary" onClick={submitDuplicate}>
             {t('Duplicate')}
           </Button>
         </DialogActions>

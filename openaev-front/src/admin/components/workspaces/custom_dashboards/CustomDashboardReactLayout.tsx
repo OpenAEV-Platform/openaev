@@ -1,4 +1,3 @@
-import { Paper } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, useContext, useEffect, useMemo, useState } from 'react';
 import ReactGridLayout, { type Layout, type LayoutItem } from 'react-grid-layout';
 
@@ -205,7 +204,7 @@ const CustomDashboardReactLayout: FunctionComponent<{
         className="layout"
         width={containerWidth}
         gridConfig={{
-          margin: [20, 20],
+          margin: [10, 10],
           containerPadding: [0, 0],
           rowHeight: 50,
           cols: 12,
@@ -222,11 +221,10 @@ const CustomDashboardReactLayout: FunctionComponent<{
         {widgetsArray.map((widget) => {
           const layout = getWidgetLayout(widget);
           return (
-            <Paper
+            <div
               key={widget.widget_id}
               data-grid={layout}
               style={paperStyle}
-              variant="outlined"
             >
               <WidgetWrapper
                 widget={widget}
@@ -237,7 +235,7 @@ const CustomDashboardReactLayout: FunctionComponent<{
                 readOnly={readOnly}
                 idToResize={idToResize}
               />
-            </Paper>
+            </div>
           );
         })}
       </ReactGridLayout>

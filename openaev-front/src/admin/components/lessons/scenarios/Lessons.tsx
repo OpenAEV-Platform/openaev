@@ -150,7 +150,7 @@ const Lessons: FunctionComponent<Props> = ({
               <Typography variant="h3">{t('Check')}</Typography>
               <Button
                 startIcon={<VisibilityOutlined />}
-                color="secondary"
+                color="primary"
                 variant="contained"
                 component={Link}
                 href={`/lessons/${source.type}/${source.id}?preview=true`}
@@ -281,7 +281,7 @@ const Lessons: FunctionComponent<Props> = ({
             </Button>
             <Can I={ACTIONS.ACCESS} a={SUBJECTS.LESSONS_LEARNED}>
               <Button
-                color="secondary"
+                color="primary"
                 onClick={applyTemplate}
                 disabled={templateValue === null}
               >
@@ -309,7 +309,7 @@ const Lessons: FunctionComponent<Props> = ({
           <Button onClick={() => setOpenEmptyLessons(false)}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={emptyLessons}>
+          <Button color="primary" onClick={emptyLessons}>
             {t('Clear out')}
           </Button>
         </DialogActions>
@@ -329,7 +329,7 @@ const Lessons: FunctionComponent<Props> = ({
           <Button onClick={() => setOpenAnonymize(false)}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={toggleAnonymize}>
+          <Button color="primary" onClick={toggleAnonymize}>
             {t('Anonymize')}
           </Button>
         </DialogActions>

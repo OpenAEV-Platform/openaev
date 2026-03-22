@@ -261,7 +261,7 @@ const ArticleAddDocuments = (props) => {
           <DialogActions>
             <Button onClick={handleClose}>{t('Cancel')}</Button>
             <Button
-              color="secondary"
+              color="primary"
               onClick={submitAddDocuments}
             >
               {t('Add')}

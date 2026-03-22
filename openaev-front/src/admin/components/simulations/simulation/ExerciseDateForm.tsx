@@ -181,7 +181,7 @@ const ExerciseDateForm: FunctionComponent<Props> = ({
           </Button>
         )}
         <Button
-          color="secondary"
+          color="primary"
           type="submit"
         >
           {t('Save')}

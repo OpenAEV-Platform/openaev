@@ -177,7 +177,7 @@ const InjectAddTeams: FunctionComponent<Props> = ({
         <DialogActions>
           <Button onClick={handleClose}>{t('Cancel')}</Button>
           {!isLoading && (
-            <Button color="secondary" onClick={submitAddTeams}>
+            <Button color="primary" onClick={submitAddTeams}>
               {t('Update')}
             </Button>
           )}

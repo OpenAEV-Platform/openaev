@@ -58,7 +58,7 @@ const EnterpriseEditionAgreementDialog = () => {
         <>
           <Button onClick={onCloseEnterpriseEditionDialog}>{t('Cancel')}</Button>
           <Button
-            color="secondary"
+            color="primary"
             onClick={enableEnterpriseEdition}
             disabled={isEmptyField((enterpriseLicense))}
           >

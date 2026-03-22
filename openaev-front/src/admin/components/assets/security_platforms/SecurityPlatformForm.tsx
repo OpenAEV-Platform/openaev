@@ -168,7 +168,7 @@ const SecurityPlatformForm: FunctionComponent<Props> = ({
         </Button>
         <Button
           variant="contained"
-          color="secondary"
+          color="primary"
           type="submit"
           disabled={!isDirty || isSubmitting}
         >

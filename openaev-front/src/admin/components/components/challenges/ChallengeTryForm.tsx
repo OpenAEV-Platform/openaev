@@ -58,7 +58,7 @@ const ChallengeTryForm: FunctionComponent<Props> = ({ handleClose, onSubmit }) =
             {t('Cancel')}
           </Button>
           <Button
-            color="secondary"
+            color="primary"
             type="submit"
             disabled={isSubmitting || !isDirty}
           >

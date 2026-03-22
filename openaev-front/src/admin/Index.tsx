@@ -74,7 +74,9 @@ const Index = () => {
 
   const boxSx = {
     flexGrow: 1,
-    padding: 3,
+    paddingTop: 2,
+    paddingLeft: 2.5,
+    paddingRight: 2.5,
     marginRight: chatbotMargin > 0 ? `${chatbotMargin}px` : 0,
     transition: chatbotTransition,
     overflowX: 'hidden',

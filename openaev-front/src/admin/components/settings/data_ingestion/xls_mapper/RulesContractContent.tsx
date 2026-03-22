@@ -242,7 +242,7 @@ const RulesContractContent: FunctionComponent<Props> = ({
             if (ruleField.rule_attribute_name === 'trigger_time') {
               cogIcon = (
                 <Badge
-                  color="secondary"
+                  color="primary"
                   variant="dot"
                   invisible={(!methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_default_value`) || methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_default_value`)?.length === 0)
                     && (!methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_additional_config.timePattern`)
@@ -254,7 +254,7 @@ const RulesContractContent: FunctionComponent<Props> = ({
             } else if (ruleField.rule_attribute_name === 'teams') {
               cogIcon = (
                 <Badge
-                  color="secondary"
+                  color="primary"
                   variant="dot"
                   invisible={(!methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_default_value`) || methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_default_value`)?.length === 0)
                     && (!methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_additional_config.allTeamsValue`)
@@ -266,7 +266,7 @@ const RulesContractContent: FunctionComponent<Props> = ({
             } else {
               cogIcon = (
                 <Badge
-                  color="secondary"
+                  color="primary"
                   variant="dot"
                   invisible={!methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_default_value`)
                     || methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_default_value`)?.length === 0}
@@ -406,7 +406,7 @@ const RulesContractContent: FunctionComponent<Props> = ({
         <DialogActions>
           <Button onClick={handleCloseAlertDelete}>{t('Cancel')}</Button>
           <Button
-            color="secondary"
+            color="primary"
             onClick={() => {
               remove(index);
               handleCloseAlertDelete();

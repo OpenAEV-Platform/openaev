@@ -159,7 +159,7 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
             </Button>
             <Button
               variant="contained"
-              color="secondary"
+              color="primary"
               type="submit"
               disabled={pristine || submitting}
             >

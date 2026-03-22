@@ -365,6 +365,14 @@ const ThemeDark = (
   },
   components: {
     MuiAccordion: { defaultProps: { slotProps: { transition: { unmountOnExit: true } } } },
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 4,
+          padding: 6,
+        },
+      },
+    },
     MuiButton: {
       styleOverrides: {
         root: {
@@ -403,8 +411,8 @@ const ThemeDark = (
       styleOverrides: {
         root: ({ theme }) => ({
           'gap': theme.spacing(1),
-          'padding': 0,
-          'marginTop': theme.spacing(4),
+          'padding': theme.spacing(2, 3),
+          'marginTop': theme.spacing(2),
           'marginLeft': 0,
           '& .MuiButton-root': { textTransform: 'none' },
           '& > :not(style) ~ :not(style)': { marginLeft: 0 },
@@ -474,7 +482,7 @@ const ThemeDark = (
           background: paper === THEME_DARK_DEFAULT_PAPER
             ? '#0C1524'
             : (paper ?? '#0C1524'),
-          borderColor: 'rgba(255, 255, 255, 0.08)',
+          borderColor: 'transparent',
         },
       },
     },

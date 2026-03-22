@@ -57,7 +57,7 @@ const Tag = ({
     'backgroundColor': bgColor,
     '&:hover': { backgroundColor: onClick ? lighten(bgColor, 0.2) : undefined },
     'maxWidth': typeof maxWidth === 'number' ? `${maxWidth}px` : maxWidth,
-    'height': 25,
+    'height': 22,
     '& .MuiChip-label': {
       'overflow': 'hidden',
       'textOverflow': 'ellipsis',

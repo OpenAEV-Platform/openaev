@@ -159,7 +159,7 @@ const LicenseBanner = (settings: { settings: PlatformSettings }) => {
             >
               {t('Cancel')}
             </Button>
-            <Button type="submit" disabled={!isValid} color="secondary">
+            <Button type="submit" disabled={!isValid} color="primary">
               {t('Validate')}
             </Button>
           </div>

@@ -207,7 +207,7 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
             {t('Close')}
           </Button>
           {isAcceptable && (
-            <LoadingButton loading={isDisabled} color="secondary" onClick={() => handleAccept(content)}>
+            <LoadingButton loading={isDisabled} color="primary" onClick={() => handleAccept(content)}>
               {t('Accept')}
             </LoadingButton>
           )}

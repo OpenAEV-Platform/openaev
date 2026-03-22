@@ -137,7 +137,7 @@ const UpdateTeams: FunctionComponent<Props> = ({ addedTeamIds }) => {
         <DialogActions>
           <Button onClick={handleClose}>{t('Cancel')}</Button>
           {!isLoading && (
-            <Button color="secondary" onClick={handleSubmit}>
+            <Button color="primary" onClick={handleSubmit}>
               {t('Update')}
             </Button>
           )}
