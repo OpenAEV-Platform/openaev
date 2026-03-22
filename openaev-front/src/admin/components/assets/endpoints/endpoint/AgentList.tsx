@@ -20,10 +20,7 @@ import AgentPrivilege from '../AgentPrivilege';
 import AgentLastSeen from './AgentLastSeen';
 
 const useStyles = makeStyles()(() => ({
-  itemHead: {
-    paddingLeft: 10,
-    textTransform: 'uppercase',
-  },
+  itemHead: { paddingLeft: 10 },
   item: {
     paddingLeft: 10,
     height: 50,

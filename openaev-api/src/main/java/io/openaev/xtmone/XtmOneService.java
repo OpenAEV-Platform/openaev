@@ -1,12 +1,8 @@
 package io.openaev.xtmone;
 
-import io.openaev.database.model.Token;
-import io.openaev.database.model.User;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
-import io.openaev.service.UserService;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -23,16 +19,23 @@ public class XtmOneService {
   private final XtmOneClient client;
   private final PlatformSettingsService platformSettingsService;
   private final EnterpriseEditionService eeService;
-  private final UserService userService;
 
-  @org.springframework.beans.factory.annotation.Value(
-      "${openbas.admin.token:${openaev.admin.token:#{null}}}")
-  private String adminToken;
+  private static final List<Map<String, String>> DEFAULT_INTENTS =
+      List.of(
+          Map.of(
+              "name",
+              "global.assistant",
+              "description",
+              "General-purpose assistant for adversary emulation"),
+          Map.of("name", "summarize", "description", "Summarize content or findings"),
+          Map.of("name", "make.it.shorter", "description", "Shorten or condense content"),
+          Map.of("name", "fix.spelling", "description", "Fix spelling and grammar"),
+          Map.of("name", "change.tone", "description", "Change tone of content"));
 
   /**
    * Register this platform with XTM One. Called on every connectivity tick (the /register endpoint
-   * is an upsert, so repeated calls are safe). Sends the current license state and all users with
-   * their API tokens so XTM One creates one integration per matched user.
+   * is an upsert, so repeated calls are safe). Sends the current license state, business vertical,
+   * and declared intents for agent binding.
    */
   @Transactional(readOnly = true)
   public void autoRegister() {
@@ -59,21 +62,26 @@ public class XtmOneService {
         // license info not available
       }
 
-      List<Map<String, String>> userEntries = collectUserEntries();
-
       String version = platformSettingsService.getPlatformVersion();
+      String platformUrl =
+          settings.getPlatformBaseUrl() != null ? settings.getPlatformBaseUrl() : "";
+      String platformName =
+          settings.getPlatformName() != null ? settings.getPlatformName() : "OpenAEV Platform";
+
+      config.setPlatformUrl(platformUrl);
+      config.setPlatformVersion(version != null ? version : "");
 
       Map<String, Object> result =
           client.register(
               "openaev",
-              settings.getPlatformBaseUrl() != null ? settings.getPlatformBaseUrl() : "",
-              settings.getPlatformName() != null ? settings.getPlatformName() : "OpenAEV Platform",
+              platformUrl,
+              platformName,
               version != null ? version : "",
               settings.getPlatformId() != null ? settings.getPlatformId() : "",
               licensePem,
               licenseType,
-              adminToken,
-              userEntries);
+              "aev",
+              DEFAULT_INTENTS);
       if (result != null) {
         Object chatToken = result.get("chat_web_token");
         if (chatToken instanceof String s && !s.isBlank()) {
@@ -83,8 +91,6 @@ public class XtmOneService {
         log.info(
             "[XTM One] Registration successful (ee_enabled="
                 + result.getOrDefault("ee_enabled", false)
-                + ", user_integrations="
-                + result.getOrDefault("user_integrations", 0)
                 + ")");
       } else {
         log.warning("[XTM One] Registration failed, will retry on next tick");
@@ -92,25 +98,5 @@ public class XtmOneService {
     } catch (Exception e) {
       log.warning("[XTM One] Registration failed: " + e.getMessage() + ", will retry on next tick");
     }
-  }
-
-  private List<Map<String, String>> collectUserEntries() {
-    List<Map<String, String>> entries = new ArrayList<>();
-    for (User user : userService.users()) {
-      if (user.getEmail() == null) continue;
-      List<Token> tokens = user.getTokens();
-      if (tokens == null || tokens.isEmpty()) continue;
-      String tokenValue = tokens.getFirst().getValue();
-      if (tokenValue == null || tokenValue.isBlank()) continue;
-      entries.add(
-          Map.of(
-              "email",
-              user.getEmail(),
-              "display_name",
-              user.getName() != null ? user.getName() : user.getEmail(),
-              "api_key",
-              tokenValue));
-    }
-    return entries;
   }
 }

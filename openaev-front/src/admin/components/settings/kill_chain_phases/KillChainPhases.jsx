@@ -19,7 +19,6 @@ import KillChainPhasePopover from './KillChainPhasePopover';
 const useStyles = makeStyles()(() => ({
   itemHead: {
     paddingLeft: 10,
-    textTransform: 'uppercase',
     cursor: 'pointer',
   },
   item: {
@@ -30,7 +29,6 @@ const useStyles = makeStyles()(() => ({
     fontSize: 12,
     height: 20,
     float: 'left',
-    textTransform: 'uppercase',
     borderRadius: 4,
     width: 120,
   },

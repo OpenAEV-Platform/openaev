@@ -1,6 +1,6 @@
 import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Route, Routes, useNavigate } from 'react-router';
 import { type CSSObject } from 'tss-react';
 import { makeStyles } from 'tss-react/mui';
@@ -16,12 +16,12 @@ import Loader from '../components/Loader';
 import NotFound from '../components/NotFound';
 import { computeBannerSettings } from '../public/components/systembanners/utils';
 import { useHelper } from '../store';
-import { type ArianeChatMode, MESSAGING$ } from '../utils/Environment';
 import { useAppDispatch } from '../utils/hooks';
 import useDataLoader from '../utils/hooks/useDataLoader';
 import ProtectedRoute from '../utils/permissions/ProtectedRoute';
 import { ACTIONS, SUBJECTS } from '../utils/permissions/types';
-import ArianeChatPanel from './components/ariane/ArianeChatPanel';
+import ChatbotProvider from './components/ariane/ChatbotProvider';
+import { useChatbotContentMargin, useChatbotContentTransition } from './components/ariane/useChatbotHooks';
 import { GETTING_STARTED_LOCAL_STORAGE_KEY } from './components/getting_started/GettingStartedPage';
 import GettingStartedRoutes, { GETTING_STARTED_URI } from './components/getting_started/GettingStartedRoutes';
 import LeftBar from './components/nav/LeftBar';
@@ -70,48 +70,16 @@ const Index = () => {
     }
   }, [logged]);
 
-  const isXtmOneConfigured = settings.platform_xtm_one_configured === true;
-  const [arianeChatOpen, setArianeChatOpen] = useState(false);
-  const [arianeChatMode, setArianeChatMode] = useState<ArianeChatMode>(
-    () => (localStorage.getItem('arianeChatMode') as ArianeChatMode) || 'sidebar',
-  );
-  const [arianeSidebarWidth, setArianeSidebarWidth] = useState(() => {
-    const stored = localStorage.getItem('arianeChatSidebarWidth');
-    if (stored) {
-      const parsed = parseInt(stored, 10);
-      if (!Number.isNaN(parsed) && parsed >= 400) return parsed;
-    }
-    return 400;
-  });
-  const [isResizingSidebar, setIsResizingSidebar] = useState(false);
-
-  useEffect(() => {
-    if (!isXtmOneConfigured) return undefined;
-    const toggleSub = MESSAGING$.toggleArianeChat.subscribe({ next: () => setArianeChatOpen(prev => !prev) });
-    const modeSub = MESSAGING$.setArianeChatMode.subscribe({
-      next: (mode) => {
-        setArianeChatMode(mode);
-        localStorage.setItem('arianeChatMode', mode);
-      },
-    });
-    return () => {
-      toggleSub.unsubscribe();
-      modeSub.unsubscribe();
-    };
-  }, [isXtmOneConfigured]);
-
-  const sidebarPush = isXtmOneConfigured && arianeChatOpen && arianeChatMode === 'sidebar';
+  const chatbotMargin = useChatbotContentMargin();
+  const chatbotTransition = useChatbotContentTransition(theme);
 
   const boxSx = {
     flexGrow: 1,
-    padding: 3,
-    marginRight: sidebarPush ? `${arianeSidebarWidth}px` : 0,
-    transition: isResizingSidebar
-      ? 'none'
-      : theme.transitions.create(['width', 'margin-right'], {
-          easing: theme.transitions.easing.easeInOut,
-          duration: theme.transitions.duration.enteringScreen,
-        }),
+    paddingTop: 2,
+    paddingLeft: 2.5,
+    paddingRight: 2.5,
+    marginRight: chatbotMargin > 0 ? `${chatbotMargin}px` : 0,
+    transition: chatbotTransition,
     overflowX: 'hidden',
     overflowY: 'hidden',
   };
@@ -277,22 +245,14 @@ const Index = () => {
           </Routes>
         </Suspense>
       </Box>
-      {isXtmOneConfigured && arianeChatOpen && (
-        <ArianeChatPanel
-          mode={arianeChatMode}
-          onClose={() => setArianeChatOpen(false)}
-          onModeChange={(mode) => {
-            setArianeChatMode(mode);
-            localStorage.setItem('arianeChatMode', mode);
-          }}
-          bannerHeight={bannerHeight ? parseInt(String(bannerHeight), 10) || 0 : 0}
-          onWidthChange={setArianeSidebarWidth}
-          onResizeStart={() => setIsResizingSidebar(true)}
-          onResizeEnd={() => setIsResizingSidebar(false)}
-        />
-      )}
     </Box>
   );
 };
 
-export default Index;
+const IndexWithChatbot = () => (
+  <ChatbotProvider>
+    <Index />
+  </ChatbotProvider>
+);
+
+export default IndexWithChatbot;

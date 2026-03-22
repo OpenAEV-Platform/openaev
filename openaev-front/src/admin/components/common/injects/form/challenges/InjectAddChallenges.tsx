@@ -1,7 +1,6 @@
 import { ControlPointOutlined, EmojiEventsOutlined } from '@mui/icons-material';
 import {
   Box,
-  Button,
   Chip,
   Dialog,
   DialogActions,
@@ -19,6 +18,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import { fetchChallenges } from '../../../../../../actions/challenge-action';
 import { type ChallengeHelper } from '../../../../../../actions/helper';
+import Button from '../../../../../../components/common/button/Button';
 import Transition from '../../../../../../components/common/Transition';
 import { useFormatter } from '../../../../../../components/i18n';
 import SearchFilter from '../../../../../../components/SearchFilter';
@@ -251,9 +251,9 @@ const InjectAddChallenges: FunctionComponent<Props> = ({
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose}>{t('Cancel')}</Button>
+          <Button variant="secondary" onClick={handleClose}>{t('Cancel')}</Button>
           <Button
-            color="secondary"
+            variant="primary"
             onClick={submitAddChallenges}
           >
             {t('Add')}

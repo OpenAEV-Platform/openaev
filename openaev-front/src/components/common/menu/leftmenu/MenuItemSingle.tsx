@@ -1,10 +1,9 @@
-import { ListItemIcon, ListItemText, MenuItem } from '@mui/material';
+import { ListItemIcon, ListItemText, MenuItem, Tooltip } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { Link, useLocation } from 'react-router';
 
 import { useFormatter } from '../../../i18n';
 import { type LeftMenuItem } from './leftmenu-model';
-import StyledTooltip from './StyledTooltip';
 import useLeftMenuStyle from './useLeftMenuStyle';
 
 interface Props {
@@ -13,36 +12,39 @@ interface Props {
 }
 
 const MenuItemSingle: FunctionComponent<Props> = ({ navOpen, item }) => {
-  // Standard hooks
   const { t } = useFormatter();
   const location = useLocation();
-  const leftMenuStyle = useLeftMenuStyle();
+  const { iconSx, iconSelectedSx, getMenuItemSx, textColor } = useLeftMenuStyle();
 
   const isCurrentTab = location.pathname === item.path;
+
   return (
-    <StyledTooltip title={!navOpen && t(item.label)} placement="right">
+    <Tooltip title={!navOpen ? t(item.label) : ''} placement="right">
       <MenuItem
         aria-label={t(item.label)}
         component={Link}
         to={item.path}
-        selected={isCurrentTab}
+        selected={false}
         dense
-        sx={{
-          paddingRight: '2px',
-          height: 35,
-        }}
+        sx={getMenuItemSx(isCurrentTab)}
       >
-        <ListItemIcon style={{ ...leftMenuStyle.listItemIcon }}>
+        <ListItemIcon sx={isCurrentTab ? iconSelectedSx : iconSx}>
           {item.icon()}
         </ListItemIcon>
         {navOpen && (
           <ListItemText
             primary={t(item.label)}
-            slotProps={{ primary: { sx: { ...leftMenuStyle.listItemText } } }}
+            sx={{ pt: 0.1 }}
+            slotProps={{
+              primary: {
+                fontSize: '14px',
+                color: textColor,
+              },
+            }}
           />
         )}
       </MenuItem>
-    </StyledTooltip>
+    </Tooltip>
   );
 };
 

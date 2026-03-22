@@ -1,8 +1,9 @@
 import { ContentPasteGoOutlined, DeleteSweepOutlined, VisibilityOutlined } from '@mui/icons-material';
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, FormControl, FormControlLabel, Grid, Link, Paper, Radio, RadioGroup, Switch, Typography, useTheme } from '@mui/material';
+import { Alert, Button as MuiButton, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, FormControl, FormControlLabel, Grid, Link, Paper, Radio, RadioGroup, Switch, Typography, useTheme } from '@mui/material';
 import { type ChangeEvent, type FunctionComponent, useContext, useEffect, useState } from 'react';
 
 import { fetchLessonsTemplates } from '../../../../actions/Lessons';
+import Button from '../../../../components/common/button/Button';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { type LessonsAnswer, type LessonsCategory, type LessonsQuestion, type LessonsTemplate, type Objective, type Team } from '../../../../utils/api-types';
@@ -136,27 +137,27 @@ const Lessons: FunctionComponent<Props> = ({
             {(permissions.canManage && ability.can(ACTIONS.ACCESS, SUBJECTS.LESSONS_LEARNED)) && (
               <Grid size={{ xs: 6 }}>
                 <Typography variant="h3">{t('Template')}</Typography>
-                <Button
+                <MuiButton
                   startIcon={<ContentPasteGoOutlined />}
                   color="primary"
                   variant="contained"
                   onClick={() => setOpenApplyTemplate(true)}
                 >
                   {t('Apply')}
-                </Button>
+                </MuiButton>
               </Grid>
             )}
             <Grid size={{ xs: 6 }}>
               <Typography variant="h3">{t('Check')}</Typography>
-              <Button
+              <MuiButton
                 startIcon={<VisibilityOutlined />}
-                color="secondary"
+                color="primary"
                 variant="contained"
                 component={Link}
                 href={`/lessons/${source.type}/${source.id}?preview=true`}
               >
                 {t('Preview')}
-              </Button>
+              </MuiButton>
             </Grid>
             {permissions.canManage && (
               <Grid size={{ xs: 6 }}>
@@ -164,14 +165,14 @@ const Lessons: FunctionComponent<Props> = ({
                   {t('Categories and questions')}
                 </Typography>
 
-                <Button
+                <MuiButton
                   startIcon={<DeleteSweepOutlined />}
                   color="error"
                   variant="contained"
                   onClick={() => setOpenEmptyLessons(true)}
                 >
                   {t('Clear out')}
-                </Button>
+                </MuiButton>
               </Grid>
             )}
           </Grid>
@@ -274,6 +275,7 @@ const Lessons: FunctionComponent<Props> = ({
           }}
           >
             <Button
+              variant="secondary"
               onClick={() => setOpenApplyTemplate(false)}
               style={{ marginRight: 10 }}
             >
@@ -281,7 +283,7 @@ const Lessons: FunctionComponent<Props> = ({
             </Button>
             <Can I={ACTIONS.ACCESS} a={SUBJECTS.LESSONS_LEARNED}>
               <Button
-                color="secondary"
+                variant="primary"
                 onClick={applyTemplate}
                 disabled={templateValue === null}
               >
@@ -306,10 +308,10 @@ const Lessons: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenEmptyLessons(false)}>
+          <Button variant="secondary" onClick={() => setOpenEmptyLessons(false)}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={emptyLessons}>
+          <Button variant="primary" onClick={emptyLessons}>
             {t('Clear out')}
           </Button>
         </DialogActions>
@@ -326,10 +328,10 @@ const Lessons: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenAnonymize(false)}>
+          <Button variant="secondary" onClick={() => setOpenAnonymize(false)}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={toggleAnonymize}>
+          <Button variant="primary" onClick={toggleAnonymize}>
             {t('Anonymize')}
           </Button>
         </DialogActions>

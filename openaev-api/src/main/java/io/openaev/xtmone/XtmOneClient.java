@@ -1,12 +1,17 @@
 package io.openaev.xtmone;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.jsonwebtoken.Jwts;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +32,50 @@ public class XtmOneClient {
           .connectTimeout(Duration.ofSeconds(15))
           .build();
 
+  private volatile KeyPair ed25519KeyPair;
+
+  private synchronized KeyPair getOrCreateKeyPair() {
+    if (ed25519KeyPair == null) {
+      try {
+        var gen = KeyPairGenerator.getInstance("Ed25519");
+        ed25519KeyPair = gen.generateKeyPair();
+      } catch (Exception e) {
+        throw new IllegalStateException("Failed to generate Ed25519 key pair", e);
+      }
+    }
+    return ed25519KeyPair;
+  }
+
+  public String issueAuthenticationJwt(String userId, String userName, String userEmail) {
+    var kp = getOrCreateKeyPair();
+    var now = Instant.now();
+    return Jwts.builder()
+        .subject(userId)
+        .claim("name", userName)
+        .claim("email", userEmail)
+        .issuer("openaev")
+        .issuedAt(Date.from(now))
+        .expiration(Date.from(now.plus(Duration.ofHours(1))))
+        .signWith(kp.getPrivate())
+        .compact();
+  }
+
+  private HttpRequest.Builder chatRequestBuilder(String path, String jwt) {
+    var builder =
+        HttpRequest.newBuilder()
+            .uri(URI.create(config.getUrl() + path))
+            .header("Authorization", "Bearer " + jwt)
+            .header("Content-Type", "application/json")
+            .header("X-Platform-Product", "openaev")
+            .header(
+                "X-Platform-URL", config.getPlatformUrl() != null ? config.getPlatformUrl() : "");
+    var version = config.getPlatformVersion();
+    if (version != null && !version.isBlank()) {
+      builder.header("X-Platform-Version", version);
+    }
+    return builder;
+  }
+
   public Map<String, Object> register(
       String platformIdentifier,
       String platformUrl,
@@ -35,8 +84,8 @@ public class XtmOneClient {
       String platformId,
       String enterpriseLicensePem,
       String licenseType,
-      String adminApiKey,
-      List<Map<String, String>> users) {
+      String businessVertical,
+      List<Map<String, String>> intents) {
     if (!config.isConfigured()) {
       return null;
     }
@@ -49,8 +98,8 @@ public class XtmOneClient {
       body.put("platform_id", platformId != null ? platformId : "");
       body.put("enterprise_license_pem", enterpriseLicensePem != null ? enterpriseLicensePem : "");
       body.put("license_type", licenseType != null ? licenseType : "");
-      body.put("admin_api_key", adminApiKey != null ? adminApiKey : "");
-      body.put("users", users != null ? users : List.of());
+      if (businessVertical != null) body.put("business_vertical", businessVertical);
+      body.put("intents", intents != null ? intents : List.of());
       String json = objectMapper.writeValueAsString(body);
       HttpRequest request =
           HttpRequest.newBuilder()
@@ -73,21 +122,13 @@ public class XtmOneClient {
     return null;
   }
 
-  public List<Map<String, Object>> listChatAgents(String userEmail) {
+  public List<Map<String, Object>> listChatAgents(String jwt) {
     if (!config.isConfigured()) {
       return List.of();
     }
     try {
-      String query = "tag=openaev";
-      if (userEmail != null && !userEmail.isBlank()) {
-        query +=
-            "&user_email="
-                + java.net.URLEncoder.encode(userEmail, java.nio.charset.StandardCharsets.UTF_8);
-      }
       HttpRequest request =
-          HttpRequest.newBuilder()
-              .uri(URI.create(config.getUrl() + "/api/v1/platform/chat/agents?" + query))
-              .header("Authorization", "Bearer " + config.getToken())
+          chatRequestBuilder("/api/v1/platform/chat/agents?tag=openaev", jwt)
               .GET()
               .timeout(Duration.ofSeconds(10))
               .build();
@@ -96,6 +137,7 @@ public class XtmOneClient {
       if (response.statusCode() == 200) {
         return objectMapper.readValue(response.body(), List.class);
       }
+      log.warning("[XTM One] List chat agents failed: HTTP " + response.statusCode());
     } catch (Exception e) {
       log.warning("[XTM One] List chat agents error: " + e.getMessage());
     }
@@ -103,22 +145,17 @@ public class XtmOneClient {
   }
 
   public Map<String, Object> createChatSession(
-      String userEmail, String agentSlug, String conversationId) {
+      String jwt, String agentSlug, String conversationId) {
     if (!config.isConfigured()) {
       return null;
     }
     try {
       Map<String, Object> body = new HashMap<>();
-      body.put("user_email", userEmail);
       if (agentSlug != null) body.put("agent_slug", agentSlug);
       if (conversationId != null) body.put("conversation_id", conversationId);
-      body.put("content", "");
       String json = objectMapper.writeValueAsString(body);
       HttpRequest request =
-          HttpRequest.newBuilder()
-              .uri(URI.create(config.getUrl() + "/api/v1/platform/chat/sessions"))
-              .header("Authorization", "Bearer " + config.getToken())
-              .header("Content-Type", "application/json")
+          chatRequestBuilder("/api/v1/platform/chat/sessions", jwt)
               .POST(HttpRequest.BodyPublishers.ofString(json))
               .timeout(Duration.ofSeconds(10))
               .build();
@@ -135,23 +172,19 @@ public class XtmOneClient {
   }
 
   public InputStream streamChatMessage(
-      String userEmail, String content, String conversationId, String agentSlug) {
+      String jwt, String content, String conversationId, String agentSlug) {
     if (!config.isConfigured()) {
       log.warning("[XTM One] Chat message skipped: not configured");
       return null;
     }
     try {
       Map<String, Object> body = new HashMap<>();
-      body.put("user_email", userEmail);
       body.put("content", content);
       if (conversationId != null) body.put("conversation_id", conversationId);
       if (agentSlug != null) body.put("agent_slug", agentSlug);
       String json = objectMapper.writeValueAsString(body);
       HttpRequest request =
-          HttpRequest.newBuilder()
-              .uri(URI.create(config.getUrl() + "/api/v1/platform/chat/messages"))
-              .header("Authorization", "Bearer " + config.getToken())
-              .header("Content-Type", "application/json")
+          chatRequestBuilder("/api/v1/platform/chat/messages", jwt)
               .POST(HttpRequest.BodyPublishers.ofString(json))
               .timeout(Duration.ofMinutes(15))
               .build();
@@ -161,23 +194,11 @@ public class XtmOneClient {
         return response.body();
       }
       log.warning(
-          "[XTM One] Chat message failed: HTTP "
-              + response.statusCode()
-              + " for user="
-              + userEmail
-              + ", agent="
-              + agentSlug);
+          "[XTM One] Chat message failed: HTTP " + response.statusCode() + ", agent=" + agentSlug);
     } catch (java.net.http.HttpTimeoutException e) {
-      log.warning(
-          "[XTM One] Chat message timed out for user=" + userEmail + ", agent=" + agentSlug);
+      log.warning("[XTM One] Chat message timed out, agent=" + agentSlug);
     } catch (Exception e) {
-      log.warning(
-          "[XTM One] Chat message error for user="
-              + userEmail
-              + ", agent="
-              + agentSlug
-              + ": "
-              + e.getMessage());
+      log.warning("[XTM One] Chat message error, agent=" + agentSlug + ": " + e.getMessage());
     }
     return null;
   }

@@ -9,10 +9,7 @@ import { VariableContext } from '../../common/Context';
 import VariablePopover from './VariablePopover';
 
 const useStyles = makeStyles()(() => ({
-  itemHead: {
-    textTransform: 'uppercase',
-    cursor: 'pointer',
-  },
+  itemHead: { cursor: 'pointer' },
   item: { height: 50 },
   bodyItem: {
     height: '100%',

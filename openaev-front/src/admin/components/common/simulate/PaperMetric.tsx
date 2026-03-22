@@ -7,7 +7,6 @@ import ItemNumberDifference from '../../../../components/ItemNumberDifference';
 
 const useStyles = makeStyles()(theme => ({
   title: {
-    textTransform: 'uppercase',
     fontSize: theme.typography.h4.fontSize,
     fontWeight: theme.typography.h4.fontWeight,
     color: theme.palette.text?.secondary,

@@ -38,7 +38,6 @@ const useStyles = makeStyles()(() => ({
     gap: '10px',
   },
   itemHead: {
-    textTransform: 'uppercase',
     cursor: 'pointer',
     paddingLeft: 10,
   },

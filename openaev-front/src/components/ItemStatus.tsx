@@ -1,27 +1,9 @@
-import { Chip, Tooltip } from '@mui/material';
+import { useTheme } from '@mui/material';
 import { type FunctionComponent } from 'react';
-import { makeStyles } from 'tss-react/mui';
 
-import { computeStatusStyle } from '../utils/statusUtils';
-
-const useStyles = makeStyles()(() => ({
-  chip: {
-    fontSize: 12,
-    height: 25,
-    marginRight: 7,
-    textTransform: 'uppercase',
-    borderRadius: 4,
-    width: 150,
-  },
-  chipInList: {
-    fontSize: 12,
-    height: 20,
-    float: 'left',
-    textTransform: 'uppercase',
-    borderRadius: 4,
-    width: 150,
-  },
-}));
+import { getStatusColor } from '../utils/statusUtils';
+import Tag from './common/tag/Tag';
+import { useFormatter } from './i18n';
 
 interface ItemStatusProps {
   label: string;
@@ -37,14 +19,26 @@ const ItemStatus: FunctionComponent<ItemStatusProps> = ({
   tooltipLabel,
   variant,
 }) => {
-  const { classes } = useStyles();
-  const style = variant === 'inList' ? classes.chipInList : classes.chip;
-  const classStyle = computeStatusStyle(status);
+  const { t } = useFormatter();
+  const theme = useTheme();
+
+  let finalLabel = label;
+  if (isInject) {
+    if (status === 'SUCCESS') {
+      finalLabel = t('INJECT EXECUTED');
+    }
+  }
+
+  const color = getStatusColor(theme, status ?? undefined);
+  const maxWidth = variant === 'inList' ? 150 : 150;
 
   return (
-    <Tooltip title={tooltipLabel ?? label}>
-      <Chip classes={{ root: style }} style={classStyle} label={label} />
-    </Tooltip>
+    <Tag
+      label={finalLabel}
+      color={color}
+      maxWidth={maxWidth}
+      tooltipTitle={finalLabel}
+    />
   );
 };
 

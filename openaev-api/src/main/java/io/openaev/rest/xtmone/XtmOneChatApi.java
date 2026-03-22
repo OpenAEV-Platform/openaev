@@ -30,12 +30,15 @@ public class XtmOneChatApi extends RestBehavior {
   private final XtmOneConfig config;
   private final UserRepository userRepository;
 
-  private String currentUserEmail() {
-    User user =
-        userRepository
-            .findById(currentUser().getId())
-            .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
-    return user.getEmail();
+  private User resolveCurrentUser() {
+    return userRepository
+        .findById(currentUser().getId())
+        .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
+  }
+
+  private String issueJwt(User user) {
+    return client.issueAuthenticationJwt(
+        user.getId(), user.getName() != null ? user.getName() : user.getEmail(), user.getEmail());
   }
 
   @GetMapping("/api/xtmone/chat/agents")
@@ -43,7 +46,8 @@ public class XtmOneChatApi extends RestBehavior {
     if (!config.isConfigured()) {
       return List.of();
     }
-    return client.listChatAgents(currentUserEmail());
+    User user = resolveCurrentUser();
+    return client.listChatAgents(issueJwt(user));
   }
 
   @PostMapping("/api/xtmone/chat/sessions")
@@ -51,11 +55,12 @@ public class XtmOneChatApi extends RestBehavior {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }
-    String userEmail = currentUserEmail();
+    User user = resolveCurrentUser();
+    String jwt = issueJwt(user);
     String agentSlug = body.get("agent_slug") != null ? body.get("agent_slug").toString() : null;
     String conversationId =
         body.get("conversation_id") != null ? body.get("conversation_id").toString() : null;
-    Map<String, Object> result = client.createChatSession(userEmail, agentSlug, conversationId);
+    Map<String, Object> result = client.createChatSession(jwt, agentSlug, conversationId);
     if (result == null) {
       return ResponseEntity.internalServerError().build();
     }
@@ -67,10 +72,8 @@ public class XtmOneChatApi extends RestBehavior {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }
-    // Resolve DB-dependent data eagerly so the connection is released when
-    // this method returns — the actual HTTP call to Copilot happens inside
-    // the StreamingResponseBody (async thread, no DB connection held).
-    String userEmail = currentUserEmail();
+    User user = resolveCurrentUser();
+    String jwt = issueJwt(user);
     String content = body.get("content") != null ? body.get("content").toString() : "";
     String conversationId =
         body.get("conversation_id") != null ? body.get("conversation_id").toString() : null;
@@ -78,14 +81,9 @@ public class XtmOneChatApi extends RestBehavior {
 
     StreamingResponseBody responseBody =
         outputStream -> {
-          InputStream sseStream =
-              client.streamChatMessage(userEmail, content, conversationId, agentSlug);
+          InputStream sseStream = client.streamChatMessage(jwt, content, conversationId, agentSlug);
           if (sseStream == null) {
-            log.warning(
-                "[XTM One Chat] streamChatMessage returned null for user="
-                    + userEmail
-                    + ", agent="
-                    + agentSlug);
+            log.warning("[XTM One Chat] streamChatMessage returned null, agent=" + agentSlug);
             outputStream.write(
                 ("data: "
                         + "{\"type\":\"error\",\"content\":\"Unable to connect to the AI assistant. Please try again.\"}"
@@ -103,12 +101,7 @@ public class XtmOneChatApi extends RestBehavior {
             }
           } catch (Exception e) {
             log.warning(
-                "[XTM One Chat] Stream interrupted for user="
-                    + userEmail
-                    + ", agent="
-                    + agentSlug
-                    + ": "
-                    + e.getMessage());
+                "[XTM One Chat] Stream interrupted, agent=" + agentSlug + ": " + e.getMessage());
           }
         };
 

@@ -1,10 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useState } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
+import Button from '../../../../../components/common/button/Button';
 import DialogDelete from '../../../../../components/common/DialogDelete';
 import TextFieldController from '../../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../../components/i18n';
@@ -92,18 +92,16 @@ const NotificationRuleForm: FunctionComponent<Props> = ({
 
           <div style={{ alignSelf: 'flex-end' }}>
             <Button
-              variant="contained"
+              variant={edition ? 'primary' : 'secondary'}
               onClick={edition ? handleOpenDelete : handleClose}
               style={{ marginRight: theme.spacing(1) }}
               disabled={isSubmitting}
-              color={edition ? 'error' : 'primary'}
             >
               {edition ? t('Delete') : t('Cancel')}
             </Button>
 
             <Button
-              variant="contained"
-              color="secondary"
+              variant="primary"
               type="submit"
               disabled={isSubmitting}
             >

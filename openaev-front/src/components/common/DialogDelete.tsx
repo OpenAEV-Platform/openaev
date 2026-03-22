@@ -1,9 +1,10 @@
-import { Button, Dialog as DialogMUI, DialogActions, DialogContent, DialogContentText } from '@mui/material';
+import { Dialog as DialogMUI, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import type React from 'react';
 import { useState } from 'react';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../i18n';
+import Button from './button/Button';
 import Transition from './Transition';
 
 interface DialogDeleteProps {
@@ -46,9 +47,9 @@ const DialogDelete: FunctionComponent<DialogDeleteProps> = ({
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleClose}>{t('Cancel')}</Button>
+        <Button variant="secondary" onClick={handleClose}>{t('Cancel')}</Button>
         {handleSubmit && (
-          <Button color="secondary" loading={loading} onClick={handleLoadingAndSubmit}>
+          <Button variant="primary" loading={loading} onClick={handleLoadingAndSubmit}>
             {t('Delete')}
           </Button>
         )}

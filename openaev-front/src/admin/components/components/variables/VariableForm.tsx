@@ -1,9 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, TextField as MuiTextField } from '@mui/material';
+import { TextField as MuiTextField } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
+import Button from '../../../../components/common/button/Button';
 import { useFormatter } from '../../../../components/i18n';
 import { type VariableInput } from '../../../../utils/api-types';
 import { zodImplement } from '../../../../utils/Zod';
@@ -89,7 +90,7 @@ const VariableForm: FunctionComponent<Props> = ({
       }}
       >
         <Button
-          variant="contained"
+          variant="secondary"
           onClick={handleClose}
           style={{ marginRight: 10 }}
           disabled={isSubmitting}
@@ -97,8 +98,7 @@ const VariableForm: FunctionComponent<Props> = ({
           {t('Cancel')}
         </Button>
         <Button
-          variant="contained"
-          color="secondary"
+          variant="primary"
           type="submit"
           disabled={!isDirty || isSubmitting}
         >

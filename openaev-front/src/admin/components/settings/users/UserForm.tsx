@@ -1,8 +1,8 @@
-import { Button } from '@mui/material';
 import { Form } from 'react-final-form';
 import { z } from 'zod';
 
 import { type UserInputForm } from '../../../../actions/users/users-helper';
+import Button from '../../../../components/common/button/Button';
 import OldSwitchField from '../../../../components/fields/OldSwitchField';
 import OldTextField from '../../../../components/fields/OldTextField';
 import { useFormatter } from '../../../../components/i18n';
@@ -149,7 +149,7 @@ const UserForm = ({ onSubmit, initialValues = {}, editing, handleClose }: UserFo
           }}
           >
             <Button
-              variant="contained"
+              variant="secondary"
               onClick={handleClose}
               style={{ marginRight: 10 }}
               disabled={submitting}
@@ -157,8 +157,7 @@ const UserForm = ({ onSubmit, initialValues = {}, editing, handleClose }: UserFo
               {t('Cancel')}
             </Button>
             <Button
-              variant="contained"
-              color="secondary"
+              variant="primary"
               type="submit"
               disabled={pristine || submitting}
             >

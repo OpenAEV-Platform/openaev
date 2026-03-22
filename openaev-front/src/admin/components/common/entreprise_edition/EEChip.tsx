@@ -8,11 +8,12 @@ import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 const useStyles = makeStyles<{ isClickable: boolean }>()((theme, { isClickable }) => ({
   container: {
     fontSize: 'xx-small',
-    height: 14,
-    display: 'flex',
+    height: 18,
+    display: 'inline-flex',
     justifyContent: 'center',
     alignItems: 'center',
     width: 21,
+    marginLeft: 6,
     borderRadius: theme.borderRadius,
     border: `1px solid ${theme.palette.ee.main}`,
     color: theme.palette.ee.main,

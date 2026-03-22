@@ -1,4 +1,4 @@
-import { ExpandLessOutlined, ExpandMoreOutlined } from '@mui/icons-material';
+import { ArrowDropDown, ArrowDropUp } from '@mui/icons-material';
 import { ListItemIcon, ListItemText, MenuItem } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { useLocation } from 'react-router';
@@ -17,10 +17,9 @@ interface Props {
 }
 
 const MenuItemGroup: FunctionComponent<Props> = ({ item, state, helpers }) => {
-  // Standard hooks
   const { t } = useFormatter();
   const location = useLocation();
-  const leftMenuStyle = useLeftMenuStyle();
+  const { iconSx, iconSelectedSx, getMenuItemSx, textColor } = useLeftMenuStyle();
   const { dimension } = useDimensions();
   const isMobile = dimension.width < 768;
 
@@ -36,12 +35,9 @@ const MenuItemGroup: FunctionComponent<Props> = ({ item, state, helpers }) => {
         aria-haspopup="menu"
         aria-expanded={selectedMenu === item.href}
         aria-label={t(item.label)}
-        selected={isCurrentTab}
+        selected={false}
         dense
-        sx={{
-          paddingRight: '2px',
-          height: 35,
-        }}
+        sx={getMenuItemSx(isCurrentTab)}
         onClick={() =>
           isMobile || navOpen
             ? handleSelectedMenuToggle(item.href)
@@ -49,20 +45,24 @@ const MenuItemGroup: FunctionComponent<Props> = ({ item, state, helpers }) => {
         onMouseEnter={() => !navOpen && handleSelectedMenuOpen(item.href)}
         onMouseLeave={() => !navOpen && handleSelectedMenuClose()}
       >
-        <ListItemIcon style={{ ...leftMenuStyle.listItemIcon }}>
+        <ListItemIcon sx={isCurrentTab ? iconSelectedSx : iconSx}>
           {item.icon()}
         </ListItemIcon>
         {navOpen && (
           <>
             <ListItemText
               primary={t(item.label)}
-              slotProps={{ primary: { sx: { ...leftMenuStyle.listItemText } } }}
+              sx={{ pt: 0.1 }}
+              slotProps={{
+                primary: {
+                  fontSize: '14px',
+                  color: textColor,
+                },
+              }}
             />
-            {selectedMenu === item.href ? (
-              <ExpandLessOutlined />
-            ) : (
-              <ExpandMoreOutlined />
-            )}
+            {selectedMenu === item.href
+              ? <ArrowDropUp sx={{ fontSize: '20px' }} />
+              : <ArrowDropDown sx={{ fontSize: '20px' }} />}
           </>
         )}
       </MenuItem>

@@ -14,7 +14,6 @@ const useStyles = makeStyles()(theme => ({
   },
   title: {
     float: 'left',
-    textTransform: 'uppercase',
     margin: 0,
   },
 }));

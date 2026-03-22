@@ -1,10 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
+import Button from '../../../../components/common/button/Button';
 import TextFieldController from '../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../components/i18n';
 import type { ChallengeTryInput } from '../../../../utils/api-types';
@@ -51,6 +51,7 @@ const ChallengeTryForm: FunctionComponent<Props> = ({ handleClose, onSubmit }) =
         />
         <div style={{ alignSelf: 'flex-end' }}>
           <Button
+            variant="secondary"
             onClick={handleClose}
             style={{ marginRight: theme.spacing(1) }}
             disabled={isSubmitting}
@@ -58,7 +59,7 @@ const ChallengeTryForm: FunctionComponent<Props> = ({ handleClose, onSubmit }) =
             {t('Cancel')}
           </Button>
           <Button
-            color="secondary"
+            variant="primary"
             type="submit"
             disabled={isSubmitting || !isDirty}
           >

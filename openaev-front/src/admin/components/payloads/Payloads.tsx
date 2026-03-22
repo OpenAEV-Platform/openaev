@@ -31,13 +31,12 @@ import PayloadComponent from './PayloadComponent';
 import PayloadPopover from './PayloadPopover';
 
 const useStyles = makeStyles()(() => ({
-  itemHead: { textTransform: 'uppercase' },
+  itemHead: {},
   item: { height: 50 },
   chip: {
     fontSize: 12,
     height: 25,
     margin: '0 7px 7px 0',
-    textTransform: 'uppercase',
     borderRadius: 4,
     width: 180,
   },
@@ -45,7 +44,6 @@ const useStyles = makeStyles()(() => ({
     fontSize: 12,
     height: 20,
     float: 'left',
-    textTransform: 'uppercase',
     borderRadius: 4,
     width: 150,
   },
@@ -53,7 +51,6 @@ const useStyles = makeStyles()(() => ({
     fontSize: 12,
     height: 20,
     float: 'left',
-    textTransform: 'uppercase',
     borderRadius: 4,
     width: 120,
   },
@@ -74,7 +71,6 @@ const chipSx = {
   fontSize: 12,
   height: 20,
   float: 'left',
-  textTransform: 'uppercase',
   borderRadius: 1,
   width: 120,
 };

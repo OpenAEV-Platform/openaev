@@ -1,4 +1,4 @@
-import { Button, Dialog as MuiDialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
+import { Dialog as MuiDialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { type FunctionComponent, useContext, useState } from 'react';
 
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
@@ -6,6 +6,7 @@ import { type OrganizationHelper, type TagHelper } from '../../../../actions/hel
 import { type TeamInputForm } from '../../../../actions/teams/Team';
 import { deleteTeam, updateTeam } from '../../../../actions/teams/team-actions';
 import { type TeamsHelper } from '../../../../actions/teams/team-helper';
+import Button from '../../../../components/common/button/Button';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import Dialog from '../../../../components/common/dialog/Dialog';
 import DialogDelete from '../../../../components/common/DialogDelete';
@@ -202,8 +203,8 @@ const TeamPopover: FunctionComponent<TeamPopoverProps> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseRemove}>{t('Cancel')}</Button>
-          <Button color="secondary" onClick={submitRemove}>
+          <Button variant="secondary" onClick={handleCloseRemove}>{t('Cancel')}</Button>
+          <Button variant="primary" onClick={submitRemove}>
             {t('Remove')}
           </Button>
         </DialogActions>
@@ -220,8 +221,8 @@ const TeamPopover: FunctionComponent<TeamPopoverProps> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseRemoveFromInject}>{t('Cancel')}</Button>
-          <Button color="secondary" onClick={submitRemoveFromInject}>
+          <Button variant="secondary" onClick={handleCloseRemoveFromInject}>{t('Cancel')}</Button>
+          <Button variant="primary" onClick={submitRemoveFromInject}>
             {t('Remove')}
           </Button>
         </DialogActions>

@@ -1,7 +1,6 @@
 import { Add, CastForEducationOutlined } from '@mui/icons-material';
 import {
   Box,
-  Button,
   Chip,
   Dialog,
   DialogActions,
@@ -19,6 +18,7 @@ import * as R from 'ramda';
 import { Component } from 'react';
 import { withStyles } from 'tss-react/mui';
 
+import Button from '../../../../components/common/button/Button';
 import Transition from '../../../../components/common/Transition';
 import inject18n from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
@@ -151,7 +151,7 @@ class LessonsCategoryAddTeamsComponent extends Component {
           onClick={this.handleOpen.bind(this)}
           aria-haspopup="true"
           size="small"
-          color="secondary"
+          color="primary"
         >
           <Add fontSize="small" />
         </IconButton>
@@ -264,9 +264,9 @@ class LessonsCategoryAddTeamsComponent extends Component {
             </GridLegacy>
           </DialogContent>
           <DialogActions>
-            <Button onClick={this.handleClose.bind(this)}>{t('Cancel')}</Button>
+            <Button variant="secondary" onClick={this.handleClose.bind(this)}>{t('Cancel')}</Button>
             <Button
-              color="secondary"
+              variant="primary"
               onClick={this.submitAddTeams.bind(this)}
             >
               {t('Add')}

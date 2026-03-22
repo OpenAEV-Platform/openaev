@@ -152,7 +152,13 @@ export const lineChartOptions = ({
     },
   },
   tooltip: { theme: theme.palette.mode },
-  noData: { text: emptyChartText || 'No data to display' },
+  noData: {
+    text: emptyChartText || 'No data to display',
+    align: 'center' as const,
+    verticalAlign: 'middle' as const,
+    offsetY: -10,
+    style: { fontSize: '13px' },
+  },
   xaxis: {
     type: isTimeSeries ? 'datetime' : 'category',
     tickAmount,
@@ -357,7 +363,13 @@ export const verticalBarsChartOptions = ({
     enabled: !isFakeData,
     custom: customTooltip,
   },
-  noData: { text: emptyChartText || 'No data to display' },
+  noData: {
+    text: emptyChartText || 'No data to display',
+    align: 'center' as const,
+    verticalAlign: 'middle' as const,
+    offsetY: -10,
+    style: { fontSize: '13px' },
+  },
   xaxis: {
     type: isTimeSeries ? 'datetime' : 'category',
     tickAmount,
@@ -489,7 +501,13 @@ export const horizontalBarsChartOptions = ({
     enabled: !isFakeData,
     theme: theme.palette.mode,
   },
-  noData: { text: emptyChartText || 'No data to display' },
+  noData: {
+    text: emptyChartText || 'No data to display',
+    align: 'center' as const,
+    verticalAlign: 'middle' as const,
+    offsetY: -10,
+    style: { fontSize: '13px' },
+  },
   xaxis: {
     categories: categories ?? [],
     labels: {
@@ -781,7 +799,13 @@ export const donutChartOptions = ({
       theme: theme.palette.mode,
       custom: simpleLabelTooltip(theme),
     },
-    noData: { text: emptyChartText || 'No data to display' },
+    noData: {
+      text: emptyChartText || 'No data to display',
+      align: 'center' as const,
+      verticalAlign: 'middle' as const,
+      offsetY: -10,
+      style: { fontSize: '13px' },
+    },
     legend: {
       show: displayLegend,
       position: legendPosition,

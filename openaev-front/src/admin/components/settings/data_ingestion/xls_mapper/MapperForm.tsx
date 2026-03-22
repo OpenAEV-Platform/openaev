@@ -113,7 +113,7 @@ const MapperForm: FunctionComponent<Props> = ({
             {t('Representation for inject type')}
           </Typography>
           <IconButton
-            color="secondary"
+            color="primary"
             aria-label="Add"
             onClick={() => {
               append({
@@ -157,7 +157,7 @@ const MapperForm: FunctionComponent<Props> = ({
           </Button>
           <Button
             variant="contained"
-            color="secondary"
+            color="primary"
             type="submit"
             // disabled={!isDirty || isSubmitting}
           >

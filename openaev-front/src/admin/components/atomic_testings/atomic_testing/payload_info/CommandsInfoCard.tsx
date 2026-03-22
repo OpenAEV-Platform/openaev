@@ -91,11 +91,7 @@ const CommandsInfoCard = ({ payloadOutput }: Props) => {
       {payloadOutput.payload_arguments?.length === 0 ? '-' : (
         <TableContainer className={classes.tableContainer} component={Paper}>
           <Table sx={{ minWidth: 650 }} aria-label="Table to show payload's arguments">
-            <TableHead sx={{
-              textTransform: 'uppercase',
-              fontWeight: 'bold',
-            }}
-            >
+            <TableHead sx={{ fontWeight: 'bold' }}>
               <TableCell width="30%">{t('Type')}</TableCell>
               <TableCell width="30%">{t('Key')}</TableCell>
               <TableCell width="30%">{t('Default value')}</TableCell>
@@ -121,11 +117,7 @@ const CommandsInfoCard = ({ payloadOutput }: Props) => {
       {payloadOutput.payload_prerequisites?.length === 0 ? '-' : (
         <TableContainer className={classes.tableContainer} component={Paper}>
           <Table sx={{ minWidth: 650 }} aria-label="Table to show payload's prerequisites">
-            <TableHead sx={{
-              textTransform: 'uppercase',
-              fontWeight: 'bold',
-            }}
-            >
+            <TableHead sx={{ fontWeight: 'bold' }}>
               <TableCell width="30%">{t('Command executor')}</TableCell>
               <TableCell width="30%">{t('Get command')}</TableCell>
               <TableCell width="30%">{t('Check command')}</TableCell>

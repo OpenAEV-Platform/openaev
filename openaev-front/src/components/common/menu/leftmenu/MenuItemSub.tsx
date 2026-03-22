@@ -4,7 +4,6 @@ import { Link, useLocation } from 'react-router';
 
 import { useFormatter } from '../../../i18n';
 import { type LeftMenuSubItem } from './leftmenu-model';
-import StyledTooltip from './StyledTooltip';
 import { type LeftMenuHelpers, type LeftMenuState } from './useLeftMenu';
 import useLeftMenuStyle from './useLeftMenuStyle';
 
@@ -21,43 +20,49 @@ const MenuItemSub: FunctionComponent<Props> = ({
   state,
   helpers,
 }) => {
-  // Standard hooks
   const { t } = useFormatter();
   const location = useLocation();
   const theme = useTheme();
-  const leftMenuStyle = useLeftMenuStyle();
+  const { iconSx, textColor } = useLeftMenuStyle();
 
   const { navOpen, selectedMenu, anchors } = state;
   const { handleSelectedMenuOpen, handleSelectedMenuClose } = helpers;
 
-  const renderMenuItem = ({ label, link, exact, icon }: LeftMenuSubItem) => {
-    const isCurrentTab = location.pathname === link;
+  const renderMenuItem = ({ label, link, exact, icon }: LeftMenuSubItem, inCollapse: boolean) => {
+    const isCurrentTab = exact ? location.pathname === link : location.pathname.includes(link);
+    const itemTextColor = isCurrentTab ? theme.palette.primary.main : textColor;
+
     return (
       <MenuItem
         key={label}
         aria-label={t(label)}
         component={Link}
         to={link}
-        selected={exact ? isCurrentTab : location.pathname.includes(link)}
+        selected={false}
         dense
-        sx={{ paddingLeft: navOpen ? '20px' : undefined }}
-        onClick={!navOpen ? handleSelectedMenuClose : undefined}
+        onClick={!inCollapse ? handleSelectedMenuClose : undefined}
+        sx={{
+          'px': 2.5,
+          'py': 1,
+          '&:hover': { backgroundColor: theme.palette.leftBar.hover },
+        }}
       >
         {icon && (
-          <ListItemIcon style={{ ...leftMenuStyle.listItemIcon }}>
+          <ListItemIcon sx={{
+            ...iconSx,
+            opacity: isCurrentTab ? 1 : 0.5,
+          }}
+          >
             {icon()}
           </ListItemIcon>
         )}
         <ListItemText
           primary={t(label)}
+          sx={{ pt: 0.1 }}
           slotProps={{
             primary: {
-              paddingLeft: navOpen ? `${theme.spacing(1)}` : `${theme.spacing(2)}`,
-              fontWeight: theme.typography.h4.fontWeight,
-              fontSize: theme.typography.h4.fontSize,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
+              fontSize: '12px',
+              color: itemTextColor,
             },
           }}
         />
@@ -68,14 +73,14 @@ const MenuItemSub: FunctionComponent<Props> = ({
   if (navOpen) {
     return (
       <Collapse in={selectedMenu === menu} timeout="auto" unmountOnExit>
-        <MenuList component="nav" disablePadding>
-          {subItems.map((items) => {
-            if (!items.userRight) return null;
-            return (
-              <StyledTooltip key={items.label} title={t(items.label)} placement="right">
-                {renderMenuItem(items)}
-              </StyledTooltip>
-            );
+        <MenuList
+          component="nav"
+          disablePadding
+          sx={{ backgroundColor: theme.palette.designSystem.background.main }}
+        >
+          {subItems.map((item) => {
+            if (!item.userRight) return null;
+            return renderMenuItem(item, true);
           })}
         </MenuList>
       </Collapse>
@@ -98,19 +103,23 @@ const MenuItemSub: FunctionComponent<Props> = ({
       onClose={handleSelectedMenuClose}
       disableRestoreFocus
       disableScrollLock
+      elevation={0}
       slotProps={{
         paper: {
-          elevation: 1,
           onMouseEnter: () => handleSelectedMenuOpen(menu),
           onMouseLeave: handleSelectedMenuClose,
-          sx: { pointerEvents: 'auto' },
+          sx: {
+            pointerEvents: 'auto',
+            width: 180,
+            backgroundColor: theme.palette.leftBar.popoverItem,
+          },
         },
       }}
     >
-      <MenuList component="nav">
+      <MenuList component="nav" disablePadding>
         {subItems.map((entry) => {
           if (!entry.userRight) return null;
-          return renderMenuItem(entry);
+          return renderMenuItem(entry, false);
         })}
       </MenuList>
     </Popover>

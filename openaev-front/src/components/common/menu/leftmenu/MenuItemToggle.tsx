@@ -11,23 +11,29 @@ interface Props {
 }
 
 const MenuItemToggle: FunctionComponent<Props> = ({ navOpen, onClick }) => {
-  // Standard hooks
   const { t } = useFormatter();
-  const leftMenuStyle = useLeftMenuStyle();
+  const { iconSx, getMenuItemSx, textColor } = useLeftMenuStyle();
 
   return (
     <MenuItem
       aria-label={navOpen ? 'Collapse menu' : 'Expand menu'}
       dense
       onClick={onClick}
+      sx={getMenuItemSx(false)}
     >
-      <ListItemIcon style={{ ...leftMenuStyle.listItemIcon }}>
+      <ListItemIcon sx={iconSx}>
         {navOpen ? <ChevronLeft /> : <ChevronRight />}
       </ListItemIcon>
       {navOpen && (
         <ListItemText
           primary={t('Collapse')}
-          slotProps={{ primary: { sx: { ...leftMenuStyle.listItemText } } }}
+          sx={{ pt: 0.1 }}
+          slotProps={{
+            primary: {
+              fontSize: '14px',
+              color: textColor,
+            },
+          }}
         />
       )}
     </MenuItem>

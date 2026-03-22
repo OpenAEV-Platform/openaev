@@ -1,5 +1,4 @@
 import {
-  Button,
   Dialog,
   DialogActions,
   DialogContent,
@@ -20,6 +19,7 @@ import { LogoXtmOneIcon } from 'filigran-icon';
 import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useState } from 'react';
 
 import { aiChangeTone, aiExplain, aiFixSpelling, aiGenMedia, aiGenMessage, aiGenSubject, aiMakeLonger, aiMakeShorter, aiSummarize } from '../../../../actions/AskAI';
+import Button from '../../../../components/common/button/Button';
 // eslint-disable-next-line import/no-cycle
 import SimpleRichTextField from '../../../../components/fields/SimpleRichTextField';
 import { useFormatter } from '../../../../components/i18n';
@@ -364,16 +364,16 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleCloseGenMessageOptions}>
+            <Button variant="secondary" onClick={handleCloseGenMessageOptions}>
               {t('Cancel')}
             </Button>
             <Button
-              disabled={messageInput.length === 0} // Disable button if messageInput is empty
+              variant="primary"
+              disabled={messageInput.length === 0}
               onClick={() => {
                 handleCloseGenMessageOptions();
                 handleAskAi('genMessage');
               }}
-              color="secondary"
             >
               {t('Generate')}
             </Button>
@@ -443,16 +443,16 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleCloseGenMediaOptions}>
+            <Button variant="secondary" onClick={handleCloseGenMediaOptions}>
               {t('Cancel')}
             </Button>
             <Button
+              variant="primary"
               disabled={messageInput.length === 0}
               onClick={() => {
                 handleCloseGenMediaOptions();
                 handleAskAi('genMedia');
               }}
-              color="secondary"
             >
               {t('Generate')}
             </Button>
@@ -488,16 +488,16 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
             </FormControl>
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleCloseToneOptions}>
+            <Button variant="secondary" onClick={handleCloseToneOptions}>
               {t('Cancel')}
             </Button>
             <Button
+              variant="primary"
               disabled={isContentEmpty()}
               onClick={() => {
                 handleCloseToneOptions();
                 handleAskAi('tone');
               }}
-              color="secondary"
             >
               {t('Generate')}
             </Button>

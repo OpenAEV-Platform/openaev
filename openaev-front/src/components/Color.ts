@@ -1,43 +1,43 @@
 const colorStyles = {
   green: {
-    backgroundColor: 'rgba(76, 175, 80, 0.08)',
-    color: '#4caf50',
+    backgroundColor: 'rgba(23, 171, 31, 0.2)',
+    color: '#17AB1F',
   },
   blue: {
-    backgroundColor: 'rgba(92, 123, 245, 0.08)',
-    color: '#5c7bf5',
+    backgroundColor: 'rgba(15, 188, 255, 0.2)',
+    color: '#0FBCFF',
   },
   red: {
-    backgroundColor: 'rgba(244, 67, 54, 0.08)',
-    color: '#f44336',
+    backgroundColor: 'rgba(241, 67, 55, 0.2)',
+    color: '#F14337',
   },
   orange: {
-    backgroundColor: 'rgba(255, 152, 0, 0.08)',
-    color: '#ff9800',
+    backgroundColor: 'rgba(230, 112, 15, 0.2)',
+    color: '#E6700F',
   },
   yellow: {
-    backgroundColor: 'rgba(255, 235, 0, 0.08)',
-    color: '#ffeb3b',
+    backgroundColor: 'rgba(242, 190, 58, 0.2)',
+    color: '#F2BE3A',
   },
   purple: {
-    backgroundColor: 'rgba(103, 58, 183, 0.08)',
-    color: '#673ab7',
+    backgroundColor: 'rgba(178, 134, 255, 0.2)',
+    color: '#B286FF',
   },
   lightPurple: {
-    backgroundColor: 'rgba(156, 39, 176, 0.08)',
-    color: '#9c27b0',
+    backgroundColor: 'rgba(214, 194, 250, 0.2)',
+    color: '#D6C2FA',
   },
   blueGrey: {
-    backgroundColor: 'rgba(96, 125, 139, 0.08)',
+    backgroundColor: 'rgba(96, 125, 139, 0.15)',
     color: '#607d8b',
     fontStyle: 'italic' as const,
   },
   grey: {
-    backgroundColor: 'rgba(96, 125, 139, 0.08)',
-    color: '#607d8b',
+    backgroundColor: 'rgba(149, 150, 157, 0.2)',
+    color: '#95969D',
   },
   canceled: {
-    backgroundColor: 'rgba(231, 133, 109, 0.08)',
+    backgroundColor: 'rgba(231, 133, 109, 0.15)',
     color: '#8d4e41',
   },
 };

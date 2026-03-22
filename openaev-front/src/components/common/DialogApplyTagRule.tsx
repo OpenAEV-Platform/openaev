@@ -1,5 +1,4 @@
 import {
-  Button,
   Dialog as DialogMUI,
   DialogActions,
   DialogContent,
@@ -10,6 +9,7 @@ import { type FunctionComponent } from 'react';
 import { Link } from 'react-router';
 
 import { useFormatter } from '../i18n';
+import Button from './button/Button';
 
 interface DialogDeleteProps {
   open: boolean;
@@ -42,10 +42,10 @@ const DialogApplyTagRule: FunctionComponent<DialogDeleteProps> = ({
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleDontApplyRule}>
+        <Button variant="secondary" onClick={handleDontApplyRule}>
           {t('No')}
         </Button>
-        <Button color="secondary" onClick={handleApplyRule}>
+        <Button variant="primary" onClick={handleApplyRule}>
           {t('Yes')}
         </Button>
       </DialogActions>

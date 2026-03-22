@@ -1,11 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useContext, useEffect, useState } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 import { z, type ZodObject } from 'zod/v4';
 
+import Button from '../../../../../components/common/button/Button';
 import TagFieldController from '../../../../../components/fields/TagFieldController';
 import TextFieldController from '../../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../../components/i18n';
@@ -514,15 +514,14 @@ const InjectForm = ({
           }}
         >
           <Button
-            variant="contained"
+            variant="secondary"
             onClick={handleClose}
             disabled={isSubmitting}
           >
             {t('Cancel')}
           </Button>
           <Button
-            variant="contained"
-            color="secondary"
+            variant="primary"
             data-testid="inject-form-submit-button"
             onClick={() => {
               onSubmit(getValues());

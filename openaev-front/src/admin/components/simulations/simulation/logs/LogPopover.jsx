@@ -1,5 +1,5 @@
 import { MoreVert } from '@mui/icons-material';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, Menu, MenuItem } from '@mui/material';
+import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, Menu, MenuItem } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
 import { Component } from 'react';
@@ -7,6 +7,7 @@ import { connect } from 'react-redux';
 
 import { deleteLog, updateLog } from '../../../../../actions/Log';
 import { storeHelper } from '../../../../../actions/Schema';
+import Button from '../../../../../components/common/button/Button';
 import Transition from '../../../../../components/common/Transition';
 import inject18n from '../../../../../components/i18n';
 import { tagOptions } from '../../../../../utils/Option';
@@ -105,10 +106,10 @@ class LogPopoverComponent extends Component {
             </DialogContentText>
           </DialogContent>
           <DialogActions>
-            <Button onClick={this.handleCloseDelete.bind(this)}>
+            <Button variant="secondary" onClick={this.handleCloseDelete.bind(this)}>
               {t('Cancel')}
             </Button>
-            <Button color="secondary" onClick={this.submitDelete.bind(this)}>
+            <Button variant="primary" onClick={this.submitDelete.bind(this)}>
               {t('Delete')}
             </Button>
           </DialogActions>

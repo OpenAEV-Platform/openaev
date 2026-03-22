@@ -66,7 +66,7 @@ const CreateLessonsQuestion = (props) => {
           onClick={handleOpen}
           aria-haspopup="true"
           size="large"
-          color="secondary"
+          color="primary"
         >
           <Add fontSize="small" />
         </IconButton>

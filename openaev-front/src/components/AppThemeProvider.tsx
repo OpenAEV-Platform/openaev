@@ -45,28 +45,10 @@ const AppThemeProvider: FunctionComponent<Props> = ({ children }) => {
   }, [locale]);
 
   const dark = settings.platform_dark_theme;
-  let muiTheme = createTheme(
-    {
-      spacing: scaleFactor,
-      ...themeDark(
-        dark?.logo_url,
-        dark?.logo_url_collapsed,
-        dark?.background_color,
-        dark?.paper_color,
-        dark?.navigation_color,
-        dark?.primary_color,
-        dark?.secondary_color,
-        dark?.accent_color,
-      ),
-    },
-    muiLocale,
-  );
-  if (theme === 'light') {
-    const light = settings.platform_light_theme;
-    muiTheme = createTheme(
-      {
-        spacing: scaleFactor,
-        ...themeLight(
+  const themeBuilder = theme === 'light'
+    ? () => {
+        const light = settings.platform_light_theme;
+        return themeLight(
           light?.logo_url,
           light?.logo_url_collapsed,
           light?.background_color,
@@ -75,11 +57,26 @@ const AppThemeProvider: FunctionComponent<Props> = ({ children }) => {
           light?.primary_color,
           light?.secondary_color,
           light?.accent_color,
-        ),
-      },
-      muiLocale,
-    );
-  }
+        );
+      }
+    : () => themeDark(
+        dark?.logo_url,
+        dark?.logo_url_collapsed,
+        dark?.background_color,
+        dark?.paper_color,
+        dark?.navigation_color,
+        dark?.primary_color,
+        dark?.secondary_color,
+        dark?.accent_color,
+      );
+  const themeComponent = themeBuilder();
+  const muiTheme = createTheme(
+    {
+      spacing: scaleFactor,
+      ...themeComponent,
+    },
+    muiLocale,
+  );
   return <ThemeProvider theme={muiTheme}>{children}</ThemeProvider>;
 };
 

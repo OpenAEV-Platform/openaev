@@ -36,7 +36,6 @@ const useStyles = makeStyles()(theme => ({
     fontSize: 12,
     height: 20,
     flexShrink: 0,
-    textTransform: 'uppercase',
     borderRadius: 4,
   },
   dotContainer: {

@@ -2,24 +2,23 @@ import { Button } from '@mui/material';
 import { type FunctionComponent, memo, useCallback, useContext } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import ItemNumberDifference from '../../../../../../components/ItemNumberDifference';
 import { type EsCountInterval } from '../../../../../../utils/api-types';
 import { CustomDashboardContext } from '../../CustomDashboardContext';
 
 const useStyles = makeStyles()(theme => ({
   number: {
-    fontSize: 40,
-    height: 50,
-    fontWeight: 500,
+    fontSize: 32,
+    fontWeight: 600,
+    lineHeight: 1,
     padding: 0,
+    minWidth: 0,
+    justifyContent: 'flex-start',
     color: theme.palette.text.primary,
   },
-  numberContainer: {
+  container: {
     display: 'flex',
     alignItems: 'center',
-    gap: theme.spacing(1),
-    flexWrap: 'wrap',
-    overflow: 'hidden',
+    height: '100%',
   },
 }));
 
@@ -29,7 +28,6 @@ interface Props {
 }
 
 const NumberWidget: FunctionComponent<Props> = ({ widgetId, data }) => {
-  // Standard hooks
   const { classes } = useStyles();
 
   const { openWidgetDataDrawer } = useContext(CustomDashboardContext);
@@ -43,13 +41,10 @@ const NumberWidget: FunctionComponent<Props> = ({ widgetId, data }) => {
   }, [openWidgetDataDrawer, widgetId]);
 
   return (
-    <div className={classes.numberContainer}>
+    <div className={classes.container}>
       <Button onClick={onClick} className={classes.number} variant="text">
         {data.interval_count ?? '-'}
       </Button>
-      <ItemNumberDifference
-        difference={data.difference_count}
-      />
     </div>
   );
 };

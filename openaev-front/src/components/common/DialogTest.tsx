@@ -1,7 +1,8 @@
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
+import { Alert, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../i18n';
+import Button from './button/Button';
 import Transition from './Transition';
 
 interface DialogTestProps {
@@ -38,8 +39,8 @@ const DialogTest: FunctionComponent<DialogTestProps> = ({
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleClose}>{t('Cancel')}</Button>
-        <Button color="secondary" onClick={handleSubmit}>
+        <Button variant="secondary" onClick={handleClose}>{t('Cancel')}</Button>
+        <Button variant="primary" onClick={handleSubmit}>
           {t('Confirm')}
         </Button>
       </DialogActions>

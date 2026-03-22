@@ -69,7 +69,6 @@ const Tenants = () => {
         >
           <ListItemIcon />
           <ListItemText
-            style={{ textTransform: 'uppercase' }}
             primary={(
               <SortHeadersComponentV2
                 headers={headers}

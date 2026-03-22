@@ -1,12 +1,13 @@
 import { CopyAllOutlined } from '@mui/icons-material';
 import { TabContext, TabList, TabPanel } from '@mui/lab';
-import { Alert, Button, Dialog, DialogActions, DialogContent, List, ListItem, ListItemButton, ListItemText, Tab } from '@mui/material';
+import { Alert, Button as MuiButton, Dialog, DialogActions, DialogContent, List, ListItem, ListItemButton, ListItemText, Tab } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { type ContractVariable } from '../../../../../actions/contract/contract';
 import { type UserHelper } from '../../../../../actions/helper';
+import Button from '../../../../../components/common/button/Button';
 import Transition from '../../../../../components/common/Transition';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
@@ -185,7 +186,7 @@ const AvailableVariablesDialog: FunctionComponent<
                 {/* TODO: validate when migrate to new react router version */}
                 {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
                 {/* @ts-ignore */}
-                <Button
+                <MuiButton
                   component={Link}
                   to={uriVariable}
                   color="primary"
@@ -196,7 +197,7 @@ const AvailableVariablesDialog: FunctionComponent<
                   {me.user_is_planner
                     ? t('manage custom variables')
                     : t('view custom variables')}
-                </Button>
+                </MuiButton>
               </Alert>
               <List>
                 {variables.map(variable => (
@@ -214,7 +215,7 @@ const AvailableVariablesDialog: FunctionComponent<
       </TabContext>
 
       <DialogActions>
-        <Button onClick={handleClose}>{t('Close')}</Button>
+        <Button variant="secondary" onClick={handleClose}>{t('Close')}</Button>
       </DialogActions>
     </Dialog>
   );

@@ -19,7 +19,7 @@ interface RolesListProps {
 }
 
 const useStyles = makeStyles()(() => ({
-  itemHead: { textTransform: 'uppercase' },
+  itemHead: {},
   item: { height: 50 },
   container: { display: 'flex' },
   bodyItems: { flexGrow: 1 },
