@@ -1,7 +1,7 @@
 import { useTheme } from '@mui/material';
 import React, { type CSSProperties, type FunctionComponent } from 'react';
 
-export const PageContainerContext = React.createContext({ inPageContainer: false });
+const PageContainerContext = React.createContext({ inPageContainer: false });
 
 interface PageContainerProps {
   children: React.ReactNode;

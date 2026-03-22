@@ -5,7 +5,6 @@ import {
   AccordionDetails,
   AccordionSummary,
   Badge,
-  Button,
   Dialog,
   DialogActions,
   DialogContent,
@@ -22,6 +21,7 @@ import { Controller, type FieldArrayWithId, useFieldArray, type UseFieldArrayRem
 import { makeStyles } from 'tss-react/mui';
 
 import { directFetchInjectorContract } from '../../../../../actions/InjectorContracts';
+import Button from '../../../../../components/common/button/Button';
 import { useFormatter } from '../../../../../components/i18n';
 import InjectContractComponent from '../../../../../components/InjectContractComponent';
 import RegexComponent from '../../../../../components/RegexComponent';
@@ -391,7 +391,7 @@ const RulesContractContent: FunctionComponent<Props> = ({
 
         </AccordionDetails>
         <AccordionActions sx={{ padding: '16px' }}>
-          <Button color="error" variant="contained" onClick={handleClickOpenAlertDelete}>{t('Delete')}</Button>
+          <Button variant="primary" intent="destructive" onClick={handleClickOpenAlertDelete}>{t('Delete')}</Button>
         </AccordionActions>
       </Accordion>
       <Dialog
@@ -404,9 +404,9 @@ const RulesContractContent: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseAlertDelete}>{t('Cancel')}</Button>
+          <Button variant="secondary" onClick={handleCloseAlertDelete}>{t('Cancel')}</Button>
           <Button
-            color="primary"
+            variant="primary"
             onClick={() => {
               remove(index);
               handleCloseAlertDelete();

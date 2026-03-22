@@ -1,8 +1,8 @@
 import type { ChatMode } from '@filigran/chatbot';
 import type React from 'react';
-import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from 'react';
+import { createContext, type ReactNode, useCallback, useMemo, useState } from 'react';
 
-interface ChatbotContextType {
+export interface ChatbotContextType {
   isOpen: boolean;
   mode: ChatMode;
   sidebarWidth: number;
@@ -15,12 +15,13 @@ interface ChatbotContextType {
   setIsResizing: (isResizing: boolean) => void;
 }
 
-const ChatbotContext = createContext<ChatbotContextType | null>(null);
+// eslint-disable-next-line react-refresh/only-export-components
+export const ChatbotContext = createContext<ChatbotContextType | null>(null);
 
 const SIDEBAR_WIDTH_STORAGE_KEY = 'arianeChatSidebarWidth';
 const CHAT_MODE_STORAGE_KEY = 'arianeChatMode';
 const DEFAULT_SIDEBAR_WIDTH = 400;
-const SIDEBAR_GAP = 6;
+export const SIDEBAR_GAP = 6;
 
 interface ChatbotProviderProps { children: ReactNode }
 
@@ -72,44 +73,4 @@ export const ChatbotProvider: React.FC<ChatbotProviderProps> = ({ children }) =>
       {children}
     </ChatbotContext.Provider>
   );
-};
-
-export const useChatbot = (): ChatbotContextType => {
-  const context = useContext(ChatbotContext);
-  if (!context) {
-    throw new Error('useChatbot must be used within a ChatbotProvider');
-  }
-  return context;
-};
-
-export const useChatbotContentMargin = (): number => {
-  const context = useContext(ChatbotContext);
-  if (!context) return 0;
-  const { isOpen, mode, sidebarWidth } = context;
-  if (isOpen && mode === 'sidebar') {
-    return sidebarWidth + SIDEBAR_GAP;
-  }
-  return 0;
-};
-
-interface TransitionTheme {
-  transitions: {
-    create: (props: string | string[], options?: {
-      easing?: string;
-      duration?: number;
-    }) => string;
-    easing: { easeInOut: string };
-    duration: { enteringScreen: number };
-  };
-}
-
-export const useChatbotContentTransition = (theme: TransitionTheme): string => {
-  const context = useContext(ChatbotContext);
-  if (!context) return 'none';
-  const { isResizing } = context;
-  if (isResizing) return 'none';
-  return theme.transitions.create(['margin-right'], {
-    easing: theme.transitions.easing.easeInOut,
-    duration: theme.transitions.duration.enteringScreen,
-  });
 };
