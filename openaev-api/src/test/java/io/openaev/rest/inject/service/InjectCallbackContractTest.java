@@ -48,7 +48,6 @@ class InjectCallbackContractTest {
   @Mock private InjectExpectationService injectExpectationService;
   @Mock private InjectStatusService injectStatusService;
   @Mock private InjectService injectService;
-  @Mock private InjectService injectService;
   @Mock private AgentExecutionProcessingHandler agentExecutionProcessingHandler;
   @Mock private InjectorExecutionProcessingHandler injectorExecutionProcessingHandler;
   @Mock private StructuredOutputUtils structuredOutputUtils;
