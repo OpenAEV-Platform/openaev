@@ -78,7 +78,7 @@ const InjectorContractForm = (props) => {
               {t('Cancel')}
             </Button>
             <Button
-              color="secondary"
+              color="primary"
               type="submit"
               variant="contained"
               disabled={pristine || submitting}

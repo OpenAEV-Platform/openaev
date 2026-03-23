@@ -22,7 +22,7 @@ import { useAppDispatch } from './utils/hooks';
 import { UserContext } from './utils/hooks/useAuth';
 import useNetworkCheck from './utils/hooks/useCheckNetwork';
 import useTenant from './utils/hooks/useTenant';
-import { PermissionsProvider } from './utils/permissions/PermissionsProvider';
+import PermissionsProvider from './utils/permissions/PermissionsProvider';
 
 const RootPublic = lazy(() => import('./public/Root'));
 const IndexPrivate = lazy(() => import('./private/Index'));

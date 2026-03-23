@@ -1,15 +1,16 @@
 import { MoreVert } from '@mui/icons-material';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Menu, MenuItem } from '@mui/material';
+import { Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Menu, MenuItem } from '@mui/material';
 import * as R from 'ramda';
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
 
 import { deleteInjectorContract, updateInjectorContract, updateInjectorContractMapping } from '../../../../../actions/InjectorContracts.ts';
+import Button from '../../../../../components/common/button/Button';
 import Drawer from '../../../../../components/common/Drawer';
 import Transition from '../../../../../components/common/Transition';
 import { useFormatter } from '../../../../../components/i18n';
 import { attackPatternOptions } from '../../../../../utils/Option';
-import { Can } from '../../../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import InjectorContractCustomForm from './InjectorContractCustomForm';
 import InjectorContractForm from './InjectorContractForm';
@@ -157,8 +158,8 @@ const InjectorContractPopover = ({ injectorContract, killChainPhasesMap, attackP
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDelete}>{t('Cancel')}</Button>
-          <Button color="secondary" onClick={submitDelete}>
+          <Button variant="secondary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
+          <Button variant="primary" onClick={submitDelete}>
             {t('Delete')}
           </Button>
         </DialogActions>

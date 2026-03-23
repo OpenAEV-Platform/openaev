@@ -14,12 +14,12 @@ import { type Header } from '../../../../components/common/SortHeadersList';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTargets from '../../../../components/ItemTargets';
 import { type TagRuleOutput } from '../../../../utils/api-types';
-import { Can } from '../../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import TagRuleCreate from './TagRuleCreate';
 import TagRulePopover from './TagRulePopover';
 
-const useStyles = makeStyles()(() => ({ itemHead: { textTransform: 'uppercase' } }));
+const useStyles = makeStyles()(() => ({ itemHead: {} }));
 
 const inlineStyles: Record<string, CSSProperties> = {
   tag_rule_tag: { width: '20%' },

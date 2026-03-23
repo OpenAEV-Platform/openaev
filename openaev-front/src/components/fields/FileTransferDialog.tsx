@@ -1,5 +1,5 @@
 import { DescriptionOutlined } from '@mui/icons-material';
-import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, GridLegacy, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, Chip, Dialog, DialogActions, DialogContent, DialogTitle, GridLegacy, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { type FunctionComponent, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -8,9 +8,10 @@ import TagsFilter from '../../admin/components/common/filters/TagsFilter';
 import CreateDocument from '../../admin/components/components/documents/CreateDocument';
 import { useHelper } from '../../store';
 import { type RawDocument } from '../../utils/api-types';
-import { Can } from '../../utils/permissions/PermissionsProvider';
+import { Can } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
 import { truncate } from '../../utils/String';
+import Button from '../common/button/Button';
 import Transition from '../common/Transition';
 import { useFormatter } from '../i18n';
 import ItemTags from '../ItemTags';
@@ -240,10 +241,10 @@ const FileTransferDialog: FunctionComponent<Props> = ({
         </GridLegacy>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleClose}>{t('Cancel')}</Button>
+        <Button variant="secondary" onClick={handleClose}>{t('Cancel')}</Button>
         {multiple && (
           <Button
-            color="secondary"
+            variant="primary"
             onClick={handleSubmitAddDocuments}
           >
             {t('Add')}

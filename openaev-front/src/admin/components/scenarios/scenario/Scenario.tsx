@@ -45,7 +45,7 @@ import {
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { isEmptyField } from '../../../../utils/utils';
 import Healthchecks from '../../common/healthchecks/Healthchecks';
@@ -60,7 +60,6 @@ const useStyles = makeStyles()(theme => ({
     fontSize: 12,
     height: 25,
     margin: '0 7px 7px 0',
-    textTransform: 'uppercase',
     borderRadius: 4,
     width: 180,
   },

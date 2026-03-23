@@ -3,17 +3,18 @@ package io.openaev.output_processor;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
+import io.openaev.rest.finding.FindingService;
 import java.util.List;
 import org.apache.commons.validator.routines.InetAddressValidator;
 import org.springframework.stereotype.Component;
 
 @Component
-public class IPv6OutputProcessor extends AbstractOutputProcessor {
+public class IPv6OutputProcessor extends FindingCapableOutputProcessor {
 
   private static final InetAddressValidator VALIDATOR = InetAddressValidator.getInstance();
 
-  public IPv6OutputProcessor() {
-    super(ContractOutputType.IPv6, ContractOutputTechnicalType.Text, List.of(), true);
+  public IPv6OutputProcessor(FindingService findingService) {
+    super(ContractOutputType.IPv6, ContractOutputTechnicalType.Text, List.of(), findingService);
   }
 
   @Override

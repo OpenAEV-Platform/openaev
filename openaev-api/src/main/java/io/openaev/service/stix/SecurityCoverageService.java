@@ -26,6 +26,7 @@ import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.AssetService;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.service.stix.error.BundleValidationError;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.objects.DomainObject;
 import io.openaev.stix.objects.ObjectBase;
@@ -46,6 +47,7 @@ import io.openaev.utils.time.TimeUtils;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -55,7 +57,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.coyote.BadRequestException;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -95,10 +96,10 @@ public class SecurityCoverageService {
    * @return the saved {@link SecurityCoverage} object
    * @throws JsonProcessingException if the input cannot be parsed into JSON
    * @throws ParsingException if the STIX bundle is obsolete or already stored
-   * @throws BadRequestException if validation fails
+   * @throws BundleValidationError if validation fails
    */
   public SecurityCoverage processAndBuildStixToSecurityCoverage(String stixJson)
-      throws ParsingException, BadRequestException, JsonProcessingException {
+      throws ParsingException, BundleValidationError, JsonProcessingException {
 
     JsonNode root = objectMapper.readTree(stixJson);
     String stixJsonHash = md5Hex(stixJson);
@@ -119,12 +120,12 @@ public class SecurityCoverageService {
    * @param stixJsonHash MD5 hash of the STIX JSON content
    * @return the saved {@link SecurityCoverage} object
    * @throws ParsingException if the STIX bundle is malformed
-   * @throws BadRequestException if the STIX bundle is obsolete or already stored
+   * @throws BundleValidationError if the STIX bundle is obsolete or already stored
    */
   @Lock(type = LockResourceType.SECURITY_COVERAGE, key = "#externalId")
   private SecurityCoverage buildSecurityCoverageFromStix(
       ObjectBase stixCoverageObj, Bundle bundle, String externalId, String stixJsonHash)
-      throws ParsingException, BadRequestException {
+      throws ParsingException, BundleValidationError {
 
     SecurityCoverage securityCoverage = getByExternalIdOrCreateSecurityCoverage(externalId);
 
@@ -220,7 +221,7 @@ public class SecurityCoverageService {
    */
   private static void checkLastBundle(
       ObjectBase stixCoverageObj, String externalId, SecurityCoverage securityCoverage)
-      throws ParsingException, BadRequestException {
+      throws ParsingException, BundleValidationError {
     // Check If stix coverage is the last one
     Object modifiedObj = stixCoverageObj.getProperty(MODIFIED).getValue();
 
@@ -245,7 +246,7 @@ public class SecurityCoverageService {
         stixModified);
     boolean isNewer = currentModified == null || stixModified.isAfter(currentModified);
     if (!isNewer) {
-      throw new BadRequestException(
+      throw new BundleValidationError(
           "The STIX package is obsolete because a newer version has already been computed.");
     }
   }
@@ -256,7 +257,7 @@ public class SecurityCoverageService {
    */
   private static void checkExistingBundle(
       String externalId, String stixJsonHash, SecurityCoverage securityCoverage)
-      throws BadRequestException {
+      throws BundleValidationError {
     // Check if contentHash already matches (duplicate)
     if (stixJsonHash.equals(securityCoverage.getBundleHashMd5())) {
       log.info(
@@ -264,7 +265,7 @@ public class SecurityCoverageService {
           externalId);
       // We could also simply return the existing security cover and avoid returning the error and
       // also avoid continue with the retry;
-      throw new BadRequestException(
+      throw new BundleValidationError(
           String.format(
               "Duplicate STIX bundle detected for externalId: %s -> returning existing object",
               externalId));
@@ -514,8 +515,8 @@ public class SecurityCoverageService {
               new HashMap<>(
                   Map.of(
                       CommonProperties.ID.toString(),
-                      new Identifier(
-                          ObjectTypes.RELATIONSHIP.toString(), UUID.randomUUID().toString()),
+                      generateRelationship(
+                          coverage.getId().getValue(), platformIdentity.getId().getValue()),
                       CommonProperties.TYPE.toString(),
                       new StixString(ObjectTypes.RELATIONSHIP.toString()),
                       RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
@@ -556,8 +557,7 @@ public class SecurityCoverageService {
               new HashMap<>(
                   Map.of(
                       CommonProperties.ID.toString(),
-                      new Identifier(
-                          ObjectTypes.RELATIONSHIP.toString(), UUID.randomUUID().toString()),
+                      generateRelationship(coverageId.getValue(), stixRef.getStixRef()),
                       CommonProperties.TYPE.toString(),
                       new StixString(ObjectTypes.RELATIONSHIP.toString()),
                       RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
@@ -720,5 +720,11 @@ public class SecurityCoverageService {
 
   private BaseType<?> uncovered() {
     return new io.openaev.stix.types.List<>(new ArrayList<>());
+  }
+
+  private Identifier generateRelationship(String sourceId, String targetId) {
+    return new Identifier(
+        ObjectTypes.RELATIONSHIP.toString(),
+        UUID.nameUUIDFromBytes((sourceId + targetId).getBytes(StandardCharsets.UTF_8)).toString());
   }
 }

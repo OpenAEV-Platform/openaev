@@ -10,7 +10,6 @@ import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import java.util.*;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -72,14 +71,6 @@ class BatchingInjectStatusServiceTest {
         .build();
   }
 
-  @BeforeEach
-  void setUp() {
-    // Default stubs for most tests
-    lenient()
-        .when(structuredOutputUtils.extractOutputParsers(any(Inject.class)))
-        .thenReturn(Set.of());
-  }
-
   // ========================================================================
   // Chronological ordering
   // ========================================================================
@@ -106,29 +97,20 @@ class BatchingInjectStatusServiceTest {
 
       service.handleInjectExecutionCallback(List.of(late, early, middle));
 
-      // Verify processInjectExecution was called 3 times in chronological order
+      // Verify processInjectExecutionWithAgent was called 3 times in chronological order
       InOrder inOrder = inOrder(injectExecutionService);
       inOrder
           .verify(injectExecutionService)
-          .processInjectExecution(
-              eq(inject),
-              eq(agent),
-              argThat(input -> input == early.getInjectExecutionInput()),
-              anySet());
+          .processInjectExecutionWithAgent(
+              eq(inject), eq(agent), argThat(input -> input == early.getInjectExecutionInput()));
       inOrder
           .verify(injectExecutionService)
-          .processInjectExecution(
-              eq(inject),
-              eq(agent),
-              argThat(input -> input == middle.getInjectExecutionInput()),
-              anySet());
+          .processInjectExecutionWithAgent(
+              eq(inject), eq(agent), argThat(input -> input == middle.getInjectExecutionInput()));
       inOrder
           .verify(injectExecutionService)
-          .processInjectExecution(
-              eq(inject),
-              eq(agent),
-              argThat(input -> input == late.getInjectExecutionInput()),
-              anySet());
+          .processInjectExecutionWithAgent(
+              eq(inject), eq(agent), argThat(input -> input == late.getInjectExecutionInput()));
     }
   }
 
@@ -198,7 +180,7 @@ class BatchingInjectStatusServiceTest {
 
       doThrow(new RuntimeException("Unexpected error"))
           .when(injectExecutionService)
-          .processInjectExecution(any(), any(), any(), anySet());
+          .processInjectExecutionWithAgent(any(), any(), any());
 
       InjectExecutionCallback callback =
           createCallback(INJECT_ID, AGENT_ID, InjectExecutionAction.command_execution, 1000L);
@@ -238,7 +220,8 @@ class BatchingInjectStatusServiceTest {
 
       // DataIntegrityViolationException is a general Exception → NOT added to success
       assertTrue(result.isEmpty());
-      verify(injectExecutionService, never()).processInjectExecution(any(), any(), any(), anySet());
+      verify(injectExecutionService, never()).processInjectExecutionWithAgent(any(), any(), any());
+      verify(injectExecutionService, never()).processInjectExecutionWithInjector(any(), any());
     }
 
     @Test
@@ -257,7 +240,9 @@ class BatchingInjectStatusServiceTest {
           service.handleInjectExecutionCallback(List.of(callback));
 
       assertEquals(1, result.size());
-      verify(injectExecutionService).processInjectExecution(eq(inject), eq(agent), any(), anySet());
+      verify(injectExecutionService)
+          .processInjectExecutionWithAgent(
+              eq(inject), eq(agent), eq(callback.getInjectExecutionInput()));
     }
 
     @Test
@@ -277,7 +262,9 @@ class BatchingInjectStatusServiceTest {
           service.handleInjectExecutionCallback(List.of(callback));
 
       assertEquals(1, result.size());
-      verify(injectExecutionService).processInjectExecution(eq(inject), eq(agent), any(), anySet());
+      verify(injectExecutionService)
+          .processInjectExecutionWithAgent(
+              eq(inject), eq(agent), eq(callback.getInjectExecutionInput()));
     }
   }
 
@@ -321,15 +308,13 @@ class BatchingInjectStatusServiceTest {
   class SuccessfulProcessingTests {
 
     @Test
-    @DisplayName("should call processInjectExecution with correct arguments")
+    @DisplayName("should call processInjectExecutionWithAgent with correct arguments")
     void shouldCallProcessInjectExecutionWithCorrectArgs() {
       Inject inject = createInjectWithPendingStatus(INJECT_ID);
       Agent agent = createAgent(AGENT_ID);
-      Set<OutputParser> outputParsers = Set.of();
 
       when(injectRepository.findAllByIdWithExpectations(anyList())).thenReturn(List.of(inject));
       when(agentRepository.findAllById(anyList())).thenReturn(List.of(agent));
-      when(structuredOutputUtils.extractOutputParsers(inject)).thenReturn(outputParsers);
 
       InjectExecutionCallback callback =
           createCallback(INJECT_ID, AGENT_ID, InjectExecutionAction.command_execution, 1000L);
@@ -340,8 +325,8 @@ class BatchingInjectStatusServiceTest {
       assertEquals(1, result.size());
       assertSame(callback, result.get(0));
       verify(injectExecutionService)
-          .processInjectExecution(
-              eq(inject), eq(agent), eq(callback.getInjectExecutionInput()), eq(outputParsers));
+          .processInjectExecutionWithAgent(
+              eq(inject), eq(agent), eq(callback.getInjectExecutionInput()));
     }
 
     @Test
@@ -359,7 +344,8 @@ class BatchingInjectStatusServiceTest {
           service.handleInjectExecutionCallback(List.of(callback));
 
       assertEquals(1, result.size());
-      verify(injectExecutionService).processInjectExecution(eq(inject), isNull(), any(), anySet());
+      verify(injectExecutionService)
+          .processInjectExecutionWithInjector(eq(inject), eq(callback.getInjectExecutionInput()));
     }
   }
 
@@ -379,7 +365,8 @@ class BatchingInjectStatusServiceTest {
       List<InjectExecutionCallback> result = service.handleInjectExecutionCallback(List.of());
 
       assertTrue(result.isEmpty());
-      verify(injectExecutionService, never()).processInjectExecution(any(), any(), any(), anySet());
+      verify(injectExecutionService, never()).processInjectExecutionWithAgent(any(), any(), any());
+      verify(injectExecutionService, never()).processInjectExecutionWithInjector(any(), any());
     }
 
     @Test
@@ -403,9 +390,9 @@ class BatchingInjectStatusServiceTest {
       assertEquals(2, result.size());
       // Both callbacks should reference the same Inject entity from the bulk load
       verify(injectExecutionService)
-          .processInjectExecution(same(inject), eq(agent1), any(), anySet());
+          .processInjectExecutionWithAgent(same(inject), eq(agent1), any());
       verify(injectExecutionService)
-          .processInjectExecution(same(inject), eq(agent2), any(), anySet());
+          .processInjectExecutionWithAgent(same(inject), eq(agent2), any());
     }
   }
 }

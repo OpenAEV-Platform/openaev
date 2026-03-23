@@ -1,7 +1,6 @@
 import { ControlPointOutlined, GroupsOutlined } from '@mui/icons-material';
 import {
   Box,
-  Button,
   Dialog,
   DialogActions,
   DialogContent,
@@ -14,6 +13,7 @@ import { type FunctionComponent, useContext, useEffect, useMemo, useState } from
 import { makeStyles } from 'tss-react/mui';
 
 import { findTeams } from '../../../../../../actions/teams/team-actions';
+import Button from '../../../../../../components/common/button/Button';
 import PaginationComponentV2 from '../../../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../../../components/common/queryable/QueryableUtils';
 import { useQueryable } from '../../../../../../components/common/queryable/useQueryableWithLocalStorage';
@@ -22,7 +22,7 @@ import Transition from '../../../../../../components/common/Transition';
 import { useFormatter } from '../../../../../../components/i18n';
 import ItemTags from '../../../../../../components/ItemTags';
 import { type TeamOutput } from '../../../../../../utils/api-types';
-import { Can } from '../../../../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
 import CreateTeam from '../../../../components/teams/CreateTeam';
 import { TeamContext } from '../../../Context';
@@ -175,9 +175,9 @@ const InjectAddTeams: FunctionComponent<Props> = ({
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose}>{t('Cancel')}</Button>
+          <Button variant="secondary" onClick={handleClose}>{t('Cancel')}</Button>
           {!isLoading && (
-            <Button color="secondary" onClick={submitAddTeams}>
+            <Button variant="primary" onClick={submitAddTeams}>
               {t('Update')}
             </Button>
           )}

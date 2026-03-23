@@ -46,10 +46,7 @@ const useStyles = makeStyles()(theme => ({
     marginTop: -8,
   },
   container: { marginTop: 10 },
-  itemHead: {
-    textTransform: 'uppercase',
-    cursor: 'pointer',
-  },
+  itemHead: { cursor: 'pointer' },
   item: { height: 50 },
   bodyItem: {
     height: '100%',

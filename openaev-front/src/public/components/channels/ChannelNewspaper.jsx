@@ -166,7 +166,7 @@ const ChannelNewspaper = ({ channelReader }) => {
                 <div className={classes.footer}>
                   <div style={{ float: 'left' }}>
                     <Button
-                      color="secondary"
+                      color="primary"
                       size="small"
                       variant="outlined"
                       startIcon={<MoreHorizOutlined />}
@@ -257,7 +257,7 @@ const ChannelNewspaper = ({ channelReader }) => {
                     <div className={classes.footer}>
                       <div style={{ float: 'left' }}>
                         <Button
-                          color="secondary"
+                          color="primary"
                           size="small"
                           variant="outlined"
                           startIcon={<MoreHorizOutlined />}
@@ -355,7 +355,7 @@ const ChannelNewspaper = ({ channelReader }) => {
                   <div className={classes.footer}>
                     <div style={{ float: 'left' }}>
                       <Button
-                        color="secondary"
+                        color="primary"
                         size="small"
                         variant="outlined"
                         startIcon={<MoreHorizOutlined />}

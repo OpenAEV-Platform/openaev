@@ -24,14 +24,14 @@ import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { computeBannerSettings } from '../../../../public/components/systembanners/utils';
 import { useHelper } from '../../../../store';
 import { type AssetGroup, type AssetGroupOutput, type SearchPaginationInput } from '../../../../utils/api-types';
-import { Can } from '../../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import AssetGroupCreation from './AssetGroupCreation';
 import AssetGroupManagement from './AssetGroupManagement';
 import AssetGroupPopover from './AssetGroupPopover';
 
 const useStyles = makeStyles()(() => ({
-  itemHead: { textTransform: 'uppercase' },
+  itemHead: {},
   item: { height: 50 },
   drawerPaper: {
     minHeight: '100vh',

@@ -44,6 +44,8 @@ public enum ResourceType {
   CATALOG,
   CONNECTOR_INSTANCE_LOG,
   TENANT,
+  PLATFORM_ROLE,
+  PLATFORM_GROUP,
   // Special resource types
   UNKNOWN,
   SIMULATION_OR_SCENARIO, // Used to represent either a simulation or a scenario.
