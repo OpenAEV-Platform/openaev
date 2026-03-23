@@ -1,5 +1,5 @@
 import { useContext, useState } from 'react';
-import { useOutletContext } from 'react-router';
+import { useNavigate, useOutletContext } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { deleteConnectorInstance } from '../../../../actions/connector_instances/connector-instance-actions';
@@ -25,6 +25,7 @@ const ConnectorPopover = ({ connectorInstanceId, connectorName, disabled = false
   const { classes } = useStyles();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const ability = useContext(AbilityContext);
   const { instance, catalogConnector, isXtmComposerUp } = useOutletContext<ConnectorContextLayoutType>();
 
@@ -34,9 +35,10 @@ const ConnectorPopover = ({ connectorInstanceId, connectorName, disabled = false
     setOpenDialogDelete(true);
   };
 
-  const submitDeleteConnectorInstance = () => {
-    dispatch(deleteConnectorInstance(connectorInstanceId));
+  const submitDeleteConnectorInstance = async () => {
+    await dispatch(deleteConnectorInstance(connectorInstanceId));
     setOpenDialogDelete(false);
+    navigate('..');
   };
   const [openUpdateConnectorInstanceDrawer, setOpenCreateConnectorInstanceDrawer] = useState(false);
   const onOpenUpdateConnectorInstanceDrawer = () => setOpenCreateConnectorInstanceDrawer(true);
