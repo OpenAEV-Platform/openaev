@@ -8,6 +8,8 @@ import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
+import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.execution.ExecutionExecutorException;
 import io.openaev.execution.ExecutionExecutorService;
@@ -22,7 +24,6 @@ import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.utils.fixtures.*;
-import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -44,12 +45,27 @@ public class ExecutionExecutorServiceTest {
   @Mock private ExecutionTraceRepository executionTraceRepository;
   @Mock private ExecutorContextService executorContextService;
   @Mock private ManagerFactory managerFactory;
-  @Mock private ConnectorInstanceService connectorInstanceService;
+  @Mock private ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
+  @Mock private ConnectorInstanceRepository connectorInstanceRepository;
 
   @InjectMocks private ExecutionExecutorService executorService;
 
   @BeforeEach
   void setUp() {
+    ConnectorInstanceService connectorInstanceService =
+        new ConnectorInstanceService(
+            null,
+            null,
+            connectorInstanceRepository,
+            connectorInstanceConfigurationRepository,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null);
+    ReflectionTestUtils.setField(
+        executorService, "connectorInstanceService", connectorInstanceService);
     ReflectionTestUtils.setField(executorService, "executorUtils", new ExecutorUtils());
   }
 
@@ -258,6 +274,17 @@ public class ExecutionExecutorServiceTest {
       return inject;
     }
 
+    private void stubFindByExecutorId(String executorId, ConnectorInstancePersisted instance) {
+      ConnectorInstanceConfigurationRepository.ConnectorIdsFomDatabase ids =
+          mock(ConnectorInstanceConfigurationRepository.ConnectorIdsFomDatabase.class);
+      when(ids.getConnectorInstanceId()).thenReturn(instance.getId());
+      when(connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue(
+              "EXECUTOR_ID", executorId))
+          .thenReturn(ids);
+      when(connectorInstanceRepository.findById(instance.getId()))
+          .thenReturn(Optional.of(instance));
+    }
+
     @Test
     @DisplayName(
         "Given active agent with executor and connector instance, should route via requestForInstance")
@@ -275,8 +302,7 @@ public class ExecutionExecutorServiceTest {
 
       ConnectorInstancePersisted connectorInstance = new ConnectorInstancePersisted();
       connectorInstance.setId("instance-1");
-      when(connectorInstanceService.findByExecutorId(executor.getId()))
-          .thenReturn(connectorInstance);
+      stubFindByExecutorId(executor.getId(), connectorInstance);
 
       ExecutorContextService mockContextService = mock(ExecutorContextService.class);
       when(manager.requestForInstance(
@@ -289,7 +315,8 @@ public class ExecutionExecutorServiceTest {
       executorService.launchExecutorContext(inject);
 
       // Assert
-      verify(connectorInstanceService).findByExecutorId(executor.getId());
+      verify(connectorInstanceConfigurationRepository)
+          .findInstanceAndCatalogIdsByKeyValue("EXECUTOR_ID", executor.getId());
       verify(manager)
           .requestForInstance(
               eq(connectorInstance), any(ComponentRequest.class), eq(ExecutorContextService.class));
@@ -312,8 +339,8 @@ public class ExecutionExecutorServiceTest {
       Manager manager = mock(Manager.class);
       when(managerFactory.getManager()).thenReturn(manager);
 
-      when(connectorInstanceService.findByExecutorId(executor.getId()))
-          .thenThrow(new EntityNotFoundException("No connector instance found"));
+      // No stubbing for connectorInstanceConfigurationRepository — returns null by default,
+      // causing findByExecutorId to throw EntityNotFoundException naturally
 
       ExecutorContextService mockContextService = mock(ExecutorContextService.class);
       when(manager.request(any(ComponentRequest.class), eq(ExecutorContextService.class)))
@@ -325,7 +352,8 @@ public class ExecutionExecutorServiceTest {
       executorService.launchExecutorContext(inject);
 
       // Assert
-      verify(connectorInstanceService).findByExecutorId(executor.getId());
+      verify(connectorInstanceConfigurationRepository)
+          .findInstanceAndCatalogIdsByKeyValue("EXECUTOR_ID", executor.getId());
       verify(manager, never())
           .requestForInstance(any(), any(ComponentRequest.class), eq(ExecutorContextService.class));
       verify(manager).request(any(ComponentRequest.class), eq(ExecutorContextService.class));
@@ -349,8 +377,7 @@ public class ExecutionExecutorServiceTest {
 
       ConnectorInstancePersisted connectorInstance = new ConnectorInstancePersisted();
       connectorInstance.setId("instance-fail");
-      when(connectorInstanceService.findByExecutorId(executor.getId()))
-          .thenReturn(connectorInstance);
+      stubFindByExecutorId(executor.getId(), connectorInstance);
 
       ExecutorContextService mockContextService = mock(ExecutorContextService.class);
       when(manager.requestForInstance(
@@ -423,8 +450,8 @@ public class ExecutionExecutorServiceTest {
       ConnectorInstancePersisted instance2 = new ConnectorInstancePersisted();
       instance2.setId("instance-cs-2");
 
-      when(connectorInstanceService.findByExecutorId("executor-cs-1")).thenReturn(instance1);
-      when(connectorInstanceService.findByExecutorId("executor-cs-2")).thenReturn(instance2);
+      stubFindByExecutorId("executor-cs-1", instance1);
+      stubFindByExecutorId("executor-cs-2", instance2);
 
       ExecutorContextService mockCtx1 = mock(ExecutorContextService.class);
       ExecutorContextService mockCtx2 = mock(ExecutorContextService.class);
