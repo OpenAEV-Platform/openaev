@@ -10,6 +10,7 @@ import Tabs from '../../../../components/common/tabs/Tabs';
 import useTabs from '../../../../components/common/tabs/useTabs';
 import TextFieldController from '../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../components/i18n';
+import Loader from '../../../../components/Loader';
 import useCapabilities from '../../../../utils/hooks/useCapabilities';
 import CapabilitiesTab from './CapabilitiesTab';
 
@@ -114,7 +115,7 @@ const RoleForm: FC<RoleFormProps> = ({
         {currentTab === 'Capabilities' && (
           <>
             {loading
-              ? <span>{t('Loading...')}</span>
+              ? <Loader />
               : capabilities.map(cap => (
                   <CapabilitiesTab<RoleCreateInput> capability={cap} key={cap.capability_value} fieldName="role_capabilities" capabilities={capabilities} />
                 ))}
