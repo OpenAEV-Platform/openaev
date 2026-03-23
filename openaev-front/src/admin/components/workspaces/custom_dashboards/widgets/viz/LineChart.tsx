@@ -1,5 +1,5 @@
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, memo, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
+import { type FunctionComponent, memo, useCallback, useContext, useMemo } from 'react';
 import Chart from 'react-apexcharts';
 
 import { useFormatter } from '../../../../../../components/i18n';
@@ -59,18 +59,8 @@ const LineChart: FunctionComponent<Props> = ({ widgetId, series }) => {
     [theme, fld, distributed, emptyChartText, onDataPointClick],
   );
 
-  const chartRef = useRef<any>(null);
-  useEffect(() => {
-    return () => {
-      if (chartRef.current?.chart) {
-        chartRef.current.chart.destroy();
-      }
-    };
-  }, []);
-
   return (
     <Chart
-      ref={chartRef}
       options={options}
       series={series}
       type="line"
