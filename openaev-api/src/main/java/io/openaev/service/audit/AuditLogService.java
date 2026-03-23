@@ -79,6 +79,7 @@ public class AuditLogService {
    * @param input the serialized input DTO (for create/update); null for delete
    * @param oldValue the serialized previous values (for update); null for create/delete
    * @param entityName human-readable entity name for the message (e.g. scenario name)
+   * @param parentId the parent entity ID when a child is created within a parent; null otherwise
    */
   public void logMutationEvent(
       String eventScope,
@@ -87,7 +88,8 @@ public class AuditLogService {
       String entityId,
       JsonNode input,
       JsonNode oldValue,
-      String entityName) {
+      String entityName,
+      String parentId) {
     if (!enabled) {
       return;
     }
@@ -102,6 +104,9 @@ public class AuditLogService {
         contextData.put("id", entityId);
       }
       contextData.put("entity_type", entityTypeName);
+      if (parentId != null && !parentId.isEmpty()) {
+        contextData.put("parent_id", parentId);
+      }
       if (input != null) {
         contextData.set("input", redact(input, entityTypeName));
       }

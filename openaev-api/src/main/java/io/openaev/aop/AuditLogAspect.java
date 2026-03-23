@@ -12,6 +12,7 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.lang.annotation.Annotation;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,7 @@ import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.SimpleEvaluationContext;
 import org.springframework.stereotype.Component;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -49,12 +51,22 @@ public class AuditLogAspect {
 
   private static final Map<ResourceType, Class<?>> ENTITY_CLASS_MAP = buildEntityClassMap();
 
+  /** Reverse lookup: JPA entity class → ResourceType (built from {@link #ENTITY_CLASS_MAP}). */
+  private static final Map<Class<?>, ResourceType> REVERSE_ENTITY_CLASS_MAP =
+      buildReverseEntityClassMap();
+
   /**
    * Requests from automated agents (heartbeats, job polling) are excluded from audit logging.
    * Matches User-Agent headers like {@code openaev-agent/2.3.0}.
    */
   private static final Pattern AGENT_USER_AGENT_PATTERN =
       Pattern.compile("^openaev-agent/", Pattern.CASE_INSENSITIVE);
+
+  /**
+   * DTO metadata fields that are never actual entity attributes. Skipped during diff computation.
+   * {@code type} is a Jackson polymorphic type discriminator present in many input DTOs.
+   */
+  private static final Set<String> DIFF_SKIP_FIELDS = Set.of("type");
 
   private final AuditLogService auditLogService;
   private final ObjectMapper objectMapper;
@@ -92,10 +104,23 @@ public class AuditLogAspect {
     String eventScope = mapEventScope(action);
     String resourceId = resolveResourceId(joinPoint, accessControl);
 
+    // -- Pre-execution: child-resource detection --
+    // If Action.WRITE on a parent, scan for child entity IDs in other @PathVariable params.
+    // This covers child create (no child found), update (child found), and delete (HTTP DELETE).
+    // Must happen BEFORE proceed() so we can snapshot the child before it's modified/deleted.
+    ChildResourceInfo childInfo = null;
+    if ("update".equals(eventScope)) {
+      childInfo = detectChildResource(joinPoint, resourceId);
+    }
+
     // For updates/deletes: pre-fetch entity state before the mutation
     JsonNode oldEntitySnapshot = null;
     String entityName = null;
-    if (("update".equals(eventScope) || "delete".equals(eventScope))
+    if (childInfo != null) {
+      // Child operation: snapshot the child, not the parent
+      oldEntitySnapshot = childInfo.snapshot();
+      entityName = extractNameFromSnapshot(oldEntitySnapshot);
+    } else if (("update".equals(eventScope) || "delete".equals(eventScope))
         && !resourceId.isEmpty()) {
       oldEntitySnapshot = snapshotEntity(resourceType, resourceId);
       entityName = extractNameFromSnapshot(oldEntitySnapshot);
@@ -120,12 +145,44 @@ public class AuditLogAspect {
       eventStatus = "error";
       // Still log the audit event, then re-throw
       logMutationSafely(
-          eventScope, eventStatus, resourceType, resourceId, inputNode, null, entityName);
+          eventScope, eventStatus, resourceType, resourceId, inputNode, null, entityName, null);
       throw ex;
     }
 
+    // -- Post-execution: apply child-resource reclassification --
+    String parentId = null;
+
+    if (childInfo != null && isHttpDelete()) {
+      // Case 1: Child deletion — detected before proceed, entity now gone
+      parentId = resourceId;
+      eventScope = "delete";
+      resourceType = childInfo.resourceType();
+      resourceId = childInfo.entityId();
+      entityName = entityName != null ? entityName : childInfo.entityId();
+    } else if ("update".equals(eventScope) && result instanceof Base resultEntity) {
+      Class<?> expectedParentClass = ENTITY_CLASS_MAP.get(resourceType);
+      if (expectedParentClass != null && !expectedParentClass.isInstance(resultEntity)) {
+        parentId = resourceId;
+        ResourceType childType = REVERSE_ENTITY_CLASS_MAP.get(resultEntity.getClass());
+        if (childType != null) {
+          resourceType = childType;
+        }
+        resourceId = resultEntity.getId();
+        entityName = extractEntityName(resultEntity);
+
+        if (childInfo != null) {
+          // Case 2: Child update — child existed before proceed (pre-snapshot available for diff)
+          eventScope = "update";
+        } else {
+          // Case 3: Child creation — no child ID in path variables, new entity
+          eventScope = "create";
+          oldEntitySnapshot = null;
+        }
+      }
+    }
+
     // For creates, extract the entity ID and name from the return value
-    if ("create".equals(eventScope) && result instanceof Base createdEntity) {
+    if ("create".equals(eventScope) && parentId == null && result instanceof Base createdEntity) {
       resourceId = createdEntity.getId();
       entityName = extractEntityName(createdEntity);
     }
@@ -137,10 +194,9 @@ public class AuditLogAspect {
       DiffResult diff = computeDiff(oldEntitySnapshot, inputNode);
       diffInput = diff.newValues();
       diffOldValue = diff.oldValues();
-      // If no changes detected, still log the full input
       if (diffInput == null || diffInput.isEmpty()) {
-        diffInput = inputNode;
-        diffOldValue = null;
+        // No meaningful changes detected — skip the audit event (no-op update)
+        return result;
       }
     } else if ("create".equals(eventScope)) {
       diffInput = inputNode;
@@ -152,7 +208,14 @@ public class AuditLogAspect {
     }
 
     logMutationSafely(
-        eventScope, eventStatus, resourceType, resourceId, diffInput, diffOldValue, entityName);
+        eventScope,
+        eventStatus,
+        resourceType,
+        resourceId,
+        diffInput,
+        diffOldValue,
+        entityName,
+        parentId);
 
     return result;
   }
@@ -178,6 +241,65 @@ public class AuditLogAspect {
       return false;
     }
   }
+
+  /** Returns {@code true} if the current HTTP request method is DELETE. */
+  private boolean isHttpDelete() {
+    HttpServletRequest request = getCurrentRequest();
+    return request != null && "DELETE".equalsIgnoreCase(request.getMethod());
+  }
+
+  /** Returns the current HTTP request, or null if not in a request context. */
+  private HttpServletRequest getCurrentRequest() {
+    try {
+      ServletRequestAttributes attrs =
+          (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+      return attrs != null ? attrs.getRequest() : null;
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
+  /**
+   * Detects a child-resource by scanning {@code @PathVariable} parameters for IDs that are not the
+   * parent's resourceId. For each candidate, tries {@code EntityManager.find()} against the entity
+   * class map until a match is found. Returns the child info with a pre-deletion snapshot, or null.
+   */
+  private ChildResourceInfo detectChildResource(
+      ProceedingJoinPoint joinPoint, String parentResourceId) {
+    try {
+      MethodSignature sig = (MethodSignature) joinPoint.getSignature();
+      Annotation[][] paramAnnotations = sig.getMethod().getParameterAnnotations();
+      Object[] args = joinPoint.getArgs();
+
+      for (int i = 0; i < paramAnnotations.length; i++) {
+        for (Annotation ann : paramAnnotations[i]) {
+          if (ann instanceof PathVariable) {
+            String paramValue = args[i] != null ? args[i].toString() : null;
+            if (paramValue != null && !paramValue.equals(parentResourceId)) {
+              // Non-parent path variable — try to find the entity
+              for (Map.Entry<ResourceType, Class<?>> entry : ENTITY_CLASS_MAP.entrySet()) {
+                try {
+                  Object entity = entityManager.find(entry.getValue(), paramValue);
+                  if (entity != null) {
+                    JsonNode snapshot = objectMapper.valueToTree(entity);
+                    return new ChildResourceInfo(entry.getKey(), paramValue, snapshot);
+                  }
+                } catch (Exception e) {
+                  // Wrong entity type for this ID — continue
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (Exception e) {
+      log.debug("[AUDIT] Failed to detect child resource: {}", e.getMessage());
+    }
+    return null;
+  }
+
+  /** Info about a child resource detected before deletion. */
+  private record ChildResourceInfo(ResourceType resourceType, String entityId, JsonNode snapshot) {}
 
   private boolean shouldSkip(Action action) {
     return switch (action) {
@@ -264,16 +386,21 @@ public class AuditLogAspect {
 
   /** Extracts a human-readable name from a Base entity via reflection. */
   private String extractEntityName(Base entity) {
-    try {
-      var method = entity.getClass().getMethod("getName");
-      Object name = method.invoke(entity);
-      return name != null ? name.toString() : null;
-    } catch (NoSuchMethodException e) {
-      // Entity has no getName() — fall back to ID
-      return entity.getId();
-    } catch (Exception e) {
-      return entity.getId();
+    // Try common name accessors in order of precedence
+    for (String methodName : new String[] {"getName", "getTitle"}) {
+      try {
+        var method = entity.getClass().getMethod(methodName);
+        Object value = method.invoke(entity);
+        if (value != null) {
+          return value.toString();
+        }
+      } catch (NoSuchMethodException e) {
+        // This accessor doesn't exist — try the next one
+      } catch (Exception e) {
+        return entity.getId();
+      }
     }
+    return entity.getId();
   }
 
   /** Extracts a name from a snapshotted JSON node. */
@@ -296,7 +423,8 @@ public class AuditLogAspect {
 
   /**
    * Computes a diff between the old entity snapshot and the new input DTO. Returns only the fields
-   * that actually changed.
+   * that actually changed. Handles JPA relation fields gracefully: when the input sends a scalar ID
+   * but the old snapshot has a full object, the object is flattened to its ID for comparison.
    */
   private DiffResult computeDiff(JsonNode oldSnapshot, JsonNode newInput) {
     ObjectNode changedNew = objectMapper.createObjectNode();
@@ -307,7 +435,34 @@ public class AuditLogAspect {
       JsonNode newValue = entry.getValue();
       JsonNode oldValue = oldSnapshot.get(fieldName);
 
-      // If the old snapshot doesn't have this field, or the values differ, include it
+      // Skip null input values — in REST convention, null means "not provided" (the service
+      // ignores it), not "clear this field". Including them causes false positives for
+      // server-managed fields (e.g. inject_injector, resolved from the contract server-side).
+      if (newValue == null || newValue.isNull()) {
+        continue;
+      }
+
+      // Skip DTO metadata fields that are never actual entity attributes
+      if (DIFF_SKIP_FIELDS.contains(fieldName)) {
+        continue;
+      }
+
+      // Handle JPA relation fields: input sends a scalar ID, old snapshot has a full object.
+      // Flatten the old object to its ID for comparison and storage.
+      if (oldValue != null && oldValue.isObject() && !newValue.isObject()) {
+        JsonNode oldId = extractIdFromRelation(oldValue);
+        if (oldId != null) {
+          if (oldId.equals(newValue)) {
+            continue; // Same ID — field didn't change
+          }
+          // Different ID — record the flattened old value
+          changedNew.set(fieldName, newValue);
+          changedOld.set(fieldName, oldId);
+          continue;
+        }
+      }
+
+      // Standard comparison for non-relation fields
       if (oldValue == null || !oldValue.equals(newValue)) {
         changedNew.set(fieldName, newValue);
         if (oldValue != null) {
@@ -322,6 +477,26 @@ public class AuditLogAspect {
     return new DiffResult(changedNew, changedOld.isEmpty() ? null : changedOld);
   }
 
+  /**
+   * Extracts the ID from a serialized JPA relation object. Looks for common ID field patterns:
+   * {@code *_id} fields (e.g. {@code injector_contract_id}, {@code payload_id}) or plain {@code
+   * id}.
+   */
+  private JsonNode extractIdFromRelation(JsonNode objectNode) {
+    // First try fields ending with "_id" (JPA naming convention: injector_contract_id, etc.)
+    for (Map.Entry<String, JsonNode> field : objectNode.properties()) {
+      if (field.getKey().endsWith("_id") && field.getValue().isTextual()) {
+        return field.getValue();
+      }
+    }
+    // Fallback: plain "id"
+    JsonNode idNode = objectNode.get("id");
+    if (idNode != null && idNode.isTextual()) {
+      return idNode;
+    }
+    return null;
+  }
+
   private record DiffResult(JsonNode newValues, JsonNode oldValues) {}
 
   /** Wraps the audit service call in try/catch — audit must never break the business flow. */
@@ -332,10 +507,11 @@ public class AuditLogAspect {
       String entityId,
       JsonNode input,
       JsonNode oldValue,
-      String entityName) {
+      String entityName,
+      String parentId) {
     try {
       auditLogService.logMutationEvent(
-          eventScope, eventStatus, resourceType, entityId, input, oldValue, entityName);
+          eventScope, eventStatus, resourceType, entityId, input, oldValue, entityName, parentId);
     } catch (Exception e) {
       log.warn("[AUDIT] Audit logging failed (non-blocking): {}", e.getMessage(), e);
     }
@@ -375,6 +551,13 @@ public class AuditLogAspect {
       log.error("[AUDIT] Failed to build entity class map: {}", e.getMessage(), e);
       return Map.of();
     }
+  }
+
+  /** Builds the reverse mapping: JPA entity class → ResourceType. */
+  private static Map<Class<?>, ResourceType> buildReverseEntityClassMap() {
+    Map<Class<?>, ResourceType> reverse = new java.util.HashMap<>();
+    ENTITY_CLASS_MAP.forEach((resourceType, clazz) -> reverse.put(clazz, resourceType));
+    return Map.copyOf(reverse);
   }
 }
 
