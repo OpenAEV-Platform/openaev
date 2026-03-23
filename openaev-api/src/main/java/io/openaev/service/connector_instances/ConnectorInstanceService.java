@@ -282,6 +282,7 @@ public class ConnectorInstanceService {
    *
    * @param id the connector instance ID to delete
    */
+  @Transactional(rollbackFor = Exception.class)
   public void deleteById(String id) throws ConnectorStatusException {
     ConnectorInstancePersisted connectorInstance =
         connectorInstanceRepository
@@ -507,7 +508,7 @@ public class ConnectorInstanceService {
               newInstance, catalogConnectorWithConfigMap.catalogConnector().getContainerType()));
     }
 
-    newInstance.getConfigurations().addAll(configurations);
+    newInstance.setConfigurations(new HashSet<>(configurations));
     return (ConnectorInstancePersisted) this.save(newInstance);
   }
 

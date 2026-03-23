@@ -108,13 +108,6 @@ public class CrowdStrikeExecutorIntegration extends Integration {
         connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
             instanceId, "EXECUTOR_NAME");
 
-    log.info(
-        "CrowdStrike innerStart: connectorInstanceId={}, executorId={}, executorName={}, apiUrl={}",
-        instanceId,
-        executorId,
-        executorName,
-        config != null ? config.getApiUrl() : "null");
-
     Executor executor =
         executorService.register(
             executorId,

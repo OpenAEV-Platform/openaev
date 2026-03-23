@@ -114,29 +114,6 @@ public class ConnectorOrchestrationService {
     return connectorInstanceService.updateRequestedStatus(instance, requestedStatus);
   }
 
-  /**
-   * Validates that no connector instance already exists for this catalog connector.
-   *
-   * <p>This check is intentionally disabled: multi-connector support allows deploying multiple
-   * instances of the same catalog connector. Kept as a no-op for documentation purposes.
-   */
-  @SuppressWarnings("unused")
-  private void throwIfConnectorInstanceAlreadyExist(String catalogId) {
-    // Multi-connector is now always allowed — no duplicate check needed.
-  }
-
-  /**
-   * Validates that no connector entity with the same type/slug already exists.
-   *
-   * <p>This check is intentionally disabled: multi-connector support allows multiple connectors of
-   * the same type. Kept as a no-op for documentation purposes.
-   */
-  @SuppressWarnings("unused")
-  private void throwIfConnectorAlreadyExist(
-      String catalogConnectorSlug, ConnectorType catalogConnectorType) {
-    // Multi-connector is now always allowed — no duplicate check needed.
-  }
-
   private void throwIfConnectorIdDoesNotExist(
       CreateConnectorInstanceInput collectorInput, CatalogConnector catalogConnector)
       throws DataIntegrityViolationException {
@@ -225,18 +202,13 @@ public class ConnectorOrchestrationService {
     // If we already have an ID in the input, then we're migrating from an existing connector
     // meaning that we do not check if the connector type already exists
     if (input.getConfigurations().stream()
-        .noneMatch(
+        .anyMatch(
             configurationInput ->
                 configurationInput
                     .getKey()
                     .equals(
                         catalogConnectorWithConfigMap.catalogConnector.getContainerType()
                             + "_ID"))) {
-      throwIfConnectorInstanceAlreadyExist(catalogConnectorWithConfigMap.catalogConnector.getId());
-      throwIfConnectorAlreadyExist(
-          catalogConnectorWithConfigMap.catalogConnector.getSlug(),
-          catalogConnectorWithConfigMap.catalogConnector.getContainerType());
-    } else {
       // If we have an ID in the input, we check if the connector already exists
       throwIfConnectorIdDoesNotExist(input, catalogConnectorWithConfigMap.catalogConnector);
     }
