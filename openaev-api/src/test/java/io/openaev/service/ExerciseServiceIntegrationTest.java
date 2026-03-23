@@ -114,8 +114,6 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             injectRepository,
             lessonsCategoryRepository,
             exerciseTeamUserRepository,
-            injectRepository,
-            lessonsCategoryRepository,
             lessonsService,
             injectExpectationMapper,
             scenarioRecurrenceService,
