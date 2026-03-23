@@ -10,6 +10,7 @@ import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -22,6 +23,8 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.ConnectorInstanceLogRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
+import io.openaev.database.repository.ExecutorRepository;
+import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.integration.Integration;
@@ -32,6 +35,7 @@ import io.openaev.rest.connector_instance.dto.UpdateConnectorInstanceRequestedSt
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.connector_instances.XtmComposerEncryptionService;
 import io.openaev.utils.fixtures.CollectorFixture;
+import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.transaction.Transactional;
@@ -72,6 +76,9 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
   @Autowired private ConnectorInstanceComposer connectorInstanceComposer;
   @Autowired private ConnectorInstanceConfigurationComposer connectorInstanceConfigurationComposer;
   @Autowired private CollectorComposer collectorComposer;
+  @Autowired private ExecutorComposer executorComposer;
+  @Autowired private ExecutorRepository executorRepository;
+  @Autowired private InjectorRepository injectorRepository;
   @MockitoBean private ManagerFactory managerFactory;
 
   private ConnectorInstancePersisted getConnectorInstance(
@@ -489,8 +496,14 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
     void given_collectorInstanceWithSpawnedIntegration_should_stopAndDelete() throws Exception {
       // Arrange
       CatalogConnector catalogConnector = getCatalogConnector();
+
+      Collector collector = CollectorFixture.createDefaultCollector(catalogConnector.getSlug());
+      collectorComposer.forCollector(collector).persist();
+
+      ConnectorInstanceConfiguration collectorIdConfig =
+          createConnectorInstanceConfiguration("COLLECTOR_ID", collector.getId());
       ConnectorInstancePersisted connectorInstance =
-          getConnectorInstance(catalogConnector, new HashSet<>());
+          getConnectorInstance(catalogConnector, Set.of(collectorIdConfig));
 
       Manager manager = mock(Manager.class);
       Integration integration = mock(Integration.class);
@@ -505,15 +518,14 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful());
 
       // Assert
-      Optional<ConnectorInstancePersisted> deletedInstance =
-          connectorInstanceRepository.findById(connectorInstance.getId());
-      assertFalse(deletedInstance.isPresent());
+      assertFalse(connectorInstanceRepository.findById(connectorInstance.getId()).isPresent());
     }
 
     @Test
     @DisplayName(
-        "Given an executor connector instance with a spawned integration, deleting should stop the integration and remove the instance")
-    void given_executorInstanceWithSpawnedIntegration_should_stopAndDelete() throws Exception {
+        "Given an executor connector instance with a spawned integration, deleting should stop the integration and remove the instance and executor")
+    void given_executorInstanceWithSpawnedIntegration_should_stopAndDeleteExecutor()
+        throws Exception {
       // Arrange
       CatalogConnector catalogConnector =
           catalogConnectorComposer
@@ -522,8 +534,19 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
                       "Test Executor", ConnectorType.EXECUTOR))
               .persist()
               .get();
+
+      Executor executor = new Executor();
+      executor.setId(UUID.randomUUID().toString());
+      executor.setName("Test Executor");
+      executor.setType(catalogConnector.getSlug());
+      executor.setCreatedAt(Instant.now());
+      executor.setUpdatedAt(Instant.now());
+      executorComposer.forExecutor(executor).persist();
+
+      ConnectorInstanceConfiguration executorIdConfig =
+          createConnectorInstanceConfiguration("EXECUTOR_ID", executor.getId());
       ConnectorInstancePersisted connectorInstance =
-          getConnectorInstance(catalogConnector, new HashSet<>());
+          getConnectorInstance(catalogConnector, Set.of(executorIdConfig));
 
       Manager manager = mock(Manager.class);
       Integration integration = mock(Integration.class);
@@ -538,15 +561,15 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful());
 
       // Assert
-      Optional<ConnectorInstancePersisted> deletedInstance =
-          connectorInstanceRepository.findById(connectorInstance.getId());
-      assertFalse(deletedInstance.isPresent());
+      assertFalse(connectorInstanceRepository.findById(connectorInstance.getId()).isPresent());
+      assertFalse(executorRepository.findById(executor.getId()).isPresent());
     }
 
     @Test
     @DisplayName(
-        "Given an injector connector instance with a spawned integration, deleting should stop the integration and remove the instance")
-    void given_injectorInstanceWithSpawnedIntegration_should_stopAndDelete() throws Exception {
+        "Given an injector connector instance with a spawned integration, deleting should stop the integration and remove the instance and injector")
+    void given_injectorInstanceWithSpawnedIntegration_should_stopAndDeleteInjector()
+        throws Exception {
       // Arrange
       CatalogConnector catalogConnector =
           catalogConnectorComposer
@@ -555,8 +578,16 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
                       "Test Injector", ConnectorType.INJECTOR))
               .persist()
               .get();
+
+      Injector injector =
+          InjectorFixture.createInjector(
+              UUID.randomUUID().toString(), "Test Injector", catalogConnector.getSlug());
+      injectorRepository.save(injector);
+
+      ConnectorInstanceConfiguration injectorIdConfig =
+          createConnectorInstanceConfiguration("INJECTOR_ID", injector.getId());
       ConnectorInstancePersisted connectorInstance =
-          getConnectorInstance(catalogConnector, new HashSet<>());
+          getConnectorInstance(catalogConnector, Set.of(injectorIdConfig));
 
       Manager manager = mock(Manager.class);
       Integration integration = mock(Integration.class);
@@ -571,9 +602,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful());
 
       // Assert
-      Optional<ConnectorInstancePersisted> deletedInstance =
-          connectorInstanceRepository.findById(connectorInstance.getId());
-      assertFalse(deletedInstance.isPresent());
+      assertFalse(connectorInstanceRepository.findById(connectorInstance.getId()).isPresent());
+      assertFalse(injectorRepository.findById(injector.getId()).isPresent());
     }
 
     @Test
@@ -602,6 +632,45 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
           connectorInstanceRepository.findAllByCatalogConnectorId(catalogConnector.getId());
       assertEquals(1, remaining.size());
       assertEquals(instance2.getId(), remaining.getFirst().getId());
+    }
+
+    @Test
+    @DisplayName("Given a non-existent connector instance id, deleting should return 404")
+    void given_nonExistentInstanceId_should_return404() throws Exception {
+      // Arrange
+      String nonExistentId = UUID.randomUUID().toString();
+
+      // Act & Assert
+      mvc.perform(delete(CONNECTOR_INSTANCE_URI + "/" + nonExistentId))
+          .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName(
+        "Given a spawned integration that fails to stop on initialise, deleting should return 422")
+    void given_initialiseThrows_should_return422() throws Exception {
+      // Arrange
+      CatalogConnector catalogConnector = getCatalogConnector();
+      ConnectorInstancePersisted connectorInstance =
+          getConnectorInstance(catalogConnector, new HashSet<>());
+
+      Manager manager = mock(Manager.class);
+      Integration integration = mock(Integration.class);
+      Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
+      spawnedIntegrations.put(connectorInstance, integration);
+
+      when(managerFactory.getManager()).thenReturn(manager);
+      when(manager.getSpawnedIntegrations()).thenReturn(spawnedIntegrations);
+      doThrow(new RuntimeException("Integration failed to stop")).when(integration).initialise();
+
+      // Act & Assert
+      mvc.perform(delete(CONNECTOR_INSTANCE_URI + "/" + connectorInstance.getId()))
+          .andExpect(status().isUnprocessableEntity());
+
+      // Assert — instance should NOT have been deleted since the stop failed
+      Optional<ConnectorInstancePersisted> stillPresent =
+          connectorInstanceRepository.findById(connectorInstance.getId());
+      assertTrue(stillPresent.isPresent());
     }
   }
 
