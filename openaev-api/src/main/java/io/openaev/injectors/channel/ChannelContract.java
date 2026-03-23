@@ -17,7 +17,6 @@ import static io.openaev.injector_contract.fields.ContractTextArea.richTextareaF
 import static io.openaev.injectors.channel.ChannelExecutor.VARIABLE_ARTICLE;
 import static io.openaev.injectors.channel.ChannelExecutor.VARIABLE_ARTICLES;
 
-import io.openaev.database.model.Domain;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Variable.VariableType;
 import io.openaev.expectation.ExpectationBuilderService;

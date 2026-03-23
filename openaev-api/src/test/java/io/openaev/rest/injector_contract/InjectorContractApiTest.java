@@ -1549,7 +1549,8 @@ public class InjectorContractApiTest extends IntegrationTest {
 
       Set<Domain> endpointDomain =
           domainComposer.forDomain(PresetDomain.getEndpoint()).persist().getSet();
-      Set<Domain> cloudDomain = domainComposer.forDomain(PresetDomain.getCloud()).persist().getSet();
+      Set<Domain> cloudDomain =
+          domainComposer.forDomain(PresetDomain.getCloud()).persist().getSet();
 
       Injector validInjector = injectorFixture.getWellKnownOaevImplantInjector();
 
