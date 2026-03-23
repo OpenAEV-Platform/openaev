@@ -457,6 +457,13 @@ public class SecurityCoverageService {
     Optional<Timestamp> sroStopTime =
         exerciseService.getLatestValidityDate(simulation).map(Timestamp::new);
 
+    sroStartTime.ifPresent(
+        instant -> coverage.setProperty(ExtendedProperties.VALID_FROM.toString(), instant));
+    sroStartTime.ifPresent(
+        instant -> coverage.setProperty(ExtendedProperties.LAST_RESULT.toString(), instant));
+    sroStopTime.ifPresent(
+        instant -> coverage.setProperty(ExtendedProperties.VALID_TO.toString(), instant));
+
     // Process coverage refs by stix object: attack patterns
     processCoverageRefs(
         simulation.getSecurityCoverage().getAttackPatternRefs(),
