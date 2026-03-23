@@ -41,7 +41,6 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.queue.BatchQueueService;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.service.InjectStatusService;
-import io.openaev.scheduler.jobs.InjectsExecutionJob;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.fixtures.*;

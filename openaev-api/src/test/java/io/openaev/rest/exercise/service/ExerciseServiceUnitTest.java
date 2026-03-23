@@ -15,7 +15,20 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.database.model.*;
+import io.openaev.database.model.AssetGroup;
+import io.openaev.database.model.Exercise;
+import io.openaev.database.model.Inject;
+import io.openaev.database.model.InjectExpectation;
+import io.openaev.database.model.Tag;
+import io.openaev.database.model.Team;
+import io.openaev.database.model.User;
 import io.openaev.database.repository.*;
+import io.openaev.database.repository.ExerciseRepository;
+import io.openaev.database.repository.ExerciseTeamUserRepository;
+import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.LessonsCategoryRepository;
+import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -23,6 +36,10 @@ import io.openaev.rest.exercise.form.ExercisesGlobalScoresInput;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.*;
+import io.openaev.service.LessonsService;
+import io.openaev.service.PreviewFeatureService;
+import io.openaev.service.TagRuleService;
+import io.openaev.service.TeamService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.openaev.utils.ResultUtils;
@@ -32,34 +49,14 @@ import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.ExpectationResultsByTypeFixture;
 import io.openaev.utils.fixtures.TagFixture;
 import java.util.*;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import io.openaev.database.model.AssetGroup;
-import io.openaev.database.model.Exercise;
-import io.openaev.database.model.Inject;
-import io.openaev.database.model.InjectExpectation;
-import io.openaev.database.model.Tag;
-import io.openaev.database.model.Team;
-import io.openaev.database.model.User;
-import io.openaev.database.repository.ExerciseRepository;
-import io.openaev.database.repository.ExerciseTeamUserRepository;
-import io.openaev.database.repository.InjectRepository;
-import io.openaev.database.repository.LessonsCategoryRepository;
-import io.openaev.database.repository.TeamRepository;
-import io.openaev.database.repository.UserRepository;
-
-import io.openaev.service.LessonsService;
-import io.openaev.service.PreviewFeatureService;
-import io.openaev.service.TagRuleService;
-import io.openaev.service.TeamService;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -80,7 +77,6 @@ class ExerciseServiceUnitTest {
 
   @Mock private ResultUtils resultUtils;
 
-
   @Mock private ExerciseRepository exerciseRepository;
   @Mock private TeamRepository teamRepository;
   @Mock private UserRepository userRepository;
@@ -91,7 +87,6 @@ class ExerciseServiceUnitTest {
   @Mock private WorkflowService workflowService;
   @Mock private LessonsService lessonsService;
   @Mock private PreviewFeatureService previewFeatureService;
-
 
   @Spy @InjectMocks private ExerciseService mockedExerciseService;
 
