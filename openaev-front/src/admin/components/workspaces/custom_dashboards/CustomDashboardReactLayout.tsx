@@ -1,10 +1,36 @@
-import { type CSSProperties, type FunctionComponent, useContext, useEffect, useMemo, useState } from 'react';
+import { type CSSProperties, type FunctionComponent, memo, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import ReactGridLayout, { type Layout, type LayoutItem } from 'react-grid-layout';
 
 import { updateCustomDashboardWidgetLayout } from '../../../../actions/custom_dashboards/customdashboardwidget-action';
 import { type Widget, type WidgetLayout } from '../../../../utils/api-types';
 import { CustomDashboardContext } from './CustomDashboardContext';
 import WidgetWrapper from './widgets/WidgetWrapper';
+
+const LazyWidget = memo<{ children: ReactNode }>(({ children }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+        }
+      },
+      { rootMargin: '200px' },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={ref} style={{ height: '100%' }}>
+      {isVisible ? children : null}
+    </div>
+  );
+});
 
 const CustomDashboardReactLayout: FunctionComponent<{
   readOnly: boolean;
@@ -54,12 +80,14 @@ const CustomDashboardReactLayout: FunctionComponent<{
   // or dimension of widgets.
   const [widgetsLayouts, setWidgetsLayouts] = useState<Record<string, LayoutItem>>({});
 
-  // Array of all widgets, refreshed when dashboard is updated (same pattern as OpenCTI).
-  // Sync our local layouts immediately.
-  const widgetsArray = useMemo(() => {
-    const widgets = customDashboard?.custom_dashboard_widgets ?? [];
+  const widgetsArray = useMemo(
+    () => customDashboard?.custom_dashboard_widgets ?? [],
+    [customDashboard?.custom_dashboard_widgets],
+  );
+
+  useEffect(() => {
     setWidgetsLayouts(
-      widgets.reduce<Record<string, LayoutItem>>((res, widget) => {
+      widgetsArray.reduce<Record<string, LayoutItem>>((res, widget) => {
         if (widget.widget_layout) {
           res[widget.widget_id] = {
             i: widget.widget_id,
@@ -72,8 +100,7 @@ const CustomDashboardReactLayout: FunctionComponent<{
         return res;
       }, {}),
     );
-    return widgets;
-  }, [customDashboard?.custom_dashboard_widgets]);
+  }, [widgetsArray]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -84,7 +111,7 @@ const CustomDashboardReactLayout: FunctionComponent<{
     };
   }, []);
 
-  const handleWidgetUpdate = (widget: Widget) => {
+  const handleWidgetUpdate = useCallback((widget: Widget) => {
     setCustomDashboard((prev) => {
       if (!prev) return prev;
       return {
@@ -94,9 +121,9 @@ const CustomDashboardReactLayout: FunctionComponent<{
         ),
       };
     });
-  };
+  }, [setCustomDashboard]);
 
-  const handleWidgetDelete = (widgetId: string) => {
+  const handleWidgetDelete = useCallback((widgetId: string) => {
     setDeleting(true);
     setCustomDashboard((prev) => {
       if (!prev) return prev;
@@ -105,14 +132,14 @@ const CustomDashboardReactLayout: FunctionComponent<{
         custom_dashboard_widgets: (prev.custom_dashboard_widgets ?? []).filter(w => w.widget_id !== widgetId),
       };
     });
-  };
+  }, [setCustomDashboard]);
 
-  const onSetFullscreen = (widgetId: string, fullscreen: boolean) => {
+  const onSetFullscreen = useCallback((widgetId: string, fullscreen: boolean) => {
     setFullscreenWidgets(prev => ({
       ...prev,
       [widgetId]: fullscreen,
     }));
-  };
+  }, []);
 
   const onLayoutChange = (layouts: Layout) => {
     if (deleting || !customDashboard) {
@@ -226,15 +253,17 @@ const CustomDashboardReactLayout: FunctionComponent<{
               data-grid={layout}
               style={paperStyle}
             >
-              <WidgetWrapper
-                widget={widget}
-                fullscreen={fullscreenWidgets[widget.widget_id] ?? false}
-                setFullscreen={(fs: boolean) => onSetFullscreen(widget.widget_id, fs)}
-                handleWidgetUpdate={handleWidgetUpdate}
-                handleWidgetDelete={handleWidgetDelete}
-                readOnly={readOnly}
-                idToResize={idToResize}
-              />
+              <LazyWidget>
+                <WidgetWrapper
+                  widget={widget}
+                  fullscreen={fullscreenWidgets[widget.widget_id] ?? false}
+                  setFullscreen={onSetFullscreen}
+                  handleWidgetUpdate={handleWidgetUpdate}
+                  handleWidgetDelete={handleWidgetDelete}
+                  readOnly={readOnly}
+                  idToResize={idToResize}
+                />
+              </LazyWidget>
             </div>
           );
         })}

@@ -61,6 +61,29 @@ export const entitiesInitializer = Map({
   }),
 });
 
+const ENTITY_SIZE_SOFT_CAP = 5000;
+const EVICTABLE_ENTITY_TYPES = new Set([
+  'injects', 'injectexpectations', 'inject_statuses',
+  'communications', 'logs', 'targetresults',
+  'comcheckstatuses', 'channelreaders', 'simulationchallengesreaders',
+]);
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const evictOversizedEntities = (state: any): any => {
+  const entities = state.get('entities');
+  if (!entities || !Map.isMap(entities)) return state;
+  let result = state;
+  EVICTABLE_ENTITY_TYPES.forEach((entityType) => {
+    const entityMap = entities.get(entityType);
+    if (entityMap && Map.isMap(entityMap) && entityMap.size > ENTITY_SIZE_SOFT_CAP) {
+      const keysToKeep = entityMap.keySeq().takeLast(ENTITY_SIZE_SOFT_CAP).toSet();
+      const trimmed = entityMap.filter((_: unknown, key: string) => keysToKeep.has(key));
+      result = result.setIn(['entities', entityType], trimmed);
+    }
+  });
+  return result;
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mergeDeepOverwriteLists = (a: any, b: any, deep = 0) => {
   // First, check if 'b' is null to avoid overwriting 'a', even if 'a' is mergeable.
@@ -92,7 +115,8 @@ const referential = (state: any = Map({}), action: any = {}) => {
           firstValue['setting_value'],
         );
       } else {
-        return mergeDeepOverwriteLists(state, fromJS(R.dissoc('result', action.payload)));
+        const merged = mergeDeepOverwriteLists(state, fromJS(R.dissoc('result', action.payload)));
+        return evictOversizedEntities(merged);
       }
     }
     case Constants.DATA_DELETE_SUCCESS: {

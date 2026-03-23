@@ -52,10 +52,11 @@ const useExternalTab = ({
         onMessage(event);
       }
     };
+    let checkInterval: ReturnType<typeof setInterval> | undefined;
     if (isTabOpen) {
       window.addEventListener('message', handleMessage);
       window.addEventListener('beforeunload', beforeUnloadHandler);
-      const checkInterval = setInterval(() => {
+      checkInterval = setInterval(() => {
         if (tabRef.current?.closed) {
           onClosingTab();
           closeTab();
@@ -65,6 +66,9 @@ const useExternalTab = ({
     }
 
     return () => {
+      if (checkInterval) {
+        clearInterval(checkInterval);
+      }
       window.removeEventListener('message', handleMessage);
       window.removeEventListener('beforeunload', beforeUnloadHandler);
     };

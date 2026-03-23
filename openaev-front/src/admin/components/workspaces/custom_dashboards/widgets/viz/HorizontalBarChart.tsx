@@ -1,5 +1,5 @@
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, memo, useCallback, useContext, useMemo } from 'react';
+import { type FunctionComponent, memo, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 import Chart from 'react-apexcharts';
 import { makeStyles } from 'tss-react/mui';
 
@@ -57,12 +57,23 @@ const HorizontalBarChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, 
       legend: true,
       emptyChartText,
       onBarClick,
+      enableAnimations: false,
     }),
     [theme, widgetMode, fld, emptyChartText, onBarClick],
   );
 
+  const chartRef = useRef<any>(null);
+  useEffect(() => {
+    return () => {
+      if (chartRef.current?.chart) {
+        chartRef.current.chart.destroy();
+      }
+    };
+  }, []);
+
   return (
     <Chart
+      ref={chartRef}
       options={options}
       series={series}
       type="bar"

@@ -24,6 +24,7 @@
     "@mui/system": "7.3.9",
     "@mui/x-date-pickers": "8.27.2",
     "@redux-devtools/extension": "3.3.0",
+    "@tanstack/react-virtual": "3.13.23",
     "@uiw/react-md-editor": "4.0.11",
     "@xyflow/react": "12.10.1",
     "apexcharts": "5.3.6",

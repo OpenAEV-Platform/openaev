@@ -95,7 +95,7 @@ const TopBar: FunctionComponent = () => {
     return () => {
       sub.unsubscribe();
     };
-  });
+  }, []);
   const handleLogout = async () => {
     await dispatch(logout());
     navigate('/');

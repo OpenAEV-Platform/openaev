@@ -73,6 +73,15 @@ const CustomDashboardWrapper = ({
   const [dataReady, setDataReady] = useState(false);
   const [_gridReady, setGridReady] = useState(false);
   const loadingStartTime = useRef<number>(Date.now());
+  const dataReadyTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    return () => {
+      if (dataReadyTimeoutRef.current) {
+        clearTimeout(dataReadyTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const [, setSearchParams] = useSearchParams();
 
@@ -97,7 +106,10 @@ const CustomDashboardWrapper = ({
   const setDataReadyWithDelay = () => {
     const elapsed = Date.now() - loadingStartTime.current;
     const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
-    setTimeout(() => setDataReady(true), remainingTime);
+    if (dataReadyTimeoutRef.current) {
+      clearTimeout(dataReadyTimeoutRef.current);
+    }
+    dataReadyTimeoutRef.current = setTimeout(() => setDataReady(true), remainingTime);
   };
 
   // Compute loading state: show loader until data is ready

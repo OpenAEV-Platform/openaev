@@ -18,9 +18,39 @@ const ERROR_30S_DELAY = 30000;
 let pristine = true;
 let sseClient;
 let lastPingDate = new Date().getTime();
+let reconnectTimeoutId;
 const listeners = new Map();
+
+const SSE_BATCH_INTERVAL = 200;
+let pendingActions = [];
+let batchTimeoutId;
+
+const flushPendingActions = () => {
+  batchTimeoutId = undefined;
+  if (pendingActions.length === 0) return;
+  const actions = pendingActions;
+  pendingActions = [];
+  const dispatch = (action) => store.dispatch(action);
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(() => actions.forEach(dispatch));
+  } else {
+    actions.forEach(dispatch);
+  }
+};
+
+const scheduleBatchedDispatch = (action) => {
+  pendingActions.push(action);
+  if (!batchTimeoutId) {
+    batchTimeoutId = setTimeout(flushPendingActions, SSE_BATCH_INTERVAL);
+  }
+};
+
 const useDataLoader = (loader = () => {}, refetchArg = []) => {
   const sseConnect = () => {
+    if (reconnectTimeoutId) {
+      clearTimeout(reconnectTimeoutId);
+      reconnectTimeoutId = undefined;
+    }
     sseClient = new EventSource(buildUri('/api/stream'), { withCredentials: true });
     const autoReConnect = setInterval(() => {
       const current = new Date().getTime();
@@ -44,11 +74,10 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
             id: data.instance[data.attribute_id],
             type: data.attribute_schema,
           };
-          const deleteEvent = {
+          scheduleBatchedDispatch({
             type: DATA_DELETE_SUCCESS,
             payload,
-          };
-          store.dispatch(deleteEvent);
+          });
         } else {
           const schemaInfo = { idAttribute: data.attribute_id };
           const schemas = new schema.Entity(
@@ -57,11 +86,10 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
             schemaInfo,
           );
           const dataNormalize = normalize(data.instance, schemas);
-          const storeEvent = {
+          scheduleBatchedDispatch({
             type: data.event_type,
             payload: dataNormalize,
-          };
-          store.dispatch(storeEvent);
+          });
         }
       }
     });
@@ -75,11 +103,11 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
       }
       const timeFromLastPingDate = new Date().getTime() - lastPingDate;
       if (timeFromLastPingDate < ERROR_30S_MAX_TIME) {
-        setTimeout(sseConnect, ERROR_2S_DELAY);// Before 30s time to retry is 2s
+        reconnectTimeoutId = setTimeout(sseConnect, ERROR_2S_DELAY);
       } else if (timeFromLastPingDate < ERROR_5M_MAX_TIME) {
-        setTimeout(sseConnect, ERROR_10S_DELAY); // Before 5 min time to retry is 10s
+        reconnectTimeoutId = setTimeout(sseConnect, ERROR_10S_DELAY);
       } else {
-        setTimeout(sseConnect, ERROR_30S_DELAY);// After 5 min time to retry is 30s
+        reconnectTimeoutId = setTimeout(sseConnect, ERROR_30S_DELAY);
       }
     };
     return sseClient;
@@ -95,10 +123,17 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
       load();
     }
     return () => {
-      // Remove the listener
       listeners.delete(loader);
-      // If its the last one, disconnect the stream
       if (listeners.size === 0) {
+        if (reconnectTimeoutId) {
+          clearTimeout(reconnectTimeoutId);
+          reconnectTimeoutId = undefined;
+        }
+        if (batchTimeoutId) {
+          clearTimeout(batchTimeoutId);
+          batchTimeoutId = undefined;
+          pendingActions = [];
+        }
         sseClient.close();
         sseClient = undefined;
       }

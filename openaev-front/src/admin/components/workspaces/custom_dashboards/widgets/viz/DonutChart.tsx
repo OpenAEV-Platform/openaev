@@ -1,5 +1,5 @@
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, memo, useCallback, useContext, useMemo } from 'react';
+import { type FunctionComponent, memo, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 import Chart from 'react-apexcharts';
 import { makeStyles } from 'tss-react/mui';
 
@@ -66,6 +66,7 @@ const DonutChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, datas }:
       chartColors,
       emptyChartText,
       onClick,
+      disableAnimation: true,
     }),
     [theme, labels, chartColors, emptyChartText, onClick],
   );
@@ -76,8 +77,18 @@ const DonutChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, datas }:
     [datas],
   );
 
+  const chartRef = useRef<any>(null);
+  useEffect(() => {
+    return () => {
+      if (chartRef.current?.chart) {
+        chartRef.current.chart.destroy();
+      }
+    };
+  }, []);
+
   return (
     <Chart
+      ref={chartRef}
       options={options}
       series={series}
       type="donut"

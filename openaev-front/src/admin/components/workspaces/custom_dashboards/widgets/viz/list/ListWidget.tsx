@@ -7,7 +7,8 @@ import {
   ListItemIcon,
   ListItemText, TablePagination,
 } from '@mui/material';
-import { type ChangeEvent, memo, useCallback, useMemo } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { type ChangeEvent, memo, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -166,6 +167,16 @@ const ListWidget = ({
     handler?.(element, navigate);
   }, [navigate]);
 
+  const ROW_HEIGHT = 50;
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const virtualizer = useVirtualizer({
+    count: contentLoading ? 0 : elements.length,
+    getScrollElement: () => scrollContainerRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 5,
+  });
+
   if (!widgetConfig || columns.length === 0) {
     return <div>{t('No columns configured for this list.')}</div>;
   }
@@ -173,7 +184,8 @@ const ListWidget = ({
   return (
     <Box style={{
       height: '100%',
-      overflow: 'auto',
+      display: 'flex',
+      flexDirection: 'column',
     }}
     >
       {elements.length > 0
@@ -189,45 +201,59 @@ const ListWidget = ({
           />
         )}
 
-      <MuiList sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-      >
-        <MuiListItem
-          classes={{ root: classes.itemHead }}
-          style={{ paddingTop: 0 }}
-          secondaryAction={<EmptySecondaryAction />}
+      {contentLoading && <Loader variant="inElement" />}
+      {!contentLoading && elements.length === 0 && (
+        <div style={{
+          textAlign: 'center',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flex: 1,
+        }}
         >
-          <ListItemIcon />
-        </MuiListItem>
-        {contentLoading && <Loader variant="inElement" />}
-        {!contentLoading && elements.length === 0 && (
-          <div style={{
-            textAlign: 'center',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flex: 1,
-          }}
+          {t('No data to display')}
+        </div>
+      )}
+      {!contentLoading && elements.length > 0 && (
+        <div
+          ref={scrollContainerRef}
+          style={{ flex: 1, overflow: 'auto' }}
+        >
+          <MuiList
+            style={{
+              height: virtualizer.getTotalSize(),
+              position: 'relative',
+            }}
           >
-            {t('No data to display')}
-          </div>
-        )}
-        {!contentLoading && elements.map(element => (
-          <ListWidgetItem
-            key={element.base_id}
-            element={element}
-            columns={columns}
-            columnStyles={columnStyles}
-            bodyItemsStyles={bodyItemsStyles}
-            attackPatterns={attackPatterns}
-            onItemClick={onListItemClick}
-            itemClass={classes.item}
-          />
-        ))}
-      </MuiList>
+            {virtualizer.getVirtualItems().map((virtualRow) => {
+              const element = elements[virtualRow.index];
+              return (
+                <div
+                  key={element.base_id}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: ROW_HEIGHT,
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                >
+                  <ListWidgetItem
+                    element={element}
+                    columns={columns}
+                    columnStyles={columnStyles}
+                    bodyItemsStyles={bodyItemsStyles}
+                    attackPatterns={attackPatterns}
+                    onItemClick={onListItemClick}
+                    itemClass={classes.item}
+                  />
+                </div>
+              );
+            })}
+          </MuiList>
+        </div>
+      )}
     </Box>
   );
 };
