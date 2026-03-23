@@ -19,10 +19,7 @@ import logoXtmHubLight from '../../../static/images/logo_xtm_hub_light.svg';
 import { MESSAGING$, XTM_HUB_DEFAULT_URL } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
 import useAuth from '../../../utils/hooks/useAuth';
-import { AbilityContext } from '../../../utils/permissions/PermissionsProvider';
-import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../utils/utils';
-import { isNotEmptyField } from '../../../utils/utils';
+import { isFeatureEnabled, isNotEmptyField } from '../../../utils/utils';
 import AskArianeButton from '../ariane/AskArianeButton';
 import TenantSwitcher from './TenantSwitcher';
 
