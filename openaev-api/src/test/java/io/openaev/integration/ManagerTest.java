@@ -24,6 +24,7 @@ import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.List;
 import java.util.NoSuchElementException;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -378,5 +379,97 @@ public class ManagerTest {
     assertThatThrownBy(() -> manager.request(cr, TestIntegrationComponent.class))
         .isInstanceOf(NoSuchElementException.class)
         .hasMessageContaining("No candidate found for");
+  }
+
+  @Nested
+  @DisplayName("requestForInstance")
+  class RequestForInstanceTests {
+
+    @Test
+    @DisplayName(
+        "When instance is started and component matches, return typed component for that instance")
+    public void given_startedInstanceWithMatchingComponent_should_returnTypedComponent()
+        throws Exception {
+      // Arrange
+      Manager manager = new Manager(List.of(getRegularFactory()));
+      manager.monitorIntegrations();
+
+      List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
+      List<ConnectorInstancePersisted> instances =
+          connectorInstanceRepository.findAllByCatalogConnectorId(connectors.getFirst().getId());
+      ConnectorInstance singleInstance = instances.getFirst();
+      ComponentRequest cr = new ComponentRequest(TestIntegration.TEST_COMPONENT_IDENTIFIER);
+
+      // Act
+      TestIntegrationComponent tic =
+          manager.requestForInstance(singleInstance, cr, TestIntegrationComponent.class);
+
+      // Assert
+      assertThat(tic).isNotNull().isInstanceOf(TestIntegrationComponent.class);
+    }
+
+    @Test
+    @DisplayName("When instance is not found in spawned integrations, throw NoSuchElementException")
+    public void given_unknownInstance_should_throwNoSuchElementException() throws Exception {
+      // Arrange
+      Manager manager = new Manager(List.of(getRegularFactory()));
+      manager.monitorIntegrations();
+
+      ConnectorInstance unknownInstance = new ConnectorInstancePersisted();
+      unknownInstance.setId("unknown-instance-id");
+      ComponentRequest cr = new ComponentRequest(TestIntegration.TEST_COMPONENT_IDENTIFIER);
+
+      // Act & Assert
+      assertThatThrownBy(
+              () -> manager.requestForInstance(unknownInstance, cr, TestIntegrationComponent.class))
+          .isInstanceOf(NoSuchElementException.class)
+          .hasMessageContaining("No spawned integration found for connector instance id=");
+    }
+
+    @Test
+    @DisplayName("When instance exists but is stopped, throw NoSuchElementException")
+    public void given_stoppedInstance_should_throwNoSuchElementException() throws Exception {
+      // Arrange
+      Manager manager = new Manager(List.of(getRegularFactory()));
+
+      List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
+      List<ConnectorInstancePersisted> instances =
+          connectorInstanceRepository.findAllByCatalogConnectorId(connectors.getFirst().getId());
+      ConnectorInstance singleInstance = instances.getFirst();
+      singleInstance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+      connectorInstanceService.save(singleInstance);
+
+      manager.monitorIntegrations();
+
+      ComponentRequest cr = new ComponentRequest(TestIntegration.TEST_COMPONENT_IDENTIFIER);
+
+      // Act & Assert
+      assertThatThrownBy(
+              () -> manager.requestForInstance(singleInstance, cr, TestIntegrationComponent.class))
+          .isInstanceOf(NoSuchElementException.class)
+          .hasMessageContaining("is not started");
+    }
+
+    @Test
+    @DisplayName(
+        "When instance is started but no component matches the request, throw NoSuchElementException")
+    public void given_startedInstanceWithNoMatchingComponent_should_throwNoSuchElementException()
+        throws Exception {
+      // Arrange
+      Manager manager = new Manager(List.of(getRegularFactory()));
+      manager.monitorIntegrations();
+
+      List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
+      List<ConnectorInstancePersisted> instances =
+          connectorInstanceRepository.findAllByCatalogConnectorId(connectors.getFirst().getId());
+      ConnectorInstance singleInstance = instances.getFirst();
+      ComponentRequest cr = new ComponentRequest("non-existent-component");
+
+      // Act & Assert
+      assertThatThrownBy(
+              () -> manager.requestForInstance(singleInstance, cr, TestIntegrationComponent.class))
+          .isInstanceOf(NoSuchElementException.class)
+          .hasMessageContaining("No component found for requestId=");
+    }
   }
 }
