@@ -9,8 +9,10 @@ import io.openaev.database.model.ResourceType;
 import io.openaev.service.audit.AuditLogService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import jakarta.servlet.http.HttpServletRequest;
 import java.lang.annotation.Annotation;
 import java.util.Map;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -26,6 +28,8 @@ import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.SimpleEvaluationContext;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
  * AOP aspect that intercepts {@link AccessControl}-annotated controller methods to produce audit
@@ -45,6 +49,13 @@ public class AuditLogAspect {
 
   private static final Map<ResourceType, Class<?>> ENTITY_CLASS_MAP = buildEntityClassMap();
 
+  /**
+   * Requests from automated agents (heartbeats, job polling) are excluded from audit logging.
+   * Matches User-Agent headers like {@code openaev-agent/2.3.0}.
+   */
+  private static final Pattern AGENT_USER_AGENT_PATTERN =
+      Pattern.compile("^openaev-agent/", Pattern.CASE_INSENSITIVE);
+
   private final AuditLogService auditLogService;
   private final ObjectMapper objectMapper;
 
@@ -62,6 +73,11 @@ public class AuditLogAspect {
   public Object auditAround(ProceedingJoinPoint joinPoint, AccessControl accessControl)
       throws Throwable {
     if (!enabled) {
+      return joinPoint.proceed();
+    }
+
+    // Skip automated agent requests (heartbeats, job polling) — not user-initiated actions
+    if (isAgentRequest()) {
       return joinPoint.proceed();
     }
 
@@ -142,6 +158,26 @@ public class AuditLogAspect {
   }
 
   // -- Helpers --
+
+  /**
+   * Returns {@code true} if the current request originates from an automated OpenAEV agent
+   * (identified by its {@code User-Agent} header). Agent heartbeats and job-polling calls happen
+   * every few seconds and would flood the audit log with noise.
+   */
+  private boolean isAgentRequest() {
+    try {
+      ServletRequestAttributes attrs =
+          (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+      if (attrs == null) {
+        return false;
+      }
+      HttpServletRequest request = attrs.getRequest();
+      String userAgent = request.getHeader("User-Agent");
+      return userAgent != null && AGENT_USER_AGENT_PATTERN.matcher(userAgent).find();
+    } catch (Exception e) {
+      return false;
+    }
+  }
 
   private boolean shouldSkip(Action action) {
     return switch (action) {
