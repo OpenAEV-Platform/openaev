@@ -12,6 +12,7 @@ import io.openaev.security.SsoRefererAuthenticationFailureHandler;
 import io.openaev.security.SsoRefererAuthenticationSuccessHandler;
 import io.openaev.security.TokenAuthenticationFilter;
 import io.openaev.service.UserMappingService;
+import io.openaev.service.audit.AuditLogService;
 import io.openaev.service.user_events.UserEventService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
@@ -55,6 +56,7 @@ public class AppSecurityConfig {
   private final SecurityService securityService;
   private final UserEventService userEventService;
   private final UserMappingService userMappingService;
+  private final AuditLogService auditLogService;
 
   @Resource protected ObjectMapper mapper;
 
@@ -107,9 +109,10 @@ public class AppSecurityConfig {
                           auth.authorizationRequestResolver(
                               authorizationRequestResolver(
                                   http.getSharedObject(ClientRegistrationRepository.class))))
-                  .successHandler(new SsoRefererAuthenticationSuccessHandler())
+                  .successHandler(new SsoRefererAuthenticationSuccessHandler(this.auditLogService))
                   .failureHandler(
-                      new SsoRefererAuthenticationFailureHandler(this.userEventService)));
+                      new SsoRefererAuthenticationFailureHandler(
+                          this.userEventService, this.auditLogService)));
     }
 
     if (openAEVConfig.isAuthSaml2Enable()) {
@@ -120,8 +123,18 @@ public class AppSecurityConfig {
     http.exceptionHandling(
         exceptionHandling ->
             exceptionHandling.authenticationEntryPoint(
-                (request, response, authException) ->
-                    response.setStatus(HttpStatus.UNAUTHORIZED.value())));
+                (request, response, authException) -> {
+                  try {
+                    auditLogService.logAuthEvent(
+                        "unauthorized",
+                        "error",
+                        null,
+                        authException.getClass().getSimpleName());
+                  } catch (Exception e) {
+                    // Never block the security flow
+                  }
+                  response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                }));
 
     return http.build();
   }

@@ -7,6 +7,11 @@
             </encoder>
         </appender>
 
+        <!-- Audit log: always at INFO, independent of root level -->
+        <logger name="AUDIT_LOG" level="INFO" additivity="false">
+            <appender-ref ref="STDOUT" />
+        </logger>
+
         <root>
             <appender-ref ref="STDOUT" />
         </root>
@@ -18,6 +23,11 @@
                 <WithThrowable>true</WithThrowable>
             </encoder>
         </appender>
+
+        <!-- Audit log: always at INFO, independent of root level -->
+        <logger name="AUDIT_LOG" level="INFO" additivity="false">
+            <appender-ref ref="jsonEncoder" />
+        </logger>
 
         <root>
             <appender-ref ref="jsonEncoder" />
