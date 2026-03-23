@@ -12,11 +12,11 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
+import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.rest.tag.TagService;
 import jakarta.transaction.Transactional;
-import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -90,13 +90,11 @@ public class PayloadUpsertService {
             : new HashSet<>(
                 Set.of(
                     domainService.upsert(
-                        new Domain(
-                            null,
-                            "To classify",
-                            "#FFFFFF",
-                            new Tenant(TenantContext.getCurrentTenant()),
-                            Instant.now(),
-                            null)))));
+                        Domain.builder()
+                            .name(PresetDomain.getToClassify().getName())
+                            .color(PresetDomain.getToClassify().getColor())
+                            .tenant(new Tenant(TenantContext.getCurrentTenant()))
+                            .build()))));
     payload.setAttackPatterns(attackPatterns);
     payload.setTags(this.tagService.tagSet((input.getTagIds())));
 

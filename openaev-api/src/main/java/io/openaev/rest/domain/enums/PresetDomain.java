@@ -2,82 +2,22 @@ package io.openaev.rest.domain.enums;
 
 import io.openaev.database.model.Domain;
 import io.openaev.database.model.Tenant;
-import java.time.Instant;
 import java.util.*;
 
 public class PresetDomain {
-  private static final Domain ENDPOINT =
-      Domain.builder()
-          .id(null)
-          .name("Endpoint")
-          .color("#389CFF")
-          .creationDate(Instant.now())
-          .updateDate(null)
-          .build();
-  private static final Domain NETWORK =
-      Domain.builder()
-          .id(null)
-          .name("Network")
-          .color("#009933")
-          .creationDate(Instant.now())
-          .updateDate(null)
-          .build();
-  private static final Domain WEB_APP =
-      Domain.builder()
-          .id(null)
-          .name("Web App")
-          .color("#FF9933")
-          .creationDate(Instant.now())
-          .updateDate(null)
-          .build();
+  private static final Domain ENDPOINT = Domain.builder().name("Endpoint").color("#389CFF").build();
+  private static final Domain NETWORK = Domain.builder().name("Network").color("#009933").build();
+  private static final Domain WEB_APP = Domain.builder().name("Web App").color("#FF9933").build();
   private static final Domain EMAIL_INFILTRATION =
-      Domain.builder()
-          .id(null)
-          .name("E-mail Infiltration")
-          .color("#FF6666")
-          .creationDate(Instant.now())
-          .updateDate(null)
-          .build();
+      Domain.builder().name("E-mail Infiltration").color("#FF6666").build();
   private static final Domain DATA_EXFILTRATION =
-      Domain.builder()
-          .id(null)
-          .name("Data Exfiltration")
-          .color("#9933CC")
-          .creationDate(Instant.now())
-          .updateDate(null)
-          .build();
+      Domain.builder().name("Data Exfiltration").color("#9933CC").build();
   private static final Domain URL_FILTERING =
-      Domain.builder()
-          .id(null)
-          .name("URL Filtering")
-          .color("#66CCFF")
-          .creationDate(Instant.now())
-          .updateDate(null)
-          .build();
-  private static final Domain CLOUD =
-      Domain.builder()
-          .id(null)
-          .name("Cloud")
-          .color("#9999CC")
-          .creationDate(Instant.now())
-          .updateDate(null)
-          .build();
-  private static final Domain TABLETOP =
-      Domain.builder()
-          .id(null)
-          .name("Tabletop")
-          .color("#FFCC33")
-          .creationDate(Instant.now())
-          .updateDate(null)
-          .build();
+      Domain.builder().name("URL Filtering").color("#66CCFF").build();
+  private static final Domain CLOUD = Domain.builder().name("Cloud").color("#9999CC").build();
+  private static final Domain TABLETOP = Domain.builder().name("Tabletop").color("#FFCC33").build();
   private static final Domain TOCLASSIFY =
-      Domain.builder()
-          .id(null)
-          .name("To classify")
-          .color("#FFFFFF")
-          .creationDate(Instant.now())
-          .updateDate(null)
-          .build();
+      Domain.builder().name("To classify").color("#FFFFFF").build();
 
   private static final Map<Domain, List<String>> domainKeywordsMap =
       Map.of(

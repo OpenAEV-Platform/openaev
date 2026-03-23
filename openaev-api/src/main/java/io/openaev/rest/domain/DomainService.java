@@ -20,7 +20,6 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
 import io.openaev.utils.FilterUtilsJpa;
 import jakarta.transaction.Transactional;
-import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -151,8 +150,11 @@ public class DomainService implements DependenciesManager {
       return new HashSet<>(
           Collections.singletonList(
               this.upsert(
-                  new Domain(
-                      null, TO_CLASSIFY, DEFAULT_DOMAIN_COLOR, tenant, Instant.now(), null))));
+                  Domain.builder()
+                      .name(PresetDomain.getToClassify().getName())
+                      .color(PresetDomain.getToClassify().getColor())
+                      .tenant(tenant)
+                      .build())));
     }
 
     // Filter out "To classify" from domains to add
@@ -207,8 +209,11 @@ public class DomainService implements DependenciesManager {
   // -- PRIVATE --
 
   private Domain buildSanityDomain(final String name, final String color, final Tenant tenant) {
-    return new Domain(
-        null, name, color != null ? color : generateRandomColor(), tenant, Instant.now(), null);
+    return Domain.builder()
+        .name(name)
+        .color(color != null ? color : generateRandomColor())
+        .tenant(tenant)
+        .build();
   }
 
   @Override
