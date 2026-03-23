@@ -15,6 +15,7 @@ import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceOutput;
 import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
+import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.mapper.ConnectorInstanceMapper;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.*;
@@ -281,7 +282,7 @@ public class ConnectorInstanceService {
    *
    * @param id the connector instance ID to delete
    */
-  public void deleteById(String id) throws Exception {
+  public void deleteById(String id) throws ConnectorStatusException {
     ConnectorInstancePersisted connectorInstance =
         connectorInstanceRepository
             .findById(id)
@@ -291,9 +292,15 @@ public class ConnectorInstanceService {
 
     // Setting the status to stopping and immediately calling initialize to effectively stop the
     // integration
-    connectorInstance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
-    this.save(connectorInstance);
-    managerFactory.getManager().getSpawnedIntegrations().get(connectorInstance).initialise();
+    try {
+      connectorInstance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+      this.save(connectorInstance);
+      managerFactory.getManager().getSpawnedIntegrations().get(connectorInstance).initialise();
+    } catch (Exception e) {
+      log.error("Could not stop the connector id {} before delete : ", id, e);
+      throw new ConnectorStatusException(
+          String.format("Could not stop the connector id %s before delete : ", id));
+    }
 
     String connectorId =
         connectorInstance.getConfigurations().stream()
