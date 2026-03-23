@@ -19,7 +19,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class BatchQueueService<T extends Queueable> implements DependenciesManager {
+public class BatchQueueService<T extends Queueable>  {
   private final RabbitMQSslConfiguration rabbitMQSslConfiguration;
 
   private final Class<T> clazz;
@@ -152,8 +152,6 @@ public class BatchQueueService<T extends Queueable> implements DependenciesManag
     // Handle shutdown
     connection.addShutdownListener(shutdownListener);
 
-    // Create consumers that will handle the processing
-    createDependencyForTenant("");
   }
 
   /**
@@ -459,15 +457,5 @@ public class BatchQueueService<T extends Queueable> implements DependenciesManag
       return element.getUniqueElementKey().hashCode() % queueConfig.getWorkerNumber();
     }
     return 0;
-  }
-
-  @Override
-  public void createDependencyForTenant(String uid) throws Exception {
-    createChannels();
-  }
-
-  @Override
-  public void deleteDependencyForTenant(String uid) throws Exception {
-
   }
 }

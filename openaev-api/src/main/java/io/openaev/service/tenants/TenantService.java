@@ -7,6 +7,8 @@ import io.openaev.database.repository.TenantRepository;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
 import java.util.Objects;
@@ -65,5 +67,37 @@ public class TenantService {
       dependency.deleteDependencyForTenant(tenantId);
     }
     tenantRepository.deleteByIdNative(tenantId);
+  }
+
+  // -- QUEUES MANAGEMENT --
+
+  @PostConstruct
+  public void startTenantsQueues() {
+    List<Tenant> tenants = tenantRepository.findAll();
+    for (Tenant tenant : tenants) {
+      /*for (DependenciesManager dependency : dependencies) {
+        try {
+          dependency.createDependencyForTenant(tenant.getId());
+        } catch (DependenciesManagerException e) {
+          throw new RuntimeException(
+              "Error while starting queues for tenant " + tenant.getId(), e);
+        }
+      }*/
+    }
+  }
+
+  @PreDestroy
+  public void stopTenantsQueues() {
+    List<Tenant> tenants = tenantRepository.findAll();
+    for (Tenant tenant : tenants) {
+      /*for (DependenciesManager dependency : dependencies) {
+        try {
+          dependency.deleteDependencyForTenant(tenant.getId());
+        } catch (DependenciesManagerException e) {
+          throw new RuntimeException(
+              "Error while stopping queues for tenant " + tenant.getId(), e);
+        }
+      }*/
+    }
   }
 }
