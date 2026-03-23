@@ -56,7 +56,7 @@ const DeployButton = ({ onDeployBtnClick, style = {}, deploymentCount }: Props) 
         color="warning"
         sx={{
           position: 'absolute',
-          top: '10px',
+          top: '0px',
           right: 0,
         }}
       />
