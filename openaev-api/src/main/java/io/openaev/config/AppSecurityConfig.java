@@ -95,6 +95,16 @@ public class AppSecurityConfig {
         .logout(
             logout ->
                 logout
+                    // Audit Log: audit handler fires first, then Spring Security's built-in SecurityContextLogoutHandler
+                    // invalidates the session and clears cookies
+                    .addLogoutHandler(
+                        (request, response, authentication) -> {
+                          try {
+                            auditLogService.logAuthEvent("logout", "success", null, null);
+                          } catch (Exception e) {
+                            // Never block the logout flow
+                          }
+                        })
                     .invalidateHttpSession(true)
                     .deleteCookies("JSESSIONID", openAEVConfig.getCookieName())
                     .logoutSuccessUrl(
@@ -123,18 +133,8 @@ public class AppSecurityConfig {
     http.exceptionHandling(
         exceptionHandling ->
             exceptionHandling.authenticationEntryPoint(
-                (request, response, authException) -> {
-                  try {
-                    auditLogService.logAuthEvent(
-                        "unauthorized",
-                        "error",
-                        null,
-                        authException.getClass().getSimpleName());
-                  } catch (Exception e) {
-                    // Never block the security flow
-                  }
-                  response.setStatus(HttpStatus.UNAUTHORIZED.value());
-                }));
+                (request, response, authException) ->
+                    response.setStatus(HttpStatus.UNAUTHORIZED.value())));
 
     return http.build();
   }

@@ -19,7 +19,6 @@ import io.openaev.rest.user.form.me.UpdateProfileInput;
 import io.openaev.rest.user.form.user.RenewTokenInput;
 import io.openaev.rest.user.form.user.UpdateUserInfoInput;
 import io.openaev.service.UserService;
-import io.openaev.service.audit.AuditLogService;
 import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
@@ -41,7 +40,6 @@ public class MeApi extends RestBehavior {
   private TokenRepository tokenRepository;
   private UserRepository userRepository;
   private UserService userService;
-  private AuditLogService auditLogService;
 
   @Autowired
   public void setOrganizationRepository(OrganizationRepository organizationRepository) {
@@ -63,15 +61,9 @@ public class MeApi extends RestBehavior {
     this.tokenRepository = tokenRepository;
   }
 
-  @Autowired
-  public void setAuditLogService(AuditLogService auditLogService) {
-    this.auditLogService = auditLogService;
-  }
-
   @GetMapping("/api/logout")
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Object> logout() {
-    auditLogService.logAuthEvent("logout", "success", null, null);
     return ResponseEntity.ok().build();
   }
 
