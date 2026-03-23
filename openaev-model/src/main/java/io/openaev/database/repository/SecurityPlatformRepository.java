@@ -72,6 +72,6 @@ public interface SecurityPlatformRepository
           + "WHERE a.type = '"
           + AssetType.Values.SECURITY_PLATFORM_TYPE
           + "' AND "
-          + "a.name IN :names")
-  List<SecurityPlatform> findAllByNames(@NotEmpty @Param("names") Set<String> names);
+          + "a.id IN :ids")
+  List<SecurityPlatform> findAllByIds(@NotEmpty @Param("ids") Set<String> ids);
 }

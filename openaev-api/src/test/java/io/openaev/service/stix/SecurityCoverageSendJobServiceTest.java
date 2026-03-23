@@ -98,6 +98,7 @@ public class SecurityCoverageSendJobServiceTest extends IntegrationTest {
                     .sourceName("Unit Tests")
                     .sourceType("manual")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                    .sourceAssetId(UUID.randomUUID().toString())
                     .build()));
 
     exerciseWrapper.persist();
@@ -131,6 +132,7 @@ public class SecurityCoverageSendJobServiceTest extends IntegrationTest {
                         .sourceName("Unit Tests")
                         .sourceType("manual")
                         .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                        .sourceAssetId(UUID.randomUUID().toString())
                         .build())));
 
     scenarioComposer
@@ -167,6 +169,7 @@ public class SecurityCoverageSendJobServiceTest extends IntegrationTest {
                         .sourceName("Unit Tests")
                         .sourceType("manual")
                         .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                        .sourceAssetId(UUID.randomUUID().toString())
                         .build())));
 
     exerciseWrapper.get().setStart(Instant.parse("2005-05-30T23:22:10Z"));
@@ -211,6 +214,7 @@ public class SecurityCoverageSendJobServiceTest extends IntegrationTest {
                         .sourceName("Unit Tests")
                         .sourceType("manual")
                         .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                        .sourceAssetId(UUID.randomUUID().toString())
                         .build())));
 
     scenarioComposer

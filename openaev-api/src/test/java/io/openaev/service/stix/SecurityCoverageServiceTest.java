@@ -202,6 +202,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                           .sourceName("Unit Tests")
                           .sourceType("manual")
                           .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                              .sourceAssetId(UUID.randomUUID().toString())
                           .build())));
     }
 
@@ -600,6 +601,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                             .sourceName("Unit Tests")
                             .sourceType("manual")
                             .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                                .sourceAssetId(UUID.randomUUID().toString())
                             .build())));
 
     Inject failedInject =
@@ -622,6 +624,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                           .sourceName("Unit Tests")
                           .sourceType("manual")
                           .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                              .sourceAssetId(UUID.randomUUID().toString())
                           .build()));
               exp.setScore(0.0);
             });
@@ -794,6 +797,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                             .sourceName("Unit Tests")
                             .sourceType("manual")
                             .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                                .sourceAssetId(UUID.randomUUID().toString())
                             .build())));
     // start the exercise
     Instant sroStartTime = Instant.parse("2003-02-15T09:45:02Z");
@@ -871,6 +875,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                             .sourceName("Unit Tests")
                             .sourceType("manual")
                             .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                                .sourceAssetId(UUID.randomUUID().toString())
                             .build())));
     // start the exercise
     Instant sroStartTime = Instant.parse("2003-02-15T19:45:02Z");
@@ -944,6 +949,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                             .sourceName("Unit Tests")
                             .sourceType("manual")
                             .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                                .sourceAssetId(UUID.randomUUID().toString())
                             .build())));
     // start the exercise
     Instant sroStartTime = Instant.parse("2003-02-15T19:45:02Z");
