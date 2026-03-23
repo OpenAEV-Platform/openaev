@@ -110,8 +110,6 @@ public class ExerciseService {
   private final InjectRepository injectRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
   private final ExerciseTeamUserRepository exerciseTeamUserRepository;
-  private final InjectRepository injectRepository;
-  private final LessonsCategoryRepository lessonsCategoryRepository;
   private final LessonsService lessonsService;
 
   private final InjectExpectationMapper injectExpectationMapper;
