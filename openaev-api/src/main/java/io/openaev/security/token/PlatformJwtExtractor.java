@@ -4,22 +4,20 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Jwks;
 import io.openaev.database.model.User;
-import io.openaev.opencti.errors.ConnectorError;
+import io.openaev.security.error.AuthenticationError;
 import io.openaev.service.UserService;
 import io.openaev.xtmone.XtmOneConfig;
+import java.nio.charset.StandardCharsets;
+import java.util.Set;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
-import java.util.Optional;
-import java.util.Set;
-
 @Component
-@Slf4j
+@Slf4j(topic = "XTM One Authentication")
 @RequiredArgsConstructor
 public class PlatformJwtExtractor implements ExtractorBase {
   private static final Set<String> TRUSTED_ISSUERS = Set.of("filigran-copilot");
@@ -28,50 +26,37 @@ public class PlatformJwtExtractor implements ExtractorBase {
   private final UserService userService;
 
   @Override
-  public String extractToken(String value) throws ConnectorError, JwtException {
-
-    // TODO integrate this with exception logic
+  public String extractToken(String value) throws JwtException, AuthenticationError {
     if (value == null) {
-      log.debug("[XTM One Auth] No raw bearer token found");
-      return null;
+      String message = "No raw bearer token found";
+      log.debug(message);
+      throw new AuthenticationError(message);
     }
     if (xtmOneConfig == null || !xtmOneConfig.isConfigured()) {
-      log.debug("[XTM One Auth] XTM One not configured, skipping platform JWT check");
-      return null;
+      String message = "XTM One not configured, skipping platform JWT check";
+      log.debug(message);
+      throw new AuthenticationError(message);
     }
-    String secret = xtmOneConfig.getToken();
-    if (secret == null || secret.isBlank()) {
-      log.debug("[XTM One Auth] XTM One token is blank");
-      return null;
+
+    SecretKey sigVerificationKey =
+        new SecretKeySpec(xtmOneConfig.getToken().getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+
+    Jws<Claims> jws = Jwts.parser().verifyWith(sigVerificationKey).build().parseSignedClaims(value);
+
+    Claims claims = jws.getPayload();
+
+    if (!TRUSTED_ISSUERS.contains(claims.getIssuer())) {
+      throw new JwtException("Issuer not trusted.");
     }
-    // TODO end
 
-    byte[] secretBytes = secret.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-    SecretKey sigVerificationKey = new SecretKeySpec(secretBytes, "HmacSHA256");
+    String emailClaim = claims.get("email", String.class);
 
-    try {
-      Jws<Claims> jws = Jwts.parser()
-              .verifyWith(sigVerificationKey)
-              .build()
-              .parseSignedClaims(value);
+    User user =
+        userService
+            .findByEmailIgnoreCase(emailClaim)
+            .orElseThrow(() -> new AuthenticationError("No user found with email claim."));
 
-      Claims claims = jws.getPayload();
-
-      if(!TRUSTED_ISSUERS.contains(claims.getIssuer())) {
-        throw new JwtException("Issuer not trusted.");
-      }
-
-      String emailClaim = claims.get("email", String.class);
-
-      User user = userService.findByEmailIgnoreCase(emailClaim).orElseThrow();
-
-      return user.getTokens().get(0).getValue();
-    } catch (JwtException e) {
-      log.debug("Problem authenticating with platform JWT");
-      throw e;
-    } catch (Exception e) {
-      log.debug("Unexpected error");
-      throw e;
-    }
+    // FIXME: this is just translating a valid claim to any valid user token
+    return user.getTokens().getFirst().getValue();
   }
 }

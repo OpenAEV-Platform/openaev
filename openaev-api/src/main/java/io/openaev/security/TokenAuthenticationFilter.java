@@ -3,15 +3,14 @@ package io.openaev.security;
 import static java.util.Optional.ofNullable;
 import static org.springframework.util.StringUtils.hasLength;
 
-import io.jsonwebtoken.JwtException;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.TokenRepository;
-import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.security.token.ConnectorJwtExtractor;
+import io.openaev.security.token.ExtractorBase;
 import io.openaev.security.token.PlainTokenExtractor;
+import io.openaev.security.token.PlatformJwtExtractor;
 import io.openaev.service.UserService;
-import io.openaev.xtmone.XtmOneConfig;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
@@ -21,14 +20,13 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.Set;
-import javax.crypto.spec.SecretKeySpec;
-import lombok.extern.java.Log;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-@Log
+@Slf4j
 public class TokenAuthenticationFilter extends OncePerRequestFilter {
 
   private static final String COOKIE_NAME = "openaev_token";
@@ -39,7 +37,7 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
   private UserService userService;
   private ConnectorJwtExtractor connectorJwtExtractor;
   private PlainTokenExtractor plainTokenExtractor;
-  private XtmOneConfig xtmOneConfig;
+  private PlatformJwtExtractor platformJwtExtractor;
 
   @Autowired
   public void setTokenRepository(TokenRepository tokenRepository) {
@@ -52,8 +50,13 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
   }
 
   @Autowired
-  public void setJwtExtractor(ConnectorJwtExtractor connectorJwtExtractor) {
+  public void setConnectorJwtExtractor(ConnectorJwtExtractor connectorJwtExtractor) {
     this.connectorJwtExtractor = connectorJwtExtractor;
+  }
+
+  @Autowired
+  public void setPlatformJwtExtractor(PlatformJwtExtractor platformJwtExtractor) {
+    this.platformJwtExtractor = platformJwtExtractor;
   }
 
   @Autowired
@@ -61,29 +64,22 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
     this.plainTokenExtractor = plainTokenExtractor;
   }
 
-  @Autowired
-  public void setXtmOneConfig(XtmOneConfig xtmOneConfig) {
-    this.xtmOneConfig = xtmOneConfig;
-  }
-
   private String parseAuthorization(String value) {
-    if (value.toLowerCase().startsWith(BEARER_PREFIX)) {
-      String candidate = value.substring(BEARER_PREFIX.length());
+    Set<ExtractorBase> extractors = Set.of(this.connectorJwtExtractor, this.platformJwtExtractor);
+
+    if (!value.toLowerCase().startsWith(BEARER_PREFIX)) {
+      return value;
+    }
+
+    String candidate = value.substring(BEARER_PREFIX.length());
+    for (ExtractorBase extractor : extractors) {
       try {
-        return this.connectorJwtExtractor.extractToken(candidate);
-      } catch (ConnectorError | JwtException | IllegalArgumentException | NullPointerException e) {
-        return this.plainTokenExtractor.extractToken(candidate);
+        return extractor.extractToken(candidate);
+      } catch (Exception e) {
+        log.debug("Could not authenticate using extractor {}", extractor, e);
       }
     }
-    return value;
-  }
-
-  private String getRawBearer(HttpServletRequest request) {
-    String header = request.getHeader(HEADER_NAME);
-    if (hasLength(header) && header.toLowerCase().startsWith(BEARER_PREFIX)) {
-      return header.substring(BEARER_PREFIX.length());
-    }
-    return null;
+    return this.plainTokenExtractor.extractToken(candidate);
   }
 
   private String getAuthToken(HttpServletRequest request) {
@@ -94,10 +90,6 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
     return hasLength(header)
         ? parseAuthorization(header)
         : defaultCookie.orElseGet(() -> new Cookie(COOKIE_NAME, null)).getValue();
-  }
-
-  private User tryPlatformManagedJwt(String rawBearer) {
-
   }
 
   @Override
@@ -112,13 +104,8 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
       if (token.isPresent()) {
         User user = token.get().getUser();
         userService.createUserSession(user);
-      } else {
-        User platformUser = tryPlatformManagedJwt(getRawBearer(request));
-        if (platformUser != null) {
-          userService.createUserSession(platformUser);
-        } else if (userContext.getAuthentication() != null) {
-          SecurityContextHolder.setContext(SecurityContextHolder.createEmptyContext());
-        }
+      } else if (userContext.getAuthentication() != null) {
+        SecurityContextHolder.setContext(SecurityContextHolder.createEmptyContext());
       }
     }
     filterChain.doFilter(request, response);
