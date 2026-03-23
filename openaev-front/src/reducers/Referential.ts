@@ -78,7 +78,7 @@ const evictOversizedEntities = (state: any): any => {
     const entityMap = entities.get(entityType);
     if (entityMap && Map.isMap(entityMap) && entityMap.size > ENTITY_SIZE_SOFT_CAP) {
       const keysToKeep = entityMap.keySeq().takeLast(ENTITY_SIZE_SOFT_CAP).toSet();
-      const trimmed = entityMap.filter((_: unknown, key: string) => keysToKeep.has(key));
+      const trimmed = entityMap.filter((_: unknown, key: unknown) => keysToKeep.has(key));
       result = result.setIn(['entities', entityType], trimmed);
     }
   });

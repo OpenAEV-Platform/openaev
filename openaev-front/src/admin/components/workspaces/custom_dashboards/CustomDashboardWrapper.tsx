@@ -73,7 +73,7 @@ const CustomDashboardWrapper = ({
   const [dataReady, setDataReady] = useState(false);
   const [_gridReady, setGridReady] = useState(false);
   const loadingStartTime = useRef<number>(Date.now());
-  const dataReadyTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const dataReadyTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     return () => {
