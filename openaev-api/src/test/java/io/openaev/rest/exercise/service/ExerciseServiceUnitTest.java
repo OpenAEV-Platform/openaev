@@ -14,6 +14,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Exercise;
@@ -30,6 +31,7 @@ import io.openaev.database.repository.LessonsCategoryRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.ee.License;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.form.ExercisesGlobalScoresInput;
@@ -87,6 +89,7 @@ class ExerciseServiceUnitTest {
   @Mock private WorkflowService workflowService;
   @Mock private LessonsService lessonsService;
   @Mock private PreviewFeatureService previewFeatureService;
+  @Mock private LicenseCacheManager licenseCacheManager;
 
   @Spy @InjectMocks private ExerciseService mockedExerciseService;
 
@@ -456,11 +459,14 @@ class ExerciseServiceUnitTest {
     @Test
     void shouldSkipValidationWhenLicenseIsActive() {
       Exercise exercise = mock(Exercise.class);
-      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
+      License license = mock(License.class);
+      when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(license);
+      when(enterpriseEditionService.isLicenseActive(license)).thenReturn(true);
 
       mockedExerciseService.throwIfExerciseNotLaunchable(exercise);
 
-      verify(enterpriseEditionService).isLicenseActive(any());
+      verify(licenseCacheManager).getEnterpriseEditionInfo();
+      verify(enterpriseEditionService).isLicenseActive(license);
       verify(exercise, never()).getInjects();
       verify(injectService, never()).throwIfInjectNotLaunchable(any());
     }
@@ -470,12 +476,15 @@ class ExerciseServiceUnitTest {
       Exercise exercise = mock(Exercise.class);
       Inject inject1 = mock(Inject.class);
       Inject inject2 = mock(Inject.class);
+      License license = mock(License.class);
       when(exercise.getInjects()).thenReturn(List.of(inject1, inject2));
-      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(false);
+      when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(license);
+      when(enterpriseEditionService.isLicenseActive(license)).thenReturn(false);
 
       mockedExerciseService.throwIfExerciseNotLaunchable(exercise);
 
-      verify(enterpriseEditionService).isLicenseActive(any());
+      verify(licenseCacheManager).getEnterpriseEditionInfo();
+      verify(enterpriseEditionService).isLicenseActive(license);
       verify(injectService).throwIfInjectNotLaunchable(inject1);
       verify(injectService).throwIfInjectNotLaunchable(inject2);
     }

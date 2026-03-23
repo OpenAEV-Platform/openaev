@@ -5789,7 +5789,6 @@ export interface PlatformSettings {
     | "MULTI_TENANCY"
     | "SENTINEL_ONE_EXECUTOR"
     | "PALO_ALTO_CORTEX_EXECUTOR"
-    | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
   )[];
   /** True if the Tanium Executor is enabled */

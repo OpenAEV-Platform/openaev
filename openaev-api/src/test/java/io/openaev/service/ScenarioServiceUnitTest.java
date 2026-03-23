@@ -4,11 +4,14 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.ee.License;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
@@ -36,6 +39,8 @@ class ScenarioServiceUnitTest {
   @Mock private ScenarioTeamUserRepository scenarioTeamUserRepository;
   @Mock private InjectRepository injectRepository;
   @Mock private LessonsCategoryRepository lessonsCategoryRepository;
+  @Mock private LicenseCacheManager licenseCacheManager;
+  @Mock private ActionMetricCollector actionMetricCollector;
   @InjectMocks private ScenarioService scenarioService;
 
   @Test
@@ -275,7 +280,9 @@ class ScenarioServiceUnitTest {
 
     @Test
     void shouldNotThrow_whenLicenseActive() {
-      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
+      License license = mock(License.class);
+      when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(license);
+      when(enterpriseEditionService.isLicenseActive(license)).thenReturn(true);
       Scenario scenario = new Scenario();
       scenario.setInjects(new HashSet<>());
 
@@ -284,7 +291,9 @@ class ScenarioServiceUnitTest {
 
     @Test
     void shouldDelegateToInjectService_whenLicenseNotActive() {
-      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(false);
+      License license = mock(License.class);
+      when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(license);
+      when(enterpriseEditionService.isLicenseActive(license)).thenReturn(false);
       Inject inject = new Inject();
       Scenario scenario = new Scenario();
       scenario.setInjects(new HashSet<>(List.of(inject)));
