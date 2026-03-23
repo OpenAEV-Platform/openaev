@@ -4198,10 +4198,10 @@ export interface InjectorContractFullOutput {
   injector_contract_id: string;
   /** Injector name */
   injector_contract_injector_name?: string;
-  /** Injector IDs linked to this contract */
-  injector_contract_injectors?: string[];
   /** Injector type */
   injector_contract_injector_type?: string;
+  /** Injector IDs linked to this contract */
+  injector_contract_injectors?: string[];
   /** Labels */
   injector_contract_labels?: Record<string, string>;
   /** Payload type */
