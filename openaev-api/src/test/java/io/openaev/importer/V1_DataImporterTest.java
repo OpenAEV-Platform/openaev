@@ -230,7 +230,7 @@ class V1_DataImporterTest extends IntegrationTest {
     this.importNode = mapper.readTree(jsonContent);
 
     Domain domainToClassify =
-        domainRepository.findByName(PresetDomain.TOCLASSIFY.getName()).orElseThrow();
+        domainRepository.findByName(PresetDomain.getToClassify().getName()).orElseThrow();
 
     List<String> importDomainIds =
         this.importer.importDomains(this.importNode, "payload_", new HashMap<>());

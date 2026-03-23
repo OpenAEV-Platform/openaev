@@ -264,7 +264,7 @@ public class V1_DataImporter implements Importer {
     if (domainIds.isEmpty()) {
       domainIds.add(
           domainService
-              .findOptionalByName(PresetDomain.TOCLASSIFY.getName())
+              .findOptionalByName(PresetDomain.getToClassify().getName())
               .orElseThrow()
               .getId());
     }

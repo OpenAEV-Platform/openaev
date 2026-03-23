@@ -53,8 +53,8 @@ public class ManualContract extends Contractor {
                 List.of(Endpoint.PLATFORM_TYPE.Internal),
                 false,
                 Set.of(
-                    new Domain(PresetDomain.EMAIL_INFILTRATION),
-                    new Domain(PresetDomain.TABLETOP))));
+                    PresetDomain.getEmailInfiltration(),
+                    PresetDomain.getTabletop())));
   }
 
   @Override

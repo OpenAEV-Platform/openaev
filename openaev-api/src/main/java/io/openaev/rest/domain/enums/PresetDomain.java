@@ -6,7 +6,7 @@ import java.time.Instant;
 import java.util.*;
 
 public class PresetDomain {
-  public static Domain ENDPOINT =
+  private static final Domain ENDPOINT =
       Domain.builder()
           .id(null)
           .name("Endpoint")
@@ -14,7 +14,7 @@ public class PresetDomain {
           .creationDate(Instant.now())
           .updateDate(null)
           .build();
-  public static Domain NETWORK =
+  private static final Domain NETWORK =
       Domain.builder()
           .id(null)
           .name("Network")
@@ -22,7 +22,7 @@ public class PresetDomain {
           .creationDate(Instant.now())
           .updateDate(null)
           .build();
-  public static Domain WEB_APP =
+  private static final Domain WEB_APP =
       Domain.builder()
           .id(null)
           .name("Web App")
@@ -30,7 +30,7 @@ public class PresetDomain {
           .creationDate(Instant.now())
           .updateDate(null)
           .build();
-  public static Domain EMAIL_INFILTRATION =
+  private static final Domain EMAIL_INFILTRATION =
       Domain.builder()
           .id(null)
           .name("E-mail Infiltration")
@@ -38,7 +38,7 @@ public class PresetDomain {
           .creationDate(Instant.now())
           .updateDate(null)
           .build();
-  public static Domain DATA_EXFILTRATION =
+  private static final Domain DATA_EXFILTRATION =
       Domain.builder()
           .id(null)
           .name("Data Exfiltration")
@@ -46,7 +46,7 @@ public class PresetDomain {
           .creationDate(Instant.now())
           .updateDate(null)
           .build();
-  public static Domain URL_FILTERING =
+  private static final Domain URL_FILTERING =
       Domain.builder()
           .id(null)
           .name("URL Filtering")
@@ -54,7 +54,7 @@ public class PresetDomain {
           .creationDate(Instant.now())
           .updateDate(null)
           .build();
-  public static Domain CLOUD =
+  private static final Domain CLOUD =
       Domain.builder()
           .id(null)
           .name("Cloud")
@@ -62,7 +62,7 @@ public class PresetDomain {
           .creationDate(Instant.now())
           .updateDate(null)
           .build();
-  public static Domain TABLETOP =
+  private static final Domain TABLETOP =
       Domain.builder()
           .id(null)
           .name("Tabletop")
@@ -70,7 +70,7 @@ public class PresetDomain {
           .creationDate(Instant.now())
           .updateDate(null)
           .build();
-  public static Domain TOCLASSIFY =
+  private static final Domain TOCLASSIFY =
       Domain.builder()
           .id(null)
           .name("To classify")
@@ -87,6 +87,42 @@ public class PresetDomain {
           DATA_EXFILTRATION, List.of("exfiltrat"),
           URL_FILTERING, List.of("bitsadmin"),
           CLOUD, List.of("aws", "azure", "gcp"));
+
+  public static Domain getEndpoint() {
+    return new Domain(ENDPOINT);
+  }
+
+  public static Domain getNetwork() {
+    return new Domain(NETWORK);
+  }
+
+  public static Domain getWebApp() {
+    return new Domain(WEB_APP);
+  }
+
+  public static Domain getEmailInfiltration() {
+    return new Domain(EMAIL_INFILTRATION);
+  }
+
+  public static Domain getDataExfiltration() {
+    return new Domain(DATA_EXFILTRATION);
+  }
+
+  public static Domain getUrlFiltering() {
+    return new Domain(URL_FILTERING);
+  }
+
+  public static Domain getCloud() {
+    return new Domain(CLOUD);
+  }
+
+  public static Domain getTabletop() {
+    return new Domain(TABLETOP);
+  }
+
+  public static Domain getToClassify() {
+    return new Domain(TOCLASSIFY);
+  }
 
   public static List<Domain> getDomainsForTenant(Tenant tenant) {
     List<Domain> domains = new ArrayList<>();

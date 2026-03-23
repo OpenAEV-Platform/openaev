@@ -93,51 +93,52 @@ public class DomainServiceTest extends IntegrationTest {
   @Test
   @DisplayName("Set should be merged")
   void setShouldBeMerged() {
-    Set<Domain> domainsA = Set.of(PresetDomain.CLOUD);
-    Set<Domain> domainsB = Set.of(PresetDomain.ENDPOINT);
+    Set<Domain> domainsA = Set.of(PresetDomain.getCloud());
+    Set<Domain> domainsB = Set.of(PresetDomain.getEndpoint());
 
     Set<Domain> domains =
         this.domainService.mergeDomains(
             domainsA, domainsB, new Tenant(TenantContext.getCurrentTenant()));
 
-    assertThat(domains).containsExactlyInAnyOrder(PresetDomain.ENDPOINT, PresetDomain.CLOUD);
+    assertThat(domains)
+        .containsExactlyInAnyOrder(PresetDomain.getEndpoint(), PresetDomain.getCloud());
   }
 
   @Test
   @DisplayName("Set should not be merged, because existing is null")
   void setShouldNotBeMergedBecauseExistingIsNull() {
-    Set<Domain> domainsB = Set.of(PresetDomain.ENDPOINT);
+    Set<Domain> domainsB = Set.of(PresetDomain.getEndpoint());
 
     Set<Domain> domains =
         this.domainService.mergeDomains(
             null, domainsB, new Tenant(TenantContext.getCurrentTenant()));
 
-    assertThat(domains).containsExactly(PresetDomain.ENDPOINT);
+    assertThat(domains).containsExactly(PresetDomain.getEndpoint());
   }
 
   @Test
   @DisplayName("Set should not be merged, because existing is empty")
   void setShouldNotBeMergedBecauseExistingIsEmpty() {
-    Set<Domain> domainsB = Set.of(PresetDomain.ENDPOINT);
+    Set<Domain> domainsB = Set.of(PresetDomain.getEndpoint());
 
     Set<Domain> domains =
         this.domainService.mergeDomains(
             Set.of(), domainsB, new Tenant(TenantContext.getCurrentTenant()));
 
-    assertThat(domains).containsExactly(PresetDomain.ENDPOINT);
+    assertThat(domains).containsExactly(PresetDomain.getEndpoint());
   }
 
   @Test
   @DisplayName("Set should not be merged, because existing is to classify")
   void setShouldNotBeMergedBecauseExistingIsToClassify() {
-    Set<Domain> domainsA = Set.of(PresetDomain.TOCLASSIFY);
-    Set<Domain> domainsB = Set.of(PresetDomain.ENDPOINT);
+    Set<Domain> domainsA = Set.of(PresetDomain.getToClassify());
+    Set<Domain> domainsB = Set.of(PresetDomain.getEndpoint());
 
     Set<Domain> domains =
         this.domainService.mergeDomains(
             domainsA, domainsB, new Tenant(TenantContext.getCurrentTenant()));
 
-    assertThat(domains).containsExactly(PresetDomain.ENDPOINT);
+    assertThat(domains).containsExactly(PresetDomain.getEndpoint());
   }
 
   @Test
@@ -145,7 +146,7 @@ public class DomainServiceTest extends IntegrationTest {
   void shouldFindEndpointBecauseNoAnyKeywordMatch() {
     Set<Domain> domains = this.domainService.findDomainByNameAndDescription("123456789");
 
-    assertThat(domains).containsExactly(PresetDomain.ENDPOINT);
+    assertThat(domains).containsExactly(PresetDomain.getEndpoint());
   }
 
   @Test
@@ -157,12 +158,12 @@ public class DomainServiceTest extends IntegrationTest {
 
     assertThat(domains)
         .containsExactlyInAnyOrder(
-            PresetDomain.EMAIL_INFILTRATION,
-            PresetDomain.DATA_EXFILTRATION,
-            PresetDomain.CLOUD,
-            PresetDomain.ENDPOINT,
-            PresetDomain.URL_FILTERING,
-            PresetDomain.NETWORK,
-            PresetDomain.WEB_APP);
+            PresetDomain.getEmailInfiltration(),
+            PresetDomain.getDataExfiltration(),
+            PresetDomain.getCloud(),
+            PresetDomain.getEndpoint(),
+            PresetDomain.getUrlFiltering(),
+            PresetDomain.getNetwork(),
+            PresetDomain.getWebApp());
   }
 }

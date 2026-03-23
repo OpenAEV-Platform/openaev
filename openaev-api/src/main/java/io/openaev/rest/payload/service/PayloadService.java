@@ -97,7 +97,7 @@ public class PayloadService {
     injectorContract.setPlatforms(payload.getPlatforms());
     injectorContract.setDomains(
         domainService.upsertDomainEntities(
-            new HashSet<>(Set.of(PresetDomain.TOCLASSIFY)), payload.getTenant().getId()));
+            new HashSet<>(Set.of(PresetDomain.getToClassify())), payload.getTenant().getId()));
     injectorContract.setAttackPatterns(
         fromIterable(
             attackPatternRepository.findAllById(
@@ -364,7 +364,7 @@ public class PayloadService {
     fileDrop.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
     fileDrop.setDomains(
         domainService.upserts(
-            Set.of(InjectorContractDomainDTO.fromDomain(PresetDomain.ENDPOINT)),
+            Set.of(InjectorContractDomainDTO.fromDomain(PresetDomain.getEndpoint())),
             TenantContext.getCurrentTenant()));
 
     fileDrop.setExpectations(
@@ -426,7 +426,10 @@ public class PayloadService {
 
     dynamicDnsResolutionPayload.setDomains(
         domainService.upsertDomainEntities(
-            Set.of(PresetDomain.ENDPOINT, PresetDomain.NETWORK, PresetDomain.URL_FILTERING),
+            Set.of(
+                PresetDomain.getEndpoint(),
+                PresetDomain.getNetwork(),
+                PresetDomain.getUrlFiltering()),
             TenantContext.getCurrentTenant()));
 
     dynamicDnsResolutionPayload.setTags(
