@@ -44,6 +44,7 @@ const renderTenantSwitcher = (contextOverrides: Partial<UserContextType> = {}) =
     userTenants: [TENANT_ALPHA, TENANT_BETA],
     currentUserTenant: TENANT_ALPHA,
     switchUserTenant: vi.fn(),
+    reloadUserTenants: vi.fn(),
     ...contextOverrides,
   };
 

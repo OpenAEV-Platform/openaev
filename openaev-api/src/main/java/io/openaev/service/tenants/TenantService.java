@@ -8,6 +8,7 @@ import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +49,11 @@ public class TenantService {
   @Transactional(readOnly = true)
   public Page<Tenant> search(SearchPaginationInput searchPaginationInput) {
     return buildPaginationJPA(this.tenantRepository::findAll, searchPaginationInput, Tenant.class);
+  }
+
+  @Transactional(readOnly = true)
+  public List<Tenant> findTenantsByUserId(@NotNull String userId) {
+    return tenantRepository.findTenantsByUserId(userId);
   }
 
   // -- UPDATE --

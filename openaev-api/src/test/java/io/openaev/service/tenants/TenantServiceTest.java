@@ -16,12 +16,14 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.DomainRepository;
 import io.openaev.service.MinioService;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
+import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import org.hibernate.Session;
 import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.Test;
@@ -179,5 +181,35 @@ class TenantServiceTest extends IntegrationTest {
   void should_fail_when_tenant_does_not_exist() {
     assertThatThrownBy(() -> tenantService.findById("unknown"))
         .isInstanceOf(EntityNotFoundException.class);
+  }
+
+  @Test
+  @WithMockUser
+  void should_find_tenants_by_user_id() throws Exception {
+    // -- ARRANGE --
+    String userId = testUserHolder.get().getId();
+    tenantService.create(getTenant("Tenant Alpha"));
+    tenantService.create(getTenant("Tenant Beta"));
+    // Tenant Gamma is NOT created by this user
+    tenantComposer.forTenant(getTenant("Tenant Gamma")).persist();
+
+    // -- ACT --
+    List<Tenant> tenants = tenantService.findTenantsByUserId(userId);
+
+    // -- ASSERT --
+    assertThat(tenants).extracting(Tenant::getName).containsExactly("Tenant Alpha", "Tenant Beta");
+  }
+
+  @Test
+  @WithMockUser
+  void should_return_empty_when_user_has_no_tenant() {
+    // -- ARRANGE --
+    String userId = testUserHolder.get().getId();
+
+    // -- ACT --
+    List<Tenant> tenants = tenantService.findTenantsByUserId(userId);
+
+    // -- ASSERT --
+    assertThat(tenants).isEmpty();
   }
 }
