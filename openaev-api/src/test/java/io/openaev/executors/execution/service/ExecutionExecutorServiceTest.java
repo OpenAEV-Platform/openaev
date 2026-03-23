@@ -326,8 +326,8 @@ public class ExecutionExecutorServiceTest {
 
     @Test
     @DisplayName(
-        "Given active agent with builtin executor (no connector instance), should fallback to manager.request")
-    void given_builtinExecutor_should_fallbackToManagerRequest() throws Exception {
+        "Given active agent with executor whose component is not found, should fallback to manager.request")
+    void given_noComponentFoundForInstance_should_fallbackToManagerRequest() throws Exception {
       // Arrange
       Executor executor = new Executor();
       executor.setId("openaev-executor-id");
@@ -339,8 +339,18 @@ public class ExecutionExecutorServiceTest {
       Manager manager = mock(Manager.class);
       when(managerFactory.getManager()).thenReturn(manager);
 
-      // No stubbing for connectorInstanceConfigurationRepository — returns null by default,
-      // causing findByExecutorId to throw EntityNotFoundException naturally
+      // findByExecutorId returns a valid instance
+      ConnectorInstancePersisted connectorInstance = new ConnectorInstancePersisted();
+      connectorInstance.setId("instance-openaev");
+      stubFindByExecutorId(executor.getId(), connectorInstance);
+
+      // But requestForInstance throws NoSuchElementException with "No component found" message
+      // (e.g. the integration is started but has no matching component)
+      when(manager.requestForInstance(
+              eq(connectorInstance), any(ComponentRequest.class), eq(ExecutorContextService.class)))
+          .thenThrow(
+              new NoSuchElementException(
+                  "No component found for requestId=OpenAEV Agent, requestedType=ExecutorContextService in instance id=instance-openaev"));
 
       ExecutorContextService mockContextService = mock(ExecutorContextService.class);
       when(manager.request(any(ComponentRequest.class), eq(ExecutorContextService.class)))
@@ -352,10 +362,9 @@ public class ExecutionExecutorServiceTest {
       executorService.launchExecutorContext(inject);
 
       // Assert
-      verify(connectorInstanceConfigurationRepository)
-          .findInstanceAndCatalogIdsByKeyValue("EXECUTOR_ID", executor.getId());
-      verify(manager, never())
-          .requestForInstance(any(), any(ComponentRequest.class), eq(ExecutorContextService.class));
+      verify(manager)
+          .requestForInstance(
+              eq(connectorInstance), any(ComponentRequest.class), eq(ExecutorContextService.class));
       verify(manager).request(any(ComponentRequest.class), eq(ExecutorContextService.class));
       verify(mockContextService).launchBatchExecutorSubprocess(eq(inject), any(), any());
     }
