@@ -1005,6 +1005,7 @@
   "inject-plural": "주입",
   "inject-singular": "주입",
   "InjectExpectation": "기대치 주입",
+  "Injector": "인젝터",
   "injector_contract_arch": "아키텍처",
   "injector_contract_domains": "도메인",
   "injector_contract_injector": "인젝터",

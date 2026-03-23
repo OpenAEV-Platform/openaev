@@ -1005,6 +1005,7 @@
   "inject-plural": "инъекции",
   "inject-singular": "инъекция",
   "InjectExpectation": "Инъекционные ожидания",
+  "Injector": "Инжектор",
   "injector_contract_arch": "Архитектура",
   "injector_contract_domains": "Домены",
   "injector_contract_injector": "Инжектор",

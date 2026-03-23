@@ -1005,6 +1005,7 @@
   "inject-plural": "injects",
   "inject-singular": "inject",
   "InjectExpectation": "Inject expectations",
+  "Injector": "Injector",
   "injector_contract_arch": "Architecture",
   "injector_contract_domains": "Domains",
   "injector_contract_injector": "Injector",

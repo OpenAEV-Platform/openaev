@@ -34,12 +34,6 @@ public class CatalogConnectorApi extends RestBehavior {
     return this.catalogConnectorService.getCatalogConnectors();
   }
 
-  @GetMapping(CATALOG_CONNECTOR_URI + "/undeployed")
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
-  public List<CatalogConnectorOutput> getUnDeployedCatalogConnectors() {
-    return this.catalogConnectorService.getUnDeployedCatalogConnectors();
-  }
-
   @GetMapping(CATALOG_CONNECTOR_URI + "/{catalogConnectorId}")
   @AccessControl(
       resourceId = "#catalogConnectorId",
