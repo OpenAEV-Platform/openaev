@@ -7,8 +7,8 @@ import { z, type ZodObject } from 'zod/v4';
 
 import { fetchInjectors } from '../../../../../actions/injectors/injector-action';
 import { type InjectorHelper } from '../../../../../actions/injectors/injector-helper';
-import SelectFieldController from '../../../../../components/fields/SelectFieldController';
 import Button from '../../../../../components/common/button/Button';
+import SelectFieldController from '../../../../../components/fields/SelectFieldController';
 import TagFieldController from '../../../../../components/fields/TagFieldController';
 import TextFieldController from '../../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../../components/i18n';

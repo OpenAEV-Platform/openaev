@@ -281,13 +281,19 @@ public class ConnectorInstanceService {
    *
    * @param id the connector instance ID to delete
    */
-  public void deleteById(String id) {
+  public void deleteById(String id) throws Exception {
     ConnectorInstancePersisted connectorInstance =
         connectorInstanceRepository
             .findById(id)
             .orElseThrow(
                 () ->
                     new EntityNotFoundException("ConnectorInstance with id " + id + " not found"));
+
+    // Setting the status to stopping and immediately calling initialize to effectively stop the
+    // integration
+    connectorInstance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+    this.save(connectorInstance);
+    managerFactory.getManager().getSpawnedIntegrations().get(connectorInstance).initialise();
 
     String connectorId =
         connectorInstance.getConfigurations().stream()
