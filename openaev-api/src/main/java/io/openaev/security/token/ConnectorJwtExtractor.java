@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 @Component
 @Slf4j
 @RequiredArgsConstructor
-public class JwtExtractor implements ExtractorBase {
+public class ConnectorJwtExtractor implements ExtractorBase {
   private final OpenCTIConnectorService openCTIConnectorService;
 
   @Override
