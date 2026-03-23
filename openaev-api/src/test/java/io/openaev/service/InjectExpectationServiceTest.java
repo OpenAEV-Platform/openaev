@@ -6,38 +6,39 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import io.openaev.database.model.Inject;
-import io.openaev.database.model.InjectExpectation;
-import io.openaev.database.repository.InjectExpectationRepository;
-import io.openaev.utils.fixtures.InjectExpectationFixture;
-import io.openaev.utils.fixtures.InjectFixture;
-import java.util.Collections;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
+import io.openaev.database.model.Inject;
+import io.openaev.database.model.InjectExpectation;
+import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
+import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.utils.ExpectationUtils;
 import io.openaev.utils.fixtures.*;
+import io.openaev.utils.fixtures.InjectExpectationFixture;
+import io.openaev.utils.fixtures.InjectFixture;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
 import java.util.UUID;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.*;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
-import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -45,6 +46,8 @@ class InjectExpectationServiceTest {
 
   static final Long EXPIRATION_TIME_SIX_HOURS = 21600L;
 
+  @Mock private InjectExpectationRepository mockedInjectExpectationRepository;
+  @InjectMocks private InjectExpectationService testInjectExpectationService;
   @Mock private InjectExpectationRepository injectExpectationRepository;
   @Spy @InjectMocks private InjectExpectationService injectExpectationService;
   @Spy private ObjectMapper mapper = new ObjectMapper();

@@ -1,16 +1,24 @@
 package io.openaev.rest.exercise.service;
 
+import static io.openaev.utils.InjectExpectationResultUtils.getResultDetail;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Exercise;
+import io.openaev.database.model.Inject;
+import io.openaev.database.model.InjectExpectation;
+import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.ExerciseRepository;
@@ -19,13 +27,32 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.LessonsCategoryRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.expectation.ExpectationType;
+import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exercise.form.ExercisesGlobalScoresInput;
+import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.LessonsService;
+import io.openaev.service.PreviewFeatureService;
+import io.openaev.service.TagRuleService;
 import io.openaev.service.TeamService;
+import io.openaev.service.chaining.WorkflowService;
+import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
+import io.openaev.utils.ResultUtils;
+import io.openaev.utils.TargetType;
+import io.openaev.utils.fixtures.AssetGroupFixture;
+import io.openaev.utils.fixtures.ExerciseFixture;
+import io.openaev.utils.fixtures.ExpectationResultsByTypeFixture;
+import io.openaev.utils.fixtures.TagFixture;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import io.openaev.database.model.Inject;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -358,6 +385,7 @@ class ExerciseServiceUnitTest {
       assertThrows(ElementNotFoundException.class, () -> mockedExerciseService.findById("id"));
     }
   }
+
   /* ============================================================
    * findAllById / save / delete
    * ============================================================ */
@@ -496,7 +524,7 @@ class ExerciseServiceUnitTest {
               });
       when(userRepository.findById("user-1")).thenReturn(Optional.of(newPlayer));
       when(exerciseTeamUserRepository.existsByExerciseIdAndTeamIdAndUserId(
-          exerciseId, "team-3", "user-1"))
+              exerciseId, "team-3", "user-1"))
           .thenReturn(false);
       when(teamService.find(any())).thenReturn(List.of());
 
@@ -545,5 +573,4 @@ class ExerciseServiceUnitTest {
       verify(lessonsCategoryRepository, never()).removeTeamsForExercise(any(), any());
     }
   }
-
 }

@@ -6,7 +6,6 @@ import static org.mockito.Mockito.*;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AgentRepository;
-import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.rest.finding.FindingService;
 import io.openaev.rest.inject.form.InjectExecutionAction;
@@ -47,9 +46,9 @@ class InjectCallbackContractTest {
 
   @Mock private InjectRepository injectRepository;
   @Mock private AgentRepository agentRepository;
-  @Mock private InjectExpectationRepository injectExpectationRepository;
   @Mock private InjectExpectationService injectExpectationService;
   @Mock private InjectStatusService injectStatusService;
+  @Mock private InjectService injectService;
   @Mock private FindingService findingService;
   @Mock private StructuredOutputUtils structuredOutputUtils;
 
@@ -63,17 +62,21 @@ class InjectCallbackContractTest {
 
   @BeforeEach
   void setUp() {
+    AgentExecutionProcessingHandler agentHandler = mock(AgentExecutionProcessingHandler.class);
+    InjectorExecutionProcessingHandler injectorHandler = mock(
+        InjectorExecutionProcessingHandler.class);
     // Spy: real object with mock dependencies, so we can verify method calls
     injectExecutionService =
         spy(
             new InjectExecutionService(
                 injectRepository,
-                injectExpectationRepository,
                 injectExpectationService,
                 agentRepository,
                 injectStatusService,
-                findingService,
-                structuredOutputUtils));
+                injectService,
+                agentHandler,
+                injectorHandler
+              ));
 
     // Can't use @InjectMocks: batchingService needs the spy, not a plain mock
     batchingService =
@@ -157,7 +160,7 @@ class InjectCallbackContractTest {
     }
 
     // Neither path should have called processInjectExecution
-    verify(injectExecutionService, never()).processInjectExecution(any(), any(), any(), anySet());
+    verify(injectExecutionService, never()).processInjectExecutionWithAgent(any(), any(), any());
   }
 
   // ========================================================================
@@ -228,6 +231,6 @@ class InjectCallbackContractTest {
     invoker.invoke("inject-1", "agent-1", input);
 
     verify(injectExecutionService)
-        .processInjectExecution(eq(inject), eq(agent), eq(input), eq(outputParsers));
+        .processInjectExecutionWithAgent(eq(inject), eq(agent), eq(input));
   }
 }

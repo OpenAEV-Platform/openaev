@@ -867,7 +867,8 @@ public class EndpointService {
     // 2. By hostname + at least one IP
     if (input.getIps() != null) {
       List<Endpoint> found =
-          findEndpointByHostnameAndAtLeastOneIp(input.getHostname(), input.getIps(), TenantContext.getCurrentTenant());
+          findEndpointByHostnameAndAtLeastOneIp(
+              input.getHostname(), input.getIps(), TenantContext.getCurrentTenant());
       if (!found.isEmpty()) return Optional.of(found.getFirst());
     }
 

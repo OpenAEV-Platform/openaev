@@ -1,7 +1,9 @@
 package io.openaev.service;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -10,40 +12,32 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Inject;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tag;
-import io.openaev.database.repository.*;
-import io.openaev.ee.EnterpriseEditionService;
-import io.openaev.rest.inject.service.InjectDuplicateService;
-import io.openaev.rest.inject.service.InjectService;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
+import io.openaev.database.repository.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.LessonsCategoryRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.ScenarioTeamUserRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.scenario.ScenarioService;
-import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.TagFixture;
-import io.openaev.utils.mapper.ExerciseMapper;
-import io.openaev.utils.mapper.ScenarioMapper;
 import java.util.*;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.HashSet;
 import java.util.Set;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -298,6 +292,7 @@ class ScenarioServiceUnitTest {
       assertEquals("sc-1", result.getId());
     }
   }
+
   @Nested
   class TagRules {
 
@@ -405,7 +400,7 @@ class ScenarioServiceUnitTest {
               });
       when(userRepository.findById("user-1")).thenReturn(Optional.of(newPlayer));
       when(scenarioTeamUserRepository.existsByScenarioIdAndTeamIdAndUserId(
-          scenarioId, "team-3", "user-1"))
+              scenarioId, "team-3", "user-1"))
           .thenReturn(false);
       when(teamService.find(any())).thenReturn(List.of());
 
@@ -454,5 +449,4 @@ class ScenarioServiceUnitTest {
       verify(lessonsCategoryRepository, never()).removeTeamsForScenario(any(), any());
     }
   }
-
 }

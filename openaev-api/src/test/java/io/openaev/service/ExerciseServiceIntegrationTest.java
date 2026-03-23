@@ -69,6 +69,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private InjectExpectationRepository injectExpectationRepository;
   @Autowired private UserRepository userRepository;
   @Autowired private InjectRepository injectRepository;
+  @Autowired private LessonsCategoryRepository lessonsCategoryRepository;
   @Autowired private ExerciseTeamUserRepository exerciseTeamUserRepository;
   @Autowired private LicenseCacheManager licenseCacheManager;
   @Autowired private InjectExpectationMapper injectExpectationMapper;
@@ -110,6 +111,8 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             exerciseRepository,
             teamRepository,
             userRepository,
+            injectRepository,
+            lessonsCategoryRepository,
             exerciseTeamUserRepository,
             lessonsService,
             injectExpectationMapper,
