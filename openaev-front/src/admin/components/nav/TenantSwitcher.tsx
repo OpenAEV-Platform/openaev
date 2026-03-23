@@ -51,11 +51,7 @@ const TenantSwitcher: FunctionComponent = () => {
           width: theme.spacing(28),
           mr: theme.spacing(1),
         })}
-        slotProps={{
-          input: {
-            sx: theme => ({ backgroundColor: theme.palette.background.paper }),
-          },
-        }}
+        slotProps={{ input: { sx: theme => ({ backgroundColor: theme.palette.background.paper }) } }}
       />
     );
   }
