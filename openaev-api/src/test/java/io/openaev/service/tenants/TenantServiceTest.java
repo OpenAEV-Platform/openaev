@@ -16,6 +16,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.DomainRepository;
 import io.openaev.service.MinioService;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
+import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
@@ -29,7 +30,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
-import io.openaev.utils.mockUser.WithMockUser;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
