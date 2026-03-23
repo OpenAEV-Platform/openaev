@@ -62,3 +62,11 @@ export const handleRemoveFilterUtil = (filters: FilterGroup, key: string) => {
     filters: filters.filters?.filter(f => f.key !== key),
   };
 };
+
+export const handleSwitchLocalModeUtil = (filters: FilterGroup, key: string): FilterGroup => {
+	return updateFilters(filters, f =>
+		f.key === key
+			? { ...f, mode: f.mode === 'and' ? 'or' : 'and' }
+			: f,
+	);
+};

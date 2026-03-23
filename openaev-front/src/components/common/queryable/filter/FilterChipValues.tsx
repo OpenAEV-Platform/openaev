@@ -9,6 +9,7 @@ import { FilterContext } from './context';
 import { convertOperatorToIcon } from './FilterUtils';
 import useRetrieveOptions from './useRetrieveOptions';
 import type { SearchOptionsConfig } from './useSearchOptions';
+import {FilterHelpers} from "./FilterHelpers";
 
 const useStyles = makeStyles()(theme => ({
   mode: {
@@ -37,6 +38,7 @@ interface Props {
   isTooltip?: boolean;
   handleOpen?: () => void;
   contextId?: string;
+	helpers?: FilterHelpers;
 }
 
 const FilterChipValues: FunctionComponent<Props> = ({
@@ -45,6 +47,7 @@ const FilterChipValues: FunctionComponent<Props> = ({
   isTooltip = false,
   handleOpen,
   contextId,
+	helpers,
 }) => {
   // Standard hooks
   const { t, fldt } = useFormatter();
@@ -65,11 +68,21 @@ const FilterChipValues: FunctionComponent<Props> = ({
     }
   }, [filter]);
 
-  const i18nMode = (mode: Filter['mode']) => (
-    <div className={classes.mode}>
-      {t(mode === 'and' ? 'AND' : 'OR')}
-    </div>
-  );
+	const i18nMode = (mode: Filter['mode']) => {
+		const canClick = !!helpers && (filter.values?.length ?? 0) > 1;
+		console.log('canClick', canClick, filter.values, helpers);
+		return (
+			<div
+				className={cx({
+					[classes.mode]: true,
+				})}
+				onClick={canClick ? () => helpers!.handleSwitchLocalMode(filter.key) : undefined}
+				style={canClick ? { cursor: 'pointer' } : undefined}
+			>
+				{t(mode === 'and' ? 'and' : 'or')}
+			</div>
+		);
+	};
 
   const toValues = (opts: Option[], mode: Filter['mode']) => opts.map((o, idx) => (
     <Fragment key={o.id}>

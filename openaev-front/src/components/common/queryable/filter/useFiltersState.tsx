@@ -9,6 +9,7 @@ import {
   handleChangeOperatorFiltersUtil,
   handleRemoveFilterUtil,
   handleSwitchMode,
+	handleSwitchLocalModeUtil,
 } from './filtersManageStateUtils';
 import { emptyFilterGroup } from './FilterUtils';
 
@@ -40,6 +41,13 @@ const useFiltersState = (
         filters: handleSwitchMode(prevState.filters),
       }));
     }, []),
+		// Switch local mode for a filter
+		handleSwitchLocalMode: useCallback((key: string) => {
+			setFiltersState(prevState => ({
+				...prevState,
+				filters: handleSwitchLocalModeUtil(prevState.filters, key),
+			}));
+		}, []),
     // Add Filter
     handleAddFilterWithEmptyValue: useCallback((filter: Filter) => {
       setFiltersState(prevState => ({

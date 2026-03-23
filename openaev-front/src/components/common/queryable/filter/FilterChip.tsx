@@ -74,6 +74,7 @@ const FilterChip: FunctionComponent<Props> = ({
                 propertySchema={propertySchema}
                 handleOpen={handleOpen}
                 contextId={contextId}
+								helpers={helpers}
               />
             </span>
           </Tooltip>
