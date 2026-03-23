@@ -1438,11 +1438,11 @@ class InjectApiTest extends IntegrationTest {
         convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
         InjectorContract injectorContract =
             InjectorContractFixture.createInjectorContract(convertedContent);
-        injectorContract.setInjector(injector);
         InjectorContract injectorContractSaved =
             injectTestHelper.forceSaveInjectorContract(injectorContract);
         inject.setInjectorContract(injectorContractSaved);
         inject.setContent(convertedContent);
+        inject.setInjector(injector);
         injectTestHelper.forceSaveInject(inject);
 
         // -- EXECUTE --
@@ -1500,11 +1500,11 @@ class InjectApiTest extends IntegrationTest {
         convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
         InjectorContract injectorContract =
             InjectorContractFixture.createInjectorContract(convertedContent);
-        injectorContract.setInjector(injector);
         InjectorContract injectorContractSaved =
             injectTestHelper.forceSaveInjectorContract(injectorContract);
         inject.setInjectorContract(injectorContractSaved);
         inject.setContent(convertedContent);
+        inject.setInjector(injector);
         injectTestHelper.forceSaveInject(inject);
 
         // -- EXECUTE --
@@ -1578,11 +1578,11 @@ class InjectApiTest extends IntegrationTest {
         convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
         InjectorContract injectorContract =
             InjectorContractFixture.createInjectorContract(convertedContent);
-        injectorContract.setInjector(injector);
         InjectorContract injectorContractSaved =
             injectTestHelper.forceSaveInjectorContract(injectorContract);
         inject.setInjectorContract(injectorContractSaved);
         inject.setContent(convertedContent);
+        inject.setInjector(injector);
         injectTestHelper.forceSaveInject(inject);
 
         // -- EXECUTE --
@@ -3132,11 +3132,11 @@ class InjectApiTest extends IntegrationTest {
         convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
         InjectorContract injectorContract =
             InjectorContractFixture.createInjectorContract(convertedContent);
-        injectorContract.setInjector(injector);
         InjectorContract injectorContractSaved =
             injectTestHelper.forceSaveInjectorContract(injectorContract);
         inject.setInjectorContract(injectorContractSaved);
         inject.setContent(convertedContent);
+        inject.setInjector(injector);
         injectTestHelper.forceSaveInject(inject);
 
         // -- EXECUTE --
@@ -3224,11 +3224,11 @@ class InjectApiTest extends IntegrationTest {
         convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
         InjectorContract injectorContract =
             InjectorContractFixture.createInjectorContract(convertedContent);
-        injectorContract.setInjector(injector);
         InjectorContract injectorContractSaved =
             injectTestHelper.forceSaveInjectorContract(injectorContract);
         inject.setInjectorContract(injectorContractSaved);
         inject.setContent(convertedContent);
+        inject.setInjector(injector);
         injectTestHelper.forceSaveInject(inject);
 
         // -- EXECUTE --
@@ -3297,11 +3297,11 @@ class InjectApiTest extends IntegrationTest {
         convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
         InjectorContract injectorContract =
             InjectorContractFixture.createInjectorContract(convertedContent);
-        injectorContract.setInjector(injector);
         InjectorContract injectorContractSaved =
             injectTestHelper.forceSaveInjectorContract(injectorContract);
         inject.setInjectorContract(injectorContractSaved);
         inject.setContent(convertedContent);
+        inject.setInjector(injector);
         injectTestHelper.forceSaveInject(inject);
 
         // -- EXECUTE --
@@ -3351,11 +3351,11 @@ class InjectApiTest extends IntegrationTest {
         convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
         InjectorContract injectorContract =
             InjectorContractFixture.createInjectorContract(convertedContent);
-        injectorContract.setInjector(injector);
         InjectorContract injectorContractSaved =
             injectTestHelper.forceSaveInjectorContract(injectorContract);
         inject.setInjectorContract(injectorContractSaved);
         inject.setContent(convertedContent);
+        inject.setInjector(injector);
         injectTestHelper.forceSaveInject(inject);
 
         // -- EXECUTE --
@@ -3426,11 +3426,11 @@ class InjectApiTest extends IntegrationTest {
         convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
         InjectorContract injectorContract =
             InjectorContractFixture.createInjectorContract(convertedContent);
-        injectorContract.setInjector(injector);
         InjectorContract injectorContractSaved =
             injectTestHelper.forceSaveInjectorContract(injectorContract);
         inject.setInjectorContract(injectorContractSaved);
         inject.setContent(convertedContent);
+        inject.setInjector(injector);
         injectTestHelper.forceSaveInject(inject);
 
         // -- EXECUTE --
