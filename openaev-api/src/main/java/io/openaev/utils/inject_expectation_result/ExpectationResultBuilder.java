@@ -199,7 +199,9 @@ public final class ExpectationResultBuilder {
   }
 
   private static String getSourceAssetId(Collector collector) {
-      return collector.isExternal() && collector.getSecurityPlatform() != null ? collector.getSecurityPlatform().getId() : collector.getId();
+    return collector.isExternal() && collector.getSecurityPlatform() != null
+        ? collector.getSecurityPlatform().getId()
+        : collector.getId();
   }
 
   public static InjectExpectationResult buildForMediaPressure(

@@ -488,8 +488,9 @@ public class SecurityCoverageService {
           objects);
     }
 
-    Set<String> platformIds = getSecurityPlatformAssetIds(simulation.getInjects());
-    for (SecurityPlatform securityPlatform : assetService.securityPlatformsByIds(platformIds)) {
+    Set<String> securityPlatformAssetIds = getSecurityPlatformAssetIds(simulation.getInjects());
+    for (SecurityPlatform securityPlatform :
+        assetService.securityPlatformsByIds(securityPlatformAssetIds)) {
       DomainObject platformIdentity = securityPlatform.toStixDomainObject();
       objects.add(platformIdentity);
 

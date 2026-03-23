@@ -423,7 +423,7 @@ class ExpectationApiTest extends IntegrationTest {
                       .sourceName(savedCollector.getName())
                       .sourceType(savedCollector.getType())
                       .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
-                          .sourceAssetId(UUID.randomUUID().toString())
+                      .sourceAssetId(UUID.randomUUID().toString())
                       .score(50.0)
                       .build()));
 
@@ -504,7 +504,7 @@ class ExpectationApiTest extends IntegrationTest {
                       .sourceName(savedCollector.getName())
                       .sourceType(savedCollector.getType())
                       .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
-                          .sourceAssetId(UUID.randomUUID().toString())
+                      .sourceAssetId(UUID.randomUUID().toString())
                       .result("result")
                       .score(80.0)
                       .build()));
@@ -588,7 +588,7 @@ class ExpectationApiTest extends IntegrationTest {
                       .sourceName(savedCollector.getName())
                       .sourceType(savedCollector.getType())
                       .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
-                          .sourceAssetId(UUID.randomUUID().toString())
+                      .sourceAssetId(UUID.randomUUID().toString())
                       .result("result")
                       .score(90.0)
                       .build()));

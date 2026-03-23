@@ -23,7 +23,6 @@ import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.util.List;
 import java.util.UUID;
-
 import net.javacrumbs.jsonunit.core.Option;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -507,7 +506,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(40.0)
                     .sourceName("test SIEM")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
-                        .sourceAssetId(UUID.randomUUID().toString())
+                    .sourceAssetId(UUID.randomUUID().toString())
                     .result("Meh better...")
                     .build());
 
@@ -534,7 +533,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(0.0)
                     .sourceName("test collector")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
-                        .sourceAssetId(UUID.randomUUID().toString())
+                    .sourceAssetId(UUID.randomUUID().toString())
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -543,7 +542,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(17.0)
                     .sourceName("test SIEM")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
-                        .sourceAssetId(UUID.randomUUID().toString())
+                    .sourceAssetId(UUID.randomUUID().toString())
                     .result("Meh...")
                     .build());
 
@@ -555,7 +554,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(0.0)
                     .sourceName("test collector")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
-                        .sourceAssetId(UUID.randomUUID().toString())
+                    .sourceAssetId(UUID.randomUUID().toString())
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -564,7 +563,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(32.0)
                     .sourceName("test SIEM")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
-                        .sourceAssetId(UUID.randomUUID().toString())
+                    .sourceAssetId(UUID.randomUUID().toString())
                     .result("Meh better...")
                     .build());
 
@@ -631,7 +630,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(100.0)
                     .sourceName("test collector")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
-                        .sourceAssetId(UUID.randomUUID().toString())
+                    .sourceAssetId(UUID.randomUUID().toString())
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -640,7 +639,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(20.0)
                     .sourceName("test SIEM")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
-                        .sourceAssetId(UUID.randomUUID().toString())
+                    .sourceAssetId(UUID.randomUUID().toString())
                     .result("Meh...")
                     .build(),
                 InjectExpectationResult.builder()
@@ -649,7 +648,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(40.0)
                     .sourceName("test SIEM")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
-                        .sourceAssetId(UUID.randomUUID().toString())
+                    .sourceAssetId(UUID.randomUUID().toString())
                     .result("Meh better...")
                     .build());
 
@@ -661,7 +660,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(0.0)
                     .sourceName("test collector")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
-                        .sourceAssetId(UUID.randomUUID().toString())
+                    .sourceAssetId(UUID.randomUUID().toString())
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -670,7 +669,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(17.0)
                     .sourceName("test SIEM")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
-                        .sourceAssetId(UUID.randomUUID().toString())
+                    .sourceAssetId(UUID.randomUUID().toString())
                     .result("Meh...")
                     .build(),
                 InjectExpectationResult.builder()
@@ -679,7 +678,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(32.0)
                     .sourceName("test SIEM")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
-                        .sourceAssetId(UUID.randomUUID().toString())
+                    .sourceAssetId(UUID.randomUUID().toString())
                     .result("Meh better...")
                     .build());
 
@@ -707,7 +706,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("collector")
                     .score(100.0)
                     .sourceName("test collector")
-                        .sourceAssetId(UUID.randomUUID().toString())
+                    .sourceAssetId(UUID.randomUUID().toString())
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -715,7 +714,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("security-platform")
                     .score(20.0)
                     .sourceName("test SIEM")
-                        .sourceAssetId(UUID.randomUUID().toString())
+                    .sourceAssetId(UUID.randomUUID().toString())
                     .result("Meh...")
                     .build());
 
@@ -734,7 +733,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("collector")
                     .score(0.0)
                     .sourceName("test collector")
-                        .sourceAssetId(UUID.randomUUID().toString())
+                    .sourceAssetId(UUID.randomUUID().toString())
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -742,7 +741,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("security-platform")
                     .score(17.0)
                     .sourceName("test SIEM")
-                        .sourceAssetId(UUID.randomUUID().toString())
+                    .sourceAssetId(UUID.randomUUID().toString())
                     .result("Meh...")
                     .build());
 
@@ -802,7 +801,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("collector")
                     .score(100.0)
                     .sourceName("test collector")
-                        .sourceAssetId(UUID.randomUUID().toString())
+                    .sourceAssetId(UUID.randomUUID().toString())
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -810,7 +809,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("security-platform")
                     .score(20.0)
                     .sourceName("test SIEM")
-                        .sourceAssetId(UUID.randomUUID().toString())
+                    .sourceAssetId(UUID.randomUUID().toString())
                     .result("Meh...")
                     .build());
 
@@ -845,7 +844,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("collector")
                     .score(0.0)
                     .sourceName("test collector")
-                        .sourceAssetId(UUID.randomUUID().toString())
+                    .sourceAssetId(UUID.randomUUID().toString())
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -853,7 +852,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("security-platform")
                     .score(17.0)
                     .sourceName("test SIEM")
-                        .sourceAssetId(UUID.randomUUID().toString())
+                    .sourceAssetId(UUID.randomUUID().toString())
                     .result("Meh...")
                     .build());
 
