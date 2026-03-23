@@ -43,6 +43,8 @@ public enum ResourceType {
   EVALUATION,
   CATALOG,
   TENANT,
+  PLATFORM_ROLE,
+  PLATFORM_GROUP,
   // Special resource types
   UNKNOWN,
   SIMULATION_OR_SCENARIO, // Used to represent either a simulation or a scenario.

@@ -10,7 +10,8 @@ import Tabs from '../../../../components/common/tabs/Tabs';
 import useTabs from '../../../../components/common/tabs/useTabs';
 import TextFieldController from '../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../components/i18n';
-import capabilities from './capabilities.json';
+import Loader from '../../../../components/Loader';
+import useCapabilities from '../../../../utils/hooks/useCapabilities';
 import CapabilitiesTab from './CapabilitiesTab';
 
 export interface RoleCreateInput {
@@ -34,6 +35,7 @@ const RoleForm: FC<RoleFormProps> = ({
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
+  const { capabilities, loading } = useCapabilities('TENANT');
 
   /* ---------- Zod schema ---------- */
   const schema = z.object({
@@ -112,9 +114,11 @@ const RoleForm: FC<RoleFormProps> = ({
 
         {currentTab === 'Capabilities' && (
           <>
-            {capabilities.map(cap => (
-              <CapabilitiesTab capability={cap} key={cap.name} capabilities={capabilities} />
-            ))}
+            {loading
+              ? <Loader />
+              : capabilities.map(cap => (
+                  <CapabilitiesTab<RoleCreateInput> capability={cap} key={cap.capability_value} fieldName="role_capabilities" capabilities={capabilities} />
+                ))}
             {errors.role_capabilities && <span>{errors.role_capabilities.message}</span>}
           </>
         )}
