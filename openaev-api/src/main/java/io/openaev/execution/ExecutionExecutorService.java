@@ -12,9 +12,7 @@ import io.openaev.rest.exception.AgentException;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -76,7 +74,7 @@ public class ExecutionExecutorService {
 
   private void launchBatchExecutorContextForAgent(
       Set<Agent> agents,
-      io.openaev.database.model.Executor executor,
+      Executor executor,
       Inject inject,
       InjectStatus injectStatus,
       AtomicBoolean atLeastOneExecution) {
@@ -87,21 +85,30 @@ public class ExecutionExecutorService {
       Manager manager = managerFactory.getManager();
       ExecutorContextService executorContextService;
       try {
-        // Prefer per-instance routing: resolve the ConnectorInstance that owns this executor
+        // Resolve the ConnectorInstance that owns this executor
         ConnectorInstancePersisted instance =
             connectorInstanceService.findByExecutorId(executor.getId());
         executorContextService =
             manager.requestForInstance(
                 instance, new ComponentRequest(executor.getName()), ExecutorContextService.class);
-      } catch (Exception instanceNotFound) {
-        // Fallback for builtin executors without a persisted ConnectorInstance (e.g. OpenAEV agent)
-        executorContextService =
-            manager.request(new ComponentRequest(executor.getName()), ExecutorContextService.class);
+      } catch (NoSuchElementException instanceNotFound) {
+        if (instanceNotFound.getMessage().startsWith("No component found")) {
+          // Fallback for builtin executors without a persisted ConnectorInstance (e.g. OpenAEV
+          // agent)
+          executorContextService =
+              manager.request(
+                  new ComponentRequest(executor.getName()), ExecutorContextService.class);
+        } else {
+          throw instanceNotFound;
+        }
       }
-      executorContextService.launchBatchExecutorSubprocess(inject, agents, injectStatus);
+      List<Agent> agentsProcessed =
+          executorContextService.launchBatchExecutorSubprocess(inject, agents, injectStatus);
+      List<Agent> remainingAgents = new ArrayList<>(agents);
+      remainingAgents.removeAll(agentsProcessed);
       // Also handle individual execution for executor context services whose batch
       // implementation is a no-op (e.g. OpenAEV agent)
-      for (Agent agent : agents) {
+      for (Agent agent : remainingAgents) {
         Endpoint assetEndpoint = (Endpoint) Hibernate.unproxy(agent.getAsset());
         executorContextService.launchExecutorSubprocess(inject, assetEndpoint, agent);
       }
