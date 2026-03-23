@@ -22,8 +22,11 @@ let reconnectTimeoutId;
 const listeners = new Map();
 
 const SSE_BATCH_INTERVAL = 200;
+const IDLE_CALLBACK_TIMEOUT = 1000;
 let pendingActions = [];
 let batchTimeoutId;
+let idleCallbackId;
+let autoReConnectIntervalId;
 
 const flushPendingActions = () => {
   batchTimeoutId = undefined;
@@ -32,7 +35,10 @@ const flushPendingActions = () => {
   pendingActions = [];
   const dispatch = (action) => store.dispatch(action);
   if (typeof requestIdleCallback === 'function') {
-    requestIdleCallback(() => actions.forEach(dispatch));
+    idleCallbackId = requestIdleCallback(() => {
+      idleCallbackId = undefined;
+      actions.forEach(dispatch);
+    }, { timeout: IDLE_CALLBACK_TIMEOUT });
   } else {
     actions.forEach(dispatch);
   }
@@ -45,17 +51,39 @@ const scheduleBatchedDispatch = (action) => {
   }
 };
 
+const cancelPendingBatches = () => {
+  if (batchTimeoutId) {
+    clearTimeout(batchTimeoutId);
+    batchTimeoutId = undefined;
+  }
+  if (idleCallbackId && typeof cancelIdleCallback === 'function') {
+    cancelIdleCallback(idleCallbackId);
+    idleCallbackId = undefined;
+  }
+  pendingActions = [];
+};
+
 const useDataLoader = (loader = () => {}, refetchArg = []) => {
   const sseConnect = () => {
     if (reconnectTimeoutId) {
       clearTimeout(reconnectTimeoutId);
       reconnectTimeoutId = undefined;
     }
+    if (autoReConnectIntervalId) {
+      clearInterval(autoReConnectIntervalId);
+      autoReConnectIntervalId = undefined;
+    }
     sseClient = new EventSource(buildUri('/api/stream'), { withCredentials: true });
-    const autoReConnect = setInterval(() => {
+    autoReConnectIntervalId = setInterval(() => {
+      if (listeners.size === 0) {
+        clearInterval(autoReConnectIntervalId);
+        autoReConnectIntervalId = undefined;
+        return;
+      }
       const current = new Date().getTime();
       if (current - lastPingDate > EVENT_PING_MAX_TIME) {
-        clearInterval(autoReConnect);
+        clearInterval(autoReConnectIntervalId);
+        autoReConnectIntervalId = undefined;
         if (sseClient != null) {
           sseClient.close();
         }
@@ -97,7 +125,8 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
       lastPingDate = new Date().getTime();
     });
     sseClient.onerror = () => {
-      clearInterval(autoReConnect);
+      clearInterval(autoReConnectIntervalId);
+      autoReConnectIntervalId = undefined;
       if (sseClient != null) {
         sseClient.close();
       }
@@ -129,11 +158,11 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
           clearTimeout(reconnectTimeoutId);
           reconnectTimeoutId = undefined;
         }
-        if (batchTimeoutId) {
-          clearTimeout(batchTimeoutId);
-          batchTimeoutId = undefined;
-          pendingActions = [];
+        if (autoReConnectIntervalId) {
+          clearInterval(autoReConnectIntervalId);
+          autoReConnectIntervalId = undefined;
         }
+        cancelPendingBatches();
         sseClient.close();
         sseClient = undefined;
       }

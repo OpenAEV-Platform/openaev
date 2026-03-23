@@ -8,22 +8,25 @@ import WidgetWrapper from './widgets/WidgetWrapper';
 
 const LazyWidget = memo<{ children: ReactNode }>(({ children }) => {
   const ref = useRef<HTMLDivElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
+  const [isVisible, setIsVisible] = useState(
+    typeof IntersectionObserver === 'undefined',
+  );
 
   useEffect(() => {
     const el = ref.current;
-    if (!el) return undefined;
+    if (!el || isVisible) return undefined;
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
           setIsVisible(true);
+          observer.disconnect();
         }
       },
       { rootMargin: '200px' },
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [isVisible]);
 
   return (
     <div ref={ref} style={{ height: '100%' }}>

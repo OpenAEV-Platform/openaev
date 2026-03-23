@@ -220,6 +220,8 @@ const ListWidget = ({
           style={{ flex: 1, overflow: 'auto' }}
         >
           <MuiList
+            component="div"
+            role="list"
             style={{
               height: virtualizer.getTotalSize(),
               position: 'relative',
@@ -230,6 +232,7 @@ const ListWidget = ({
               return (
                 <div
                   key={element.base_id}
+                  role="listitem"
                   style={{
                     position: 'absolute',
                     top: 0,

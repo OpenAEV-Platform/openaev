@@ -106,7 +106,7 @@ const WidgetWrapper = ({
       const params = buildParams(customDashboardParameters);
       const config = widgetConfig[widget.widget_type] ?? defaultConfig;
 
-      config.fetchFn(widget.widget_id, params, pagination).then((response) => {
+      await config.fetchFn(widget.widget_id, params, pagination).then((response) => {
         if (!isMountedRef.current) return;
         if (response.data) {
           setVizData({

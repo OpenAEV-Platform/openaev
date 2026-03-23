@@ -70,11 +70,15 @@ const EVICTABLE_ENTITY_TYPES = new Set([
 ]);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const evictOversizedEntities = (state: any): any => {
+const evictOversizedEntities = (state: any, action: any): any => {
+  const changedTypes = action.payload?.entities ? Object.keys(action.payload.entities) : [];
+  const typesToCheck = changedTypes.filter((t: string) => EVICTABLE_ENTITY_TYPES.has(t));
+  if (typesToCheck.length === 0) return state;
+
   const entities = state.get('entities');
   if (!entities || !Map.isMap(entities)) return state;
   let result = state;
-  EVICTABLE_ENTITY_TYPES.forEach((entityType) => {
+  typesToCheck.forEach((entityType: string) => {
     const entityMap = entities.get(entityType);
     if (entityMap && Map.isMap(entityMap) && entityMap.size > ENTITY_SIZE_SOFT_CAP) {
       const keysToKeep = entityMap.keySeq().takeLast(ENTITY_SIZE_SOFT_CAP).toSet();
@@ -117,7 +121,7 @@ const referential = (state: any = Map({}), action: any = {}) => {
         );
       } else {
         const merged = mergeDeepOverwriteLists(state, fromJS(R.dissoc('result', action.payload)));
-        return evictOversizedEntities(merged);
+        return evictOversizedEntities(merged, action);
       }
     }
     case Constants.DATA_DELETE_SUCCESS: {
