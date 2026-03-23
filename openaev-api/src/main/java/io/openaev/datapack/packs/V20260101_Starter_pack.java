@@ -43,7 +43,6 @@ public class V20260101_Starter_pack extends DataPack {
 
   private static final class Config {
     static final String STARTER_PACK_KEY = "starterpack";
-    static final String STARTER_PACK_SETTING_VALUE = "StarterPack creation process completed";
     static final String SCENARIOS_FOLDER_NAME = "scenarios";
     static final String DASHBOARDS_FOLDER_NAME = "dashboards";
     static final String DEFAULT_FILE_DASHBOARD_HOME = "default_home";
@@ -86,19 +85,11 @@ public class V20260101_Starter_pack extends DataPack {
 
   private final ResourcePatternResolver resolver;
 
-  private boolean hasError = false;
-  private String errorMessage = null;
-
   @Override
   protected void doProcess() {
     // early break for when the starter pack was already run
     if (!isStarterPackEnabled) {
       log.info("Starter pack is disabled by configuration");
-      return;
-    }
-
-    if (this.settingRepository.findByKey(Config.STARTER_PACK_KEY).isPresent()) {
-      log.info("Starter pack already initialized");
       return;
     }
 
@@ -134,8 +125,6 @@ public class V20260101_Starter_pack extends DataPack {
     } catch (Exception e) {
       recordError("Unexpected error during StarterPack initialization.", e);
     }
-
-    this.createSetting();
   }
 
   private Endpoint createHoneyScanMeAgentlessEndpoint(List<String> tags) {
@@ -228,8 +217,6 @@ public class V20260101_Starter_pack extends DataPack {
   }
 
   private void recordError(@NotBlank final String message, Throwable cause) {
-    this.hasError = true;
-    this.errorMessage = message;
     log.error(message, cause);
   }
 
@@ -247,16 +234,5 @@ public class V20260101_Starter_pack extends DataPack {
       defaultDashboardSetting.setValue(dashboardId);
       settingRepository.save(defaultDashboardSetting);
     }
-  }
-
-  private void createSetting() {
-    Setting setting = new Setting();
-    setting.setKey(Config.STARTER_PACK_KEY);
-    if (hasError) {
-      setting.setValue(this.errorMessage);
-    } else {
-      setting.setValue(Config.STARTER_PACK_SETTING_VALUE);
-    }
-    this.settingRepository.save(setting);
   }
 }

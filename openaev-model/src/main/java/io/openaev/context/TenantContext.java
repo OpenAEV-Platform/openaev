@@ -15,6 +15,14 @@ public class TenantContext implements EvaluationContextExtension {
     return tenant != null ? tenant : Tenant.DEFAULT_TENANT_UUID;
   }
 
+  // TODO multi-tenancy: set with Front URL instead of default UUID and update the return above
+  /**
+   * DO NOT USE except to set the tenant id from the URL (TenantInterceptor) AND in very specific
+   * use cases before transactional annotations (DataPack) because it could have some weird
+   * behaviors inside the BackEnd
+   *
+   * @param tenant id
+   */
   public static void setCurrentTenant(String tenant) {
     CURRENT_TENANT.set(tenant);
   }
