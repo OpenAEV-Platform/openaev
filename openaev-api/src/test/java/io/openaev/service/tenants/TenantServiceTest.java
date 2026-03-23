@@ -29,11 +29,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
-import org.springframework.security.test.context.support.WithMockUser;
+import io.openaev.utils.mockUser.WithMockUser;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 @TestInstance(TestInstance.Lifecycle.PER_METHOD)
+@WithMockUser
 class TenantServiceTest extends IntegrationTest {
 
   @Autowired private TenantService tenantService;
@@ -184,7 +185,6 @@ class TenantServiceTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser
   void should_find_tenants_by_user_id() throws Exception {
     // -- ARRANGE --
     String userId = testUserHolder.get().getId();
@@ -201,7 +201,6 @@ class TenantServiceTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser
   void should_return_empty_when_user_has_no_tenant() {
     // -- ARRANGE --
     String userId = testUserHolder.get().getId();
