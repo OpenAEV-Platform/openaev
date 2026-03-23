@@ -98,7 +98,6 @@ interface LineChartOption {
   dataLabels?: boolean;
   emptyChartText?: string;
   onDataPointClick?: onBarClickFunction;
-  enableAnimations?: boolean;
 }
 export const lineChartOptions = ({
   theme,
@@ -110,14 +109,12 @@ export const lineChartOptions = ({
   dataLabels = false,
   emptyChartText = '',
   onDataPointClick,
-  enableAnimations = true,
 }: LineChartOption): ApexOptions => ({
   chart: {
     type: 'line',
     background: 'transparent',
     toolbar: { show: false },
     foreColor: theme.palette.text?.secondary,
-    animations: { enabled: enableAnimations },
     events: {
       markerClick: function (event, _, config) {
         onDataPointClick?.(event, config);
@@ -305,7 +302,6 @@ interface VerticalBarsChartOptions {
   emptyChartText?: string;
   customTooltip?: CustomTooltipFunction;
   onBarClick?: onBarClickFunction;
-  enableAnimations?: boolean;
 }
 export const verticalBarsChartOptions = ({
   theme,
@@ -322,7 +318,6 @@ export const verticalBarsChartOptions = ({
   emptyChartText = '',
   customTooltip,
   onBarClick,
-  enableAnimations = true,
 }: VerticalBarsChartOptions): ApexOptions => ({
   chart: {
     type: 'bar',
@@ -333,7 +328,7 @@ export const verticalBarsChartOptions = ({
     width: '100%',
     height: '100%',
     zoom: { enabled: !isFakeData },
-    animations: { enabled: !isFakeData && enableAnimations },
+    animations: { enabled: !isFakeData },
     events: {
       dataPointSelection(event, _, config) {
         onBarClick?.(event, config);
@@ -449,7 +444,6 @@ interface HorizontalBarsChartOptions {
   isFakeData?: boolean;
   emptyChartText?: string;
   onBarClick?: onBarClickFunction;
-  enableAnimations?: boolean;
 }
 export const horizontalBarsChartOptions = ({
   theme,
@@ -464,7 +458,6 @@ export const horizontalBarsChartOptions = ({
   isFakeData = false,
   emptyChartText = '',
   onBarClick,
-  enableAnimations = true,
 }: HorizontalBarsChartOptions): ApexOptions => ({
   chart: {
     events: {
@@ -480,7 +473,7 @@ export const horizontalBarsChartOptions = ({
     width: '100%',
     height: '100%',
     zoom: { enabled: !isFakeData },
-    animations: { enabled: !isFakeData && enableAnimations },
+    animations: { enabled: !isFakeData },
   },
   theme: { mode: theme.palette.mode },
   dataLabels: { enabled: false },

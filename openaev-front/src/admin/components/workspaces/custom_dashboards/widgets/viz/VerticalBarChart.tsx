@@ -67,7 +67,6 @@ const VerticalBarChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, se
       isResult: true,
       emptyChartText,
       onBarClick,
-      enableAnimations: false,
     }),
     [theme, widgetMode, fld, emptyChartText, onBarClick],
   );

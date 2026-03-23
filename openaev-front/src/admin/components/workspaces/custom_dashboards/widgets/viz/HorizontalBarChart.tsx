@@ -57,7 +57,6 @@ const HorizontalBarChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, 
       legend: true,
       emptyChartText,
       onBarClick,
-      enableAnimations: false,
     }),
     [theme, widgetMode, fld, emptyChartText, onBarClick],
   );

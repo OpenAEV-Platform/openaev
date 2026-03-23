@@ -55,7 +55,6 @@ const LineChart: FunctionComponent<Props> = ({ widgetId, series }) => {
       distributed,
       emptyChartText,
       onDataPointClick,
-      enableAnimations: false,
     }),
     [theme, fld, distributed, emptyChartText, onDataPointClick],
   );

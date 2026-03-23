@@ -66,7 +66,6 @@ const DonutChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, datas }:
       chartColors,
       emptyChartText,
       onClick,
-      disableAnimation: true,
     }),
     [theme, labels, chartColors, emptyChartText, onClick],
   );
