@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 
-import { searchTenants } from '../../../../../actions/tenants/tenant-actions';
+import { searchTenants } from '../../../../../actions/platform/tenants/tenant-action';
 import { type SearchPaginationInput, type TenantOutput } from '../../../../../utils/api-types';
 
 const useTenants = () => {

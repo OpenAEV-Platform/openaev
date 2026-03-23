@@ -1,13 +1,18 @@
 package io.openaev.service.tenants;
 
-import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
+import static io.openaev.utils.pagination.CriteriaBuilderPagination.paginate;
+import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
+import io.openaev.api.tenants.TenantInput;
+import io.openaev.api.tenants.TenantOutput;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.PersistenceContext;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -29,6 +34,7 @@ public class TenantService {
 
   private final TenantRepository tenantRepository;
   private final List<DependenciesManager> dependencies;
+  @PersistenceContext private EntityManager entityManager;
 
   // -- CREATE --
 
@@ -56,8 +62,19 @@ public class TenantService {
 
   /** Searches tenants with pagination and filtering. */
   @Transactional(readOnly = true)
-  public Page<Tenant> search(SearchPaginationInput searchPaginationInput) {
-    return buildPaginationJPA(this.tenantRepository::findAll, searchPaginationInput, Tenant.class);
+  public Page<TenantOutput> search(@NotNull SearchPaginationInput searchPaginationInput) {
+    return buildPaginationCriteriaBuilder(
+        (spec, specCount, pageable) ->
+            paginate(
+                entityManager,
+                Tenant.class,
+                spec,
+                specCount,
+                pageable,
+                TenantQueryHelper::select,
+                TenantQueryHelper::execution),
+        searchPaginationInput,
+        Tenant.class);
   }
 
   /** Returns all tenants accessible by a given user. */
@@ -69,9 +86,9 @@ public class TenantService {
   // -- UPDATE --
 
   /** Updates an existing tenant's attributes. */
-  public Tenant update(String tenantId, Tenant updated) {
+  public Tenant update(String tenantId, TenantInput input) {
     Tenant existing = findById(tenantId);
-    existing.setUpdateAttributes(updated);
+    existing.setUpdateAttributes(input);
     return tenantRepository.save(existing);
   }
 
