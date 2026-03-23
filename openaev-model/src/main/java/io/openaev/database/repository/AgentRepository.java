@@ -30,10 +30,7 @@ public interface AgentRepository
       @Param("privilege") String privilege,
       @Param("executorId") String executorId);
 
-  @Query(
-      value = "SELECT a.* FROM agents a WHERE a.agent_executor = :executorId",
-      nativeQuery = true)
-  List<Agent> findByExecutorId(@Param("executorId") String executorId);
+  List<Agent> findByExecutorId(String executorId);
 
   List<Agent> findByExternalReferenceAndTenantId(String externalReference, String tenantId);
 
