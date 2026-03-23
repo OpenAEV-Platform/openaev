@@ -33,7 +33,7 @@ const flushPendingActions = () => {
   if (pendingActions.length === 0) return;
   const actions = pendingActions;
   pendingActions = [];
-  const dispatch = (action) => store.dispatch(action);
+  const dispatch = action => store.dispatch(action);
   if (typeof requestIdleCallback === 'function') {
     idleCallbackId = requestIdleCallback(() => {
       idleCallbackId = undefined;

@@ -217,7 +217,10 @@ const ListWidget = ({
       {!contentLoading && elements.length > 0 && (
         <div
           ref={scrollContainerRef}
-          style={{ flex: 1, overflow: 'auto' }}
+          style={{
+            flex: 1,
+            overflow: 'auto',
+          }}
         >
           <MuiList
             component="div"
