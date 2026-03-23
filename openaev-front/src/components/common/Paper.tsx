@@ -5,20 +5,22 @@ import { makeStyles } from 'tss-react/mui';
 interface PaperProps {
   children: ReactNode;
   className?: string;
+  variant?: 'elevation' | 'outlined';
 }
 
 const useStyles = makeStyles()(theme => ({
   paper: {
     padding: theme.spacing(2),
-    borderRadius: theme.borderRadius,
+    borderRadius: 4,
+    background: theme.palette.background.secondary,
   },
 }));
 
-const Paper: FunctionComponent<PaperProps> = ({ children, className = '' }) => {
+const Paper: FunctionComponent<PaperProps> = ({ children, className = '', variant }) => {
   const { classes } = useStyles();
 
   return (
-    <PaperMui variant="outlined" className={`${classes.paper} ${className}`.trim()}>
+    <PaperMui elevation={0} variant={variant} className={`${classes.paper} ${className}`.trim()}>
       {children}
     </PaperMui>
   );

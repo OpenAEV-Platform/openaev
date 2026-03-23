@@ -1,31 +1,15 @@
 package io.openaev.service;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
-import io.openaev.database.model.AssetGroup;
-import io.openaev.database.model.Inject;
-import io.openaev.database.model.Scenario;
-import io.openaev.database.model.Tag;
-import io.openaev.database.model.Team;
-import io.openaev.database.model.User;
+import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
-import io.openaev.database.repository.InjectRepository;
-import io.openaev.database.repository.LessonsCategoryRepository;
-import io.openaev.database.repository.ScenarioRepository;
-import io.openaev.database.repository.ScenarioTeamUserRepository;
-import io.openaev.database.repository.TeamRepository;
-import io.openaev.database.repository.UserRepository;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.healthcheck.utils.HealthCheckUtils;
+import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.TargetType;
@@ -33,11 +17,11 @@ import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.TagFixture;
 import java.util.*;
-import java.util.ArrayList;
+import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import io.openaev.utils.mapper.ExerciseMapper;
+import io.openaev.utils.mapper.ScenarioMapper;
+import java.util.*;
 import java.util.Set;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -59,7 +43,6 @@ class ScenarioServiceUnitTest {
   @Mock private ScenarioTeamUserRepository scenarioTeamUserRepository;
   @Mock private InjectRepository injectRepository;
   @Mock private LessonsCategoryRepository lessonsCategoryRepository;
-
   @InjectMocks private ScenarioService scenarioService;
 
   @Test
@@ -153,32 +136,25 @@ class ScenarioServiceUnitTest {
 
     @Test
     void shouldSaveScenario_andKeepExistingFrom() {
-      // -------- Prepare --------
       Scenario scenario = ScenarioFixture.getScenario();
       when(scenarioRepository.save(any(Scenario.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
-      // -------- Act --------
       Scenario result = scenarioService.createScenario(scenario);
 
-      // -------- Assert --------
       assertNotNull(result);
-      // ScenarioFixture sets from to "simulation@mail.fr" so it should be preserved
       assertEquals("simulation@mail.fr", result.getFrom());
     }
 
     @Test
     void shouldReturnSavedScenario() {
-      // -------- Prepare --------
       Scenario scenario = ScenarioFixture.getScenario();
       Scenario saved = ScenarioFixture.getScenario();
       saved.setId("saved-id");
       when(scenarioRepository.save(any(Scenario.class))).thenReturn(saved);
 
-      // -------- Act --------
       Scenario result = scenarioService.createScenario(scenario);
 
-      // -------- Assert --------
       assertNotNull(result);
       assertEquals("saved-id", result.getId());
     }
@@ -189,14 +165,11 @@ class ScenarioServiceUnitTest {
 
     @Test
     void shouldKeepExistingFrom_whenAlreadySet() {
-      // -------- Prepare --------
       Scenario scenario = new Scenario();
       scenario.setFrom("existing@mail.com");
 
-      // -------- Act --------
       scenarioService.computeEmails(scenario);
 
-      // -------- Assert --------
       assertEquals("existing@mail.com", scenario.getFrom());
     }
   }
@@ -206,25 +179,20 @@ class ScenarioServiceUnitTest {
 
     @Test
     void shouldReturnScenario_whenFound() {
-      // -------- Prepare --------
       Scenario scenario = new Scenario();
       scenario.setId("sc-1");
       when(scenarioRepository.findById("sc-1")).thenReturn(Optional.of(scenario));
 
-      // -------- Act --------
       Scenario result = scenarioService.scenario("sc-1");
 
-      // -------- Assert --------
       assertNotNull(result);
       assertEquals("sc-1", result.getId());
     }
 
     @Test
     void shouldThrowElementNotFoundException_whenNotFound() {
-      // -------- Prepare --------
       when(scenarioRepository.findById("missing")).thenReturn(Optional.empty());
 
-      // -------- Act / Assert --------
       assertThrows(
           io.openaev.rest.exception.ElementNotFoundException.class,
           () -> scenarioService.scenario("missing"));
@@ -232,10 +200,8 @@ class ScenarioServiceUnitTest {
 
     @Test
     void shouldDeleteScenarioById() {
-      // -------- Act --------
       scenarioService.deleteScenario("sc-1");
 
-      // -------- Assert --------
       verify(scenarioRepository).deleteById("sc-1");
     }
   }
@@ -245,29 +211,23 @@ class ScenarioServiceUnitTest {
 
     @Test
     void shouldReturnRecurringScenarios_afterInstant() {
-      // -------- Prepare --------
       Scenario scenario = new Scenario();
       when(scenarioRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class)))
           .thenReturn(List.of(scenario));
 
-      // -------- Act --------
       List<Scenario> result = scenarioService.recurringScenarios(java.time.Instant.now());
 
-      // -------- Assert --------
       assertEquals(1, result.size());
     }
 
     @Test
     void shouldReturnPotentiallyOutdatedScenarios() {
-      // -------- Prepare --------
       when(scenarioRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class)))
           .thenReturn(Collections.emptyList());
 
-      // -------- Act --------
       List<Scenario> result =
           scenarioService.potentialOutdatedRecurringScenario(java.time.Instant.now());
 
-      // -------- Assert --------
       assertNotNull(result);
       assertTrue(result.isEmpty());
     }
@@ -278,16 +238,13 @@ class ScenarioServiceUnitTest {
 
     @Test
     void shouldDisablePlayers() {
-      // -------- Prepare --------
       Scenario scenario = new Scenario();
       scenario.setId("sc-1");
       scenario.setInjects(new HashSet<>());
       when(scenarioRepository.findById("sc-1")).thenReturn(Optional.of(scenario));
 
-      // -------- Act --------
       Scenario result = scenarioService.disablePlayers("sc-1", "team-id", List.of("player-1"));
 
-      // -------- Assert --------
       assertNotNull(result);
       assertEquals("sc-1", result.getId());
     }
@@ -298,30 +255,24 @@ class ScenarioServiceUnitTest {
 
     @Test
     void shouldReturnTrue_whenNewTagsAdded() {
-      // -------- Prepare --------
       Tag existingTag = TagFixture.getTag("Existing");
       Scenario scenario = ScenarioFixture.getScenario();
       scenario.setTags(Set.of(existingTag));
       when(tagRuleService.checkIfRulesApply(any(), any())).thenReturn(true);
 
-      // -------- Act --------
       boolean result = scenarioService.checkIfTagRulesApplies(scenario, List.of("new-tag-id"));
 
-      // -------- Assert --------
       assertTrue(result);
     }
 
     @Test
     void shouldReturnFalse_whenNoNewTags() {
-      // -------- Prepare --------
       Scenario scenario = ScenarioFixture.getScenario();
       scenario.setTags(Set.of());
       when(tagRuleService.checkIfRulesApply(any(), any())).thenReturn(false);
 
-      // -------- Act --------
       boolean result = scenarioService.checkIfTagRulesApplies(scenario, List.of());
 
-      // -------- Assert --------
       assertFalse(result);
     }
   }
@@ -331,27 +282,22 @@ class ScenarioServiceUnitTest {
 
     @Test
     void shouldNotThrow_whenLicenseActive() {
-      // -------- Prepare --------
       when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
       Scenario scenario = new Scenario();
       scenario.setInjects(new HashSet<>());
 
-      // -------- Act / Assert --------
       assertDoesNotThrow(() -> scenarioService.throwIfScenarioNotLaunchable(scenario));
     }
 
     @Test
     void shouldDelegateToInjectService_whenLicenseNotActive() {
-      // -------- Prepare --------
       when(enterpriseEditionService.isLicenseActive(any())).thenReturn(false);
       Inject inject = new Inject();
       Scenario scenario = new Scenario();
       scenario.setInjects(new HashSet<>(List.of(inject)));
 
-      // -------- Act --------
       scenarioService.throwIfScenarioNotLaunchable(scenario);
 
-      // -------- Assert --------
       verify(injectService).throwIfInjectNotLaunchable(inject);
     }
   }

@@ -23,9 +23,8 @@ import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.InjectExpectationFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Stream;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -420,22 +419,21 @@ class InjectExpectationServiceTest {
     void shouldReturnDistinctInjectIds(
         String name, Set<String> expectationIds, Set<String> expectedInjectIds) {
       // Prepare
-      when(mockedInjectExpectationRepository.findDistinctInjectIdsByInjectExpectationIds(
-              expectationIds))
+      when(injectExpectationRepository.findDistinctInjectIdsByInjectExpectationIds(expectationIds))
           .thenReturn(expectedInjectIds);
 
       // Act
       Set<String> result =
-          testInjectExpectationService.findDistinctInjectIdsByInjectExpectationIds(expectationIds);
+          injectExpectationService.findDistinctInjectIdsByInjectExpectationIds(expectationIds);
 
       // Assert
-      verify(mockedInjectExpectationRepository)
+      verify(injectExpectationRepository)
           .findDistinctInjectIdsByInjectExpectationIds(expectationIdsCaptor.capture());
       assertEquals(expectationIds, expectationIdsCaptor.getValue());
       assertNotNull(result);
       assertEquals(expectedInjectIds.size(), result.size());
       assertEquals(expectedInjectIds, result);
-      verifyNoMoreInteractions(mockedInjectExpectationRepository);
+      verifyNoMoreInteractions(injectExpectationRepository);
     }
   }
 }

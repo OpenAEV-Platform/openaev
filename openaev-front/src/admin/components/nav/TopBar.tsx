@@ -1,32 +1,31 @@
-import { AccountCircleOutlined, AppsOutlined, ImportantDevicesOutlined } from '@mui/icons-material';
-import { AppBar, Badge, Box, Grid, IconButton, Menu, MenuItem, Popover, Toolbar, Tooltip } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useContext, useEffect, useState } from 'react';
+import { AccountCircleOutlined, ArrowDropDown, ImportantDevicesOutlined, OpenInNew } from '@mui/icons-material';
+import { AppBar, Box, Divider, List, ListItemButton, ListItemIcon, Menu, MenuItem, Popover, Stack, Toolbar, Tooltip } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
+import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { logout } from '../../../actions/Application';
+import IconButton from '../../../components/common/button/IconButton';
 import { useFormatter } from '../../../components/i18n';
 import ItemBoolean from '../../../components/ItemBoolean';
 import SearchInput from '../../../components/SearchFilter';
+import { THEME_DARK_DEFAULT_BACKGROUND } from '../../../components/ThemeDark';
 import { computeBannerSettings } from '../../../public/components/systembanners/utils';
-import oaevDark from '../../../static/images/xtm/oaev_dark.png';
-import oaevLight from '../../../static/images/xtm/oaev_light.png';
-import octiDark from '../../../static/images/xtm/octi_dark.png';
-import octiLight from '../../../static/images/xtm/octi_light.png';
-import xtmhubDark from '../../../static/images/xtm/xtm_hub_dark.png';
-import xtmhubLight from '../../../static/images/xtm/xtm_hub_light.png';
+import logoOpenCtiDark from '../../../static/images/logo_open_cti_dark.svg';
+import logoOpenCtiLight from '../../../static/images/logo_open_cti_light.svg';
+import logoXtmHubDark from '../../../static/images/logo_xtm_hub_dark.svg';
+import logoXtmHubLight from '../../../static/images/logo_xtm_hub_light.svg';
 import { MESSAGING$, XTM_HUB_DEFAULT_URL } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
 import useAuth from '../../../utils/hooks/useAuth';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
-import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { isNotEmptyField } from '../../../utils/utils';
 import AskArianeButton from '../ariane/AskArianeButton';
 
 const useStyles = makeStyles()(theme => ({
   appBar: {
     width: '100%',
-    zIndex: theme.zIndex.drawer + 1,
+    zIndex: theme.zIndex.drawer - 1,
     background: 0,
     backgroundColor: theme.palette.background.nav,
     paddingTop: theme.spacing(0.2),
@@ -34,17 +33,6 @@ const useStyles = makeStyles()(theme => ({
     borderRight: 0,
     borderTop: 0,
     color: theme.palette.text?.primary,
-  },
-  logoContainer: { margin: '2px 0 0 10px' },
-  logo: {
-    cursor: 'pointer',
-    height: 35,
-    marginRight: 3,
-  },
-  logoCollapsed: {
-    cursor: 'pointer',
-    height: 35,
-    marginRight: 4,
   },
   menuContainer: {
     width: '50%',
@@ -56,42 +44,9 @@ const useStyles = makeStyles()(theme => ({
     right: 13,
     height: '100%',
   },
-  barRightContainer: {
-    float: 'left',
-    height: '100%',
-    paddingTop: 12,
-  },
-  subtitle: {
-    color: theme.palette.text?.secondary,
-    fontSize: '15px',
-    marginBottom: 20,
-  },
-  xtmItem: {
-    'display': 'block',
-    'color': theme.palette.text?.primary,
-    'textAlign': 'center',
-    'padding': '15px 0 10px 0',
-    'borderRadius': 4,
-    '&:hover': { backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)' },
-  },
-  xtmItemCurrent: {
-    display: 'block',
-    color: theme.palette.text?.primary,
-    textAlign: 'center',
-    cursor: 'default',
-    padding: '15px 0 10px 0',
-    backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
-    borderRadius: 4,
-  },
-  product: {
-    margin: '5px auto 0 auto',
-    textAlign: 'center',
-    fontSize: 15,
-  },
 }));
 
 const TopBar: FunctionComponent = () => {
-  // Standard hooks
   const theme = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
@@ -99,15 +54,9 @@ const TopBar: FunctionComponent = () => {
   const { t } = useFormatter();
   const { settings } = useAuth();
   const { bannerHeightNumber } = computeBannerSettings(settings);
-  const ability = useContext(AbilityContext);
+  const [switcherAnchor, setSwitcherAnchor] = useState<null | HTMLElement>(null);
+  const switcherOpen = Boolean(switcherAnchor);
 
-  const [xtmOpen, setXtmOpen] = useState<{
-    open: boolean;
-    anchorEl: HTMLButtonElement | null;
-  }>({
-    open: false,
-    anchorEl: null,
-  });
   const [menuOpen, setMenuOpen] = useState<{
     open: boolean;
     anchorEl: HTMLButtonElement | null;
@@ -130,32 +79,21 @@ const TopBar: FunctionComponent = () => {
       anchorEl: null,
     });
   };
-  const handleOpenXtm = (
-    event: ReactMouseEvent<HTMLButtonElement, MouseEvent>,
-  ) => {
+
+  const handleClickSwitcher = (event: ReactMouseEvent<HTMLElement>) => {
     event.preventDefault();
-    setXtmOpen({
-      open: true,
-      anchorEl: event.currentTarget,
-    });
+    event.stopPropagation();
+    setSwitcherAnchor(switcherOpen ? null : event.currentTarget);
   };
-  const handleCloseXtm = () => {
-    setXtmOpen({
-      open: false,
-      anchorEl: null,
-    });
-  };
+
   const dispatch = useAppDispatch();
   const [navOpen, setNavOpen] = useState(
     localStorage.getItem('navOpen') === 'true',
   );
-  const [isArianeChatOpen, setIsArianeChatOpen] = useState(false);
   useEffect(() => {
     const sub = MESSAGING$.toggleNav.subscribe({ next: () => setNavOpen(localStorage.getItem('navOpen') === 'true') });
-    const chatSub = MESSAGING$.toggleArianeChat.subscribe({ next: () => setIsArianeChatOpen(prev => !prev) });
     return () => {
       sub.unsubscribe();
-      chatSub.unsubscribe();
     };
   });
   const handleLogout = async () => {
@@ -164,7 +102,6 @@ const TopBar: FunctionComponent = () => {
     handleCloseMenu();
   };
 
-  // Full Text search
   const onFullTextSearch = (search?: string) => {
     if (search) {
       navigate(`/admin/fulltextsearch?search=${search}`);
@@ -174,42 +111,173 @@ const TopBar: FunctionComponent = () => {
   const [searchParams] = useSearchParams();
   const [search] = searchParams.getAll('search');
 
-  const xtmhubBadgeImg = (
-    <img
-      style={{
-        width: '100%',
-        paddingRight: theme.spacing(2),
-        paddingLeft: theme.spacing(2),
-      }}
-      src={theme.palette.mode === 'dark' ? xtmhubDark : xtmhubLight}
-      alt="XTM Hub"
-    />
-  );
-  const shouldXtmHubRedirectToSite = settings.xtm_hub_registration_status === 'registered'
-    || !ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS);
+  const getAppTopBarGradient = (): string => {
+    const defaultGradient = `${alpha(THEME_DARK_DEFAULT_BACKGROUND, 0.9)} 0%, ${alpha(theme.palette.designSystem.background.bg1, 0.9)}`;
+    if (theme.palette.background.gradient?.start && theme.palette.background.gradient?.end) {
+      return `${alpha(theme.palette.background.gradient.start, 0.9)} 0%, ${alpha(theme.palette.background.gradient.end, 0.9)}`;
+    }
+    return defaultGradient;
+  };
+
+  const appBarGradient = getAppTopBarGradient();
+  const currentLogo = navOpen ? theme.logo : theme.logo_collapsed;
 
   return (
     <AppBar
       position="fixed"
       className={classes.appBar}
-      variant="outlined"
-      elevation={0}
+      variant="elevation"
+      elevation={1}
     >
       <Toolbar style={{
         marginTop: bannerHeightNumber,
         paddingLeft: 0,
+        background: `linear-gradient(90deg, ${appBarGradient} 100%)`,
+        backdropFilter: 'blur(4px)',
       }}
       >
-        <div className={classes.logoContainer}>
-          <Link to="/admin">
-            <img
-              src={navOpen ? theme.logo : theme.logo_collapsed}
-              alt="logo"
-              className={navOpen ? classes.logo : classes.logoCollapsed}
-            />
-          </Link>
-        </div>
-        <div className={classes.menuContainer} style={{ marginLeft: navOpen ? 20 : 30 }}>
+        <Box
+          component={Link}
+          to="/admin"
+          sx={{
+            'width': navOpen ? 180 : 55,
+            'padding': navOpen ? 2 : '16px 0',
+            'paddingRight': navOpen ? 1 : 0,
+            'flexShrink': 0,
+            'display': 'flex',
+            'alignItems': 'center',
+            'gap': 1,
+            'justifyContent': navOpen ? 'space-between' : 'center',
+            '&:hover': { cursor: 'pointer' },
+          }}
+        >
+          <img
+            src={currentLogo}
+            alt="logo"
+            style={{
+              height: 35,
+              maxWidth: navOpen ? '130px' : '28px',
+              objectFit: 'contain',
+            }}
+          />
+          {navOpen && (
+            <IconButton
+              onClick={handleClickSwitcher}
+            >
+              <ArrowDropDown
+                sx={{
+                  transform: switcherOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.2s',
+                }}
+              />
+            </IconButton>
+          )}
+        </Box>
+        <Popover
+          open={switcherOpen}
+          anchorEl={switcherAnchor}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'right',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'left',
+          }}
+          sx={{ transform: 'translateX(-40px)' }}
+          onClose={() => setSwitcherAnchor(null)}
+        >
+          <List dense disablePadding sx={{ minWidth: 228 }}>
+            <Tooltip title={isNotEmptyField(settings.xtm_opencti_url) ? t('Platform connected') : t('Get OpenCTI now')}>
+              <span>
+                <ListItemButton
+                  component="a"
+                  href={settings.xtm_opencti_url || 'https://filigran.io'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setSwitcherAnchor(null)}
+                  sx={{
+                    borderRadius: 1,
+                    px: 1,
+                    py: 1.5,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    backgroundColor: theme.palette.leftBar.header.itemBackground,
+                  }}
+                >
+                  <ListItemIcon sx={{
+                    width: 132,
+                    p: 1,
+                  }}
+                  >
+                    <Box sx={{
+                      width: '100%',
+                      height: '20px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    >
+                      <img
+                        src={theme.palette.mode === 'dark' ? logoOpenCtiDark : logoOpenCtiLight}
+                        style={{
+                          width: '100%',
+                          height: 'auto',
+                          objectFit: 'contain',
+                        }}
+                        alt="OpenCTI"
+                      />
+                    </Box>
+                  </ListItemIcon>
+                  <OpenInNew style={{ fontSize: 16 }} />
+                </ListItemButton>
+              </span>
+            </Tooltip>
+            <Divider />
+            <ListItemButton
+              component="a"
+              href={settings.xtm_hub_url || XTM_HUB_DEFAULT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setSwitcherAnchor(null)}
+              sx={{
+                borderRadius: 1,
+                px: 1,
+                py: 1.5,
+                display: 'flex',
+                justifyContent: 'space-between',
+                backgroundColor: theme.palette.leftBar.header.itemBackground,
+              }}
+            >
+              <ListItemIcon sx={{
+                width: 132,
+                p: 1,
+              }}
+              >
+                <Box sx={{
+                  width: '100%',
+                  height: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                >
+                  <img
+                    src={theme.palette.mode === 'dark' ? logoXtmHubDark : logoXtmHubLight}
+                    style={{
+                      width: '100%',
+                      height: 'auto',
+                      objectFit: 'contain',
+                    }}
+                    alt="XTM Hub"
+                  />
+                </Box>
+              </ListItemIcon>
+              <OpenInNew style={{ fontSize: 16 }} />
+            </ListItemButton>
+          </List>
+        </Popover>
+        <div className={classes.menuContainer} style={{ marginLeft: 20 }}>
           <SearchInput
             variant="topBar"
             placeholder={`${t('Search the platform')}...`}
@@ -219,110 +287,30 @@ const TopBar: FunctionComponent = () => {
           />
         </div>
         <div className={classes.barRight}>
-          <div className={classes.barRightContainer}>
+          <Stack
+            direction="row"
+            gap={1}
+            alignItems="center"
+            sx={{ height: '100%' }}
+          >
             { settings.platform_license?.license_type === 'nfr' && <ItemBoolean variant="large" label="EE DEV LICENSE" status={false} /> }
-            <AskArianeButton isOpen={isArianeChatOpen} />
+            <AskArianeButton />
             <Tooltip title={t('Install simulation agents')}>
               <IconButton
-                size="medium"
+                size="default"
                 aria-haspopup="true"
                 component={Link}
                 to="/admin/agents"
-                color={location.pathname === '/admin/agents' ? 'primary' : 'inherit'}
+                selected={location.pathname === '/admin/agents'}
               >
                 <ImportantDevicesOutlined fontSize="medium" />
               </IconButton>
             </Tooltip>
             <IconButton
-              color="inherit"
-              size="medium"
-              aria-owns={xtmOpen.open ? 'menu-appbar' : undefined}
-              aria-haspopup="true"
-              id="xtm-menu-button"
-              onClick={handleOpenXtm}
-            >
-              <AppsOutlined fontSize="medium" />
-            </IconButton>
-            <Popover
-              anchorEl={xtmOpen.anchorEl}
-              open={xtmOpen.open}
-              onClose={handleCloseXtm}
-              anchorOrigin={{
-                vertical: 'bottom',
-                horizontal: 'center',
-              }}
-              transformOrigin={{
-                vertical: 'top',
-                horizontal: 'center',
-              }}
-            >
-              <Box sx={{
-                width: '300px',
-                padding: '15px',
-                textAlign: 'center',
-              }}
-              >
-                <div className={classes.subtitle}>{t('Filigran eXtended Threat Management')}</div>
-                <Grid container spacing={3}>
-                  <Grid size={12}>
-                    <Tooltip title="XTM Hub">
-                      { shouldXtmHubRedirectToSite ? (
-                        <a
-                          className={classes.xtmItem}
-                          href={settings.xtm_hub_enable && settings.xtm_hub_url ? settings.xtm_hub_url : XTM_HUB_DEFAULT_URL}
-                          target="_blank"
-                          rel="noreferrer"
-                          onClick={handleCloseXtm}
-                        >
-                          <Badge variant="dot" color={settings.xtm_hub_registration_status === 'registered' ? 'success' : 'warning'}>
-                            {xtmhubBadgeImg}
-                          </Badge>
-                        </a>
-                      ) : (
-                        <Link className={classes.xtmItem} to="/admin/settings/experience" onClick={handleCloseXtm}>
-                          <Badge variant="dot" color="warning">
-                            {xtmhubBadgeImg}
-                          </Badge>
-                        </Link>
-                      )}
-                    </Tooltip>
-                  </Grid>
-                  <Grid size={6}>
-                    <Tooltip title={settings.xtm_opencti_enable && settings.xtm_opencti_url ? t('Platform connected') : t('Get OpenCTI now')}>
-                      <a
-                        className={classes.xtmItem}
-                        href={settings.xtm_opencti_enable && settings.xtm_opencti_url ? settings.xtm_opencti_url : 'https://filigran.io'}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={handleCloseXtm}
-                      >
-                        <Badge variant="dot" color={settings.xtm_opencti_enable && settings.xtm_opencti_url ? 'success' : 'warning'}>
-                          <img style={{ width: 40 }} src={theme.palette.mode === 'dark' ? octiDark : octiLight} alt="OCTI" />
-                        </Badge>
-                        <div className={classes.product}>{t('OpenCTI')}</div>
-                      </a>
-                    </Tooltip>
-                  </Grid>
-                  <Grid size={6}>
-                    <Tooltip title={t('Current platform')}>
-                      <a className={classes.xtmItemCurrent}>
-                        <Badge variant="dot" color="success">
-                          <img style={{ width: 40 }} src={theme.palette.mode === 'dark' ? oaevDark : oaevLight} alt="OAEV" />
-                        </Badge>
-                        <div className={classes.product}>{t('OpenAEV')}</div>
-                      </a>
-                    </Tooltip>
-                  </Grid>
-                </Grid>
-              </Box>
-            </Popover>
-            <IconButton
               aria-label="account-menu"
               onClick={handleOpenMenu}
-              size="medium"
-              color={
-                location.pathname === '/admin/profile' ? 'primary' : 'inherit'
-              }
+              size="default"
+              selected={location.pathname === '/admin/profile'}
             >
               <AccountCircleOutlined fontSize="medium" />
             </IconButton>
@@ -341,7 +329,7 @@ const TopBar: FunctionComponent = () => {
               </MenuItem>
               <MenuItem aria-label="logout-item" onClick={handleLogout}>{t('Logout')}</MenuItem>
             </Menu>
-          </div>
+          </Stack>
         </div>
       </Toolbar>
     </AppBar>

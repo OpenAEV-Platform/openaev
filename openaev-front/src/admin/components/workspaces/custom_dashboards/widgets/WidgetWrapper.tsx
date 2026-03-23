@@ -27,7 +27,6 @@ interface WidgetWrapperProps {
   readOnly: boolean;
 }
 
-// Helper to convert parameters to request params
 const buildParams = (parameters: Record<string, ParameterOption>): Record<string, string> => {
   return Object.fromEntries(
     Object.entries(parameters).map(([key, val]) => [key, val.value]),
@@ -41,6 +40,8 @@ type WidgetFetchConfig = {
   transformData?: (data: WidgetDataResponse) => unknown;
 };
 
+const TITLE_HEIGHT = 26;
+
 const WidgetWrapper = ({
   widget,
   fullscreen,
@@ -52,7 +53,7 @@ const WidgetWrapper = ({
 }: WidgetWrapperProps) => {
   const theme = useTheme();
   const [vizData, setVizData] = useState<WidgetVizData>({ type: WidgetVizDataType.NONE });
-  const [initialLoading, setInitialLoading] = useState(true); // full widget loader
+  const [initialLoading, setInitialLoading] = useState(true);
   const [contentLoading, setContentLoading] = useState(false);
 
   const [errorMessage, setErrorMessage] = useState<string>('');
@@ -90,7 +91,6 @@ const WidgetWrapper = ({
     fetchFn: fetchSeries,
   };
 
-  // Use ref to track if component is mounted
   const isMountedRef = useRef(true);
   useEffect(() => {
     isMountedRef.current = true;
@@ -150,7 +150,7 @@ const WidgetWrapper = ({
   return (
     <div style={{
       height: '100%',
-      padding: theme.spacing(1.5),
+      padding: theme.spacing(0.5),
     }}
     >
       <WidgetTitle
@@ -161,29 +161,38 @@ const WidgetWrapper = ({
         readOnly={readOnly}
         vizData={vizData}
       />
-      <ErrorBoundary>
-        {isResizing ? (<div />) : (
-          <div
-            style={{ height: 'calc(100% - 32px)' }}
-            onMouseDown={handleMouseDown}
-            onTouchStart={handleTouchStart}
-          >
-            {initialLoading ? (
-              <Loader variant="inElement" />
-            ) : (
-              <WidgetViz
-                widget={widget}
-                fullscreen={fullscreen}
-                setFullscreen={setFullscreen}
-                vizData={vizData}
-                errorMessage={errorMessage}
-                onPaginationChange={onPaginationChange}
-                contentLoading={contentLoading}
-              />
-            )}
-          </div>
-        )}
-      </ErrorBoundary>
+      <div style={{
+        height: `calc(100% - ${TITLE_HEIGHT}px)`,
+        borderRadius: 4,
+        background: theme.palette.background.secondary,
+        padding: theme.spacing(1.5),
+        overflow: 'hidden',
+      }}
+      >
+        <ErrorBoundary>
+          {isResizing ? (<div />) : (
+            <div
+              style={{ height: '100%' }}
+              onMouseDown={handleMouseDown}
+              onTouchStart={handleTouchStart}
+            >
+              {initialLoading ? (
+                <Loader variant="inElement" />
+              ) : (
+                <WidgetViz
+                  widget={widget}
+                  fullscreen={fullscreen}
+                  setFullscreen={setFullscreen}
+                  vizData={vizData}
+                  errorMessage={errorMessage}
+                  onPaginationChange={onPaginationChange}
+                  contentLoading={contentLoading}
+                />
+              )}
+            </div>
+          )}
+        </ErrorBoundary>
+      </div>
     </div>
   );
 };

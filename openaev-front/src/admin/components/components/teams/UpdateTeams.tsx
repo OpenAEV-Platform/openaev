@@ -1,8 +1,9 @@
 import { Add, GroupsOutlined } from '@mui/icons-material';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton } from '@mui/material';
+import { Box, Dialog, DialogActions, DialogContent, DialogTitle, IconButton } from '@mui/material';
 import { type FunctionComponent, useContext, useEffect, useMemo, useState } from 'react';
 
 import { findTeams } from '../../../../actions/teams/team-actions';
+import Button from '../../../../components/common/button/Button';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useQueryable } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
@@ -135,9 +136,9 @@ const UpdateTeams: FunctionComponent<Props> = ({ addedTeamIds }) => {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose}>{t('Cancel')}</Button>
+          <Button variant="secondary" onClick={handleClose}>{t('Cancel')}</Button>
           {!isLoading && (
-            <Button color="secondary" onClick={handleSubmit}>
+            <Button variant="primary" onClick={handleSubmit}>
               {t('Update')}
             </Button>
           )}

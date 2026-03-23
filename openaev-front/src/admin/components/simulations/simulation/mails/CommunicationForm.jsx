@@ -1,6 +1,6 @@
-import { Button } from '@mui/material';
 import { Form } from 'react-final-form';
 
+import Button from '../../../../../components/common/button/Button';
 import OldRichTextField from '../../../../../components/fields/OldRichTextField';
 import OldTextField from '../../../../../components/fields/OldTextField';
 import FileField from '../../../../../components/FileField';
@@ -62,6 +62,7 @@ const CommunicationForm = ({ onSubmit, handleClose, initialValues }) => {
           }}
           >
             <Button
+              variant="secondary"
               onClick={handleClose}
               style={{ marginRight: 10 }}
               disabled={submitting}
@@ -69,7 +70,7 @@ const CommunicationForm = ({ onSubmit, handleClose, initialValues }) => {
               {t('Cancel')}
             </Button>
             <Button
-              color="secondary"
+              variant="primary"
               type="submit"
               disabled={pristine || submitting}
             >

@@ -1,8 +1,8 @@
-import { Button } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import { Component } from 'react';
 import { Form } from 'react-final-form';
 
+import Button from '../../../../components/common/button/Button';
 import DeprecatedColorPickerField from '../../../../components/DeprecatedColorPickerField';
 import OldTextField from '../../../../components/fields/OldTextField';
 import inject18n from '../../../../components/i18n';
@@ -49,7 +49,7 @@ class TagFormComponent extends Component {
             }}
             >
               <Button
-                variant="contained"
+                variant="secondary"
                 onClick={handleClose.bind(this)}
                 style={{ marginRight: 10 }}
                 disabled={submitting}
@@ -57,8 +57,7 @@ class TagFormComponent extends Component {
                 {t('Cancel')}
               </Button>
               <Button
-                variant="contained"
-                color="secondary"
+                variant="primary"
                 type="submit"
                 disabled={pristine || submitting}
               >

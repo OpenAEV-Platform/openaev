@@ -19,7 +19,7 @@ import { type AggregatedFindingOutput, type RelatedFindingOutput, type SearchPag
 import FindingDetail from './FindingDetail';
 
 const useStyles = makeStyles()(() => ({
-  itemHead: { textTransform: 'uppercase' },
+  itemHead: {},
   item: { height: 50 },
 }));
 

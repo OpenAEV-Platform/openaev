@@ -1,6 +1,6 @@
 package io.openaev.rest.finding;
 
-import io.openaev.database.model.Finding;
+import io.openaev.database.model.*;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import jakarta.validation.constraints.NotNull;
 

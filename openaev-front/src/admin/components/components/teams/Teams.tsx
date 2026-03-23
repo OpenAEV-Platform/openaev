@@ -25,7 +25,6 @@ import TeamPopover from './TeamPopover';
 
 const useStyles = makeStyles()(() => ({
   itemHead: {
-    textTransform: 'uppercase',
     cursor: 'pointer',
     paddingLeft: 10,
   },

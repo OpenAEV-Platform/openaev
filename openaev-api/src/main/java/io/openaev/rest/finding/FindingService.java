@@ -14,10 +14,8 @@ import io.openaev.rest.inject.service.InjectService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import jakarta.validation.constraints.NotNull;
+import java.util.*;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import lombok.RequiredArgsConstructor;
@@ -164,7 +162,7 @@ public class FindingService {
         contractOutputContext.name(),
         asset.getId(),
         contractOutputContext.tagIds(),
-        inject.getTenant().getId());
+        inject.getTenant() != null ? inject.getTenant().getId() : null);
   }
 
   private Optional<Asset> resolveAssetFromStructuredOutput(

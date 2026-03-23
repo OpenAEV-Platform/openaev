@@ -10,7 +10,6 @@ import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import java.util.*;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -72,14 +71,6 @@ class BatchingInjectStatusServiceTest {
         .build();
   }
 
-  @BeforeEach
-  void setUp() {
-    // Default stubs for most tests
-    lenient()
-        .when(structuredOutputUtils.extractOutputParsers(any(Inject.class)))
-        .thenReturn(Set.of());
-  }
-
   // ========================================================================
   // Chronological ordering
   // ========================================================================
@@ -106,26 +97,20 @@ class BatchingInjectStatusServiceTest {
 
       service.handleInjectExecutionCallback(List.of(late, early, middle));
 
-      // Verify processInjectExecution was called 3 times in chronological order
+      // Verify processInjectExecutionWithAgent was called 3 times in chronological order
       InOrder inOrder = inOrder(injectExecutionService);
       inOrder
           .verify(injectExecutionService)
           .processInjectExecutionWithAgent(
-              eq(inject),
-              eq(agent),
-              argThat(input -> input == early.getInjectExecutionInput()));
+              eq(inject), eq(agent), argThat(input -> input == early.getInjectExecutionInput()));
       inOrder
           .verify(injectExecutionService)
           .processInjectExecutionWithAgent(
-              eq(inject),
-              eq(agent),
-              argThat(input -> input == middle.getInjectExecutionInput()));
+              eq(inject), eq(agent), argThat(input -> input == middle.getInjectExecutionInput()));
       inOrder
           .verify(injectExecutionService)
           .processInjectExecutionWithAgent(
-              eq(inject),
-              eq(agent),
-              argThat(input -> input == late.getInjectExecutionInput()));
+              eq(inject), eq(agent), argThat(input -> input == late.getInjectExecutionInput()));
     }
   }
 
@@ -255,7 +240,9 @@ class BatchingInjectStatusServiceTest {
           service.handleInjectExecutionCallback(List.of(callback));
 
       assertEquals(1, result.size());
-      verify(injectExecutionService).processInjectExecutionWithAgent(eq(inject), eq(agent), any());
+      verify(injectExecutionService)
+          .processInjectExecutionWithAgent(
+              eq(inject), eq(agent), eq(callback.getInjectExecutionInput()));
     }
 
     @Test
@@ -275,7 +262,9 @@ class BatchingInjectStatusServiceTest {
           service.handleInjectExecutionCallback(List.of(callback));
 
       assertEquals(1, result.size());
-      verify(injectExecutionService).processInjectExecutionWithAgent(eq(inject), eq(agent), any());
+      verify(injectExecutionService)
+          .processInjectExecutionWithAgent(
+              eq(inject), eq(agent), eq(callback.getInjectExecutionInput()));
     }
   }
 
@@ -319,15 +308,13 @@ class BatchingInjectStatusServiceTest {
   class SuccessfulProcessingTests {
 
     @Test
-    @DisplayName("should call processInjectExecution with correct arguments")
+    @DisplayName("should call processInjectExecutionWithAgent with correct arguments")
     void shouldCallProcessInjectExecutionWithCorrectArgs() {
       Inject inject = createInjectWithPendingStatus(INJECT_ID);
       Agent agent = createAgent(AGENT_ID);
-      Set<OutputParser> outputParsers = Set.of();
 
       when(injectRepository.findAllByIdWithExpectations(anyList())).thenReturn(List.of(inject));
       when(agentRepository.findAllById(anyList())).thenReturn(List.of(agent));
-      when(structuredOutputUtils.extractOutputParsers(inject)).thenReturn(outputParsers);
 
       InjectExecutionCallback callback =
           createCallback(INJECT_ID, AGENT_ID, InjectExecutionAction.command_execution, 1000L);
@@ -357,7 +344,8 @@ class BatchingInjectStatusServiceTest {
           service.handleInjectExecutionCallback(List.of(callback));
 
       assertEquals(1, result.size());
-      verify(injectExecutionService).processInjectExecutionWithInjector(eq(inject), isNull());
+      verify(injectExecutionService)
+          .processInjectExecutionWithInjector(eq(inject), eq(callback.getInjectExecutionInput()));
     }
   }
 

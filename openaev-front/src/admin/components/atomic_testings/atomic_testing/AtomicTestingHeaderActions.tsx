@@ -1,11 +1,12 @@
 import { PlayArrowOutlined, SettingsOutlined } from '@mui/icons-material';
-import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
+import { Alert, Box, Button as MuiButton, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useContext, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { fetchMe } from '../../../../actions/Application';
 import { launchAtomicTesting, relaunchAtomicTesting } from '../../../../actions/atomic_testings/atomic-testing-actions';
+import Button from '../../../../components/common/button/Button';
 import { useFormatter } from '../../../../components/i18n';
 import type { InjectResultOverviewOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
@@ -90,7 +91,7 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
     if (injectResultOverviewOutput.inject_ready && hasLaunchAbility) {
       const launchOrRelaunchKey = !injectResultOverviewOutput.inject_status?.status_id ? 'Launch now' : 'Relaunch now';
       return (
-        <Button
+        <MuiButton
           style={{
             marginRight: theme.spacing(1),
             whiteSpace: 'nowrap',
@@ -103,12 +104,12 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
           disabled={!canLaunch}
         >
           {t(launchOrRelaunchKey)}
-        </Button>
+        </MuiButton>
       );
     } else if (hasManageAbility) {
       return (
         <>
-          <Button
+          <MuiButton
             style={{ marginRight: theme.spacing(1) }}
             startIcon={<SettingsOutlined />}
             variant="contained"
@@ -117,7 +118,7 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
             onClick={handleOpenEdit}
           >
             {t('Configure')}
-          </Button>
+          </MuiButton>
           <AtomicTestingUpdate open={edition} handleClose={handleCloseEdit} atomic={injectResultOverviewOutput} />
         </>
       );
@@ -142,9 +143,9 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog}>{t('Cancel')}</Button>
+          <Button variant="secondary" onClick={handleCloseDialog}>{t('Cancel')}</Button>
           <Button
-            color="secondary"
+            variant="primary"
             onClick={
               injectResultOverviewOutput.inject_ready && !injectResultOverviewOutput.inject_status?.status_id
                 ? submitLaunch

@@ -94,23 +94,33 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
 
   return (
     <div>
-      <Typography variant="h4" gutterBottom style={{ float: 'left' }}>
-        {t('Media pressure')}
-      </Typography>
-      {permissions.canManage && (
-        <CreateArticle
-          openCreate={openCreate}
-          handleOpenCreate={handleOpenCreate}
-          handleCloseCreate={handleCloseCreate}
-        />
-      )}
-      {fullArticles.length > 0 && (
-        <ChannelsFilter
-          onChannelsChange={handleChannelsChange}
-          onClearChannels={handleClearChannels}
-        />
-      )}
-      <div className="clearfix" />
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        marginBottom: 10,
+      }}
+      >
+        <Typography
+          variant="h4"
+          gutterBottom={false}
+          style={{ margin: 0 }}
+        >
+          {t('Media pressure')}
+        </Typography>
+        {permissions.canManage && (
+          <CreateArticle
+            openCreate={openCreate}
+            handleOpenCreate={handleOpenCreate}
+            handleCloseCreate={handleCloseCreate}
+          />
+        )}
+        {fullArticles.length > 0 && (
+          <ChannelsFilter
+            onChannelsChange={handleChannelsChange}
+            onClearChannels={handleClearChannels}
+          />
+        )}
+      </div>
       {sortedArticles.length === 0 && (
         <Empty message={(
           <div style={{ textAlign: 'center' }}>

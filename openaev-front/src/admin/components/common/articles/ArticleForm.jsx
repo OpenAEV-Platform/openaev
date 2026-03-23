@@ -36,7 +36,6 @@ const useStyles = makeStyles()(() => ({
   autoCompleteIndicator: { display: 'none' },
   itemHead: {
     paddingLeft: 10,
-    textTransform: 'uppercase',
     cursor: 'pointer',
   },
   item: {
@@ -402,7 +401,7 @@ const ArticleForm = ({
               >
                 {t('Cancel')}
               </Button>
-              <Button color="secondary" type="submit" disabled={submitting}>
+              <Button color="primary" type="submit" disabled={submitting}>
                 {editing ? t('Update') : t('Create')}
               </Button>
             </div>

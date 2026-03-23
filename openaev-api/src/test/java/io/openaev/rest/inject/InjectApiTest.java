@@ -41,6 +41,7 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.queue.BatchQueueService;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.scheduler.jobs.InjectsExecutionJob;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.fixtures.*;
@@ -1443,11 +1444,8 @@ class InjectApiTest extends IntegrationTest {
         performAgentlessCallbackRequest(inject.getId(), input);
 
         // -- ASSERT --
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> !injectTestHelper.findFindingsByInjectId(inject.getId()).isEmpty());
+        entityManager.flush();
+        entityManager.clear();
 
         List<Finding> findings = findingRepository.findAllByInjectId(inject.getId());
         assertEquals(
@@ -1508,11 +1506,8 @@ class InjectApiTest extends IntegrationTest {
         performAgentlessCallbackRequest(inject.getId(), input);
 
         // -- ASSERT --
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> injectTestHelper.findFindingsByInjectId(inject.getId()).size() >= 2);
+        entityManager.flush();
+        entityManager.clear();
 
         List<Finding> findings = findingRepository.findAllByInjectId(inject.getId());
         assertEquals(
@@ -1589,11 +1584,8 @@ class InjectApiTest extends IntegrationTest {
         performAgentlessCallbackRequest(inject.getId(), input);
 
         // -- ASSERT --
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> !injectTestHelper.findFindingsByInjectId(inject.getId()).isEmpty());
+        entityManager.flush();
+        entityManager.clear();
 
         List<Finding> findings = findingRepository.findAllByInjectId(inject.getId());
         assertEquals(
@@ -2262,18 +2254,8 @@ class InjectApiTest extends IntegrationTest {
         // -- EXECUTE --
         performAgentlessCallbackRequest(inject.getId(), input);
 
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(
-                () -> {
-                  List<Endpoint> endpointsA =
-                      endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
-                  List<Endpoint> endpointsB =
-                      endpointRepository.findByExternalReference("https://shodan.io/.../assetB");
-                  return endpointsA.size() == 1 && endpointsB.size() == 1;
-                });
+        entityManager.flush();
+        entityManager.clear();
 
         List<Endpoint> endpointsA =
             endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
@@ -2364,16 +2346,8 @@ class InjectApiTest extends IntegrationTest {
         // -- EXECUTE --
         performAgentlessCallbackRequest(inject.getId(), input);
 
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(
-                () -> {
-                  List<Endpoint> endpointsA =
-                      endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
-                  return endpointsA.size() == 1;
-                });
+        entityManager.flush();
+        entityManager.clear();
 
         List<Endpoint> endpointsA =
             endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
@@ -2574,16 +2548,8 @@ class InjectApiTest extends IntegrationTest {
         // -- EXECUTE --
         performAgentlessCallbackRequest(inject.getId(), input);
 
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(
-                () -> {
-                  List<Endpoint> endpointsA =
-                      endpointRepository.findByExternalReference("https://shodan.io/.../assetC");
-                  return endpointsA.size() == 1;
-                });
+        entityManager.flush();
+        entityManager.clear();
 
         List<Endpoint> endpointsA =
             endpointRepository.findByExternalReference("https://shodan.io/.../assetC");

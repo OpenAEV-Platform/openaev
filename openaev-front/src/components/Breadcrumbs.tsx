@@ -1,7 +1,6 @@
-import { Breadcrumbs as MUIBreadcrumbs, Tooltip, Typography } from '@mui/material';
-import { type CSSProperties, type FunctionComponent } from 'react';
+import { Typography, useTheme } from '@mui/material';
+import { type CSSProperties, Fragment, type FunctionComponent } from 'react';
 import { Link } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
 
 import { truncate } from '../utils/String';
 
@@ -20,52 +19,76 @@ interface BreadcrumbsProps {
   style?: CSSProperties;
 }
 
-const useStyles = makeStyles()(() => ({
-  breadcrumbsList: {
-    marginTop: -5,
-    marginBottom: 15,
-  },
-  breadcrumbsObject: {
-    marginTop: -5,
-    marginBottom: 15,
-  },
-  breadcrumbsStandard: { marginTop: -5 },
-}));
-
 const Breadcrumbs: FunctionComponent<BreadcrumbsProps> = ({ elements, variant, style = {} }) => {
-  const { classes } = useStyles();
-  let className = classes.breadcrumbsStandard;
-  if (variant === 'list') {
-    className = classes.breadcrumbsList;
-  } else if (variant === 'object') {
-    className = classes.breadcrumbsObject;
-  }
+  const theme = useTheme();
 
   return (
-    <MUIBreadcrumbs style={style} classes={{ root: className }}>
-      {elements.map((element) => {
-        const text = truncate(element.label, 26);
+    <div
+      style={{
+        marginBottom: variant === 'standard' ? undefined : theme.spacing(1),
+        display: 'flex',
+        alignItems: 'center',
+        ...style,
+      }}
+    >
+      {elements.map((element, index) => {
+        const isLast = index === elements.length - 1;
+        const separator = !isLast
+          ? (
+              <span style={{
+                marginLeft: theme.spacing(1),
+                marginRight: theme.spacing(1),
+                fontSize: 12,
+                color: theme.palette.text.disabled,
+              }}
+              >
+                /
+              </span>
+            )
+          : null;
+
         if (element.current) {
           return (
-            <Tooltip key={element.label} title={element.label} aria-label={element.label}>
-              <Typography color="text.primary">{text}</Typography>
-            </Tooltip>
+            <Fragment key={element.label}>
+              <Typography
+                sx={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                }}
+                color="text.primary"
+              >
+                {truncate(element.label, 50)}
+              </Typography>
+              {separator}
+            </Fragment>
           );
         }
         if (!element.link) {
           return (
-            <Tooltip key={element.label} title={element.label} aria-label={element.label}>
-              <Typography color="inherit">{text}</Typography>
-            </Tooltip>
+            <Fragment key={element.label}>
+              <Typography
+                sx={{ fontSize: 12 }}
+                color="common.lightGrey"
+              >
+                {truncate(element.label, 30)}
+              </Typography>
+              {separator}
+            </Fragment>
           );
         }
         return (
-          <Tooltip key={element.label} title={element.label} aria-label={element.label}>
-            <Link to={element.link}>{text}</Link>
-          </Tooltip>
+          <Fragment key={element.label}>
+            <Link
+              style={{ fontSize: 12 }}
+              to={element.link}
+            >
+              {truncate(element.label, 30)}
+            </Link>
+            {separator}
+          </Fragment>
         );
       })}
-    </MUIBreadcrumbs>
+    </div>
   );
 };
 

@@ -1,7 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Alert,
-  Button,
   Dialog,
   DialogActions,
   DialogContent,
@@ -19,6 +18,7 @@ import { type Dispatch, type FunctionComponent, type SetStateAction, useEffect }
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
+import Button from '../../../../components/common/button/Button';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { type ScenarioRecurrenceInput } from '../../../../utils/api-types';
@@ -410,11 +410,11 @@ const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ cronObject, set
               </Stack>
             </DialogContent>
             <DialogActions>
-              <Button onClick={handleClose}>
+              <Button variant="secondary" onClick={handleClose}>
                 {t('Cancel')}
               </Button>
               <Button
-                color="secondary"
+                variant="primary"
                 type="submit"
               >
                 {t('Save')}

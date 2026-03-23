@@ -1,7 +1,7 @@
 import { BallotOutlined, ContactMailOutlined, ContentPasteGoOutlined, DeleteSweepOutlined, SpeakerNotesOutlined, SportsScoreOutlined, VisibilityOutlined } from '@mui/icons-material';
 import {
   Alert,
-  Button,
+  Button as MuiButton,
   Dialog,
   DialogActions,
   DialogContent,
@@ -23,6 +23,7 @@ import { type ChangeEvent, type FunctionComponent, useContext, useEffect, useSta
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchLessonsTemplates } from '../../../../actions/Lessons';
+import Button from '../../../../components/common/button/Button';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { type Inject, type LessonsAnswer, type LessonsCategory, type LessonsQuestion, type LessonsSendInput, type LessonsTemplate, type Objective, type Team, type User } from '../../../../utils/api-types';
@@ -48,7 +49,6 @@ const useStyles = makeStyles()(theme => ({
     overflow: 'hidden',
   },
   title: {
-    textTransform: 'uppercase',
     fontSize: 12,
     fontWeight: 500,
     color: theme.palette.secondary.main,
@@ -288,41 +288,41 @@ const Lessons: FunctionComponent<Props> = ({
             {(permissions.canManage && ability.can(ACTIONS.ACCESS, SUBJECTS.LESSONS_LEARNED)) && (
               <Grid size={{ xs: 6 }}>
                 <Typography variant="h3">{t('Template')}</Typography>
-                <Button
+                <MuiButton
                   startIcon={<ContentPasteGoOutlined />}
                   color="primary"
                   variant="contained"
                   onClick={() => setOpenApplyTemplate(true)}
                 >
                   {t('Apply')}
-                </Button>
+                </MuiButton>
               </Grid>
             )}
             <Grid size={{ xs: 6 }}>
               <Typography variant="h3">{t('Check')}</Typography>
-              <Button
+              <MuiButton
                 startIcon={<VisibilityOutlined />}
-                color="secondary"
+                color="primary"
                 variant="contained"
                 component={Link}
                 href={`/lessons/${source.type}/${source.id}?preview=true`}
               >
                 {t('Preview')}
-              </Button>
+              </MuiButton>
             </Grid>
             {permissions.canManage && (
               <Grid size={{ xs: 6 }}>
                 <Typography variant="h3">
                   {t('Categories and questions')}
                 </Typography>
-                <Button
+                <MuiButton
                   startIcon={<DeleteSweepOutlined />}
                   color="error"
                   variant="contained"
                   onClick={() => setOpenEmptyLessons(true)}
                 >
                   {t('Clear out')}
-                </Button>
+                </MuiButton>
               </Grid>
             )}
           </Grid>
@@ -337,25 +337,25 @@ const Lessons: FunctionComponent<Props> = ({
             <Grid container spacing={3} style={{ marginTop: 0 }}>
               <Grid size={{ xs: 6 }}>
                 <Typography variant="h3">{t('Questionnaire')}</Typography>
-                <Button
+                <MuiButton
                   startIcon={<ContentPasteGoOutlined />}
                   color="success"
                   variant="contained"
                   onClick={() => setOpenSendLessons(true)}
                 >
                   {t('Send')}
-                </Button>
+                </MuiButton>
               </Grid>
               <Grid size={{ xs: 6 }}>
                 <Typography variant="h3">{t('Answers')}</Typography>
-                <Button
+                <MuiButton
                   startIcon={<ContentPasteGoOutlined />}
                   color="error"
                   variant="contained"
                   onClick={() => setOpenResetAnswers(true)}
                 >
                   {t('Reset')}
-                </Button>
+                </MuiButton>
               </Grid>
             </Grid>
           </Paper>
@@ -479,13 +479,14 @@ const Lessons: FunctionComponent<Props> = ({
           }}
           >
             <Button
+              variant="secondary"
               onClick={() => setOpenApplyTemplate(false)}
               style={{ marginRight: 10 }}
             >
               {t('Cancel')}
             </Button>
             <Button
-              color="secondary"
+              variant="primary"
               onClick={applyTemplate}
               disabled={templateValue === null}
             >
@@ -506,10 +507,10 @@ const Lessons: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenResetAnswers(false)}>
+          <Button variant="secondary" onClick={() => setOpenResetAnswers(false)}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={resetAnswers}>
+          <Button variant="primary" onClick={resetAnswers}>
             {t('Reset')}
           </Button>
         </DialogActions>
@@ -528,10 +529,10 @@ const Lessons: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenEmptyLessons(false)}>
+          <Button variant="secondary" onClick={() => setOpenEmptyLessons(false)}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={emptyLessons}>
+          <Button variant="primary" onClick={emptyLessons}>
             {t('Clear out')}
           </Button>
         </DialogActions>
@@ -585,10 +586,10 @@ const Lessons: FunctionComponent<Props> = ({
           </Alert>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenAnonymize(false)}>
+          <Button variant="secondary" onClick={() => setOpenAnonymize(false)}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={toggleAnonymize}>
+          <Button variant="primary" onClick={toggleAnonymize}>
             {t('Anonymize')}
           </Button>
         </DialogActions>

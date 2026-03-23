@@ -20,7 +20,6 @@ import CreateAttackPattern from './CreateAttackPattern';
 const useStyles = makeStyles()(() => ({
   itemHead: {
     paddingLeft: 10,
-    textTransform: 'uppercase',
     cursor: 'pointer',
   },
   item: {

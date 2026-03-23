@@ -134,6 +134,15 @@ public class EndpointService {
     return this.endpointRepository.findByHostnameAndAtleastOneIp(hostname, ips, tenantId);
   }
 
+  public List<Endpoint> findEndpointByHostnameAndAtLeastOneIp(
+      @NotBlank final String hostname, @NotNull final String[] ips) {
+    String tenantId = TenantContext.getCurrentTenant();
+    if (tenantId == null) {
+      return List.of();
+    }
+    return this.endpointRepository.findByHostnameAndAtleastOneIp(hostname, ips, tenantId);
+  }
+
   public List<Endpoint> findEndpointByHostnameAndAtLeastOneMacAddress(
       @NotBlank final String hostname, @NotNull final String[] macAddresses) {
     return this.endpointRepository.findByHostnameAndAtleastOneMacAddress(hostname, macAddresses);

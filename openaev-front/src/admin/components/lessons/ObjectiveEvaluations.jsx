@@ -1,8 +1,9 @@
 import { HowToVoteOutlined } from '@mui/icons-material';
-import { Box, Button, LinearProgress, List, ListItem, ListItemIcon, ListItemText, Slider, Typography } from '@mui/material';
+import { Box, LinearProgress, List, ListItem, ListItemIcon, ListItemText, Slider, Typography } from '@mui/material';
 import * as R from 'ramda';
 import { useContext, useState } from 'react';
 
+import Button from '../../../components/common/button/Button';
 import { useFormatter } from '../../../components/i18n';
 import Loader from '../../../components/Loader';
 import { useHelper } from '../../../store';
@@ -174,6 +175,7 @@ const ObjectiveEvaluations = ({ objectiveId, handleClose, isUpdatable }) => {
       }}
       >
         <Button
+          variant="secondary"
           onClick={handleClose}
           style={{ marginRight: isUpdatable ? 10 : 0 }}
           disabled={submitting}
@@ -182,7 +184,7 @@ const ObjectiveEvaluations = ({ objectiveId, handleClose, isUpdatable }) => {
         </Button>
         {isUpdatable && (
           <Button
-            color="secondary"
+            variant="primary"
             onClick={submitEvaluation}
             disabled={submitting}
           >
