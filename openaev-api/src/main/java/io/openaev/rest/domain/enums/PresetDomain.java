@@ -6,18 +6,78 @@ import java.time.Instant;
 import java.util.*;
 
 public class PresetDomain {
-  public static Domain ENDPOINT = new Domain(null, "Endpoint", "#389CFF", Instant.now(), null);
-  public static Domain NETWORK = new Domain(null, "Network", "#009933", Instant.now(), null);
-  public static Domain WEB_APP = new Domain(null, "Web App", "#FF9933", Instant.now(), null);
+  public static Domain ENDPOINT =
+      Domain.builder()
+          .id(null)
+          .name("Endpoint")
+          .color("#389CFF")
+          .creationDate(Instant.now())
+          .updateDate(null)
+          .build();
+  public static Domain NETWORK =
+      Domain.builder()
+          .id(null)
+          .name("Network")
+          .color("#009933")
+          .creationDate(Instant.now())
+          .updateDate(null)
+          .build();
+  public static Domain WEB_APP =
+      Domain.builder()
+          .id(null)
+          .name("Web App")
+          .color("#FF9933")
+          .creationDate(Instant.now())
+          .updateDate(null)
+          .build();
   public static Domain EMAIL_INFILTRATION =
-      new Domain(null, "E-mail Infiltration", "#FF6666", Instant.now(), null);
+      Domain.builder()
+          .id(null)
+          .name("E-mail Infiltration")
+          .color("#FF6666")
+          .creationDate(Instant.now())
+          .updateDate(null)
+          .build();
   public static Domain DATA_EXFILTRATION =
-      new Domain(null, "Data Exfiltration", "#9933CC", Instant.now(), null);
+      Domain.builder()
+          .id(null)
+          .name("Data Exfiltration")
+          .color("#9933CC")
+          .creationDate(Instant.now())
+          .updateDate(null)
+          .build();
   public static Domain URL_FILTERING =
-      new Domain(null, "URL Filtering", "#66CCFF", Instant.now(), null);
-  public static Domain CLOUD = new Domain(null, "Cloud", "#9999CC", Instant.now(), null);
-  public static Domain TABLETOP = new Domain(null, "Tabletop", "#FFCC33", Instant.now(), null);
-  public static Domain TOCLASSIFY = new Domain(null, "To classify", "#FFFFFF", Instant.now(), null);
+      Domain.builder()
+          .id(null)
+          .name("URL Filtering")
+          .color("#66CCFF")
+          .creationDate(Instant.now())
+          .updateDate(null)
+          .build();
+  public static Domain CLOUD =
+      Domain.builder()
+          .id(null)
+          .name("Cloud")
+          .color("#9999CC")
+          .creationDate(Instant.now())
+          .updateDate(null)
+          .build();
+  public static Domain TABLETOP =
+      Domain.builder()
+          .id(null)
+          .name("Tabletop")
+          .color("#FFCC33")
+          .creationDate(Instant.now())
+          .updateDate(null)
+          .build();
+  public static Domain TOCLASSIFY =
+      Domain.builder()
+          .id(null)
+          .name("To classify")
+          .color("#FFFFFF")
+          .creationDate(Instant.now())
+          .updateDate(null)
+          .build();
 
   private static final Map<Domain, List<String>> domainKeywordsMap =
       Map.of(
@@ -30,15 +90,21 @@ public class PresetDomain {
 
   public static List<Domain> getDomainsForTenant(Tenant tenant) {
     List<Domain> domains = new ArrayList<>();
-    domains.add(new Domain(ENDPOINT.getName(), ENDPOINT.getColor(), tenant));
-    domains.add(new Domain(NETWORK.getName(), NETWORK.getColor(), tenant));
-    domains.add(new Domain(WEB_APP.getName(), WEB_APP.getColor(), tenant));
-    domains.add(new Domain(EMAIL_INFILTRATION.getName(), EMAIL_INFILTRATION.getColor(), tenant));
-    domains.add(new Domain(DATA_EXFILTRATION.getName(), DATA_EXFILTRATION.getColor(), tenant));
-    domains.add(new Domain(URL_FILTERING.getName(), URL_FILTERING.getColor(), tenant));
-    domains.add(new Domain(CLOUD.getName(), CLOUD.getColor(), tenant));
-    domains.add(new Domain(TABLETOP.getName(), TABLETOP.getColor(), tenant));
-    domains.add(new Domain(TOCLASSIFY.getName(), TOCLASSIFY.getColor(), tenant));
+    List<Domain> listToInsert =
+        List.of(
+            ENDPOINT,
+            NETWORK,
+            WEB_APP,
+            EMAIL_INFILTRATION,
+            DATA_EXFILTRATION,
+            URL_FILTERING,
+            CLOUD,
+            TABLETOP,
+            TOCLASSIFY);
+    for (Domain domain : listToInsert) {
+      domains.add(
+          Domain.builder().name(domain.getName()).color(domain.getColor()).tenant(tenant).build());
+    }
     return domains;
   }
 

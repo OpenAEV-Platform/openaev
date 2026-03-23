@@ -20,6 +20,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Entity
 @Table(name = "domains")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Builder
 @Getter
 @Setter
 @NoArgsConstructor
@@ -76,20 +77,6 @@ public class Domain implements TenantBase {
     }
 
     return this.getName().equals(((Domain) obj).getName());
-  }
-
-  public Domain(String name, String color, Tenant tenant) {
-    this.name = name;
-    this.color = color;
-    this.tenant = tenant;
-  }
-
-  public Domain(String id, String name, String color, Instant creationDate, Instant updateDate) {
-    this.id = id;
-    this.name = name;
-    this.color = color;
-    this.creationDate = creationDate;
-    this.updateDate = updateDate;
   }
 
   public Domain(Domain domain) {

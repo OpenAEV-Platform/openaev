@@ -108,7 +108,14 @@ public class TaniumExecutorServiceTest {
             "whoami",
             List.of(),
             "whoami",
-            Set.of(new Domain(null, "To classify", "#000000", Instant.now(), null)));
+            Set.of(
+                Domain.builder()
+                    .id(null)
+                    .name("To classify")
+                    .color("#000000")
+                    .creationDate(Instant.now())
+                    .updateDate(null)
+                    .build()));
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Map<String, String> executorCommands = new HashMap<>();
     executorCommands.put(
