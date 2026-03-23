@@ -44,8 +44,6 @@ class InjectExpectationServiceTest {
 
   static final Long EXPIRATION_TIME_SIX_HOURS = 21600L;
 
-  @Mock private InjectExpectationRepository mockedInjectExpectationRepository;
-  @InjectMocks private InjectExpectationService testInjectExpectationService;
   @Mock private InjectExpectationRepository injectExpectationRepository;
   @Spy @InjectMocks private InjectExpectationService injectExpectationService;
   @Spy private ObjectMapper mapper = new ObjectMapper();
