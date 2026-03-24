@@ -182,9 +182,7 @@ const Index = () => {
             mcpServers: {
               openaev: {
                 url: `${window.location.origin}/api/mcp`,
-                headers: {
-                  Authorization: `Bearer ${userToken?.token_value ?? '<your-token>'}`,
-                },
+                headers: { Authorization: `Bearer ${userToken?.token_value ?? '<your-token>'}` },
               },
             },
           }, null, 2)}
@@ -198,9 +196,7 @@ const Index = () => {
               mcpServers: {
                 openaev: {
                   url: `${window.location.origin}/api/mcp`,
-                  headers: {
-                    Authorization: `Bearer ${userToken?.token_value ?? '<your-token>'}`,
-                  },
+                  headers: { Authorization: `Bearer ${userToken?.token_value ?? '<your-token>'}` },
                 },
               },
             }, null, 2);
