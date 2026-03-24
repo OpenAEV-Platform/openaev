@@ -11,11 +11,10 @@ public class TenantContext implements EvaluationContextExtension {
   private static final ThreadLocal<String> CURRENT_TENANT = new ThreadLocal<>();
 
   public static String getCurrentTenant() {
-    return Tenant.DEFAULT_TENANT_UUID;
-    // return CURRENT_TENANT.get();
+    String tenant = CURRENT_TENANT.get();
+    return tenant != null ? tenant : Tenant.DEFAULT_TENANT_UUID;
   }
 
-  // TODO multi-tenancy: set with Front URL instead of default UUID and update the return above
   public static void setCurrentTenant(String tenant) {
     CURRENT_TENANT.set(tenant);
   }
