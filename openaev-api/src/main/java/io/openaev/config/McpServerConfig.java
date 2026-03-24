@@ -19,10 +19,9 @@ import org.springframework.web.context.request.RequestContextListener;
  * io.openaev.security.TokenAuthenticationFilter} which Spring Boot auto-registers for all URL
  * patterns.
  *
- * <p>The MCP server always starts, but tool execution checks the
- * {@code platform_mcp_enabled} DB setting at runtime (see {@link McpToolProvider}).
+ * <p>The MCP server always starts, but tool execution checks the {@code platform_mcp_enabled} DB
+ * setting at runtime (see {@link McpToolProvider}).
  */
-// TODO: Consider adding rate limiting to prevent excessive MCP tool calls
 @Configuration
 public class McpServerConfig {
 
@@ -39,9 +38,7 @@ public class McpServerConfig {
 
   @Bean
   public HttpServletStreamableServerTransportProvider mcpTransportProvider() {
-    return HttpServletStreamableServerTransportProvider.builder()
-        .mcpEndpoint("/api/mcp")
-        .build();
+    return HttpServletStreamableServerTransportProvider.builder().mcpEndpoint("/api/mcp").build();
   }
 
   @Bean
@@ -57,8 +54,7 @@ public class McpServerConfig {
   public McpSyncServer mcpServer(
       HttpServletStreamableServerTransportProvider transportProvider,
       McpToolProvider toolProvider) {
-    String version =
-        openAEVConfig.getVersion() != null ? openAEVConfig.getVersion() : "unknown";
+    String version = openAEVConfig.getVersion() != null ? openAEVConfig.getVersion() : "unknown";
     return McpServer.sync(transportProvider)
         .serverInfo("openaev", version)
         .capabilities(ServerCapabilities.builder().tools(true).build())
