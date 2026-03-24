@@ -56,4 +56,5 @@ public class SimpleRawInjectExpectation implements RawInjectExpectation {
   public Set<String> security_platform_ids;
   private String inject_title;
   private Instant tracking_sent_date;
+  private String tenant_id;
 }

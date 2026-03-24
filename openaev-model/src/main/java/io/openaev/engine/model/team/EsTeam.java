@@ -1,5 +1,6 @@
 package io.openaev.engine.model.team;
 
+import io.openaev.annotation.EsQueryable;
 import io.openaev.annotation.Indexable;
 import io.openaev.annotation.Queryable;
 import io.openaev.engine.model.EsBase;
@@ -14,4 +15,10 @@ public class EsTeam extends EsBase {
   /* Except relationships, they should have same name on every model! */
   @Queryable(label = "team name")
   private String name;
+
+  // --SIDE --
+
+  @Queryable(label = "tenant", filterable = true, dynamicValues = true)
+  @EsQueryable(keyword = true)
+  private String base_tenant_side;
 }

@@ -34,6 +34,7 @@ public class AttackPatternHandler implements Handler<EsAttackPattern> {
                       + attackPattern.getAttack_pattern_name());
               esAttackPattern.setBase_created_at(attackPattern.getAttack_pattern_created_at());
               esAttackPattern.setBase_updated_at(attackPattern.getAttack_pattern_updated_at());
+              esAttackPattern.setBase_tenant_side(attackPattern.getTenant_id());
               // Specific
               esAttackPattern.setStixId(attackPattern.getAttack_pattern_stix_id());
               esAttackPattern.setName(attackPattern.getAttack_pattern_name());

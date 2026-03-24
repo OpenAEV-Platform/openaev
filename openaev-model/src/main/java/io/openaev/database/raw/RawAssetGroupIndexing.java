@@ -11,4 +11,6 @@ public interface RawAssetGroupIndexing {
   Instant getAsset_group_updated_at();
 
   Instant getAsset_group_created_at();
+
+  String getTenant_id();
 }

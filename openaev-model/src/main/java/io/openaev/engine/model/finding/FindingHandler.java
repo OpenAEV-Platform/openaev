@@ -36,6 +36,7 @@ public class FindingHandler implements Handler<EsFinding> {
               esFinding.setBase_created_at(finding.getFinding_created_at());
               esFinding.setBase_updated_at(finding.getFinding_updated_at());
               esFinding.setBase_restrictions(buildRestrictions(finding.getScenario_id()));
+              esFinding.setBase_tenant_side(finding.getTenant_id());
               // Specific
               esFinding.setFinding_type(finding.getFinding_type());
               esFinding.setFinding_field(finding.getFinding_field());

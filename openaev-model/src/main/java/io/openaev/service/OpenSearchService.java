@@ -8,6 +8,7 @@ import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.EngineConfig;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.CustomDashboardParameters;
 import io.openaev.database.model.Filters;
 import io.openaev.database.model.IndexingStatus;
@@ -341,6 +342,10 @@ public class OpenSearchService implements EngineService {
     }
     Query dataQuery = dataQueryBuilder.should(shouldList).minimumShouldMatch("1").build().toQuery();
     mainMust.add(dataQuery);
+
+    Query currentTenantQuery = TermQuery.of(t -> t.field("base_tenant_side.keyword").value(v -> v.stringValue(TenantContext.getCurrentTenant()))).toQuery();
+    mainQuery.filter(currentTenantQuery);
+
     return mainQuery.must(mainMust).build().toQuery();
   }
 

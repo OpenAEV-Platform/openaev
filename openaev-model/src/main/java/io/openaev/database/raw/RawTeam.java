@@ -113,4 +113,11 @@ public interface RawTeam {
    * @return set of communication IDs
    */
   Set<String> getTeam_communications();
+
+  /**
+   * Returns the tenant ID to which this team belongs.
+   *
+   * @return the tenant ID
+   */
+  String getTenant_id();
 }

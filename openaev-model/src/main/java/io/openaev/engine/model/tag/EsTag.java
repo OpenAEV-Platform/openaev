@@ -17,4 +17,10 @@ public class EsTag extends EsBase {
   @Queryable(label = "tag color", filterable = true)
   @EsQueryable(keyword = true)
   private String tag_color;
+
+  // --SIDE --
+
+  @Queryable(label = "tenant", filterable = true, dynamicValues = true)
+  @EsQueryable(keyword = true)
+  private String base_tenant_side;
 }

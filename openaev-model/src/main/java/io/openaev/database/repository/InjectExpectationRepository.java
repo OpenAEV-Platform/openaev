@@ -234,6 +234,7 @@ public interface InjectExpectationRepository
       ie.agent_id,
       ie.asset_id,
       ie.asset_group_id,
+      i.tenant_id,
       i.inject_title as inject_title,
       MAX(ins.tracking_sent_date) AS tracking_sent_date,
       array_agg(DISTINCT ap.attack_pattern_id) FILTER ( WHERE ap.attack_pattern_id IS NOT NULL ) AS attack_pattern_ids,

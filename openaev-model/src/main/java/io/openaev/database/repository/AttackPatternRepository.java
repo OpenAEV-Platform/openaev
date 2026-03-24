@@ -42,7 +42,7 @@ public interface AttackPatternRepository
       value =
           "SELECT ap.attack_pattern_id, ap.attack_pattern_stix_id, ap.attack_pattern_name,"
               + " ap.attack_pattern_description, ap.attack_pattern_external_id, ap.attack_pattern_platforms, "
-              + " ap.attack_pattern_created_at, ap.attack_pattern_updated_at, ap.attack_pattern_parent, apkcp.phase_id AS attack_pattern_kill_chain_phases "
+              + " ap.attack_pattern_created_at, ap.attack_pattern_updated_at, ap.attack_pattern_parent, ap.tenant_id, apkcp.phase_id AS attack_pattern_kill_chain_phases "
               + "FROM attack_patterns ap "
               + "LEFT JOIN attack_patterns_kill_chain_phases apkcp ON apkcp.attack_pattern_id = ap.attack_pattern_id "
               + "WHERE ap.attack_pattern_updated_at > :from ORDER BY ap.attack_pattern_updated_at LIMIT "

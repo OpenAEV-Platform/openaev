@@ -33,6 +33,7 @@ public class TagHandler implements Handler<EsTag> {
               esTag.setBase_representative(tag.getTag_name());
               esTag.setBase_created_at(tag.getTag_created_at());
               esTag.setBase_updated_at(tag.getTag_updated_at());
+              esTag.setBase_tenant_side(tag.getTenant_id());
               // not sure what to put here, if anything
               esTag.setBase_restrictions(buildRestrictions(tag.getTag_id()));
 

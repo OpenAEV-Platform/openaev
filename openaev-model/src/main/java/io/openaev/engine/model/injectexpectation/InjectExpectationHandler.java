@@ -42,6 +42,7 @@ public class InjectExpectationHandler implements Handler<EsInjectExpectation> {
               esInjectExpectation.setBase_restrictions(
                   buildRestrictions(
                       injectExpectation.getExercise_id(), injectExpectation.getInject_id()));
+              esInjectExpectation.setBase_tenant_side(injectExpectation.getTenant_id());
               // Specific
               esInjectExpectation.setInject_expectation_name(
                   injectExpectation.getInject_expectation_name());

@@ -87,4 +87,8 @@ public class EsVulnerableEndpoint extends EsBase {
   @Queryable(label = "tags", filterable = true, dynamicValues = true)
   @EsQueryable(keyword = true)
   private Set<String> base_tags_side; // Must finish by _side
+
+  @Queryable(label = "tenant", filterable = true, dynamicValues = true)
+  @EsQueryable(keyword = true)
+  private String base_tenant_side;
 }

@@ -217,4 +217,11 @@ public interface RawSimulation {
    * @return list of inject IDs
    */
   List<String> getInject_ids();
+
+  /**
+   * Returns the tenant ID to which this simulation belongs.
+   *
+   * @return the tenant ID
+   */
+  String getTenant_id();
 }

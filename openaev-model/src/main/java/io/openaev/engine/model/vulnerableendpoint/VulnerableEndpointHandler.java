@@ -40,6 +40,7 @@ public class VulnerableEndpointHandler implements Handler<EsVulnerableEndpoint> 
                   endpoint.getVulnerable_endpoint_hostname());
               esVulnerableEndpoint.setBase_created_at(endpoint.getVulnerable_endpoint_created_at());
               esVulnerableEndpoint.setBase_updated_at(endpoint.getVulnerable_endpoint_updated_at());
+              esVulnerableEndpoint.setBase_tenant_side(endpoint.getTenant_id());
               // not sure what to put here, if anything
               esVulnerableEndpoint.setBase_restrictions(
                   buildRestrictions(endpoint.getVulnerable_endpoint_id()));

@@ -1,5 +1,6 @@
 package io.openaev.engine.model.attackpattern;
 
+import io.openaev.annotation.EsQueryable;
 import io.openaev.annotation.Indexable;
 import io.openaev.annotation.Queryable;
 import io.openaev.engine.model.EsBase;
@@ -37,4 +38,8 @@ public class EsAttackPattern extends EsBase {
 
   @Queryable(label = "kill chain phases")
   private Set<String> base_kill_chain_phases_side; // Must finish by _side
+
+  @Queryable(label = "tenant", filterable = true, dynamicValues = true)
+  @EsQueryable(keyword = true)
+  private String base_tenant_side;
 }

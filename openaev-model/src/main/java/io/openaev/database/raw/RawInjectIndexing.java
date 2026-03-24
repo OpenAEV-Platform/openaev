@@ -44,4 +44,6 @@ public interface RawInjectIndexing {
   String getInject_scenario();
 
   String getInject_Exercise();
+
+  String getTenant_id();
 }
