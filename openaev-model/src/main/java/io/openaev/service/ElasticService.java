@@ -287,7 +287,7 @@ public class ElasticService implements EngineService {
 
     Query currentTenantQuery =
         TermQuery.of(t -> t.field("base_tenant_side.keyword").value(TenantContext.getCurrentTenant()))._toQuery();
-    mainMust.add(currentTenantQuery);
+    mainQuery.filter(currentTenantQuery);
     return mainQuery.must(mainMust).build()._toQuery();
   }
 

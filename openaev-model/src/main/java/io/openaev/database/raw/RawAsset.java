@@ -90,5 +90,5 @@ public interface RawAsset {
    *
    * @return the tenant ID
    */
-  String getAsset_tenant_id();
+  String getTenant_id();
 }
