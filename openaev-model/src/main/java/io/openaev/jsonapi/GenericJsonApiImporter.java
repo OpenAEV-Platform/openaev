@@ -89,7 +89,6 @@ public class GenericJsonApiImporter<T extends Base> {
     // Validate constraint
     entityManager.flush();
 
-
     Map<String, String> swappedIds =
         entityCache.entrySet().stream()
             .collect(
