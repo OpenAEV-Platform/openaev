@@ -2,6 +2,7 @@ package io.openaev.service.tenants;
 
 import static io.openaev.config.SessionHelper.currentUser;
 
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.multitenancy.DependenciesManager;
 import lombok.RequiredArgsConstructor;
@@ -16,8 +17,8 @@ public class UserTenantDependencyManager implements DependenciesManager {
   private final TenantRepository tenantRepository;
 
   @Override
-  public void createDependencyForTenant(String tenantId) {
-    tenantRepository.addUserToTenant(currentUser().getId(), tenantId);
+  public void createDependencyForTenant(Tenant tenant) {
+    tenantRepository.addUserToTenant(currentUser().getId(), tenant.getId());
   }
 
   @Override
