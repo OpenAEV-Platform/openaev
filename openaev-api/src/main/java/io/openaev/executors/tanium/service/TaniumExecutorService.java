@@ -61,7 +61,6 @@ public class TaniumExecutorService implements Runnable {
     this.assetGroupService = assetGroupService;
   }
 
-  // TODO multi-tenancy: Multi executors dev
   @Override
   public void run() {
     log.info("Running Tanium executor endpoints gathering...");

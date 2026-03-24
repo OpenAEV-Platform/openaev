@@ -53,7 +53,6 @@ public class SentinelOneExecutorService implements Runnable {
     this.assetGroupService = assetGroupService;
   }
 
-  // TODO multi-tenancy: Multi executors dev
   @Override
   public void run() {
     log.info("Running SentinelOne executor endpoints gathering...");

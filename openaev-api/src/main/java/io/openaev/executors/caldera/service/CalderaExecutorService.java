@@ -74,7 +74,6 @@ public class CalderaExecutorService implements Runnable {
     this.executor = executor;
   }
 
-  // TODO multi-tenancy: Multi executors dev
   @Override
   public void run() {
     try {

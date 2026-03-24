@@ -66,27 +66,26 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
     // Sometimes, assets from agents aren't fetched even with the EAGER property from Hibernate
     csAgents.forEach(agent -> agent.setAsset((Asset) Hibernate.unproxy(agent.getAsset())));
 
-    Injector injector =
-        inject
-            .getInjectorContract()
-            // TODO move away from using the first injector - will be done later in the multi
-            // connector epic
-            .map(InjectorContract::getFirstInjector)
-            .orElseThrow(
-                () -> new UnsupportedOperationException("Inject does not have a contract"));
-
     csAgents = executorService.manageWithoutPlatformAgents(csAgents, injectStatus);
     List<CrowdStrikeAction> actions = new ArrayList<>();
     // Set implant script for Windows CS agents
     actions.addAll(
         getWindowsActions(
-            getAgentsFromOS(csAgents, Endpoint.PLATFORM_TYPE.Windows), injector, inject));
+            getAgentsFromOS(csAgents, Endpoint.PLATFORM_TYPE.Windows),
+            inject.getInjector(),
+            inject));
     // Set implant script for Linux CS agents
     actions.addAll(
-        getLinuxActions(getAgentsFromOS(csAgents, Endpoint.PLATFORM_TYPE.Linux), injector, inject));
+        getLinuxActions(
+            getAgentsFromOS(csAgents, Endpoint.PLATFORM_TYPE.Linux),
+            inject.getInjector(),
+            inject));
     // Set implant script for MacOS CS agents
     actions.addAll(
-        getMacOSActions(getAgentsFromOS(csAgents, Endpoint.PLATFORM_TYPE.MacOS), injector, inject));
+        getMacOSActions(
+            getAgentsFromOS(csAgents, Endpoint.PLATFORM_TYPE.MacOS),
+            inject.getInjector(),
+            inject));
     // Launch payloads with CS API
     executeActions(actions);
     return csAgents;

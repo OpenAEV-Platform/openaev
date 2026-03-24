@@ -69,27 +69,18 @@ public class CalderaExecutorContextService extends ExecutorContextService {
     if (!this.calderaExecutorConfig.isEnable()) {
       throw new AgentException("Fatal error: Caldera executor is not enabled", agent);
     }
-
-    inject
-        .getInjectorContract()
-        // TODO move away from using the first injector - will be done later in the multi connector
-        // epic
-        .map(InjectorContract::getFirstInjector)
-        .ifPresent(
-            injector -> {
-              if (this.injectorExecutorAbilities.containsKey(injector.getId())) {
-                List<Map<String, String>> additionalFields =
-                    List.of(
-                        Map.of("trait", "inject", "value", inject.getId()),
-                        Map.of("trait", "agent", "value", agent.getId()),
-                        Map.of("trait", "tenant", "value", inject.getTenant().getId()));
-                calderaExecutorClient.exploit(
-                    "base64",
-                    agent.getExternalReference(),
-                    this.injectorExecutorAbilities.get(injector.getId()).getAbility_id(),
-                    additionalFields);
-              }
-            });
+    if (this.injectorExecutorAbilities.containsKey(inject.getInjector().getId())) {
+      List<Map<String, String>> additionalFields =
+          List.of(
+              Map.of("trait", "inject", "value", inject.getId()),
+              Map.of("trait", "agent", "value", agent.getId()),
+              Map.of("trait", "tenant", "value", inject.getTenant().getId()));
+      calderaExecutorClient.exploit(
+          "base64",
+          agent.getExternalReference(),
+          this.injectorExecutorAbilities.get(inject.getInjector().getId()).getAbility_id(),
+          additionalFields);
+    }
   }
 
   public List<Agent> launchBatchExecutorSubprocess(
