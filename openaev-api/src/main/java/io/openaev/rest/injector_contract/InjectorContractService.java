@@ -319,17 +319,17 @@ public class InjectorContractService implements DependenciesManager {
     }
     target.setTenant(injector.getTenant());
 
-    applyBuiltinContractData(target, source, isPayloads);
+    applyBuiltinContractData(target, source, isPayloads, injector);
     return target;
   }
 
   public void updateBuiltInInjectorContract(
-      InjectorContract target, Contract source, boolean isPayloads) {
-    applyBuiltinContractData(target, source, isPayloads);
+      InjectorContract target, Contract source, boolean isPayloads, Injector injector) {
+    applyBuiltinContractData(target, source, isPayloads, injector);
   }
 
   private void applyBuiltinContractData(
-      InjectorContract target, Contract source, boolean isPayloads) {
+      InjectorContract target, Contract source, boolean isPayloads, Injector injector) {
     target.setManual(source.isManual());
     target.setAtomicTesting(source.isAtomicTesting());
     target.setPlatforms(source.getPlatforms().toArray(new Endpoint.PLATFORM_TYPE[0]));
@@ -342,18 +342,11 @@ public class InjectorContractService implements DependenciesManager {
 
     // Update attack patterns if not overridden
     if (target.getAttackPatterns().isEmpty() && !source.getAttackPatternsExternalIds().isEmpty()) {
-      // All injectors linked to a contract share the same tenant, so any injector is safe
-      // for tenant resolution
-      Injector anyInjector = target.getFirstInjector();
-      if (anyInjector != null) {
-        List<AttackPattern> attackPatterns =
-            fromIterable(
-                attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
-                    source.getAttackPatternsExternalIds(), anyInjector.getTenant().getId()));
-        target.setAttackPatterns(attackPatterns);
-      } else {
-        target.setAttackPatterns(new ArrayList<>());
-      }
+      List<AttackPattern> attackPatterns =
+          fromIterable(
+              attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
+                  source.getAttackPatternsExternalIds(), injector.getTenant().getId()));
+      target.setAttackPatterns(attackPatterns);
     } else {
       target.setAttackPatterns(new ArrayList<>());
     }
@@ -365,16 +358,15 @@ public class InjectorContractService implements DependenciesManager {
           "Failed to serialize contract content for: " + target.getId(), e);
     }
 
-    if (!isPayloads) {
+    if (!isPayloads && injector != null) {
       Set<Domain> currentDomains =
           this.domainService.upsertDomainEntities(
-              target.getDomains(), target.getInjector().getTenant().getId());
+              target.getDomains(), injector.getTenant().getId());
       Set<Domain> domainsToAdd =
           this.domainService.upsertDomainEntities(
-              source.getDomains(), target.getInjector().getTenant().getId());
+              source.getDomains(), injector.getTenant().getId());
       target.setDomains(
-          this.domainService.mergeDomains(
-              currentDomains, domainsToAdd, target.getInjector().getTenant()));
+          this.domainService.mergeDomains(currentDomains, domainsToAdd, injector.getTenant()));
     }
     setupImportAvailable(target);
   }

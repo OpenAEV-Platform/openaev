@@ -557,7 +557,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
       if (matchingContract.isPresent()) {
         this.injectorContractService.updateBuiltInInjectorContract(
-            contractDB, matchingContract.get(), isPayloads);
+            contractDB, matchingContract.get(), isPayloads, injector);
         existingIds.add(contractDB.getId());
         toUpdate.add(contractDB);
       } else if (shouldDeleteContract(contractDB, injector)) {

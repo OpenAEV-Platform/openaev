@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_78__Shared_injector_contracts_join_table extends BaseJavaMigration {
+public class V4_79__Shared_injector_contracts_join_table extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
