@@ -144,20 +144,22 @@ public class AssetGroupService {
 
   private List<AssetGroup> computeDynamicAssets(@NotNull final List<AssetGroup> assetGroups) {
     if (assetGroups.stream()
-        .noneMatch(assetGroup -> isEmptyFilterGroup(assetGroup.getDynamicFilter()))) {
+        .allMatch(assetGroup -> isEmptyFilterGroup(assetGroup.getDynamicFilter()))) {
       return assetGroups;
     }
 
     assetGroups.forEach(
         assetGroup -> {
-          Filters.FilterGroup filterGroup = assetGroup.getDynamicFilter();
-          Specification<Endpoint> specification = computeFilterGroupJpa(filterGroup);
-          List<Asset> assets =
-              this.endpointService.endpoints(specification).stream()
-                  .map(Asset.class::cast)
-                  .distinct()
-                  .toList();
-          assetGroup.setDynamicAssets(assets);
+          if (!isEmptyFilterGroup(assetGroup.getDynamicFilter())) {
+            Specification<Endpoint> specification =
+                computeFilterGroupJpa(assetGroup.getDynamicFilter());
+            List<Asset> assets =
+                this.endpointService.endpoints(specification).stream()
+                    .map(Asset.class::cast)
+                    .distinct()
+                    .toList();
+            assetGroup.setDynamicAssets(assets);
+          }
         });
     return assetGroups;
   }
