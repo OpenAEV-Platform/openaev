@@ -197,7 +197,7 @@ class PayloadApiImporterTest extends IntegrationTest {
 
   @Test
   @DisplayName(
-      "Import payload with output parser, contract output element and regex group — regression for TransientPropertyValueException on cascade chain")
+      "Import payload with output parser, contract output element and regex group")
   void importPayloadWithOutputParserSucceeds() throws Exception {
     // -- PREPARE --
     String parserId = UUID.randomUUID().toString();
@@ -323,7 +323,7 @@ class PayloadApiImporterTest extends IntegrationTest {
 
   @Test
   @DisplayName(
-      "Import payload with multiple contract output elements and regex groups — validates larger cascade graphs")
+      "Import payload with multiple contract output elements and regex groups")
   void importPayloadWithMultipleContractOutputElementsSucceeds() throws Exception {
     // -- PREPARE --
     // Tests 1 output parser, 2 contract output elements, 3 regex groups total.
