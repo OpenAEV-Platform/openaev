@@ -4,8 +4,8 @@ import { makeStyles } from 'tss-react/mui';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemCopy from '../../../../../components/ItemCopy';
 import ItemTags from '../../../../../components/ItemTags';
-import ContractOutputElementType from '../../../findings/ContractOutputElementType';
 import { type OutputParserSimple } from '../../../../../utils/api-types';
+import ContractOutputElementType from '../../../findings/ContractOutputElementType';
 
 const useStyles = makeStyles()(theme => ({
   paperContainer: {
