@@ -15,7 +15,7 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import { useHelper } from '../../../../store';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { AbilityContext, Can } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import RestrictionAccess from '../../../../utils/permissions/RestrictionAccess';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import ChannelIcon from '../../components/channels/ChannelIcon';
@@ -36,7 +36,6 @@ const useStyles = makeStyles()(() => ({
   autoCompleteIndicator: { display: 'none' },
   itemHead: {
     paddingLeft: 10,
-    textTransform: 'uppercase',
     cursor: 'pointer',
   },
   item: {
@@ -402,7 +401,7 @@ const ArticleForm = ({
               >
                 {t('Cancel')}
               </Button>
-              <Button color="secondary" type="submit" disabled={submitting}>
+              <Button color="primary" type="submit" disabled={submitting}>
                 {editing ? t('Update') : t('Create')}
               </Button>
             </div>

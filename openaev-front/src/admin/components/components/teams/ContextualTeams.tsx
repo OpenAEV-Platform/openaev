@@ -6,7 +6,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import ItemTags from '../../../../components/ItemTags';
 import { type Team } from '../../../../utils/api-types';
-import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import useSearchAndFilter from '../../../../utils/SortingFiltering';
 import { PermissionsContext, TeamContext } from '../../common/Context';
@@ -16,7 +16,6 @@ import TeamPopover from './TeamPopover';
 const useStyles = makeStyles()(() => ({
   itemHead: {
     paddingLeft: 10,
-    textTransform: 'uppercase',
     cursor: 'pointer',
   },
   item: {

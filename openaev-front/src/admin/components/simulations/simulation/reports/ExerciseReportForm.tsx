@@ -1,9 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, Checkbox, FormControlLabel, TextField, Typography } from '@mui/material';
+import { Checkbox, FormControlLabel, TextField, Typography } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
+import Button from '../../../../../components/common/button/Button';
 import { useFormatter } from '../../../../../components/i18n';
 import { type Report, type ReportInformationInput, type ReportInput } from '../../../../../utils/api-types';
 import { zodImplement } from '../../../../../utils/Zod';
@@ -167,6 +168,7 @@ const ExerciseReportForm: FunctionComponent<Props> = ({
       }}
       >
         <Button
+          variant="secondary"
           style={{ marginLeft: 'auto' }}
           onClick={handleCancel}
           disabled={isSubmitting}
@@ -174,7 +176,7 @@ const ExerciseReportForm: FunctionComponent<Props> = ({
           {t('Cancel')}
         </Button>
         <Button
-          color="secondary"
+          variant="primary"
           type="submit"
           disabled={isSubmitting}
         >

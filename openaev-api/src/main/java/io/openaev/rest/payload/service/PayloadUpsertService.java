@@ -12,11 +12,11 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
+import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.rest.tag.TagService;
 import jakarta.transaction.Transactional;
-import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -86,11 +86,15 @@ public class PayloadUpsertService {
 
     payload.setDomains(
         input.getDomains() != null
-            ? domainService.upserts(input.getDomains())
+            ? domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant())
             : new HashSet<>(
                 Set.of(
                     domainService.upsert(
-                        new Domain(null, "To classify", "#FFFFFF", Instant.now(), null)))));
+                        Domain.builder()
+                            .name(PresetDomain.getToClassify().getName())
+                            .color(PresetDomain.getToClassify().getColor())
+                            .tenant(new Tenant(TenantContext.getCurrentTenant()))
+                            .build()))));
     payload.setAttackPatterns(attackPatterns);
     payload.setTags(this.tagService.tagSet((input.getTagIds())));
 
@@ -121,9 +125,13 @@ public class PayloadUpsertService {
     }
 
     final Set<Domain> existingDomains =
-        this.domainService.upsertDomainEntities(payload.getDomains());
-    final Set<Domain> domainsToAdd = this.domainService.upserts(input.getDomains());
-    payload.setDomains(this.domainService.mergeDomains(existingDomains, domainsToAdd));
+        this.domainService.upsertDomainEntities(
+            payload.getDomains(), TenantContext.getCurrentTenant());
+    final Set<Domain> domainsToAdd =
+        this.domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant());
+    payload.setDomains(
+        this.domainService.mergeDomains(
+            existingDomains, domainsToAdd, new Tenant(TenantContext.getCurrentTenant())));
     payload.setAttackPatterns(attackPatterns);
     payload.setTags(this.tagService.tagSet((input.getTagIds())));
 

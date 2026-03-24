@@ -1,7 +1,7 @@
 package io.openaev.service.stix;
 
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,6 +24,7 @@ import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -486,6 +487,70 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
           assertThat(actualSros.size()).isEqualTo(0);
         }
       }
+
+      @Test
+      @DisplayName("Multiple bundles are created should have the same SRO ID")
+      public void whenMultipleBundlesAreCreatedShouldHaveTheSameSROID()
+          throws ParsingException, JsonProcessingException {
+        AttackPatternComposer.Composer ap1 =
+            attackPatternComposer.forAttackPattern(
+                AttackPatternFixture.createAttackPatternsWithExternalId("T1234"));
+        AttackPatternComposer.Composer ap2 =
+            attackPatternComposer.forAttackPattern(
+                AttackPatternFixture.createAttackPatternsWithExternalId("T5678"));
+        // some security platforms
+        SecurityPlatformComposer.Composer securityPlatformWrapper =
+            securityPlatformComposer
+                .forSecurityPlatform(
+                    SecurityPlatformFixture.createDefault(
+                        "Bad EDR", SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name()))
+                .persist();
+        // another nameless platform not involved in simulation
+        securityPlatformComposer
+            .forSecurityPlatform(
+                SecurityPlatformFixture.createDefault(
+                    "New SIEM", SecurityPlatform.SECURITY_PLATFORM_TYPE.SIEM.name()))
+            .persist();
+        // create exercise cover all TTPs
+        ExerciseComposer.Composer exerciseWrapper =
+            createExerciseWrapperWithInjectsForDomainObjects(
+                Map.of(ap1, true, ap2, true), Map.of());
+        exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
+
+        // set SUCCESS results for all inject expectations
+        setupSuccessfulExpectations(securityPlatformWrapper);
+        persistScenario(exerciseWrapper);
+
+        Optional<SecurityCoverageSendJob> job =
+            securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationIfReady(
+                exerciseWrapper.get());
+
+        // intermediate assert
+        assertThat(job).isNotEmpty();
+
+        // act
+        Bundle bundle1 =
+            securityCoverageService.createBundleFromSendJobs(List.of(job.orElseThrow()));
+        Bundle bundle2 =
+            securityCoverageService.createBundleFromSendJobs(List.of(job.orElseThrow()));
+
+        // assert
+        assertThat(bundle1).isNotNull();
+        assertThat(bundle2).isNotNull();
+
+        List<String> sroIds1 =
+            bundle1.getRelationshipObjects().stream()
+                .filter(sro -> sro.hasProperty("id"))
+                .map(sro -> sro.getProperty("id").getValue().toString())
+                .toList();
+        List<String> sroIds2 =
+            bundle2.getRelationshipObjects().stream()
+                .filter(sro -> sro.hasProperty("id"))
+                .map(sro -> sro.getProperty("id").getValue().toString())
+                .toList();
+
+        assertThat(sroIds1).containsExactlyInAnyOrderElementsOf(sroIds2);
+      }
     }
   }
 
@@ -494,6 +559,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
       "When all attack patterns are covered and half of expectations are successful, bundle is correct")
   public void whenAllAttackPatternsAreCoveredAndHalfOfAllExpectationsAreSuccessful_bundleIsCorrect()
       throws ParsingException, JsonProcessingException {
+    Instant simulationStartTime = Instant.parse("2024-09-23T14:09:43Z");
+    Instant nextSimulationStartTime = Instant.parse("2024-09-24T14:09:43Z");
     AttackPatternComposer.Composer ap1 =
         attackPatternComposer.forAttackPattern(
             AttackPatternFixture.createAttackPatternsWithExternalId("T1234"));
@@ -515,6 +582,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     // create exercise cover all TTPs
     ExerciseComposer.Composer exerciseWrapper =
         createExerciseWrapperWithInjectsForDomainObjects(Map.of(ap1, true, ap2, true), Map.of());
+    exerciseWrapper.get().setStart(simulationStartTime);
     exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
 
     // expectation results
@@ -564,10 +632,12 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
               exp.setScore(0.0);
             });
 
-    scenarioComposer
-        .forScenario(ScenarioFixture.createDefaultCrisisScenario())
-        .withSimulation(exerciseWrapper)
-        .persist();
+    ScenarioComposer.Composer scenarioWrapper =
+        scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario());
+    scenarioWrapper.get().setRecurrence("P1D");
+    scenarioWrapper.get().setRecurrenceStart(simulationStartTime);
+    scenarioWrapper.get().setRecurrenceEnd(simulationStartTime.plus(30, ChronoUnit.DAYS));
+    scenarioWrapper.withSimulation(exerciseWrapper).persist();
 
     entityManager.flush();
     entityManager.refresh(exerciseWrapper.get());
@@ -588,7 +658,12 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     List<SecurityPlatform> generatedSecurityPlatforms = securityPlatformComposer.generatedItems;
 
     DomainObject expectedAssessmentWithCoverage =
-        getExpectedMainSecurityCoverage(generatedCoverage, generatedInjects);
+        addPropertiesToDomainObject(
+            getExpectedMainSecurityCoverage(generatedCoverage, generatedInjects),
+            Map.of(
+                ExtendedProperties.VALID_FROM.toString(), new Timestamp(simulationStartTime),
+                ExtendedProperties.LAST_RESULT.toString(), new Timestamp(simulationStartTime),
+                ExtendedProperties.VALID_TO.toString(), new Timestamp(nextSimulationStartTime)));
     List<DomainObject> expectedPlatformIdentities =
         generatedSecurityPlatforms.stream().map(SecurityPlatform::toStixDomainObject).toList();
 
@@ -625,6 +700,10 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                   expectedAssessmentWithCoverage.getId(),
                   RelationshipObject.Properties.TARGET_REF.toString(),
                   platformSdo.getId(),
+                  RelationshipObject.Properties.START_TIME.toString(),
+                  new Timestamp(simulationStartTime),
+                  RelationshipObject.Properties.STOP_TIME.toString(),
+                  new Timestamp(nextSimulationStartTime),
                   ExtendedProperties.COVERED.toString(),
                   new io.openaev.stix.types.Boolean(true),
                   ExtendedProperties.COVERAGE.toString(),
@@ -673,6 +752,10 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                   expectedAssessmentWithCoverage.getId(),
                   RelationshipObject.Properties.TARGET_REF.toString(),
                   new Identifier(stixRef.getStixRef()),
+                  RelationshipObject.Properties.START_TIME.toString(),
+                  new Timestamp(simulationStartTime),
+                  RelationshipObject.Properties.STOP_TIME.toString(),
+                  new Timestamp(nextSimulationStartTime),
                   ExtendedProperties.COVERED.toString(),
                   new io.openaev.stix.types.Boolean(true),
                   ExtendedProperties.COVERAGE.toString(),

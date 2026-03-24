@@ -16,7 +16,7 @@ import {
   type InjectAssistantInput,
 } from '../../../../../utils/api-types';
 import useEnterpriseEdition from '../../../../../utils/hooks/useEnterpriseEdition';
-import { AbilityContext, Can } from '../../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext, Can } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import AssetGroupPopover from '../../../assets/asset_groups/AssetGroupPopover';
 import AssetGroupsList from '../../../assets/asset_groups/AssetGroupsList';
@@ -261,7 +261,7 @@ const ScenarioAssistantDrawer = ({ open, onClose, onSubmit }: Props) => {
             <TextFieldController type="number" label={t('Number of injects by TTP')} name="inject_by_ttp_number" required />
             <Button
               variant="contained"
-              color="secondary"
+              color="primary"
               type="submit"
               style={{ marginLeft: 'auto' }}
               disabled={isSubmitting || !isDirty}

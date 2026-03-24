@@ -9,7 +9,7 @@ import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { type Channel, type ChannelUpdateInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import ChannelForm from './ChannelForm';
 

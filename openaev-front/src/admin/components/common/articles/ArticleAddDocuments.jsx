@@ -1,7 +1,6 @@
 import { ControlPointOutlined, DescriptionOutlined } from '@mui/icons-material';
 import {
   Box,
-  Button,
   Chip,
   Dialog,
   DialogActions,
@@ -18,6 +17,7 @@ import { useContext, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchDocuments } from '../../../../actions/Document';
+import Button from '../../../../components/common/button/Button';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
@@ -259,9 +259,9 @@ const ArticleAddDocuments = (props) => {
             </GridLegacy>
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleClose}>{t('Cancel')}</Button>
+            <Button variant="secondary" onClick={handleClose}>{t('Cancel')}</Button>
             <Button
-              color="secondary"
+              variant="primary"
               onClick={submitAddDocuments}
             >
               {t('Add')}

@@ -114,7 +114,7 @@ const GroupManageUsers: FunctionComponent<Props> = ({
             {t('Cancel')}
           </Button>
           {!isLoading && (
-            <Button variant="contained" color="secondary" onClick={handleSubmit}>
+            <Button variant="contained" color="primary" onClick={handleSubmit}>
               {t('Update')}
             </Button>
           )}

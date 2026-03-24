@@ -1,10 +1,10 @@
 import {
-  DashboardOutlined,
   DescriptionOutlined,
   DevicesOtherOutlined,
   DnsOutlined,
   Groups3Outlined,
   GroupsOutlined,
+  Home,
   HubOutlined,
   InsertChartOutlined,
   MovieFilterOutlined,
@@ -30,7 +30,7 @@ import { useContext } from 'react';
 
 import LeftMenu from '../../../components/common/menu/leftmenu/LeftMenu';
 import { type LeftMenuEntries } from '../../../components/common/menu/leftmenu/leftmenu-model';
-import { AbilityContext } from '../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { GETTING_STARTED_URI } from '../getting_started/GettingStartedRoutes';
 import platformEntries from './config/platform.config';
@@ -44,7 +44,7 @@ const LeftBar = () => {
       items: [
         {
           path: `/admin`,
-          icon: () => (<DashboardOutlined />),
+          icon: () => (<Home />),
           label: 'Home',
           userRight: true,
         },

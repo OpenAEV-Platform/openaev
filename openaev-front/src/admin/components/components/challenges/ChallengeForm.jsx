@@ -19,7 +19,7 @@ import ItemTags from '../../../../components/ItemTags';
 import TagField from '../../../../components/TagField';
 import { useHelper } from '../../../../store';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import DocumentPopover from '../documents/DocumentPopover';
 import DocumentType from '../documents/DocumentType';
@@ -27,7 +27,6 @@ import DocumentType from '../documents/DocumentType';
 const useStyles = makeStyles()(() => ({
   itemHead: {
     paddingLeft: 10,
-    textTransform: 'uppercase',
     cursor: 'pointer',
   },
   item: {
@@ -413,7 +412,7 @@ const ChallengeForm = (props) => {
             </Button>
             <Button
               variant="contained"
-              color="secondary"
+              color="primary"
               type="submit"
               disabled={submitting || Object.keys(errors).length > 0}
             >

@@ -13,8 +13,10 @@ import org.springframework.stereotype.Component;
 public class TenantBaseListener<T extends TenantBase> {
 
   @PrePersist
-  private void manageTenant(T tenant) {
-    tenant.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+  private void manageTenant(T entity) {
+    if (entity.getTenant() == null) {
+      entity.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    }
   }
 
   @PreUpdate

@@ -6,7 +6,6 @@ import {
 } from '@mui/icons-material';
 import {
   Alert,
-  Button,
   Dialog,
   DialogContent,
   DialogTitle,
@@ -31,6 +30,7 @@ import { fetchSimulationPlayerDocuments } from '../../../actions/Document';
 import ChallengeCard from '../../../admin/components/common/challenges/ChallengeCard';
 import { FAILED } from '../../../admin/components/common/injects/expectations/ExpectationUtils';
 import DocumentType from '../../../admin/components/components/documents/DocumentType';
+import Button from '../../../components/common/button/Button';
 import Transition from '../../../components/common/Transition';
 import Empty from '../../../components/Empty';
 import ExpandableMarkdown from '../../../components/ExpandableMarkdown';
@@ -58,7 +58,6 @@ const useStyles = makeStyles()(() => ({
   },
   itemHead: {
     paddingLeft: 10,
-    textTransform: 'uppercase',
     cursor: 'pointer',
   },
   item: {
@@ -233,7 +232,7 @@ const ChallengesPlayer = () => {
       <div className={classes.root}>
         {permissions.isLoggedIn && permissions.canAccess && (
           <Button
-            color="secondary"
+            color="primary"
             variant="outlined"
             component={Link}
             to={`/admin/simulations/${exerciseId}/challenges`}
@@ -493,6 +492,7 @@ const ChallengesPlayer = () => {
                     }}
                     >
                       <Button
+                        variant="secondary"
                         onClick={handleClose}
                         style={{ marginRight: 10 }}
                         disabled={submitting}
@@ -500,7 +500,7 @@ const ChallengesPlayer = () => {
                         {t('Cancel')}
                       </Button>
                       <Button
-                        color="secondary"
+                        variant="primary"
                         type="submit"
                         disabled={
                           submitting || Object.keys(errors).length > 0

@@ -2,8 +2,11 @@ package io.openaev.rest.inject.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.database.model.*;
-import io.openaev.database.repository.*;
+import io.openaev.database.model.Agent;
+import io.openaev.database.model.ExecutionStatus;
+import io.openaev.database.model.Inject;
+import io.openaev.database.repository.AgentRepository;
+import io.openaev.database.repository.InjectRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
@@ -127,12 +130,14 @@ public class BatchingInjectStatusService {
                                             "Agent not found: " + callback.getAgentId())))
                     .orElse(null);
 
-            // Extract the output parsers
-            Set<OutputParser> outputParsers = structuredOutputUtils.extractOutputParsers(inject);
-
             // Process the execution trace
-            injectExecutionService.processInjectExecution(
-                inject, agent, callback.getInjectExecutionInput(), outputParsers);
+            if (agent == null) {
+              injectExecutionService.processInjectExecutionWithInjector(
+                  inject, callback.getInjectExecutionInput());
+            } else {
+              injectExecutionService.processInjectExecutionWithAgent(
+                  inject, agent, callback.getInjectExecutionInput());
+            }
             successfullyProcessedCallbacks.add(callback);
           } catch (ElementNotFoundException e) {
             injectExecutionService.handleInjectExecutionError(inject, e);

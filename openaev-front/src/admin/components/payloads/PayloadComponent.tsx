@@ -313,11 +313,7 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
                 <TableContainer component={Paper}>
                   <Table sx={{ minWidth: 650 }}>
                     <TableHead>
-                      <TableRow sx={{
-                        textTransform: 'uppercase',
-                        fontWeight: 'bold',
-                      }}
-                      >
+                      <TableRow sx={{ fontWeight: 'bold' }}>
                         <TableCell width="30%">{t('Type')}</TableCell>
                         <TableCell width="30%">{t('Key')}</TableCell>
                         <TableCell width="30%">{t('Default value')}</TableCell>
@@ -366,11 +362,7 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
                   }}
                   >
                     <TableHead>
-                      <TableRow sx={{
-                        textTransform: 'uppercase',
-                        fontWeight: 'bold',
-                      }}
-                      >
+                      <TableRow sx={{ fontWeight: 'bold' }}>
                         <TableCell width="30%">{t('Command executor')}</TableCell>
                         <TableCell width="30%">{t('Get command')}</TableCell>
                         <TableCell width="30%">{t('Check command')}</TableCell>

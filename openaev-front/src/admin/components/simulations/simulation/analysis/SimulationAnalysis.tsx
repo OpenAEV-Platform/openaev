@@ -15,7 +15,7 @@ import {
   type WidgetToEntitiesInput,
 } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
-import { AbilityContext, Can } from '../../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext, Can } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import type { ParameterOption } from '../../../workspaces/custom_dashboards/CustomDashboardContext';
 import CustomDashboardWrapper from '../../../workspaces/custom_dashboards/CustomDashboardWrapper';

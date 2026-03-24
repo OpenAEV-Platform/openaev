@@ -1,5 +1,5 @@
 import { CancelOutlined, PauseOutlined, PlayArrowOutlined, RestartAltOutlined } from '@mui/icons-material';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, Tooltip, Typography } from '@mui/material';
+import { Button as MuiButton, Dialog, DialogActions, DialogContent, DialogContentText, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -7,6 +7,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import { updateExerciseStatus } from '../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
+import Button from '../../../../components/common/button/Button';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
@@ -48,7 +49,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
       case 'SCHEDULED': {
         if (permissions.canLaunch) {
           return (
-            <Button
+            <MuiButton
               style={{
                 marginRight: 10,
                 lineHeight: 'initial',
@@ -60,7 +61,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
               onClick={() => setOpenChangeStatus('RUNNING')}
             >
               {t('Start now')}
-            </Button>
+            </MuiButton>
           );
         }
         return (<div />);
@@ -68,7 +69,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
       case 'RUNNING': {
         if (permissions.canLaunch) {
           return (
-            <Button
+            <MuiButton
               style={{ marginRight: 10 }}
               startIcon={<PauseOutlined />}
               variant="outlined"
@@ -77,7 +78,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
               onClick={() => setOpenChangeStatus('PAUSED')}
             >
               {t('Pause')}
-            </Button>
+            </MuiButton>
           );
         }
         return (<div />);
@@ -85,7 +86,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
       case 'PAUSED': {
         if (permissions.canLaunch) {
           return (
-            <Button
+            <MuiButton
               style={{ marginRight: 10 }}
               variant="outlined"
               startIcon={<PlayArrowOutlined />}
@@ -93,7 +94,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
               onClick={() => setOpenChangeStatus('RUNNING')}
             >
               {t('Resume')}
-            </Button>
+            </MuiButton>
           );
         }
         return <div />;
@@ -109,7 +110,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
       case 'PAUSED': {
         if (permissions.canLaunch) {
           return (
-            <Button
+            <MuiButton
               style={{ marginRight: 10 }}
               variant="outlined"
               startIcon={<CancelOutlined />}
@@ -117,7 +118,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
               onClick={() => setOpenChangeStatus('CANCELED')}
             >
               {t('Stop')}
-            </Button>
+            </MuiButton>
           );
         }
         return <div />;
@@ -126,7 +127,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
       case 'CANCELED': {
         if (permissions.canLaunch) {
           return (
-            <Button
+            <MuiButton
               style={{ marginRight: 10 }}
               variant="outlined"
               startIcon={<RestartAltOutlined />}
@@ -134,7 +135,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
               onClick={() => setOpenChangeStatus('SCHEDULED')}
             >
               {t('Reset')}
-            </Button>
+            </MuiButton>
           );
         }
         return <div />;
@@ -174,11 +175,11 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenChangeStatus(null)}>
+          <Button variant="secondary" onClick={() => setOpenChangeStatus(null)}>
             {t('Cancel')}
           </Button>
           <Button
-            color="secondary"
+            variant="primary"
             onClick={() => submitUpdateStatus({ exercise_status: openChangeStatus })}
           >
             {t('Confirm')}

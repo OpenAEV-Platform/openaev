@@ -174,7 +174,7 @@ const ImportUploaderInjectFromInjectsTest: FunctionComponent<Props> = ({
           {t('Cancel')}
         </Button>
         <Button
-          color="secondary"
+          color="primary"
           type="submit"
           disabled={!isDirty || isSubmitting}
         >

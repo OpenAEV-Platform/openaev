@@ -108,6 +108,8 @@ public class ExerciseService {
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
   private final ExerciseTeamUserRepository exerciseTeamUserRepository;
+  private final InjectRepository injectRepository;
+  private final LessonsCategoryRepository lessonsCategoryRepository;
   private final LessonsService lessonsService;
 
   private final InjectExpectationMapper injectExpectationMapper;
@@ -807,8 +809,8 @@ public class ExerciseService {
       @NotBlank final String exerciseId, @NotNull final List<String> teamIds) {
     // Remove teams from exercise
     this.exerciseRepository.removeTeams(exerciseId, teamIds);
-    // Remove all association between users / exercises / teams
-    this.exerciseTeamUserRepository.deleteTeamsFromAllReferences(teamIds);
+    // Remove only associations for this exercise
+    this.exerciseTeamUserRepository.deleteByExerciseIdAndTeamIds(exerciseId, teamIds);
     // Remove all association between injects and teams
     this.injectService.removeTeamsForSimulation(exerciseId, teamIds);
     // Remove all association between lessons learned and teams
@@ -816,17 +818,30 @@ public class ExerciseService {
     return teamService.find(fromIds(teamIds));
   }
 
+  @Transactional(rollbackFor = Exception.class)
   public List<TeamOutput> replaceTeams(
       @NotBlank final String exerciseId, @NotNull final List<String> teamIds) {
     Exercise exercise = this.exercise(exerciseId);
-    List<String> previousTeamIds = exercise.getTeams().stream().map(Team::getId).toList();
+    Set<String> previousTeamIds =
+        exercise.getTeams().stream().map(Team::getId).collect(Collectors.toSet());
+    Set<String> targetTeamIds = new LinkedHashSet<>(teamIds);
+
+    Set<String> removedTeamIds = new HashSet<>(previousTeamIds);
+    removedTeamIds.removeAll(targetTeamIds);
+    if (!removedTeamIds.isEmpty()) {
+      List<String> removedTeamIdsList = new ArrayList<>(removedTeamIds);
+      this.exerciseTeamUserRepository.deleteByExerciseIdAndTeamIds(exerciseId, removedTeamIdsList);
+      this.injectRepository.removeTeamsForExercise(exerciseId, removedTeamIdsList);
+      this.lessonsCategoryRepository.removeTeamsForExercise(exerciseId, removedTeamIdsList);
+    }
 
     // Replace teams from exercise
-    List<Team> teams = fromIterable(this.teamRepository.findAllById(teamIds));
+    List<Team> teams = fromIterable(this.teamRepository.findAllById(targetTeamIds));
     exercise.setTeams(teams);
+    this.exerciseRepository.save(exercise);
 
     List<String> teamIdsAdded =
-        teamIds.stream().filter(id -> !previousTeamIds.contains(id)).toList();
+        targetTeamIds.stream().filter(id -> !previousTeamIds.contains(id)).toList();
 
     List<Team> teamsAdded = fromIterable(this.teamRepository.findAllById(teamIdsAdded));
 
@@ -847,12 +862,18 @@ public class ExerciseService {
 
   public Exercise enablePlayers(
       @NotBlank final String exerciseId,
-      @NotBlank final Team team,
+      @NotNull final Team team,
       @NotNull final List<String> playerIds) {
     Exercise exercise =
         exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
     playerIds.forEach(
         playerId -> {
+          boolean alreadyLinked =
+              this.exerciseTeamUserRepository.existsByExerciseIdAndTeamIdAndUserId(
+                  exerciseId, team.getId(), playerId);
+          if (alreadyLinked) {
+            return;
+          }
           ExerciseTeamUser exerciseTeamUser = new ExerciseTeamUser();
           exerciseTeamUser.setExercise(exercise);
           exerciseTeamUser.setTeam(team);

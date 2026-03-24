@@ -61,11 +61,11 @@ const useStyles = makeStyles()(() => ({
     marginRight: 7,
     borderRadius: 4,
     width: 180,
-    backgroundColor: 'rgba(0, 177, 255, 0.08)',
+    backgroundColor: 'rgba(0, 177, 255, 0.2)',
     color: '#00b1ff',
     border: '1px solid #00b1ff',
   },
-  itemHead: { textTransform: 'uppercase' },
+  itemHead: {},
   item: { height: 50 },
   bodyItems: { display: 'flex' },
   bodyItem: {

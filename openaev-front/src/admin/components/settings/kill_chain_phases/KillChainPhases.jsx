@@ -10,7 +10,7 @@ import SortHeadersComponent from '../../../../components/common/pagination/SortH
 import { initSorting } from '../../../../components/common/queryable/Page';
 import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
 import { useFormatter } from '../../../../components/i18n';
-import { Can } from '../../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import TaxonomiesMenu from '../TaxonomiesMenu';
 import CreateKillChainPhase from './CreateKillChainPhase';
@@ -19,7 +19,6 @@ import KillChainPhasePopover from './KillChainPhasePopover';
 const useStyles = makeStyles()(() => ({
   itemHead: {
     paddingLeft: 10,
-    textTransform: 'uppercase',
     cursor: 'pointer',
   },
   item: {
@@ -30,7 +29,6 @@ const useStyles = makeStyles()(() => ({
     fontSize: 12,
     height: 20,
     float: 'left',
-    textTransform: 'uppercase',
     borderRadius: 4,
     width: 120,
   },

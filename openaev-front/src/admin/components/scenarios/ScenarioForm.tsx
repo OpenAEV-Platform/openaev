@@ -1,10 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Autocomplete, Button, Checkbox, Chip, FormControlLabel, MenuItem, TextField as MuiTextField } from '@mui/material';
+import { Autocomplete, Checkbox, Chip, FormControlLabel, MenuItem, TextField as MuiTextField } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
+import Button from '../../../components/common/button/Button';
 import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
 import useTabs from '../../../components/common/tabs/useTabs';
 import SelectField from '../../../components/fields/SelectField';
@@ -317,15 +318,14 @@ const ScenarioForm: FunctionComponent<Props> = ({
         }}
         >
           <Button
-            variant="contained"
+            variant="secondary"
             onClick={handleClose}
             disabled={isSubmitting}
           >
             {t('Cancel')}
           </Button>
           <Button
-            variant="contained"
-            color="secondary"
+            variant="primary"
             type="submit"
             disabled={!isDirty || isSubmitting}
           >
