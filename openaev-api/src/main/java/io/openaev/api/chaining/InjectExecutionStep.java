@@ -69,6 +69,7 @@ public class InjectExecutionStep implements ActionStep {
   private final InjectStatusService injectStatusService;
   private final InjectUtils injectUtils;
   private final InjectorRepository injectorRepository;
+  private final InjectorService injectorService;
   @PersistenceContext private EntityManager em;
 
   /**
@@ -464,17 +465,17 @@ public class InjectExecutionStep implements ActionStep {
 
       if (inject.getInjector() == null) {
         String injectorId = injectorNode.asText();
-        Injector injector =
-            injectorRepository
-                .findById(injectorId)
-                .orElseThrow(
-                    () ->
-                        new ChainingException(
-                            "Injector not found for injectorId "
-                                + injectorId
-                                + " and step (READY) ID "
-                                + step.getId()));
-
+        Injector injector;
+        try {
+          injector = injectorService.injector(injectorId);
+        } catch (ElementNotFoundException e) {
+          log.error(e.getMessage(), e);
+          throw new ChainingException(
+              "Injector not found for injectorId "
+                  + injectorId
+                  + " and step (READY) ID "
+                  + step.getId());
+        }
         inject.setInjector(injector);
       }
 

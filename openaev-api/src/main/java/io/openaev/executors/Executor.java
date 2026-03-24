@@ -99,8 +99,7 @@ public class Executor {
       // Fallback for legacy injects that may not have the field populated
       injector =
           injectorRepository
-              .findByTypeAndTenantId(
-                  injectorContract.getFirstInjector().getType(), inject.getTenant().getId())
+              .findByTypeAndTenantId(inject.getType(), inject.getTenant().getId())
               .orElseThrow(
                   () ->
                       new IllegalStateException(

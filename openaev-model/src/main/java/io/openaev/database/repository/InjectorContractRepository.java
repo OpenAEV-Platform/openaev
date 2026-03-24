@@ -99,9 +99,7 @@ public interface InjectorContractRepository
       @Param("id") String id, @Param("externalId") String externalId);
 
   @NotNull
-  @Query("SELECT ic FROM InjectorContract ic JOIN ic.injectors i WHERE i = :injector")
-  List<InjectorContract> findInjectorContractsByInjector(
-      @NotNull @Param("injector") Injector injector);
+  List<InjectorContract> findByInjectorsContaining(@NotNull Injector injector);
 
   @NotNull
   @Query(

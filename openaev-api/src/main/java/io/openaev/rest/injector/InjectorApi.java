@@ -94,8 +94,7 @@ public class InjectorApi extends RestBehavior {
   public Collection<JsonNode> injectorInjectTypes(@PathVariable String injectorId) {
     Injector injector =
         injectorRepository.findById(injectorId).orElseThrow(ElementNotFoundException::new);
-    return fromIterable(injectorContractRepository.findInjectorContractsByInjector(injector))
-        .stream()
+    return fromIterable(injectorContractRepository.findByInjectorsContaining(injector)).stream()
         .map(
             contract -> {
               try {

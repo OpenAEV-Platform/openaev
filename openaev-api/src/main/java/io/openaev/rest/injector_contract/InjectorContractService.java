@@ -36,6 +36,7 @@ import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
+import io.openaev.service.InjectorService;
 import io.openaev.service.UserService;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -57,6 +58,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -107,6 +109,8 @@ public class InjectorContractService implements DependenciesManager {
   /** Configuration flag for enabling SMS import from XLS files. */
   @Value("${openaev.xls.import.sms.enable}")
   private boolean smsImportEnabled;
+
+  @Autowired private InjectorService injectorService;
 
   // -- CRUD --
 
@@ -283,11 +287,7 @@ public class InjectorContractService implements DependenciesManager {
         input.getVulnerabilityExternalIds(), input.getVulnerabilityIds(), injectorContract);
 
     // Resolve the injector specified in the input
-    Injector injector =
-        injectorRepository
-            .findById(input.getInjectorId())
-            .orElseThrow(
-                () -> new ElementNotFoundException("Injector not found: " + input.getInjectorId()));
+    Injector injector = injectorService.injector(input.getInjectorId());
 
     // Link the contract to the specified injector only.
     // Custom contracts are user-defined for a specific instance —

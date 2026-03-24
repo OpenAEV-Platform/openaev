@@ -296,7 +296,7 @@ public class InjectorApiTest extends IntegrationTest {
           .containsEntry("linux", "bash -c '#{command}'");
 
       List<InjectorContract> contracts =
-          injectorContractRepository.findInjectorContractsByInjector(persisted.get());
+          injectorContractRepository.findByInjectorsContaining(persisted.get());
       assertThat(contracts).hasSize(1);
       assertThat(contracts.getFirst().getId()).isEqualTo(contractId);
     }

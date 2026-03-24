@@ -477,7 +477,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
             dummyInjector -> {
               if (newInjector != null) {
                 List<InjectorContract> injectorContracts =
-                    injectorContractRepository.findInjectorContractsByInjector(dummyInjector);
+                    injectorContractRepository.findByInjectorsContaining(dummyInjector);
                 injectorContracts.forEach(
                     injectorContract -> {
                       injectorContract.getInjectors().remove(dummyInjector);
