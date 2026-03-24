@@ -35,4 +35,3 @@ public class TenantInterceptor implements HandlerInterceptor {
     TenantContext.clearCurrentTenant();
   }
 }
-

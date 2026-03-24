@@ -53,8 +53,7 @@ class TenantInterceptorTest {
     assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
 
     // -- ACT -- path variables present but no tenantId key
-    request.setAttribute(
-        HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE, Map.of("otherId", "xyz"));
+    request.setAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE, Map.of("otherId", "xyz"));
     boolean resultNoTenantKey = interceptor.preHandle(request, response, new Object());
 
     // -- ASSERT --
