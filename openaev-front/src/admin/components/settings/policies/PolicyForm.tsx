@@ -5,7 +5,7 @@ import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import MarkDownFieldController from '../../../../components/fields/MarkDownFieldController';
 import { useFormatter } from '../../../../components/i18n';
 import { type PolicyInput } from '../../../../utils/api-types';
-import { AbilityContext, Can } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 
 interface Props {

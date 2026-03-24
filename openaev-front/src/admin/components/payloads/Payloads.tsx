@@ -23,7 +23,7 @@ import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import PayloadIcon from '../../../components/PayloadIcon';
 import PlatformIcon from '../../../components/PlatformIcon';
 import { type Document, type Domain, type Payload, type SearchPaginationInput } from '../../../utils/api-types';
-import { Can } from '../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { arrayToRecord } from '../../../utils/utils';
 import CreatePayload from './CreatePayload';

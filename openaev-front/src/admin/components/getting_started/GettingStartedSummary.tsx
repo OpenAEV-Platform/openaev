@@ -2,6 +2,7 @@ import { Box, Link, List, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../components/i18n';
+import { XTM_HUB_DEFAULT_URL } from '../../../utils/Environment';
 import VideoPlayer from './VideoPlayer';
 
 const GettingStartedSummary = () => {
@@ -39,7 +40,7 @@ const GettingStartedSummary = () => {
               <li>{t('getting_started_description_first_task_text')}</li>
               <li>{t('getting_started_description_scenario_text')}</li>
               <li>{t('getting_started_description_end_text')}</li>
-              <li>{t('getting_started_description_test_scenarios_text', { xtmHubLink: <Link href="https://hub.filigran.io/cybersecurity-solutions/open-bas-scenarios">{t('XTM Hub Library')}</Link> })}</li>
+              <li>{t('getting_started_description_test_scenarios_text', { xtmHubLink: <Link href={`${XTM_HUB_DEFAULT_URL}/cybersecurity-solutions/open-bas-scenarios`}>{t('XTM Hub Library')}</Link> })}</li>
             </List>
             {t('getting_started_description_conclusion_text')}
           </Box>

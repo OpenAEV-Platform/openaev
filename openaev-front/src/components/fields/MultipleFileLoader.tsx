@@ -7,7 +7,7 @@ import { fetchDocuments } from '../../actions/Document';
 import { type RawDocument } from '../../utils/api-types';
 import { useAppDispatch } from '../../utils/hooks';
 import useDataLoader from '../../utils/hooks/useDataLoader';
-import { Can } from '../../utils/permissions/PermissionsProvider';
+import { Can } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
 import { useFormatter } from '../i18n';
 import FileTransferDialog from './FileTransferDialog';

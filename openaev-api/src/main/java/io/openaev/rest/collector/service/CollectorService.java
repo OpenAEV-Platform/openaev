@@ -152,6 +152,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     newState
         .fieldNames()
         .forEachRemaining(fieldName -> state.set(fieldName, newState.get(fieldName)));
+    collectorToUpdate.setState(state);
     return collectorRepository.save(collectorToUpdate);
   }
 

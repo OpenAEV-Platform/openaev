@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { useFormatter } from '../../../../components/i18n';
 import { type CustomDashboard } from '../../../../utils/api-types';
-import { Can } from '../../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { truncate } from '../../../../utils/String';
 import { CustomDashboardContext } from './CustomDashboardContext';

@@ -8,7 +8,7 @@ import { withStyles } from 'tss-react/mui';
 import { storeHelper } from '../actions/Schema';
 import { addTag } from '../actions/Tag';
 import TagForm from '../admin/components/settings/tags/TagForm';
-import { Can } from '../utils/permissions/PermissionsProvider';
+import { Can } from '../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../utils/permissions/types';
 import Autocomplete from './Autocomplete';
 import inject18n from './i18n';
