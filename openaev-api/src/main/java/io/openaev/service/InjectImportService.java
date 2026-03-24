@@ -765,7 +765,7 @@ public class InjectImportService {
     // No dependencies
     inject.setDependsOn(null);
 
-    if (expectation.get() != null) {
+    if (expectation.get() != null && isExpectationValid(expectation.get())) {
       // We set the expectation
       ArrayNode expectationsNode = mapper.createArrayNode();
       ObjectNode expectationNode = mapper.createObjectNode();
@@ -931,83 +931,90 @@ public class InjectImportService {
         }
         break;
       case "expectation":
-        // If the rule type is of an expectation,
-        if (expectation.get() == null) {
-          expectation.set(new InjectExpectation());
-          expectation.get().setType(InjectExpectation.EXPECTATION_TYPE.MANUAL);
-        }
-        if (ruleAttribute.getName().contains("_")) {
-          if ("score".equals(ruleAttribute.getName().split("_")[1])) {
-            if (ruleAttribute.getColumns() != null) {
-              List<String> columns =
-                  Arrays.stream(ruleAttribute.getColumns().split("\\+"))
-                      .filter(column -> column != null && !column.isBlank())
-                      .toList();
-              if (!columns.isEmpty()
-                  && columns.stream()
-                      .allMatch(
-                          column ->
-                              row.getCell(CellReference.convertColStringToIndex(column))
-                                      .getCellType()
-                                  == CellType.NUMERIC)) {
-                Double columnValueExpectation =
-                    columns.stream()
-                        .map(column -> InjectImportUtils.getValueAsDouble(row, column))
-                        .reduce(0.0, Double::sum);
-                expectation.get().setExpectedScore(columnValueExpectation);
-              } else {
-                try {
-                  expectation
-                      .get()
-                      .setExpectedScore(Double.parseDouble(ruleAttribute.getDefaultValue()));
-                } catch (NumberFormatException exception) {
-                  List<ImportMessage> importMessages = new ArrayList<>();
-                  importMessages.add(
-                      new ImportMessage(
-                          ImportMessage.MessageLevel.WARN,
-                          ImportMessage.ErrorCode.EXPECTATION_SCORE_UNDEFINED,
-                          Map.of(
-                              "column_type_num",
-                              String.join(", ", columns),
-                              "row_num",
-                              String.valueOf(row.getRowNum()))));
-                  return importMessages;
+        // Only create/populate the expectation if there is actual data (mapped column or non-blank
+        // default value). Creating an empty expectation causes a 24h stuck simulation — see
+        // OpenAEV-Platform/openaev#4891.
+        if (ruleAttribute.getColumns() != null
+            || (ruleAttribute.getDefaultValue() != null
+                && !ruleAttribute.getDefaultValue().isBlank())) {
+          // If the rule type is of an expectation,
+          if (expectation.get() == null) {
+            expectation.set(new InjectExpectation());
+            expectation.get().setType(InjectExpectation.EXPECTATION_TYPE.MANUAL);
+          }
+          if (ruleAttribute.getName().contains("_")) {
+            if ("score".equals(ruleAttribute.getName().split("_")[1])) {
+              if (ruleAttribute.getColumns() != null) {
+                List<String> columns =
+                    Arrays.stream(ruleAttribute.getColumns().split("\\+"))
+                        .filter(column -> column != null && !column.isBlank())
+                        .toList();
+                if (!columns.isEmpty()
+                    && columns.stream()
+                        .allMatch(
+                            column ->
+                                row.getCell(CellReference.convertColStringToIndex(column))
+                                        .getCellType()
+                                    == CellType.NUMERIC)) {
+                  Double columnValueExpectation =
+                      columns.stream()
+                          .map(column -> InjectImportUtils.getValueAsDouble(row, column))
+                          .reduce(0.0, Double::sum);
+                  expectation.get().setExpectedScore(columnValueExpectation);
+                } else {
+                  try {
+                    expectation
+                        .get()
+                        .setExpectedScore(Double.parseDouble(ruleAttribute.getDefaultValue()));
+                  } catch (NumberFormatException exception) {
+                    List<ImportMessage> importMessages = new ArrayList<>();
+                    importMessages.add(
+                        new ImportMessage(
+                            ImportMessage.MessageLevel.WARN,
+                            ImportMessage.ErrorCode.EXPECTATION_SCORE_UNDEFINED,
+                            Map.of(
+                                "column_type_num",
+                                String.join(", ", columns),
+                                "row_num",
+                                String.valueOf(row.getRowNum()))));
+                    return importMessages;
+                  }
                 }
+              } else {
+                expectation
+                    .get()
+                    .setExpectedScore(Double.parseDouble(ruleAttribute.getDefaultValue()));
               }
-            } else {
-              expectation
-                  .get()
-                  .setExpectedScore(Double.parseDouble(ruleAttribute.getDefaultValue()));
-            }
-          } else if ("name".equals(ruleAttribute.getName().split("_")[1])) {
-            if (ruleAttribute.getColumns() != null) {
-              String columnValueExpectation =
-                  Arrays.stream(ruleAttribute.getColumns().split("\\+"))
-                      .map(column -> InjectImportUtils.getValueAsString(row, column))
-                      .collect(Collectors.joining());
-              expectation
-                  .get()
-                  .setName(
-                      columnValueExpectation.isBlank()
-                          ? ruleAttribute.getDefaultValue()
-                          : columnValueExpectation);
-            } else {
-              expectation.get().setName(ruleAttribute.getDefaultValue());
-            }
-          } else if ("description".equals(ruleAttribute.getName().split("_")[1])) {
-            if (ruleAttribute.getColumns() != null) {
-              String columnValueExpectation =
-                  Arrays.stream(ruleAttribute.getColumns().split("\\+"))
-                      .map(column -> InjectImportUtils.getValueAsString(row, column))
-                      .collect(Collectors.joining());
-              expectation
-                  .get()
-                  .setDescription(
-                      columnValueExpectation.isBlank()
-                          ? ruleAttribute.getDefaultValue()
-                          : columnValueExpectation);
-            } else {
-              expectation.get().setDescription(ruleAttribute.getDefaultValue());
+            } else if ("name".equals(ruleAttribute.getName().split("_")[1])) {
+              if (ruleAttribute.getColumns() != null) {
+                String columnValueExpectation =
+                    Arrays.stream(ruleAttribute.getColumns().split("\\+"))
+                        .map(column -> InjectImportUtils.getValueAsString(row, column))
+                        .collect(Collectors.joining());
+                expectation
+                    .get()
+                    .setName(
+                        columnValueExpectation.isBlank()
+                            ? ruleAttribute.getDefaultValue()
+                            : columnValueExpectation);
+              } else {
+                expectation.get().setName(ruleAttribute.getDefaultValue());
+              }
+            } else if ("description".equals(ruleAttribute.getName().split("_")[1])) {
+              if (ruleAttribute.getColumns() != null) {
+                String columnValueExpectation =
+                    Arrays.stream(ruleAttribute.getColumns().split("\\+"))
+                        .map(column -> InjectImportUtils.getValueAsString(row, column))
+                        .collect(Collectors.joining());
+                expectation
+                    .get()
+                    .setDescription(
+                        columnValueExpectation.isBlank()
+                            ? ruleAttribute.getDefaultValue()
+                            : columnValueExpectation);
+              } else {
+                expectation.get().setDescription(ruleAttribute.getDefaultValue());
+              }
             }
           }
         }
@@ -1017,6 +1024,22 @@ public class InjectImportService {
         throw new UnsupportedOperationException();
     }
     return emptyList();
+  }
+
+  /**
+   * Validates that an expectation has meaningful data. An expectation without at least a name,
+   * description, or positive score is considered empty/invalid and should not be persisted — see
+   * OpenAEV-Platform/openaev#4891.
+   */
+  private boolean isExpectationValid(InjectExpectation expectation) {
+    if (expectation == null) {
+      return false;
+    }
+    boolean hasName = expectation.getName() != null && !expectation.getName().isBlank();
+    boolean hasDescription =
+        expectation.getDescription() != null && !expectation.getDescription().isBlank();
+    boolean hasScore = expectation.getExpectedScore() != null && expectation.getExpectedScore() > 0;
+    return hasName || hasDescription || hasScore;
   }
 
   private List<ImportMessage> updateInjectDates(Map<Integer, InjectTime> mapInstantByRowIndex) {

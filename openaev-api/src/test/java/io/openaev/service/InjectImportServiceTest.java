@@ -5,9 +5,14 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.ImportMapper;
+import io.openaev.database.model.Inject;
+import io.openaev.database.model.InjectExpectation;
+import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.RuleAttribute;
 import io.openaev.utils.InjectImportUtils;
 import io.openaev.utils.mockMapper.MockMapperUtils;
+import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -15,16 +20,23 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.Temporal;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Pattern;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.*;
+import org.springframework.beans.factory.annotation.Autowired;
 
 public class InjectImportServiceTest extends IntegrationTest {
   private Row row;
   private Cell cell;
   private ObjectNode json;
   private Workbook workbook;
+
+  @Autowired private InjectImportService injectImportService;
 
   @BeforeEach
   void before() throws Exception {
@@ -299,5 +311,70 @@ public class InjectImportServiceTest extends IntegrationTest {
 
     // -- ASSERT --
     assertNull(result);
+  }
+
+  @DisplayName(
+      "Test that expectation rule attributes with no mapped columns and no default value do not"
+          + " create an empty expectation")
+  @Test
+  void testImportRow_shouldNotCreateEmptyExpectation() throws Exception {
+    // -- PREPARE --
+    // Create an InjectorContract with no fields (so type detection falls through to
+    // startsWith("expectation") check)
+    ObjectMapper mapper = new ObjectMapper();
+    InjectorContract injectorContract = new InjectorContract();
+    injectorContract.setId(UUID.randomUUID().toString());
+    injectorContract.setContent("{\"fields\":[]}");
+    ObjectNode convertedContent = mapper.createObjectNode();
+    convertedContent.set("fields", mapper.createArrayNode());
+    injectorContract.setConvertedContent(convertedContent);
+
+    // Create the inject
+    Inject inject = new Inject();
+    inject.setContent(mapper.createObjectNode());
+    inject.setInjectorContract(injectorContract);
+
+    // Create an ImportMapper (needed as a parameter)
+    ImportMapper importMapper = MockMapperUtils.createImportMapper();
+
+    // Create expectation rule attributes with no column and no default value — the bug scenario
+    RuleAttribute expectationNameAttr = new RuleAttribute();
+    expectationNameAttr.setId(UUID.randomUUID().toString());
+    expectationNameAttr.setName("expectation_name");
+    expectationNameAttr.setColumns(null);
+    expectationNameAttr.setDefaultValue("");
+    expectationNameAttr.setAdditionalConfig(Map.of());
+
+    AtomicReference<InjectExpectation> expectation = new AtomicReference<>();
+
+    // -- EXECUTE --
+    // Call the private addFields method via reflection
+    Method addFieldsMethod =
+        InjectImportService.class.getDeclaredMethod(
+            "addFields",
+            Inject.class,
+            RuleAttribute.class,
+            Row.class,
+            Map.class,
+            AtomicReference.class,
+            ImportMapper.class,
+            Map.class);
+    addFieldsMethod.setAccessible(true);
+    addFieldsMethod.invoke(
+        injectImportService,
+        inject,
+        expectationNameAttr,
+        row,
+        new HashMap<>(),
+        expectation,
+        importMapper,
+        new HashMap<String, Pattern>());
+
+    // -- ASSERT --
+    // After the fix: no expectation should be created when there is no data
+    assertNull(
+        expectation.get(),
+        "An empty expectation must not be created when no column is mapped and no default value is"
+            + " set — see OpenAEV-Platform/openaev#4891");
   }
 }
