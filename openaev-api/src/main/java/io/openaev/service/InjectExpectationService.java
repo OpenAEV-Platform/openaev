@@ -952,4 +952,19 @@ public class InjectExpectationService {
                     .isSuccess(injectExpectationResult.getScore() != 0.0)
                     .build()));
   }
+
+  /**
+   * Extract distinct asset ids from a list of injects
+   *
+   * @param injects to extract expectation result asset ids
+   * @return expectation result asset ids
+   */
+  public Set<String> extractExpectationResultAssetIds(List<Inject> injects) {
+    return injects.stream()
+        .flatMap(inject -> inject.getExpectations().stream())
+        .flatMap(expectation -> expectation.getResults().stream())
+        .map(InjectExpectationResult::getSourceAssetId)
+        .filter(Objects::nonNull)
+        .collect(Collectors.toSet());
+  }
 }

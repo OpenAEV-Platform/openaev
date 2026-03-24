@@ -488,9 +488,8 @@ public class SecurityCoverageService {
           objects);
     }
 
-    Set<String> securityPlatformAssetIds = getSecurityPlatformAssetIds(simulation.getInjects());
     for (SecurityPlatform securityPlatform :
-        assetService.securityPlatformsByIds(securityPlatformAssetIds)) {
+        injectService.extractSecurityPlatforms(simulation.getInjects())) {
       DomainObject platformIdentity = securityPlatform.toStixDomainObject();
       objects.add(platformIdentity);
 
@@ -565,15 +564,6 @@ public class SecurityCoverageService {
       }
       objects.add(sro);
     }
-  }
-
-  private Set<String> getSecurityPlatformAssetIds(List<Inject> injects) {
-    return injects.stream()
-        .flatMap(inject -> inject.getExpectations().stream())
-        .flatMap(expectation -> expectation.getResults().stream())
-        .map(InjectExpectationResult::getSourceAssetId)
-        .filter(Objects::nonNull)
-        .collect(Collectors.toSet());
   }
 
   private BaseType<?> getOverallCoverage(Exercise simulation) {

@@ -111,6 +111,7 @@ public class InjectService {
   private final ImapService imapService;
   private final HealthCheckUtils healthCheckUtils;
   private final InjectorContractContentUtils injectorContractContentUtils;
+  private final InjectExpectationService injectExpectationService;
 
   private final LicenseCacheManager licenseCacheManager;
   @Resource protected ObjectMapper mapper;
@@ -1310,5 +1311,16 @@ public class InjectService {
     healthChecks.addAll(healthCheckUtils.runAllInjectorChecks(inject, injectors));
 
     return healthChecks;
+  }
+
+  /**
+   * Extract all security platform from a list of injects
+   *
+   * @param injects to extract security platforms
+   * @return distinct security platforms
+   */
+  public List<SecurityPlatform> extractSecurityPlatforms(List<Inject> injects) {
+    Set<String> assetIds = injectExpectationService.extractExpectationResultAssetIds(injects);
+    return assetService.securityPlatformsByIds(assetIds);
   }
 }
