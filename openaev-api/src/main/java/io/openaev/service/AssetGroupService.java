@@ -151,10 +151,13 @@ public class AssetGroupService {
     assetGroups.forEach(
         assetGroup -> {
           Filters.FilterGroup filterGroup = assetGroup.getDynamicFilter();
-          filterGroup
-              .getFilters()
-              .add(Filters.Filter.getNewDefaultEqualFilter("asset_type", List.of("Endpoint")));
-          assetGroup.setDynamicAssets(this.assetService.assetsFromFilterGroups(filterGroup));
+          Specification<Endpoint> specification = computeFilterGroupJpa(filterGroup);
+          List<Asset> assets =
+              this.endpointService.endpoints(specification).stream()
+                  .map(Asset.class::cast)
+                  .distinct()
+                  .toList();
+          assetGroup.setDynamicAssets(assets);
         });
     return assetGroups;
   }
