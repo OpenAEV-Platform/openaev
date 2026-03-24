@@ -5315,6 +5315,8 @@ export interface PlatformSettings {
   platform_version?: string;
   /** 'true' if the platform has the whitemark activated */
   platform_whitemark?: string;
+  /** True if the MCP server is enabled */
+  platform_mcp_enabled?: boolean;
   /** Current version of the PostgreSQL */
   postgre_version?: string;
   /** Current version of RabbitMQ */
@@ -6084,6 +6086,11 @@ export interface SettingsEnterpriseEditionUpdateInput {
 export interface SettingsPlatformWhitemarkUpdateInput {
   /** The whitemark of the platform */
   platform_whitemark: string;
+}
+
+export interface SettingsMcpUpdateInput {
+  /** Whether the MCP server is enabled */
+  platform_mcp_enabled: boolean;
 }
 
 export interface SettingsUpdateInput {

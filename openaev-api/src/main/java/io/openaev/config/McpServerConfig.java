@@ -5,7 +5,6 @@ import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.server.transport.HttpServletStreamableServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema.ServerCapabilities;
 import io.openaev.rest.mcp.McpToolProvider;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.web.servlet.ServletListenerRegistrationBean;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -20,10 +19,11 @@ import org.springframework.web.context.request.RequestContextListener;
  * io.openaev.security.TokenAuthenticationFilter} which Spring Boot auto-registers for all URL
  * patterns.
  *
- * <p>Disable with {@code openaev.mcp.enabled=false}.
+ * <p>The MCP server always starts, but tool execution checks the
+ * {@code platform_mcp_enabled} DB setting at runtime (see {@link McpToolProvider}).
  */
+// TODO: Consider adding rate limiting to prevent excessive MCP tool calls
 @Configuration
-@ConditionalOnProperty(name = "openaev.mcp.enabled", havingValue = "true", matchIfMissing = true)
 public class McpServerConfig {
 
   private final OpenAEVConfig openAEVConfig;

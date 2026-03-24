@@ -3,14 +3,14 @@ import { useTheme } from '@mui/material/styles';
 import { useContext } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { fetchPlatformParameters, updatePlatformDarkParameters, updatePlatformLightParameters, updatePlatformParameters, updatePlatformWhitemarkParameters } from '../../../actions/Application';
+import { fetchPlatformParameters, updatePlatformDarkParameters, updatePlatformLightParameters, updatePlatformMcpParameters, updatePlatformParameters, updatePlatformWhitemarkParameters } from '../../../actions/Application';
 import { type LoggedHelper } from '../../../actions/helper';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import { useFormatter } from '../../../components/i18n';
 import ItemBoolean from '../../../components/ItemBoolean';
 import ItemCopy from '../../../components/ItemCopy';
 import { useHelper } from '../../../store';
-import { type PlatformSettings, type SettingsPlatformWhitemarkUpdateInput, type SettingsUpdateInput, type ThemeInput } from '../../../utils/api-types';
+import { type PlatformSettings, type SettingsMcpUpdateInput, type SettingsPlatformWhitemarkUpdateInput, type SettingsUpdateInput, type ThemeInput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../utils/permissions/PermissionsProvider';
@@ -72,6 +72,7 @@ const Parameters = () => {
   const onUpdateLigthParameters = (data: ThemeInput) => dispatch(updatePlatformLightParameters(data));
   const onUpdateDarkParameters = (data: ThemeInput) => dispatch(updatePlatformDarkParameters(data));
   const updatePlatformWhitemark = (data: SettingsPlatformWhitemarkUpdateInput) => dispatch(updatePlatformWhitemarkParameters(data));
+  const updatePlatformMcp = (data: SettingsMcpUpdateInput) => dispatch(updatePlatformMcpParameters(data));
   return (
     <>
       <div style={{
@@ -234,6 +235,17 @@ const Parameters = () => {
               <ListItem divider>
                 <ListItemText primary={t('IMAP')} />
                 <ItemBoolean status={settings?.imap_service_available === 'true'} variant="large" label={settings?.imap_service_available === 'true' ? t('Enable') : t('Disabled')} />
+              </ListItem>
+              <ListItem divider>
+                <ListItemText
+                  primary={t('MCP server')}
+                  secondary={t('Enable the Model Context Protocol server for AI assistant integrations')}
+                />
+                <Switch
+                  disabled={cannotManagePlatformSettings}
+                  checked={settings.platform_mcp_enabled !== false}
+                  onChange={(_event, checked) => updatePlatformMcp({ platform_mcp_enabled: checked })}
+                />
               </ListItem>
             </List>
           </Paper>

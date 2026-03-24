@@ -7,8 +7,13 @@ import io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification;
 import io.modelcontextprotocol.spec.McpSchema;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
 import io.modelcontextprotocol.spec.McpSchema.Tool;
+import io.openaev.database.model.Payload;
+import io.openaev.database.model.SettingKeys;
+import io.openaev.service.settings.SettingService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -29,6 +34,8 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.web.util.UriUtils;
 
 @Component
 public class McpToolProvider {
@@ -40,13 +47,17 @@ public class McpToolProvider {
 
   private final ObjectMapper objectMapper;
   private final RestTemplate restTemplate;
+  private final SettingService settingService;
   private final String baseUrl;
 
   public McpToolProvider(
       ObjectMapper objectMapper,
+      RestTemplate restTemplate,
+      SettingService settingService,
       @Value("${openaev.base-url:http://localhost:8080}") String baseUrl) {
     this.objectMapper = objectMapper;
-    this.restTemplate = new RestTemplate();
+    this.restTemplate = restTemplate;
+    this.settingService = settingService;
     this.baseUrl = baseUrl;
   }
 
@@ -76,7 +87,10 @@ public class McpToolProvider {
         schema(Map.of(
             "asset_id", prop("string", "The asset's OpenAEV ID")),
             List.of("asset_id")),
-        (exchange, request) -> callGetApi("/api/endpoints/" + strArg(request, "asset_id"))));
+        (exchange, request) -> {
+          String assetId = validatePathSegment(strArg(request, "asset_id"), "asset_id");
+          return callGetApi(buildPath("/api/endpoints/{id}", assetId));
+        }));
 
     // 3. Search asset groups
     tools.add(buildTool(
@@ -100,8 +114,10 @@ public class McpToolProvider {
         schema(Map.of(
             "group_id", prop("string", "The asset group's ID")),
             List.of("group_id")),
-        (exchange, request) ->
-            callGetApi("/api/asset_groups/" + strArg(request, "group_id"))));
+        (exchange, request) -> {
+          String groupId = validatePathSegment(strArg(request, "group_id"), "group_id");
+          return callGetApi(buildPath("/api/asset_groups/{id}", groupId));
+        }));
 
     // 5. Search teams
     tools.add(buildTool(
@@ -124,7 +140,10 @@ public class McpToolProvider {
         schema(Map.of(
             "team_id", prop("string", "The team's ID")),
             List.of("team_id")),
-        (exchange, request) -> callGetApi("/api/teams/" + strArg(request, "team_id"))));
+        (exchange, request) -> {
+          String teamId = validatePathSegment(strArg(request, "team_id"), "team_id");
+          return callGetApi(buildPath("/api/teams/{id}", teamId));
+        }));
 
     // 7. Search players
     tools.add(buildTool(
@@ -163,8 +182,11 @@ public class McpToolProvider {
         schema(Map.of(
             "attack_pattern_id", prop("string", "The attack pattern's OpenAEV ID")),
             List.of("attack_pattern_id")),
-        (exchange, request) ->
-            callGetApi("/api/attack_patterns/" + strArg(request, "attack_pattern_id"))));
+        (exchange, request) -> {
+          String attackPatternId = validatePathSegment(
+              strArg(request, "attack_pattern_id"), "attack_pattern_id");
+          return callGetApi(buildPath("/api/attack_patterns/{id}", attackPatternId));
+        }));
 
     // 10. Search scenarios
     tools.add(buildTool(
@@ -187,8 +209,10 @@ public class McpToolProvider {
         schema(Map.of(
             "scenario_id", prop("string", "The scenario's OpenAEV ID")),
             List.of("scenario_id")),
-        (exchange, request) ->
-            callGetApi("/api/scenarios/" + strArg(request, "scenario_id"))));
+        (exchange, request) -> {
+          String scenarioId = validatePathSegment(strArg(request, "scenario_id"), "scenario_id");
+          return callGetApi(buildPath("/api/scenarios/{id}", scenarioId));
+        }));
 
     // 12. Create scenario
     tools.add(buildTool(
@@ -245,7 +269,8 @@ public class McpToolProvider {
           putIfPresent(body, "scenario_category", request, "category");
           putIfPresent(body, "scenario_main_focus", request, "main_focus");
           putIfPresent(body, "scenario_severity", request, "severity");
-          return callPutApi("/api/scenarios/" + strArg(request, "scenario_id"), body);
+          String scenarioId = validatePathSegment(strArg(request, "scenario_id"), "scenario_id");
+          return callPutApi(buildPath("/api/scenarios/{id}", scenarioId), body);
         }));
 
     // 14. Delete scenario
@@ -255,8 +280,10 @@ public class McpToolProvider {
         schema(Map.of(
             "scenario_id", prop("string", "Scenario ID to delete")),
             List.of("scenario_id")),
-        (exchange, request) ->
-            callDeleteApi("/api/scenarios/" + strArg(request, "scenario_id"))));
+        (exchange, request) -> {
+          String scenarioId = validatePathSegment(strArg(request, "scenario_id"), "scenario_id");
+          return callDeleteApi(buildPath("/api/scenarios/{id}", scenarioId));
+        }));
 
     // 15. Create payload
     Map<String, Map<String, Object>> payloadProps = new LinkedHashMap<>();
@@ -293,7 +320,7 @@ public class McpToolProvider {
           body.put("payload_name", strArg(request, "name"));
           body.put("payload_description", strArg(request, "description", ""));
           putArrayArg(body, "payload_platforms", request, "platforms");
-          body.put("payload_source", "MANUAL");
+          body.put("payload_source", Payload.PAYLOAD_SOURCE.MANUAL.name());
           body.put("payload_status", "VERIFIED");
           body.put("payload_execution_arch", "ALL_ARCHITECTURES");
           body.putArray("payload_expectations").add("PREVENTION").add("DETECTION");
@@ -302,8 +329,14 @@ public class McpToolProvider {
           putArrayArg(body, "payload_tags", request, "tag_ids");
           String payloadType = strArg(request, "payload_type");
           if ("Command".equals(payloadType)) {
-            body.put("command_executor", strArg(request, "command_executor", ""));
-            body.put("command_content", strArg(request, "command_content", ""));
+            String executor = strArg(request, "command_executor", null);
+            String content = strArg(request, "command_content", null);
+            if (executor != null && !executor.isEmpty()) {
+              body.put("command_executor", executor);
+            }
+            if (content != null && !content.isEmpty()) {
+              body.put("command_content", content);
+            }
           }
           if ("DnsResolution".equals(payloadType)) {
             body.put("dns_resolution_hostname", strArg(request, "dns_resolution_hostname", ""));
@@ -326,8 +359,10 @@ public class McpToolProvider {
         schema(Map.of(
             "payload_id", prop("string", "Payload ID")),
             List.of("payload_id")),
-        (exchange, request) ->
-            callGetApi("/api/payloads/" + strArg(request, "payload_id"))));
+        (exchange, request) -> {
+          String payloadId = validatePathSegment(strArg(request, "payload_id"), "payload_id");
+          return callGetApi(buildPath("/api/payloads/{id}", payloadId));
+        }));
 
     // 17. Search payloads
     tools.add(buildTool(
@@ -382,8 +417,8 @@ public class McpToolProvider {
           } else {
             body.set("inject_content", objectMapper.createObjectNode());
           }
-          String scenarioId = strArg(request, "scenario_id");
-          return callPostApi("/api/scenarios/" + scenarioId + "/injects", body);
+          String scenarioId = validatePathSegment(strArg(request, "scenario_id"), "scenario_id");
+          return callPostApi(buildPath("/api/scenarios/{id}/injects", scenarioId), body);
         }));
 
     // 19. Search injector contracts
@@ -409,8 +444,10 @@ public class McpToolProvider {
         schema(Map.of(
             "contract_id", prop("string", "Injector contract ID")),
             List.of("contract_id")),
-        (exchange, request) ->
-            callGetApi("/api/injector_contracts/" + strArg(request, "contract_id"))));
+        (exchange, request) -> {
+          String contractId = validatePathSegment(strArg(request, "contract_id"), "contract_id");
+          return callGetApi(buildPath("/api/injector_contracts/{id}", contractId));
+        }));
 
     // 21. Create atomic testing
     tools.add(buildTool(
@@ -471,8 +508,10 @@ public class McpToolProvider {
         schema(Map.of(
             "cve_id", prop("string", "CVE ID (e.g., CVE-2024-1234)")),
             List.of("cve_id")),
-        (exchange, request) ->
-            callGetApi("/api/vulnerabilities/external-id/" + strArg(request, "cve_id"))));
+        (exchange, request) -> {
+          String cveId = validatePathSegment(strArg(request, "cve_id"), "cve_id");
+          return callGetApi(buildPath("/api/vulnerabilities/external-id/{id}", cveId));
+        }));
 
     // 24. Full text search
     tools.add(buildTool(
@@ -532,10 +571,48 @@ public class McpToolProvider {
         schema(Map.of(
             "exercise_id", prop("string", "Exercise ID")),
             List.of("exercise_id")),
-        (exchange, request) ->
-            callGetApi("/api/exercises/" + strArg(request, "exercise_id"))));
+        (exchange, request) -> {
+          String exerciseId = validatePathSegment(strArg(request, "exercise_id"), "exercise_id");
+          return callGetApi(buildPath("/api/exercises/{id}", exerciseId));
+        }));
 
     return tools;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Security helpers
+  // ---------------------------------------------------------------------------
+
+  private void checkMcpEnabled() {
+    if (!settingService.getBoolean(SettingKeys.PLATFORM_MCP_ENABLED)) {
+      throw new IllegalStateException("MCP server is disabled by platform administrator");
+    }
+  }
+
+  /**
+   * Rejects values containing path traversal characters ({@code /}, {@code \}, {@code ..})
+   * or their URL-encoded equivalents.
+   */
+  private static String validatePathSegment(String value, String fieldName) {
+    if (value == null || value.isEmpty()) {
+      throw new IllegalArgumentException(fieldName + " must not be empty");
+    }
+    String decoded;
+    try {
+      decoded = URLDecoder.decode(value, StandardCharsets.UTF_8);
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException("Invalid " + fieldName + ": malformed encoding");
+    }
+    if (decoded.contains("/") || decoded.contains("\\") || decoded.contains("..")) {
+      throw new IllegalArgumentException(
+          "Invalid " + fieldName + ": path traversal characters are not allowed");
+    }
+    return value;
+  }
+
+  private static String buildPath(String template, String pathSegment) {
+    String encoded = UriUtils.encodePathSegment(pathSegment, StandardCharsets.UTF_8);
+    return UriComponentsBuilder.fromPath(template).buildAndExpand(encoded).toUriString();
   }
 
   // ---------------------------------------------------------------------------
@@ -551,7 +628,10 @@ public class McpToolProvider {
     HttpServletRequest request = attrs.getRequest();
     String header = request.getHeader(HEADER_NAME);
     if (header != null && !header.isEmpty()) {
-      return header.startsWith(BEARER_PREFIX) ? header : BEARER_PREFIX + header;
+      if (header.regionMatches(true, 0, BEARER_PREFIX, 0, BEARER_PREFIX.length())) {
+        return header;
+      }
+      return BEARER_PREFIX + header;
     }
     Cookie[] cookies =
         Optional.ofNullable(request.getCookies()).orElse(new Cookie[0]);
@@ -566,14 +646,17 @@ public class McpToolProvider {
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(MediaType.APPLICATION_JSON);
     String token = extractBearerToken();
-    if (token != null) {
-      headers.set(HEADER_NAME, token);
+    if (token == null || token.isEmpty()) {
+      throw new IllegalStateException(
+          "MCP request requires authentication. No Bearer token found.");
     }
+    headers.set(HEADER_NAME, token);
     return headers;
   }
 
   private CallToolResult callGetApi(String path) {
     try {
+      checkMcpEnabled();
       HttpEntity<Void> entity = new HttpEntity<>(buildHeaders());
       ResponseEntity<String> resp =
           restTemplate.exchange(baseUrl + path, HttpMethod.GET, entity, String.class);
@@ -586,7 +669,9 @@ public class McpToolProvider {
 
   private CallToolResult callPostApi(String path, ObjectNode body) {
     try {
-      HttpEntity<String> entity = new HttpEntity<>(objectMapper.writeValueAsString(body), buildHeaders());
+      checkMcpEnabled();
+      HttpEntity<String> entity =
+          new HttpEntity<>(objectMapper.writeValueAsString(body), buildHeaders());
       ResponseEntity<String> resp =
           restTemplate.exchange(baseUrl + path, HttpMethod.POST, entity, String.class);
       return textResult(resp.getBody());
@@ -598,7 +683,9 @@ public class McpToolProvider {
 
   private CallToolResult callPutApi(String path, ObjectNode body) {
     try {
-      HttpEntity<String> entity = new HttpEntity<>(objectMapper.writeValueAsString(body), buildHeaders());
+      checkMcpEnabled();
+      HttpEntity<String> entity =
+          new HttpEntity<>(objectMapper.writeValueAsString(body), buildHeaders());
       ResponseEntity<String> resp =
           restTemplate.exchange(baseUrl + path, HttpMethod.PUT, entity, String.class);
       return textResult(resp.getBody());
@@ -610,6 +697,7 @@ public class McpToolProvider {
 
   private CallToolResult callDeleteApi(String path) {
     try {
+      checkMcpEnabled();
       HttpEntity<Void> entity = new HttpEntity<>(buildHeaders());
       restTemplate.exchange(baseUrl + path, HttpMethod.DELETE, entity, String.class);
       return textResult("Deleted successfully.");

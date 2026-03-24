@@ -204,9 +204,12 @@ const Index = () => {
                 },
               },
             }, null, 2);
-            navigator.clipboard.writeText(config);
-            setMcpCopied(true);
-            setTimeout(() => setMcpCopied(false), 2000);
+            navigator.clipboard.writeText(config).then(() => {
+              setMcpCopied(true);
+              setTimeout(() => setMcpCopied(false), 2000);
+            }).catch(() => {
+              // Clipboard API not available or denied
+            });
           }}
         >
           {mcpCopied ? t('Configuration copied') : t('Copy configuration')}

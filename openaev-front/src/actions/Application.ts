@@ -3,7 +3,7 @@ import { type Dispatch } from 'redux';
 
 import * as Constants from '../constants/ActionTypes';
 import { getReferential, postReferential, putReferential, simpleCall } from '../utils/Action';
-import type { PolicyInput, SettingsEnterpriseEditionUpdateInput, SettingsPlatformWhitemarkUpdateInput, SettingsUpdateInput, ThemeInput, User } from '../utils/api-types';
+import type { PolicyInput, SettingsEnterpriseEditionUpdateInput, SettingsMcpUpdateInput, SettingsPlatformWhitemarkUpdateInput, SettingsUpdateInput, ThemeInput, User } from '../utils/api-types';
 import * as schema from './Schema';
 
 interface ResetValues {
@@ -51,6 +51,14 @@ export const updatePlatformWhitemarkParameters = (data: SettingsPlatformWhitemar
   return putReferential(
     schema.platformParameters,
     '/api/settings/platform_whitemark',
+    data,
+  )(dispatch);
+};
+
+export const updatePlatformMcpParameters = (data: SettingsMcpUpdateInput) => (dispatch: AppDispatch) => {
+  return putReferential(
+    schema.platformParameters,
+    '/api/settings/platform_mcp',
     data,
   )(dispatch);
 };

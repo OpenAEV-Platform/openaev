@@ -1121,6 +1121,8 @@
   "MCP client configuration": "MCP client configuration",
   "MCP documentation": "MCP documentation",
   "MCP endpoint": "MCP endpoint",
+  "MCP server": "MCP server",
+  "Enable the Model Context Protocol server for AI assistant integrations": "Enable the Model Context Protocol server for AI assistant integrations",
   "Media pressure": "Media pressure",
   "Media pressure read": "Media pressure read",
   "Media pressure to publish": "Media pressure to publish",

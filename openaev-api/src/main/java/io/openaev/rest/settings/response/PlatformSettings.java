@@ -69,6 +69,10 @@ public class PlatformSettings {
   @Schema(description = "'true' if the platform has the whitemark activated")
   private String platformWhitemark;
 
+  @JsonProperty("platform_mcp_enabled")
+  @Schema(description = "True if the MCP server is enabled")
+  private boolean platformMcpEnabled;
+
   @JsonProperty("platform_openid_providers")
   @Schema(description = "List of OpenID providers")
   private List<OAuthProvider> platformOpenIdProviders;

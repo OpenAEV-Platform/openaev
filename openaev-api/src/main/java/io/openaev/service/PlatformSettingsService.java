@@ -65,6 +65,7 @@ public class PlatformSettingsService {
   private final Ee eeService;
   private final EngineService engineService;
   private final XtmHubConnectivityService xtmHubConnectivityService;
+  private final io.openaev.service.settings.SettingService settingService;
 
   @Autowired private TransactionTemplate transactionTemplate;
 
@@ -222,6 +223,8 @@ public class PlatformSettingsService {
           ofNullable(dbSettings.get(PLATFORM_WHITEMARK.key()))
               .map(Setting::getValue)
               .orElse(PLATFORM_WHITEMARK.defaultValue()));
+      platformSettings.setPlatformMcpEnabled(
+          settingService.getBoolean(PLATFORM_MCP_ENABLED));
       platformSettings.setMapTileServerLight(openAEVConfig.getMapTileServerLight());
       platformSettings.setMapTileServerDark(openAEVConfig.getMapTileServerDark());
       platformSettings.setPlatformId(
@@ -442,6 +445,12 @@ public class PlatformSettingsService {
     settingsToSave.add(
         resolveFromMap(dbSettings, PLATFORM_WHITEMARK.key(), input.getPlatformWhitemark()));
     settingRepository.saveAll(settingsToSave);
+    return findSettings();
+  }
+
+  public PlatformSettings updateSettingsMcp(
+      io.openaev.rest.settings.form.SettingsMcpUpdateInput input) {
+    settingService.setBoolean(PLATFORM_MCP_ENABLED, input.isPlatformMcpEnabled());
     return findSettings();
   }
 

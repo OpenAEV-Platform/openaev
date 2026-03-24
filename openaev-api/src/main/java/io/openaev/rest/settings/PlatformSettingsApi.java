@@ -109,6 +109,15 @@ public class PlatformSettingsApi extends RestBehavior {
     return platformSettingsService.updateSettingsPlatformWhitemark(input);
   }
 
+  @PutMapping("/platform_mcp")
+  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
+  @Operation(summary = "Update MCP settings", description = "Enable or disable the MCP server")
+  public PlatformSettings updateMcpSettings(
+      @Valid @RequestBody SettingsMcpUpdateInput input) {
+    return platformSettingsService.updateSettingsMcp(input);
+  }
+
   @PutMapping("/theme/light")
   @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
