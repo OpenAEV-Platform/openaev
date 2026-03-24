@@ -28,7 +28,7 @@ public interface TagRepository extends CrudRepository<Tag, String>, JpaSpecifica
   @Query(
       value =
           "SELECT t.tag_id, t.tag_name, t.tag_color, "
-              + "t.tag_created_at, t.tag_updated_at "
+              + "t.tag_created_at, t.tag_updated_at, t.tenant_id "
               + "FROM tags t "
               + "WHERE t.tag_updated_at > :from ORDER BY t.tag_updated_at LIMIT "
               + Constants.INDEXING_RECORD_SET_SIZE

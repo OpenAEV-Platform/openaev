@@ -15,4 +15,10 @@ public class EsSecurityDomain extends EsBase {
   @Queryable(label = "domain color", filterable = true)
   @EsQueryable(keyword = true)
   private String domain_color;
+
+  // --SIDE --
+
+  @Queryable(label = "tenant", filterable = true, dynamicValues = true)
+  @EsQueryable(keyword = true)
+  private String base_tenant_side;
 }

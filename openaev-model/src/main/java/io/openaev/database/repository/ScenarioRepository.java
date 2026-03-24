@@ -47,7 +47,7 @@ public interface ScenarioRepository
   @Query(
       value =
           "WITH scenario_data AS ("
-              + "SELECT s.scenario_id, s.scenario_name, s.scenario_recurrence, s.scenario_created_at, "
+              + "SELECT s.scenario_id, s.scenario_name, s.scenario_recurrence, s.scenario_created_at,s.tenant_id, "
               + "GREATEST(s.scenario_updated_at, max(inj.inject_updated_at), max(ic.injector_contract_updated_at)) as scenario_injects_updated_at, "
               + "array_agg(DISTINCT st.tag_id) FILTER (WHERE st.tag_id IS NOT NULL) as scenario_tags, "
               + "array_agg(DISTINCT ste.team_id) FILTER (WHERE ste.team_id IS NOT NULL) as scenario_teams, "

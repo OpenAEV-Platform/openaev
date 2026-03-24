@@ -33,6 +33,7 @@ public class SecurityDomainHandler implements Handler<EsSecurityDomain> {
               esSecurityDomain.setBase_representative(domain.getDomain_name());
               esSecurityDomain.setBase_created_at(domain.getDomain_created_at());
               esSecurityDomain.setBase_updated_at(domain.getDomain_updated_at());
+              esSecurityDomain.setBase_tenant_side(domain.getTenant_id());
 
               esSecurityDomain.setBase_restrictions(buildRestrictions(domain.getDomain_id()));
 

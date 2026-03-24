@@ -92,4 +92,11 @@ public interface RawAttackPattern {
    * @return set of kill chain phase IDs
    */
   Set<String> getAttack_pattern_kill_chain_phases();
+
+  /**
+   * Returns the tenant ID to which this attack pattern belongs.
+   *
+   * @return the tenant ID
+   */
+  String getTenant_id();
 }

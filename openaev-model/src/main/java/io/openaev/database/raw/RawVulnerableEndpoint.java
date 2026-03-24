@@ -37,4 +37,6 @@ public interface RawVulnerableEndpoint {
   Set<String> getVulnerable_endpoint_cves();
 
   Set<String> getVulnerable_endpoint_tags();
+
+  String getTenant_id();
 }

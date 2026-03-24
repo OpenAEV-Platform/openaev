@@ -115,4 +115,8 @@ public class EsInjectExpectation extends EsBase {
   @Queryable(label = "security platform", filterable = true, dynamicValues = true)
   @EsQueryable(keyword = true)
   private Set<String> base_security_platforms_side; // Must finish by _side
+
+  @Queryable(label = "tenant", filterable = true, dynamicValues = true)
+  @EsQueryable(keyword = true)
+  private String base_tenant_side;
 }

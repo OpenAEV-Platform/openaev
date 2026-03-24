@@ -46,4 +46,11 @@ public interface RawTag {
    * @return the update timestamp
    */
   Instant getTag_updated_at();
+
+  /**
+   * Returns the tenant ID to which this tag belongs.
+   *
+   * @return the tenant ID
+   */
+  String getTenant_id();
 }

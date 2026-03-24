@@ -30,6 +30,7 @@ public class TeamHandler implements Handler<EsTeam> {
               esTeam.setBase_updated_at(team.getTeam_updated_at());
               esTeam.setBase_representative(team.getTeam_name());
               esTeam.setBase_restrictions(buildRestrictions(team.getTeam_id()));
+              esTeam.setBase_tenant_side(team.getTenant_id());
               // Specific
               return esTeam;
             })

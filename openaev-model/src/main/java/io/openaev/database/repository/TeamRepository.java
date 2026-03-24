@@ -102,7 +102,7 @@ public interface TeamRepository
 
   @Query(
       value =
-          "SELECT t.team_id, t.team_name, t.team_updated_at, t.team_created_at "
+          "SELECT t.team_id, t.team_name, t.team_updated_at, t.team_created_at, t.tenant_id "
               + "FROM teams t "
               + "WHERE t.team_updated_at > :from ORDER BY t.team_updated_at LIMIT "
               + Constants.INDEXING_RECORD_SET_SIZE

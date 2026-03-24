@@ -46,6 +46,10 @@ public class EsScenario extends EsBase {
   @EsQueryable(keyword = true)
   private Set<String> base_teams_side; // Must finish by _side
 
+  @Queryable(label = "tenant", filterable = true, dynamicValues = true)
+  @EsQueryable(keyword = true)
+  private String base_tenant_side;
+
   // -- SIDE DENORMALIZED --
   // like side but directly names instead of ids in the Set
   // Don't forget to keep track of updated_at values in the SQL query indexing for those attributes

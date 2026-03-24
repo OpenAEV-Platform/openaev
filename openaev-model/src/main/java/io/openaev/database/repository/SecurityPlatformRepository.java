@@ -45,7 +45,7 @@ public interface SecurityPlatformRepository
 
   @Query(
       value =
-          "SELECT a.asset_id, a.asset_name, a.asset_created_at, a.asset_updated_at "
+          "SELECT a.asset_id, a.asset_name, a.asset_created_at, a.asset_updated_at, a.tenant_id "
               + "FROM assets a "
               + "WHERE a.asset_updated_at > :from AND a.asset_type = '"
               + AssetType.Values.SECURITY_PLATFORM_TYPE

@@ -82,4 +82,11 @@ public interface RawFinding {
    * @return the asset ID
    */
   String getAsset_id();
+
+  /**
+   * Returns the tenant ID to which this finding belongs.
+   *
+   * @return the tenant ID
+   */
+  String getTenant_id();
 }

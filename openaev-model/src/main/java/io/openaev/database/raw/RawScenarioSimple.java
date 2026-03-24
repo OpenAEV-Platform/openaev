@@ -97,4 +97,11 @@ public interface RawScenarioSimple {
    * @return set of platform types
    */
   Set<String> getScenario_platforms();
+
+  /**
+   * Returns the tenant ID to which this scenario belongs.
+   *
+   * @return the tenant ID
+   */
+  String getTenant_id();
 }

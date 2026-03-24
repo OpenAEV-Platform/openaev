@@ -37,7 +37,7 @@ public interface FindingRepository
   @Query(
       value =
           "SELECT f.finding_id, f.finding_value, f.finding_type, f.finding_field,"
-              + " f.finding_inject_id, i.inject_exercise, se.scenario_id, fa.asset_id, f.finding_created_at, f.finding_updated_at "
+              + " f.finding_inject_id, i.inject_exercise, se.scenario_id, fa.asset_id, f.finding_created_at, f.finding_updated_at, f.tenant_id "
               + "FROM findings f "
               + "LEFT JOIN injects i ON i.inject_id = f.finding_inject_id "
               + "LEFT JOIN scenarios_exercises se ON i.inject_exercise = se.exercise_id "
