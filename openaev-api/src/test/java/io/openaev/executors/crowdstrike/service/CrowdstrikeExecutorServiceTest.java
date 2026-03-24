@@ -118,6 +118,7 @@ public class CrowdstrikeExecutorServiceTest {
             "Inject",
             EndpointFixture.createEndpoint());
     inject.setId("1234567890");
+    inject.setInjector(injector);
     List<Agent> agents =
         List.of(AgentFixture.createAgent(EndpointFixture.createEndpoint(), "12345"));
     InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
