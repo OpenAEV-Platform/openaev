@@ -64,7 +64,7 @@ public interface VulnerableEndpointRepository extends JpaRepository<Endpoint, St
               + "AND a.asset_type = '"
               + AssetType.Values.ENDPOINT_TYPE
               + "' "
-              + "GROUP BY a.asset_id, i.inject_exercise, e.exercise_updated_at, e.exercise_created_at, a.tenant_id, ag.agent_ids, ag.agent_last_seen, ag.agent_privs "
+              + "GROUP BY a.asset_id, i.inject_exercise, e.exercise_updated_at, e.exercise_created_at, ag.agent_ids, ag.agent_last_seen, ag.agent_privs "
               + "ORDER BY e.exercise_updated_at LIMIT "
               + Constants.INDEXING_RECORD_SET_SIZE
               + ";",
