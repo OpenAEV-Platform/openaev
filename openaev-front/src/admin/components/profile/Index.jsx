@@ -1,6 +1,7 @@
 import { Button, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
+import { useState } from 'react';
 import { useDispatch } from 'react-redux';
 
 import { meTokens, renewToken, updateMeInformation, updateMePassword, updateMeProfile } from '../../../actions/users/User';
@@ -17,6 +18,7 @@ const Index = () => {
   const { t } = useFormatter();
   const theme = useTheme();
   const dispatch = useDispatch();
+  const [mcpCopied, setMcpCopied] = useState(false);
   useDataLoader(() => {
     dispatch(meTokens());
   });
@@ -146,6 +148,77 @@ const Index = () => {
           href="/swagger-ui/index.html"
         >
           {t('API specifications')}
+        </Button>
+      </Paper>
+      <Paper>
+        <Typography variant="h1" style={{ marginBottom: 20 }}>
+          {t('MCP access')}
+        </Typography>
+        <Typography variant="body1">
+          {t('OpenAEV exposes a Model Context Protocol (MCP) server that allows AI assistants and tools to interact with the platform. Use your API token for authentication.')}
+        </Typography>
+        <Typography
+          variant="h4"
+          gutterBottom={true}
+          style={{ marginTop: 20 }}
+        >
+          {t('MCP endpoint')}
+        </Typography>
+        {/* eslint-disable-next-line i18next/no-literal-string */}
+        <pre>{`${window.location.origin}/api/mcp`}</pre>
+        <Typography
+          variant="h4"
+          gutterBottom={true}
+          style={{ marginTop: 20 }}
+        >
+          {t('MCP client configuration')}
+        </Typography>
+        <Typography variant="body2" style={{ marginBottom: 10 }}>
+          {t('Copy the JSON configuration below to connect your MCP client (Claude Desktop, Cursor, etc.) to this OpenAEV instance.')}
+        </Typography>
+        {/* eslint-disable-next-line i18next/no-literal-string */}
+        <pre>
+          {JSON.stringify({
+            mcpServers: {
+              openaev: {
+                url: `${window.location.origin}/api/mcp`,
+                headers: {
+                  Authorization: `Bearer ${userToken?.token_value ?? '<your-token>'}`,
+                },
+              },
+            },
+          }, null, 2)}
+        </pre>
+        <Button
+          variant="contained"
+          color="primary"
+          style={{ marginRight: 10 }}
+          onClick={() => {
+            const config = JSON.stringify({
+              mcpServers: {
+                openaev: {
+                  url: `${window.location.origin}/api/mcp`,
+                  headers: {
+                    Authorization: `Bearer ${userToken?.token_value ?? '<your-token>'}`,
+                  },
+                },
+              },
+            }, null, 2);
+            navigator.clipboard.writeText(config);
+            setMcpCopied(true);
+            setTimeout(() => setMcpCopied(false), 2000);
+          }}
+        >
+          {mcpCopied ? t('Configuration copied') : t('Copy configuration')}
+        </Button>
+        <Button
+          variant="outlined"
+          component="a"
+          href="https://modelcontextprotocol.io"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {t('MCP documentation')}
         </Button>
       </Paper>
     </div>
