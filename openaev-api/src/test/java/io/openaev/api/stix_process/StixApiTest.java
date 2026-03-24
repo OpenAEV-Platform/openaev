@@ -347,10 +347,10 @@ class StixApiTest extends IntegrationTest {
     void shouldReturnBadRequestWhenStixJsonIsInvalid() throws Exception {
       String invalidJson =
           """
-                    {
-                      "not-a-valid-json":
-                    }
-                    """;
+            {
+              "not-a-valid-json":
+            }
+          """;
 
       mvc.perform(
               post(STIX_URI + "/process-bundle")
@@ -364,11 +364,11 @@ class StixApiTest extends IntegrationTest {
     void shouldReturnBadRequestWhenStixStructureInvalid() throws Exception {
       String structurallyInvalidStix =
           """
-                              {
-                                "type": "bundle",
-                                "id": "bundle--1234"
-                              }
-                              """;
+            {
+              "type": "bundle",
+              "id": "bundle--1234"
+            }
+          """;
 
       mvc.perform(
               post(STIX_URI + "/process-bundle")
