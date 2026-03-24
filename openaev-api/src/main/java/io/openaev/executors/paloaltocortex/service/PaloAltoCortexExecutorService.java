@@ -51,7 +51,6 @@ public class PaloAltoCortexExecutorService implements Runnable {
     this.assetGroupService = assetGroupService;
   }
 
-  // TODO multi-tenancy: Multi executors dev
   @Override
   public void run() {
     log.info("Running Palo Alto Cortex executor endpoints gathering...");

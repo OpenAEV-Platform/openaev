@@ -58,15 +58,6 @@ public class TaniumExecutorContextService extends ExecutorContextService {
     // Sometimes, assets from agents aren't fetched even with the EAGER property from Hibernate
     taniumAgents.forEach(agent -> agent.setAsset((Asset) Hibernate.unproxy(agent.getAsset())));
 
-    Injector injector =
-        inject
-            .getInjectorContract()
-            // TODO move away from using the first injector - will be done later in the multi
-            // connector epic
-            .map(InjectorContract::getFirstInjector)
-            .orElseThrow(
-                () -> new UnsupportedOperationException("Inject does not have a contract"));
-
     taniumAgents = executorService.manageWithoutPlatformAgents(taniumAgents, injectStatus);
 
     List<TaniumAction> actions = new ArrayList<>();
@@ -78,14 +69,14 @@ public class TaniumExecutorContextService extends ExecutorContextService {
               actions.addAll(
                   getWindowsActions(
                       getAgentsFromOSAndArch(taniumAgents, platform, arch),
-                      injector,
+                      inject.getInjector(),
                       inject.getId(),
                       arch));
           case Linux, MacOS ->
               actions.addAll(
                   getUnixActions(
                       getAgentsFromOSAndArch(taniumAgents, platform, arch),
-                      injector,
+                      inject.getInjector(),
                       inject.getId(),
                       platform,
                       arch));

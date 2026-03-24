@@ -62,15 +62,6 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
     paloAltoCortexAgents.forEach(
         agent -> agent.setAsset((Asset) Hibernate.unproxy(agent.getAsset())));
 
-    Injector injector =
-        inject
-            .getInjectorContract()
-            // TODO move away from using the first injector - will be done later in the multi
-            // connector epic
-            .map(InjectorContract::getFirstInjector)
-            .orElseThrow(
-                () -> new UnsupportedOperationException("Inject does not have a contract"));
-
     paloAltoCortexAgents =
         executorService.manageWithoutPlatformAgents(paloAltoCortexAgents, injectStatus);
 
@@ -79,18 +70,18 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
     actions.addAll(
         getWindowsActions(
             getAgentsFromOS(paloAltoCortexAgents, Endpoint.PLATFORM_TYPE.Windows),
-            injector,
+            inject.getInjector(),
             inject.getId()));
     actions.addAll(
         getUnixActions(
             getAgentsFromOS(paloAltoCortexAgents, Endpoint.PLATFORM_TYPE.Linux),
-            injector,
+            inject.getInjector(),
             inject.getId(),
             Endpoint.PLATFORM_TYPE.Linux));
     actions.addAll(
         getUnixActions(
             getAgentsFromOS(paloAltoCortexAgents, Endpoint.PLATFORM_TYPE.MacOS),
-            injector,
+            inject.getInjector(),
             inject.getId(),
             Endpoint.PLATFORM_TYPE.MacOS));
     // Launch payloads with Palo Alto Cortex API

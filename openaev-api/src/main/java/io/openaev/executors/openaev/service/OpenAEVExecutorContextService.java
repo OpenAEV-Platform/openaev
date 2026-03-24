@@ -23,20 +23,11 @@ public class OpenAEVExecutorContextService extends ExecutorContextService {
       String agentId,
       Endpoint.PLATFORM_TYPE platform,
       Endpoint.PLATFORM_ARCH arch) {
-    Injector injector =
-        inject
-            .getInjectorContract()
-
-            // TODO move away from using the first injector - will be done later in the multi
-            // connector epic
-            .map(InjectorContract::getFirstInjector)
-            .orElseThrow(
-                () -> new UnsupportedOperationException("Inject does not have a contract"));
 
     return switch (platform) {
       case Windows, Linux, MacOS -> {
         String executorCommandKey = platform.name() + "." + arch.name();
-        String cmd = injector.getExecutorCommands().get(executorCommandKey);
+        String cmd = inject.getInjector().getExecutorCommands().get(executorCommandKey);
         yield replaceArgs(platform, cmd, inject.getId(), agentId);
       }
       default -> throw new RuntimeException("Unsupported platform: " + platform);
