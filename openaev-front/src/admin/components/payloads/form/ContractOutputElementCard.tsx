@@ -9,8 +9,8 @@ import SelectFieldController from '../../../../components/fields/SelectFieldCont
 import TagFieldController from '../../../../components/fields/TagFieldController';
 import TextFieldController from '../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../components/i18n';
-import ContractOutputElementType, { CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS } from '../../findings/ContractOutputElementType';
 import { type RegexGroup } from '../../../../utils/api-types';
+import ContractOutputElementType, { CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS } from '../../findings/ContractOutputElementType';
 
 interface Props {
   prefixName: string;
