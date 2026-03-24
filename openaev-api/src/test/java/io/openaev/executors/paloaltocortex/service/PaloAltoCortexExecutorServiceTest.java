@@ -103,7 +103,7 @@ public class PaloAltoCortexExecutorServiceTest {
   //            "whoami",
   //            List.of(),
   //            "whoami",
-  //            Set.of(new Domain(null, "To classify", "#000000", Instant.now(), null)));
+  //            Set.of(PresetDomain.getToClassify()));
   //    Injector injector = InjectorFixture.createDefaultPayloadInjector();
   //    Map<String, String> executorCommands = new HashMap<>();
   //    executorCommands.put(

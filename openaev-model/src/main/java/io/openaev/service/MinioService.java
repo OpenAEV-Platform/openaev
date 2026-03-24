@@ -8,6 +8,7 @@ import io.minio.messages.DeleteObject;
 import io.minio.messages.Item;
 import io.openaev.config.MinioConfig;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.Tenant;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.multitenancy.MinioException;
@@ -36,8 +37,11 @@ public class MinioService implements DependenciesManager {
   private final MinioClient minioClient;
 
   @Override
-  public void createDependencyForTenant(String tenantId) {
-    log.info("Tenant {} created — files will be stored under path prefix {}/", tenantId, tenantId);
+  public void createDependencyForTenant(Tenant tenant) {
+    log.info(
+        "Tenant {} created — files will be stored under path prefix {}/",
+        tenant.getId(),
+        tenant.getId());
   }
 
   @Override

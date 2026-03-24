@@ -13,6 +13,7 @@ import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteri
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawInjectorsContracts;
 import io.openaev.database.repository.AttackPatternRepository;
@@ -268,7 +269,7 @@ public class InjectorContractService {
         updateRelation(input.getInjectorId(), injectorContract.getInjector(), injectorRepository));
     injectorContract.setDomains(
         !injectorContract.getInjector().isPayloads()
-            ? this.domainService.upserts(input.getDomains())
+            ? this.domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant())
             : new HashSet<>());
     return injectorContractRepository.save(injectorContract);
   }
@@ -319,9 +320,15 @@ public class InjectorContractService {
     }
 
     if (!isPayloads) {
-      Set<Domain> currentDomains = this.domainService.upsertDomainEntities(target.getDomains());
-      Set<Domain> domainsToAdd = this.domainService.upsertDomainEntities(target.getDomains());
-      target.setDomains(this.domainService.mergeDomains(currentDomains, domainsToAdd));
+      Set<Domain> currentDomains =
+          this.domainService.upsertDomainEntities(
+              target.getDomains(), target.getInjector().getTenant().getId());
+      Set<Domain> domainsToAdd =
+          this.domainService.upsertDomainEntities(
+              source.getDomains(), target.getInjector().getTenant().getId());
+      target.setDomains(
+          this.domainService.mergeDomains(
+              currentDomains, domainsToAdd, target.getInjector().getTenant()));
     }
     setupImportAvailable(target);
   }
@@ -356,7 +363,8 @@ public class InjectorContractService {
             new HashSet<>(input.getAttackPatternsIds())));
     setVulnerabilitiesFromExternalOrInternalIds(
         input.getVulnerabilityExternalIds(), input.getVulnerabilityIds(), injectorContract);
-    injectorContract.setDomains(this.domainService.upserts(input.getDomains()));
+    injectorContract.setDomains(
+        this.domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant()));
 
     injectorContract.setUpdatedAt(Instant.now());
     return injectorContractRepository.save(injectorContract);
@@ -587,7 +595,8 @@ public class InjectorContractService {
       injectorContract.setAttackPatterns(new ArrayList<>());
     }
     if (!injector.isPayloads() && in.getDomains() != null) {
-      injectorContract.setDomains(this.domainService.upserts(in.getDomains()));
+      injectorContract.setDomains(
+          this.domainService.upserts(in.getDomains(), injector.getTenant().getId()));
     }
     return injectorContract;
   }

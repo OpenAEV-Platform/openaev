@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -95,7 +96,8 @@ public class PayloadService {
     injectorContract.setPayload(payload);
     injectorContract.setPlatforms(payload.getPlatforms());
     injectorContract.setDomains(
-        domainService.upsertDomainEntities(new HashSet<>(Set.of(PresetDomain.TOCLASSIFY))));
+        domainService.upsertDomainEntities(
+            new HashSet<>(Set.of(PresetDomain.getToClassify())), payload.getTenant().getId()));
     injectorContract.setAttackPatterns(
         fromIterable(
             attackPatternRepository.findAllById(
@@ -361,7 +363,9 @@ public class PayloadService {
     fileDrop.setPlatforms(ALL_PLATFORMS);
     fileDrop.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
     fileDrop.setDomains(
-        domainService.upserts(Set.of(InjectorContractDomainDTO.fromDomain(PresetDomain.ENDPOINT))));
+        domainService.upserts(
+            Set.of(InjectorContractDomainDTO.fromDomain(PresetDomain.getEndpoint())),
+            TenantContext.getCurrentTenant()));
 
     fileDrop.setExpectations(
         new InjectExpectation.EXPECTATION_TYPE[] {
@@ -422,7 +426,11 @@ public class PayloadService {
 
     dynamicDnsResolutionPayload.setDomains(
         domainService.upsertDomainEntities(
-            Set.of(PresetDomain.ENDPOINT, PresetDomain.NETWORK, PresetDomain.URL_FILTERING)));
+            Set.of(
+                PresetDomain.getEndpoint(),
+                PresetDomain.getNetwork(),
+                PresetDomain.getUrlFiltering()),
+            TenantContext.getCurrentTenant()));
 
     dynamicDnsResolutionPayload.setTags(
         tagService.findOrCreateTagsFromNames(new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
