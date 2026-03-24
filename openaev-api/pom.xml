@@ -221,16 +221,16 @@
         <dependency>
             <groupId>io.modelcontextprotocol.sdk</groupId>
             <artifactId>mcp-core</artifactId>
-            <exclusions>
-                <exclusion>
-                    <groupId>com.networknt</groupId>
-                    <artifactId>json-schema-validator</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>io.modelcontextprotocol.sdk</groupId>
             <artifactId>mcp-json-jackson2</artifactId>
+        </dependency>
+        <!-- Pin json-schema-validator to 1.x for MockServer 5.15.0 compatibility -->
+        <dependency>
+            <groupId>com.networknt</groupId>
+            <artifactId>json-schema-validator</artifactId>
+            <version>1.5.6</version>
         </dependency>
         <!-- OpenTelemetry -->
         <dependency>
