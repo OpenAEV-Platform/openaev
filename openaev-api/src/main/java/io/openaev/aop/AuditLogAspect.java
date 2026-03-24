@@ -113,22 +113,26 @@ public class AuditLogAspect {
       childInfo = detectChildResource(joinPoint, resourceId);
     }
 
-    // For updates/deletes: pre-fetch entity state before the mutation
+    // For updates/deletes/status_change: pre-fetch entity state before the mutation
     JsonNode oldEntitySnapshot = null;
     String entityName = null;
     if (childInfo != null) {
       // Child operation: snapshot the child, not the parent
       oldEntitySnapshot = childInfo.snapshot();
       entityName = extractNameFromSnapshot(oldEntitySnapshot);
-    } else if (("update".equals(eventScope) || "delete".equals(eventScope))
+    } else if (("update".equals(eventScope)
+            || "delete".equals(eventScope)
+            || "status_change".equals(eventScope))
         && !resourceId.isEmpty()) {
       oldEntitySnapshot = snapshotEntity(resourceType, resourceId);
       entityName = extractNameFromSnapshot(oldEntitySnapshot);
     }
 
-    // Capture the input DTO for create/update
+    // Capture the input DTO for create/update/status_change
     JsonNode inputNode = null;
-    if ("create".equals(eventScope) || "update".equals(eventScope)) {
+    if ("create".equals(eventScope)
+        || "update".equals(eventScope)
+        || "status_change".equals(eventScope)) {
       Object requestBody = findRequestBody(joinPoint);
       if (requestBody != null) {
         inputNode = objectMapper.valueToTree(requestBody);
@@ -197,6 +201,22 @@ public class AuditLogAspect {
       if (diffInput == null || diffInput.isEmpty()) {
         // No meaningful changes detected — skip the audit event (no-op update)
         return result;
+      }
+    } else if ("status_change".equals(eventScope)) {
+      // For status changes with a request body (exercise status, scenario recurrence):
+      // reuse the diff engine to extract only the changed fields and their old values.
+      // For instant launch (no request body): synthesize a minimal input, no old_value.
+      if (inputNode != null && oldEntitySnapshot != null) {
+        DiffResult diff = computeDiff(oldEntitySnapshot, inputNode);
+        diffInput = diff.newValues() != null ? diff.newValues() : inputNode;
+        diffOldValue = diff.oldValues();
+      } else if (inputNode != null) {
+        diffInput = inputNode;
+      } else {
+        // No request body (e.g. POST /scenarios/{id}/exercise/running)
+        ObjectNode syntheticInput = objectMapper.createObjectNode();
+        syntheticInput.put("action", "launch");
+        diffInput = syntheticInput;
       }
     } else if ("create".equals(eventScope)) {
       diffInput = inputNode;
@@ -303,9 +323,9 @@ public class AuditLogAspect {
 
   private boolean shouldSkip(Action action) {
     return switch (action) {
-      case CREATE, WRITE, DELETE -> false;
+      case CREATE, WRITE, DELETE, LAUNCH -> false;
       case READ, SEARCH -> !logReads;
-      default -> true; // SKIP_RBAC, DUPLICATE, LAUNCH, PROCESS
+      default -> true; // SKIP_RBAC, DUPLICATE, PROCESS
     };
   }
 
@@ -314,6 +334,7 @@ public class AuditLogAspect {
       case CREATE -> "create";
       case WRITE -> "update";
       case DELETE -> "delete";
+      case LAUNCH -> "status_change";
       case READ, SEARCH -> "read";
       default -> "unknown";
     };

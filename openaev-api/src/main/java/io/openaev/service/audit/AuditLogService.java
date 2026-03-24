@@ -114,7 +114,13 @@ public class AuditLogService {
         contextData.set("old_value", redact(oldValue, entityTypeName));
       }
       String displayName = entityName != null ? entityName : entityId;
-      contextData.put("message", eventScope + "s " + entityTypeName + " `" + displayName + "`");
+      String message;
+      if ("status_change".equals(eventScope)) {
+        message = buildStatusChangeMessage(input, entityTypeName, displayName);
+      } else {
+        message = eventScope + "s " + entityTypeName + " `" + displayName + "`";
+      }
+      contextData.put("message", message);
 
       ObjectNode event = buildBaseEvent("mutation", eventStatus, eventAccess, eventScope);
       event.set("context_data", contextData);
@@ -168,6 +174,39 @@ public class AuditLogService {
   }
 
   // -- Internal helpers --
+
+  /**
+   * Builds a human-readable message for status_change events. Handles three cases:
+   *
+   * <ul>
+   *   <li>Exercise status change: input has {@code exercise_status}
+   *   <li>Scenario instant launch: input has {@code action=launch}
+   *   <li>Scenario recurrence update: input has {@code scenario_recurrence} fields
+   * </ul>
+   */
+  private String buildStatusChangeMessage(
+      JsonNode input, String entityTypeName, String displayName) {
+    if (input == null) {
+      return "changes status of " + entityTypeName + " `" + displayName + "`";
+    }
+    if (input.has("exercise_status")) {
+      String newStatus = input.get("exercise_status").asText().toLowerCase();
+      return "changes status of "
+          + entityTypeName
+          + " `"
+          + displayName
+          + "` to `"
+          + newStatus
+          + "`";
+    }
+    if (input.has("action") && "launch".equals(input.get("action").asText())) {
+      return "launches " + entityTypeName + " `" + displayName + "`";
+    }
+    if (input.has("scenario_recurrence")) {
+      return "updates recurrence of " + entityTypeName + " `" + displayName + "`";
+    }
+    return "changes status of " + entityTypeName + " `" + displayName + "`";
+  }
 
   /** Builds the top-level event envelope with all common fields. */
   private ObjectNode buildBaseEvent(

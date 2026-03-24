@@ -1,5 +1,6 @@
 HELP.md
 *.bat
+.DS_Store
 **/application-dev.properties
 target/
 !**/src/main/**/target/

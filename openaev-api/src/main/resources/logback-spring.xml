@@ -1,4 +1,8 @@
 <configuration>
+    <!-- Audit log file path (can be overridden via system property or env var) -->
+    <property name="AUDIT_LOG_DIR" value="${AUDIT_LOG_DIR:-logs}" />
+    <property name="AUDIT_LOG_FILE" value="${AUDIT_LOG_DIR}/audit.log" />
+
     <springProfile name="dev | test">
         <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
         <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
@@ -7,9 +11,23 @@
             </encoder>
         </appender>
 
-        <!-- Audit log: always at INFO, independent of root level -->
+        <!-- Audit log file appender with daily rolling -->
+        <appender name="AUDIT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>${AUDIT_LOG_FILE}</file>
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <fileNamePattern>${AUDIT_LOG_DIR}/audit.%d{yyyy-MM-dd}.log</fileNamePattern>
+                <maxHistory>90</maxHistory>
+                <totalSizeCap>1GB</totalSizeCap>
+            </rollingPolicy>
+            <encoder>
+                <pattern>%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %msg%n</pattern>
+            </encoder>
+        </appender>
+
+        <!-- Audit log: console + file, independent of root level -->
         <logger name="AUDIT_LOG" level="INFO" additivity="false">
             <appender-ref ref="STDOUT" />
+            <appender-ref ref="AUDIT_FILE" />
         </logger>
 
         <root>
@@ -24,10 +42,25 @@
             </encoder>
         </appender>
 
-        <!-- Audit log: always at INFO, independent of root level -->
+        <!-- Audit log file appender with daily rolling (JSON format) -->
+        <appender name="AUDIT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>${AUDIT_LOG_FILE}</file>
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <fileNamePattern>${AUDIT_LOG_DIR}/audit.%d{yyyy-MM-dd}.log</fileNamePattern>
+                <maxHistory>90</maxHistory>
+                <totalSizeCap>1GB</totalSizeCap>
+            </rollingPolicy>
+            <encoder class="ch.qos.logback.classic.encoder.JsonEncoder">
+                <WithThrowable>true</WithThrowable>
+            </encoder>
+        </appender>
+
+        <!-- Audit log: console (JSON) + file (JSON), independent of root level -->
         <logger name="AUDIT_LOG" level="INFO" additivity="false">
             <appender-ref ref="jsonEncoder" />
+            <appender-ref ref="AUDIT_FILE" />
         </logger>
+
 
         <root>
             <appender-ref ref="jsonEncoder" />
