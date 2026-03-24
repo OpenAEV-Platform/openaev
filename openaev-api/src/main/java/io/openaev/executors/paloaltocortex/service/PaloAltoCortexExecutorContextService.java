@@ -65,23 +65,34 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
     paloAltoCortexAgents =
         executorService.manageWithoutPlatformAgents(paloAltoCortexAgents, injectStatus);
 
+    Injector injector = inject.getInjector();
+    if (injector == null) {
+      // Fallback for legacy injects without inject_injector populated
+      injector =
+          inject
+              .getInjectorContract()
+              .map(InjectorContract::getFirstInjector)
+              .orElseThrow(
+                  () -> new UnsupportedOperationException("Inject does not have a contract"));
+    }
+
     List<PaloAltoCortexAction> actions = new ArrayList<>();
     // Set implant script for each agent
     actions.addAll(
         getWindowsActions(
             getAgentsFromOS(paloAltoCortexAgents, Endpoint.PLATFORM_TYPE.Windows),
-            inject.getInjector(),
+            injector,
             inject.getId()));
     actions.addAll(
         getUnixActions(
             getAgentsFromOS(paloAltoCortexAgents, Endpoint.PLATFORM_TYPE.Linux),
-            inject.getInjector(),
+            injector,
             inject.getId(),
             Endpoint.PLATFORM_TYPE.Linux));
     actions.addAll(
         getUnixActions(
             getAgentsFromOS(paloAltoCortexAgents, Endpoint.PLATFORM_TYPE.MacOS),
-            inject.getInjector(),
+            injector,
             inject.getId(),
             Endpoint.PLATFORM_TYPE.MacOS));
     // Launch payloads with Palo Alto Cortex API

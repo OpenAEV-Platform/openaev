@@ -60,6 +60,17 @@ public class TaniumExecutorContextService extends ExecutorContextService {
 
     taniumAgents = executorService.manageWithoutPlatformAgents(taniumAgents, injectStatus);
 
+    Injector injector = inject.getInjector();
+    if (injector == null) {
+      // Fallback for legacy injects without inject_injector populated
+      injector =
+          inject
+              .getInjectorContract()
+              .map(InjectorContract::getFirstInjector)
+              .orElseThrow(
+                  () -> new UnsupportedOperationException("Inject does not have a contract"));
+    }
+
     List<TaniumAction> actions = new ArrayList<>();
     // Set implant script for each agent
     for (Endpoint.PLATFORM_TYPE platform : Endpoint.PLATFORM_TYPE.values()) {
@@ -69,14 +80,14 @@ public class TaniumExecutorContextService extends ExecutorContextService {
               actions.addAll(
                   getWindowsActions(
                       getAgentsFromOSAndArch(taniumAgents, platform, arch),
-                      inject.getInjector(),
+                      injector,
                       inject.getId(),
                       arch));
           case Linux, MacOS ->
               actions.addAll(
                   getUnixActions(
                       getAgentsFromOSAndArch(taniumAgents, platform, arch),
-                      inject.getInjector(),
+                      injector,
                       inject.getId(),
                       platform,
                       arch));
