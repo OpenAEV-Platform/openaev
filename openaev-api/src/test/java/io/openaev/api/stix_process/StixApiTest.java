@@ -952,8 +952,10 @@ class StixApiTest extends IntegrationTest {
     void shouldNotDuplicatedReferenceSecurityCoverage() throws Exception {
       String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(stixSecurityCoverage));
       String duplicated =
-          mvc.perform(post(SCENARIO_URI + "/" + scenarioId).contentType(MediaType.APPLICATION_JSON)
-                          .with(csrf()))
+          mvc.perform(
+                  post(SCENARIO_URI + "/" + scenarioId)
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
