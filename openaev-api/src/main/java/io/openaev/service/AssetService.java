@@ -7,15 +7,14 @@ import io.openaev.database.model.Filters;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
-import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.utils.FilterUtilsJpa;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
