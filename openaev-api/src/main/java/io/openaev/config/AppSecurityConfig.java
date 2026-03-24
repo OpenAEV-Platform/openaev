@@ -85,6 +85,8 @@ public class AppSecurityConfig {
                         "/api/xtm-composer/**",
                         "/api/xtmhub/**",
                         "/api/connector-instances/**",
+                        "/api/injectors/**",
+                        "/api/collectors/**",
                         "/actuator/**"))
         .formLogin(AbstractHttpConfigurer::disable)
         .securityContext(securityContext -> securityContext.requireExplicitSave(false))

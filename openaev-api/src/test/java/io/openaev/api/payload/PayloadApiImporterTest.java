@@ -113,7 +113,13 @@ class PayloadApiImporterTest extends IntegrationTest {
     MockMultipartFile zipFile = buildZipFile(document);
 
     // -- EXECUTE --
-    String response = performImport(zipFile);
+    String response =
+        mockMvc
+            .perform(multipart(PAYLOAD_URI + "/import").file(zipFile))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
 
     // -- ASSERT --
     assertNotNull(response);
@@ -157,8 +163,13 @@ class PayloadApiImporterTest extends IntegrationTest {
 
     MockMultipartFile zipFile = buildZipFile(document);
 
-    // -- EXECUTE --
-    String response = performImport(zipFile);
+    String response =
+        mockMvc
+            .perform(multipart(PAYLOAD_URI + "/import").file(zipFile))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
 
     // -- ASSERT --
     assertNotNull(response);
@@ -427,8 +438,13 @@ class PayloadApiImporterTest extends IntegrationTest {
 
     MockMultipartFile zipFile = buildZipFile(document);
 
-    // -- EXECUTE --
-    String response = performImport(zipFile);
+    String response =
+        mockMvc
+            .perform(multipart(PAYLOAD_URI + "/import").file(zipFile))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
 
     // -- ASSERT --
     assertNotNull(response);

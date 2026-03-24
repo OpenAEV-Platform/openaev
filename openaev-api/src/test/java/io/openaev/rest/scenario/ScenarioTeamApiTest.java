@@ -462,14 +462,16 @@ class ScenarioTeamApiTest extends IntegrationTest {
               put(SCENARIO_URI + "/" + scenarioSaved.getId() + "/teams/replace")
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       mvc.perform(
               put(SCENARIO_URI + "/" + scenarioSaved.getId() + "/teams/replace")
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --

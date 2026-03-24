@@ -513,7 +513,8 @@ public class ExerciseApiTest extends IntegrationTest {
               put(EXERCISE_URI + "/" + exerciseASaved.getId() + "/teams/replace")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(objectMapper.writeValueAsString(input))
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isOk());
 
       // -- ASSERT --
@@ -569,7 +570,8 @@ public class ExerciseApiTest extends IntegrationTest {
               put(EXERCISE_URI + "/" + exerciseSaved.getId() + "/teams/replace")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(objectMapper.writeValueAsString(input))
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isOk());
 
       // -- ASSERT --
