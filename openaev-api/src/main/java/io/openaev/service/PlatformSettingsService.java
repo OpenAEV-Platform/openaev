@@ -223,8 +223,7 @@ public class PlatformSettingsService {
           ofNullable(dbSettings.get(PLATFORM_WHITEMARK.key()))
               .map(Setting::getValue)
               .orElse(PLATFORM_WHITEMARK.defaultValue()));
-      platformSettings.setPlatformMcpEnabled(
-          settingService.getBoolean(PLATFORM_MCP_ENABLED));
+      platformSettings.setPlatformMcpEnabled(settingService.getBoolean(PLATFORM_MCP_ENABLED));
       platformSettings.setMapTileServerLight(openAEVConfig.getMapTileServerLight());
       platformSettings.setMapTileServerDark(openAEVConfig.getMapTileServerDark());
       platformSettings.setPlatformId(
