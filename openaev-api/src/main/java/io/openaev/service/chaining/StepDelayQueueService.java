@@ -1,12 +1,11 @@
 package io.openaev.service.chaining;
 
-import io.openaev.database.model.Condition;
 import io.openaev.database.model.Step;
-import io.openaev.database.model.StepsDelayQueue;
+import io.openaev.database.model.StepDelayQueue;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.StepDelayQueueRepository;
 import java.time.Instant;
-import java.util.Optional;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,14 +26,13 @@ public class StepDelayQueueService {
   /**
    * Pushes a step template into the delay queue.
    *
-   * <p>Creates a new {@link StepsDelayQueue} entry with the provided step, input, workflow, delay
+   * <p>Creates a new {@link StepDelayQueue} entry with the provided step, input, workflow, delay
    * condition, and goal time. The entry is then persisted via the repository.
    *
    * @param stepTemplate the workflow step template to delay
    * @param now the current timestamp when the step is enqueued
    * @param input input data for the step
    * @param delay delay in milliseconds before the step can be processed
-   * @param delayCondition the {@link Condition} that controls the delay
    * @param workflowRun the {@link Workflow} instance associated with the step
    * @param goal the target timestamp when the step should be ready to execute
    */
@@ -43,49 +41,37 @@ public class StepDelayQueueService {
       Instant now,
       String input,
       long delay,
-      Condition delayCondition,
       Workflow workflowRun,
       Instant goal) {
-    log.info(
-        "DELAY STEP TEMPLATE : {} CONDITION TIME AFTER: {} + {} milliseconds => Goal: {}",
+    log.debug(
+        "Delay step template: {} condition time after: {} + {} milliseconds => goal: {}",
         stepTemplate.getId(),
         now,
         delay,
         goal);
-    StepsDelayQueue stepsDelayQueue =
-        StepsDelayQueue.builder()
+    StepDelayQueue stepDelayQueue =
+        StepDelayQueue.builder()
             .input(input)
             .now(now)
             .goal(goal)
             .delay(delay)
-            .delayCondition(delayCondition)
             .stepTemplate(stepTemplate)
             .workflowRun(workflowRun)
             .build();
-    stepDelayQueueRepository.save(stepsDelayQueue);
+    stepDelayQueueRepository.save(stepDelayQueue);
   }
 
   /**
-   * Finds the next step in the delay queue that is ready to be processed.
+   * Atomically retrieves and removes the oldest eligible entry per workflow run from the delay
+   * queue.
    *
-   * <p>Retrieves the first {@link StepsDelayQueue} entry whose goal time is less than or equal to
-   * the current timestamp, ordered by ascending goal time.
+   * <p>A step is eligible when its scheduled goal time has been reached. Atomicity is guaranteed at
+   * the database level via {@code DELETE ... RETURNING}. {@code synchronized} provides an
+   * additional safeguard for single-pod concurrency.
    *
-   * @return an {@link Optional} containing the next ready {@link StepsDelayQueue}, or empty if none
-   *     are ready
+   * @return the oldest eligible {@link StepDelayQueue} per workflow run, or an empty list
    */
-  public Optional<StepsDelayQueue> findNextToProcess() {
-    return stepDelayQueueRepository.findFirstByGoalLessThanEqualOrderByGoalAsc(Instant.now());
-  }
-
-  /**
-   * Deletes a {@link StepsDelayQueue} entry from the repository.
-   *
-   * <p>This should be called after a step has been processed to remove it from the delay queue.
-   *
-   * @param stepsDelayQueue the queue entry to delete
-   */
-  public void deleteStepsDelayQueue(StepsDelayQueue stepsDelayQueue) {
-    stepDelayQueueRepository.delete(stepsDelayQueue);
+  public synchronized List<StepDelayQueue> popNextToProcess() {
+    return stepDelayQueueRepository.popNextPerWorkflowRun();
   }
 }

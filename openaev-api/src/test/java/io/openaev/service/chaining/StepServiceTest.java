@@ -13,8 +13,8 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.scheduler.jobs.QueueChainingJob;
 import java.io.IOException;
-import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -27,6 +27,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.quartz.JobExecutionException;
 
 @ExtendWith(MockitoExtension.class)
 public class StepServiceTest {
@@ -40,7 +41,7 @@ public class StepServiceTest {
   @Mock private StepDelayQueueService stepDelayQueueService;
 
   @Spy @InjectMocks StepService stepService;
-  private QueueChainingScheduler queueChainingScheduler;
+  private QueueChainingJob queueChainingJob;
 
   private final String workflowId = UUID.randomUUID().toString();
 
@@ -56,7 +57,7 @@ public class StepServiceTest {
    * ============================================================ */
   @BeforeEach
   void setUp() {
-    queueChainingScheduler = new QueueChainingScheduler(stepDelayQueueService, stepService);
+    queueChainingJob = new QueueChainingJob(stepDelayQueueService, stepService);
   }
 
   @Nested
@@ -1054,18 +1055,18 @@ public class StepServiceTest {
       @ParameterizedTest(name = "{index} => stepFound={0}, throwException={1}")
       @MethodSource("delayStepEventScenarios")
       void shouldReadyOnlyWhenStepExists(boolean stepFound, boolean throwException)
-          throws ChainingException {
+          throws ChainingException, JobExecutionException {
         // -------- Prepare --------
-        StepsDelayQueue stepsDelayQueue = mock(StepsDelayQueue.class);
+        StepDelayQueue stepDelayQueue = mock(StepDelayQueue.class);
         Step step = mock(Step.class);
         Workflow workflowRun = mock(Workflow.class);
 
-        when(stepDelayQueueService.findNextToProcess())
-            .thenReturn(stepFound ? Optional.of(stepsDelayQueue) : Optional.empty());
+        when(stepDelayQueueService.popNextToProcess())
+            .thenReturn(stepFound ? List.of(stepDelayQueue) : new ArrayList<>());
 
         if (stepFound) {
-          when(stepsDelayQueue.getWorkflowRun()).thenReturn(workflowRun);
-          when(stepsDelayQueue.getStepTemplate()).thenReturn(step);
+          when(stepDelayQueue.getWorkflowRun()).thenReturn(workflowRun);
+          when(stepDelayQueue.getStepTemplate()).thenReturn(step);
 
           if (throwException) {
             doThrow(new ChainingException("error"))
@@ -1079,16 +1080,13 @@ public class StepServiceTest {
         }
 
         // -------- Act --------
-        queueChainingScheduler.processDelayStep();
+        queueChainingJob.execute(null);
 
         // -------- Assert --------
         if (stepFound) {
           verify(stepService).ready(step, workflowRun, null);
-          // delete must always be called regardless of exception
-          verify(stepDelayQueueService).deleteStepsDelayQueue(stepsDelayQueue);
         } else {
           verify(stepService, never()).ready(any(), any(), any());
-          verify(stepDelayQueueService, never()).deleteStepsDelayQueue(any());
         }
       }
 
@@ -1340,43 +1338,6 @@ public class StepServiceTest {
 
     assertEquals(StepStatus.END, stepReady.getStatus());
     verify(stepService).saveStep(stepReady);
-  }
-
-  @Nested
-  class DelayRateTimeCondition {
-
-    @Test
-    void shouldDelegateToConditionService() {
-      // -------- Prepare --------
-      Condition condition = mock(Condition.class);
-      Instant lastExecution = Instant.now();
-      Long timeRate = 5000L;
-
-      // -------- Act --------
-      stepService.delayRateTimeCondition(condition, lastExecution, timeRate);
-
-      // -------- Assert --------
-      verify(conditionService).delayRateTimeCondition(condition, lastExecution, timeRate);
-    }
-
-    @Test
-    void shouldPropagateIllegalArgumentException_whenConditionTypeIsNotAFTER() {
-      // -------- Prepare --------
-      Condition condition = mock(Condition.class);
-      Instant lastExecution = Instant.now();
-      Long timeRate = 5000L;
-
-      doThrow(new IllegalArgumentException("Delay can only be applied to AFTER conditions"))
-          .when(conditionService)
-          .delayRateTimeCondition(any(), any(), any());
-
-      // -------- Act & Assert --------
-      assertThrows(
-          IllegalArgumentException.class,
-          () -> stepService.delayRateTimeCondition(condition, lastExecution, timeRate));
-
-      verify(conditionService).delayRateTimeCondition(condition, lastExecution, timeRate);
-    }
   }
 
   /* ============================================================

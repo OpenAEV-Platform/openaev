@@ -380,7 +380,6 @@ public class ConditionServiceTest {
               any(Instant.class),
               anyString(),
               delayCaptor.capture(),
-              any(Condition.class),
               eq(workflowRun),
               any(Instant.class));
       assertTrue(delayCaptor.getValue() > 0, "delay should be > 0 when goal is in the future");

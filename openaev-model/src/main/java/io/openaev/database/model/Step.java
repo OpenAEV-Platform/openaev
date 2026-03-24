@@ -3,6 +3,8 @@ package io.openaev.database.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
+import io.openaev.annotation.OnDelete;
+import io.openaev.annotation.OnDeleteAction;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.persistence.Table;
@@ -107,7 +109,6 @@ public class Step implements Base {
   @JoinColumn(name = "step_template_id")
   @ManyToOne(fetch = FetchType.LAZY)
   @JsonIgnore
-  @OnDelete(action = OnDeleteAction.SET_NULL)
   @Schema(description = "Template step from which this step was created")
   private Step stepTemplate;
 
@@ -115,5 +116,6 @@ public class Step implements Base {
   @Builder.Default
   @JsonIgnore
   @Schema(description = "Steps that were executed based on this template step")
+  @OnDelete(action = OnDeleteAction.SET_REFERENCE_NULL, fieldName = "stepTemplate")
   private List<Step> stepsExecuted = new ArrayList<>();
 }

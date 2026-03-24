@@ -2,6 +2,8 @@ package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.annotation.OnDelete;
+import io.openaev.annotation.OnDeleteAction;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.persistence.CascadeType;
@@ -70,13 +72,13 @@ public class Workflow implements Base {
   @ManyToOne(fetch = FetchType.LAZY)
   @JsonIgnore
   @Schema(description = "Template workflow from which this workflow was created")
-  @OnDelete(action = OnDeleteAction.SET_NULL)
   private Workflow workflowTemplate;
 
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "workflowTemplate")
   @Builder.Default
   @JsonIgnore
   @Schema(description = "Workflows that were executed based on this template workflow")
+  @OnDelete(action = OnDeleteAction.SET_REFERENCE_NULL, fieldName = "workflowTemplate")
   private List<Workflow> workflowsExecuted = new ArrayList<>();
 
   @OneToMany(

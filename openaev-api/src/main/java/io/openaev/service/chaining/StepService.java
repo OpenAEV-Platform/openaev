@@ -13,7 +13,6 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
-import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -911,22 +910,6 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
         }
       }
     }
-  }
-
-  /**
-   * Delegates the delay rate time condition update to {@link ConditionService}.
-   *
-   * <p>This method exists to avoid direct access to {@link ConditionService} from {@link
-   * QueueChainingScheduler}, keeping encapsulation clean. Updates the {@link Condition} value to
-   * the next execution timestamp based on the last execution time and the configured time rate.
-   *
-   * @param condition the {@link Condition} of type {@link ConditionType#AFTER} to update
-   * @param lastExecution the timestamp of the last execution
-   * @param timeRate the delay in milliseconds before the next execution
-   * @throws IllegalArgumentException if the condition type is not {@link ConditionType#AFTER}
-   */
-  public void delayRateTimeCondition(Condition condition, Instant lastExecution, Long timeRate) {
-    conditionService.delayRateTimeCondition(condition, lastExecution, timeRate);
   }
 
   public enum ACTION_JSON {

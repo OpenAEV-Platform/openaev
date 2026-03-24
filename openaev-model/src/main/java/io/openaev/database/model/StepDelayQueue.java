@@ -16,7 +16,7 @@ import org.hibernate.annotations.*;
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
-public class StepsDelayQueue implements Base {
+public class StepDelayQueue implements Base {
   @Id
   @Column(name = "steps_delay_queue_id")
   @JsonProperty("steps_delay_queue_id")
@@ -45,12 +45,6 @@ public class StepsDelayQueue implements Base {
   @JsonProperty("steps_delay_queue_delay")
   @Schema(description = "Delay in milliseconds before the action step is executed")
   private Long delay;
-
-  @ManyToOne
-  @JoinColumn(name = "steps_delay_queue_condition_id")
-  @OnDelete(action = OnDeleteAction.SET_NULL)
-  @Schema(description = "Condition of type AFTER controlling the delay")
-  private Condition delayCondition;
 
   @ManyToOne
   @JoinColumn(name = "steps_delay_queue_step_template_id")

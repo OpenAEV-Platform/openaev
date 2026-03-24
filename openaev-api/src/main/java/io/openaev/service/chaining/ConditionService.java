@@ -176,8 +176,7 @@ public class ConditionService {
         long delay = ChronoUnit.MILLIS.between(now, goal);
 
         stepDelayQueueService.pushStepTemplateIntoStepDelayQueue(
-            nextStepTemplateToExecute, now, input, delay, condition, workflowRun, goal);
-
+            nextStepTemplateToExecute, now, input, delay, workflowRun, goal);
         return null;
       }
     }
@@ -260,15 +259,5 @@ public class ConditionService {
         .type(ConditionType.DEPEND_ON)
         .value(idStepFromTemplate)
         .build();
-  }
-
-  public void delayRateTimeCondition(Condition condition, Instant lastExecution, Long timeRate) {
-    if (!condition.getType().equals(ConditionType.AFTER))
-      throw new IllegalArgumentException(
-          "Delay can only be applied to AFTER conditions, got: " + condition.getType());
-
-    Instant nexExecution = lastExecution.plus(timeRate, ChronoUnit.MILLIS);
-    condition.setValue(nexExecution.toString());
-    conditionRepository.save(condition);
   }
 }

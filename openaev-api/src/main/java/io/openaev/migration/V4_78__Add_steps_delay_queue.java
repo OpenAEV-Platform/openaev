@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_76__Add_steps_delay_queue extends BaseJavaMigration {
+public class V4_78__Add_steps_delay_queue extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
@@ -20,7 +20,6 @@ public class V4_76__Add_steps_delay_queue extends BaseJavaMigration {
                                     steps_delay_queue_now TIMESTAMP WITH TIME ZONE,
                                     steps_delay_queue_goal TIMESTAMP WITH TIME ZONE,
                                     steps_delay_queue_delay BIGINT,
-                                    steps_delay_queue_condition_id VARCHAR(255) REFERENCES conditions(condition_id) ON DELETE SET NULL,
                                     steps_delay_queue_step_template_id VARCHAR(255) REFERENCES steps(step_id) ON DELETE CASCADE,
                                     steps_delay_queue_workflow_run_id VARCHAR(255) REFERENCES workflows(workflow_id) ON DELETE CASCADE,
                                     steps_delay_queue_created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),

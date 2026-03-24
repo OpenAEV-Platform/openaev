@@ -1,8 +1,9 @@
 package io.openaev.service.chaining;
 
 import io.openaev.database.model.Step;
-import io.openaev.database.model.StepsDelayQueue;
+import io.openaev.database.model.StepDelayQueue;
 import io.openaev.database.model.Workflow;
+import io.openaev.database.model.WorkflowStatus;
 import io.openaev.database.repository.StepDelayQueueRepository;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.StepFixture;
@@ -12,27 +13,23 @@ import io.openaev.utils.fixtures.composers.StepComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
+@Transactional
 public class StepDelayQueueIntegrationTest {
 
   @Autowired private StepDelayQueueRepository stepDelayQueueRepository;
   @Autowired private WorkflowComposer workflowComposer;
+  @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private StepComposer stepComposer;
   @Autowired private ExerciseComposer simulationComposer;
 
-  @AfterEach
-  void tearDown() {
-    stepDelayQueueRepository.deleteAll();
-  }
-
-  private StepsDelayQueue buildEntry(Instant goal) {
+  private StepDelayQueue buildEntry(Instant goal) {
     Step stepTemplate = StepFixture.getDefaultStepTemplate();
     Workflow workflow =
         workflowComposer
@@ -42,7 +39,7 @@ public class StepDelayQueueIntegrationTest {
             .persist()
             .get();
 
-    return StepsDelayQueue.builder()
+    return StepDelayQueue.builder()
         .goal(goal)
         .now(Instant.now())
         .delay(5000L)
@@ -53,48 +50,83 @@ public class StepDelayQueueIntegrationTest {
   }
 
   @Test
-  void findFirstByGoalLessThanEqualOrderByGoalAsc_shouldReturnEntryWhenGoalReached() {
-    StepsDelayQueue entry = buildEntry(Instant.now().minusSeconds(60));
-    stepDelayQueueRepository.save(entry);
+  void popNextPerWorkflowRun_shouldReturnOnePerWorkflowRunWhenMultipleEligible() {
+    // Two different workflow runs, both eligible
+    StepDelayQueue run1Entry = buildEntry(Instant.now().minusSeconds(60));
+    StepDelayQueue run2Entry = buildEntry(Instant.now().minusSeconds(30));
+    stepDelayQueueRepository.saveAll(List.of(run1Entry, run2Entry));
 
-    Optional<StepsDelayQueue> result =
-        stepDelayQueueRepository.findFirstByGoalLessThanEqualOrderByGoalAsc(Instant.now());
-
-    Assertions.assertTrue(result.isPresent());
-    Assertions.assertEquals("test-input", result.get().getInput());
+    List<StepDelayQueue> results = stepDelayQueueRepository.popNextPerWorkflowRun();
+    Assertions.assertEquals(2, results.size());
+    Assertions.assertTrue(
+        results.stream().map(s -> s.getWorkflowRun().getId()).distinct().count() == 2);
   }
 
   @Test
-  void findFirstByGoalLessThanEqualOrderByGoalAsc_shouldReturnEmptyWhenGoalNotReached() {
-    StepsDelayQueue entry = buildEntry(Instant.now().plusSeconds(3600));
-    stepDelayQueueRepository.save(entry);
+  void popNextPerWorkflowRun_shouldReturnOldestGoalPerWorkflowRun() {
+    // Same workflow run, two eligible entries — only oldest should be returned
+    // Workflow sharedRun = // build a single workflow run manually
+    Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
 
-    Optional<StepsDelayQueue> result =
-        stepDelayQueueRepository.findFirstByGoalLessThanEqualOrderByGoalAsc(Instant.now());
+    Step stepTemplate = StepFixture.getDefaultStepTemplate();
+    workflowComposer
+        .forWorkflow(workflowRun)
+        .withStep(stepComposer.forStep(stepTemplate))
+        .withWorkflowTemplate(
+            workflowComposer
+                .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+                .withSimulation(
+                    exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise())))
+        .withSimulation(exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+        .persist()
+        .get();
 
-    Assertions.assertTrue(result.isEmpty());
-  }
+    StepDelayQueue oldest =
+        StepDelayQueue.builder()
+            .goal(Instant.now().minusSeconds(120))
+            .now(Instant.now())
+            .delay(5000L)
+            .input("oldest")
+            .stepTemplate(stepTemplate)
+            .workflowRun(workflowRun)
+            .build();
 
-  @Test
-  void findFirstByGoalLessThanEqualOrderByGoalAsc_shouldReturnOldestWhenMultipleGoalsReached() {
-    StepsDelayQueue oldest = buildEntry(Instant.now().minusSeconds(120));
-    oldest.setInput("oldest");
-    StepsDelayQueue newer = buildEntry(Instant.now().minusSeconds(30));
-    newer.setInput("newer");
+    StepDelayQueue newer =
+        StepDelayQueue.builder()
+            .goal(Instant.now().minusSeconds(30))
+            .now(Instant.now())
+            .delay(5000L)
+            .input("newer")
+            .stepTemplate(stepTemplate)
+            .workflowRun(workflowRun)
+            .build();
+
     stepDelayQueueRepository.saveAll(List.of(oldest, newer));
 
-    Optional<StepsDelayQueue> result =
-        stepDelayQueueRepository.findFirstByGoalLessThanEqualOrderByGoalAsc(Instant.now());
+    List<StepDelayQueue> results = stepDelayQueueRepository.popNextPerWorkflowRun();
 
-    Assertions.assertTrue(result.isPresent());
-    Assertions.assertEquals("oldest", result.get().getInput());
+    Assertions.assertEquals(1, results.size());
+    Assertions.assertEquals("oldest", results.get(0).getInput());
   }
 
   @Test
-  void findFirstByGoalLessThanEqualOrderByGoalAsc_shouldReturnEmptyWhenQueueIsEmpty() {
-    Optional<StepsDelayQueue> result =
-        stepDelayQueueRepository.findFirstByGoalLessThanEqualOrderByGoalAsc(Instant.now());
+  void popNextPerWorkflowRun_shouldDeleteReturnedEntries() {
+    StepDelayQueue entry = buildEntry(Instant.now().minusSeconds(60));
+    stepDelayQueueRepository.save(entry);
 
-    Assertions.assertTrue(result.isEmpty());
+    List<StepDelayQueue> results = stepDelayQueueRepository.popNextPerWorkflowRun();
+
+    Assertions.assertEquals(1, results.size());
+    Assertions.assertTrue(stepDelayQueueRepository.findAll().isEmpty());
+  }
+
+  @Test
+  void popNextPerWorkflowRun_shouldReturnEmptyWhenNoEligibleEntries() {
+    StepDelayQueue future = buildEntry(Instant.now().plusSeconds(3600));
+    stepDelayQueueRepository.save(future);
+
+    List<StepDelayQueue> results = stepDelayQueueRepository.popNextPerWorkflowRun();
+
+    Assertions.assertTrue(results.isEmpty());
   }
 }

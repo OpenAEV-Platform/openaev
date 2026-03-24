@@ -4,7 +4,6 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-import io.openaev.database.model.Condition;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.StepDelayQueueRepository;
@@ -26,12 +25,11 @@ class StepDelayQueueServiceTest {
   void pushStepTemplateIntoStepDelayQueue_shouldSaveEntity() {
     Step stepTemplate = mock(Step.class);
     Workflow workflowRun = mock(Workflow.class);
-    Condition condition = mock(Condition.class);
     Instant now = Instant.now();
     Instant goal = now.plusMillis(5000);
 
     stepDelayQueueService.pushStepTemplateIntoStepDelayQueue(
-        stepTemplate, now, "input", 5000L, condition, workflowRun, goal);
+        stepTemplate, now, "input", 5000L, workflowRun, goal);
 
     verify(stepDelayQueueRepository)
         .save(
@@ -42,7 +40,6 @@ class StepDelayQueueServiceTest {
                         && entry.getNow().equals(now)
                         && entry.getGoal().equals(goal)
                         && entry.getStepTemplate().equals(stepTemplate)
-                        && entry.getWorkflowRun().equals(workflowRun)
-                        && entry.getDelayCondition().equals(condition)));
+                        && entry.getWorkflowRun().equals(workflowRun)));
   }
 }
