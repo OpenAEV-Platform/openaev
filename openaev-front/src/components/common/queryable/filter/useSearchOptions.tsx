@@ -161,11 +161,12 @@ const useSearchOptions = () => {
         break;
       case 'finding_type': {
         const typeOptions = CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS
-          .filter(type => !search || ContractOutputElementType[type].toLowerCase().includes(search.toLowerCase()))
+          .filter(type => !search || t(ContractOutputElementType[type]).toLowerCase().includes(search.toLowerCase()))
           .map(type => ({
             id: type,
             label: ContractOutputElementType[type],
-          }));
+          }))
+          .sort((a, b) => t(a.label).localeCompare(t(b.label)));
         setOptions(typeOptions);
         break;
       }
