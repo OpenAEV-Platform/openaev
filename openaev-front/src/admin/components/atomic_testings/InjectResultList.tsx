@@ -18,7 +18,7 @@ import ItemStatus from '../../../components/ItemStatus';
 import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import { type InjectResultOutput, type SearchPaginationInput } from '../../../utils/api-types';
-import { Can } from '../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isNotEmptyField } from '../../../utils/utils';
 import InjectIcon from '../common/injects/InjectIcon';
@@ -28,7 +28,7 @@ import AtomicTestingPopover from './atomic_testing/AtomicTestingPopover';
 import AtomicTestingResult from './atomic_testing/AtomicTestingResult';
 
 const useStyles = makeStyles()(() => ({
-  itemHead: { textTransform: 'uppercase' },
+  itemHead: {},
   item: { height: 50 },
 }));
 

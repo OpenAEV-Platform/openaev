@@ -8,7 +8,7 @@ import { z } from 'zod';
 import ColorPickerField from '../../../components/ColorPickerField';
 import { useFormatter } from '../../../components/i18n';
 import { type ThemeInput } from '../../../utils/api-types';
-import { Can } from '../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { zodImplement } from '../../../utils/Zod';
 
@@ -188,7 +188,7 @@ const ThemeForm: FunctionComponent<Props> = ({
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
           <Button
             variant="contained"
-            color="secondary"
+            color="primary"
             type="submit"
             disabled={!isDirty || isSubmitting}
           >

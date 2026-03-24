@@ -64,9 +64,9 @@ const LazyCKEditorComponent = lazy(async () => {
       TodoList,
       Underline,
     },
-    { defautl: en },
-    { defautl: fr },
-    { defautl: zh },
+    { default: en },
+    { default: fr },
+    { default: zh },
   ] = await Promise.all([
     import('@ckeditor/ckeditor5-react'),
     import('ckeditor5'),

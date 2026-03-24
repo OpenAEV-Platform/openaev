@@ -8,7 +8,7 @@ import { withStyles } from 'tss-react/mui';
 import { addAttackPattern, fetchAttackPatterns } from '../actions/AttackPattern';
 import { storeHelper } from '../actions/Schema';
 import AttackPatternForm from '../admin/components/settings/attack_patterns/AttackPatternForm';
-import { Can } from '../utils/permissions/PermissionsProvider';
+import { Can } from '../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../utils/permissions/types';
 import Autocomplete from './Autocomplete';
 import inject18n from './i18n';

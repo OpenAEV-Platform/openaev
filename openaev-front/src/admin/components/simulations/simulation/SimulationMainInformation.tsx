@@ -15,7 +15,7 @@ import TypeAffinityChip from '../../../../components/TypeAffinityChip';
 import { SCENARIO_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
 import { type Exercise, type KillChainPhase } from '../../../../utils/api-types';
-import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 
 interface Props { exercise: Exercise }
@@ -151,7 +151,6 @@ const SimulationMainInformation: FunctionComponent<Props> = ({ exercise }) => {
                 fontSize: 12,
                 height: 25,
                 margin: '0 7px 7px 0',
-                textTransform: 'uppercase',
                 borderRadius: 4,
                 width: 180,
               }}

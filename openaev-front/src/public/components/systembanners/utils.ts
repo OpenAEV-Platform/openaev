@@ -1,4 +1,5 @@
 import { type PlatformSettings } from '../../../utils/api-types';
+import { isDemoInstance } from '../../../utils/Environment';
 import { isNotEmptyField, recordEntries, recordKeys } from '../../../utils/utils';
 import { LICENSE_OPTION_TRIAL } from '../trialbanners/LicenseBanner';
 
@@ -10,7 +11,7 @@ export const computeBannerSettings = (settings: PlatformSettings) => {
   const isBannerActivated = (bannerByLevel !== undefined
     && isNotEmptyField(recordKeys(bannerByLevel)))
   || settings.platform_license?.license_type === LICENSE_OPTION_TRIAL
-  || (settings.platform_base_url === 'https://demo.openaev.io' && settings.enabled_dev_features?.includes('OPENAEV_TRIALS_XTMHUB'));
+  || isDemoInstance(settings);
   let numberOfElements = 0;
   if (settings.platform_banner_by_level !== undefined) {
     for (const bannerLevel of recordEntries(settings.platform_banner_by_level)) {

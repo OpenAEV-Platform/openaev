@@ -9,7 +9,7 @@ import { useFormatter } from '../../../../../../components/i18n';
 import ItemTags from '../../../../../../components/ItemTags';
 import { useHelper } from '../../../../../../store';
 import type { Challenge } from '../../../../../../utils/api-types';
-import { Can } from '../../../../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
 import ChallengePopover from '../../../../components/challenges/ChallengePopover';
 import { ChallengeContext } from '../../../Context';

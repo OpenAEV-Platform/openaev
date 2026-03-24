@@ -57,7 +57,7 @@ const ReportComment: FunctionComponent<Props> = ({ initialComment, saveComment, 
               {t('Cancel')}
             </Button>
             <Button
-              color="secondary"
+              color="primary"
               type="submit"
               onClick={() => {
                 saveComment(comment);

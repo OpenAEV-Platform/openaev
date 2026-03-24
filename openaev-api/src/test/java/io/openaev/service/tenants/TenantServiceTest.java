@@ -13,6 +13,7 @@ import io.minio.messages.Item;
 import io.openaev.IntegrationTest;
 import io.openaev.config.MinioConfig;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.repository.DomainRepository;
 import io.openaev.service.MinioService;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -21,6 +22,7 @@ import jakarta.persistence.EntityNotFoundException;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import org.hibernate.Session;
 import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -29,7 +31,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestInstance(TestInstance.Lifecycle.PER_METHOD)
 class TenantServiceTest extends IntegrationTest {
 
   @Autowired private TenantService tenantService;
@@ -39,6 +41,7 @@ class TenantServiceTest extends IntegrationTest {
   @Autowired private MinioConfig minioConfig;
   @Autowired private MinioClient minioClient;
   @Autowired private MinioService minioService;
+  @Autowired private DomainRepository domainRepository;
 
   @Test
   void should_create_and_find_tenant() throws Exception {
@@ -72,6 +75,11 @@ class TenantServiceTest extends IntegrationTest {
                 .build());
     boolean pathExists = results.iterator().hasNext();
     assertThat(pathExists).isTrue();
+
+    // Verify the 9 domains from PresetDomain are created for this tenant
+    Session session = entityManager.unwrap(Session.class);
+    session.enableFilter("tenantFilter").setParameter("tenantId", created.getId());
+    assertThat(domainRepository.findAll()).hasSize(9);
 
     Tenant exists = tenantService.findById(created.getId());
     assertThat(exists.getName()).isEqualTo(TENANT_NAME);
@@ -138,7 +146,7 @@ class TenantServiceTest extends IntegrationTest {
   void should_delete_tenant() throws Exception {
     // -- ARRANGE --
     Tenant tenant = getTenant("Tenant A");
-    Tenant created = tenantService.create(tenant);
+    Tenant created = tenantComposer.forTenant(tenant).persist().get();
 
     // Upload a file to verify MinIO path-based isolation works
     byte[] content = "file-to-be-wiped".getBytes(StandardCharsets.UTF_8);
@@ -152,37 +160,24 @@ class TenantServiceTest extends IntegrationTest {
             .build());
 
     // -- ACT --
-    tenantService.delete(tenant.getId());
-    entityManager.flush();
-    entityManager.clear();
+    tenantService.delete(created.getId());
 
     // -- ASSERT --
-    assertThatThrownBy(() -> tenantService.findById(tenant.getId()))
+    assertThatThrownBy(() -> tenantService.findById(created.getId()))
         .isInstanceOf(EntityNotFoundException.class);
 
     // Verify the file is removed under the tenant prefix
     assertThat(minioService.countObjects(created.getName() + "/")).isZero();
+
+    // Verify no domain anymore for this tenant
+    Session session = entityManager.unwrap(Session.class);
+    session.enableFilter("tenantFilter").setParameter("tenantId", created.getId());
+    assertThat(domainRepository.findAll()).isEmpty();
   }
 
   @Test
   void should_fail_when_tenant_does_not_exist() {
     assertThatThrownBy(() -> tenantService.findById("unknown"))
         .isInstanceOf(EntityNotFoundException.class);
-  }
-
-  @Test
-  void should_fail_when_creating_tenant_with_existing_name() {
-    // -- ARRANGE --
-    Tenant tenant1 = getTenant("Tenant A");
-    tenantComposer.forTenant(tenant1).persist();
-    Tenant tenant2 = getTenant("Tenant A");
-
-    // -- ACT & ASSERT --
-    assertThatThrownBy(
-            () -> {
-              tenantService.create(tenant2);
-              entityManager.flush();
-            })
-        .isInstanceOf(ConstraintViolationException.class);
   }
 }

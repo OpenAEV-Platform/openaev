@@ -1,6 +1,6 @@
-import { Button } from '@mui/material';
 import { Form } from 'react-final-form';
 
+import Button from '../../../../components/common/button/Button';
 import OldTextField from '../../../../components/fields/OldTextField';
 import { useFormatter } from '../../../../components/i18n';
 
@@ -58,6 +58,7 @@ const LessonsCategoryForm = (props) => {
           }}
           >
             <Button
+              variant="secondary"
               onClick={handleClose}
               style={{ marginRight: 10 }}
               disabled={submitting}
@@ -65,7 +66,7 @@ const LessonsCategoryForm = (props) => {
               {t('Cancel')}
             </Button>
             <Button
-              color="secondary"
+              variant="primary"
               type="submit"
               disabled={submitting || Object.keys(errors).length > 0}
             >

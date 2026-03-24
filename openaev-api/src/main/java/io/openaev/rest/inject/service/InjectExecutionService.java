@@ -1,9 +1,6 @@
 package io.openaev.rest.inject.service;
 
-import static io.openaev.expectation.ExpectationType.VULNERABILITY;
 import static io.openaev.utils.ExecutionTraceUtils.convertExecutionAction;
-import static io.openaev.utils.ExpectationUtils.*;
-import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildForVulnerabilityManagerInFailed;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,19 +8,15 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AgentRepository;
-import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.finding.FindingService;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
-import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.service.InjectExpectationService;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import java.time.Instant;
-import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -36,12 +29,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class InjectExecutionService {
 
   private final InjectRepository injectRepository;
-  private final InjectExpectationRepository injectExpectationRepository;
   private final InjectExpectationService injectExpectationService;
   private final AgentRepository agentRepository;
   private final InjectStatusService injectStatusService;
-  private final FindingService findingService;
-  private final StructuredOutputUtils structuredOutputUtils;
+  private final InjectService injectService;
+
+  private final AgentExecutionProcessingHandler agentExecutionProcessingHandler;
+  private final InjectorExecutionProcessingHandler injectorExecutionProcessingHandler;
 
   @Resource protected ObjectMapper mapper;
 
@@ -75,51 +69,53 @@ public class InjectExecutionService {
             "Cannot complete inject that is not in PENDING state");
       }
       Agent agent = loadAgentIfPresent(agentId);
-
-      Set<OutputParser> outputParsers = structuredOutputUtils.extractOutputParsers(inject);
-
-      processInjectExecution(inject, agent, input, outputParsers);
+      if (agent == null) {
+        processInjectExecutionWithInjector(inject, input);
+      } else {
+        processInjectExecutionWithAgent(inject, agent, input);
+      }
     } catch (ElementNotFoundException e) {
       handleInjectExecutionError(inject, e);
     }
   }
 
-  /** Processes the execution of an inject by updating its status and extracting findings. */
-  public void processInjectExecution(
+  public void processInjectExecutionWithAgent(
+      Inject inject, Agent agent, InjectExecutionInput input) {
+    processInjectExecution(inject, agent, input, agentExecutionProcessingHandler);
+  }
+
+  public void processInjectExecutionWithInjector(Inject inject, InjectExecutionInput input) {
+    processInjectExecution(inject, null, input, injectorExecutionProcessingHandler);
+  }
+
+  /**
+   * Processes the execution of an inject by resolving the appropriate handler based on the
+   * execution source (injector or agent), extracting findings, matching expectations and updating
+   * the inject status.
+   *
+   * @param inject the inject being executed
+   * @param agent the agent executing to inject, or {@code null} if triggered by an injector
+   * @param input the execution input containing action, status, and output data
+   * @throws RuntimeException if the output structured cannot be parsed
+   */
+  private void processInjectExecution(
       Inject inject,
       @Nullable Agent agent,
       InjectExecutionInput input,
-      Set<OutputParser> outputParsers) {
-    ObjectNode structured = null;
+      AbstractExecutionProcessingHandler handler) {
     try {
-      if (input.getOutputStructured() != null) {
-        structured = mapper.readValue(input.getOutputStructured(), ObjectNode.class);
-      }
-      // Only compute if the action is actual execution
-      if (ExecutionTraceAction.EXECUTION.equals(convertExecutionAction(input.getAction()))) {
-        // validate vulnerability expectations
-        structured =
-            structuredOutputUtils
-                .computeStructuredOutputFromOutputParsers(outputParsers, input.getMessage())
-                .orElse(null);
-        if (ExecutionTraceStatus.SUCCESS.toString().equals(input.getStatus())) {
-          checkCveExpectation(outputParsers, structured, inject, agent);
-        }
-      }
+      Map<String, Endpoint> valueTargetedAssetsMap = injectService.getValueTargetedAssetMap(inject);
+      // Build the context encapsulating all execution data and conditions (success, action, source)
+      ExecutionProcessingContext executionContext =
+          new ExecutionProcessingContext(inject, agent, input, valueTargetedAssetsMap);
+      // Delegate to the appropriate handler (injector or agent) to process output execution
+      ObjectNode resolvedStructured = handler.processContext(executionContext).orElse(null);
 
-      injectStatusService.updateInjectStatus(agent, inject, input, structured);
+      injectStatusService.updateInjectStatus(inject, agent, input, resolvedStructured);
       addEndDateInjectExpectationTimeSignatureIfNeeded(inject, agent, input);
 
-      if (agent != null) {
-        // Extract findings from structured outputs generated by the output parsers specified in the
-        // payload, typically derived from the raw output of the implant execution.
-        findingService.extractFindingsFromOutputParsers(inject, agent, outputParsers, structured);
-      } else {
-        // Structured output directly provided (e.g., from injectors)
-        findingService.extractFindingsFromInjectorContract(inject, structured);
-      }
     } catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
+      throw new RuntimeException("Failed to process inject execution for inject", e);
     }
   }
 
@@ -142,86 +138,6 @@ public class InjectExecutionService {
       injectExpectationService.addEndDateSignatureToInjectExpectationsByAgent(
           inject.getId(), agent.getId(), endDate);
     }
-  }
-
-  /**
-   * Checks output parsers of an agent and updates the scores of vulnerability expectations
-   * accordingly
-   *
-   * @param outputParsers
-   * @param structuredOutput
-   * @param inject
-   * @param agent
-   */
-  public void checkCveExpectation(
-      Set<OutputParser> outputParsers, ObjectNode structuredOutput, Inject inject, Agent agent) {
-
-    List<InjectExpectation> injectExpectations =
-        inject.getExpectations().stream()
-            .filter(exp -> exp.getAgent() != null && exp.getAgent().getId().equals(agent.getId()))
-            .filter(exp -> InjectExpectation.EXPECTATION_TYPE.VULNERABILITY == exp.getType())
-            .toList();
-
-    if (injectExpectations.isEmpty()) {
-      return;
-    }
-
-    InjectExpectationResult injectExpectationResult = buildForVulnerabilityManagerInFailed();
-    boolean vulnerable;
-
-    // Determine vulnerability
-    if (outputParsers.isEmpty()) {
-      vulnerable = false;
-    } else {
-      boolean hasCveType =
-          outputParsers.stream()
-              .flatMap(parser -> parser.getContractOutputElements().stream())
-              .anyMatch(element -> ContractOutputType.CVE == element.getType());
-
-      if (!hasCveType) {
-        vulnerable = false;
-      } else {
-        boolean hasCveData = false;
-
-        if (structuredOutput != null) {
-          hasCveData =
-              outputParsers.stream()
-                  .flatMap(parser -> parser.getContractOutputElements().stream())
-                  .filter(element -> ContractOutputType.CVE == element.getType())
-                  .map(element -> structuredOutput.get(element.getKey()))
-                  .anyMatch(jsonNode -> jsonNode != null && !jsonNode.isEmpty());
-        }
-
-        vulnerable = hasCveData;
-      }
-    }
-
-    // Set expectations based on result
-    if (vulnerable) {
-      setResultExpectationVulnerable(
-          injectExpectations, injectExpectationResult, VULNERABILITY.failureLabel);
-    } else { // Not vulnerable
-      setResultExpectationVulnerable(
-          injectExpectations, injectExpectationResult, VULNERABILITY.successLabel);
-    }
-
-    // Validate and save once
-    validateResultForAsset(injectExpectations, injectExpectationResult);
-    injectExpectationRepository.saveAll(injectExpectations);
-  }
-
-  public void validateResultForAsset(
-      List<InjectExpectation> injectExpectations, InjectExpectationResult injectExpectationResult) {
-    injectExpectations.forEach(
-        injectExpectation -> {
-          injectExpectationService.updateInjectExpectation(
-              injectExpectation.getId(),
-              InjectExpectationUpdateInput.builder()
-                  .collectorId(injectExpectationResult.getSourceId())
-                  .result(injectExpectationResult.getResult())
-                  .isSuccess(injectExpectationResult.getScore() != 0.0)
-                  .build());
-        });
   }
 
   private Agent loadAgentIfPresent(String agentId) {

@@ -9,7 +9,7 @@ import SwitchFieldController from '../../../../../components/fields/SwitchFieldC
 import { useFormatter } from '../../../../../components/i18n';
 import type { Article, Variable } from '../../../../../utils/api-types';
 import { type ContractElement, type EnhancedContractElement } from '../../../../../utils/api-types-custom';
-import { AbilityContext, Can } from '../../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext, Can } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import AssetGroupPopover from '../../../assets/asset_groups/AssetGroupPopover';
 import AssetGroupsList from '../../../assets/asset_groups/AssetGroupsList';

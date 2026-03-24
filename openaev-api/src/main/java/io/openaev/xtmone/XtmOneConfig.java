@@ -18,6 +18,8 @@ public class XtmOneConfig {
   private String webToken;
 
   private volatile String discoveredWebToken;
+  private volatile String platformUrl;
+  private volatile String platformVersion;
 
   public String getEffectiveWebToken() {
     if (webToken != null && !webToken.isBlank()) {

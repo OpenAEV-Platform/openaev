@@ -17,29 +17,33 @@ class OutputProcessorIntegrationTest extends IntegrationTest {
   @Autowired private OutputProcessorFactory registry;
 
   @Test
+  @DisplayName("Should load all handlers from Spring context")
   void shouldLoadAllHandlersFromSpring() {
     for (ContractOutputType type : ContractOutputType.values()) {
-      OutputProcessor handler = registry.getHandler(type);
+      OutputProcessor handler = registry.getProcessor(type).get();
 
       assertThat(handler).withFailMessage("Handler not found for type: " + type).isNotNull();
     }
   }
 
   @Test
+  @DisplayName("Should return correct handler for each contract output type")
   void shouldReturnCorrectHandlerForEachType() {
-    assertThat(registry.getHandler(ContractOutputType.Text))
+    assertThat(registry.getProcessor(ContractOutputType.Text).get())
         .isInstanceOf(TextOutputProcessor.class);
 
-    assertThat(registry.getHandler(ContractOutputType.PortsScan))
+    assertThat(registry.getProcessor(ContractOutputType.PortsScan).get())
         .isInstanceOf(PortScanOutputProcessor.class);
 
-    assertThat(registry.getHandler(ContractOutputType.CVE)).isInstanceOf(CVEOutputProcessor.class);
+    assertThat(registry.getProcessor(ContractOutputType.CVE).get())
+        .isInstanceOf(CVEOutputProcessor.class);
   }
 
   @Test
+  @DisplayName("Should return same instance on multiple calls to getProcessor")
   void shouldReturnSameInstanceOnMultipleCalls() {
-    OutputProcessor handler1 = registry.getHandler(ContractOutputType.Text);
-    OutputProcessor handler2 = registry.getHandler(ContractOutputType.Text);
+    OutputProcessor handler1 = registry.getProcessor(ContractOutputType.Text).get();
+    OutputProcessor handler2 = registry.getProcessor(ContractOutputType.Text).get();
 
     assertThat(handler1).isSameAs(handler2);
   }

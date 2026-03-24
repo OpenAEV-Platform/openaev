@@ -8,7 +8,7 @@ import i18next from 'eslint-plugin-i18next';
 import importPlugin from 'eslint-plugin-import';
 import playwright from 'eslint-plugin-playwright';
 import react from 'eslint-plugin-react';
-import reactRefresh from 'eslint-plugin-react-refresh';
+import { reactRefresh } from 'eslint-plugin-react-refresh';
 import simpleImportSort from 'eslint-plugin-simple-import-sort';
 import globals from 'globals';
 import ts from 'typescript-eslint';
@@ -47,7 +47,7 @@ export default [
   {
     plugins: {
     // eslint-plugin-react-refresh
-      'react-refresh': reactRefresh,
+      'react-refresh': reactRefresh.plugin,
       // eslint-plugin-simple-import-sort
       'simple-import-sort': simpleImportSort,
       // local package eslint-plugin-custom-rules

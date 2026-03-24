@@ -56,7 +56,7 @@ import InjectCardComponent from './InjectCardComponent';
 import InjectIcon from './InjectIcon';
 
 const useStyles = makeStyles()(theme => ({
-  itemHead: { textTransform: 'uppercase' },
+  itemHead: {},
   bodyItems: { display: 'flex' },
   bodyItem: {
     fontSize: theme.typography.body2.fontSize,
@@ -67,7 +67,6 @@ const useStyles = makeStyles()(theme => ({
   chipInList: {
     fontSize: theme.typography.caption.fontSize,
     height: 20,
-    textTransform: 'uppercase',
     borderRadius: 4,
     width: 80,
     marginRight: 5,

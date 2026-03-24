@@ -2,7 +2,6 @@ import { Add, PersonOutlined } from '@mui/icons-material';
 import {
   Avatar,
   Box,
-  Button,
   Chip,
   Dialog,
   DialogActions,
@@ -21,6 +20,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import { type OrganizationHelper, type UserHelper } from '../../../../actions/helper';
 import { fetchPlayers } from '../../../../actions/users/User';
+import Button from '../../../../components/common/button/Button';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
@@ -30,7 +30,7 @@ import { type Organization, type Team, type User } from '../../../../utils/api-t
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { type Option } from '../../../../utils/Option';
-import { Can } from '../../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { resolveUserName, truncate } from '../../../../utils/String';
 import { TeamContext } from '../../common/Context';
@@ -244,15 +244,17 @@ const TeamAddPlayers: FunctionComponent<Props> = ({ addedUsersIds, teamId }) => 
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => {
-            setOpen(false);
-            setKeyword('');
-            setUsersIds([]);
-          }}
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setOpen(false);
+              setKeyword('');
+              setUsersIds([]);
+            }}
           >
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={submitAddUsers}>
+          <Button variant="primary" onClick={submitAddUsers}>
             {t('Add')}
           </Button>
         </DialogActions>

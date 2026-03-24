@@ -1,15 +1,16 @@
 import { InfoOutlined } from '@mui/icons-material';
-import { Button, InputAdornment, Tooltip } from '@mui/material';
+import { InputAdornment, Tooltip } from '@mui/material';
 import { type FunctionComponent, useContext } from 'react';
 import { Form } from 'react-final-form';
 import { z } from 'zod';
 
+import Button from '../../../../components/common/button/Button';
 import CountryField from '../../../../components/CountryField';
 import OldTextField from '../../../../components/fields/OldTextField';
 import { useFormatter } from '../../../../components/i18n';
 import OrganizationField from '../../../../components/OrganizationField';
 import TagField from '../../../../components/TagField';
-import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { schemaValidator } from '../../../../utils/Zod';
 import { type PlayerInputForm } from './Player';
@@ -150,7 +151,7 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
           }}
           >
             <Button
-              variant="contained"
+              variant="secondary"
               onClick={handleClose}
               style={{ marginRight: 10 }}
               disabled={submitting}
@@ -158,8 +159,7 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
               {t('Cancel')}
             </Button>
             <Button
-              variant="contained"
-              color="secondary"
+              variant="primary"
               type="submit"
               disabled={pristine || submitting}
             >

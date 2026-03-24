@@ -20,7 +20,7 @@ const LoginSSOButton: FunctionComponent<LoginSSOButtonProperties> = ({
       component="a"
       href={providerUri}
       variant="outlined"
-      color="secondary"
+      color="primary"
       size="small"
       startIcon={<VpnKeyOutlined />}
     >

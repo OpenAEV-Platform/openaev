@@ -5,7 +5,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import availableExpectationsForInjectorContract from '../../../../../actions/expectations/expectation-actions';
 import { useFormatter } from '../../../../../components/i18n';
-import { AbilityContext } from '../../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, INHERITED_CONTEXT, SUBJECTS } from '../../../../../utils/permissions/types';
 import { truncate } from '../../../../../utils/String';
 import { PermissionsContext } from '../../Context';

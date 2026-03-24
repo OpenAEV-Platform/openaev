@@ -6,16 +6,14 @@ import static org.mockito.Mockito.*;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AgentRepository;
-import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.InjectRepository;
-import io.openaev.rest.finding.FindingService;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.service.InjectExpectationService;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -47,10 +45,11 @@ class InjectCallbackContractTest {
 
   @Mock private InjectRepository injectRepository;
   @Mock private AgentRepository agentRepository;
-  @Mock private InjectExpectationRepository injectExpectationRepository;
   @Mock private InjectExpectationService injectExpectationService;
   @Mock private InjectStatusService injectStatusService;
-  @Mock private FindingService findingService;
+  @Mock private InjectService injectService;
+  @Mock private AgentExecutionProcessingHandler agentExecutionProcessingHandler;
+  @Mock private InjectorExecutionProcessingHandler injectorExecutionProcessingHandler;
   @Mock private StructuredOutputUtils structuredOutputUtils;
 
   private InjectExecutionService injectExecutionService;
@@ -62,18 +61,28 @@ class InjectCallbackContractTest {
   }
 
   @BeforeEach
-  void setUp() {
+  void setUp() throws Exception {
+    lenient().when(injectService.getValueTargetedAssetMap(any())).thenReturn(Map.of());
+    lenient()
+        .doReturn(Optional.empty())
+        .when(agentExecutionProcessingHandler)
+        .processContext(any());
+    lenient()
+        .doReturn(Optional.empty())
+        .when(injectorExecutionProcessingHandler)
+        .processContext(any());
+
     // Spy: real object with mock dependencies, so we can verify method calls
     injectExecutionService =
         spy(
             new InjectExecutionService(
                 injectRepository,
-                injectExpectationRepository,
                 injectExpectationService,
                 agentRepository,
                 injectStatusService,
-                findingService,
-                structuredOutputUtils));
+                injectService,
+                agentExecutionProcessingHandler,
+                injectorExecutionProcessingHandler));
 
     // Can't use @InjectMocks: batchingService needs the spy, not a plain mock
     batchingService =
@@ -156,8 +165,9 @@ class InjectCallbackContractTest {
       assertDoesNotThrow(() -> invoker.invoke("inject-1", null, input));
     }
 
-    // Neither path should have called processInjectExecution
-    verify(injectExecutionService, never()).processInjectExecution(any(), any(), any(), anySet());
+    // Neither path should have delegated to execution processing
+    verify(injectExecutionService, never()).processInjectExecutionWithAgent(any(), any(), any());
+    verify(injectExecutionService, never()).processInjectExecutionWithInjector(any(), any());
   }
 
   // ========================================================================
@@ -214,13 +224,11 @@ class InjectCallbackContractTest {
   void shouldDelegateToProcessInjectExecution(String path) throws Exception {
     Inject inject = createInjectWithStatus("inject-1", ExecutionStatus.PENDING);
     Agent agent = createAgent("agent-1");
-    Set<OutputParser> outputParsers = Set.of();
 
     when(injectRepository.findById("inject-1")).thenReturn(Optional.of(inject));
     when(injectRepository.findAllByIdWithExpectations(anyList())).thenReturn(List.of(inject));
     when(agentRepository.findById("agent-1")).thenReturn(Optional.of(agent));
     when(agentRepository.findAllById(anyList())).thenReturn(List.of(agent));
-    when(structuredOutputUtils.extractOutputParsers(inject)).thenReturn(outputParsers);
 
     InjectExecutionInput input = createInput(InjectExecutionAction.command_execution);
     CallbackInvoker invoker = invokerFor(path);
@@ -228,6 +236,6 @@ class InjectCallbackContractTest {
     invoker.invoke("inject-1", "agent-1", input);
 
     verify(injectExecutionService)
-        .processInjectExecution(eq(inject), eq(agent), eq(input), eq(outputParsers));
+        .processInjectExecutionWithAgent(eq(inject), eq(agent), eq(input));
   }
 }

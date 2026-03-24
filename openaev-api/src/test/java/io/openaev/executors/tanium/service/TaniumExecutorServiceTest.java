@@ -17,11 +17,11 @@ import io.openaev.executors.tanium.model.DataComputerGroup;
 import io.openaev.executors.tanium.model.NodeEndpoint;
 import io.openaev.executors.tanium.model.TaniumComputerGroup;
 import io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration;
+import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.utils.fixtures.*;
-import java.time.Instant;
 import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -104,11 +104,7 @@ public class TaniumExecutorServiceTest {
     when(config.getWindowsPackageId()).thenReturn(112200);
     Command payloadCommand =
         PayloadFixture.createCommand(
-            "cmd",
-            "whoami",
-            List.of(),
-            "whoami",
-            Set.of(new Domain(null, "To classify", "#000000", Instant.now(), null)));
+            "cmd", "whoami", List.of(), "whoami", Set.of(PresetDomain.getToClassify()));
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Map<String, String> executorCommands = new HashMap<>();
     executorCommands.put(

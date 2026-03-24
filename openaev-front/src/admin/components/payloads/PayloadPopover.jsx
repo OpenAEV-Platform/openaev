@@ -1,14 +1,15 @@
 import { MoreVert } from '@mui/icons-material';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Menu, MenuItem } from '@mui/material';
+import { Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Menu, MenuItem } from '@mui/material';
 import { useContext, useState } from 'react';
 import { useDispatch } from 'react-redux';
 
 import { deletePayload, duplicatePayload, exportPayload, updatePayload } from '../../../actions/payloads/payload-actions';
+import Button from '../../../components/common/button/Button';
 import DialogDelete from '../../../components/common/DialogDelete';
 import Drawer from '../../../components/common/Drawer';
 import Transition from '../../../components/common/Transition';
 import { useFormatter } from '../../../components/i18n';
-import { AbilityContext, Can } from '../../../utils/permissions/PermissionsProvider';
+import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { download } from '../../../utils/utils';
 import PayloadForm from './PayloadForm';
@@ -172,8 +173,8 @@ const PayloadPopover = ({ payload, onUpdate, onDelete, onDuplicate, disableUpdat
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDuplicate}>{t('Cancel')}</Button>
-          <Button color="secondary" onClick={submitDuplicate}>
+          <Button variant="secondary" onClick={handleCloseDuplicate}>{t('Cancel')}</Button>
+          <Button variant="primary" onClick={submitDuplicate}>
             {t('Duplicate')}
           </Button>
         </DialogActions>

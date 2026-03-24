@@ -3,7 +3,7 @@ package io.openaev.service.stix;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.SecurityCoverage;
 import io.openaev.opencti.errors.ConnectorError;
-import io.openaev.rest.exception.BadRequestException;
+import io.openaev.service.stix.error.BundleValidationError;
 import io.openaev.stix.parsing.ParsingException;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
@@ -21,28 +21,22 @@ public class StixService {
   /**
    * Generate or update a Scenario from Stix bundle
    *
-   * @param stixJson
+   * @param stixJson string form of the provided stix bundle
    * @return Scenario
    */
   @Transactional(rollbackFor = Exception.class)
   public Scenario processBundle(String stixJson)
-      throws IOException, ParsingException, ConnectorError {
+      throws IOException, ParsingException, ConnectorError, BundleValidationError {
+    // Update securityCoverage with the last bundle
+    SecurityCoverage securityCoverage =
+        securityCoverageService.processAndBuildStixToSecurityCoverage(stixJson);
 
-    try {
-      // Update securityCoverage with the last bundle
-      SecurityCoverage securityCoverage =
-          securityCoverageService.processAndBuildStixToSecurityCoverage(stixJson);
+    // Update Scenario using the last SecurityCoverage
+    Scenario scenario = securityCoverageService.buildScenarioFromSecurityCoverage(securityCoverage);
 
-      // Update Scenario using the last SecurityCoverage
-      Scenario scenario =
-          securityCoverageService.buildScenarioFromSecurityCoverage(securityCoverage);
-
-      // FIXME: extract this behaviour into an async worker
-      securityCoverageService.pushSecurityCoverageBundleWithExternalURI(scenario);
-      return scenario;
-    } catch (BadRequestException | ParsingException e) {
-      throw e;
-    }
+    // FIXME: extract this behaviour into an async worker
+    securityCoverageService.pushSecurityCoverageBundleWithExternalURI(scenario);
+    return scenario;
   }
 
   /**

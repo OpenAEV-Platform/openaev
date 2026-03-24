@@ -1,10 +1,11 @@
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
+import { Box, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
 import { SelectGroup } from 'mdi-material-ui';
 import { normalize } from 'normalizr';
 import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 
 import { findAssetGroups, searchAssetGroups } from '../../../../actions/asset_groups/assetgroup-action';
 import { arrayOfAssetGroups } from '../../../../actions/asset_groups/assetgroup-schema';
+import Button from '../../../../components/common/button/Button';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useQueryable } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
@@ -121,9 +122,9 @@ const AssetGroupDialogAdding: FunctionComponent<Props> = ({
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleClose}>{t('Cancel')}</Button>
+        <Button variant="secondary" onClick={handleClose}>{t('Cancel')}</Button>
         {!isLoading && (
-          <Button color="secondary" onClick={handleSubmit}>
+          <Button variant="primary" onClick={handleSubmit}>
             {t('Update')}
           </Button>
         )}

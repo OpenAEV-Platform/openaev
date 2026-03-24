@@ -5,7 +5,7 @@ import { makeStyles } from 'tss-react/mui';
 import { errorWrapper } from '../../../components/Error';
 import Loader from '../../../components/Loader';
 import NotFound from '../../../components/NotFound';
-import { AbilityContext } from '../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import ProtectedRoute from '../../../utils/permissions/ProtectedRoute';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 

@@ -492,4 +492,7 @@ export const storeHelper = state => ({
   getUnDeployedCatalogConnectors: () => entities('catalog_connectors', state).filter(c => c.get('instance_deployed_count') === 0),
   getCatalogConnector: id => entity(id, 'catalog_connectors', state),
   getConnectorInstance: id => entity(id, 'connectorinstances', state),
+  // capabilities
+  getCapabilities: () => entities('capabilities', state),
+  getCapabilitiesMap: () => maps('capabilities', state),
 });

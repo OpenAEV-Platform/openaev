@@ -21,7 +21,8 @@ import ErrorHandler from './utils/error/ErrorHandler';
 import { useAppDispatch } from './utils/hooks';
 import { UserContext } from './utils/hooks/useAuth';
 import useNetworkCheck from './utils/hooks/useCheckNetwork';
-import { PermissionsProvider } from './utils/permissions/PermissionsProvider';
+import useTenant from './utils/hooks/useTenant';
+import PermissionsProvider from './utils/permissions/PermissionsProvider';
 
 const RootPublic = lazy(() => import('./public/Root'));
 const IndexPrivate = lazy(() => import('./private/Index'));
@@ -44,6 +45,9 @@ const Root = () => {
     };
   });
   const dispatch = useAppDispatch();
+
+  const { userTenants, currentUserTenant, switchUserTenant } = useTenant(me, logged);
+
   useEffect(() => {
     dispatch(fetchMe());
     dispatch(fetchPlatformParameters());
@@ -69,6 +73,9 @@ const Root = () => {
           me,
           settings,
           isXTMHubAccessible: isReachable,
+          userTenants,
+          currentUserTenant,
+          switchUserTenant,
         }}
       >
         <StyledEngineProvider injectFirst>

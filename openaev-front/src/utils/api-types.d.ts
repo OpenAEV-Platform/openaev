@@ -675,6 +675,24 @@ export interface CalderaSettings {
   executor_caldera_public_url?: string;
 }
 
+/** A capability node in the capability tree */
+export interface CapabilityOutput {
+  /** Whether this capability can be assigned to a role */
+  capability_checkable: boolean;
+  /** Child capabilities */
+  capability_children: CapabilityOutput[];
+  /**
+   * Scopes where this capability applies (PLATFORM, TENANT)
+   * @uniqueItems true
+   */
+  capability_scopes: string[];
+  /**
+   * Enum key of the capability or group
+   * @minLength 1
+   */
+  capability_value: string;
+}
+
 export interface CatalogConnector {
   /** Connector class name */
   catalog_connector_class_name?: string;
@@ -6327,6 +6345,7 @@ export interface RoleInput {
     | "MANAGE_ASSESSMENT"
     | "DELETE_ASSESSMENT"
     | "LAUNCH_ASSESSMENT"
+    | "ACCESS_TEAMS_AND_PLAYERS"
     | "MANAGE_TEAMS_AND_PLAYERS"
     | "DELETE_TEAMS_AND_PLAYERS"
     | "ACCESS_ASSETS"
@@ -6358,6 +6377,12 @@ export interface RoleInput {
     | "DELETE_SECURITY_PLATFORMS"
     | "ACCESS_PLATFORM_SETTINGS"
     | "MANAGE_PLATFORM_SETTINGS"
+    | "ACCESS_TENANTS"
+    | "MANAGE_TENANTS"
+    | "DELETE_TENANTS"
+    | "ACCESS_PLATFORM_GROUPS_AND_ROLES"
+    | "MANAGE_PLATFORM_GROUPS_AND_ROLES"
+    | "DELETE_PLATFORM_GROUPS_AND_ROLES"
     | "MANAGE_STIX_BUNDLE"
   )[];
   role_description?: string;
@@ -7362,6 +7387,7 @@ export interface User {
     | "MANAGE_ASSESSMENT"
     | "DELETE_ASSESSMENT"
     | "LAUNCH_ASSESSMENT"
+    | "ACCESS_TEAMS_AND_PLAYERS"
     | "MANAGE_TEAMS_AND_PLAYERS"
     | "DELETE_TEAMS_AND_PLAYERS"
     | "ACCESS_ASSETS"
@@ -7393,6 +7419,12 @@ export interface User {
     | "DELETE_SECURITY_PLATFORMS"
     | "ACCESS_PLATFORM_SETTINGS"
     | "MANAGE_PLATFORM_SETTINGS"
+    | "ACCESS_TENANTS"
+    | "MANAGE_TENANTS"
+    | "DELETE_TENANTS"
+    | "ACCESS_PLATFORM_GROUPS_AND_ROLES"
+    | "MANAGE_PLATFORM_GROUPS_AND_ROLES"
+    | "DELETE_PLATFORM_GROUPS_AND_ROLES"
     | "MANAGE_STIX_BUNDLE"
   )[];
   /** City of the user */

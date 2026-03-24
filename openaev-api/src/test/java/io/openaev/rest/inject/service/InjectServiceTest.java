@@ -580,23 +580,23 @@ class InjectServiceTest {
     String injectorContractId = "injectorContractId";
     String injectorContractString =
         """
-  {
-    "fields": [
-      {
-      "type": "defaultValue1",
-      "key": "value1",
-      "defaultValue": ["defaultValue1"],
-       "cardinality":"1"
-      },
-      {
-      "type": "asset",
-      "key": "value2",
-      "defaultValue": ["defaultValue2"],
-      "cardinality":"1"
-      }
-    ]
-  }
-""";
+              {
+                "fields": [
+                  {
+                  "type": "defaultValue1",
+                  "key": "value1",
+                  "defaultValue": ["defaultValue1"],
+                   "cardinality":"1"
+                  },
+                  {
+                  "type": "asset",
+                  "key": "value2",
+                  "defaultValue": ["defaultValue2"],
+                  "cardinality":"1"
+                  }
+                ]
+              }
+            """;
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setId(injectorContractId);
     injectorContract.setContent(injectorContractString);
