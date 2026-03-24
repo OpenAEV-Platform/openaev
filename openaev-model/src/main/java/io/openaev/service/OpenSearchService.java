@@ -343,7 +343,12 @@ public class OpenSearchService implements EngineService {
     Query dataQuery = dataQueryBuilder.should(shouldList).minimumShouldMatch("1").build().toQuery();
     mainMust.add(dataQuery);
 
-    Query currentTenantQuery = TermQuery.of(t -> t.field("base_tenant_side.keyword").value(v -> v.stringValue(TenantContext.getCurrentTenant()))).toQuery();
+    Query currentTenantQuery =
+        TermQuery.of(
+                t ->
+                    t.field("base_tenant_side.keyword")
+                        .value(v -> v.stringValue(TenantContext.getCurrentTenant())))
+            .toQuery();
     mainQuery.filter(currentTenantQuery);
 
     return mainQuery.must(mainMust).build().toQuery();
