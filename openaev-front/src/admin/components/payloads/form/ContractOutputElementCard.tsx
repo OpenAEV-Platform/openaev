@@ -66,7 +66,7 @@ const ContractOutputElementCard = ({ prefixName, index, remove }: Props) => {
 
   const outputParserTypeList = CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS.map(type => ({
     value: type,
-    label: ContractOutputElementType[type],
+    label: t(ContractOutputElementType[type]),
   }));
 
   useEffect(() => {

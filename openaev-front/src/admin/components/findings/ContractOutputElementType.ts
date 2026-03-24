@@ -28,6 +28,4 @@ export const CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS = [
   'asreproastable_account', 'kerberoastable_account',
 ] as const;
 
-export type ContractOutputElementTypeKey = typeof CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS[number];
-
 export default ContractOutputElementType;
