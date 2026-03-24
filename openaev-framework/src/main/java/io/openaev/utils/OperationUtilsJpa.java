@@ -2,6 +2,7 @@ package io.openaev.utils;
 
 import static org.springframework.util.StringUtils.hasText;
 
+import io.openaev.database.model.Filters.FilterMode;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
@@ -78,7 +79,7 @@ public final class OperationUtilsJpa {
   // -- CONTAINS --
 
   public static Predicate containsTexts(
-      Expression<String> paths, CriteriaBuilder cb, List<String> texts, Class<?> type) {
+      Expression<String> paths, CriteriaBuilder cb, List<String> texts, Class<?> type, FilterMode mode) {
     if (isEmpty(texts)) {
       return cb.conjunction();
     }
@@ -86,7 +87,12 @@ public final class OperationUtilsJpa {
     Predicate[] predicates =
         texts.stream().map(text -> containsText(paths, cb, text, type)).toArray(Predicate[]::new);
 
-    return cb.or(predicates);
+    return FilterMode.and.equals(mode) ? cb.and(predicates) : cb.or(predicates);
+  }
+
+  public static Predicate containsTexts(
+      Expression<String> paths, CriteriaBuilder cb, List<String> texts, Class<?> type) {
+    return containsTexts(paths, cb, texts, type, FilterMode.or);
   }
 
   public static Predicate containsText(

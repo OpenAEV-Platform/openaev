@@ -205,7 +205,7 @@ public final class FilterUtilsJpa {
       operator = FilterOperator.eq;
     }
     BiFunction<Expression<U>, List<String>, Predicate> operation =
-        computeOperation(operator, cb, type);
+        computeOperation(operator, cb, type, filter);
     return operation.apply(paths, filter.getValues());
   }
 
@@ -215,11 +215,15 @@ public final class FilterUtilsJpa {
   private static <U> BiFunction<Expression<U>, List<String>, Predicate> computeOperation(
       @NotNull final FilterOperator operator,
       @NotNull final CriteriaBuilder cb,
-      @NotNull final Class<?> type) {
+      @NotNull final Class<?> type,
+      @NotNull final Filter filter) {
+
+    FilterMode mode = Optional.ofNullable(filter.getMode()).orElse(FilterMode.or);
+
     return switch (operator) {
       case not_contains ->
           (paths, texts) -> notContainsTexts((Expression<String>) paths, cb, texts, type);
-      case contains -> (paths, texts) -> containsTexts((Expression<String>) paths, cb, texts, type);
+      case contains -> (paths, texts) -> containsTexts((Expression<String>) paths, cb, texts, type, mode);
       case not_starts_with ->
           (paths, texts) -> notStartWithTexts((Expression<String>) paths, cb, texts, type);
       case starts_with ->
