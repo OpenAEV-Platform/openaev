@@ -2232,7 +2232,8 @@ class InjectApiTest extends IntegrationTest {
       }
 
       @Test
-      @DisplayName("Should not create Username findings when raw output contains no username matches")
+      @DisplayName(
+          "Should not create Username findings when raw output contains no username matches")
       void shouldNotCreateUsernameFindingsWhenRawOutputContainsNoUsernameMatches()
           throws Exception {
         // -- PREPARE --
@@ -2342,10 +2343,7 @@ class InjectApiTest extends IntegrationTest {
         RegexGroup usernameGroup = OutputParserFixture.getRegexGroup("username", "$1");
         ContractOutputElement adminUsernameElement =
             OutputParserFixture.getContractOutputElement(
-                ContractOutputType.AdminUsername,
-                "ADMIN:\\s*(\\S+)",
-                Set.of(usernameGroup),
-                true);
+                ContractOutputType.AdminUsername, "ADMIN:\\s*(\\S+)", Set.of(usernameGroup), true);
         OutputParser outputParser =
             OutputParserFixture.getOutputParser(Set.of(adminUsernameElement));
         Object[] setup = buildInjectWithOutputParser(outputParser);
@@ -2385,10 +2383,7 @@ class InjectApiTest extends IntegrationTest {
         RegexGroup usernameGroup = OutputParserFixture.getRegexGroup("username", "$1");
         ContractOutputElement adminUsernameElement =
             OutputParserFixture.getContractOutputElement(
-                ContractOutputType.AdminUsername,
-                "ADMIN:\\s*(\\S+)",
-                Set.of(usernameGroup),
-                true);
+                ContractOutputType.AdminUsername, "ADMIN:\\s*(\\S+)", Set.of(usernameGroup), true);
         OutputParser outputParser =
             OutputParserFixture.getOutputParser(Set.of(adminUsernameElement));
         Object[] setup = buildInjectWithOutputParser(outputParser);
@@ -2520,7 +2515,8 @@ class InjectApiTest extends IntegrationTest {
       }
 
       @Test
-      @DisplayName("Should not create Computer findings when raw output contains no computer matches")
+      @DisplayName(
+          "Should not create Computer findings when raw output contains no computer matches")
       void shouldNotCreateComputerFindingsWhenRawOutputContainsNoComputerMatches()
           throws Exception {
         // -- PREPARE --
@@ -2553,7 +2549,8 @@ class InjectApiTest extends IntegrationTest {
       // PasswordPolicy
 
       @Test
-      @DisplayName("Should create a finding for each password policy entry extracted from raw output")
+      @DisplayName(
+          "Should create a finding for each password policy entry extracted from raw output")
       void shouldCreateFindingForEachPasswordPolicyEntryExtractedFromRawOutput() throws Exception {
         // -- PREPARE --
         RegexGroup keyGroup = OutputParserFixture.getRegexGroup("key", "$1");
@@ -2570,8 +2567,7 @@ class InjectApiTest extends IntegrationTest {
         Inject policyInject = (Inject) setup[0];
         String agentId = (String) setup[1];
 
-        String rawOutput =
-            "POLICY: MinPasswordLength = 8\\nPOLICY: MaxPasswordAge = 90\\n";
+        String rawOutput = "POLICY: MinPasswordLength = 8\\nPOLICY: MaxPasswordAge = 90\\n";
         InjectExecutionInput input = buildStdoutInput(rawOutput);
 
         // -- EXECUTE --
@@ -2639,10 +2635,7 @@ class InjectApiTest extends IntegrationTest {
         RegexGroup accountGroup = OutputParserFixture.getRegexGroup("account", "$1");
         ContractOutputElement delegationElement =
             OutputParserFixture.getContractOutputElement(
-                ContractOutputType.Delegation,
-                "DELEGATION:\\s*(\\S+)",
-                Set.of(accountGroup),
-                true);
+                ContractOutputType.Delegation, "DELEGATION:\\s*(\\S+)", Set.of(accountGroup), true);
         OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(delegationElement));
         Object[] setup = buildInjectWithOutputParser(outputParser);
         Inject delegationInject = (Inject) setup[0];
@@ -2684,10 +2677,7 @@ class InjectApiTest extends IntegrationTest {
         RegexGroup accountGroup = OutputParserFixture.getRegexGroup("account", "$1");
         ContractOutputElement delegationElement =
             OutputParserFixture.getContractOutputElement(
-                ContractOutputType.Delegation,
-                "DELEGATION:\\s*(\\S+)",
-                Set.of(accountGroup),
-                true);
+                ContractOutputType.Delegation, "DELEGATION:\\s*(\\S+)", Set.of(accountGroup), true);
         OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(delegationElement));
         Object[] setup = buildInjectWithOutputParser(outputParser);
         Inject delegationInject = (Inject) setup[0];
@@ -2716,10 +2706,7 @@ class InjectApiTest extends IntegrationTest {
         RegexGroup sidGroup = OutputParserFixture.getRegexGroup("sid", "$1");
         ContractOutputElement sidElement =
             OutputParserFixture.getContractOutputElement(
-                ContractOutputType.Sid,
-                "SID:\\s*(S-\\d-[\\d-]+)",
-                Set.of(sidGroup),
-                true);
+                ContractOutputType.Sid, "SID:\\s*(S-\\d-[\\d-]+)", Set.of(sidGroup), true);
         OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(sidElement));
         Object[] setup = buildInjectWithOutputParser(outputParser);
         Inject sidInject = (Inject) setup[0];
@@ -2756,10 +2743,7 @@ class InjectApiTest extends IntegrationTest {
         RegexGroup sidGroup = OutputParserFixture.getRegexGroup("sid", "$1");
         ContractOutputElement sidElement =
             OutputParserFixture.getContractOutputElement(
-                ContractOutputType.Sid,
-                "SID:\\s*(S-\\d-[\\d-]+)",
-                Set.of(sidGroup),
-                true);
+                ContractOutputType.Sid, "SID:\\s*(S-\\d-[\\d-]+)", Set.of(sidGroup), true);
         OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(sidElement));
         Object[] setup = buildInjectWithOutputParser(outputParser);
         Inject sidInject = (Inject) setup[0];
@@ -2906,9 +2890,8 @@ class InjectApiTest extends IntegrationTest {
       @Test
       @DisplayName(
           "Should not create AccountWithPasswordNotRequired findings when raw output contains no matches")
-      void
-          shouldNotCreateAccountWithPasswordNotRequiredFindingsWhenRawOutputContainsNoMatches()
-              throws Exception {
+      void shouldNotCreateAccountWithPasswordNotRequiredFindingsWhenRawOutputContainsNoMatches()
+          throws Exception {
         // -- PREPARE --
         RegexGroup accountGroup = OutputParserFixture.getRegexGroup("account", "$1");
         ContractOutputElement accountElement =
