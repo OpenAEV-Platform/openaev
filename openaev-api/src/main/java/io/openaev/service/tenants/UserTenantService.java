@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class UserTenantDependencyManager implements DependenciesManager {
+public class UserTenantService implements DependenciesManager {
 
   private final TenantRepository tenantRepository;
 

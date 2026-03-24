@@ -45,6 +45,8 @@ const useTenant = (me: User | undefined, logged: unknown) => {
     }
   }, [me, logged, loadUserTenants]);
 
+  // TODO multi-tenancy: Multi executors dev
+  // When switching tenants we need to navigate to the new tenant URL prefix and reload tenant-scoped data
   const switchUserTenant = useCallback(async (tenantId: string) => {
     if (tenantId === currentUserTenant?.tenant_id) {
       return;
