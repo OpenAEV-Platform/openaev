@@ -78,6 +78,12 @@ public class AppSecurityConfig {
                         "/api/agent/**",
                         "/api/implant/**",
                         "/api/reset/**",
+                        "/api/endpoints/register",
+                        "/api/endpoints/jobs/**",
+                        "/api/injects/execution/**",
+                        "/api/stix/**",
+                        "/api/xtm-composer/**",
+                        "/api/xtmhub/**",
                         "/actuator/**"))
         .formLogin(AbstractHttpConfigurer::disable)
         .securityContext(securityContext -> securityContext.requireExplicitSave(false))

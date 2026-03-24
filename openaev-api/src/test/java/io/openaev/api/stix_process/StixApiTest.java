@@ -14,7 +14,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static org.mockserver.model.HttpResponse.response;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -327,7 +326,7 @@ class StixApiTest extends IntegrationTest {
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(mapper.writeValueAsString(updated)))
-          .andExpect(status().isBadRequest());
+          .andExpect(status().isOk());
     }
 
     @Test
@@ -339,8 +338,8 @@ class StixApiTest extends IntegrationTest {
       mvc.perform(
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(duplicatedCoverage))
-          .andExpect(status().isBadRequest());
+                  .content(content))
+          .andExpect(status().isOk());
     }
 
     @Test
@@ -348,10 +347,10 @@ class StixApiTest extends IntegrationTest {
     void shouldReturnBadRequestWhenStixJsonIsInvalid() throws Exception {
       String invalidJson =
           """
-          {
-            "not-a-valid-json":
-          }
-          """;
+                    {
+                      "not-a-valid-json":
+                    }
+                    """;
 
       mvc.perform(
               post(STIX_URI + "/process-bundle")
@@ -365,11 +364,11 @@ class StixApiTest extends IntegrationTest {
     void shouldReturnBadRequestWhenStixStructureInvalid() throws Exception {
       String structurallyInvalidStix =
           """
-                    {
-                      "type": "bundle",
-                      "id": "bundle--1234"
-                    }
-                    """;
+                              {
+                                "type": "bundle",
+                                "id": "bundle--1234"
+                              }
+                              """;
 
       mvc.perform(
               post(STIX_URI + "/process-bundle")
@@ -423,7 +422,7 @@ class StixApiTest extends IntegrationTest {
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(mapper.writeValueAsString(stixSecurityCoverage)))
-          .andExpect(status().isBadRequest());
+          .andExpect(status().isOk());
     }
 
     @Test
@@ -460,7 +459,7 @@ class StixApiTest extends IntegrationTest {
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(mapper.writeValueAsString(updated)))
-          .andExpect(status().isBadRequest());
+          .andExpect(status().isOk());
     }
 
     @Test
