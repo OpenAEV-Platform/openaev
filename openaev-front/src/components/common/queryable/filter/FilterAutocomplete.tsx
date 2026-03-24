@@ -51,7 +51,7 @@ const FilterAutocomplete: FunctionComponent<Props> = ({
   };
 
   const computeOptions = () => {
-    return options.filter(o => !filterGroup?.filters?.map(f => f.key).includes(o.id));
+    return options
   };
 
   return (

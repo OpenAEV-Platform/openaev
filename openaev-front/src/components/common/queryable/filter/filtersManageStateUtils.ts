@@ -16,16 +16,10 @@ export const handleSwitchMode = (filters: FilterGroup) => {
 };
 
 export const handleAddFilterWithEmptyValueUtil = (filterGroup: FilterGroup, filter: Filter) => {
-  const filters = isExistFilter(filterGroup, filter.key)
-    ? filterGroup.filters ?? []
-    : [
-        ...filterGroup.filters ?? [],
-        filter,
-      ];
-  return {
-    ...filterGroup,
-    filters,
-  };
+	return {
+		...filterGroup,
+		filters: [...filterGroup.filters ?? [], filter],
+	};
 };
 
 export const handleAddSingleValueFilterUtil = (filters: FilterGroup, key: string, value: string) => {
