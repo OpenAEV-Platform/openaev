@@ -342,7 +342,7 @@ public class InjectImportServiceTest extends IntegrationTest {
     expectationNameAttr.setId(UUID.randomUUID().toString());
     expectationNameAttr.setName("expectation_name");
     expectationNameAttr.setColumns(null);
-    expectationNameAttr.setDefaultValue("");
+    expectationNameAttr.setDefaultValue(null);
     expectationNameAttr.setAdditionalConfig(Map.of());
 
     AtomicReference<InjectExpectation> expectation = new AtomicReference<>();
