@@ -2,6 +2,7 @@ package io.openaev.aop;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Base;
@@ -219,7 +220,7 @@ public class AuditLogAspect {
         diffInput = syntheticInput;
       }
     } else if ("create".equals(eventScope)) {
-      diffInput = inputNode;
+      diffInput = inputNode != null ? stripInsignificantValues(inputNode) : null;
     }
 
     // Extract name from result if not already set
@@ -483,8 +484,10 @@ public class AuditLogAspect {
         }
       }
 
-      // Standard comparison for non-relation fields
-      if (oldValue == null || !oldValue.equals(newValue)) {
+      // Standard comparison for non-relation fields — uses semantic equality that normalises
+      // numeric types (100 == 100.0), treats null ≈ empty arrays, and recurses into nested
+      // objects/arrays so that insignificant serialisation differences are ignored.
+      if (oldValue == null || !semanticEquals(oldValue, newValue)) {
         changedNew.set(fieldName, newValue);
         if (oldValue != null) {
           changedOld.set(fieldName, oldValue);
@@ -496,6 +499,154 @@ public class AuditLogAspect {
       return new DiffResult(null, null);
     }
     return new DiffResult(changedNew, changedOld.isEmpty() ? null : changedOld);
+  }
+
+  /**
+   * Deep semantic equality for two {@link JsonNode} values. Unlike {@link JsonNode#equals}, this
+   * method:
+   *
+   * <ul>
+   *   <li>Treats numeric values as equal when their {@code doubleValue()} matches (so {@code 100}
+   *       == {@code 100.0}).
+   *   <li>Considers {@code null} and an empty array {@code []} as equivalent (common when JPA
+   *       serialises an empty collection as {@code []} but the DTO omits it or sends {@code null}).
+   *   <li>Considers {@code null} and an empty object {@code {}} as equivalent.
+   *   <li>Recurses into objects and arrays applying the same rules at every nesting level.
+   * </ul>
+   */
+  private static boolean semanticEquals(JsonNode a, JsonNode b) {
+    // Normalise null/missing nodes
+    boolean aEmpty = isEffectivelyEmpty(a);
+    boolean bEmpty = isEffectivelyEmpty(b);
+    if (aEmpty && bEmpty) {
+      return true;
+    }
+    if (aEmpty || bEmpty) {
+      return false;
+    }
+
+    // Both are numeric — compare by numeric value (handles int vs double, e.g. 100 vs 100.0)
+    if (a.isNumber() && b.isNumber()) {
+      return Double.compare(a.doubleValue(), b.doubleValue()) == 0;
+    }
+
+    // Both are objects — compare field-by-field
+    if (a.isObject() && b.isObject()) {
+      ObjectNode objA = (ObjectNode) a;
+      ObjectNode objB = (ObjectNode) b;
+      // Check all fields in A exist and match in B
+      for (var entry : objA.properties()) {
+        if (!semanticEquals(entry.getValue(), objB.get(entry.getKey()))) {
+          return false;
+        }
+      }
+      // Check B doesn't have extra non-empty fields
+      for (var entry : objB.properties()) {
+        if (objA.get(entry.getKey()) == null && !isEffectivelyEmpty(entry.getValue())) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    // Both are arrays — compare element-by-element
+    if (a.isArray() && b.isArray()) {
+      ArrayNode arrA = (ArrayNode) a;
+      ArrayNode arrB = (ArrayNode) b;
+      if (arrA.size() != arrB.size()) {
+        return false;
+      }
+      for (int i = 0; i < arrA.size(); i++) {
+        if (!semanticEquals(arrA.get(i), arrB.get(i))) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    // Fallback: delegate to Jackson's strict equals (covers strings, booleans, etc.)
+    return a.equals(b);
+  }
+
+  /**
+   * Returns {@code true} when the node is semantically empty: {@code null}, a Jackson {@code
+   * NullNode}, an empty array, or an empty object.
+   */
+  private static boolean isEffectivelyEmpty(JsonNode node) {
+    if (node == null || node.isNull() || node.isMissingNode()) {
+      return true;
+    }
+    if (node.isArray() && node.isEmpty()) {
+      return true;
+    }
+    if (node.isObject() && node.isEmpty()) {
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Returns {@code true} when a value is insignificant for audit-logging purposes: {@code null},
+   * empty strings, empty arrays, empty objects, or zero-valued numbers that represent "not set".
+   * Used by {@link #stripInsignificantValues} to remove noise from create-event inputs.
+   */
+  private static boolean isInsignificantValue(JsonNode node) {
+    if (isEffectivelyEmpty(node)) {
+      return true;
+    }
+    // Empty string (e.g. inject_description: "")
+    if (node.isTextual() && node.asText().isEmpty()) {
+      return true;
+    }
+    // Boolean false (default value for most boolean fields)
+    if (node.isBoolean() && !node.asBoolean()) {
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Recursively strips insignificant values (nulls, empty strings, empty arrays, false booleans)
+   * from a {@link JsonNode} tree. Also removes fields listed in {@link #DIFF_SKIP_FIELDS}. This
+   * keeps create-event audit entries concise — only meaningful, non-default values are logged.
+   *
+   * <p>For arrays, each element is cleaned recursively (but elements are never removed, to preserve
+   * positional semantics). For objects, fields whose cleaned value is insignificant are dropped.
+   *
+   * @return a new, cleaned copy of the tree — the original is never mutated
+   */
+  private JsonNode stripInsignificantValues(JsonNode node) {
+    if (node == null || node.isNull()) {
+      return node;
+    }
+
+    if (node.isObject()) {
+      ObjectNode cleaned = objectMapper.createObjectNode();
+      for (var entry : node.properties()) {
+        String fieldName = entry.getKey();
+        // Skip DTO metadata fields (same set as diff computation)
+        if (DIFF_SKIP_FIELDS.contains(fieldName)) {
+          continue;
+        }
+        JsonNode value = entry.getValue();
+        JsonNode cleanedValue = stripInsignificantValues(value);
+        if (!isInsignificantValue(cleanedValue)) {
+          cleaned.set(fieldName, cleanedValue);
+        }
+      }
+      return cleaned;
+    }
+
+    if (node.isArray()) {
+      ArrayNode cleaned = objectMapper.createArrayNode();
+      for (JsonNode element : node) {
+        cleaned.add(stripInsignificantValues(element));
+      }
+      return cleaned;
+    }
+
+    // Scalars (string, number, boolean) — return as-is; caller decides significance
+    return node;
   }
 
   /**
