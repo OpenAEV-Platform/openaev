@@ -6,7 +6,6 @@ import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static java.time.Instant.now;
 
 import io.openaev.database.model.*;
-import io.openaev.database.raw.RawAssetGroup;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.specification.EndpointSpecification;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
@@ -178,34 +177,6 @@ public class AssetGroupService {
             .toList();
     assetGroup.setDynamicAssets(assets);
     return assetGroup;
-  }
-
-  public Map<String, List<Endpoint>> computeDynamicAssetFromRaw(
-      @NotNull Set<RawAssetGroup> assetGroups) {
-    if (assetGroups.isEmpty()) {
-      return Map.of();
-    }
-
-    return assetGroups.stream()
-        .collect(
-            Collectors.toMap(
-                RawAssetGroup::getAsset_group_id,
-                assetGroup ->
-                    Optional.of(assetGroup.getAssetGroupDynamicFilter())
-                        .filter(filterGroup -> !isEmptyFilterGroup(filterGroup))
-                        .map(
-                            filter -> {
-                              Specification<Endpoint> specification = computeFilterGroupJpa(filter);
-                              Specification<Endpoint> specification2 =
-                                  EndpointSpecification
-                                      .findEndpointsForInjectionOrAgentlessEndpoints();
-                              return this.endpointService
-                                  .endpoints(specification.and(specification2))
-                                  .stream()
-                                  .distinct()
-                                  .toList();
-                            })
-                        .orElse(Collections.emptyList())));
   }
 
   public List<FilterUtilsJpa.Option> getOptionsByNameLinkedToFindings(
