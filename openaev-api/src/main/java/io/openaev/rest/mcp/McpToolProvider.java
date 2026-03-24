@@ -775,7 +775,7 @@ public class McpToolProvider {
   private McpSchema.JsonSchema schema(
       Map<String, Map<String, Object>> properties, List<String> required) {
     Map<String, Object> props = new LinkedHashMap<>(properties);
-    return new McpSchema.JsonSchema("object", props, required, null);
+    return new McpSchema.JsonSchema("object", props, required, null, null, null);
   }
 
   private Map<String, Object> prop(String type, String description) {
