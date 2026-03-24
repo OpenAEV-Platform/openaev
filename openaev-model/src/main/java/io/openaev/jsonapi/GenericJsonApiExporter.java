@@ -14,20 +14,11 @@ import java.lang.reflect.Field;
 import java.util.*;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 /* Based on https://jsonapi.org/ */
 @Component
 public class GenericJsonApiExporter {
 
-  /**
-   * Exports an entity to a JSON:API document.
-   *
-   * <p>Must run within an active Hibernate session (@Transactional) so that lazily-loaded
-   * collections on nested entities (e.g. Vulnerability.cwes) can be initialized during the
-   * recursive traversal without triggering a LazyInitializationException.
-   */
-  @Transactional(readOnly = true)
   public JsonApiDocument<ResourceObject> handleExport(
       Object entity, IncludeOptions includeOptions) {
     if (includeOptions == null) {
@@ -140,6 +131,9 @@ public class GenericJsonApiExporter {
     if (value == null) {
       return;
     }
+    // Force loading
+    Hibernate.initialize(value);
+    value = Hibernate.unproxy(value);
     rels.put(
         relName,
         new Relationship(new ResourceIdentifier(readId(value), resolveType(value.getClass()))));
