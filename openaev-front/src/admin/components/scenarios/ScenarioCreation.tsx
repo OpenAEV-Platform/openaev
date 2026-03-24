@@ -1,4 +1,4 @@
-import { type FunctionComponent, useState } from 'react';
+import { type FunctionComponent, type ReactElement, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { type LoggedHelper } from '../../../actions/helper';
@@ -10,25 +10,47 @@ import { SCENARIO_BASE_URL } from '../../../constants/BaseUrls';
 import { useHelper } from '../../../store';
 import { type PlatformSettings, type Scenario, type ScenarioInput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
+import { isFeatureEnabled } from '../../../utils/utils';
+import EngineTypeSelection from '../common/EngineTypeSelection';
 import ScenarioForm from './ScenarioForm';
+
+type CreationStep = 'type-selection' | 'form';
 
 const ScenarioCreation: FunctionComponent = () => {
   // Standard hooks
+  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const [open, setOpen] = useState(false);
+  const [creationStep, setCreationStep] = useState<CreationStep>(isChainingFeatureEnabled ? 'type-selection' : 'form');
+  const [isChaining, setIsChaining] = useState<boolean>(false);
   const { t } = useFormatter();
   const navigate = useNavigate();
 
   const dispatch = useAppDispatch();
 
+  const handleClose = useCallback(() => {
+    setOpen(false);
+    setCreationStep(isChainingFeatureEnabled ? 'type-selection' : 'form');
+    setIsChaining(false);
+  }, [isChainingFeatureEnabled]);
+
+  const handleTypeSelected = useCallback((chaining: boolean) => {
+    setIsChaining(chaining);
+    setCreationStep('form');
+  }, []);
+
   const onSubmit = (data: ScenarioInput, isScenarioAssistantChecked?: boolean) => {
-    dispatch(addScenario(data)).then(
+    const payload: ScenarioInput = {
+      ...data,
+      scenario_is_chaining: isChaining,
+    };
+    dispatch(addScenario(payload)).then(
       (result: {
         result: string;
         entities: { scenarios: Record<string, Scenario> };
       }) => {
         if (result.entities) {
           navigate(`${SCENARIO_BASE_URL}/${result.result}?openScenarioAssistant=${isScenarioAssistantChecked}`);
-          setOpen(false);
+          handleClose();
         }
       },
     );
@@ -52,20 +74,42 @@ const ScenarioCreation: FunctionComponent = () => {
     scenario_mails_reply_to: [settings.default_reply_to ?? ''],
   };
 
+  const drawerTitle = (creationStep === 'type-selection' && isChainingFeatureEnabled)
+    ? t('Create a new scenario')
+    : isChaining
+      ? `${t('Create a new scenario')} — ${t('Chaining')}`
+      : isChainingFeatureEnabled
+        ? `${t('Create a new scenario')} — ${t('Time-based')}`
+        : t('Create a new scenario');
+
+  const renderDrawerContent = (): ReactElement => {
+    if (creationStep === 'type-selection' && isChainingFeatureEnabled) {
+      return (
+        <EngineTypeSelection
+          onSelect={handleTypeSelected}
+          onCancel={handleClose}
+        />
+      );
+    }
+    return (
+      <ScenarioForm
+        onSubmit={onSubmit}
+        initialValues={initialValues}
+        handleClose={handleClose}
+        isCreation
+      />
+    );
+  };
+
   return (
     <>
       <ButtonCreate onClick={() => setOpen(true)} />
       <Drawer
         open={open}
-        handleClose={() => setOpen(false)}
-        title={t('Create a new scenario')}
+        handleClose={handleClose}
+        title={drawerTitle}
       >
-        <ScenarioForm
-          onSubmit={onSubmit}
-          initialValues={initialValues}
-          handleClose={() => setOpen(false)}
-          isCreation
-        />
+        {renderDrawerContent}
       </Drawer>
     </>
   );
