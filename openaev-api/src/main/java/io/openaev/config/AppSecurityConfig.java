@@ -82,8 +82,8 @@ public class AppSecurityConfig {
                         "/api/agent/**",
                         // Used by implants
                         "/api/implant/**",
-                        "/api/injects/execution/**",
-                        // Used by injectors to register contracts
+                        "/api/injects/**",
+                        // Used by injectors
                         "/api/injectors/**",
                         "/api/injector_contracts/**",
                         // Used by collectors,
@@ -94,6 +94,8 @@ public class AppSecurityConfig {
                         "/api/payloads/**",
                         "/api/tags/**",
                         "/api/kill_chain_phases/**",
+                        "/api/security_platforms/**",
+                        "/api/inject-expectations-traces/**",
                         // Used by connectors
                         "/api/connector-instances/**",
                         // XTM Hub
