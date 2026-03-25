@@ -1,15 +1,12 @@
 package io.openaev.rest.tag;
 
-import static io.openaev.database.specification.TagSpecification.byName;
-import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UserRoleDescription;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Tag;
-import io.openaev.database.repository.TagRepository;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.tag.form.TagCreateInput;
 import io.openaev.rest.tag.form.TagUpdateInput;
@@ -17,19 +14,15 @@ import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.util.List;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@RequiredArgsConstructor
 @io.swagger.v3.oas.annotations.tags.Tag(
     name = "Tags management",
     description = "Endpoints to manage tags")
@@ -37,119 +30,86 @@ import org.springframework.web.bind.annotation.*;
 public class TagApi extends RestBehavior {
 
   public static final String TAG_URI = "/api/tags";
+  private static final String TENANT_TAG_URI = TENANT_PREFIX + "/tags";
 
-  private TagRepository tagRepository;
-  private TagService tagService;
+  private final TagService tagService;
 
-  @Autowired
-  public void setTagRepository(TagRepository tagRepository) {
-    this.tagRepository = tagRepository;
+  // -- CREATE --
+
+  @Operation(summary = "Create tag")
+  @PostMapping({TAG_URI, TENANT_TAG_URI})
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.TAG)
+  @Transactional(rollbackOn = Exception.class)
+  public Tag createTag(@Valid @RequestBody TagCreateInput input) {
+    return tagService.createTag(input);
   }
 
-  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "All the existing tags")})
-  @Operation(description = "Get the list of tags", summary = "Get tags")
-  @GetMapping("/api/tags")
+  @Operation(summary = "Upsert tag")
+  @PostMapping({TAG_URI + "/upsert", TENANT_TAG_URI + "/upsert"})
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.TAG)
+  @Transactional(rollbackOn = Exception.class)
+  public Tag upsertTag(@Valid @RequestBody TagCreateInput input) {
+    return tagService.upsertTag(input);
+  }
+
+  // -- READ --
+
+  @Operation(summary = "Get tags", description = "Get the list of tags")
+  @GetMapping({TAG_URI, TENANT_TAG_URI})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.TAG)
   public Iterable<Tag> tags() {
-    return tagRepository.findAll();
+    return tagService.tags();
   }
 
-  @ApiResponses(
-      value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "All the existing tags corresponding to the search criteria")
-      })
-  @Operation(description = "Search tags corresponding to the criteria", summary = "Search tags")
-  @PostMapping("/api/tags/search")
+  @Operation(summary = "Search tags", description = "Search tags corresponding to the criteria")
+  @PostMapping({TAG_URI + "/search", TENANT_TAG_URI + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.TAG)
   public Page<Tag> tags(@RequestBody @Valid SearchPaginationInput searchPaginationInput) {
-    return buildPaginationJPA(
-        (Specification<Tag> specification, Pageable pageable) ->
-            this.tagRepository.findAll(specification, pageable),
-        searchPaginationInput,
-        Tag.class);
+    return tagService.search(searchPaginationInput);
   }
 
-  @PutMapping("/api/tags/{tagId}")
+  // -- UPDATE --
+
+  @Operation(summary = "Update tag")
+  @PutMapping({TAG_URI + "/{tagId}", TENANT_TAG_URI + "/{tagId}"})
   @AccessControl(
       resourceId = "#tagId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.TAG)
   @Transactional(rollbackOn = Exception.class)
-  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated tag")})
-  @Operation(description = "Update a tag", summary = "Update tag")
   public Tag updateTag(
       @PathVariable @Schema(description = "ID of the tag") String tagId,
       @Valid @RequestBody TagUpdateInput input) {
     return tagService.updateTag(tagId, input);
   }
 
-  @PostMapping("/api/tags")
-  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.TAG)
-  @Transactional(rollbackOn = Exception.class)
-  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The created tag")})
-  @Operation(description = "Create a tag", summary = "Create tag")
-  public Tag createTag(@Valid @RequestBody TagCreateInput input) {
-    Tag tag = new Tag();
-    tag.setUpdateAttributes(input);
-    return tagRepository.save(tag);
-  }
+  // -- DELETE --
 
-  @PostMapping("/api/tags/upsert")
-  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.TAG)
-  @Transactional(rollbackOn = Exception.class)
-  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The upserted tag")})
-  @Operation(description = "Upsert a tag", summary = "Upsert tag")
-  public Tag upsertTag(@Valid @RequestBody TagCreateInput input) {
-    return tagService.upsertTag(input);
-  }
-
-  @DeleteMapping("/api/tags/{tagId}")
+  @Operation(summary = "Delete tag")
+  @DeleteMapping({TAG_URI + "/{tagId}", TENANT_TAG_URI + "/{tagId}"})
   @AccessControl(
       resourceId = "#tagId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.TAG)
-  @ApiResponses(value = {@ApiResponse(responseCode = "200")})
-  @Operation(description = "Delete a tag", summary = "Delete tag")
   public void deleteTag(@PathVariable @Schema(description = "ID of the tag") String tagId) {
-    tagRepository.deleteById(tagId);
+    tagService.deleteTag(tagId);
   }
 
-  // -- OPTION --
+  // -- OPTIONS --
 
-  @GetMapping(TAG_URI + "/options")
+  @Operation(summary = "Search tags by text")
+  @GetMapping({TAG_URI + "/options", TENANT_TAG_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.TAG)
-  @ApiResponses(
-      value = {@ApiResponse(responseCode = "200", description = "The list of tags corresponding")})
-  @Operation(
-      description = "Get a list of tag IDs and labels corresponding to the text search",
-      summary = "Search tags by text")
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) @Schema(description = "Search text")
           final String searchText) {
-    return fromIterable(
-            this.tagRepository.findAll(byName(searchText), Sort.by(Sort.Direction.ASC, "name")))
-        .stream()
-        .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
-        .toList();
+    return tagService.optionsByName(searchText);
   }
 
-  @PostMapping(TAG_URI + "/options")
+  @Operation(summary = "Search tags by ids")
+  @PostMapping({TAG_URI + "/options", TENANT_TAG_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.TAG)
-  @ApiResponses(
-      value = {@ApiResponse(responseCode = "200", description = "The list of tags corresponding")})
-  @Operation(
-      description = "Get a list of tag IDs and labels corresponding to a list of IDs",
-      summary = "Search tags by ids")
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
-    return fromIterable(this.tagRepository.findAllById(ids)).stream()
-        .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
-        .toList();
-  }
-
-  @Autowired
-  public void setTagService(TagService tagService) {
-    this.tagService = tagService;
+    return tagService.optionsById(ids);
   }
 }

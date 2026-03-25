@@ -11,6 +11,10 @@ export const IDENTITY_LOGIN_FAILED = 'IDENTITY_LOGIN_FAILED';
 export const IDENTITY_LOGOUT_SUCCESS = 'IDENTITY_LOGOUT_SUCCESS';
 // endregion
 
+// region TENANT
+export const TENANT_SWITCH_SUCCESS = 'TENANT_SWITCH_SUCCESS';
+// endregion
+
 // region CONTRACT
 export const CONTRACT_IMAGES = 'CONTRACT_IMAGES';
 // endregion
