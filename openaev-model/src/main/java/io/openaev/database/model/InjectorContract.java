@@ -178,7 +178,29 @@ public class InjectorContract implements TenantBase {
    */
   public void addInjector(Injector injector) {
     if (injector != null && !this.injectors.contains(injector)) {
+      if (!this.injectors.isEmpty()
+          && !this.injectors.getFirst().getType().equals(injector.getType())) {
+        throw new IllegalArgumentException(
+            "Cannot link injector of type "
+                + injector.getType()
+                + " to contract already linked to type "
+                + this.injectors.getFirst().getType());
+      }
       this.injectors.add(injector);
+    }
+  }
+
+  /**
+   * Sets the injector reference on this contract (inverse side only). Safe to call on transient
+   * contracts — does NOT modify the owning side ({@code Injector.contracts}), so it will not cause
+   * Hibernate auto-flush issues.
+   *
+   * <p>After the contract is persisted, update the owning side directly via {@code
+   * injector.getContracts().add(contract)} for join-table persistence.
+   */
+  public void addInjectors(List<Injector> injectors) {
+    if (injectors != null) {
+      injectors.forEach(this::addInjector);
     }
   }
 
@@ -286,13 +308,13 @@ public class InjectorContract implements TenantBase {
   }
 
   @JsonProperty("injector_contract_injector_type")
-  private String getInjectorType() {
+  public String getInjectorType() {
     Injector first = getFirstInjector();
     return first != null ? first.getType() : null;
   }
 
   @JsonProperty("injector_contract_injector_type_name")
-  private String getInjectorName() {
+  public String getInjectorName() {
     Injector first = getFirstInjector();
     return first != null ? first.getName() : null;
   }

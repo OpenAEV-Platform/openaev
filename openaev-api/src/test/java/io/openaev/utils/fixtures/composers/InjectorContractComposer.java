@@ -81,7 +81,7 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
       this.injectorContract.setId(challengeInjectorContract.getId());
       this.injectorContract.setContent(challengeInjectorContract.getContent());
       this.injectorContract.setConvertedContent(challengeInjectorContract.getConvertedContent());
-      this.injectorContract.addInjector(challengeInjectorContract.getFirstInjector());
+      this.injectorContract.addInjectors(challengeInjectorContract.getInjectors());
       this.injectorContract.setPlatforms(challengeInjectorContract.getPlatforms());
       this.injectorContract.setUpdatedAt(challengeInjectorContract.getUpdatedAt());
       this.injectorContract.setCreatedAt(challengeInjectorContract.getCreatedAt());
@@ -145,18 +145,8 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
       attackPatternComposer.forEach(AttackPatternComposer.Composer::persist);
       vulnerabilityComposer.forEach(VulnerabilityComposer.Composer::persist);
       if (!WELL_KNOWN_CONTRACT_IDS.contains(injectorContract.getId())) {
-        Injector injector = injectorContract.getFirstInjector();
-        if (injector != null) {
-          entityManager.persist(injector);
-          injectorRepository.save(injector);
-        }
-        // for some reason hibernate refuses to save the entity with the repository
-        entityManager.persist(injectorContract);
-        injectorContractRepository.save(injectorContract);
-        // Link on the owning side now that the contract is persisted
-        if (injector != null) {
-          injector.getContracts().add(injectorContract);
-          injectorRepository.save(injector);
+        for (Injector injector : injectorContract.getInjectors()) {
+          injector.linkContract(injectorContract);
         }
       }
       return this;

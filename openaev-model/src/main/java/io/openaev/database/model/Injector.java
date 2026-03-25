@@ -122,6 +122,16 @@ public class Injector extends BaseConnectorEntity implements TenantBase {
     return id.equals(base.getId());
   }
 
+  public void linkContract(InjectorContract contract) {
+    this.contracts.add(contract);
+    contract.getInjectors().add(this);
+  }
+
+  public void unlinkContract(InjectorContract contract) {
+    this.contracts.remove(contract);
+    contract.getInjectors().remove(this);
+  }
+
   @Override
   public int hashCode() {
     return Objects.hash(id);

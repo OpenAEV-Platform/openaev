@@ -1321,7 +1321,7 @@ public class V1_DataImporter implements Importer {
             .convertValue(importNode.get("injector_contract_labels"), new TypeReference<>() {}));
     injectorContract.setPayload(payload);
     InjectorContract saved = injectorContractRepository.save(injectorContract);
-    dummyInjector.getContracts().add(saved);
+    dummyInjector.linkContract(saved);
     return saved;
   }
 

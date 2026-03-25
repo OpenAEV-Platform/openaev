@@ -462,7 +462,6 @@ class ScenarioServiceTest extends IntegrationTest {
     Scenario scenario = new Scenario();
 
     Injector injector = new Injector();
-    injector.setId(java.util.UUID.randomUUID().toString());
     injector.setDependencies(
         new ExternalServiceDependency[] {
           ExternalServiceDependency.SMTP, ExternalServiceDependency.IMAP

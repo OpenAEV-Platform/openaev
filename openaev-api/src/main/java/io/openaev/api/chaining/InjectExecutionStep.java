@@ -1,6 +1,7 @@
 package io.openaev.api.chaining;
 
 import static io.openaev.service.chaining.StepService.setField;
+import static java.util.Optional.ofNullable;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.InjectableValues;
@@ -11,7 +12,6 @@ import com.google.gson.*;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.InjectorRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Executor;
 import io.openaev.rest.document.DocumentService;
@@ -68,8 +68,6 @@ public class InjectExecutionStep implements ActionStep {
   private final Executor executor;
   private final InjectStatusService injectStatusService;
   private final InjectUtils injectUtils;
-  private final InjectorRepository injectorRepository;
-  private final InjectorService injectorService;
   @PersistenceContext private EntityManager em;
 
   /**
@@ -266,7 +264,8 @@ public class InjectExecutionStep implements ActionStep {
     InjectorContract injectorContract =
         this.injectorContractService.injectorContract(data.getInjectorContract());
 
-    Injector injector = injectUtils.resolveInjector(data.getInjectorId(), injectorContract);
+    Injector injector =
+        injectUtils.resolveInjectorReference(data.getInjectorId(), injectorContract);
     Inject inject = data.toInject(injectorContract, injector);
     inject.setUser(this.userService.currentUser());
 
@@ -454,29 +453,21 @@ public class InjectExecutionStep implements ActionStep {
         throw new ChainingException(
             "Injector contract not found for step (READY) ID: " + step.getId());
 
-      JsonNode injectorNode = root.path("inject_injector");
+      if (ofNullable(inject.getInjector()).isEmpty()) {
+        JsonNode injectorNode = root.path("inject_injector");
 
-      if (injectorNode.isMissingNode() && injectorNode.isEmpty())
-        throw new ChainingException(
-            "Injector not found for inject "
-                + inject.getId()
-                + " and step (READY) ID "
-                + step.getId());
-
-      if (inject.getInjector() == null) {
         String injectorId = injectorNode.asText();
-        Injector injector;
-        try {
-          injector = injectorService.injector(injectorId);
-        } catch (ElementNotFoundException e) {
-          log.error(e.getMessage(), e);
+        inject.setInjector(
+            injectUtils.resolveInjectorReference(
+                injectorId, inject.getInjectorContract().orElse(null)));
+
+        if (ofNullable(inject.getInjector()).isEmpty()) {
           throw new ChainingException(
-              "Injector not found for injectorId "
-                  + injectorId
+              "Injector not found for inject "
+                  + inject.getId()
                   + " and step (READY) ID "
                   + step.getId());
         }
-        inject.setInjector(injector);
       }
 
       return inject;
