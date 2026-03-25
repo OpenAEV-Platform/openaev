@@ -12,6 +12,8 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.lang.annotation.Annotation;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -57,11 +59,19 @@ public class AuditLogAspect {
       buildReverseEntityClassMap();
 
   /**
-   * Requests from automated agents (heartbeats, job polling) are excluded from audit logging.
-   * Matches User-Agent headers like {@code openaev-agent/2.3.0}.
+   * Requests from automated clients are excluded from audit logging. Matches User-Agent headers
+   * like {@code openaev-agent/2.3.0} (endpoint agents doing heartbeats/job polling) and {@code
+   * pyoaev/2.2.1} (Python client used by collectors such as Atomic Red Team, AWS Resources, etc.).
    */
   private static final Pattern AGENT_USER_AGENT_PATTERN =
-      Pattern.compile("^openaev-agent/", Pattern.CASE_INSENSITIVE);
+      Pattern.compile("^(openaev-agent|pyoaev)/", Pattern.CASE_INSENSITIVE);
+
+  /**
+   * Request URI prefixes for machine-to-machine endpoints that should be excluded from audit
+   * logging. XTM Composer calls (health checks, status updates, log pushes) happen frequently and
+   * are not user-initiated actions.
+   */
+  private static final String XTM_COMPOSER_URI_PREFIX = "/api/xtm-composer";
 
   /**
    * DTO metadata fields that are never actual entity attributes. Skipped during diff computation.
@@ -89,8 +99,8 @@ public class AuditLogAspect {
       return joinPoint.proceed();
     }
 
-    // Skip automated agent requests (heartbeats, job polling) — not user-initiated actions
-    if (isAgentRequest()) {
+    // Skip automated requests — not user-initiated actions
+    if (isAutomatedRequest()) {
       return joinPoint.proceed();
     }
 
@@ -115,8 +125,10 @@ public class AuditLogAspect {
     }
 
     // For updates/deletes/status_change: pre-fetch entity state before the mutation
+    // For duplicates: snapshot source entity to capture its name for the audit message
     JsonNode oldEntitySnapshot = null;
     String entityName = null;
+    String sourceId = null;
     if (childInfo != null) {
       // Child operation: snapshot the child, not the parent
       oldEntitySnapshot = childInfo.snapshot();
@@ -127,6 +139,11 @@ public class AuditLogAspect {
         && !resourceId.isEmpty()) {
       oldEntitySnapshot = snapshotEntity(resourceType, resourceId);
       entityName = extractNameFromSnapshot(oldEntitySnapshot);
+    } else if ("duplicate".equals(eventScope) && !resourceId.isEmpty()) {
+      // For duplicates: remember the source entity ID and resolve its name
+      sourceId = resourceId;
+      JsonNode sourceSnapshot = snapshotEntity(resourceType, resourceId);
+      entityName = extractNameFromSnapshot(sourceSnapshot);
     }
 
     // Capture the input DTO for create/update/status_change
@@ -150,7 +167,15 @@ public class AuditLogAspect {
       eventStatus = "error";
       // Still log the audit event, then re-throw
       logMutationSafely(
-          eventScope, eventStatus, resourceType, resourceId, inputNode, null, entityName, null);
+          eventScope,
+          eventStatus,
+          resourceType,
+          resourceId,
+          inputNode,
+          null,
+          entityName,
+          null,
+          sourceId);
       throw ex;
     }
 
@@ -186,10 +211,59 @@ public class AuditLogAspect {
       }
     }
 
-    // For creates, extract the entity ID and name from the return value
+    // Case 4: Bulk child creation — Action.WRITE on a parent that returns a Collection of child
+    // entities (e.g. POST /scenarios/{id}/injects/bulk). Log one create event per child.
+    if ("update".equals(eventScope)
+        && result instanceof Collection<?> collection
+        && !collection.isEmpty()) {
+      List<Base> childEntities =
+          collection.stream()
+              .filter(Base.class::isInstance)
+              .map(Base.class::cast)
+              .toList();
+      if (!childEntities.isEmpty()) {
+        Class<?> expectedParentClass = ENTITY_CLASS_MAP.get(resourceType);
+        // Verify these are truly child entities, not the parent type itself
+        if (expectedParentClass != null
+            && !expectedParentClass.isInstance(childEntities.getFirst())) {
+          ResourceType childType =
+              REVERSE_ENTITY_CLASS_MAP.get(childEntities.getFirst().getClass());
+          // Build per-child input nodes from the request body array (if available)
+          List<JsonNode> perChildInputs = List.of();
+          if (inputNode != null && inputNode.isArray() && inputNode.size() == childEntities.size()) {
+            perChildInputs = new java.util.ArrayList<>();
+            for (JsonNode element : inputNode) {
+              perChildInputs.add(stripInsignificantValues(element));
+            }
+          }
+          for (int i = 0; i < childEntities.size(); i++) {
+            Base child = childEntities.get(i);
+            JsonNode childInput = i < perChildInputs.size() ? perChildInputs.get(i) : null;
+            logMutationSafely(
+                "create",
+                eventStatus,
+                childType != null ? childType : resourceType,
+                child.getId(),
+                childInput,
+                null,
+                extractEntityName(child),
+                resourceId,
+                null);
+          }
+          return result;
+        }
+      }
+    }
     if ("create".equals(eventScope) && parentId == null && result instanceof Base createdEntity) {
       resourceId = createdEntity.getId();
       entityName = extractEntityName(createdEntity);
+    }
+
+    // For duplicates: extract the new entity ID and name from the return value,
+    // and record the source entity ID so the audit trail links back to the original.
+    if ("duplicate".equals(eventScope) && result instanceof Base duplicatedEntity) {
+      resourceId = duplicatedEntity.getId();
+      entityName = extractEntityName(duplicatedEntity);
     }
 
     // For updates: compute diff between old and new values
@@ -236,7 +310,8 @@ public class AuditLogAspect {
         diffInput,
         diffOldValue,
         entityName,
-        parentId);
+        parentId,
+        sourceId);
 
     return result;
   }
@@ -244,11 +319,17 @@ public class AuditLogAspect {
   // -- Helpers --
 
   /**
-   * Returns {@code true} if the current request originates from an automated OpenAEV agent
-   * (identified by its {@code User-Agent} header). Agent heartbeats and job-polling calls happen
-   * every few seconds and would flood the audit log with noise.
+   * Returns {@code true} if the current request originates from an automated client. This covers:
+   *
+   * <ul>
+   *   <li>OpenAEV endpoint agents ({@code openaev-agent/...}) — heartbeats, job polling
+   *   <li>Python client ({@code pyoaev/...}) — collectors (Atomic Red Team, AWS Resources, etc.)
+   *   <li>XTM Composer callbacks — health checks, status updates, log pushes
+   * </ul>
+   *
+   * These automated calls happen frequently and would flood the audit log with noise.
    */
-  private boolean isAgentRequest() {
+  private boolean isAutomatedRequest() {
     try {
       ServletRequestAttributes attrs =
           (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
@@ -256,8 +337,16 @@ public class AuditLogAspect {
         return false;
       }
       HttpServletRequest request = attrs.getRequest();
+
+      // Check User-Agent for known automated clients
       String userAgent = request.getHeader("User-Agent");
-      return userAgent != null && AGENT_USER_AGENT_PATTERN.matcher(userAgent).find();
+      if (userAgent != null && AGENT_USER_AGENT_PATTERN.matcher(userAgent).find()) {
+        return true;
+      }
+
+      // Check request URI for machine-to-machine endpoints
+      String requestUri = request.getRequestURI();
+      return requestUri != null && requestUri.startsWith(XTM_COMPOSER_URI_PREFIX);
     } catch (Exception e) {
       return false;
     }
@@ -324,9 +413,9 @@ public class AuditLogAspect {
 
   private boolean shouldSkip(Action action) {
     return switch (action) {
-      case CREATE, WRITE, DELETE, LAUNCH -> false;
+      case CREATE, WRITE, DELETE, LAUNCH, DUPLICATE -> false;
       case READ, SEARCH -> !logReads;
-      default -> true; // SKIP_RBAC, DUPLICATE, PROCESS
+      default -> true; // SKIP_RBAC, PROCESS
     };
   }
 
@@ -336,6 +425,7 @@ public class AuditLogAspect {
       case WRITE -> "update";
       case DELETE -> "delete";
       case LAUNCH -> "status_change";
+      case DUPLICATE -> "duplicate";
       case READ, SEARCH -> "read";
       default -> "unknown";
     };
@@ -680,10 +770,19 @@ public class AuditLogAspect {
       JsonNode input,
       JsonNode oldValue,
       String entityName,
-      String parentId) {
+      String parentId,
+      String sourceId) {
     try {
       auditLogService.logMutationEvent(
-          eventScope, eventStatus, resourceType, entityId, input, oldValue, entityName, parentId);
+          eventScope,
+          eventStatus,
+          resourceType,
+          entityId,
+          input,
+          oldValue,
+          entityName,
+          parentId,
+          sourceId);
     } catch (Exception e) {
       log.warn("[AUDIT] Audit logging failed (non-blocking): {}", e.getMessage(), e);
     }

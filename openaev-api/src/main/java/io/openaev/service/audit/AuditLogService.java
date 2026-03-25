@@ -70,16 +70,17 @@ public class AuditLogService {
   // -- Public API --
 
   /**
-   * Logs a mutation (create/update/delete) audit event to the console.
+   * Logs a mutation (create/update/delete/duplicate) audit event to the console.
    *
-   * @param eventScope "create", "update", or "delete"
+   * @param eventScope "create", "update", "delete", or "duplicate"
    * @param eventStatus "success" or "error"
    * @param resourceType the resource type from the {@code @AccessControl} annotation
    * @param entityId the resolved entity ID (may be empty for creates before persist)
-   * @param input the serialized input DTO (for create/update); null for delete
-   * @param oldValue the serialized previous values (for update); null for create/delete
+   * @param input the serialized input DTO (for create/update); null for delete/duplicate
+   * @param oldValue the serialized previous values (for update); null for create/delete/duplicate
    * @param entityName human-readable entity name for the message (e.g. scenario name)
    * @param parentId the parent entity ID when a child is created within a parent; null otherwise
+   * @param sourceId the source entity ID for duplicate events; null for other event types
    */
   public void logMutationEvent(
       String eventScope,
@@ -89,7 +90,8 @@ public class AuditLogService {
       JsonNode input,
       JsonNode oldValue,
       String entityName,
-      String parentId) {
+      String parentId,
+      String sourceId) {
     if (!enabled) {
       return;
     }
@@ -106,6 +108,9 @@ public class AuditLogService {
       contextData.put("entity_type", entityTypeName);
       if (parentId != null && !parentId.isEmpty()) {
         contextData.put("parent_id", parentId);
+      }
+      if (sourceId != null && !sourceId.isEmpty()) {
+        contextData.put("source_id", sourceId);
       }
       if (input != null) {
         contextData.set("input", redact(input, entityTypeName));
