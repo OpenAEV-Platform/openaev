@@ -22,6 +22,8 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.TagFixture;
+import io.openaev.utils.fixtures.composers.AssetGroupComposer;
+import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import jakarta.servlet.ServletException;
@@ -30,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.json.JSONArray;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -55,6 +58,8 @@ class AssetGroupApiTest extends IntegrationTest {
   @Autowired private InjectRepository injectRepository;
   @Autowired private ExerciseService exerciseService;
   @Autowired private EntityManager entityManager;
+  @Autowired private EndpointComposer endpointComposer;
+  @Autowired private AssetGroupComposer assetGroupComposer;
 
   @DisplayName(
       "Given valid AssetGroupInput, should create and get assetGroup without dynamic filter successfully")
@@ -116,14 +121,18 @@ class AssetGroupApiTest extends IntegrationTest {
   void given_validAssetGroupInput_should_createAndGetAssetGroupWithDynamicFilterSuccessfully()
       throws Exception {
     // -- PREPARE --
-    Filters.FilterGroup dynamicFilter = new Filters.FilterGroup();
-    dynamicFilter.setMode(Filters.FilterMode.or);
-    Filters.Filter filter = new Filters.Filter();
-    filter.setKey("endpoint_platform");
-    filter.setMode(Filters.FilterMode.or);
-    filter.setOperator(Filters.FilterOperator.eq);
-    filter.setValues(List.of("Windows"));
-    dynamicFilter.setFilters(List.of(filter));
+    Filters.FilterGroup dynamicFilter =
+        Filters.FilterGroup.builder()
+            .mode(Filters.FilterMode.or)
+            .filters(
+                List.of(
+                    Filters.Filter.builder()
+                        .key("endpoint_platform")
+                        .mode(Filters.FilterMode.or)
+                        .operator(Filters.FilterOperator.eq)
+                        .values(List.of("Windows"))
+                        .build()))
+            .build();
     AssetGroupInput assetGroupInput =
         createAssetGroupWithDynamicFilters("Asset group", dynamicFilter);
 
@@ -418,44 +427,41 @@ class AssetGroupApiTest extends IntegrationTest {
     private Endpoint windowsArm;
     private Endpoint linuxX86;
 
-    private void createEndpoints() {
-      Endpoint win = EndpointFixture.createEndpoint();
-      win.setName("win-x86");
-      win.setHostname("win-host-01");
-      win.setIps(new String[] {"10.0.0.1"});
-      win.setArch(Endpoint.PLATFORM_ARCH.x86_64);
-      windowsX86 = endpointRepository.save(win);
-
-      Endpoint winArm =
-          EndpointFixture.createEndpointWithPlatform("win-arm", Endpoint.PLATFORM_TYPE.Windows);
-      winArm.setHostname("win-host-02");
-      winArm.setIps(new String[] {"10.0.0.2"});
-      winArm.setArch(Endpoint.PLATFORM_ARCH.arm64);
-      windowsArm = endpointRepository.save(winArm);
-
-      Endpoint linux =
-          EndpointFixture.createEndpointWithPlatform("linux-x86", Endpoint.PLATFORM_TYPE.Linux);
-      linux.setHostname("linux-host-01");
-      linux.setIps(new String[] {"10.0.1.1"});
-      linux.setArch(Endpoint.PLATFORM_ARCH.x86_64);
-      linuxX86 = endpointRepository.save(linux);
-    }
-
-    private AssetGroup saveDynamicGroup(
-        String name, String filterKey, String operator, List<String> values) {
-      Filters.Filter filter = new Filters.Filter();
-      filter.setKey(filterKey);
-      filter.setMode(Filters.FilterMode.and);
-      filter.setOperator(Filters.FilterOperator.valueOf(operator));
-      filter.setValues(values);
-
-      Filters.FilterGroup dynamicFilter = new Filters.FilterGroup();
-      dynamicFilter.setMode(Filters.FilterMode.and);
-      dynamicFilter.setFilters(List.of(filter));
-
-      AssetGroup group = createDefaultAssetGroup(name);
-      group.setDynamicFilter(dynamicFilter);
-      return assetGroupRepository.save(group);
+    @BeforeEach
+    void setUp() {
+      windowsX86 =
+          endpointComposer
+              .forEndpoint(
+                  EndpointFixture.createEndpoint(
+                      "win-x86",
+                      Endpoint.PLATFORM_TYPE.Windows,
+                      Endpoint.PLATFORM_ARCH.x86_64,
+                      "win-host-01",
+                      new String[] {"10.0.0.1"}))
+              .persist()
+              .get();
+      windowsArm =
+          endpointComposer
+              .forEndpoint(
+                  EndpointFixture.createEndpoint(
+                      "win-arm",
+                      Endpoint.PLATFORM_TYPE.Windows,
+                      Endpoint.PLATFORM_ARCH.arm64,
+                      "win-host-02",
+                      new String[] {"10.0.0.2"}))
+              .persist()
+              .get();
+      linuxX86 =
+          endpointComposer
+              .forEndpoint(
+                  EndpointFixture.createEndpoint(
+                      "linux-x86",
+                      Endpoint.PLATFORM_TYPE.Linux,
+                      Endpoint.PLATFORM_ARCH.x86_64,
+                      "linux-host-01",
+                      new String[] {"10.0.1.1"}))
+              .persist()
+              .get();
     }
 
     private List<String> getDynamicAssetIds(String response, String groupName) {
@@ -471,10 +477,13 @@ class AssetGroupApiTest extends IntegrationTest {
     @WithMockUser(isAdmin = true)
     void given_staticAssetGroupWithEndpoints_should_returnCorrectAssetIds() throws Exception {
       // Arrange
-      createEndpoints();
-      AssetGroup assetGroup = createDefaultAssetGroup("Static group");
-      assetGroup.setAssets(List.of(windowsX86, linuxX86));
-      assetGroupRepository.save(assetGroup);
+      EndpointComposer.Composer winComposer = endpointComposer.forEndpoint(windowsX86);
+      EndpointComposer.Composer linuxComposer = endpointComposer.forEndpoint(linuxX86);
+      assetGroupComposer
+          .forAssetGroup(createDefaultAssetGroup("Static group"))
+          .withAsset(winComposer)
+          .withAsset(linuxComposer)
+          .persist();
 
       // Act
       String response =
@@ -505,8 +514,7 @@ class AssetGroupApiTest extends IntegrationTest {
     @WithMockUser(isAdmin = true)
     void given_emptyStaticAssetGroup_should_returnEmptyAssets() throws Exception {
       // Arrange
-      AssetGroup assetGroup = createDefaultAssetGroup("Empty group");
-      assetGroupRepository.save(assetGroup);
+      assetGroupComposer.forAssetGroup(createDefaultAssetGroup("Empty group")).persist();
 
       // Act
       String response =
@@ -530,14 +538,27 @@ class AssetGroupApiTest extends IntegrationTest {
       assertTrue(dynamicAssets.isEmpty());
     }
 
-    @DisplayName(
-        "Given a dynamic filter on endpoint_platform=Windows, should return only Windows endpoints")
-    @Test
+    @DisplayName("Dynamic filter should return only matching endpoints")
+    @ParameterizedTest(name = "Filter on {0} ({1}) with value {2}")
+    @MethodSource("dynamicFilterParameters")
     @WithMockUser(isAdmin = true)
-    void given_dynamicFilterOnPlatform_should_returnOnlyMatchingEndpoints() throws Exception {
+    void given_dynamicFilter_should_returnOnlyMatchingEndpoints(
+        String filterKey, String operator, List<String> values, List<String> expectedEndpointNames)
+        throws Exception {
       // Arrange
-      createEndpoints();
-      saveDynamicGroup("Platform filter", "endpoint_platform", "eq", List.of("Windows"));
+      Filters.FilterGroup dynamicFilter =
+          Filters.FilterGroup.builder()
+              .filters(
+                  List.of(
+                      Filters.Filter.builder()
+                          .key(filterKey)
+                          .operator(Filters.FilterOperator.valueOf(operator))
+                          .values(values)
+                          .build()))
+              .build();
+
+      AssetGroup group = createAssetGroupWithDynamicFilter("Dynamic filter group", dynamicFilter);
+      assetGroupComposer.forAssetGroup(group).persist();
 
       // Act
       String response =
@@ -548,82 +569,26 @@ class AssetGroupApiTest extends IntegrationTest {
               .getContentAsString();
 
       // Assert
-      List<String> dynamicAssetIds = getDynamicAssetIds(response, "Platform filter");
-      assertEquals(2, dynamicAssetIds.size());
-      assertTrue(dynamicAssetIds.contains(windowsX86.getId()));
-      assertTrue(dynamicAssetIds.contains(windowsArm.getId()));
-      assertFalse(dynamicAssetIds.contains(linuxX86.getId()));
+      List<String> dynamicAssetIds = getDynamicAssetIds(response, "Dynamic filter group");
+      Map<String, Endpoint> endpointsByName =
+          Map.of("windowsX86", windowsX86, "windowsArm", windowsArm, "linuxX86", linuxX86);
+      List<String> expectedIds =
+          expectedEndpointNames.stream().map(name -> endpointsByName.get(name).getId()).toList();
+      assertEquals(expectedIds.size(), dynamicAssetIds.size());
+      assertTrue(dynamicAssetIds.containsAll(expectedIds));
     }
 
-    @DisplayName(
-        "Given a dynamic filter on endpoint_arch=arm64, should return only arm64 endpoints")
-    @Test
-    @WithMockUser(isAdmin = true)
-    void given_dynamicFilterOnArch_should_returnOnlyMatchingEndpoints() throws Exception {
-      // Arrange
-      createEndpoints();
-      saveDynamicGroup("Arch filter", "endpoint_arch", "eq", List.of("arm64"));
-
-      // Act
-      String response =
-          mvc.perform(get(ASSET_GROUP_URI).accept(MediaType.APPLICATION_JSON))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // Assert
-      List<String> dynamicAssetIds = getDynamicAssetIds(response, "Arch filter");
-      assertEquals(1, dynamicAssetIds.size());
-      assertTrue(dynamicAssetIds.contains(windowsArm.getId()));
-    }
-
-    @DisplayName(
-        "Given a dynamic filter on endpoint_hostname contains 'win-host', should return only matching endpoints")
-    @Test
-    @WithMockUser(isAdmin = true)
-    void given_dynamicFilterOnHostname_should_returnOnlyMatchingEndpoints() throws Exception {
-      // Arrange
-      createEndpoints();
-      saveDynamicGroup("Hostname filter", "endpoint_hostname", "contains", List.of("win-host"));
-
-      // Act
-      String response =
-          mvc.perform(get(ASSET_GROUP_URI).accept(MediaType.APPLICATION_JSON))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // Assert
-      List<String> dynamicAssetIds = getDynamicAssetIds(response, "Hostname filter");
-      assertEquals(2, dynamicAssetIds.size());
-      assertTrue(dynamicAssetIds.contains(windowsX86.getId()));
-      assertTrue(dynamicAssetIds.contains(windowsArm.getId()));
-      assertFalse(dynamicAssetIds.contains(linuxX86.getId()));
-    }
-
-    @DisplayName(
-        "Given a dynamic filter on endpoint_ips contains '10.0.1', should return only matching endpoints")
-    @Test
-    @WithMockUser(isAdmin = true)
-    void given_dynamicFilterOnIps_should_returnOnlyMatchingEndpoints() throws Exception {
-      // Arrange
-      createEndpoints();
-      saveDynamicGroup("IPs filter", "endpoint_ips", "contains", List.of("10.0.1"));
-
-      // Act
-      String response =
-          mvc.perform(get(ASSET_GROUP_URI).accept(MediaType.APPLICATION_JSON))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // Assert
-      List<String> dynamicAssetIds = getDynamicAssetIds(response, "IPs filter");
-      assertEquals(1, dynamicAssetIds.size());
-      assertTrue(dynamicAssetIds.contains(linuxX86.getId()));
+    static Stream<Arguments> dynamicFilterParameters() {
+      return Stream.of(
+          Arguments.of(
+              "endpoint_platform", "eq", List.of("Windows"), List.of("windowsX86", "windowsArm")),
+          Arguments.of("endpoint_arch", "eq", List.of("arm64"), List.of("windowsArm")),
+          Arguments.of(
+              "endpoint_hostname",
+              "contains",
+              List.of("win-host"),
+              List.of("windowsX86", "windowsArm")),
+          Arguments.of("endpoint_ips", "contains", List.of("10.0.1"), List.of("linuxX86")));
     }
   }
 }

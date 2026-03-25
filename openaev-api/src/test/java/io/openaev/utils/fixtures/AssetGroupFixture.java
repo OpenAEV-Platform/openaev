@@ -42,4 +42,13 @@ public class AssetGroupFixture {
     assetGroup.setAssets(assets);
     return assetGroup;
   }
+
+  public static AssetGroup createAssetGroupWithDynamicFilter(
+      @NotNull final String name, @NotNull final Filters.FilterGroup dynamicFilter) {
+    AssetGroup assetGroup = new AssetGroup();
+    assetGroup.setName(name);
+    assetGroup.setDescription("An asset group");
+    assetGroup.setDynamicFilter(dynamicFilter);
+    return assetGroup;
+  }
 }
