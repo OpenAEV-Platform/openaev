@@ -14,10 +14,12 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetGroupRepository;
+import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.rest.asset_group.form.AssetGroupInput;
 import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -25,9 +27,11 @@ import jakarta.persistence.EntityManager;
 import jakarta.servlet.ServletException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 import org.json.JSONArray;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -46,6 +50,7 @@ class AssetGroupApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private AssetGroupRepository assetGroupRepository;
+  @Autowired private EndpointRepository endpointRepository;
   @Autowired private TagRepository tagRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private ExerciseService exerciseService;
@@ -403,5 +408,222 @@ class AssetGroupApiTest extends IntegrationTest {
 
     // --ASSERT--
     assertEquals(expectedNumberOfResults, jsonArray.length());
+  }
+
+  @Nested
+  @DisplayName("GET /api/asset-groups - assets resolution")
+  class GetAssetGroupsAssets {
+
+    private Endpoint windowsX86;
+    private Endpoint windowsArm;
+    private Endpoint linuxX86;
+
+    private void createEndpoints() {
+      Endpoint win = EndpointFixture.createEndpoint();
+      win.setName("win-x86");
+      win.setHostname("win-host-01");
+      win.setIps(new String[] {"10.0.0.1"});
+      win.setArch(Endpoint.PLATFORM_ARCH.x86_64);
+      windowsX86 = endpointRepository.save(win);
+
+      Endpoint winArm =
+          EndpointFixture.createEndpointWithPlatform("win-arm", Endpoint.PLATFORM_TYPE.Windows);
+      winArm.setHostname("win-host-02");
+      winArm.setIps(new String[] {"10.0.0.2"});
+      winArm.setArch(Endpoint.PLATFORM_ARCH.arm64);
+      windowsArm = endpointRepository.save(winArm);
+
+      Endpoint linux =
+          EndpointFixture.createEndpointWithPlatform("linux-x86", Endpoint.PLATFORM_TYPE.Linux);
+      linux.setHostname("linux-host-01");
+      linux.setIps(new String[] {"10.0.1.1"});
+      linux.setArch(Endpoint.PLATFORM_ARCH.x86_64);
+      linuxX86 = endpointRepository.save(linux);
+    }
+
+    private AssetGroup saveDynamicGroup(
+        String name, String filterKey, String operator, List<String> values) {
+      Filters.Filter filter = new Filters.Filter();
+      filter.setKey(filterKey);
+      filter.setMode(Filters.FilterMode.and);
+      filter.setOperator(Filters.FilterOperator.valueOf(operator));
+      filter.setValues(values);
+
+      Filters.FilterGroup dynamicFilter = new Filters.FilterGroup();
+      dynamicFilter.setMode(Filters.FilterMode.and);
+      dynamicFilter.setFilters(List.of(filter));
+
+      AssetGroup group = createDefaultAssetGroup(name);
+      group.setDynamicFilter(dynamicFilter);
+      return assetGroupRepository.save(group);
+    }
+
+    private List<String> getDynamicAssetIds(String response, String groupName) {
+      List<Map<String, Object>> groups =
+          JsonPath.read(response, "$[?(@.asset_group_name == '" + groupName + "')]");
+      assertEquals(1, groups.size());
+      return (List<String>) groups.getFirst().get("asset_group_dynamic_assets");
+    }
+
+    @DisplayName(
+        "Given a static asset group with endpoints, should return asset_group_assets with correct IDs")
+    @Test
+    @WithMockUser(isAdmin = true)
+    void given_staticAssetGroupWithEndpoints_should_returnCorrectAssetIds() throws Exception {
+      // Arrange
+      createEndpoints();
+      AssetGroup assetGroup = createDefaultAssetGroup("Static group");
+      assetGroup.setAssets(List.of(windowsX86, linuxX86));
+      assetGroupRepository.save(assetGroup);
+
+      // Act
+      String response =
+          mvc.perform(get(ASSET_GROUP_URI).accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<Map<String, Object>> matchingGroups =
+          JsonPath.read(response, "$[?(@.asset_group_name == 'Static group')]");
+      assertEquals(1, matchingGroups.size());
+
+      List<String> assetIds = (List<String>) matchingGroups.getFirst().get("asset_group_assets");
+      assertEquals(2, assetIds.size());
+      assertTrue(assetIds.contains(windowsX86.getId()));
+      assertTrue(assetIds.contains(linuxX86.getId()));
+
+      List<String> dynamicAssets =
+          (List<String>) matchingGroups.getFirst().get("asset_group_dynamic_assets");
+      assertTrue(dynamicAssets.isEmpty());
+    }
+
+    @DisplayName(
+        "Given an empty static asset group, should return empty asset_group_assets and empty dynamic_assets")
+    @Test
+    @WithMockUser(isAdmin = true)
+    void given_emptyStaticAssetGroup_should_returnEmptyAssets() throws Exception {
+      // Arrange
+      AssetGroup assetGroup = createDefaultAssetGroup("Empty group");
+      assetGroupRepository.save(assetGroup);
+
+      // Act
+      String response =
+          mvc.perform(get(ASSET_GROUP_URI).accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<Map<String, Object>> matchingGroups =
+          JsonPath.read(response, "$[?(@.asset_group_name == 'Empty group')]");
+      assertEquals(1, matchingGroups.size());
+
+      List<String> staticAssets =
+          (List<String>) matchingGroups.getFirst().get("asset_group_assets");
+      assertTrue(staticAssets.isEmpty());
+
+      List<String> dynamicAssets =
+          (List<String>) matchingGroups.getFirst().get("asset_group_dynamic_assets");
+      assertTrue(dynamicAssets.isEmpty());
+    }
+
+    @DisplayName(
+        "Given a dynamic filter on endpoint_platform=Windows, should return only Windows endpoints")
+    @Test
+    @WithMockUser(isAdmin = true)
+    void given_dynamicFilterOnPlatform_should_returnOnlyMatchingEndpoints() throws Exception {
+      // Arrange
+      createEndpoints();
+      saveDynamicGroup("Platform filter", "endpoint_platform", "eq", List.of("Windows"));
+
+      // Act
+      String response =
+          mvc.perform(get(ASSET_GROUP_URI).accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> dynamicAssetIds = getDynamicAssetIds(response, "Platform filter");
+      assertEquals(2, dynamicAssetIds.size());
+      assertTrue(dynamicAssetIds.contains(windowsX86.getId()));
+      assertTrue(dynamicAssetIds.contains(windowsArm.getId()));
+      assertFalse(dynamicAssetIds.contains(linuxX86.getId()));
+    }
+
+    @DisplayName(
+        "Given a dynamic filter on endpoint_arch=arm64, should return only arm64 endpoints")
+    @Test
+    @WithMockUser(isAdmin = true)
+    void given_dynamicFilterOnArch_should_returnOnlyMatchingEndpoints() throws Exception {
+      // Arrange
+      createEndpoints();
+      saveDynamicGroup("Arch filter", "endpoint_arch", "eq", List.of("arm64"));
+
+      // Act
+      String response =
+          mvc.perform(get(ASSET_GROUP_URI).accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> dynamicAssetIds = getDynamicAssetIds(response, "Arch filter");
+      assertEquals(1, dynamicAssetIds.size());
+      assertTrue(dynamicAssetIds.contains(windowsArm.getId()));
+    }
+
+    @DisplayName(
+        "Given a dynamic filter on endpoint_hostname contains 'win-host', should return only matching endpoints")
+    @Test
+    @WithMockUser(isAdmin = true)
+    void given_dynamicFilterOnHostname_should_returnOnlyMatchingEndpoints() throws Exception {
+      // Arrange
+      createEndpoints();
+      saveDynamicGroup("Hostname filter", "endpoint_hostname", "contains", List.of("win-host"));
+
+      // Act
+      String response =
+          mvc.perform(get(ASSET_GROUP_URI).accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> dynamicAssetIds = getDynamicAssetIds(response, "Hostname filter");
+      assertEquals(2, dynamicAssetIds.size());
+      assertTrue(dynamicAssetIds.contains(windowsX86.getId()));
+      assertTrue(dynamicAssetIds.contains(windowsArm.getId()));
+      assertFalse(dynamicAssetIds.contains(linuxX86.getId()));
+    }
+
+    @DisplayName(
+        "Given a dynamic filter on endpoint_ips contains '10.0.1', should return only matching endpoints")
+    @Test
+    @WithMockUser(isAdmin = true)
+    void given_dynamicFilterOnIps_should_returnOnlyMatchingEndpoints() throws Exception {
+      // Arrange
+      createEndpoints();
+      saveDynamicGroup("IPs filter", "endpoint_ips", "contains", List.of("10.0.1"));
+
+      // Act
+      String response =
+          mvc.perform(get(ASSET_GROUP_URI).accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> dynamicAssetIds = getDynamicAssetIds(response, "IPs filter");
+      assertEquals(1, dynamicAssetIds.size());
+      assertTrue(dynamicAssetIds.contains(linuxX86.getId()));
+    }
   }
 }
