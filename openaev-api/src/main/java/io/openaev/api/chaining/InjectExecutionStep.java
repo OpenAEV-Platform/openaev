@@ -23,7 +23,6 @@ import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.tag.TagService;
@@ -72,7 +71,6 @@ public class InjectExecutionStep implements ActionStep {
   private final AssetGroupService assetGroupService;
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final Executor executor;
-  private final InjectStatusService injectStatusService;
   private final InjectUtils injectUtils;
   @PersistenceContext private EntityManager em;
 
@@ -84,7 +82,7 @@ public class InjectExecutionStep implements ActionStep {
    * @return a step in TEMPLATE status
    */
   @Override
-  public Optional<Step> create(StepsCreateInput.StepCreateInput newStep, Workflow workflow)
+  public Optional<Step> create(StepsCreateInput.StepInput newStep, Workflow workflow)
       throws ChainingException {
     String data = null;
 
@@ -288,8 +286,7 @@ public class InjectExecutionStep implements ActionStep {
    * @return a JSON string representing the serialized inject, or {@code null} if the injector
    *     contract is missing
    */
-  private String stepData(
-      StepsCreateInput.StepCreateInput step, Exercise simulation, Scenario scenario)
+  private String stepData(StepsCreateInput.StepInput step, Exercise simulation, Scenario scenario)
       throws ChainingException {
 
     InjectInput data = (InjectInput) step.getDataStep();
@@ -439,13 +436,13 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   /**
-   * Converts an {@link InjectInput} into a list of {@link StepsCreateInput.StepCreateInput}.
+   * Converts an {@link InjectInput} into a list of {@link StepsCreateInput.StepInput}.
    *
    * @param input the inject input
    * @return list of step create inputs
    */
-  public static StepsCreateInput.StepCreateInput getInjectAsStepsCreateInput(InjectInput input) {
-    StepsCreateInput.StepCreateInput stepCreateInput = new StepsCreateInput.StepCreateInput();
+  public static StepsCreateInput.StepInput getInjectAsStepsCreateInput(InjectInput input) {
+    StepsCreateInput.StepInput stepCreateInput = new StepsCreateInput.StepInput();
     stepCreateInput.setDataStep(input);
     stepCreateInput.setStepAction(StepActionClass.INJECT_EXECUTION);
     stepCreateInput.setLimitExecution(1);

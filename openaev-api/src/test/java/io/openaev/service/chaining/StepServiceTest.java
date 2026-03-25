@@ -67,7 +67,7 @@ public class StepServiceTest {
 
     @Test
     void shouldThrowWhenActionStepIsNull() {
-      StepsCreateInput.StepCreateInput stepInput = mockStep(null, List.of());
+      StepInput stepInput = mockStep(null, List.of());
 
       when(workflowService.getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(mock(Workflow.class));
@@ -88,8 +88,7 @@ public class StepServiceTest {
 
     @Test
     void shouldSkipConditionCreationWhenEmpty() throws ChainingException {
-      StepsCreateInput.StepCreateInput stepInput =
-          mockStep(StepActionClass.INJECT_EXECUTION, Collections.emptyList());
+      StepInput stepInput = mockStep(StepActionClass.INJECT_EXECUTION, Collections.emptyList());
 
       setupCreateStepTemplates(stepInput, false);
 
@@ -115,8 +114,7 @@ public class StepServiceTest {
         boolean withStepFrom)
         throws ChainingException {
 
-      StepsCreateInput.StepCreateInput stepInput =
-          mockStep(StepActionClass.INJECT_EXECUTION, inputs);
+      StepInput stepInput = mockStep(StepActionClass.INJECT_EXECUTION, inputs);
 
       setupCreateStepTemplates(stepInput, true);
 
@@ -134,7 +132,7 @@ public class StepServiceTest {
       List<Condition> saved = captor.getAllValues();
 
       Map<String, Condition> byKey =
-          saved.stream().collect(Collectors.toMap(Condition::getKey, c -> c));
+          saved.stream().collect(Collectors.toMap(Condition::getKeyType, c -> c));
 
       expectedParentMap.forEach(
           (childKey, parentKey) -> {
@@ -196,17 +194,17 @@ public class StepServiceTest {
     @Test
     void shouldThrowWhenMultipleRootConditions() throws ChainingException {
 
-      StepsCreateInput.StepCreateInput stepInput =
+      StepInput stepInput =
           mockStep(
               StepActionClass.INJECT_EXECUTION,
               List.of(
                   ConditionCreateInput.builder()
-                      .key("ROOT 1")
+                      .keyType("ROOT 1")
                       .temporaryIdConditionParent(null)
                       .stepFrom(null)
                       .build(),
                   ConditionCreateInput.builder()
-                      .key("ROOT 2")
+                      .keyType("ROOT 2")
                       .temporaryIdConditionParent(null)
                       .stepFrom(null)
                       .build()));
@@ -221,8 +219,8 @@ public class StepServiceTest {
     @Test
     void shouldThrowWhenNoRootConditionExists() throws ChainingException {
       ConditionCreateInput conditionCreateInput =
-          ConditionCreateInput.builder().key("A").temporaryIdConditionParent("X").build();
-      StepsCreateInput.StepCreateInput stepInput =
+          ConditionCreateInput.builder().keyType("A").temporaryIdConditionParent("X").build();
+      StepInput stepInput =
           mockStep(StepActionClass.INJECT_EXECUTION, List.of(conditionCreateInput));
 
       Workflow workflow = mock(Workflow.class);
@@ -1323,7 +1321,7 @@ public class StepServiceTest {
     String workflowId = "wf-1";
     Workflow workflow = new Workflow();
 
-    StepsCreateInput.StepCreateInput input = mock(StepsCreateInput.StepCreateInput.class);
+    StepInput input = mock(StepInput.class);
 
     Step step = new Step();
 
@@ -1336,7 +1334,7 @@ public class StepServiceTest {
 
     doThrow(new IllegalArgumentException())
         .when(stepService)
-        .stepConditionTemplate(any(StepsCreateInput.StepCreateInput.class), any());
+        .stepConditionTemplate(any(StepsCreateInput.StepInput.class), any());
 
     assertThrows(
         IllegalArgumentException.class,
@@ -1407,8 +1405,8 @@ public class StepServiceTest {
    * Helpers
    * ============================================================ */
 
-  private void setupCreateStepTemplates(
-      StepsCreateInput.StepCreateInput stepInput, boolean saveCondition) throws ChainingException {
+  private void setupCreateStepTemplates(StepInput stepInput, boolean saveCondition)
+      throws ChainingException {
 
     Workflow workflow = mock(Workflow.class);
     Step step = mock(Step.class);
@@ -1428,10 +1426,9 @@ public class StepServiceTest {
       when(conditionService.saveCondition(any())).thenAnswer(i -> i.getArgument(0));
   }
 
-  private StepsCreateInput.StepCreateInput mockStep(
-      StepActionClass actionClass, List<ConditionCreateInput> conditions) {
+  private StepInput mockStep(StepActionClass actionClass, List<ConditionCreateInput> conditions) {
 
-    StepsCreateInput.StepCreateInput step = mock(StepsCreateInput.StepCreateInput.class);
+    StepInput step = mock(StepInput.class);
 
     when(step.getStepAction()).thenReturn(actionClass);
     if (!conditions.isEmpty()) when(step.getConditions()).thenReturn(conditions);
@@ -1444,7 +1441,7 @@ public class StepServiceTest {
 
     ConditionCreateInput c = mock(ConditionCreateInput.class);
 
-    when(c.getKey()).thenReturn(key);
+    when(c.getKeyType()).thenReturn(key);
     when(c.getTemporaryId()).thenReturn(key);
     when(c.getTemporaryIdConditionParent()).thenReturn(parentTempId);
     when(c.getStepFrom()).thenReturn(stepFrom);

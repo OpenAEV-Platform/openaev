@@ -7,6 +7,7 @@ import io.openaev.annotation.OnDelete;
 import io.openaev.annotation.OnDeleteAction;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -118,4 +119,24 @@ public class Step implements Base {
   @Schema(description = "Steps that were executed based on this template step")
   @OnDelete(action = OnDeleteAction.SET_REFERENCE_NULL, fieldName = "stepTemplate")
   private List<Step> stepsExecuted = new ArrayList<>();
+
+  @OneToMany(
+      fetch = FetchType.LAZY,
+      mappedBy = "step",
+      cascade = CascadeType.ALL,
+      orphanRemoval = true)
+  @Builder.Default
+  @JsonIgnore
+  @Schema(description = "Condition links attached to this step")
+  private List<ConditionStep> conditionSteps = new ArrayList<>();
+
+  /**
+   * Returns all conditions linked to this step via the join table.
+   *
+   * @return list of conditions linked to this step
+   */
+  @JsonIgnore
+  public List<Condition> getConditions() {
+    return conditionSteps.stream().map(ConditionStep::getCondition).toList();
+  }
 }

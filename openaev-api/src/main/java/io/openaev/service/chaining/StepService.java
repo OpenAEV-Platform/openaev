@@ -4,7 +4,8 @@ import com.google.gson.*;
 import io.openaev.api.chaining.ActionStep;
 import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
-import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.api.chaining.dto.EventMapper;
+import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.StepDelayQueueRepository;
 import io.openaev.database.repository.StepRepository;
@@ -35,27 +36,41 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
   private final StepDelayQueueRepository stepDelayQueueRepository;
 
   /**
-   * Create step templates
+   * Create a single step template.
    *
-   * @param workflowId id of the workflow linked to the step templates
-   * @param steps list of input to create step templates
+   * @param workflowId id of the workflow linked to the step template
+   * @param stepInput input to create the step template
+   * @return created step template
    */
-  @Transactional(rollbackFor = Exception.class)
-  public void createStepTemplates(String workflowId, List<StepsCreateInput.StepCreateInput> steps)
+ @Transactional(rollbackFor = Exception.class)
+  public void createStepTemplates(String workflowId, StepInput stepInput)
       throws ChainingException {
     Workflow workflow =
         workflowService.getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
 
-    for (StepsCreateInput.StepCreateInput stepInput : steps) {
-      ActionStep actionStep = factoryAction(stepInput.getStepAction(), null);
+    ActionStep actionStep = factoryAction(stepInput.getStepAction(), null);
+    Step step =
+        actionStep
+            .create(stepInput, workflow)
+            .orElseThrow(() -> new ChainingException("Failed to create step (TEMPLATE)"));
 
-      Step step =
-          actionStep
-              .create(stepInput, workflow)
-              .orElseThrow(() -> new ChainingException("Failed to create step (TEMPLATE)"));
+    step = saveStep(step);
+    stepConditionTemplate(stepInput, step);
+    conditionService.linkExistingConditionsToStep(step, stepInput.getConditionIds());
+    return step;
+  }
 
-      step = saveStep(step);
-      stepConditionTemplate(stepInput, step);
+  /**
+   * Create step templates.
+   *
+   * @param workflowId id of the workflow linked to the step templates
+   * @param steps list of input to create step templates
+   */
+  @Transactional(rollbackOn = Exception.class)
+  public void createStepTemplates(String workflowId, List<StepInput> steps)
+      throws ChainingException {
+    for (StepInput stepInput : steps) {
+      createStepTemplate(workflowId, stepInput);
     }
   }
 
@@ -280,15 +295,17 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
   }
 
   /**
-   * Check that the condition for a step are fulfilled
+   * Check that the condition for a step is fulfilled
    *
-   * @param stepInput input that are going to be used for the step
+   * @param stepInput input that is going to be used for the step
    * @param step step to check
    */
-  void stepConditionTemplate(StepsCreateInput.StepCreateInput stepInput, Step step) {
+  void stepConditionTemplate(StepInput stepInput, Step step) {
+    // If no conditions are provided, nothing to process
     if (stepInput.getConditions() == null || stepInput.getConditions().isEmpty()) {
       return;
     }
+    // Find the root condition (the one without a parent)
     ConditionCreateInput firstCondition =
         stepInput.getConditions().stream()
             .filter(
@@ -304,22 +321,21 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
                     new IllegalArgumentException(
                         "New step (TEMPLATE): Only 1 condition can be first parent"));
 
+    // Resolve the source step for the root condition
     Step stepFrom = findStepFromCondition(firstCondition.getStepFrom());
 
-    Condition first =
-        Condition.builder()
-            .step(step)
-            .type(firstCondition.getType())
-            .key(firstCondition.getKey())
-            .value(firstCondition.getValue())
-            .stepFrom(stepFrom)
-            .build();
+    // Map input to an entity and link it as the root condition of the step
+    Condition first = EventMapper.toCondition(firstCondition, stepFrom);
+    first.linkToStep(step, true);
 
+    // Persist the root condition
     first = conditionService.saveCondition(first);
 
+    // Map to keep track of temporary IDs (from input) to persisted Condition entities
     Map<String, Condition> temporaryIdAndSaveId = new HashMap<>();
     temporaryIdAndSaveId.put(firstCondition.getTemporaryId(), first);
 
+    // Group all non-root conditions by their parent temporary ID
     Map<String, List<ConditionCreateInput>> temporaryConditions =
         stepInput.getConditions().stream()
             .filter(
@@ -327,33 +343,39 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
                     conditionCreateInput.getTemporaryIdConditionParent() != null)
             .collect(Collectors.groupingBy(ConditionCreateInput::getTemporaryIdConditionParent));
 
+    // Queue for breadth-first traversal of the condition tree
     Queue<String> currentId = new LinkedList<>();
     currentId.add(firstCondition.getTemporaryId());
 
+    // Process conditions level by level (parent -> children)
     while (!currentId.isEmpty()) {
       String currentTemporaryId = currentId.poll();
 
+      // Get all children of the current parent
       List<ConditionCreateInput> conditions =
           temporaryConditions.getOrDefault(currentTemporaryId, new ArrayList<>());
 
       for (ConditionCreateInput condition : conditions) {
-        Step stepFromCondition = findStepFromCondition(condition.getStepFrom());
+          // Resolve the source step for the current condition
+          Step stepFromCondition = findStepFromCondition(condition.getStepFrom());
 
+        // Create the condition entity with its real persisted parent
         Condition current =
-            Condition.builder()
-                .type(condition.getType())
-                .key(condition.getKey())
-                .value(condition.getValue())
-                .conditionParent(
-                    temporaryIdAndSaveId.get(condition.getTemporaryIdConditionParent()))
-                .step(step)
-                .stepFrom(stepFromCondition)
-                .build();
+            EventMapper.toCondition(
+                condition,
+                stepFromCondition,
+                temporaryIdAndSaveId.get(condition.getTemporaryIdConditionParent()));
 
+        // Link condition to the step (false = not root)
+        current.linkToStep(step, false);
+
+        // Persist the condition
         current = conditionService.saveCondition(current);
 
+        // Store mapping for future children resolution
         temporaryIdAndSaveId.put(condition.getTemporaryId(), current);
 
+        // Add this condition to the queue to process its children later
         currentId.add(condition.getTemporaryId());
       }
     }
@@ -493,6 +515,68 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
    */
   public List<Step> findAllStepTemplateByWorkflow(String idWorkflow) {
     return this.stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(idWorkflow);
+  }
+
+  /**
+   * Find all step templates.
+   *
+   * @return list of all step templates
+   */
+  public List<Step> findAllStepTemplates() {
+    return this.stepRepository.findAll().stream()
+        .filter(step -> step.getStepTemplate() == null)
+        .toList();
+  }
+
+  /**
+   * Update an existing step template.
+   *
+   * @param stepId step template id
+   * @param stepInput updated step payload
+   * @return updated step template
+   */
+  @Transactional(rollbackOn = Exception.class)
+  public Step updateStepTemplate(String stepId, StepInput stepInput) throws ChainingException {
+    // Retrieve the existing step template from a database
+    Step existing = findStepTemplateById(stepId);
+
+    // Resolve the correct ActionStep implementation based on input action type
+    ActionStep actionStep = factoryAction(stepInput.getStepAction(), stepId);
+
+    // Rebuild a "candidate" Step using the same logic as creation
+    // This ensures validation and mapping rules are reused
+    Step updatedCandidate =
+        actionStep
+            .create(stepInput, existing.getWorkflow())
+            .orElseThrow(() -> new ChainingException("Failed to update step (TEMPLATE)"));
+
+    // Apply updated fields from the candidate to the existing persistent entity
+    existing.setStepAction(updatedCandidate.getStepAction());
+    existing.setLimitExecution(updatedCandidate.getLimitExecution());
+    existing.setData(updatedCandidate.getData());
+    existing.setInput(updatedCandidate.getInput());
+    existing.setOutput_parser(updatedCandidate.getOutput_parser());
+    Step updated = saveStep(existing);
+
+    // Remove all existing conditions (full replace strategy)
+    conditionService.deleteAllConditionsByStepId(stepId);
+
+    // Recreate conditions from input (same logic as create)
+    stepConditionTemplate(stepInput, updated);
+    conditionService.linkExistingConditionsToStep(updated, stepInput.getConditionIds());
+    return updated;
+  }
+
+  /**
+   * Delete a step template and its conditions.
+   *
+   * @param stepId step template id
+   */
+  @Transactional(rollbackOn = Exception.class)
+  public void deleteStepTemplate(String stepId) {
+    Step step = findStepTemplateById(stepId);
+    conditionService.deleteAllConditionsByStepId(stepId);
+    stepRepository.delete(step);
   }
 
   /**

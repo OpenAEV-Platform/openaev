@@ -7,7 +7,7 @@ public class ConditionFixture {
 
   public static Condition getDefaultCondition(String key, String value) {
     Condition condition = new Condition();
-    condition.setKey(key);
+    condition.setKeyType(key);
     condition.setValue(value);
     condition.setType(ConditionType.EQ);
     return condition;

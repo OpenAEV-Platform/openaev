@@ -260,7 +260,7 @@ public class ConditionServiceTest {
 
       // -------- Assert --------
       assertNotNull(result);
-      assertEquals("step_template_id", result.getKey());
+      assertEquals("step_template_id", result.getKeyType());
       assertEquals(ConditionType.DEPEND_ON, result.getType());
       assertEquals(stepTemplateId, result.getValue());
     }
