@@ -263,7 +263,7 @@ public interface InjectExpectationRepository
       ie.inject_expectation_id,
       ic.injector_contract_id,
       i.inject_title,
-        i.tenant_id,
+        i.tenant_id
     )
     SELECT * FROM inject_expectation_data ied
     WHERE ied.inject_expectation_updated_at > :from AND ied.agent_id IS NULL
