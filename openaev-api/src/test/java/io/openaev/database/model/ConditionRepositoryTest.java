@@ -60,8 +60,8 @@ class ConditionRepositoryTest extends IntegrationTest {
     // THEN
     Assertions.assertEquals(2, conditions.size());
 
-    Set<String> keys = conditions.stream().map(Condition::getKey).collect(Collectors.toSet());
+    Set<String> keys = conditions.stream().map(Condition::getKeyType).collect(Collectors.toSet());
 
-    Assertions.assertEquals(Set.of(condition1.getKey(), condition2.getKey()), keys);
+    Assertions.assertEquals(Set.of(condition1.getKeyType(), condition2.getKeyType()), keys);
   }
 }

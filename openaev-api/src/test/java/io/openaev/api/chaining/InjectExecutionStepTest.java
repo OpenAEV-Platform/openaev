@@ -8,7 +8,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
-import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -157,7 +157,7 @@ public class InjectExecutionStepTest {
 
   @Test
   void create_shouldThrowException_whenStepDataIsNull() {
-    StepsCreateInput.StepCreateInput stepInput = new StepsCreateInput.StepCreateInput();
+    StepInput stepInput = new StepInput();
     Workflow workflow = new Workflow();
 
     IllegalArgumentException ex =
@@ -198,8 +198,7 @@ public class InjectExecutionStepTest {
    *
    * <ul>
    *   <li>An {@link InjectInput} JSON payload is correctly deserialized
-   *   <li>An Inject step is generated using {@link
-   *       InjectExecutionStep#getInjectAsStepsCreateInput(InjectInput)}
+   *   <li>An Inject step is generated using {@link InjectExecutionStep#toStepInput(InjectInput)}
    *   <li>A MAPPER condition is correctly transformed into step input mapping
    *   <li>The step template is created with the expected action and status
    *   <li>The step data contains a valid serialized inject with its injector contract
@@ -213,12 +212,11 @@ public class InjectExecutionStepTest {
   public void createTest() throws JsonProcessingException, ChainingException {
     // PREPARE
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-    StepsCreateInput.StepCreateInput step =
-        InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    StepInput step = InjectExecutionStep.toStepInput(injectInput);
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .key("ip")
+            .keyType("ip")
             .value("output.message.ip")
             .stepFrom("firstStep")
             .type(ConditionType.MAPPER)
@@ -266,12 +264,11 @@ public class InjectExecutionStepTest {
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
 
-    StepsCreateInput.StepCreateInput step =
-        InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    StepInput step = InjectExecutionStep.toStepInput(injectInput);
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .key("ip")
+            .keyType("ip")
             .value("output.message.ip")
             .stepFrom("firstStep")
             .type(ConditionType.MAPPER)
@@ -316,12 +313,11 @@ public class InjectExecutionStepTest {
 
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-    StepsCreateInput.StepCreateInput step =
-        InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    StepInput step = InjectExecutionStep.toStepInput(injectInput);
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .key("ip")
+            .keyType("ip")
             .value("output.message.ip")
             .stepFrom("firstStep")
             .type(ConditionType.MAPPER)
@@ -355,12 +351,11 @@ public class InjectExecutionStepTest {
     // New StepsCreateInput & ConditionCreateInput
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-    StepsCreateInput.StepCreateInput step =
-        InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    StepInput step = InjectExecutionStep.toStepInput(injectInput);
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .key("ip")
+            .keyType("ip")
             .value("output.message.ip")
             .stepFrom("firstStep")
             .type(ConditionType.MAPPER)
@@ -403,12 +398,11 @@ public class InjectExecutionStepTest {
 
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-    StepsCreateInput.StepCreateInput step =
-        InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    StepInput step = InjectExecutionStep.toStepInput(injectInput);
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .key("ip")
+            .keyType("ip")
             .value("output.message.ip")
             .stepFrom("firstStep")
             .type(ConditionType.MAPPER)
@@ -453,12 +447,11 @@ public class InjectExecutionStepTest {
 
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-    StepsCreateInput.StepCreateInput step =
-        InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    StepInput step = InjectExecutionStep.toStepInput(injectInput);
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .key("ip")
+            .keyType("ip")
             .value("output.message.ip")
             .stepFrom("firstStep")
             .type(ConditionType.MAPPER)
@@ -511,12 +504,11 @@ public class InjectExecutionStepTest {
     Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-    StepsCreateInput.StepCreateInput step =
-        InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    StepInput step = InjectExecutionStep.toStepInput(injectInput);
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .key("ip")
+            .keyType("ip")
             .value("output.message.ip")
             .stepFrom("firstStep")
             .type(ConditionType.MAPPER)

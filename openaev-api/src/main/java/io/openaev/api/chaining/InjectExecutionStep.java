@@ -9,7 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.gson.*;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
-import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.database.model.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Executor;
@@ -75,8 +75,7 @@ public class InjectExecutionStep implements ActionStep {
    * @return a step in TEMPLATE status
    */
   @Override
-  public Optional<Step> create(StepsCreateInput.StepCreateInput newStep, Workflow workflow)
-      throws ChainingException {
+  public Optional<Step> create(StepInput newStep, Workflow workflow) throws ChainingException {
     String data = stepData(newStep, workflow.getSimulation());
 
     String input = stepInputFromConditionMapper(newStep.getConditions());
@@ -246,8 +245,7 @@ public class InjectExecutionStep implements ActionStep {
    * @return a JSON string representing the serialized inject, or {@code null} if the injector
    *     contract is missing
    */
-  private String stepData(StepsCreateInput.StepCreateInput step, Exercise simulation)
-      throws ChainingException {
+  private String stepData(StepInput step, Exercise simulation) throws ChainingException {
 
     InjectInput data = (InjectInput) step.getDataStep();
 
@@ -354,7 +352,7 @@ public class InjectExecutionStep implements ActionStep {
       if (ConditionType.MAPPER.equals(condition.getType())) {
 
         Map<String, Object> input = new HashMap<>();
-        input.put("key", condition.getKey());
+        input.put("key", condition.getKeyType());
         input.put("path", condition.getValue());
         input.put("id_step_from", condition.getStepFrom());
 
@@ -376,13 +374,13 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   /**
-   * Converts an {@link InjectInput} into a list of {@link StepsCreateInput.StepCreateInput}.
+   * Converts an {@link InjectInput} into a {@link StepInput}.
    *
    * @param input the inject input
-   * @return list of step create inputs
+   * @return step input
    */
-  public static StepsCreateInput.StepCreateInput getInjectAsStepsCreateInput(InjectInput input) {
-    StepsCreateInput.StepCreateInput stepCreateInput = new StepsCreateInput.StepCreateInput();
+  public static StepInput toStepInput(InjectInput input) {
+    StepInput stepCreateInput = new StepInput();
     stepCreateInput.setDataStep(input);
     stepCreateInput.setStepAction(StepActionClass.INJECT_EXECUTION);
     stepCreateInput.setLimitExecution(1);
@@ -392,7 +390,7 @@ public class InjectExecutionStep implements ActionStep {
           ConditionCreateInput.builder()
               .temporaryId("0")
               .type(ConditionType.AFTER)
-              .key(null)
+              .keyType(null)
               .value(String.valueOf(input.getDependsDuration()))
               .build();
       stepCreateInput.setConditions(List.of(conditionCreateInput));
