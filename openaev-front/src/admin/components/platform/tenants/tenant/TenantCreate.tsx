@@ -6,6 +6,7 @@ import Drawer from '../../../../../components/common/Drawer';
 import { useFormatter } from '../../../../../components/i18n';
 import { type TenantInput, type TenantOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
+import useAuth from '../../../../../utils/hooks/useAuth';
 import TenantForm from './TenantForm';
 
 interface Props { onCreate: (result: TenantOutput) => void }
@@ -15,6 +16,7 @@ const TenantCreate: FunctionComponent<Props> = ({ onCreate }) => {
   const [open, setOpen] = useState(false);
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
+  const { reloadUserTenants } = useAuth();
 
   const handleOpen = useCallback(() => {
     setOpen(true);
@@ -34,6 +36,7 @@ const TenantCreate: FunctionComponent<Props> = ({ onCreate }) => {
 
       const createdTenant = result.entities.tenants[result.result];
       onCreate(createdTenant);
+      await reloadUserTenants();
       setOpen(false);
 
       return result;

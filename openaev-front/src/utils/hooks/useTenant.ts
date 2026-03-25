@@ -4,12 +4,6 @@ import { useLocalStorage } from 'usehooks-ts';
 import { fetchUserTenants } from '../../actions/user/user-tenant-actions';
 import { type TenantOutput, type User } from '../api-types';
 
-const DEFAULT_TENANT: TenantOutput = {
-  tenant_id: '2cffad3a-0001-4078-b0e2-ef74274022c3', // DEFAULT_TENANT_UUID
-  tenant_name: 'Default Tenant',
-  tenant_description: 'Default tenant auto created',
-};
-
 /**
  * Hook that manages the full tenant lifecycle:
  * - Fetches the tenants accessible to the current user
@@ -18,25 +12,30 @@ const DEFAULT_TENANT: TenantOutput = {
  */
 const useTenant = (me: User | undefined, logged: unknown) => {
   const [userTenants, setUserTenants] = useState<TenantOutput[]>([]);
-  const [currentTenantStorage, setCurrentTenantStorage] = useLocalStorage('current-tenant-storage', DEFAULT_TENANT);
-  const [currentUserTenant, setCurrentUserTenant] = useState<TenantOutput>(DEFAULT_TENANT);
+  const [currentTenantStorage, setCurrentTenantStorage] = useLocalStorage<TenantOutput | null>('current-tenant-storage', null);
+  const [currentUserTenant, setCurrentUserTenant] = useState<TenantOutput | null>(null);
 
   const loadUserTenants = useCallback(async () => {
     if (!me) return;
 
-    const result = await fetchUserTenants();
+    const response = await fetchUserTenants();
+    const tenants: TenantOutput[] = response.data;
 
-    if (result && result.tenants) {
-      setUserTenants(result.tenants);
+    if (tenants && tenants.length > 0) {
+      setUserTenants(tenants);
       // If local storage tenant is still valid use it, otherwise switch to first tenant in list
-      const currentTenant = result.tenants.find(tenant => (tenant.tenant_id === currentTenantStorage.tenant_id));
+      const currentTenant = tenants.find(tenant => (tenant.tenant_id === currentTenantStorage?.tenant_id));
       if (currentTenant) {
         setCurrentUserTenant(currentTenant);
         setCurrentTenantStorage(currentTenant);
       } else {
-        setCurrentUserTenant(result.tenants[0]);
-        setCurrentTenantStorage(result.tenants[0]);
+        setCurrentUserTenant(tenants[0]);
+        setCurrentTenantStorage(tenants[0]);
       }
+    } else {
+      setUserTenants([]);
+      setCurrentUserTenant(null);
+      setCurrentTenantStorage(null);
     }
   }, [me]);
 
@@ -46,25 +45,25 @@ const useTenant = (me: User | undefined, logged: unknown) => {
     }
   }, [me, logged, loadUserTenants]);
 
+  // TODO multi-tenancy: Multi executors dev
+  // When switching tenants we need to navigate to the new tenant URL prefix and reload tenant-scoped data
   const switchUserTenant = useCallback(async (tenantId: string) => {
     if (tenantId === currentUserTenant?.tenant_id) {
       return;
     }
 
-    setTimeout(() => {
-      const current = userTenants.find(t => (t.tenant_id === tenantId));
-      if (current) {
-        setCurrentUserTenant(current);
-      }
-      // TODO multi-tenancy: tenant routing
-      // window.location.replace(window.location.href);
-    }, 0);
-  }, [currentUserTenant, userTenants]);
+    const current = userTenants.find(t => (t.tenant_id === tenantId));
+    if (current) {
+      setCurrentUserTenant(current);
+      setCurrentTenantStorage(current);
+    }
+  }, [currentUserTenant, userTenants, setCurrentTenantStorage]);
 
   return {
     userTenants,
     currentUserTenant,
     switchUserTenant,
+    reloadUserTenants: loadUserTenants,
   };
 };
 

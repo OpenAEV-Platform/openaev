@@ -38,6 +38,24 @@ const TenantSwitcher: FunctionComponent = () => {
     }
   }, [isSelected, switchUserTenant, t]);
 
+  if (!currentUserTenant) {
+    return (
+      <TextField
+        variant="outlined"
+        size="small"
+        disabled
+        placeholder={userTenants.length === 0 ? t('No tenant available') : t('No tenant selected')}
+        sx={theme => ({
+          display: 'inline-flex',
+          verticalAlign: 'middle',
+          width: theme.spacing(28),
+          mr: theme.spacing(1),
+        })}
+        slotProps={{ input: { sx: theme => ({ backgroundColor: theme.palette.background.paper }) } }}
+      />
+    );
+  }
+
   return (
     <Autocomplete
       sx={theme => ({
@@ -46,7 +64,7 @@ const TenantSwitcher: FunctionComponent = () => {
         width: theme.spacing(28),
         mr: theme.spacing(1),
       })}
-      value={currentUserTenant ?? undefined}
+      value={currentUserTenant}
       options={userTenants}
       onChange={handleSwitchTenant}
       getOptionLabel={option => option.tenant_name}
@@ -55,7 +73,7 @@ const TenantSwitcher: FunctionComponent = () => {
       disableClearable
       openOnFocus
       autoHighlight
-      noOptionsText={t('No available options')}
+      noOptionsText={t('No tenant available')}
       renderInput={params => (
         <TextField
           {...params}

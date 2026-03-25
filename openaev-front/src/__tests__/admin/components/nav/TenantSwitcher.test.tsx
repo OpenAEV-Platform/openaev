@@ -44,6 +44,7 @@ const renderTenantSwitcher = (contextOverrides: Partial<UserContextType> = {}) =
     userTenants: [TENANT_ALPHA, TENANT_BETA],
     currentUserTenant: TENANT_ALPHA,
     switchUserTenant: vi.fn(),
+    reloadUserTenants: vi.fn(),
     ...contextOverrides,
   };
 
@@ -85,11 +86,12 @@ describe('TenantSwitcher', () => {
       expect(combobox.value).toBe('Alpha Corp');
     });
 
-    it('shows an empty input when no current tenant is set', () => {
+    it('shows a disabled placeholder when no current tenant is set', () => {
       renderTenantSwitcher({ currentUserTenant: null });
 
-      const combobox = screen.getByRole('combobox') as HTMLInputElement;
-      expect(combobox.value).toBe('');
+      const input = screen.getByPlaceholderText('No tenant selected');
+      expect(input).toBeDefined();
+      expect(input.hasAttribute('disabled')).toBe(true);
     });
 
     it('renders the input as enabled', () => {
@@ -227,15 +229,16 @@ describe('TenantSwitcher', () => {
       expect(screen.getAllByRole('option')).toHaveLength(1);
     });
 
-    it('renders correctly with no tenants', () => {
+    it('renders a disabled placeholder with no tenants', () => {
       renderTenantSwitcher({
         userTenants: [],
         currentUserTenant: null,
       });
 
-      openDropdown();
-
-      expect(screen.queryAllByRole('option')).toHaveLength(0);
+      const input = screen.getByPlaceholderText('No tenant available');
+      expect(input).toBeDefined();
+      expect(input.hasAttribute('disabled')).toBe(true);
+      expect(screen.queryByRole('combobox')).toBeNull();
     });
 
     it('handles long tenant names (truncation is CSS-based)', () => {

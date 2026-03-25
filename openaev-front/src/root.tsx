@@ -47,7 +47,7 @@ const Root = () => {
   });
   const dispatch = useAppDispatch();
 
-  const { userTenants, currentUserTenant, switchUserTenant } = useTenant(me, logged);
+  const { userTenants, currentUserTenant, switchUserTenant, reloadUserTenants } = useTenant(me, logged);
 
   useEffect(() => {
     dispatch(fetchPublicPlatformParameters());
@@ -86,6 +86,7 @@ const Root = () => {
           userTenants,
           currentUserTenant,
           switchUserTenant,
+          reloadUserTenants,
         }}
       >
         <StyledEngineProvider injectFirst>
