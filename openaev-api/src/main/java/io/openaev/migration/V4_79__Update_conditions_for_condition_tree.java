@@ -27,6 +27,22 @@ public class V4_79__Update_conditions_for_condition_tree extends BaseJavaMigrati
             AND condition_key IS NOT NULL;
           """);
 
+      // Legacy cleanup: conditions.step_id must not exist anymore (replaced by conditions_steps).
+      stmt.execute(
+          """
+          DO $$
+          BEGIN
+            IF EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_name = 'conditions'
+                AND column_name = 'step_id'
+            ) THEN
+              ALTER TABLE conditions DROP COLUMN step_id;
+            END IF;
+          END $$;
+          """);
+
       stmt.execute(
           "CREATE INDEX IF NOT EXISTS idx_conditions_workflow_id ON conditions(condition_workflow_id);");
       stmt.execute(
