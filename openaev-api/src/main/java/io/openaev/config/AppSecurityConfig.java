@@ -75,19 +75,33 @@ public class AppSecurityConfig {
                         "/api/comcheck/**",
                         "/api/player/**",
                         "/api/settings",
-                        "/api/agent/**",
-                        "/api/implant/**",
                         "/api/reset/**",
-                        "/api/endpoints/register",
-                        "/api/endpoints/jobs/**",
+                        "/actuator/**",
+                        // Used by endpoints
+                        "/api/endpoints/**",
+                        "/api/agent/**",
+                        // Used by implants
+                        "/api/implant/**",
                         "/api/injects/execution/**",
-                        "/api/stix/**",
-                        "/api/xtm-composer/**",
-                        "/api/xtmhub/**",
-                        "/api/connector-instances/**",
+                        // Used by injectors to register contracts
                         "/api/injectors/**",
+                        "/api/injector_contracts/**",
+                        // Used by collectors,
                         "/api/collectors/**",
-                        "/actuator/**"))
+                        "/api/documents/**",
+                        "/api/cves/**",
+                        "/api/attack_patterns/**",
+                        "/api/payloads/**",
+                        "/api/tags/**",
+                        "/api/kill_chain_phases/**",
+                        // Used by connectors
+                        "/api/connector-instances/**",
+                        // XTM Hub
+                        "/api/xtmhub/**",
+                        // XTM Composer
+                        "/api/xtm-composer/**",
+                        // OpenCTI interconnection
+                        "/api/stix/**"))
         .formLogin(AbstractHttpConfigurer::disable)
         .securityContext(securityContext -> securityContext.requireExplicitSave(false))
         .authorizeHttpRequests(
