@@ -215,7 +215,7 @@ class PayloadApiImporterTest extends IntegrationTest {
     elementAttrs.put("contract_output_element_rule", "\\d+");
     elementAttrs.put("contract_output_element_key", "IPv6-key");
     elementAttrs.put("contract_output_element_name", "IPv6 Name");
-    elementAttrs.put("contract_output_element_type", "IPv6");
+    elementAttrs.put("contract_output_element_type", "ipv6");
     elementAttrs.put("contract_output_element_is_finding", false);
     ResourceObject contractOutputElementResource =
         new ResourceObject(
@@ -358,7 +358,7 @@ class PayloadApiImporterTest extends IntegrationTest {
     element1Attrs.put("contract_output_element_rule", "(\\d{1,3}(?:\\.\\d{1,3}){3}):(\\d+)");
     element1Attrs.put("contract_output_element_key", "portscan-key");
     element1Attrs.put("contract_output_element_name", "PortsScan Name");
-    element1Attrs.put("contract_output_element_type", "PortsScan");
+    element1Attrs.put("contract_output_element_type", "portscan");
     element1Attrs.put("contract_output_element_is_finding", true);
     ResourceObject contractOutputElement1 =
         new ResourceObject(
@@ -377,7 +377,7 @@ class PayloadApiImporterTest extends IntegrationTest {
     element2Attrs.put("contract_output_element_rule", "(\\w+)");
     element2Attrs.put("contract_output_element_key", "username-key");
     element2Attrs.put("contract_output_element_name", "Username Name");
-    element2Attrs.put("contract_output_element_type", "Username");
+    element2Attrs.put("contract_output_element_type", "text");
     element2Attrs.put("contract_output_element_is_finding", true);
     ResourceObject contractOutputElement2 =
         new ResourceObject(

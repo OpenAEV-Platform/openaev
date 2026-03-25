@@ -65,16 +65,7 @@ public class GenericJsonApiImporter<T extends Base> {
             doc.data(), includedMap, entityCache, entitiesNeedingRemapping, includeOptions, true);
     T toPersist = Optional.ofNullable(sanityCheck).map(check -> check.apply(entity)).orElse(entity);
 
-    // Persist the root entity first so its cascade chain (e.g. Payload → OutputParser →
-    // ContractOutputElement → RegexGroup) makes all inner entities managed before the loop below.
-    // Without this, the HashMap-based cache loop iterates in non-deterministic order and may try to
-    // persist a child (e.g. RegexGroup) before its parent (e.g. ContractOutputElement) is
-    // persisted, causing TransientPropertyValueException on the non-null FK column.
-    entityManager.persist(toPersist);
-
-    // Persist included entities that are not part of the root cascade chain
-    // (e.g. shared entities like Tags, AttackPatterns).
-    // Inner entities already managed via cascade above are skipped by the contains() check.
+    // Persist included entities that not inner relationship
     for (Pair<T, Boolean> value : entityCache.values()) {
       if (!entityManager.contains(value.getLeft()) && !value.getRight()) {
         T e = value.getLeft();
@@ -88,6 +79,10 @@ public class GenericJsonApiImporter<T extends Base> {
 
     // Validate constraint
     entityManager.flush();
+
+    // persists a first time to obtain generated IDs for all db-bound entities
+    // to enable establishing a map from exported ID to new ID
+    entityManager.persist(toPersist);
 
     Map<String, String> swappedIds =
         entityCache.entrySet().stream()
