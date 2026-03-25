@@ -7,8 +7,10 @@ import static io.openaev.database.model.Payload.PAYLOAD_EXECUTION_ARCH.*;
 import static io.openaev.database.specification.InjectSpecification.*;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
+import static io.openaev.service.InjectExpectationUtils.extractAssetIdsFromInjectExpectationsResults;
 import static io.openaev.utils.AgentUtils.isPrimaryAgent;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
+import static io.openaev.utils.InjectUtils.extractInjectExpectationsFromInjects;
 import static io.openaev.utils.StringUtils.duplicateString;
 import static io.openaev.utils.mapper.InjectStatusMapper.toExecutionTracesOutput;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
@@ -111,7 +113,6 @@ public class InjectService {
   private final ImapService imapService;
   private final HealthCheckUtils healthCheckUtils;
   private final InjectorContractContentUtils injectorContractContentUtils;
-  private final InjectExpectationService injectExpectationService;
 
   private final LicenseCacheManager licenseCacheManager;
   @Resource protected ObjectMapper mapper;
@@ -1320,7 +1321,10 @@ public class InjectService {
    * @return distinct security platforms
    */
   public List<SecurityPlatform> extractSecurityPlatforms(List<Inject> injects) {
-    Set<String> assetIds = injectExpectationService.extractExpectationResultAssetIds(injects);
+    Stream<InjectExpectation> allInjectExpectationsStream =
+        extractInjectExpectationsFromInjects(injects);
+    Set<String> assetIds =
+        extractAssetIdsFromInjectExpectationsResults(allInjectExpectationsStream);
     return assetService.securityPlatformsByIds(assetIds);
   }
 }
