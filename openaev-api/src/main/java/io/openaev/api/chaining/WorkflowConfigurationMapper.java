@@ -6,7 +6,6 @@ import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowScopeRule;
 import java.util.List;
 
-/** Pure static mapper — converts a {@link Workflow} entity to its REST output DTO. */
 public class WorkflowConfigurationMapper {
 
   private WorkflowConfigurationMapper() {}
