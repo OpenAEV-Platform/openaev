@@ -80,14 +80,6 @@ const ExerciseCreation = () => {
           isChaining={isChaining}
         />
       )}
-      {isChaining === null && !isChainingFeatureEnabled && (
-        <ExerciseForm
-          onSubmit={onSubmit}
-          handleClose={handleClose}
-          initialValues={initialValues}
-          edit={false}
-        />
-      )}
     </>
   );
 

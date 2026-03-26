@@ -77,7 +77,9 @@ const ScenarioCreation: FunctionComponent = () => {
           onSelect={handleTypeSelected}
         />
       )}
-      {isChaining !== null && (
+        //if scenario type is selected (standard or chaining), then display the form
+        //if chaining feature disabled just display the form
+      {isChaining !== null  && (
         <ScenarioForm
           onSubmit={onSubmit}
           initialValues={initialValues}
