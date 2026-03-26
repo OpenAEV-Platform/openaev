@@ -24,6 +24,7 @@ public class DataPackProcessor implements DependenciesManager {
 
   @PostConstruct
   public void process() {
+    // Check all tenant to add a Datapack migration if one is added
     init(StreamHelper.fromIterable(tenantRepository.findAll()));
   }
 
@@ -42,7 +43,6 @@ public class DataPackProcessor implements DependenciesManager {
               .filter(pack -> DataPackProcessingResult.PROCESSED.equals(pack.process(tenant)))
               .count(),
           tenant.getId());
-      TenantContext.clearCurrentTenant();
     }
   }
 
