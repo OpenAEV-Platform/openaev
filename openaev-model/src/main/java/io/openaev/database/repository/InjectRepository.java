@@ -106,8 +106,10 @@ public interface InjectRepository
   List<RawInjectIndexing> findForIndexing(@Param("from") Instant from);
 
   @Query(
-      "SELECT i FROM Inject i WHERE i.injectorContract.compositeId.id = '49229430-b5b5-431f-ba5b-f36f599b0233'"
-          + " AND i.rawContent LIKE :challengeId")
+      value =
+          "select i.*, i.tenant_id as tenantId from injects i where i.inject_injector_contract = '49229430-b5b5-431f-ba5b-f36f599b0233'"
+              + " and i.inject_content like :challengeId",
+      nativeQuery = true)
   List<Inject> findAllForChallengeId(@Param("challengeId") String challengeId);
 
   @Query(

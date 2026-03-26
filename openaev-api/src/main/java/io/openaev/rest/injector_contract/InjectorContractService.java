@@ -449,7 +449,7 @@ public class InjectorContractService implements DependenciesManager {
           "This injector contract can't be removed because is not a custom one: "
               + injectorContractId);
     } else {
-      this.injectorContractRepository.removeById(injectorContract.getId());
+      this.injectorContractRepository.deleteById(injectorContract.getId());
     }
   }
 
@@ -712,7 +712,7 @@ public class InjectorContractService implements DependenciesManager {
   @Override
   public void deleteDependencyForTenant(String tenantId) throws DependenciesManagerException {
     for (String injectorContractId : listDefaultInjectorContract) {
-      injectorContractRepository.removeById(injectorContractId);
+      injectorContractRepository.deleteById(injectorContractId);
     }
   }
 }

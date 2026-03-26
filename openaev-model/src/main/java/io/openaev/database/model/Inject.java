@@ -106,10 +106,6 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @JsonProperty("inject_content")
   private ObjectNode content;
 
-  @Column(name = "inject_content", insertable = false, updatable = false)
-  @JsonIgnore
-  private String rawContent;
-
   @Getter
   @Column(name = "inject_created_at")
   @JsonProperty("inject_created_at")
