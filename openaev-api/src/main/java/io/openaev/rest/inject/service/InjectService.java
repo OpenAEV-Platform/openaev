@@ -7,8 +7,10 @@ import static io.openaev.database.model.Payload.PAYLOAD_EXECUTION_ARCH.*;
 import static io.openaev.database.specification.InjectSpecification.*;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
+import static io.openaev.service.InjectExpectationUtils.extractAssetIdsFromInjectExpectationsResults;
 import static io.openaev.utils.AgentUtils.isPrimaryAgent;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
+import static io.openaev.utils.InjectUtils.extractInjectExpectationsFromInjects;
 import static io.openaev.utils.StringUtils.duplicateString;
 import static io.openaev.utils.mapper.InjectStatusMapper.toExecutionTracesOutput;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
@@ -1310,5 +1312,19 @@ public class InjectService {
     healthChecks.addAll(healthCheckUtils.runAllInjectorChecks(inject, injectors));
 
     return healthChecks;
+  }
+
+  /**
+   * Extract all security platform from a list of injects
+   *
+   * @param injects to extract security platforms
+   * @return distinct security platforms
+   */
+  public List<SecurityPlatform> extractSecurityPlatforms(List<Inject> injects) {
+    Stream<InjectExpectation> allInjectExpectationsStream =
+        extractInjectExpectationsFromInjects(injects);
+    Set<String> assetIds =
+        extractAssetIdsFromInjectExpectationsResults(allInjectExpectationsStream);
+    return assetService.securityPlatformsByIds(assetIds);
   }
 }
