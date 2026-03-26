@@ -236,7 +236,6 @@ class WorkflowServiceTest {
       when(template.isEdited()).thenReturn(true);
       when(template.getVersion()).thenReturn(1);
       when(template.getSimulation()).thenReturn(simulation);
-      when(template.getWorkflowScopeRules()).thenReturn(Collections.emptyList());
       when(workflowRepository.save(any(Workflow.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -283,7 +282,6 @@ class WorkflowServiceTest {
       when(workflowTemplate.isEdited()).thenReturn(false);
       when(workflowTemplate.getVersion()).thenReturn(version);
       when(workflowTemplate.getSimulation()).thenReturn(simulation);
-      when(workflowTemplate.getWorkflowScopeRules()).thenReturn(Collections.emptyList());
       when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
 
       // Act
@@ -516,8 +514,6 @@ class WorkflowServiceTest {
 
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
-      when(workflow.getId()).thenReturn(workflowId);
-      when(workflow.getWorkflowScopeRules()).thenReturn(new ArrayList<>());
       when(workflow.getWorkflowsExecuted()).thenReturn(Collections.emptyList());
       when(workflowRepository.save(workflow)).thenReturn(savedWorkflow);
 
