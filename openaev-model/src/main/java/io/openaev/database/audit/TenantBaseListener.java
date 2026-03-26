@@ -22,7 +22,6 @@ public class TenantBaseListener<T extends TenantBase> {
   @PreUpdate
   private void assertTenant(T entity) {
     if (entity.getTenant() != null
-        && TenantContext.getCurrentTenant() != null
         && !TenantContext.getCurrentTenant().equals(entity.getTenant().getId())) {
       throw new IllegalStateException("Tenant is immutable");
     }
