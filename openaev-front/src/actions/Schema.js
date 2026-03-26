@@ -490,6 +490,8 @@ export const storeHelper = state => ({
   getCatalogConnector: id => entity(id, 'catalog_connectors', state),
   getConnectorInstance: id => entity(id, 'connectorinstances', state),
   // capabilities
-  getCapabilities: () => entities('capabilities', state),
-  getCapabilitiesMap: () => maps('capabilities', state),
+  getPlatformCapabilities: () => entities('platform_capabilities', state),
+  getPlatformCapabilitiesMap: () => maps('platform_capabilities', state),
+  getTenantCapabilities: () => entities('tenant_capabilities', state),
+  getTenantCapabilitiesMap: () => maps('tenant_capabilities', state),
 });

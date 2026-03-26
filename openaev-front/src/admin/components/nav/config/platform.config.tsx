@@ -7,7 +7,6 @@ import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import { TENANTS_PATH } from '../../platform/tenants/routes/TenantsRoutes';
 import { PLATFORM_USERS_CAPABILITIES_ROUTE } from '../../platform/users_capabilities/users-capabilities-constants';
-import useAuth from "../../../../utils/hooks/useAuth";
 
 export const PLATFORM_ROUTE = '/admin/platform';
 export const PLATFORM_TENANTS_ROUTE = `${PLATFORM_ROUTE}/${TENANTS_PATH}`;
@@ -19,8 +18,6 @@ const platformEntries = (ability: AppAbility): LeftMenuItem[] => {
   if (!isFeatureEnabled('MULTI_TENANCY')) {
     return [];
   }
-  const { me } = useAuth();
-  console.log(me)
 
   return [
     {
