@@ -30,21 +30,20 @@ public class DataPackProcessor implements DependenciesManager {
   private void init(List<Tenant> tenants) {
     List<DataPack> sortedPacks =
         packs.stream().sorted(Comparator.comparing(DataPack::getPackId)).toList();
-    tenants.forEach(
-        tenant -> {
-          // Context platform here but executed at OpenAEV start or from the tenant creation API so
-          // we can use the
-          // tenant context to process the datapack with the right tenant automatically before the
-          // transactional annotation in the process method
-          TenantContext.setCurrentTenant(tenant.getId());
-          log.info(
-              "Processed {} additional datapacks for tenant {}.",
-              sortedPacks.stream()
-                  .filter(pack -> DataPackProcessingResult.PROCESSED.equals(pack.process(tenant)))
-                  .count(),
-              tenant.getId());
-          TenantContext.clearCurrentTenant();
-        });
+    for (Tenant tenant : tenants) {
+      // Context platform here but executed at OpenAEV start or from the tenant creation API so
+      // we can use the
+      // tenant context to process the datapack with the right tenant automatically before the
+      // transactional annotation in the process method
+      TenantContext.setCurrentTenant(tenant.getId());
+      log.info(
+          "Processed {} additional datapacks for tenant {}.",
+          sortedPacks.stream()
+              .filter(pack -> DataPackProcessingResult.PROCESSED.equals(pack.process(tenant)))
+              .count(),
+          tenant.getId());
+      TenantContext.clearCurrentTenant();
+    }
   }
 
   @Override

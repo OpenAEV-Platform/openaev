@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_78__Update_datapack_key extends BaseJavaMigration {
+public class V4_79__Update_datapack_key extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
@@ -27,13 +27,26 @@ public class V4_78__Update_datapack_key extends BaseJavaMigration {
                         """);
       statement.execute(
           """
-                        DROP INDEX IF EXISTS tag_name_unique;
-                        """);
+              ALTER TABLE scenarios_teams
+              DROP CONSTRAINT IF EXISTS scenario_id_fk;
+              """);
       statement.execute(
           """
-                        ALTER TABLE tags
-                        ADD CONSTRAINT tag_name_tenant_unique UNIQUE (tag_name, tenant_id);
-                        """);
+              ALTER TABLE scenarios_teams
+              DROP CONSTRAINT IF EXISTS team_id_fk;
+              """);
+      statement.execute(
+          """
+              ALTER TABLE scenarios_teams
+              ADD CONSTRAINT scenario_id_fk
+              FOREIGN KEY (scenario_id) REFERENCES scenarios (scenario_id) ON DELETE CASCADE;
+              """);
+      statement.execute(
+          """
+              ALTER TABLE scenarios_teams
+              ADD CONSTRAINT team_id_fk
+              FOREIGN KEY (team_id) REFERENCES teams (team_id) ON DELETE CASCADE;
+              """);
     }
   }
 }
