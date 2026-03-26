@@ -27,7 +27,7 @@ public class V4_79__Update_conditions_for_condition_tree extends BaseJavaMigrati
             AND condition_key IS NOT NULL;
           """);
 
-      // Legacy cleanup: conditions.step_id must not exist anymore (replaced by conditions_steps).
+      // Legacy compatibility: if old conditions.step_id still exists, it must be nullable.
       stmt.execute(
           """
           DO $$
@@ -38,7 +38,7 @@ public class V4_79__Update_conditions_for_condition_tree extends BaseJavaMigrati
               WHERE table_name = 'conditions'
                 AND column_name = 'step_id'
             ) THEN
-              ALTER TABLE conditions DROP COLUMN step_id;
+              ALTER TABLE conditions ALTER COLUMN step_id DROP NOT NULL;
             END IF;
           END $$;
           """);
