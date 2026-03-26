@@ -5,8 +5,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.Base;
+import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Id;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.context.request.RequestAttributes;
@@ -112,6 +114,27 @@ public class BaseEvent implements Cloneable {
           this.attributeId = (jp != null) ? jp.value() : fieldSC.getName();
 
           String className = baseClass.getSuperclass().getSimpleName().toLowerCase();
+          this.schema = className + (className.endsWith("s") ? "es" : "s");
+          break;
+        }
+      }
+    }
+
+    /*
+     * If no @Id was found, look for @EmbeddedId and derive the attribute ID
+     * from the @JsonProperty annotation on the getId() method (Base interface).
+     */
+    if (this.attributeId == null) {
+      for (Field field : baseClass.getDeclaredFields()) {
+        if (field.isAnnotationPresent(EmbeddedId.class)) {
+          try {
+            Method getIdMethod = baseClass.getMethod("getId");
+            JsonProperty jp = getIdMethod.getAnnotation(JsonProperty.class);
+            this.attributeId = (jp != null) ? jp.value() : "id";
+          } catch (NoSuchMethodException e) {
+            this.attributeId = "id";
+          }
+          String className = baseClass.getSimpleName().toLowerCase();
           this.schema = className + (className.endsWith("s") ? "es" : "s");
           break;
         }
