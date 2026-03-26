@@ -207,6 +207,9 @@ const UpdateInject: React.FC<Props> = ({
               <PayloadComponent
                 documentsMap={documentsMap}
                 selectedPayload={contractPayload}
+                attackPatternIds={inject?.inject_injector_contract.injector_contract_attack_patterns ?? []}
+                domains={inject?.inject_injector_contract.injector_contract_domains ?? []}
+                tagIds={inject?.inject_injector_contract.injector_contract_tags ?? []}
               />
             )}
           </TabPanel>

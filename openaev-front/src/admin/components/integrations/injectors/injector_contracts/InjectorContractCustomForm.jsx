@@ -19,7 +19,7 @@ import OldAttackPatternField from '../../../../../components/OldAttackPatternFie
 import { useHelper } from '../../../../../store';
 
 const InjectorContractForm = (props) => {
-  const { onSubmit, initialValues, editing, handleClose, contractTemplate, isPayloadInjector } = props;
+  const { onSubmit, initialValues, editing, handleClose, contractTemplate } = props;
   const [fields, setFields] = useState({});
   const theme = useTheme();
   const { t } = useFormatter();
@@ -127,7 +127,6 @@ const InjectorContractForm = (props) => {
             style={{ marginTop: theme.spacing(3) }}
             useExternalId={!editing}
           />
-          {!isPayloadInjector && (
             <Field name="injector_contract_domains">
               {({ input, meta }) => (
                 <DomainsAutocompleteField
@@ -138,7 +137,6 @@ const InjectorContractForm = (props) => {
                 />
               )}
             </Field>
-          )}
 
           {contract.fields.map((field) => {
             return (

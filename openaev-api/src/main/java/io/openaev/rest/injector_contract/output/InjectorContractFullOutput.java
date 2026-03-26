@@ -60,7 +60,7 @@ public class InjectorContractFullOutput extends InjectorContractBaseOutput {
       String collectorType,
       String injectorType,
       String[] attackPatterns,
-      List<String> domains,
+      String[] domains,
       Instant updatedAt,
       Payload.PAYLOAD_EXECUTION_ARCH arch) {
     super(id, externalId, updatedAt);
@@ -74,8 +74,7 @@ public class InjectorContractFullOutput extends InjectorContractBaseOutput {
         attackPatterns != null
             ? new ArrayList<>(Arrays.asList(attackPatterns))
             : new ArrayList<>());
-    this.setDomains(domains != null ? new ArrayList<>(domains) : new ArrayList<>());
-
+    this.setDomains(domains != null ? new ArrayList<>(Arrays.asList(domains)) : new ArrayList<>());
     this.setArch(arch);
     this.setHasFullDetails(true);
   }
@@ -95,13 +94,7 @@ public class InjectorContractFullOutput extends InjectorContractBaseOutput {
             .map(AttackPattern::getId)
             .toList()
             .toArray(new String[0]),
-        resolveEffectiveDomains(
-            sourceContract.getDomains().stream().map(Domain::getId).toArray(String[]::new),
-            sourceContract.getPayload() != null
-                ? sourceContract.getPayload().getDomains().stream()
-                    .map(Domain::getId)
-                    .toArray(String[]::new)
-                : new String[0]),
+        sourceContract.getDomains().stream().map(Domain::getId).toList().toArray(new String[0]),
         sourceContract.getUpdatedAt(),
         sourceContract.getPayload() == null
             ? null

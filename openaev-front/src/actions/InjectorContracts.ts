@@ -3,7 +3,7 @@ import { type Dispatch } from 'redux';
 import { delReferential, getReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../utils/Action';
 import {
   type InjectorContract,
-  type InjectorContractAddInput,
+  type InjectorContractAddInput, InjectorContractSearchPaginationInput,
   type InjectorContractUpdateInput,
   type InjectorContractUpdateMappingInput,
   type SearchPaginationInput,
@@ -24,7 +24,7 @@ export const fetchInjectorsContracts = () => (dispatch: Dispatch) => {
   return getReferential(schema.arrayOfInjectorContracts, `${INJECTOR_CONTRACT_URI}`)(dispatch);
 };
 
-export const searchInjectorContracts = (paginationInput: SearchPaginationInput) => {
+export const searchInjectorContracts = (paginationInput: InjectorContractSearchPaginationInput) => {
   const data = paginationInput;
   const uri = `${INJECTOR_CONTRACT_URI}/search`;
   return simplePostCall(uri, data);

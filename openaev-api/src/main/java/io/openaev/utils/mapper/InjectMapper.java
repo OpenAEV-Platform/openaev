@@ -8,7 +8,6 @@ import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.document.form.RelatedEntityOutput;
 import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.inject.output.InjectSimple;
-import io.openaev.rest.payload.output.PayloadSimple;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
@@ -31,6 +30,7 @@ import org.springframework.stereotype.Component;
 public class InjectMapper {
 
   private final InjectStatusMapper injectStatusMapper;
+  private final PayloadMapper payloadMapper;
   private final InjectExpectationMapper injectExpectationMapper;
   private final InjectUtils injectUtils;
   private final HealthCheckUtils healthCheckUtils;
@@ -126,24 +126,13 @@ public class InjectMapper {
                     .content(contract.getContent())
                     .convertedContent(contract.getConvertedContent())
                     .platforms(contract.getPlatforms())
-                    .payload(toPayloadSimple(Optional.ofNullable(contract.getPayload())))
-                    .labels(contract.getLabels())
-                    .build())
-        .orElse(null);
-  }
-
-  private PayloadSimple toPayloadSimple(Optional<Payload> payload) {
-    return payload
-        .map(
-            payloadToSimple ->
-                PayloadSimple.builder()
-                    .id(payloadToSimple.getId())
-                    .type(payloadToSimple.getType())
-                    .collectorType(payloadToSimple.getCollectorTypeValue())
                     .domains(
-                        payloadToSimple.getDomains().stream()
+                        contract.getDomains().stream()
                             .map(Domain::getId)
-                            .toArray(String[]::new))
+                            .collect(Collectors.toList()))
+                    .payload(
+                        payloadMapper.toPayloadSimple(Optional.ofNullable(contract.getPayload())))
+                    .labels(contract.getLabels())
                     .build())
         .orElse(null);
   }

@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FormEvent, useEffect } from 'react';
+import { type SyntheticEvent, useEffect} from 'react';
 import { type FieldValues, FormProvider, type SubmitHandler, useForm, useWatch } from 'react-hook-form';
 import { z, type ZodTypeAny } from 'zod';
 
@@ -223,14 +223,13 @@ const PayloadForm = ({
 
     handleChangeTab(tabName);
   };
-  const handleSubmitWithoutDefault = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmitWithoutDefault = async(e: SyntheticEvent) => {
     e.preventDefault();
     const isValid = await methods.trigger();
     if (!isValid) {
       focusFirstErrorTab();
       return;
     }
-
     await handleSubmit(onSubmit)(e);
   };
 

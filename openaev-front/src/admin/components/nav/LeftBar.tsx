@@ -14,9 +14,9 @@ import {
   RowingOutlined,
   SchoolOutlined,
   SmartButtonOutlined,
-  SubscriptionsOutlined,
   TerminalOutlined,
   Widgets,
+  LayersOutlined,
 } from '@mui/icons-material';
 import {
   Binoculars,
@@ -88,6 +88,12 @@ const LeftBar = () => {
     {
       userRight: true,
       items: [
+        {
+          path: `/admin/threat-arsenal`,
+          icon: () => (<LayersOutlined />),
+          label: 'Threat Arsenal',
+          userRight: true,
+        },
         {
           path: `/admin/assets`,
           icon: () => (<DnsOutlined />),
@@ -177,12 +183,6 @@ const LeftBar = () => {
     {
       userRight: true,
       items: [
-        {
-          path: `/admin/payloads`,
-          icon: () => (<SubscriptionsOutlined />),
-          label: 'Payloads',
-          userRight: true,
-        },
         {
           path: `/admin/integrations`,
           icon: () => (<DnsOutlined />),

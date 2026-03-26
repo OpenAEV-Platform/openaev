@@ -10,6 +10,7 @@ import static io.openaev.utils.JpaUtils.*;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 
+import co.elastic.clients.util.TriConsumer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,6 +20,7 @@ import io.openaev.database.raw.RawInjectorsContracts;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
+import io.openaev.database.repository.TagRepository;
 import io.openaev.database.specification.InjectorContractSpecification;
 import io.openaev.injector_contract.Contract;
 import io.openaev.injectors.email.EmailContract;
@@ -27,9 +29,12 @@ import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.form.*;
+import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
+import io.openaev.rest.injector_contract.output.InjectorContractActionOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
+import io.openaev.rest.payload.output.PayloadSimple;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.UserService;
 import io.openaev.utils.TargetType;
@@ -46,8 +51,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -83,6 +88,7 @@ public class InjectorContractService {
   private final InjectorRepository injectorRepository;
   private final UserService userService;
   private final AttackPatternRepository attackPatternRepository;
+  private final TagRepository tagRepository;
 
   /** Configuration flag for enabling email import from XLS files. */
   @Value("${openaev.xls.import.mail.enable}")
@@ -120,16 +126,13 @@ public class InjectorContractService {
       @Nullable final Specification<InjectorContract> specification,
       @Nullable final Specification<InjectorContract> specificationCount,
       @NotNull final Pageable pageable,
-      boolean include_full_details) {
+      @NotNull
+          TriConsumer<CriteriaBuilder, CriteriaQuery<Tuple>, Root<InjectorContract>> selector) {
     CriteriaBuilder cb = this.entityManager.getCriteriaBuilder();
 
     CriteriaQuery<Tuple> cq = cb.createTupleQuery();
     Root<InjectorContract> injectorContractRoot = cq.from(InjectorContract.class);
-    if (include_full_details) {
-      selectForInjectorContractFull(cb, cq, injectorContractRoot);
-    } else {
-      selectForInjectorContractBase(cb, cq, injectorContractRoot);
-    }
+    selector.accept(cb, cq, injectorContractRoot);
 
     // Always apply access spec
     Specification<InjectorContract> accessSpec =
@@ -166,52 +169,6 @@ public class InjectorContractService {
     qs.setQuery(query);
     qs.setTotal(total);
     return qs;
-  }
-
-  /**
-   * Retrieves a page of injector contracts with full details.
-   *
-   * <p>Includes attack patterns, domains, injector information, and payload details.
-   *
-   * @param specification the filter specification
-   * @param specificationCount the count specification (may differ for accurate counting)
-   * @param pageable the pagination parameters
-   * @return a page of full injector contract outputs
-   */
-  public PageImpl<InjectorContractFullOutput> getSinglePageFullDetails(
-      @Nullable final Specification<InjectorContract> specification,
-      @Nullable final Specification<InjectorContract> specificationCount,
-      @NotNull final Pageable pageable) {
-    QuerySetup qs = setupQuery(specification, specificationCount, pageable, true);
-
-    // -- EXECUTION --
-    List<InjectorContractFullOutput> injectorContractFullOutputs =
-        execInjectorFullContract(qs.query);
-
-    return new PageImpl<>(injectorContractFullOutputs, pageable, qs.total);
-  }
-
-  /**
-   * Retrieves a page of injector contracts with base details only.
-   *
-   * <p>Returns minimal information for list views and dropdowns.
-   *
-   * @param specification the filter specification
-   * @param specificationCount the count specification
-   * @param pageable the pagination parameters
-   * @return a page of base injector contract outputs
-   */
-  public PageImpl<InjectorContractBaseOutput> getSinglePageBaseDetails(
-      @Nullable final Specification<InjectorContract> specification,
-      @Nullable final Specification<InjectorContract> specificationCount,
-      @NotNull final Pageable pageable) {
-    QuerySetup qs = setupQuery(specification, specificationCount, pageable, false);
-
-    // -- EXECUTION --
-    List<InjectorContractBaseOutput> injectorContractBaseOutputs =
-        execInjectorBaseContract(qs.query);
-
-    return new PageImpl<>(injectorContractBaseOutputs, pageable, qs.total);
   }
 
   public Iterable<RawInjectorsContracts> getAllRawInjectContracts() {
@@ -402,6 +359,7 @@ public class InjectorContractService {
     injectorContract.setVulnerabilities(
         vulnerabilityService.findAllByIdsOrThrowIfMissing(
             new HashSet<>(input.getVulnerabilityIds())));
+    injectorContract.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
     injectorContract.setDomains(iterableToSet(domainService.findAllById(input.getDomainIds())));
     injectorContract.setUpdatedAt(Instant.now());
     return injectorContractRepository.save(injectorContract);
@@ -462,27 +420,82 @@ public class InjectorContractService {
   }
 
   // -- CRITERIA BUILDER --
+  private record OutputModeConfig(
+      TriConsumer<CriteriaBuilder, CriteriaQuery<Tuple>, Root<InjectorContract>> selector,
+      Function<Tuple, ? extends InjectorContractBaseOutput> mapper) {}
+
+  /** Maps each output mode to its criteria selector and tuple mapper. */
+  private final Map<InjectorContractSearchPaginationInput.OutputMode, OutputModeConfig> CONFIGS =
+      Map.of(
+          InjectorContractSearchPaginationInput.OutputMode.FULL,
+          new OutputModeConfig(this::selectForInjectorContractFull, this::mapFull),
+          InjectorContractSearchPaginationInput.OutputMode.BASE,
+          new OutputModeConfig(this::selectForInjectorContractBase, this::mapBase),
+          InjectorContractSearchPaginationInput.OutputMode.THREAT_ARSENAL,
+          new OutputModeConfig(
+              this::selectForInjectorContractThreatArsenal, this::mapThreatArsenal));
+
+  /**
+   * Returns a page of injector contracts using the requested output mode.
+   *
+   * @param specification filtering/search specification for returned items
+   * @param specificationCount specification used to compute total count
+   * @param pageable pagination and sorting information
+   * @param mode output mode (defaults to FULL when null)
+   * @return page of contracts mapped to the selected output format
+   */
+  public PageImpl<? extends InjectorContractBaseOutput> getSinglePage(
+      Specification<InjectorContract> specification,
+      Specification<InjectorContract> specificationCount,
+      Pageable pageable,
+      InjectorContractSearchPaginationInput.OutputMode mode) {
+    InjectorContractSearchPaginationInput.OutputMode safeMode =
+        (mode == null) ? InjectorContractSearchPaginationInput.OutputMode.FULL : mode;
+    OutputModeConfig config = CONFIGS.get(safeMode);
+
+    QuerySetup qs = setupQuery(specification, specificationCount, pageable, config.selector());
+
+    List<? extends InjectorContractBaseOutput> results =
+        qs.query.getResultList().stream().map(config.mapper()).toList();
+
+    return new PageImpl<>(results, pageable, qs.total);
+  }
+
+  private record InjectorContractQueryContext(
+      Join<InjectorContract, Payload> payloadJoin,
+      Join<Payload, CollectorType> payloadCollectorTypeJoin,
+      Join<InjectorContract, Injector> injectorJoin,
+      Expression<String[]> injectorContractDomainsIdsExpression,
+      Expression<String[]> attackPatternIdsExpression) {}
+
+  private InjectorContractQueryContext buildCommonInjectorContractContext(
+      CriteriaBuilder cb, Root<InjectorContract> injectorContractRoot) {
+    Join<InjectorContract, Payload> payloadJoin = createLeftJoin(injectorContractRoot, "payload");
+    Join<Payload, CollectorType> payloadCollectorTypeJoin =
+        payloadJoin.join("collectorType", JoinType.LEFT);
+    Join<InjectorContract, Injector> injectorJoin =
+        createLeftJoin(injectorContractRoot, "injector");
+
+    Expression<String[]> injectorContractDomainsIdsExpression =
+        createJoinArrayAggOnId(cb, injectorContractRoot, "domains");
+
+    Expression<String[]> attackPatternIdsExpression =
+        createJoinArrayAggOnId(cb, injectorContractRoot, "attackPatterns");
+
+    return new InjectorContractQueryContext(
+        payloadJoin,
+        payloadCollectorTypeJoin,
+        injectorJoin,
+        injectorContractDomainsIdsExpression,
+        attackPatternIdsExpression);
+  }
 
   private void selectForInjectorContractFull(
       @NotNull final CriteriaBuilder cb,
       @NotNull final CriteriaQuery<Tuple> cq,
       @NotNull final Root<InjectorContract> injectorContractRoot) {
-    // Joins
-    Join<InjectorContract, Payload> injectorContractPayloadJoin =
-        createLeftJoin(injectorContractRoot, "payload");
-    Join<Payload, CollectorType> payloadCollectorTypeJoin =
-        injectorContractPayloadJoin.join("collectorType", JoinType.LEFT);
-    Join<InjectorContract, Injector> injectorContractInjectorJoin =
-        createLeftJoin(injectorContractRoot, "injector");
-    // Array aggregations
-    Expression<String[]> attackPatternIdsExpression =
-        createJoinArrayAggOnId(cb, injectorContractRoot, "attackPatterns");
 
-    Expression<String[]> domainsIdsExpression =
-        createJoinArrayAggOnId(cb, injectorContractRoot, "domains");
-
-    Expression<String[]> payloadDomainsIdsExpression =
-        createJoinArrayAggOnIdForJoin(cb, injectorContractPayloadJoin, "domains");
+    InjectorContractQueryContext ctx = buildCommonInjectorContractContext(cb, injectorContractRoot);
 
     // SELECT
     cq.multiselect(
@@ -491,47 +504,35 @@ public class InjectorContractService {
             injectorContractRoot.get("labels").alias("injector_contract_labels"),
             injectorContractRoot.get("content").alias("injector_contract_content"),
             injectorContractRoot.get("platforms").alias("injector_contract_platforms"),
-            injectorContractPayloadJoin.get("type").alias("payload_type"),
-            payloadCollectorTypeJoin.get("name").alias("collector_type"),
-            injectorContractInjectorJoin.get("type").alias("injector_contract_injector_type"),
-            injectorContractInjectorJoin.get("name").alias("injector_contract_injector_name"),
-            attackPatternIdsExpression.alias("injector_contract_attack_patterns"),
-            payloadDomainsIdsExpression.alias("payload_domains"),
-            domainsIdsExpression.alias("injector_contract_domains"),
+            ctx.payloadJoin().get("type").alias("payload_type"),
+            ctx.payloadCollectorTypeJoin().get("name").alias("collector_type"),
+            ctx.injectorJoin().get("type").alias("injector_contract_injector_type"),
+            ctx.injectorJoin().get("name").alias("injector_contract_injector_name"),
+            ctx.attackPatternIdsExpression().alias("injector_contract_attack_patterns"),
+            ctx.injectorContractDomainsIdsExpression().alias("injector_contract_domains"),
             injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"),
-            injectorContractPayloadJoin.get("executionArch").alias("payload_execution_arch"))
+            ctx.payloadJoin().get("executionArch").alias("payload_execution_arch"))
         .distinct(true);
 
     // GROUP BY
-    cq.groupBy(
-        Arrays.asList(
-            injectorContractRoot.get("id"),
-            injectorContractPayloadJoin.get("id"),
-            payloadCollectorTypeJoin.get("id"),
-            injectorContractInjectorJoin.get("id")));
+    cq.groupBy(getCommonGroupBy(injectorContractRoot, ctx));
   }
 
-  private List<InjectorContractFullOutput> execInjectorFullContract(TypedQuery<Tuple> query) {
-    return query.getResultList().stream()
-        .map(
-            tuple ->
-                new InjectorContractFullOutput(
-                    tuple.get("injector_contract_id", String.class),
-                    tuple.get("injector_contract_external_id", String.class),
-                    tuple.get("injector_contract_labels", Map.class),
-                    tuple.get("injector_contract_content", String.class),
-                    tuple.get("injector_contract_platforms", Endpoint.PLATFORM_TYPE[].class),
-                    tuple.get("payload_type", String.class),
-                    tuple.get("injector_contract_injector_name", String.class),
-                    tuple.get("collector_type", String.class),
-                    tuple.get("injector_contract_injector_type", String.class),
-                    tuple.get("injector_contract_attack_patterns", String[].class),
-                    resolveEffectiveDomains(
-                        tuple.get("injector_contract_domains", String[].class),
-                        tuple.get("payload_domains", String[].class)),
-                    tuple.get("injector_contract_updated_at", Instant.class),
-                    tuple.get("payload_execution_arch", Payload.PAYLOAD_EXECUTION_ARCH.class)))
-        .toList();
+  private InjectorContractFullOutput mapFull(Tuple tuple) {
+    return new InjectorContractFullOutput(
+        tuple.get("injector_contract_id", String.class),
+        tuple.get("injector_contract_external_id", String.class),
+        tuple.get("injector_contract_labels", Map.class),
+        tuple.get("injector_contract_content", String.class),
+        tuple.get("injector_contract_platforms", Endpoint.PLATFORM_TYPE[].class),
+        tuple.get("payload_type", String.class),
+        tuple.get("injector_contract_injector_name", String.class),
+        tuple.get("collector_type", String.class),
+        tuple.get("injector_contract_injector_type", String.class),
+        tuple.get("injector_contract_attack_patterns", String[].class),
+        tuple.get("injector_contract_domains", String[].class),
+        tuple.get("injector_contract_updated_at", Instant.class),
+        tuple.get("payload_execution_arch", Payload.PAYLOAD_EXECUTION_ARCH.class));
   }
 
   private List<String> resolveEffectiveDomains(String[] injectorDomains, String[] payloadDomains) {
@@ -541,6 +542,68 @@ public class InjectorContractService {
       return List.of();
     }
     return Arrays.stream(effectiveDomains).filter(Objects::nonNull).distinct().toList();
+  }
+
+  private List<Expression<?>> getCommonGroupBy(
+      @NotNull final Root<InjectorContract> injectorContractRoot,
+      @NotNull InjectorContractQueryContext ctx) {
+    return Arrays.asList(
+        injectorContractRoot.get("id"),
+        ctx.payloadJoin().get("id"),
+        ctx.payloadCollectorTypeJoin().get("id"),
+        ctx.injectorJoin().get("id"));
+  }
+
+  private void selectForInjectorContractThreatArsenal(
+      @NotNull final CriteriaBuilder cb,
+      @NotNull final CriteriaQuery<Tuple> cq,
+      @NotNull final Root<InjectorContract> injectorContractRoot) {
+    InjectorContractQueryContext ctx = buildCommonInjectorContractContext(cb, injectorContractRoot);
+
+    Expression<String[]> tagsIdsExpression =
+        createJoinArrayAggOnIdForJoin(cb, injectorContractRoot, "tags");
+
+    cq.multiselect(
+            injectorContractRoot.get("id").alias("injector_contract_id"),
+            injectorContractRoot.get("externalId").alias("injector_contract_external_id"),
+            injectorContractRoot.get("labels").alias("injector_contract_labels"),
+            injectorContractRoot.get("platforms").alias("injector_contract_platforms"),
+            ctx.payloadJoin().get("type").alias("payload_type"),
+            ctx.payloadCollectorTypeJoin().get("name").alias("collector_type"),
+            ctx.injectorJoin().get("type").alias("injector_contract_injector_type"),
+            tagsIdsExpression.alias("injector_contract_tags"),
+            ctx.injectorContractDomainsIdsExpression().alias("injector_contract_domains"),
+            ctx.payloadJoin().get("status").alias("payload_status"),
+            ctx.payloadJoin().get("id").alias("payload_id"),
+            ctx.attackPatternIdsExpression().alias("injector_contract_attack_patterns"),
+            injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"))
+        .distinct(true);
+
+    cq.groupBy(getCommonGroupBy(injectorContractRoot, ctx));
+  }
+
+  private InjectorContractActionOutput mapThreatArsenal(Tuple tuple) {
+    String payloadId = tuple.get("payload_id", String.class);
+    PayloadSimple payload =
+        payloadId != null
+            ? new PayloadSimple(
+                payloadId,
+                tuple.get("payload_type", String.class),
+                tuple.get("collector_type", String.class),
+                tuple.get("payload_status", Payload.PAYLOAD_STATUS.class))
+            : null;
+
+    return new InjectorContractActionOutput(
+        tuple.get("injector_contract_id", String.class),
+        tuple.get("injector_contract_external_id", String.class),
+        tuple.get("injector_contract_updated_at", Instant.class),
+        tuple.get("injector_contract_labels", Map.class),
+        tuple.get("injector_contract_injector_type", String.class),
+        tuple.get("injector_contract_domains", String[].class),
+        tuple.get("injector_contract_platforms", Endpoint.PLATFORM_TYPE[].class),
+        List.of(tuple.get("injector_contract_tags", String[].class)),
+        payload,
+        tuple.get("injector_contract_attack_patterns", String[].class));
   }
 
   private void selectForInjectorContractBase(
@@ -555,15 +618,11 @@ public class InjectorContractService {
         .distinct(true);
   }
 
-  private List<InjectorContractBaseOutput> execInjectorBaseContract(TypedQuery<Tuple> query) {
-    return query.getResultList().stream()
-        .map(
-            tuple ->
-                new InjectorContractBaseOutput(
-                    tuple.get("injector_contract_id", String.class),
-                    tuple.get("injector_contract_external_id", String.class),
-                    tuple.get("injector_contract_updated_at", Instant.class)))
-        .toList();
+  private InjectorContractBaseOutput mapBase(Tuple tuple) {
+    return new InjectorContractBaseOutput(
+        tuple.get("injector_contract_id", String.class),
+        tuple.get("injector_contract_external_id", String.class),
+        tuple.get("injector_contract_updated_at", Instant.class));
   }
 
   /**
@@ -604,18 +663,6 @@ public class InjectorContractService {
   /**
    * Computes the count of injector contracts grouped by domain.
    *
-   * <p>This method applies a specific precedence logic for domain resolution:
-   *
-   * <ul>
-   *   <li>**Priority**: If the contract's payload defines specific domains, these are used for the
-   *       count.
-   *   <li>**Fallback**: If the payload has no domains (or is null), the contract's direct domains
-   *       are used.
-   * </ul>
-   *
-   * <p>It executes two distinct criteria queries and merges the results to generate the final
-   * distribution.
-   *
    * @param input the search and filtering criteria
    * @return the list of domain counts derived from effective contract associations
    */
@@ -627,51 +674,19 @@ public class InjectorContractService {
     Specification<InjectorContract> baseSpec =
         Specification.<InjectorContract>unrestricted().and(filterSpec).and(searchSpec);
 
-    CriteriaQuery<InjectorContractDomainCountOutput> qPayload =
-        cb.createQuery(InjectorContractDomainCountOutput.class);
-    Root<InjectorContract> rootPayload = qPayload.from(InjectorContract.class);
-    Join<InjectorContract, Payload> payloadJoin = rootPayload.join("payload", JoinType.INNER);
-    Join<Payload, Domain> payloadDomainsJoin = payloadJoin.join("domains", JoinType.INNER);
-
-    Predicate payloadPredicate = baseSpec.toPredicate(rootPayload, qPayload, cb);
-    if (payloadPredicate != null) {
-      qPayload.where(payloadPredicate);
-    }
-
-    qPayload.multiselect(payloadDomainsJoin.get("id"), cb.countDistinct(rootPayload));
-    qPayload.groupBy(payloadDomainsJoin.get("id"));
-
-    List<InjectorContractDomainCountOutput> payloadCounts =
-        entityManager.createQuery(qPayload).getResultList();
-
     CriteriaQuery<InjectorContractDomainCountOutput> qDirect =
         cb.createQuery(InjectorContractDomainCountOutput.class);
-    Root<InjectorContract> rootDirect = qDirect.from(InjectorContract.class);
-    Join<InjectorContract, Domain> directDomainsJoin = rootDirect.join("domains", JoinType.INNER);
-    Join<InjectorContract, Payload> pCheckJoin = rootDirect.join("payload", JoinType.LEFT);
+    Root<InjectorContract> root = qDirect.from(InjectorContract.class);
+    Join<InjectorContract, Domain> domainsJoin = root.join("domains", JoinType.INNER);
 
-    Predicate noPayloadDomains =
-        cb.or(cb.isNull(pCheckJoin), cb.isEmpty(pCheckJoin.get("domains")));
-
-    Predicate directUserPredicate = baseSpec.toPredicate(rootDirect, qDirect, cb);
-    if (directUserPredicate != null) {
-      qDirect.where(cb.and(directUserPredicate, noPayloadDomains));
-    } else {
-      qDirect.where(noPayloadDomains);
+    Predicate predicate = baseSpec.toPredicate(root, qDirect, cb);
+    if (predicate != null) {
+      qDirect.where(predicate);
     }
 
-    qDirect.multiselect(directDomainsJoin.get("id"), cb.countDistinct(rootDirect));
-    qDirect.groupBy(directDomainsJoin.get("id"));
+    qDirect.multiselect(domainsJoin.get("id"), cb.countDistinct(root));
+    qDirect.groupBy(domainsJoin.get("id"));
 
-    List<InjectorContractDomainCountOutput> directCounts =
-        entityManager.createQuery(qDirect).getResultList();
-
-    Map<String, Long> mergedMap = new HashMap<>();
-    Stream.concat(payloadCounts.stream(), directCounts.stream())
-        .forEach(output -> mergedMap.merge(output.getDomain(), output.getCount(), Long::sum));
-
-    return mergedMap.entrySet().stream()
-        .map(entry -> new InjectorContractDomainCountOutput(entry.getKey(), entry.getValue()))
-        .toList();
+    return entityManager.createQuery(qDirect).getResultList();
   }
 }
