@@ -144,6 +144,34 @@ public interface InjectorContractRepository
   @Query(
       value =
           """
+      SELECT ic.injector_contract_payload AS payload_id,
+             COALESCE(ap.attack_pattern_ids, ARRAY[]::text[]) AS attack_pattern_ids,
+             COALESCE(d.domain_ids, ARRAY[]::text[]) AS domain_ids,
+             COALESCE(t.tag_ids, ARRAY[]::text[]) AS tag_ids
+      FROM injectors_contracts ic
+      LEFT JOIN LATERAL (
+          SELECT array_remove(array_agg(icap.attack_pattern_id), NULL) AS attack_pattern_ids
+          FROM injectors_contracts_attack_patterns icap
+          WHERE icap.injector_contract_id = ic.injector_contract_id
+      ) ap ON true
+      LEFT JOIN LATERAL (
+          SELECT array_remove(array_agg(icd.domain_id), NULL) AS domain_ids
+          FROM injectors_contracts_domains icd
+          WHERE icd.injector_contract_id = ic.injector_contract_id
+      ) d ON true
+      LEFT JOIN LATERAL (
+          SELECT array_remove(array_agg(ict.tag_id), NULL) AS tag_ids
+          FROM injector_contract_tags ict
+          WHERE ict.injector_contract_id = ic.injector_contract_id
+      ) t ON true
+      WHERE ic.injector_contract_payload = :payloadId
+      """,
+      nativeQuery = true)
+  Optional<RawPayloadRelatedIds> findRelatedIdsByPayloadId(@Param("payloadId") String payloadId);
+
+  @Query(
+      value =
+          """
         SELECT *
         FROM (
             SELECT ic.*,

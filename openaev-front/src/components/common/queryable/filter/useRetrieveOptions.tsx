@@ -111,6 +111,7 @@ const useRetrieveOptions = () => {
       case 'asset_tags':
       case 'asset_group_tags':
       case 'exercise_tags':
+      case 'injector_contract_tags':
       case 'inject_tags':
       case 'action_tags':
       case 'scenario_tags':

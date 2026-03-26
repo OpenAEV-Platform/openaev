@@ -14,6 +14,7 @@ import { Can } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import InjectorContractCustomForm from './InjectorContractCustomForm';
 import InjectorContractForm from './InjectorContractForm';
+import { useHelper } from "../../../../../store.ts";
 
 const InjectorContractPopover = ({ injectorContract, onUpdate, canDelete = true, canEditCustomForm = true }) => {
   const { attackPatternsMap, killChainPhasesMap } = useHelper(helper => ({

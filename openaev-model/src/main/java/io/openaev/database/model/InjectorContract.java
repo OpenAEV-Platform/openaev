@@ -257,6 +257,7 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
 
   @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.EAGER)
+  @JsonProperty("injector_contract_domains")
   @JoinTable(
       name = "injectors_contracts_domains",
       joinColumns = {
