@@ -13,33 +13,28 @@ import { isFeatureEnabled } from '../../../../utils/utils';
 import EngineTypeSelection from '../../common/EngineTypeSelection';
 import ExerciseForm from './ExerciseForm';
 
-type CreationStep = 'type-selection' | 'form';
-
 const ExerciseCreation = () => {
   // Standard hooks
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const [open, setOpen] = useState(false);
-  const [creationStep, setCreationStep] = useState<CreationStep>(isChainingFeatureEnabled ? 'type-selection' : 'form');
-  const [isChaining, setIsChaining] = useState<boolean>(false);
+  const [isChaining, setIsChaining] = useState<boolean | null>(isChainingFeatureEnabled ? null : false);
   const { t } = useFormatter();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
   const handleClose = useCallback(() => {
     setOpen(false);
-    setCreationStep(isChainingFeatureEnabled ? 'type-selection' : 'form');
-    setIsChaining(false);
+    setIsChaining(isChainingFeatureEnabled ? null : false);
   }, [isChainingFeatureEnabled]);
 
   const handleTypeSelected = useCallback((chaining: boolean) => {
     setIsChaining(chaining);
-    setCreationStep('form');
   }, []);
 
   const onSubmit = (data: CreateExerciseInput) => {
     const payload: CreateExerciseInput = {
       ...data,
-      exercise_is_chaining: isChaining,
+      exercise_is_chaining: isChaining ?? false,
     };
     dispatch(addExercise(payload)).then((result: {
       result: string;
@@ -68,32 +63,32 @@ const ExerciseCreation = () => {
     exercise_message_footer: t('SIMULATION FOOTER'),
   };
 
-  const drawerTitle = (creationStep === 'type-selection' && isChainingFeatureEnabled)
-    ? t('Create a new simulation')
-    : isChaining
-      ? `${t('Create a new simulation')} — ${t('Chaining')}`
-      : isChainingFeatureEnabled
-        ? `${t('Create a new simulation')} — ${t('Time-based')}`
-        : t('Create a new simulation');
-
-  const renderDrawerContent = (): ReactElement => {
-    if (creationStep === 'type-selection' && isChainingFeatureEnabled) {
-      return (
+  const renderDrawerContent = (): ReactElement => (
+    <>
+      {isChainingFeatureEnabled && (
         <EngineTypeSelection
+          selected={isChaining}
           onSelect={handleTypeSelected}
-          onCancel={handleClose}
         />
-      );
-    }
-    return (
-      <ExerciseForm
-        onSubmit={onSubmit}
-        handleClose={handleClose}
-        initialValues={initialValues}
-        edit={false}
-      />
-    );
-  };
+      )}
+      {isChaining !== null && (
+        <ExerciseForm
+          onSubmit={onSubmit}
+          handleClose={handleClose}
+          initialValues={initialValues}
+          edit={false}
+        />
+      )}
+      {isChaining === null && !isChainingFeatureEnabled && (
+        <ExerciseForm
+          onSubmit={onSubmit}
+          handleClose={handleClose}
+          initialValues={initialValues}
+          edit={false}
+        />
+      )}
+    </>
+  );
 
   return (
     <>
@@ -101,7 +96,7 @@ const ExerciseCreation = () => {
       <Drawer
         open={open}
         handleClose={handleClose}
-        title={drawerTitle}
+        title={t('Create a new simulation')}
       >
         {renderDrawerContent}
       </Drawer>
