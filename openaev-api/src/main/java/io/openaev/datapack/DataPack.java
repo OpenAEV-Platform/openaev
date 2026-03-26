@@ -14,7 +14,7 @@ public abstract class DataPack {
     this.dataPackService = dataPackService;
   }
 
-  protected abstract void doProcess();
+  protected abstract boolean doProcess();
 
   @Getter private final String packId = this.getClass().getCanonicalName();
 
@@ -33,8 +33,9 @@ public abstract class DataPack {
                   "Processing datapack '{}' for tenant {}.",
                   this.getClass().getCanonicalName(),
                   tenant.getId());
-              doProcess();
-              dataPackService.registerDataPack(packId, tenant);
+              if (doProcess()) {
+                dataPackService.registerDataPack(packId, tenant);
+              }
               return DataPackProcessingResult.PROCESSED;
             });
   }

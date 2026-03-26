@@ -47,7 +47,7 @@ public class V20260107_Tags_and_tagrules_and_assetgroups extends DataPack {
   }
 
   @Override
-  public void doProcess() {
+  public boolean doProcess() {
     tagService.ensureWellKnownTags();
     Set<TagRule> presetRules = tagRuleService.ensurePresetRules();
 
@@ -90,5 +90,6 @@ public class V20260107_Tags_and_tagrules_and_assetgroups extends DataPack {
                 });
       }
     }
+    return true;
   }
 }

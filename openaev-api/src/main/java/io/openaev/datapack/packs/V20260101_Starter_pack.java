@@ -86,11 +86,11 @@ public class V20260101_Starter_pack extends DataPack {
   private final ResourcePatternResolver resolver;
 
   @Override
-  protected void doProcess() {
+  protected boolean doProcess() {
     // early break for when the starter pack was already run
     if (!isStarterPackEnabled) {
       log.info("Starter pack is disabled by configuration");
-      return;
+      return false;
     }
 
     // unconditionally run this code
@@ -122,8 +122,10 @@ public class V20260101_Starter_pack extends DataPack {
 
       this.importScenariosFromResources(honeyScanMeEndpoint, allEndpointAssetGroup);
       this.importDashboardsFromResources();
+      return true;
     } catch (Exception e) {
       recordError("Unexpected error during StarterPack initialization.", e);
+      return false;
     }
   }
 

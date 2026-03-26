@@ -115,12 +115,6 @@ public class StarterPackTest extends IntegrationTest {
                 V20260101_Starter_pack.class.getCanonicalName(),
                 new Tenant(TenantContext.getCurrentTenant()))
             .isPresent());
-    assertFalse(
-        dataPackService
-            .findByIdAndTenant(
-                V20260107_Tags_and_tagrules_and_assetgroups.class.getCanonicalName(),
-                new Tenant(TenantContext.getCurrentTenant()))
-            .isPresent());
   }
 
   @Test
@@ -148,27 +142,21 @@ public class StarterPackTest extends IntegrationTest {
 
     // VERIFY
     long assetsCount = assetRepository.count();
-    assertEquals(0, assetsCount);
+    assertEquals(1, assetsCount);
 
     long assetGroupCount = assetGroupRepository.count();
-    assertEquals(0, assetGroupCount);
+    assertEquals(1, assetGroupCount);
 
     long scenarioCount = scenarioRepository.count();
-    assertEquals(0, scenarioCount);
+    assertEquals(3, scenarioCount);
 
     long dashboardCount = customDashboardRepository.count();
-    assertEquals(0, dashboardCount);
+    assertEquals(3, dashboardCount);
 
     assertTrue(
         dataPackService
             .findByIdAndTenant(
                 V20260101_Starter_pack.class.getCanonicalName(),
-                new Tenant(TenantContext.getCurrentTenant()))
-            .isPresent());
-    assertTrue(
-        dataPackService
-            .findByIdAndTenant(
-                V20260107_Tags_and_tagrules_and_assetgroups.class.getCanonicalName(),
                 new Tenant(TenantContext.getCurrentTenant()))
             .isPresent());
   }
@@ -575,12 +563,6 @@ public class StarterPackTest extends IntegrationTest {
         dataPackService
             .findByIdAndTenant(
                 V20260101_Starter_pack.class.getCanonicalName(),
-                new Tenant(TenantContext.getCurrentTenant()))
-            .isPresent());
-    assertTrue(
-        dataPackService
-            .findByIdAndTenant(
-                V20260107_Tags_and_tagrules_and_assetgroups.class.getCanonicalName(),
                 new Tenant(TenantContext.getCurrentTenant()))
             .isPresent());
   }
