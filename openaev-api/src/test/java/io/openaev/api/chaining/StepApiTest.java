@@ -1,1 +1,132 @@
-package io.openaev.api.chaining;import static org.junit.jupiter.api.Assertions.*;import static org.mockito.ArgumentMatchers.any;import static org.mockito.Mockito.*;import io.openaev.api.chaining.dto.StepInput;import io.openaev.api.chaining.dto.StepOutput;import io.openaev.database.model.Step;import io.openaev.database.model.StepActionClass;import io.openaev.database.model.StepStatus;import io.openaev.rest.exception.ChainingException;import io.openaev.service.chaining.StepService;import java.util.List;import org.junit.jupiter.api.Test;import org.junit.jupiter.api.extension.ExtendWith;import org.mockito.InjectMocks;import org.mockito.Mock;import org.mockito.junit.jupiter.MockitoExtension;@ExtendWith(MockitoExtension.class)class StepApiTest {  @Mock private StepService stepService;  @InjectMocks private StepApi stepApi;  @Test  void createStep_shouldReturnMappedOutput() throws Exception {    StepInput input = new StepInput();    input.setWorkflowId("wf-1");    input.setStepAction(StepActionClass.INJECT_EXECUTION);    Step created = step("step-1", 2, StepStatus.TEMPLATE, "{\"a\":1}");    when(stepService.createStepTemplate("wf-1", input)).thenReturn(created);    StepOutput result = stepApi.createStep(input);    assertNotNull(result);    assertEquals("step-1", result.getId());    assertEquals(2, result.getLimitExecution());    assertEquals("TEMPLATE", result.getStatus());    assertEquals("{\"a\":1}", result.getData());    verify(stepService).createStepTemplate("wf-1", input);  }  @Test  void createStep_shouldReturnNullWhenServiceThrows() throws Exception {    StepInput input = new StepInput();    input.setWorkflowId("wf-1");    input.setStepAction(StepActionClass.INJECT_EXECUTION);    when(stepService.createStepTemplate(any(), any())).thenThrow(new RuntimeException("boom"));    StepOutput result = stepApi.createStep(input);    assertNull(result);  }  @Test  void findAll_shouldReturnMappedList() {    when(stepService.findAllStepTemplates())        .thenReturn(            List.of(                step("s-1", 1, StepStatus.TEMPLATE, "{}"),                step("s-2", 3, StepStatus.TEMPLATE, "{\"x\":true}")));    List<StepOutput> result = stepApi.findAll();    assertEquals(2, result.size());    assertEquals("s-1", result.get(0).getId());    assertEquals("s-2", result.get(1).getId());    verify(stepService).findAllStepTemplates();  }  @Test  void findById_shouldReturnMappedStep() {    when(stepService.findStepTemplateById("step-42"))        .thenReturn(step("step-42", 1, StepStatus.TEMPLATE, "{}"));    StepOutput result = stepApi.findById("step-42");    assertNotNull(result);    assertEquals("step-42", result.getId());    verify(stepService).findStepTemplateById("step-42");  }  @Test  void findByWorkflowId_shouldReturnMappedList() {    when(stepService.findAllStepTemplateByWorkflow("wf-9"))        .thenReturn(List.of(step("s-9", 5, StepStatus.TEMPLATE, "{}")));    List<StepOutput> result = stepApi.findByWorkflowId("wf-9");    assertEquals(1, result.size());    assertEquals("s-9", result.get(0).getId());    verify(stepService).findAllStepTemplateByWorkflow("wf-9");  }  @Test  void updateStep_shouldReturnMappedStep() throws ChainingException {    StepInput input = new StepInput();    input.setWorkflowId("wf-1");    input.setStepAction(StepActionClass.INJECT_EXECUTION);    when(stepService.updateStepTemplate("s-1", input))        .thenReturn(step("s-1", 9, StepStatus.TEMPLATE, "{\"updated\":true}"));    StepOutput result = stepApi.updateStep("s-1", input);    assertNotNull(result);    assertEquals("s-1", result.getId());    assertEquals(9, result.getLimitExecution());    verify(stepService).updateStepTemplate("s-1", input);  }  @Test  void deleteStep_shouldDelegateToService() {    stepApi.deleteStep("s-del");    verify(stepService).deleteStepTemplate("s-del");  }  private Step step(String id, int limit, StepStatus status, String data) {    Step step = new Step();    step.setId(id);    step.setLimitExecution(limit);    step.setStatus(status);    step.setData(data);    return step;  }}
+package io.openaev.api.chaining;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+import io.openaev.api.chaining.dto.StepInput;
+import io.openaev.api.chaining.dto.StepOutput;
+import io.openaev.database.model.Step;
+import io.openaev.database.model.StepActionClass;
+import io.openaev.database.model.StepStatus;
+import io.openaev.rest.exception.ChainingException;
+import io.openaev.service.chaining.StepService;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+@ExtendWith(MockitoExtension.class)
+class StepApiTest {
+
+  @Mock private StepService stepService;
+
+  @InjectMocks private StepApi stepApi;
+
+  @Test
+  void createStep_shouldReturnMappedOutput() throws Exception {
+    StepInput input = new StepInput();
+    input.setWorkflowId("wf-1");
+    input.setStepAction(StepActionClass.INJECT_EXECUTION);
+
+    Step created = step("step-1", 2, StepStatus.TEMPLATE, "{\"a\":1}");
+    when(stepService.createStepTemplate("wf-1", input)).thenReturn(created);
+
+    StepOutput result = stepApi.createStep(input);
+
+    assertNotNull(result);
+    assertEquals("step-1", result.getId());
+    assertEquals(2, result.getLimitExecution());
+    assertEquals("TEMPLATE", result.getStatus());
+    assertEquals("{\"a\":1}", result.getData());
+    verify(stepService).createStepTemplate("wf-1", input);
+  }
+
+  @Test
+  void createStep_shouldReturnNullWhenServiceThrows() throws Exception {
+    StepInput input = new StepInput();
+    input.setWorkflowId("wf-1");
+    input.setStepAction(StepActionClass.INJECT_EXECUTION);
+
+    when(stepService.createStepTemplate(any(), any())).thenThrow(new RuntimeException("boom"));
+
+    StepOutput result = stepApi.createStep(input);
+
+    assertNull(result);
+  }
+
+  @Test
+  void findAll_shouldReturnMappedList() {
+    when(stepService.findAllStepTemplates())
+        .thenReturn(
+            List.of(
+                step("s-1", 1, StepStatus.TEMPLATE, "{}"),
+                step("s-2", 3, StepStatus.TEMPLATE, "{\"x\":true}")));
+
+    List<StepOutput> result = stepApi.findAll();
+
+    assertEquals(2, result.size());
+    assertEquals("s-1", result.get(0).getId());
+    assertEquals("s-2", result.get(1).getId());
+    verify(stepService).findAllStepTemplates();
+  }
+
+  @Test
+  void findById_shouldReturnMappedStep() {
+    when(stepService.findStepTemplateById("step-42"))
+        .thenReturn(step("step-42", 1, StepStatus.TEMPLATE, "{}"));
+
+    StepOutput result = stepApi.findById("step-42");
+
+    assertNotNull(result);
+    assertEquals("step-42", result.getId());
+    verify(stepService).findStepTemplateById("step-42");
+  }
+
+  @Test
+  void findByWorkflowId_shouldReturnMappedList() {
+    when(stepService.findAllStepTemplateByWorkflow("wf-9"))
+        .thenReturn(List.of(step("s-9", 5, StepStatus.TEMPLATE, "{}")));
+
+    List<StepOutput> result = stepApi.findByWorkflowId("wf-9");
+
+    assertEquals(1, result.size());
+    assertEquals("s-9", result.get(0).getId());
+    verify(stepService).findAllStepTemplateByWorkflow("wf-9");
+  }
+
+  @Test
+  void updateStep_shouldReturnMappedStep() throws ChainingException {
+    StepInput input = new StepInput();
+    input.setWorkflowId("wf-1");
+    input.setStepAction(StepActionClass.INJECT_EXECUTION);
+
+    when(stepService.updateStepTemplate("s-1", input))
+        .thenReturn(step("s-1", 9, StepStatus.TEMPLATE, "{\"updated\":true}"));
+
+    StepOutput result = stepApi.updateStep("s-1", input);
+
+    assertNotNull(result);
+    assertEquals("s-1", result.getId());
+    assertEquals(9, result.getLimitExecution());
+    verify(stepService).updateStepTemplate("s-1", input);
+  }
+
+  @Test
+  void deleteStep_shouldDelegateToService() {
+    stepApi.deleteStep("s-del");
+
+    verify(stepService).deleteStepTemplate("s-del");
+  }
+
+  private Step step(String id, int limit, StepStatus status, String data) {
+    Step step = new Step();
+    step.setId(id);
+    step.setLimitExecution(limit);
+    step.setStatus(status);
+    step.setData(data);
+    return step;
+  }
+}
