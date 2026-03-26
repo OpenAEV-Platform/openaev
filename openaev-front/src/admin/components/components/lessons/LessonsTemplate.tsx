@@ -11,7 +11,7 @@ import { useHelper } from '../../../../store';
 import { type LessonsTemplateCategory, type LessonsTemplateQuestion } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { Can } from '../../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CreateLessonsTemplateCategory from './categories/CreateLessonsTemplateCategory';
 import LessonsTemplateCategoryPopover from './categories/LessonsTemplateCategoryPopover';

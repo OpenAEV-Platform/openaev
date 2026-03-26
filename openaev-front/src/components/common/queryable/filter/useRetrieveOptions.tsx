@@ -17,7 +17,7 @@ import { searchSimulationByIdAsOptions } from '../../../../actions/simulations/s
 import { searchTagByIdAsOption } from '../../../../actions/tags/tag-action';
 import { searchTeamByIdAsOption } from '../../../../actions/teams/team-actions';
 import { type GroupOption, type Option } from '../../../../utils/Option';
-import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { CUSTOM_DASHBOARD, SCENARIOS, SIMULATIONS } from './constants';
 

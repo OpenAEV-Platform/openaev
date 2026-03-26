@@ -8,7 +8,7 @@ import TagsFilter from '../../admin/components/common/filters/TagsFilter';
 import CreateDocument from '../../admin/components/components/documents/CreateDocument';
 import { useHelper } from '../../store';
 import { type RawDocument } from '../../utils/api-types';
-import { Can } from '../../utils/permissions/PermissionsProvider';
+import { Can } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
 import { truncate } from '../../utils/String';
 import Transition from '../common/Transition';

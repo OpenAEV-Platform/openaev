@@ -5,7 +5,7 @@ import {
   searchCustomDashboardAsOptionsByResourceId,
 } from '../../actions/custom_dashboards/customdashboard-action';
 import type { Option } from '../../utils/Option';
-import { AbilityContext } from '../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
 import AutocompleteField from './AutocompleteField';
 

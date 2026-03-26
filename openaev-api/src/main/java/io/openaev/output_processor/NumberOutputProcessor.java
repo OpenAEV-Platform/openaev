@@ -3,14 +3,15 @@ package io.openaev.output_processor;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
+import io.openaev.rest.finding.FindingService;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
-public class NumberOutputProcessor extends AbstractOutputProcessor {
+public class NumberOutputProcessor extends FindingCapableOutputProcessor {
 
-  public NumberOutputProcessor() {
-    super(ContractOutputType.Number, ContractOutputTechnicalType.Number, List.of(), true);
+  public NumberOutputProcessor(FindingService findingService) {
+    super(ContractOutputType.Number, ContractOutputTechnicalType.Number, List.of(), findingService);
   }
 
   @Override

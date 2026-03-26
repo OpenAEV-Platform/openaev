@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -309,5 +310,16 @@ public class InjectUtils {
     duplicatedInject.setExercise(injectOrigin.getExercise());
     duplicatedInject.setScenario(injectOrigin.getScenario());
     return duplicatedInject;
+  }
+
+  /**
+   * Retrieve all inject expectations from a list of injects
+   *
+   * @param injects to retrive all inject expectations
+   * @return a stream of all retrieve inject expectations
+   */
+  public static Stream<InjectExpectation> extractInjectExpectationsFromInjects(
+      List<Inject> injects) {
+    return injects.stream().flatMap(inject -> inject.getExpectations().stream());
   }
 }

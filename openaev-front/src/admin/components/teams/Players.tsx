@@ -23,7 +23,7 @@ import { useHelper } from '../../../store';
 import { type PlayerOutput, type SearchPaginationInput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
-import { Can } from '../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import CreatePlayer from './players/CreatePlayer';
 import PlayerPopover from './players/PlayerPopover';

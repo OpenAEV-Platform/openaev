@@ -2,14 +2,9 @@ package io.openaev.utils.helpers;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
-import io.openaev.utils.fixtures.AgentFixture;
-import io.openaev.utils.fixtures.EndpointFixture;
-import io.openaev.utils.fixtures.InjectFixture;
-import io.openaev.utils.fixtures.InjectStatusFixture;
-import io.openaev.utils.fixtures.composers.AgentComposer;
-import io.openaev.utils.fixtures.composers.EndpointComposer;
-import io.openaev.utils.fixtures.composers.InjectComposer;
-import io.openaev.utils.fixtures.composers.InjectStatusComposer;
+import io.openaev.utils.fixtures.*;
+import io.openaev.utils.fixtures.composers.*;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -33,11 +28,16 @@ public class InjectTestHelper {
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public Inject getPendingInjectWithAssets(
       InjectComposer injectComposer,
+      InjectorContractComposer injectorContractComposer,
       EndpointComposer endpointComposer,
       AgentComposer agentComposer,
       InjectStatusComposer injectStatusComposer) {
     return injectComposer
         .forInject(InjectFixture.getDefaultInject())
+        .withInjectorContract(
+            injectorContractComposer
+                .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                .withInjector(InjectorFixture.createDefaultPayloadInjector()))
         .withEndpoint(
             endpointComposer
                 .forEndpoint(EndpointFixture.createEndpoint())
@@ -97,5 +97,29 @@ public class InjectTestHelper {
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public Asset forceSaveAsset(Asset asset) {
     return assetRepository.save(asset);
+  }
+
+  /**
+   * Queries findings for a given inject ID in a new independent transaction, so that findings
+   * committed by async processing threads are visible even when called from within an outer
+   * {@code @Transactional} test method.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public List<Finding> findFindingsByInjectId(String injectId) {
+    return findingRepository.findAllByInjectId(injectId);
+  }
+
+  /**
+   * Returns true if the inject has at least one execution trace, confirming async processing
+   * completed. Runs in a new independent transaction so results committed by async threads are
+   * visible from within an outer {@code @Transactional} test.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public boolean hasInjectStatusTrace(String injectId) {
+    return injectRepository
+        .findById(injectId)
+        .flatMap(Inject::getStatus)
+        .filter(s -> !s.getTraces().isEmpty())
+        .isPresent();
   }
 }
