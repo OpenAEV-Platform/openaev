@@ -581,8 +581,15 @@ class AssetGroupApiTest extends IntegrationTest {
     static Stream<Arguments> dynamicFilterParameters() {
       return Stream.of(
           Arguments.of(
-              "endpoint_platform", "eq", List.of("Windows"), List.of("windowsX86", "windowsArm")),
-          Arguments.of("endpoint_arch", "eq", List.of("arm64"), List.of("windowsArm")),
+              "endpoint_platform",
+              "eq",
+              List.of(Endpoint.PLATFORM_TYPE.Windows.name()),
+              List.of("windowsX86", "windowsArm")),
+          Arguments.of(
+              "endpoint_arch",
+              "eq",
+              List.of(Endpoint.PLATFORM_ARCH.arm64.name()),
+              List.of("windowsArm")),
           Arguments.of(
               "endpoint_hostname",
               "contains",
