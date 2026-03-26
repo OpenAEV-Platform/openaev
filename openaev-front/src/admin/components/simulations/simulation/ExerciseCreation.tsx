@@ -77,6 +77,7 @@ const ExerciseCreation = () => {
           handleClose={handleClose}
           initialValues={initialValues}
           edit={false}
+          isChaining={isChaining}
         />
       )}
       {isChaining === null && !isChainingFeatureEnabled && (

@@ -23,6 +23,7 @@ interface Props {
   disabled?: boolean;
   edit: boolean;
   simulationId?: string;
+  isChaining?: boolean;
 }
 
 const ExerciseForm: FunctionComponent<Props> = ({
@@ -30,6 +31,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
   handleClose,
   disabled,
   edit,
+  isChaining = false,
   initialValues = {
     exercise_name: '',
     exercise_subtitle: '',
@@ -233,7 +235,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
         )}
       />
 
-      {!watch('exercise_is_chaining') && (
+        {!isChaining && (
         <Accordion
           defaultExpanded
           variant="outlined"
