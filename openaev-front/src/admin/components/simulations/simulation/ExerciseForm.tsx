@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Alert, AlertTitle, Autocomplete, Chip, GridLegacy, MenuItem, TextField as MuiTextField, Typography } from '@mui/material';
+import { ExpandMore } from '@mui/icons-material';
+import { Accordion, AccordionDetails, AccordionSummary, Alert, AlertTitle, Autocomplete, Chip, GridLegacy, MenuItem, TextField as MuiTextField, Typography } from '@mui/material';
 import { DateTimePicker as MuiDateTimePicker } from '@mui/x-date-pickers';
 import { type FunctionComponent, useState } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
@@ -52,6 +53,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
     register,
     control,
     handleSubmit,
+    watch,
     formState: { errors, isDirty, isSubmitting },
     setValue,
   } = useForm<CreateExerciseInput>({
@@ -231,15 +233,23 @@ const ExerciseForm: FunctionComponent<Props> = ({
         )}
       />
 
-      <Typography
-        variant="h2"
-        gutterBottom
-        style={{ marginTop: 40 }}
-      >
-        {t('Emails and SMS')}
-      </Typography>
-
-      <MuiTextField
+      {!watch('exercise_is_chaining') && (
+        <Accordion
+          defaultExpanded
+          variant="outlined"
+          sx={{
+            marginTop: 4,
+            '&:before': { display: 'none' },
+            borderRadius: 1,
+          }}
+        >
+          <AccordionSummary expandIcon={<ExpandMore />}>
+            <Typography variant="h2" sx={{ margin: 0 }}>
+              {t('Emails & SMS')}
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails sx={{ display: 'flex', flexDirection: 'column' }}>
+            <MuiTextField
         variant="standard"
         fullWidth
         label={t('Sender email address')}
@@ -335,6 +345,9 @@ const ExerciseForm: FunctionComponent<Props> = ({
         inputProps={register('exercise_message_footer')}
         disabled={disabled}
       />
+          </AccordionDetails>
+        </Accordion>
+      )}
       <div style={{
         float: 'right',
         marginTop: 20,
