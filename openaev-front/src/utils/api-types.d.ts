@@ -4230,6 +4230,7 @@ export interface InjectorContract {
   injector_contract_manual?: boolean;
   injector_contract_needs_executor?: boolean;
   injector_contract_payload?: Payload;
+  injector_contract_payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   injector_contract_platforms?: (
     | "Linux"
     | "Windows"
@@ -4245,6 +4246,51 @@ export interface InjectorContract {
   injector_contract_updated_at: string;
   injector_contract_vulnerabilities?: string[];
   listened?: boolean;
+}
+
+export interface InjectorContractActionOutput {
+  /**
+   * Attack Patterns IDs
+   * @minItems 1
+   */
+  injector_contract_attack_patterns: string[];
+  /**
+   * Domain IDs
+   * @minItems 1
+   */
+  injector_contract_domains: string[];
+  /** Injector contract external Id */
+  injector_contract_external_id?: string;
+  injector_contract_has_full_details?: boolean;
+  /**
+   * Injector contract Id
+   * @minLength 1
+   */
+  injector_contract_id: string;
+  /** Injector type */
+  injector_contract_injector_type?: string;
+  /** Labels */
+  injector_contract_labels?: Record<string, string>;
+  /** Payload attached */
+  injector_contract_payload?: PayloadSimple;
+  /** Platforms */
+  injector_contract_platforms?: (
+    | "Linux"
+    | "Windows"
+    | "MacOS"
+    | "Container"
+    | "Service"
+    | "Generic"
+    | "Internal"
+    | "Unknown"
+  )[];
+  /** Tags Ids */
+  injector_contract_tags?: string[];
+  /**
+   * Timestamp when the injector contract was last updated
+   * @format date-time
+   */
+  injector_contract_updated_at: string;
 }
 
 export interface InjectorContractAddInput {
@@ -6006,6 +6052,59 @@ export interface PayloadOutput {
   payload_updated_at: string;
 }
 
+export interface PayloadOutput {
+  command_content?: string;
+  command_executor?: string;
+  dns_resolution_hostname?: string;
+  executable_file?: string;
+  file_drop_file?: string;
+  payload_arguments?: PayloadArgument[];
+  payload_attack_patterns?: string[];
+  payload_cleanup_command?: string;
+  payload_cleanup_executor?: string;
+  payload_collector_type?: string;
+  /** @format date-time */
+  payload_created_at: string;
+  payload_description?: string;
+  payload_detection_remediations?: DetectionRemediation[];
+  payload_domains?: string[];
+  payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
+  payload_expectations?: (
+    | "TEXT"
+    | "DOCUMENT"
+    | "ARTICLE"
+    | "CHALLENGE"
+    | "MANUAL"
+    | "PREVENTION"
+    | "DETECTION"
+    | "VULNERABILITY"
+  )[];
+  payload_external_id?: string;
+  /** @minLength 1 */
+  payload_id: string;
+  /** @minLength 1 */
+  payload_name: string;
+  /** @uniqueItems true */
+  payload_output_parsers?: OutputParser[];
+  payload_platforms?: (
+    | "Linux"
+    | "Windows"
+    | "MacOS"
+    | "Container"
+    | "Service"
+    | "Generic"
+    | "Internal"
+    | "Unknown"
+  )[];
+  payload_prerequisites?: PayloadPrerequisite[];
+  payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
+  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  payload_tags?: string[];
+  payload_type?: string;
+  /** @format date-time */
+  payload_updated_at: string;
+}
+
 export interface PayloadPrerequisite {
   check_command?: string;
   description?: string | null;
@@ -6014,6 +6113,8 @@ export interface PayloadPrerequisite {
   /** @minLength 1 */
   get_command: string;
 }
+
+export type PayloadResult = any;
 
 export interface PayloadSimple {
   payload_collector_type?: string;
