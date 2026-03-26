@@ -12,7 +12,7 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import EngineTypeSelection from '../../common/EngineTypeSelection';
 import ExerciseForm from './ExerciseForm';
-import ExerciseFormChaining from "./ExerciseFormChaining";
+import ExerciseFormChaining from './ExerciseFormChaining';
 
 const ExerciseCreation = () => {
   // Standard hooks
@@ -64,38 +64,38 @@ const ExerciseCreation = () => {
     exercise_message_footer: t('SIMULATION FOOTER'),
   };
 
-    const renderDrawerContent = (): ReactElement => {
-        // if feature flag is disabled we just display the old form
-        if (!isChainingFeatureEnabled) {
-            return (
-                <ExerciseForm
-                    onSubmit={onSubmit}
-                    handleClose={handleClose}
-                    initialValues={initialValues}
-                    edit={false}
-                />
-            );
-        }
+  const renderDrawerContent = (): ReactElement => {
+    // if feature flag is disabled we just display the old form
+    if (!isChainingFeatureEnabled) {
+      return (
+        <ExerciseForm
+          onSubmit={onSubmit}
+          handleClose={handleClose}
+          initialValues={initialValues}
+          edit={false}
+        />
+      );
+    }
 
-        return (
-            <>
-                <EngineTypeSelection
-                    selected={isChaining}
-                    onSelect={handleTypeSelected}
-                />
-                //if scenario type is selected (standard or chaining), then display the form
-                {isChaining !== null && (
-                    <ExerciseFormChaining
-                        onSubmit={onSubmit}
-                        handleClose={handleClose}
-                        initialValues={initialValues}
-                        edit={false}
-                        isChaining={isChaining}
-                    />
-                )}
-            </>
-        );
-    };
+    return (
+      <>
+        <EngineTypeSelection
+          selected={isChaining}
+          onSelect={handleTypeSelected}
+        />
+        {/* if scenario type is selected (standard or chaining), then display the form */}
+        {isChaining !== null && (
+          <ExerciseFormChaining
+            onSubmit={onSubmit}
+            handleClose={handleClose}
+            initialValues={initialValues}
+            edit={false}
+            isChaining={isChaining}
+          />
+        )}
+      </>
+    );
+  };
 
   return (
     <>

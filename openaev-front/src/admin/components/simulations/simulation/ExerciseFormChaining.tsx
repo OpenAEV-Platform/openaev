@@ -1,9 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ExpandMore } from '@mui/icons-material';
 import {
-    Accordion,
+  Accordion,
   AccordionDetails,
-    AccordionSummary,
+  AccordionSummary,
   Alert, AlertTitle, Autocomplete, Chip, GridLegacy, MenuItem, TextField as MuiTextField, Typography,
 } from '@mui/material';
 import { DateTimePicker as MuiDateTimePicker } from '@mui/x-date-pickers';
@@ -60,7 +60,6 @@ const ExerciseForm: FunctionComponent<Props> = ({
     register,
     control,
     handleSubmit,
-    watch,
     formState: { errors, isDirty, isSubmitting },
     setValue,
   } = useForm<CreateExerciseInput>({

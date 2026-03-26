@@ -18,7 +18,11 @@ const ChainingIllustration: FunctionComponent<{ isDark: boolean }> = ({ isDark }
   <img
     src={isDark ? chainingIllustrationDark : chainingIllustrationLight}
     alt="Chaining scenario illustration"
-    style={{ width: 160, height: 60, objectFit: 'contain' }}
+    style={{
+      width: 160,
+      height: 60,
+      objectFit: 'contain',
+    }}
   />
 );
 
@@ -29,7 +33,11 @@ const TimeBasedIllustration: FunctionComponent<{ isDark: boolean }> = ({ isDark 
   <img
     src={isDark ? timeBasedIllustrationDark : timeBasedIllustrationLight}
     alt="Time-based scenario illustration"
-    style={{ width: 160, height: 60, objectFit: 'contain' }}
+    style={{
+      width: 160,
+      height: 60,
+      objectFit: 'contain',
+    }}
   />
 );
 
@@ -57,13 +65,13 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
   }> = [
     {
       isChaining: true,
-      title: t('Chaining Scenario'),
-      description: t('Runs a fully automated, end-to-end sequence where each step triggers the next potential steps.'),
+      title: t('chaining.chaining-scenario.title'),
+      description: t('chaining.chaining-scenario.description'),
     },
     {
       isChaining: false,
-      title: t('Time-Based Scenario'),
-      description: t('Runs at scheduled time intervals, following a fixed time-driven execution plan.'),
+      title: t('chaining.chaining-timebased.title'),
+      description: t('chaining.chaining-timebased.description'),
     },
   ];
 
@@ -86,7 +94,7 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
       }}
       >
         <Typography variant="body2" color="text.secondary">
-          {t('Select your scenario type')}
+          {t('chaining.select-type')}
         </Typography>
         <Link
           href="https://docs.openaev.io/latest/usage/scenarios/"
@@ -101,7 +109,7 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
           }}
         >
           <OpenInNew sx={{ fontSize: 14 }} />
-          {t('Learn more about scenario type')}
+          {t('chaining.doc-link')}
         </Link>
       </Box>
       <Box
@@ -177,28 +185,6 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
           );
         })}
       </Box>
-      {!isEnterpriseEdition && selected !== false && (
-        <Box sx={{ marginTop: theme.spacing(1.5) }}>
-          <Typography variant="caption" color="text.secondary">
-            {t('You need to activate OpenAEV enterprise edition to use this feature.')}
-            {' '}
-            <Link
-              component="button"
-              variant="caption"
-              onClick={() => {
-                setEEFeatureDetectedInfo(t('Chaining Scenario'));
-                openEnterpriseEditionDialog();
-              }}
-              sx={{
-                color: theme.palette.primary.main,
-                verticalAlign: 'baseline',
-              }}
-            >
-              {t('Manage your Enterprise Edition license')}
-            </Link>
-          </Typography>
-        </Box>
-      )}
     </Box>
   );
 };
