@@ -46,39 +46,26 @@ public class InjectorContractApi extends RestBehavior {
   /**
    * Searches injector contracts with pagination and filtering.
    *
-   * <p>When {@code input.includeFullDetails} is {@code true} (the default), the response contains
-   * {@link InjectorContractFullOutput} entries; otherwise {@link InjectorContractBaseOutput}
-   * entries are returned.
+   * <p>Can return either full or base details based on the input flag.
    *
    * @param input the search and pagination parameters
    * @return a paged list of injector contract outputs in the selected format
    */
-  @Operation(summary = "Search injector contracts")
-  @ApiResponse(
-      responseCode = "200",
-      content =
-          @Content(
-              schema =
-                  @Schema(
-                      oneOf = {
-                        InjectorContractBaseOutput.class,
-                        InjectorContractFullOutput.class,
-                      })))
   @PostMapping({INJECTOR_CONTRACT_URL + "/search", TENANT_INJECTOR_CONTRACT_URL + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   public Page<? extends InjectorContractBaseOutput> injectorContracts(
       @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
-    return buildPaginationCriteriaBuilder(
-        (spec, specCount, pageable) ->
-            this.injectorContractService.getSinglePage(
-                spec,
-                specCount,
-                pageable,
-                input.isIncludeFullDetails()
-                    ? InjectorContractService.OutputMode.FULL
-                    : InjectorContractService.OutputMode.BASE),
-        handleArchitectureFilter(input),
-        InjectorContract.class);
+    if (input.isIncludeFullDetails()) {
+      return buildPaginationCriteriaBuilder(
+          this.injectorContractService::getSinglePageFullDetails,
+          handleArchitectureFilter(input),
+          InjectorContract.class);
+    } else {
+      return buildPaginationCriteriaBuilder(
+          this.injectorContractService::getSinglePageBaseDetails,
+          handleArchitectureFilter(input),
+          InjectorContract.class);
+    }
   }
 
   @PostMapping({
