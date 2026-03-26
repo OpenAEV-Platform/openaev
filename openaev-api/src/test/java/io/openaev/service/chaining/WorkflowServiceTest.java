@@ -339,9 +339,11 @@ class WorkflowServiceTest {
     void shouldCopyScopeRulesAsNewInstancesLinkedToRun() {
       // Prepare
       Exercise simulation = mock(Exercise.class);
+      String templateId = UUID.randomUUID().toString();
 
       Workflow template =
           Workflow.builder()
+              .id(templateId)
               .status(WorkflowStatus.TEMPLATE)
               .version(1)
               .simulation(simulation)
@@ -354,16 +356,17 @@ class WorkflowServiceTest {
       existingRule.setRuleValue("10.0.0.1");
       existingRule.setValueType(ScopeRuleValueType.IP);
       existingRule.setWorkflow(template);
-      template.setWorkflowScopeRules(List.of(existingRule));
 
+      // copyScopeRules reads from the repository, not from the entity collection
+      when(workflowScopeRuleRepository.findAllByWorkflowId(templateId))
+          .thenReturn(List.of(existingRule));
       when(workflowRepository.save(any(Workflow.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
       // Act
       Workflow result = workflowService.launchWorkflow(template);
 
-      // Assert
-      // save called once: scope rules are attached in-memory to the run before saveWorkflowRun
+      // Assert — one save: for the run (no version bump since template is not edited)
       verify(workflowRepository, times(1)).save(any(Workflow.class));
 
       List<WorkflowScopeRule> copiedRules = result.getWorkflowScopeRules();
