@@ -6,7 +6,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nullable;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 public class Filters {
 
@@ -31,10 +34,13 @@ public class Filters {
   }
 
   @Data
+  @Builder
+  @NoArgsConstructor
+  @AllArgsConstructor
   public static class FilterGroup {
 
-    @NotNull private FilterMode mode; // Between filters
-    private List<Filter> filters = new ArrayList<>();
+    @NotNull @Builder.Default private FilterMode mode = FilterMode.and;
+    @Builder.Default private List<Filter> filters = new ArrayList<>();
 
     /**
      * asset_group_dynamic_filter in AssetGroup is now not null so we added a default not null value
@@ -80,12 +86,15 @@ public class Filters {
   }
 
   @Data
+  @Builder
+  @NoArgsConstructor
+  @AllArgsConstructor
   public static class Filter {
 
     @NotNull private String key;
-    private FilterMode mode; // Between values: name = name1 OR name = name2
+    @Builder.Default private FilterMode mode = FilterMode.and;
     private List<String> values;
-    private FilterOperator operator;
+    @Builder.Default private FilterOperator operator = FilterOperator.eq;
 
     public static Filter getNewDefaultEqualFilter(String key, List<String> values) {
       Filter filter = new Filter();
