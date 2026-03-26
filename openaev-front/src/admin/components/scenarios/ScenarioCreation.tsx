@@ -13,6 +13,7 @@ import { useAppDispatch } from '../../../utils/hooks';
 import { isFeatureEnabled } from '../../../utils/utils';
 import EngineTypeSelection from '../common/EngineTypeSelection';
 import ScenarioForm from './ScenarioForm';
+import ScenarioFormChaining from "./ScenarioFormChaining";
 
 const ScenarioCreation: FunctionComponent = () => {
   // Standard hooks
@@ -68,29 +69,38 @@ const ScenarioCreation: FunctionComponent = () => {
     scenario_mail_from: settings.default_mailer ?? '',
     scenario_mails_reply_to: [settings.default_reply_to ?? ''],
   };
+    const renderDrawerContent = (): ReactElement => {
+        // if feature flag is disabled we just display the old form
+        if (!isChainingFeatureEnabled) {
+            return (
+                <ScenarioForm
+                    onSubmit={onSubmit}
+                    initialValues={initialValues}
+                    handleClose={handleClose}
+                    isCreation
+                />
+            );
+        }
 
-  const renderDrawerContent = (): ReactElement => (
-    <>
-      {isChainingFeatureEnabled && (
-        <EngineTypeSelection
-          selected={isChaining}
-          onSelect={handleTypeSelected}
-        />
-      )}
-        //if scenario type is selected (standard or chaining), then display the form
-        //if chaining feature disabled just display the form
-      {isChaining === null || !isChainingFeatureEnabled && (
-        <ScenarioForm
-          onSubmit={onSubmit}
-          initialValues={initialValues}
-          handleClose={handleClose}
-          isCreation
-          isChaining={isChaining}
-        />
-      )}
-    </>
-  );
-
+        return (
+            <>
+                <EngineTypeSelection
+                    selected={isChaining}
+                    onSelect={handleTypeSelected}
+                />
+                //if scenario type is selected (standard or chaining), then display the form
+                {isChaining !== null && (
+                    <ScenarioFormChaining
+                        onSubmit={onSubmit}
+                        initialValues={initialValues}
+                        handleClose={handleClose}
+                        isCreation
+                        isChaining={isChaining}
+                    />
+                )}
+            </>
+        );
+    };
   return (
     <>
       <ButtonCreate onClick={() => setOpen(true)} />

@@ -131,34 +131,43 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
               key={option.title}
               variant="outlined"
               sx={{
-                borderColor: isSelected ? theme.palette.primary.main : undefined,
-                borderWidth: isSelected ? 2 : 1,
-                opacity: isDisabled ? 0.6 : 1,
-                transition: 'border-color 0.2s, opacity 0.2s',
-                '&:hover': {
-                  borderColor: theme.palette.primary.main,
-                },
+                'borderColor': isSelected ? theme.palette.primary.main : undefined,
+                'borderWidth': isSelected ? 2 : 1,
+                'opacity': isDisabled ? 0.6 : 1,
+                'transition': 'border-color 0.2s, opacity 0.2s',
+                '&:hover': { borderColor: theme.palette.primary.main },
               }}
             >
               <CardActionArea
                 onClick={() => handleCardClick(option.isChaining)}
-                sx={{ height: '100%', padding: theme.spacing(2) }}
+                sx={{
+                  height: '100%',
+                  padding: theme.spacing(2),
+                }}
               >
                 <CardContent sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: theme.spacing(1),
-                  padding: 0,
+                  'display': 'flex',
+                  'flexDirection': 'column',
+                  'alignItems': 'center',
+                  'gap': theme.spacing(1),
+                  'padding': 0,
                   '&:last-child': { paddingBottom: 0 },
                 }}
                 >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: theme.spacing(0.5) }}>
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: theme.spacing(0.5),
+                  }}
+                  >
                     <Radio
                       checked={isSelected}
                       size="small"
                       disabled={isDisabled}
-                      sx={{ padding: 0, color: theme.palette.primary.main }}
+                      sx={{
+                        padding: 0,
+                        color: theme.palette.primary.main,
+                      }}
                     />
                     <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
                       {option.title}
@@ -192,7 +201,10 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
                 setEEFeatureDetectedInfo(t('Chaining Scenario'));
                 openEnterpriseEditionDialog();
               }}
-              sx={{ color: theme.palette.primary.main, verticalAlign: 'baseline' }}
+              sx={{
+                color: theme.palette.primary.main,
+                verticalAlign: 'baseline',
+              }}
             >
               {t('Manage your Enterprise Edition license')}
             </Link>
@@ -204,6 +216,3 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
 };
 
 export default EngineTypeSelection;
-
-
-

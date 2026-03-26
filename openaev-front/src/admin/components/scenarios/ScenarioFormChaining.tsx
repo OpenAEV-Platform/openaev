@@ -1,13 +1,20 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Autocomplete, Checkbox, Chip, FormControlLabel, MenuItem, TextField as MuiTextField } from '@mui/material';
+import {
+    Accordion,
+    AccordionDetails, AccordionSummary,
+    Autocomplete,
+    Checkbox,
+    Chip,
+    FormControlLabel,
+    MenuItem,
+    TextField as MuiTextField, Typography
+} from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import Button from '../../../components/common/button/Button';
-import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
-import useTabs from '../../../components/common/tabs/useTabs';
 import SelectField from '../../../components/fields/SelectField';
 import TagField from '../../../components/fields/TagField';
 import TextField from '../../../components/fields/TextField';
@@ -15,6 +22,7 @@ import { useFormatter } from '../../../components/i18n';
 import { type ScenarioInput } from '../../../utils/api-types';
 import { zodImplement } from '../../../utils/Zod';
 import { scenarioCategories } from './constants';
+import {ExpandMore} from "@mui/icons-material";
 
 interface Props {
     onSubmit: (data: ScenarioInput, isScenarioAssistantChecked?: boolean) => void;
@@ -23,15 +31,17 @@ interface Props {
     disabled?: boolean;
     initialValues: ScenarioInput;
     isCreation?: boolean;
+    isChaining?: boolean;
 }
 
-const ScenarioForm: FunctionComponent<Props> = ({
+const ScenarioFormChaining: FunctionComponent<Props> = ({
                                                     onSubmit,
                                                     handleClose,
                                                     editing,
                                                     initialValues,
                                                     disabled,
                                                     isCreation = false,
+                                                    isChaining = false,
                                                 }) => {
         // Standard hooks
         const theme = useTheme();
@@ -68,22 +78,8 @@ const ScenarioForm: FunctionComponent<Props> = ({
             defaultValues: initialValues,
         });
 
-        const tabEntries: TabsEntry[] = [{
-            key: 'General',
-            label: t('General'),
-        }, {
-            key: 'Emails and SMS',
-            label: t('Emails and SMS'),
-        }];
-        const { currentTab, handleChangeTab } = useTabs(tabEntries[0].key);
-
         return (
             <>
-                <Tabs
-                    entries={tabEntries}
-                    currentTab={currentTab}
-                    onChange={newValue => handleChangeTab(newValue)}
-                />
                 <form
                     style={{
                         display: 'flex',
@@ -94,7 +90,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
                     id="scenarioForm"
                     onSubmit={handleSubmit((data: ScenarioInput) => onSubmit(data, isScenarioAssistantChecked))}
                 >
-                    {currentTab === 'General' && (
+
                         <>
                             <TextField
                                 variant="standard"
@@ -217,32 +213,42 @@ const ScenarioForm: FunctionComponent<Props> = ({
                                 />
                             )}
                         </>
-                    )}
-                    {currentTab === 'Emails and SMS' && (
-                        <>
+                    {!isChaining && (
+                        <Accordion
+                            defaultExpanded
+                            variant="outlined"
+                            sx={{
+                                'marginTop': 4,
+                                '&:before': { display: 'none' },
+                                'borderRadius': 1,
+                            }}
+                        >
+                            <AccordionSummary expandIcon={<ExpandMore/>}>
+                            <Typography variant="h2" sx={{margin: 0}}>
+                                {t('Emails & SMS')}
+                            </Typography>
+                        </AccordionSummary>
+                            <AccordionDetails sx={{display: 'flex', flexDirection: 'column'}}>
                             <MuiTextField
                                 variant="standard"
                                 fullWidth
                                 label={t('Sender email address')}
                                 error={!!errors.scenario_mail_from}
-                                helperText={
-                                    errors.scenario_mail_from
-                                        ? errors.scenario_mail_from?.message
-                                        : (
-                                            <span
-                                                style={{ color: theme.palette.warning.main }}
-                                            >
-                        {t('If you remove the default email address, the email reception for this simulation / scenario will be disabled.')}
-                      </span>
-                                        )
-                                }
+                                helperText={errors.scenario_mail_from
+                                    ? errors.scenario_mail_from?.message
+                                    : (
+                                        <span
+                                            style={{color: theme.palette.warning.main}}
+                                        >
+                                                {t('If you remove the default email address, the email reception for this simulation / scenario will be disabled.')}
+                                            </span>
+                                    )}
                                 inputProps={register('scenario_mail_from')}
-                                disabled={disabled}
-                            />
+                                disabled={disabled}/>
                             <Controller
                                 control={control}
                                 name="scenario_mails_reply_to"
-                                render={({ field, fieldState }) => {
+                                render={({field, fieldState}) => {
                                     return (
                                         <Autocomplete
                                             multiple
@@ -267,15 +273,14 @@ const ScenarioForm: FunctionComponent<Props> = ({
                                                     <Chip
                                                         variant="outlined"
                                                         label={email}
-                                                        {...getTagProps({ index })}
+                                                        {...getTagProps({index})}
                                                         key={email}
-                                                        style={{ borderRadius: 4 }}
+                                                        style={{borderRadius: 4}}
                                                         onDelete={() => {
                                                             const newValue = [...(field.value || [])];
                                                             newValue.splice(index, 1);
                                                             field.onChange(newValue);
-                                                        }}
-                                                    />
+                                                        }}/>
                                                 );
                                             })}
                                             renderInput={params => (
@@ -284,13 +289,10 @@ const ScenarioForm: FunctionComponent<Props> = ({
                                                     variant="standard"
                                                     label={t('Reply to')}
                                                     error={!!fieldState.error}
-                                                    helperText={errors.scenario_mails_reply_to?.find ? errors.scenario_mails_reply_to?.find(value => value != null)?.message ?? '' : ''}
-                                                />
-                                            )}
-                                        />
+                                                    helperText={errors.scenario_mails_reply_to?.find ? errors.scenario_mails_reply_to?.find(value => value != null)?.message ?? '' : ''}/>
+                                            )}/>
                                     );
-                                }}
-                            />
+                                }}/>
                             <MuiTextField
                                 variant="standard"
                                 fullWidth
@@ -298,8 +300,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
                                 error={!!errors.scenario_message_header}
                                 helperText={errors.scenario_message_header && errors.scenario_message_header?.message}
                                 inputProps={register('scenario_message_header')}
-                                disabled={disabled}
-                            />
+                                disabled={disabled}/>
                             <MuiTextField
                                 variant="standard"
                                 fullWidth
@@ -307,9 +308,9 @@ const ScenarioForm: FunctionComponent<Props> = ({
                                 error={!!errors.scenario_message_footer}
                                 helperText={errors.scenario_message_footer && errors.scenario_message_footer?.message}
                                 inputProps={register('scenario_message_footer')}
-                                disabled={disabled}
-                            />
-                        </>
+                                disabled={disabled}/>
+                            </AccordionDetails>
+                        </Accordion>
                     )}
                     <div style={{
                         display: 'flex',
@@ -338,5 +339,5 @@ const ScenarioForm: FunctionComponent<Props> = ({
     }
 ;
 
-export default ScenarioForm;
+export default ScenarioFormChaining;
 ;
