@@ -7,6 +7,7 @@ import static io.openaev.injector_contract.ContractCardinality.Multiple;
 import static io.openaev.injector_contract.ContractDef.contractBuilder;
 import static io.openaev.injector_contract.fields.ContractAsset.assetField;
 import static io.openaev.injector_contract.fields.ContractAssetGroup.assetGroupField;
+import static io.openaev.injector_contract.fields.ContractExpectations.expectationsField;
 import static io.openaev.injector_contract.fields.ContractSelect.selectFieldWithDefault;
 import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openaev.injectors.email.EmailContract.EMAIL_GLOBAL;
@@ -19,6 +20,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.injector_contract.ContractCardinality;
@@ -82,10 +84,15 @@ public class InjectorContractFixture {
     return node;
   }
 
+  private static void setDefaultTenant(InjectorContract injectorContract) {
+    injectorContract.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+  }
+
   public static InjectorContract createPayloadInjectorContractWithFieldsContent(
       List<ContractCardinalityElement> customFieldsContent) throws JsonProcessingException {
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setId(UUID.randomUUID().toString());
+    setDefaultTenant(injectorContract);
 
     ObjectMapper objectMapper = new ObjectMapper();
     ObjectNode content = createDefaultContent(objectMapper);
@@ -114,6 +121,7 @@ public class InjectorContractFixture {
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setInjector(createDefaultPayloadInjector());
     injectorContract.setId(UUID.randomUUID().toString());
+    setDefaultTenant(injectorContract);
 
     ObjectMapper objectMapper = new ObjectMapper();
     ObjectNode content = createDefaultContent(objectMapper);
@@ -177,10 +185,36 @@ public class InjectorContractFixture {
         injector, payloadCommand, List.of(obfuscatorSelect));
   }
 
+  /**
+   * Creates an implant-style injector contract with assets, asset groups, obfuscator, and
+   * expectations fields. Configured with {@code needsExecutor=true} and {@code platforms=[MacOS]}.
+   *
+   * <p>Note: the injector is NOT set — callers must set it before persisting.
+   */
+  public static InjectorContract createImplantInjectorContract() throws JsonProcessingException {
+    ContractSelect obfuscatorSelect =
+        new ContractSelect("obfuscator", "Obfuscators", ContractCardinality.One);
+    obfuscatorSelect.setChoices(Map.of("plain-text", "plain-text", "base64", "base64"));
+
+    InjectorContract contract =
+        createPayloadInjectorContractWithFieldsContent(
+            List.of(
+                assetField(Multiple),
+                assetGroupField(Multiple),
+                obfuscatorSelect,
+                expectationsField()));
+    contract.setLabels(Map.of("en", "WHOAMI", "fr", "WHOAMI"));
+    contract.setNeedsExecutor(true);
+    contract.setManual(false);
+    contract.setPlatforms(new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.MacOS});
+    return contract;
+  }
+
   public static InjectorContract createInjectorContract(Map<String, String> labels, String content)
       throws JsonProcessingException {
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setId(UUID.randomUUID().toString());
+    setDefaultTenant(injectorContract);
     injectorContract.setLabels(labels);
     injectorContract.setContent(content);
     injectorContract.setConvertedContent(new ObjectMapper().readValue(content, ObjectNode.class));
@@ -193,6 +227,7 @@ public class InjectorContractFixture {
   public static InjectorContract createInjectorContract(ObjectNode convertedContent) {
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setId(UUID.randomUUID().toString());
+    setDefaultTenant(injectorContract);
     injectorContract.setConvertedContent(convertedContent);
     injectorContract.setContent(convertedContent.toString());
     injectorContract.setAtomicTesting(false);

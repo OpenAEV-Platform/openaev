@@ -106,6 +106,10 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @JsonProperty("inject_content")
   private ObjectNode content;
 
+  @Column(name = "inject_content", insertable = false, updatable = false)
+  @JsonIgnore
+  private String rawContent;
+
   @Getter
   @Column(name = "inject_created_at")
   @JsonProperty("inject_created_at")
@@ -169,7 +173,15 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   private Long dependsDuration;
 
   @ManyToOne(fetch = FetchType.EAGER)
-  @JoinColumn(name = "inject_injector_contract")
+  @JoinColumnsOrFormulas({
+    @JoinColumnOrFormula(
+        column =
+            @JoinColumn(
+                name = "inject_injector_contract",
+                referencedColumnName = "injector_contract_id")),
+    @JoinColumnOrFormula(
+        formula = @JoinFormula(value = "tenant_id", referencedColumnName = "tenant_id"))
+  })
   @JsonProperty("inject_injector_contract")
   @Queryable(filterable = true, dynamicValues = true, path = "injectorContract.injector.id")
   private InjectorContract injectorContract;
