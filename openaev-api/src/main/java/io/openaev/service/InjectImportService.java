@@ -767,7 +767,7 @@ public class InjectImportService {
     // No dependencies
     inject.setDependsOn(null);
 
-    if (expectation.isPresent() && isExpectationValid(expectation.get())) {
+    if (expectation.get() != null && isExpectationValid(expectation.get())) {
       // We set the expectation
       ArrayNode expectationsNode = mapper.createArrayNode();
       ObjectNode expectationNode = mapper.createObjectNode();
