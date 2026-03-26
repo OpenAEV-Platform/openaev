@@ -7,8 +7,14 @@ import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
+import io.openaev.api.chaining.dto.ConditionCreateInput;
+import io.openaev.api.chaining.dto.EventInput;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
+import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
+import jakarta.persistence.EntityNotFoundException;
+import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -32,6 +38,7 @@ public class ConditionServiceTest {
   @Captor private ArgumentCaptor<Condition> conditionCaptor;
   @Captor private ArgumentCaptor<List<Condition>> conditionsCaptor;
   @Mock private ConditionRepository conditionRepository;
+  @Mock private StepRepository stepRepository;
   @Mock private QueueChainingService queueChainingService;
   @Mock private StepDelayQueueService stepDelayQueueService;
   @Captor private ArgumentCaptor<Long> delayCaptor;
@@ -447,8 +454,11 @@ public class ConditionServiceTest {
         when(nextStepTemplateToExecute.getId()).thenReturn(nextId);
         when(workflowRun.getId()).thenReturn(workflowRunId);
 
-        when(nextStepTemplateToExecute.getLimitExecution()).thenReturn(3);
-        when(stepService.countExecutedStep(workflowRunId, nextId)).thenReturn(underLimit ? 2 : 3);
+        // Evaluated only when at least one dependent step has output.
+        if (hasOutput) {
+          when(nextStepTemplateToExecute.getLimitExecution()).thenReturn(3);
+          when(stepService.countExecutedStep(workflowRunId, nextId)).thenReturn(underLimit ? 2 : 3);
+        }
 
         Condition depTemplate = mockCondition(ConditionType.DEPEND_ON);
 
@@ -498,6 +508,309 @@ public class ConditionServiceTest {
         when(c.getType()).thenReturn(type);
         return c;
       }
+    }
+  }
+
+  /* ============================================================
+   * deleteAllConditionsByStepId
+   * ============================================================ */
+  @Nested
+  class DeleteAllConditionsByStepId {
+
+    @Test
+    void shouldDoNothing_whenNoConditionLinkedToStep() {
+      String stepId = UUID.randomUUID().toString();
+      when(conditionRepository.findAllByStep_Id(stepId)).thenReturn(List.of());
+
+      conditionService.deleteAllConditionsByStepId(stepId);
+
+      verify(conditionRepository).findAllByStep_Id(stepId);
+      verify(conditionRepository, never()).save(any());
+      verify(conditionRepository, never()).delete(any());
+    }
+
+    @Test
+    void shouldDeleteCondition_whenUnlinkedAndNoStepFromAndNoRemainingLinks() {
+      String removedStepId = "step-A";
+
+      Condition condition = new Condition();
+      Step stepA = new Step();
+      stepA.setId(removedStepId);
+      condition.linkToStep(stepA, true);
+
+      when(conditionRepository.findAllByStep_Id(removedStepId)).thenReturn(List.of(condition));
+      when(conditionRepository.save(any(Condition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      conditionService.deleteAllConditionsByStepId(removedStepId);
+
+      verify(conditionRepository).save(condition);
+      verify(conditionRepository).delete(condition);
+      assertTrue(condition.getConditionSteps().isEmpty());
+    }
+
+    @Test
+    void shouldKeepCondition_whenStillLinkedToAnotherStep() {
+      String removedStepId = "step-A";
+
+      Condition condition = new Condition();
+      Step stepA = new Step();
+      stepA.setId(removedStepId);
+      Step stepB = new Step();
+      stepB.setId("step-B");
+      condition.linkToStep(stepA, true);
+      condition.linkToStep(stepB, false);
+
+      when(conditionRepository.findAllByStep_Id(removedStepId)).thenReturn(List.of(condition));
+      when(conditionRepository.save(any(Condition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      conditionService.deleteAllConditionsByStepId(removedStepId);
+
+      verify(conditionRepository).save(condition);
+      verify(conditionRepository, never()).delete(any());
+      assertEquals(1, condition.getConditionSteps().size());
+      assertEquals("step-B", condition.getConditionSteps().get(0).getStep().getId());
+    }
+
+    @Test
+    void shouldKeepCondition_whenStepFromIsPresent() {
+      String removedStepId = "step-A";
+
+      Condition condition = new Condition();
+      Step stepA = new Step();
+      stepA.setId(removedStepId);
+      condition.linkToStep(stepA, true);
+
+      Step stepFrom = new Step();
+      stepFrom.setId("step-from");
+      condition.setStepFrom(stepFrom);
+
+      when(conditionRepository.findAllByStep_Id(removedStepId)).thenReturn(List.of(condition));
+      when(conditionRepository.save(any(Condition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      conditionService.deleteAllConditionsByStepId(removedStepId);
+
+      verify(conditionRepository).save(condition);
+      verify(conditionRepository, never()).delete(any());
+      assertTrue(condition.getConditionSteps().isEmpty());
+      assertNotNull(condition.getStepFrom());
+    }
+  }
+
+  /* ============================================================
+   * linkExistingConditionsToStep
+   * ============================================================ */
+  @Nested
+  class LinkExistingConditionsToStep {
+
+    @Test
+    void shouldLinkAllExistingRootConditionsToStep() {
+      Step step = new Step();
+      step.setId("step-1");
+
+      Condition root1 = new Condition();
+      root1.setId("c-1");
+      Condition root2 = new Condition();
+      root2.setId("c-2");
+
+      when(conditionRepository.findById("c-1")).thenReturn(Optional.of(root1));
+      when(conditionRepository.findById("c-2")).thenReturn(Optional.of(root2));
+
+      conditionService.linkExistingConditionsToStep(step, List.of("c-1", "c-2"));
+
+      verify(conditionRepository).save(root1);
+      verify(conditionRepository).save(root2);
+      assertEquals(1, root1.getConditionSteps().size());
+      assertEquals("step-1", root1.getConditionSteps().getFirst().getStep().getId());
+      assertEquals(1, root2.getConditionSteps().size());
+      assertEquals("step-1", root2.getConditionSteps().getFirst().getStep().getId());
+    }
+
+    @Test
+    void shouldDoNothing_whenConditionIdsAreEmpty() {
+      Step step = new Step();
+      step.setId("step-1");
+
+      conditionService.linkExistingConditionsToStep(step, List.of());
+
+      verify(conditionRepository, never()).findById(anyString());
+      verify(conditionRepository, never()).save(any());
+    }
+  }
+
+  /* ============================================================
+   * createConditionTree
+   * ============================================================ */
+  @Nested
+  class CreateConditionTree {
+
+    @Test
+    void shouldCreateRootAndChildrenAndLinkSteps() {
+      String workflowId = "wf-1";
+      String rootStepFromId = "step-from-root";
+      String childStepFromId = "step-from-child";
+      String linkedStepId = "linked-step";
+
+      ConditionCreateInput rootInput = new ConditionCreateInput();
+      rootInput.setTemporaryId("tmp-root");
+      rootInput.setType(ConditionType.AND);
+
+      ConditionCreateInput childInput = new ConditionCreateInput();
+      childInput.setTemporaryId("tmp-child");
+      childInput.setTemporaryIdConditionParent("tmp-root");
+      childInput.setType(ConditionType.EQ);
+      childInput.setKeyType("portscan.port");
+      childInput.setValue("445");
+      childInput.setStepFrom(childStepFromId);
+
+      EventInput input =
+          EventInput.builder()
+              .name("event-1")
+              .description("desc-1")
+              .workflowId(workflowId)
+              .stepFrom(rootStepFromId)
+              .conditions(List.of(rootInput, childInput))
+              .stepIds(List.of(linkedStepId))
+              .build();
+
+      Step rootStepFrom = new Step();
+      rootStepFrom.setId(rootStepFromId);
+      Step childStepFrom = new Step();
+      childStepFrom.setId(childStepFromId);
+      Step linkedStep = new Step();
+      linkedStep.setId(linkedStepId);
+
+      when(stepRepository.findById(rootStepFromId)).thenReturn(Optional.of(rootStepFrom));
+      when(stepRepository.findById(childStepFromId)).thenReturn(Optional.of(childStepFrom));
+      when(stepRepository.findAllById(List.of(linkedStepId))).thenReturn(List.of(linkedStep));
+      when(conditionRepository.save(any(Condition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      Condition createdRoot = conditionService.createConditionTree(input);
+
+      assertNotNull(createdRoot);
+      assertEquals("event-1", createdRoot.getName());
+      assertEquals("desc-1", createdRoot.getDescription());
+      assertEquals(workflowId, createdRoot.getWorkflowId());
+      assertEquals(ConditionType.AND, createdRoot.getType());
+      assertNotNull(createdRoot.getStepFrom());
+      assertEquals(rootStepFromId, createdRoot.getStepFrom().getId());
+      assertEquals(1, createdRoot.getConditionChildren().size());
+      assertEquals("445", createdRoot.getConditionChildren().getFirst().getValue());
+      assertEquals(
+          childStepFromId, createdRoot.getConditionChildren().getFirst().getStepFrom().getId());
+
+      verify(conditionRepository, atLeast(3)).save(any(Condition.class));
+      verify(stepRepository).findAllById(List.of(linkedStepId));
+    }
+
+    @Test
+    void shouldThrowWhenRootStepFromDoesNotExist() {
+      ConditionCreateInput rootInput = new ConditionCreateInput();
+      rootInput.setTemporaryId("tmp-root");
+      rootInput.setType(ConditionType.AND);
+
+      EventInput input =
+          EventInput.builder()
+              .name("event")
+              .workflowId("wf")
+              .stepFrom("missing-step")
+              .conditions(List.of(rootInput))
+              .build();
+
+      when(stepRepository.findById("missing-step")).thenReturn(Optional.empty());
+
+      assertThrows(
+          EntityNotFoundException.class, () -> conditionService.createConditionTree(input));
+    }
+  }
+
+  /* ============================================================
+   * updateConditionTree
+   * ============================================================ */
+  @Nested
+  class UpdateConditionTree {
+
+    @Test
+    void shouldUpdateRootAndRebuildChildrenAndLinks() {
+      String rootId = "root-1";
+      String workflowId = "wf-new";
+      String newRootStepFromId = "step-from-new";
+      String linkedStepId = "linked-step";
+
+      Condition existingRoot = new Condition();
+      existingRoot.setId(rootId);
+      existingRoot.setName("old-name");
+      existingRoot.setDescription("old-desc");
+      existingRoot.setWorkflowId("wf-old");
+      existingRoot.setType(ConditionType.OR);
+
+      Condition oldChild = new Condition();
+      oldChild.setConditionParent(existingRoot);
+      existingRoot.getConditionChildren().add(oldChild);
+
+      Step oldLinkedStep = new Step();
+      oldLinkedStep.setId("old-linked-step");
+      existingRoot.linkToStep(oldLinkedStep, true);
+
+      ConditionCreateInput rootInput = new ConditionCreateInput();
+      rootInput.setTemporaryId("tmp-root");
+      rootInput.setType(ConditionType.AND);
+
+      ConditionCreateInput childInput = new ConditionCreateInput();
+      childInput.setTemporaryId("tmp-child");
+      childInput.setTemporaryIdConditionParent("tmp-root");
+      childInput.setType(ConditionType.EQ);
+      childInput.setKeyType("status");
+      childInput.setValue("ok");
+
+      EventInput input =
+          EventInput.builder()
+              .name("new-name")
+              .description("new-desc")
+              .workflowId(workflowId)
+              .stepFrom(newRootStepFromId)
+              .conditions(List.of(rootInput, childInput))
+              .stepIds(List.of(linkedStepId))
+              .build();
+
+      Step newRootStepFrom = new Step();
+      newRootStepFrom.setId(newRootStepFromId);
+      Step linkedStep = new Step();
+      linkedStep.setId(linkedStepId);
+
+      when(conditionRepository.findById(rootId)).thenReturn(Optional.of(existingRoot));
+      when(stepRepository.findById(newRootStepFromId)).thenReturn(Optional.of(newRootStepFrom));
+      when(stepRepository.findAllById(List.of(linkedStepId))).thenReturn(List.of(linkedStep));
+      when(conditionRepository.saveAndFlush(existingRoot)).thenReturn(existingRoot);
+      when(conditionRepository.save(any(Condition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      Condition updated = conditionService.updateConditionTree(rootId, input);
+
+      assertEquals("new-name", updated.getName());
+      assertEquals("new-desc", updated.getDescription());
+      assertEquals(workflowId, updated.getWorkflowId());
+      assertEquals(ConditionType.AND, updated.getType());
+      assertEquals(newRootStepFromId, updated.getStepFrom().getId());
+      assertEquals(1, updated.getConditionChildren().size());
+      assertEquals("ok", updated.getConditionChildren().getFirst().getValue());
+
+      verify(conditionRepository).saveAndFlush(existingRoot);
+      verify(conditionRepository, atLeast(2)).save(any(Condition.class));
+    }
+
+    @Test
+    void shouldThrowWhenRootConditionDoesNotExist() {
+      EventInput input =
+          EventInput.builder().name("x").workflowId("wf").conditions(List.of()).build();
+      when(conditionRepository.findById("missing-root")).thenReturn(Optional.empty());
+
+      assertThrows(
+          EntityNotFoundException.class,
+          () -> conditionService.updateConditionTree("missing-root", input));
     }
   }
 }

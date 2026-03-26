@@ -209,15 +209,6 @@ public class ConditionService {
   }
 
   /**
-   * Deletes all provided conditions.
-   *
-   * @param conditions conditions to delete
-   */
-  public void deleteAllConditions(List<Condition> conditions) {
-    conditionRepository.deleteAll(conditions);
-  }
-
-  /**
    * Deletes conditions linked to a given step. Rules: - Always remove the current condition-step
    * link for this step. - Delete the condition only if, after unlinking, it has no more
    * condition-step links and no stepFrom.

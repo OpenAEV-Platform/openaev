@@ -1385,4 +1385,139 @@ public class StepServiceTest {
 
     return c;
   }
+
+  /* ============================================================
+   * StepTemplate CRUD
+   * ============================================================ */
+  @Nested
+  class StepTemplateCrud {
+
+    @Test
+    void shouldCreateStepTemplate_andLinkExistingConditions() throws ChainingException {
+      StepInput stepInput = mock(StepInput.class);
+      Workflow workflow = mock(Workflow.class);
+      Step created = mock(Step.class);
+      List<String> conditionIds = List.of("cond-1", "cond-2");
+
+      when(stepInput.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
+      when(stepInput.getConditions()).thenReturn(Collections.emptyList());
+      when(stepInput.getConditionIds()).thenReturn(conditionIds);
+      when(workflowService.getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(workflow);
+      doReturn(actionStep).when(stepService).factoryAction(StepActionClass.INJECT_EXECUTION, null);
+      when(actionStep.create(stepInput, workflow)).thenReturn(Optional.of(created));
+      when(stepRepository.save(created)).thenReturn(created);
+
+      Step result = stepService.createStepTemplate(workflowId, stepInput);
+
+      assertSame(created, result);
+      verify(conditionService).linkExistingConditionsToStep(created, conditionIds);
+      verify(stepRepository).save(created);
+    }
+
+    @Test
+    void shouldUpdateStepTemplate_andRebuildConditions() throws ChainingException {
+      String stepId = UUID.randomUUID().toString();
+      StepInput stepInput = mock(StepInput.class);
+      Step existing = new Step();
+      Workflow existingWorkflow = new Workflow();
+      existing.setWorkflow(existingWorkflow);
+
+      Step candidate = new Step();
+      candidate.setStepAction(StepActionClass.INJECT_EXECUTION);
+      candidate.setLimitExecution(5);
+      candidate.setData("{\"updated\":true}");
+      candidate.setInput("{}");
+      candidate.setOutput_parser("{}");
+
+      when(stepInput.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
+      when(stepInput.getConditions()).thenReturn(Collections.emptyList());
+      when(stepInput.getConditionIds()).thenReturn(List.of("cond-x"));
+      when(stepRepository.findByStepTemplateIdIsNullAndIdAndStatus(stepId, StepStatus.TEMPLATE))
+          .thenReturn(Optional.of(existing));
+      doReturn(actionStep)
+          .when(stepService)
+          .factoryAction(StepActionClass.INJECT_EXECUTION, stepId);
+      when(actionStep.create(stepInput, existingWorkflow)).thenReturn(Optional.of(candidate));
+      when(stepRepository.save(existing)).thenReturn(existing);
+
+      Step updated = stepService.updateStepTemplate(stepId, stepInput);
+
+      assertSame(existing, updated);
+      assertEquals(5, updated.getLimitExecution());
+      assertEquals("{\"updated\":true}", updated.getData());
+      verify(conditionService).deleteAllConditionsByStepId(stepId);
+      verify(conditionService).linkExistingConditionsToStep(existing, List.of("cond-x"));
+      verify(stepRepository).save(existing);
+    }
+
+    @Test
+    void shouldDeleteStepTemplate_andDeleteLinkedConditions() {
+      String stepId = UUID.randomUUID().toString();
+      Step template = new Step();
+
+      when(stepRepository.findByStepTemplateIdIsNullAndIdAndStatus(stepId, StepStatus.TEMPLATE))
+          .thenReturn(Optional.of(template));
+
+      stepService.deleteStepTemplate(stepId);
+
+      verify(conditionService).deleteAllConditionsByStepId(stepId);
+      verify(stepRepository).delete(template);
+    }
+
+    @Test
+    void shouldFindStepTemplateById() {
+      String stepId = UUID.randomUUID().toString();
+      Step template = new Step();
+
+      when(stepRepository.findByStepTemplateIdIsNullAndIdAndStatus(stepId, StepStatus.TEMPLATE))
+          .thenReturn(Optional.of(template));
+
+      Step result = stepService.findStepTemplateById(stepId);
+
+      assertSame(template, result);
+    }
+
+    @Test
+    void shouldThrowWhenFindStepTemplateByIdNotFound() {
+      String stepId = UUID.randomUUID().toString();
+      when(stepRepository.findByStepTemplateIdIsNullAndIdAndStatus(stepId, StepStatus.TEMPLATE))
+          .thenReturn(Optional.empty());
+
+      assertThrows(ElementNotFoundException.class, () -> stepService.findStepTemplateById(stepId));
+    }
+
+    @Test
+    void shouldFindAllStepTemplateByWorkflow() {
+      String wfId = UUID.randomUUID().toString();
+      List<Step> expected = List.of(new Step(), new Step());
+
+      when(stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(wfId)).thenReturn(expected);
+
+      List<Step> result = stepService.findAllStepTemplateByWorkflow(wfId);
+
+      assertSame(expected, result);
+      verify(stepRepository).findAllByStepTemplateIdIsNullAndWorkflowId(wfId);
+    }
+
+    @Test
+    void shouldFindAllStepTemplates_onlyTemplateRows() {
+      Step templateA = new Step();
+      Step templateB = new Step();
+      Step executed = new Step();
+      templateA.setId("tA");
+      templateB.setId("tB");
+      executed.setId("exec");
+      executed.setStepTemplate(new Step());
+
+      when(stepRepository.findAll()).thenReturn(List.of(templateA, executed, templateB));
+
+      List<Step> result = stepService.findAllStepTemplates();
+
+      assertEquals(2, result.size());
+      assertTrue(result.contains(templateA));
+      assertTrue(result.contains(templateB));
+      assertFalse(result.contains(executed));
+    }
+  }
 }
