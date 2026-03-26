@@ -75,7 +75,8 @@ class WorkflowConfigurationMapperTest {
               .ruleValue("10.0.0.1")
               .build();
 
-      Workflow workflow = Workflow.builder().workflowScopeRules(new ArrayList<>(List.of(rule))).build();
+      Workflow workflow =
+          Workflow.builder().workflowScopeRules(new ArrayList<>(List.of(rule))).build();
 
       // Act
       WorkflowConfigurationOutput output = toOutput(workflow);
@@ -115,8 +116,10 @@ class WorkflowConfigurationMapperTest {
 
       // Assert
       assertEquals(2, output.getWorkflowScopeRules().size());
-      assertEquals(ScopeRuleSelectedMode.WHITELIST, output.getWorkflowScopeRules().get(0).getSelectedMode());
-      assertEquals(ScopeRuleSelectedMode.BLACKLIST, output.getWorkflowScopeRules().get(1).getSelectedMode());
+      assertEquals(
+          ScopeRuleSelectedMode.WHITELIST, output.getWorkflowScopeRules().get(0).getSelectedMode());
+      assertEquals(
+          ScopeRuleSelectedMode.BLACKLIST, output.getWorkflowScopeRules().get(1).getSelectedMode());
     }
   }
 }
