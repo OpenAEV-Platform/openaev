@@ -258,21 +258,8 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String teamId,
       @Valid @RequestBody ExerciseTeamPlayersEnableInput input) {
-    Exercise exercise =
-        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
     Team team = teamRepository.findById(teamId).orElseThrow(ElementNotFoundException::new);
-    input
-        .getPlayersIds()
-        .forEach(
-            playerId -> {
-              ExerciseTeamUser exerciseTeamUser = new ExerciseTeamUser();
-              exerciseTeamUser.setExercise(exercise);
-              exerciseTeamUser.setTeam(team);
-              exerciseTeamUser.setUser(
-                  userRepository.findById(playerId).orElseThrow(ElementNotFoundException::new));
-              exerciseTeamUserRepository.save(exerciseTeamUser);
-            });
-    return exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+    return exerciseService.enablePlayers(exerciseId, team, input.getPlayersIds());
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -308,24 +295,11 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String teamId,
       @Valid @RequestBody ExerciseTeamPlayersEnableInput input) {
-    Exercise exercise =
-        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
     Team team = teamRepository.findById(teamId).orElseThrow(ElementNotFoundException::new);
     Iterable<User> teamUsers = userRepository.findAllById(input.getPlayersIds());
     team.getUsers().addAll(fromIterable(teamUsers));
     teamRepository.save(team);
-    input
-        .getPlayersIds()
-        .forEach(
-            playerId -> {
-              ExerciseTeamUser exerciseTeamUser = new ExerciseTeamUser();
-              exerciseTeamUser.setExercise(exercise);
-              exerciseTeamUser.setTeam(team);
-              exerciseTeamUser.setUser(
-                  userRepository.findById(playerId).orElseThrow(ElementNotFoundException::new));
-              exerciseTeamUserRepository.save(exerciseTeamUser);
-            });
-    return exercise;
+    return exerciseService.enablePlayers(exerciseId, team, input.getPlayersIds());
   }
 
   @PutMapping(EXERCISE_URI + "/{exerciseId}/teams/{teamId}/players/remove")
