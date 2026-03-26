@@ -14,7 +14,6 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetGroupRepository;
-import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.rest.asset_group.form.AssetGroupInput;
@@ -53,7 +52,6 @@ class AssetGroupApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private AssetGroupRepository assetGroupRepository;
-  @Autowired private EndpointRepository endpointRepository;
   @Autowired private TagRepository tagRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private ExerciseService exerciseService;
