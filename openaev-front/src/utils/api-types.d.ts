@@ -3219,6 +3219,7 @@ export interface InjectExpectationResult {
   result: string;
   /** @format double */
   score?: number;
+  sourceAssetId?: string;
   sourceId?: string;
   sourceName?: string;
   sourcePlatform?: string;

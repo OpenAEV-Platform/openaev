@@ -40,13 +40,15 @@ public class XtmHubService {
 
   public void autoRegister(@NotBlank final String token) {
     PlatformSettings settings = platformSettingsService.findSettings();
+    Long usersCount = userService.globalCount();
     if (!xtmHubClient.autoRegister(
         token,
         LicenseUtils.computeXtmHubContractLevel(settings.getPlatformLicense()),
         settings.getPlatformId(),
         settings.getPlatformName(),
         settings.getPlatformBaseUrl(),
-        settings.getPlatformVersion())) {
+        settings.getPlatformVersion(),
+        usersCount)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_GATEWAY, "Failed to register the platform on XtmHub");
     }

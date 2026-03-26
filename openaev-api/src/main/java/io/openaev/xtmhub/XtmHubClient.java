@@ -83,7 +83,8 @@ public class XtmHubClient {
       String platformId,
       String platformTitle,
       String platformUrl,
-      String platformVersion) {
+      String platformVersion,
+      Long usersCount) {
     PlatformSettings settings = platformSettingsService.findSettings();
 
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
@@ -95,7 +96,12 @@ public class XtmHubClient {
 
       StringEntity httpBody =
           buildAutoRegisterBody(
-              platformContract, platformId, platformTitle, platformUrl, platformVersion);
+              platformContract,
+              platformId,
+              platformTitle,
+              platformUrl,
+              platformVersion,
+              usersCount);
       httpPost.setEntity(httpBody);
       return httpClient.execute(httpPost, this::parseResponseAsSuccess);
     } catch (Exception e) {
@@ -167,7 +173,9 @@ public class XtmHubClient {
       String platformId,
       String platformTitle,
       String platformUrl,
-      String platformVersion) {
+      String platformVersion,
+      Long usersCount) {
+
     JsonObject platform = new JsonObject();
     platform.addProperty("contract", platformContract);
     platform.addProperty("id", platformId);
@@ -175,13 +183,17 @@ public class XtmHubClient {
     platform.addProperty("url", platformUrl);
     platform.addProperty("version", platformVersion);
 
+    JsonObject input = new JsonObject();
+    input.add("platform", platform);
+    input.addProperty("existing_users_count", usersCount);
+
     JsonObject variables = new JsonObject();
-    variables.add("platform", platform);
+    variables.add("input", input);
 
     JsonObject body = new JsonObject();
     body.addProperty(
         "query",
-        "mutation AutoRegisterPlatform($platform: PlatformInput!) { autoRegisterPlatform(platform: $platform) { success } }");
+        "mutation AutoRegisterPlatform($input: AutoRegisterPlatformInput!) { autoRegisterPlatform(input: $input) { success } }");
     body.add("variables", variables);
 
     return new StringEntity(body.toString());

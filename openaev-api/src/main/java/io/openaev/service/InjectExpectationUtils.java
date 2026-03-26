@@ -6,10 +6,7 @@ import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilde
 import static java.util.Optional.ofNullable;
 
 import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
-import io.openaev.database.model.InjectExpectation;
-import io.openaev.database.model.InjectExpectationResult;
-import io.openaev.database.model.Team;
-import io.openaev.database.model.User;
+import io.openaev.database.model.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.model.Expectation;
@@ -19,8 +16,11 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class InjectExpectationUtils {
 
@@ -180,6 +180,21 @@ public class InjectExpectationUtils {
             }
           }
         });
+  }
+
+  /**
+   * Retrieve all asset ids from a stream of inject expectations
+   *
+   * @param injectExpectations stream of inject expecations to extract
+   * @return distinct asset ids list
+   */
+  public static Set<String> extractAssetIdsFromInjectExpectationsResults(
+      @NotNull final Stream<InjectExpectation> injectExpectations) {
+    return injectExpectations
+        .flatMap(expectation -> expectation.getResults().stream())
+        .map(InjectExpectationResult::getSourceAssetId)
+        .filter(Objects::nonNull)
+        .collect(Collectors.toSet());
   }
 
   private static boolean noExpectationScore(final List<InjectExpectation> expectations) {

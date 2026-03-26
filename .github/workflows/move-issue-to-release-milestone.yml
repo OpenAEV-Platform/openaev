@@ -18,7 +18,8 @@ jobs:
   move_to_release_milestone:
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (github.event.issue.milestone && github.event.issue.milestone.title == 'Next Minor')
+      (github.event.issue.milestone &&
+        (github.event.issue.milestone.title == 'Next Minor' || github.event.issue.milestone.title == 'Bugs backlog'))
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
