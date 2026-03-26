@@ -97,7 +97,7 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
           {t('chaining.select-type')}
         </Typography>
         <Link
-          href="https://docs.openaev.io/latest/usage/scenarios/"
+          href="https://docs.openaev.io/latest/usage/chaining/"
           target="_blank"
           rel="noopener noreferrer"
           variant="body2"
