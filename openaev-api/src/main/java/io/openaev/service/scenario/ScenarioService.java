@@ -558,7 +558,7 @@ public class ScenarioService {
                   .ifPresent(
                       injectorContract -> {
                         if (injectorContract.getPayload() != null) {
-                          scenarioTags.addAll(injectorContract.getPayload().getTags());
+                          scenarioTags.addAll(injectorContract.getTags());
                         }
                       });
             });
@@ -602,10 +602,10 @@ public class ScenarioService {
 
     // load the killchainphases
     scenario.getInjects().stream()
-        .map(Inject::getPayload)
+        .map(Inject::getInjectorContract)
         .filter(Optional::isPresent)
         .map(Optional::get)
-        .flatMap(payload -> payload.getAttackPatterns().stream())
+        .flatMap(i -> i.getAttackPatterns().stream())
         .distinct()
         .toList()
         .stream()

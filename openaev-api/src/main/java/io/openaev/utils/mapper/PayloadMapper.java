@@ -15,14 +15,16 @@ import io.openaev.rest.atomic_testing.form.StatusPayloadOutput;
 import io.openaev.rest.document.form.RelatedEntityOutput;
 import io.openaev.rest.payload.contract_output_element.ContractOutputElementSimple;
 import io.openaev.rest.payload.form.DetectionRemediationOutput;
+import io.openaev.rest.payload.output.PayloadOutput;
+import io.openaev.rest.payload.output.PayloadSimple;
 import io.openaev.rest.payload.output_parser.OutputParserSimple;
 import io.openaev.rest.payload.regex_group.RegexGroupSimple;
+import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
-import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
 /**
@@ -42,7 +44,6 @@ public class PayloadMapper {
 
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
-  private final ApplicationContext context;
 
   /**
    * Extracts payload output information from an inject.
@@ -157,7 +158,7 @@ public class PayloadMapper {
         .type(payload.getType())
         .collectorType(payload.getCollectorTypeValue())
         .description(payload.getDescription())
-        .tags(payload.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
+        .tags(injectorContract.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
         .platforms(payload.getPlatforms())
         .payloadOutputParsers(toOutputParsersSimple(payload.getOutputParsers()))
         .attackPatterns(toAttackPatternSimples(injectorContract.getAttackPatterns()))
@@ -230,17 +231,30 @@ public class PayloadMapper {
         .name(statusPayload.getName())
         .type(statusPayload.getType())
         .description(statusPayload.getDescription())
-        .platforms(injectorContract.getPlatforms());
+        .platforms(injectorContract.getPlatforms())
+        .tags(injectorContract.getTags().stream().map(Tag::getId).collect(Collectors.toSet()));
 
     Payload payload = injectorContract.getPayload();
     if (payload != null) {
       builder
           .collectorType(payload.getCollectorTypeValue())
-          .payloadOutputParsers(toOutputParsersSimple(payload.getOutputParsers()))
-          .tags(payload.getTags().stream().map(Tag::getId).collect(Collectors.toSet()));
+          .payloadOutputParsers(toOutputParsersSimple(payload.getOutputParsers()));
     }
 
     return builder.build();
+  }
+
+  public PayloadSimple toPayloadSimple(Optional<Payload> payload) {
+    return payload
+        .map(
+            payloadToSimple ->
+                PayloadSimple.builder()
+                    .id(payloadToSimple.getId())
+                    .type(payloadToSimple.getType())
+                    .collectorType(payloadToSimple.getCollectorTypeValue())
+                    .status(payloadToSimple.getStatus())
+                    .build())
+        .orElse(null);
   }
 
   /**
@@ -308,5 +322,58 @@ public class PayloadMapper {
 
   private static RelatedEntityOutput toRelatedEntityOutput(Payload payload) {
     return RelatedEntityOutput.builder().id(payload.getId()).name(payload.getName()).build();
+  }
+
+  /**
+   * Convert Payload to its DTO
+   *
+   * @param payload payload to convert
+   * @param attackPatternIds List of attackPattern Ids link to the payload through the
+   *     injectorContract
+   * @param domainIds List of domain ids link to the payload through the injectorContract
+   * @param tagsIds List of tags ids link to the payload through the injectorContract
+   * @return payload converted to its DTO
+   */
+  public PayloadOutput toPayloadOutput(
+      @NotNull Payload payload,
+      List<String> attackPatternIds,
+      List<String> domainIds,
+      List<String> tagsIds) {
+    PayloadOutput.PayloadOutputBuilder builder =
+        PayloadOutput.builder()
+            .id(payload.getId())
+            .type(payload.getType())
+            .name(payload.getName())
+            .description(payload.getDescription())
+            .attackPatterns(attackPatternIds)
+            .domains(domainIds)
+            .tags(tagsIds)
+            .platforms(payload.getPlatforms())
+            .cleanupExecutor(payload.getCleanupExecutor())
+            .cleanupCommand(payload.getCleanupCommand())
+            .arguments(payload.getArguments())
+            .prerequisites(payload.getPrerequisites())
+            .externalId(payload.getExternalId())
+            .source(payload.getSource())
+            .expectations(payload.getExpectations())
+            .status(payload.getStatus())
+            .executionArch(payload.getExecutionArch())
+            .collectorType(payload.getCollectorTypeValue())
+            .detectionRemediations(payload.getDetectionRemediations())
+            .outputParsers(payload.getOutputParsers())
+            .createdAt(payload.getCreatedAt())
+            .updatedAt(payload.getUpdatedAt());
+
+    if (payload instanceof Command command) {
+      builder.commandExecutor(command.getExecutor()).commandContent(command.getContent());
+    } else if (payload instanceof DnsResolution dnsResolution) {
+      builder.dnsResolutionHostname(dnsResolution.getHostname());
+    } else if (payload instanceof FileDrop fileDrop && fileDrop.getFileDropFile() != null) {
+      builder.fileDropFile(fileDrop.getFileDropFile().getId());
+    } else if (payload instanceof Executable executable && executable.getExecutableFile() != null) {
+      builder.executableFile(executable.getExecutableFile().getId());
+    }
+
+    return builder.build();
   }
 }

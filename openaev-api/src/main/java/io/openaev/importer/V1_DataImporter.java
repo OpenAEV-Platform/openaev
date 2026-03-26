@@ -1,7 +1,6 @@
 package io.openaev.importer;
 
 import static io.openaev.database.specification.InjectorContractSpecification.byPayloadExternalId;
-import static io.openaev.database.specification.InjectorContractSpecification.byPayloadId;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH;
 import static io.openaev.injectors.channel.ChannelContract.CHANNEL_PUBLISH;
@@ -1095,12 +1094,12 @@ public class V1_DataImporter implements Importer {
                 } else {
                   log.info(
                       "Inject comes from a collector not set up in your environment, a new payload has been created.");
-                  injectorContract = importPayload(payloadNode, baseIds);
+                  injectorContract = Optional.of(importPayload(payloadNode, baseIds));
                   injectorContractId = injectorContract.map(InjectorContract::getId).orElse(null);
                 }
                 // Create new payload
               } else {
-                injectorContract = importPayload(payloadNode, baseIds);
+                injectorContract = Optional.of(importPayload(payloadNode, baseIds));
                 injectorContractId = injectorContract.map(InjectorContract::getId).orElse(null);
               }
             }
@@ -1429,23 +1428,25 @@ public class V1_DataImporter implements Importer {
 
     payloadCreateInput.setAttackPatternsIds(attackPatternIds);
     payloadCreateInput.setDetectionRemediations(buildDetectionRemediationsJsonNode(payloadNode));
-    Payload payload = this.payloadCreationService.createPayload(payloadCreateInput);
-    payload.setTags(
-        resolveJsonIds(payloadNode, "payload_tags").stream()
-            .map(baseIds::get)
-            .map(Tag.class::cast)
-            .collect(Collectors.toSet()));
-    Optional<InjectorContract> injectorContractFromPayload =
-        this.injectorContractRepository.findOne(byPayloadId(payload.getId()));
-    if (injectorContractFromPayload.isPresent()) {
-      return injectorContractFromPayload.get().getId();
+    PayloadCreationService.PayloadInjectorContractCreationResult result =
+        this.payloadCreationService.createPayload(payloadCreateInput);
+    // TODO MARINE : check if tags are well set with this function
+    //    payload.setTags(
+    //        resolveJsonIds(payloadNode, "payload_tags").stream()
+    //            .map(baseIds::get)
+    //            .map(Tag.class::cast)
+    //            .collect(Collectors.toSet()));
+    //    Optional<InjectorContract> injectorContractFromPayload =
+    //        this.injectorContractRepository.findOne(byPayloadId(payload.getId()));
+    if (result.injectorContract() != null) {
+      return result.injectorContract().getId();
     } else {
-      log.warn("An error has occurred when importing the payload: {}", payload.getName());
+      log.warn("An error has occurred when importing the payload: {}", result.payload().getName());
       return null;
     }
   }
 
-  private Optional<InjectorContract> importPayload(
+  private InjectorContract importPayload(
       @NotNull final JsonNode payloadNode, Map<String, Base> baseIds) {
     // swap executable file id or file drop file id
     if (payloadNode.has("executable_file")) {
@@ -1469,23 +1470,25 @@ public class V1_DataImporter implements Importer {
     List<String> attackPatternIds = importAttackPattern(payloadNode, "payload_", baseIds);
     payloadCreateInput.setAttackPatternsIds(attackPatternIds);
     payloadCreateInput.setDetectionRemediations(buildDetectionRemediationsJsonNode(payloadNode));
-    Payload payload = this.payloadCreationService.createPayload(payloadCreateInput);
-    payload.setTags(
-        resolveJsonIds(payloadNode, "payload_tags").stream()
-            .map(baseIds::get)
-            .map(Tag.class::cast)
-            .collect(Collectors.toSet()));
+    PayloadCreationService.PayloadInjectorContractCreationResult result =
+        this.payloadCreationService.createPayload(payloadCreateInput);
+    // TODO Marine : check is tags are correctly set
+    //    payload.setTags(
+    //        resolveJsonIds(payloadNode, "payload_tags").stream()
+    //            .map(baseIds::get)
+    //            .map(Tag.class::cast)
+    //            .collect(Collectors.toSet()));
 
-    Optional<InjectorContract> injectorContractFromPayload =
-        this.injectorContractRepository.findOne(byPayloadId(payload.getId()));
+    //    Optional<InjectorContract> injectorContractFromPayload =
+    //        this.injectorContractRepository.findOne(byPayloadId(payload.getId()));
 
-    if (injectorContractFromPayload.isPresent()) {
-      return injectorContractFromPayload;
+    if (result.injectorContract() != null) {
+      return result.injectorContract();
     } else {
-      log.warn("An error has occurred when importing the payload: {}", payload.getName());
+      log.warn("An error has occurred when importing the payload: {}", result.payload().getName());
       InjectorContract injectorContract = new InjectorContract();
-      injectorContract.setPayload(payload);
-      return Optional.of(injectorContract);
+      injectorContract.setPayload(result.payload());
+      return injectorContract;
     }
   }
 

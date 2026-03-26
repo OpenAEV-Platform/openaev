@@ -87,7 +87,7 @@ public class InjectsFileExport extends FileExportBase {
               .ifPresent(
                   injectorContract -> {
                     if (injectorContract.getPayload() != null) {
-                      allTags.addAll(injectorContract.getPayload().getTags());
+                      allTags.addAll(injectorContract.getTags());
                     }
                   });
         });

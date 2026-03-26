@@ -1,6 +1,7 @@
 package io.openaev.rest.payload.output;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.database.model.Payload;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -19,6 +20,14 @@ public class PayloadSimple {
   @JsonProperty("payload_collector_type")
   private String collectorType;
 
-  @JsonProperty("payload_domains")
-  private String[] domains;
+  @JsonProperty("payload_status")
+  private Payload.PAYLOAD_STATUS status;
+
+  public PayloadSimple(
+      String id, String type, String collectorType, Payload.PAYLOAD_STATUS status) {
+    this.id = id;
+    this.type = type;
+    this.collectorType = collectorType;
+    this.status = status;
+  }
 }
