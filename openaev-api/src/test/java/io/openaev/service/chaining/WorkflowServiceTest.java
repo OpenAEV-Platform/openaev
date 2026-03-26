@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
+import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
@@ -611,6 +612,66 @@ class WorkflowServiceTest {
               .findFirst()
               .orElseThrow();
       assertEquals(ScopeRuleValueType.ASSET_GROUP_ID, mappedAssetGroupRule.getValueType());
+    }
+  }
+
+  @Nested
+  @DisplayName("scope rule value type detection")
+  class ScopeRuleValueTypeTests {
+
+    static Stream<Arguments> valueTypeCases() {
+      return Stream.of(
+          Arguments.of(
+              "IPv4 subnet", ScopeRuleSource.MANUAL, "10.0.0.0/24", ScopeRuleValueType.IP_SUBNET),
+          Arguments.of("IPv4 address", ScopeRuleSource.MANUAL, "10.0.0.1", ScopeRuleValueType.IP),
+          Arguments.of("domain", ScopeRuleSource.MANUAL, "example.org", ScopeRuleValueType.DOMAIN),
+          Arguments.of(
+              "asset id", ScopeRuleSource.ASSET, "any-asset-uuid", ScopeRuleValueType.ASSET_ID),
+          Arguments.of(
+              "asset group id",
+              ScopeRuleSource.ASSET_GROUP,
+              "any-group-uuid",
+              ScopeRuleValueType.ASSET_GROUP_ID));
+    }
+
+    @ParameterizedTest(name = "{0}: source={1}, value={2} -> {3}")
+    @MethodSource("valueTypeCases")
+    @DisplayName("should resolve correct value type from source and value")
+    void given_scopeRuleInput_should_resolveCorrectValueType(
+        String caseName,
+        ScopeRuleSource source,
+        String ruleValue,
+        ScopeRuleValueType expectedType) {
+      // Arrange
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow =
+          Workflow.builder().id(workflowId).status(WorkflowStatus.TEMPLATE).version(0).build();
+
+      WorkflowScopeRuleInput ruleInput =
+          WorkflowScopeRuleInput.builder()
+              .selectedMode(ScopeRuleSelectedMode.WHITELIST)
+              .ruleSource(source)
+              .ruleValue(ruleValue)
+              .build();
+      WorkflowConfigurationInput input =
+          WorkflowConfigurationInput.builder().workflowScopeRules(List.of(ruleInput)).build();
+
+      WorkflowService service =
+          new WorkflowService(workflowRepository, workflowScopeRuleRepository);
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+
+      // Act
+      Workflow result = service.updateWorkflowConfiguration(workflowId, input);
+
+      // Assert
+      assertNotNull(caseName);
+      assertEquals(1, result.getWhitelist().size());
+      WorkflowScopeRule mappedRule = result.getWhitelist().getFirst();
+      assertEquals(ScopeRuleSelectedMode.WHITELIST, mappedRule.getSelectedMode());
+      assertEquals(expectedType, mappedRule.getValueType());
+      assertSame(workflow, mappedRule.getWorkflow());
     }
   }
 }

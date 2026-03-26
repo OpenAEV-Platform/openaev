@@ -1,78 +1,122 @@
 package io.openaev.api.chaining;
 
+import static io.openaev.api.chaining.WorkflowConfigurationMapper.toOutput;
 import static org.junit.jupiter.api.Assertions.*;
 
-import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
-import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
+import io.openaev.api.chaining.dto.WorkflowConfigurationOutput;
+import io.openaev.api.chaining.dto.WorkflowScopeRuleOutput;
 import io.openaev.database.model.*;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Stream;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 
+@DisplayName("WorkflowConfigurationMapper")
 class WorkflowConfigurationMapperTest {
 
-  private final WorkflowConfigurationMapper mapper = new WorkflowConfigurationMapper();
+  @Nested
+  @DisplayName("toOutput — inline configuration fields")
+  class InlineConfigurationFieldsTests {
 
-  static Stream<Arguments> valueTypeCases() {
-    return Stream.of(
-        Arguments.of(ScopeRuleSource.MANUAL, "10.0.0.0/24", ScopeRuleValueType.IP_SUBNET),
-        Arguments.of(ScopeRuleSource.MANUAL, "10.0.0.1", ScopeRuleValueType.IP),
-        Arguments.of(ScopeRuleSource.MANUAL, "example.org", ScopeRuleValueType.DOMAIN),
-        Arguments.of(ScopeRuleSource.ASSET, "any-value", ScopeRuleValueType.ASSET_ID),
-        Arguments.of(ScopeRuleSource.ASSET_GROUP, "any-value", ScopeRuleValueType.ASSET_GROUP_ID));
+    @Test
+    @DisplayName("should map all inline configuration fields from workflow")
+    void shouldMapAllInlineConfigurationFields() {
+      // Arrange
+      Workflow workflow =
+          Workflow.builder()
+              .rateLimitEnabled(true)
+              .maxAttempts(5)
+              .maxTemporalRateSeconds(30L)
+              .timeoutEnabled(true)
+              .timeoutSeconds(120L)
+              .safeModeEnabled(false)
+              .build();
+
+      // Act
+      WorkflowConfigurationOutput output = toOutput(workflow);
+
+      // Assert
+      assertTrue(output.isRateLimitEnabled());
+      assertEquals(5, output.getMaxAttempts());
+      assertEquals(30L, output.getMaxTemporalRateSeconds());
+      assertTrue(output.isTimeoutEnabled());
+      assertEquals(120L, output.getTimeoutSeconds());
+      assertFalse(output.isSafeModeEnabled());
+    }
+
+    @Test
+    @DisplayName("should return empty scope-rules list when workflow has no rules")
+    void shouldReturnEmptyScopeRulesWhenNone() {
+      // Arrange
+      Workflow workflow = Workflow.builder().build();
+
+      // Act
+      WorkflowConfigurationOutput output = toOutput(workflow);
+
+      // Assert
+      assertNotNull(output.getWorkflowScopeRules());
+      assertTrue(output.getWorkflowScopeRules().isEmpty());
+    }
   }
 
-  @ParameterizedTest(name = "source={0}, value={1} -> {2}")
-  @MethodSource("valueTypeCases")
-  void shouldDetectRuleValueTypeForWhitelistRule(
-      ScopeRuleSource source, String ruleValue, ScopeRuleValueType expectedType) {
-    WorkflowScopeRuleInput ruleInput =
-        WorkflowScopeRuleInput.builder()
-            .selectedMode(ScopeRuleSelectedMode.WHITELIST)
-            .ruleSource(source)
-            .ruleValue(ruleValue)
-            .build();
+  @Nested
+  @DisplayName("toOutput — scope rules")
+  class ScopeRuleOutputTests {
 
-    WorkflowConfigurationInput input =
-        WorkflowConfigurationInput.builder().workflowScopeRules(List.of(ruleInput)).build();
+    @Test
+    @DisplayName("should map scope rule fields to output DTO")
+    void shouldMapScopeRuleFields() {
+      // Arrange
+      WorkflowScopeRule rule =
+          WorkflowScopeRule.builder()
+              .selectedMode(ScopeRuleSelectedMode.WHITELIST)
+              .ruleSource(ScopeRuleSource.MANUAL)
+              .ruleValue("10.0.0.1")
+              .build();
 
-    Workflow workflow = Workflow.builder().build();
-    mapper.applyInput(input, workflow);
+      Workflow workflow = Workflow.builder().workflowScopeRules(new ArrayList<>(List.of(rule))).build();
 
-    assertEquals(1, workflow.getWorkflowScopeRules().size());
-    assertEquals(1, workflow.getWhitelist().size());
+      // Act
+      WorkflowConfigurationOutput output = toOutput(workflow);
 
-    WorkflowScopeRule mappedRule = workflow.getWhitelist().getFirst();
-    assertEquals(ScopeRuleSelectedMode.WHITELIST, mappedRule.getSelectedMode());
-    assertEquals(expectedType, mappedRule.getValueType());
-    assertSame(workflow, mappedRule.getWorkflow());
-  }
+      // Assert
+      assertEquals(1, output.getWorkflowScopeRules().size());
+      WorkflowScopeRuleOutput ruleOutput = output.getWorkflowScopeRules().getFirst();
+      assertEquals(ScopeRuleSelectedMode.WHITELIST, ruleOutput.getSelectedMode());
+      assertEquals(ScopeRuleSource.MANUAL, ruleOutput.getRuleSource());
+      assertEquals("10.0.0.1", ruleOutput.getRuleValue());
+    }
 
-  @ParameterizedTest(name = "source={0}, value={1} -> {2}")
-  @MethodSource("valueTypeCases")
-  void shouldDetectRuleValueTypeForBlacklistRule(
-      ScopeRuleSource source, String ruleValue, ScopeRuleValueType expectedType) {
-    WorkflowScopeRuleInput ruleInput =
-        WorkflowScopeRuleInput.builder()
-            .selectedMode(ScopeRuleSelectedMode.BLACKLIST)
-            .ruleSource(source)
-            .ruleValue(ruleValue)
-            .build();
+    @Test
+    @DisplayName("should map multiple scope rules preserving order")
+    void shouldMapMultipleScopeRules() {
+      // Arrange
+      WorkflowScopeRule whitelist =
+          WorkflowScopeRule.builder()
+              .selectedMode(ScopeRuleSelectedMode.WHITELIST)
+              .ruleSource(ScopeRuleSource.MANUAL)
+              .ruleValue("10.0.0.1")
+              .build();
+      WorkflowScopeRule blacklist =
+          WorkflowScopeRule.builder()
+              .selectedMode(ScopeRuleSelectedMode.BLACKLIST)
+              .ruleSource(ScopeRuleSource.MANUAL)
+              .ruleValue("192.168.0.0/16")
+              .build();
 
-    WorkflowConfigurationInput input =
-        WorkflowConfigurationInput.builder().workflowScopeRules(List.of(ruleInput)).build();
+      Workflow workflow =
+          Workflow.builder()
+              .workflowScopeRules(new ArrayList<>(List.of(whitelist, blacklist)))
+              .build();
 
-    Workflow workflow = Workflow.builder().build();
-    mapper.applyInput(input, workflow);
+      // Act
+      WorkflowConfigurationOutput output = toOutput(workflow);
 
-    assertEquals(1, workflow.getWorkflowScopeRules().size());
-    assertEquals(1, workflow.getBlacklist().size());
-
-    WorkflowScopeRule mappedRule = workflow.getBlacklist().getFirst();
-    assertEquals(ScopeRuleSelectedMode.BLACKLIST, mappedRule.getSelectedMode());
-    assertEquals(expectedType, mappedRule.getValueType());
-    assertSame(workflow, mappedRule.getWorkflow());
+      // Assert
+      assertEquals(2, output.getWorkflowScopeRules().size());
+      assertEquals(ScopeRuleSelectedMode.WHITELIST, output.getWorkflowScopeRules().get(0).getSelectedMode());
+      assertEquals(ScopeRuleSelectedMode.BLACKLIST, output.getWorkflowScopeRules().get(1).getSelectedMode());
+    }
   }
 }
