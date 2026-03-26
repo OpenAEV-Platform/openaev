@@ -46,10 +46,10 @@
       ]
     },
     {
-      "description": "swagger-annotations-jakarta must stay aligned with swagger-core embedded in springdoc-openapi 2.6.0. Versions >= 2.2.43 cause /api-docs to return invalid schema. Requires Spring Boot 3.4+ and springdoc 2.7+ upgrade first.",
+      "description": "swagger-annotations-jakarta must stay aligned with swagger-core embedded in springdoc-openapi 2.6.0. Versions > 2.2.43 cause /api-docs to return invalid schema. Requires Spring Boot 3.4+ and springdoc 2.7+ upgrade first.",
       "matchDatasources": ["maven"],
       "matchPackageNames": ["io.swagger.core.v3:swagger-annotations-jakarta"],
-      "allowedVersions": "<2.2.43",
+      "allowedVersions": "<=2.2.43",
       "enabled": true
     },
     {
