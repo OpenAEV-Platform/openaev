@@ -4,45 +4,33 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
+import chainingIllustrationDark from '../../../static/images/misc/chaining_illustration_dark.png';
+import chainingIllustrationLight from '../../../static/images/misc/chaining_illustration_light.png';
+import timeBasedIllustrationDark from '../../../static/images/misc/time_based_illustration_dark.png';
+import timeBasedIllustrationLight from '../../../static/images/misc/time_based_illustration_light.png';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
 import EEChip from './entreprise_edition/EEChip';
 
 /**
- * Inline SVG illustration for the chaining scenario card.
- * Renders a branching workflow graph: two input nodes → hub node → two output nodes,
- * with a third output node branching downward.
+ * Chaining scenario illustration loaded from a PNG asset.
  */
-const ChainingIllustration: FunctionComponent<{ color: string }> = ({ color }) => (
-  <svg width="160" height="60" viewBox="0 0 160 60" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Connector lines */}
-    <line x1="24" y1="14" x2="52" y2="26" stroke={color} strokeWidth="1.5" />
-    <line x1="24" y1="46" x2="52" y2="34" stroke={color} strokeWidth="1.5" />
-    <line x1="68" y1="30" x2="96" y2="30" stroke={color} strokeWidth="1.5" />
-    <line x1="108" y1="26" x2="136" y2="14" stroke={color} strokeWidth="1.5" />
-    <line x1="108" y1="34" x2="136" y2="46" stroke={color} strokeWidth="1.5" />
-    {/* Input nodes (left) */}
-    <rect x="8" y="6" width="16" height="16" rx="3" stroke={color} strokeWidth="1.5" fill="none" />
-    <rect x="8" y="38" width="16" height="16" rx="3" stroke={color} strokeWidth="1.5" fill="none" />
-    {/* Hub node (center-left) */}
-    <circle cx="60" cy="30" r="10" stroke={color} strokeWidth="1.5" fill="none" />
-    {/* Middle node */}
-    <rect x="92" y="22" width="16" height="16" rx="3" stroke={color} strokeWidth="1.5" fill="none" />
-    {/* Output nodes (right) */}
-    <rect x="136" y="6" width="16" height="16" rx="3" stroke={color} strokeWidth="1.5" fill="none" />
-    <rect x="136" y="38" width="16" height="16" rx="3" stroke={color} strokeWidth="1.5" fill="none" />
-  </svg>
+const ChainingIllustration: FunctionComponent<{ isDark: boolean }> = ({ isDark }) => (
+  <img
+    src={isDark ? chainingIllustrationDark : chainingIllustrationLight}
+    alt="Chaining scenario illustration"
+    style={{ width: 160, height: 60, objectFit: 'contain' }}
+  />
 );
 
 /**
- * Inline SVG illustration for the time-based scenario card.
- * Renders three evenly-spaced square nodes representing scheduled steps.
+ * Time-based scenario illustration loaded from a PNG asset.
  */
-const TimeBasedIllustration: FunctionComponent<{ color: string }> = ({ color }) => (
-  <svg width="120" height="30" viewBox="0 0 120 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="6" y="5" width="20" height="20" rx="3" stroke={color} strokeWidth="1.5" fill="none" />
-    <rect x="50" y="5" width="20" height="20" rx="3" stroke={color} strokeWidth="1.5" fill="none" />
-    <rect x="94" y="5" width="20" height="20" rx="3" stroke={color} strokeWidth="1.5" fill="none" />
-  </svg>
+const TimeBasedIllustration: FunctionComponent<{ isDark: boolean }> = ({ isDark }) => (
+  <img
+    src={isDark ? timeBasedIllustrationDark : timeBasedIllustrationLight}
+    alt="Time-based scenario illustration"
+    style={{ width: 160, height: 60, objectFit: 'contain' }}
+  />
 );
 
 interface EngineTypeSelectionProps {
@@ -180,8 +168,8 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
                   {/* Illustrative workflow diagram */}
                   <Box sx={{ marginTop: theme.spacing(1) }}>
                     {option.isChaining
-                      ? <ChainingIllustration color={theme.palette.text.secondary} />
-                      : <TimeBasedIllustration color={theme.palette.text.secondary} />}
+                      ? <ChainingIllustration isDark={theme.palette.mode === 'dark'} />
+                      : <TimeBasedIllustration isDark={theme.palette.mode === 'dark'} />}
                   </Box>
                 </CardContent>
               </CardActionArea>
