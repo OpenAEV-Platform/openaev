@@ -20,11 +20,12 @@ public class TestDataPack extends DataPack {
   }
 
   @Override
-  protected void doProcess() {
+  protected boolean doProcess() {
     // insert a new tag with static name
     TagCreateInput input = new TagCreateInput();
     input.setName(tagName);
     input.setColor(generateRandomColor());
     tagService.upsertTag(input);
+    return true;
   }
 }

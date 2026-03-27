@@ -94,7 +94,7 @@ public class StarterPackTest extends IntegrationTest {
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", false);
 
     // EXECUTE
-    datapack.process();
+    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
 
     // VERIFY
     long assetsCount = assetRepository.count();
@@ -109,8 +109,12 @@ public class StarterPackTest extends IntegrationTest {
     long dashboardCount = customDashboardRepository.count();
     assertEquals(0, dashboardCount);
 
-    Optional<Setting> staticsParameters = settingRepository.findByKey("starterpack");
-    assertFalse(staticsParameters.isPresent());
+    assertFalse(
+        dataPackService
+            .findByIdAndTenant(
+                V20260101_Starter_pack.class.getCanonicalName(),
+                new Tenant(TenantContext.getCurrentTenant()))
+            .isPresent());
   }
 
   @Test
@@ -130,31 +134,31 @@ public class StarterPackTest extends IntegrationTest {
             resolver);
 
     // EXECUTE
-    datapack.process();
+    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
-    Setting setting = new Setting();
-    setting.setKey("starterpack");
-    setting.setValue("Mock StarterPack integration");
-    settingRepository.save(setting);
 
     // EXECUTE
-    datapack.process();
+    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
 
     // VERIFY
     long assetsCount = assetRepository.count();
-    assertEquals(0, assetsCount);
+    assertEquals(1, assetsCount);
 
     long assetGroupCount = assetGroupRepository.count();
-    assertEquals(0, assetGroupCount);
+    assertEquals(1, assetGroupCount);
 
     long scenarioCount = scenarioRepository.count();
-    assertEquals(0, scenarioCount);
+    assertEquals(3, scenarioCount);
 
     long dashboardCount = customDashboardRepository.count();
-    assertEquals(0, dashboardCount);
+    assertEquals(3, dashboardCount);
 
-    Optional<Setting> staticsParameters = settingRepository.findByKey("starterpack");
-    assertTrue(staticsParameters.isPresent());
+    assertTrue(
+        dataPackService
+            .findByIdAndTenant(
+                V20260101_Starter_pack.class.getCanonicalName(),
+                new Tenant(TenantContext.getCurrentTenant()))
+            .isPresent());
   }
 
   @Test
@@ -176,7 +180,7 @@ public class StarterPackTest extends IntegrationTest {
     doThrow(new Exception()).when(mockImportService).handleFileImport(any(), isNull(), isNull());
 
     // EXECUTE
-    datapack.process();
+    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
 
     // VERIFY
     this.verifyTagsExist();
@@ -184,7 +188,7 @@ public class StarterPackTest extends IntegrationTest {
     this.verifyAssetGroupExist();
     assertThat(scenarioRepository.findAll()).isEmpty();
     this.verifyDashboardExist();
-    this.verifyParameterExist();
+    this.verifyDataPackExist();
     this.verifyDefaultHomeDashboardParameterExist();
     this.verifyDefaultScenarioDashboardParameterExist();
     this.verifyDefaultSimulationDashboardParameterExist();
@@ -212,7 +216,7 @@ public class StarterPackTest extends IntegrationTest {
         .handleImport(any(), eq("custom_dashboard_name"), isNull(), isNull(), eq(""));
 
     // EXECUTE
-    datapack.process();
+    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
 
     // VERIFY
     this.verifyTagsExist();
@@ -221,7 +225,7 @@ public class StarterPackTest extends IntegrationTest {
     this.verifyScenarioExist();
     long dashboardCount = customDashboardRepository.count();
     assertEquals(0, dashboardCount);
-    this.verifyParameterExist();
+    this.verifyDataPackExist();
   }
 
   @Test
@@ -248,7 +252,7 @@ public class StarterPackTest extends IntegrationTest {
         .getResources(eq("classpath:starterpack/dashboards/*"));
 
     // EXECUTE
-    datapack.process();
+    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
 
     // VERIFY
     this.verifyTagsExist();
@@ -258,7 +262,7 @@ public class StarterPackTest extends IntegrationTest {
     assertEquals(0, scenarioCount);
     long dashboardCount = customDashboardRepository.count();
     assertEquals(0, dashboardCount);
-    this.verifyParameterExist();
+    this.verifyDataPackExist();
   }
 
   @Test
@@ -279,7 +283,7 @@ public class StarterPackTest extends IntegrationTest {
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
 
     // EXECUTE
-    datapack.process();
+    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
 
     // VERIFY
     this.verifyTagsExist();
@@ -287,7 +291,7 @@ public class StarterPackTest extends IntegrationTest {
     this.verifyAssetGroupExist();
     this.verifyScenarioExist();
     this.verifyDashboardExist();
-    this.verifyParameterExist();
+    this.verifyDataPackExist();
     this.verifyDefaultHomeDashboardParameterExist();
     this.verifyDefaultScenarioDashboardParameterExist();
     this.verifyDefaultSimulationDashboardParameterExist();
@@ -315,7 +319,7 @@ public class StarterPackTest extends IntegrationTest {
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
 
     // EXECUTE
-    datapack.process();
+    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
 
     // VERIFY
     this.verifyTagsExist();
@@ -323,7 +327,7 @@ public class StarterPackTest extends IntegrationTest {
     this.verifyAssetGroupExist();
     this.verifyScenarioExist();
     this.verifyDashboardExist();
-    this.verifyParameterExist();
+    this.verifyDataPackExist();
     this.verifyDefaultHomeDashboardParameterExist();
     this.verifyDefaultScenarioDashboardParameterExist();
     this.verifyDefaultSimulationDashboardParameterExist();
@@ -366,7 +370,7 @@ public class StarterPackTest extends IntegrationTest {
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
 
     // EXECUTE
-    datapack.process();
+    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
 
     // VERIFY
     this.verifyTagsExist();
@@ -374,7 +378,7 @@ public class StarterPackTest extends IntegrationTest {
     this.verifyAssetGroupExist();
     this.verifyScenarioExist();
     this.verifyDashboardExist();
-    this.verifyParameterExist();
+    this.verifyDataPackExist();
     this.verifyDefaultHomeDashboardParameterExist();
     this.verifyDefaultScenarioDashboardParameterExist();
     this.verifyDefaultSimulationDashboardParameterExist();
@@ -428,7 +432,7 @@ public class StarterPackTest extends IntegrationTest {
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
 
     // EXECUTE
-    datapack.process();
+    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
 
     // VERIFY
     this.verifyTagsExist();
@@ -436,7 +440,7 @@ public class StarterPackTest extends IntegrationTest {
     this.verifyAssetGroupExist();
     this.verifyScenarioExist();
     this.verifyDashboardExist();
-    this.verifyParameterExist();
+    this.verifyDataPackExist();
     this.verifyDefaultHomeDashboardParameterExist();
     this.verifyDefaultScenarioDashboardParameterExist();
     this.verifyDefaultSimulationDashboardParameterExist();
@@ -554,9 +558,13 @@ public class StarterPackTest extends IntegrationTest {
     assertTrue(dashboardTest3.isPresent());
   }
 
-  private void verifyParameterExist() {
-    Optional<Setting> staticsParameters = settingRepository.findByKey("starterpack");
-    assertTrue(staticsParameters.isPresent());
+  private void verifyDataPackExist() {
+    assertTrue(
+        dataPackService
+            .findByIdAndTenant(
+                V20260101_Starter_pack.class.getCanonicalName(),
+                new Tenant(TenantContext.getCurrentTenant()))
+            .isPresent());
   }
 
   private void verifyDefaultHomeDashboardParameterExist() {

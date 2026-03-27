@@ -14,8 +14,7 @@ import io.minio.messages.Item;
 import io.openaev.IntegrationTest;
 import io.openaev.config.MinioConfig;
 import io.openaev.database.model.Tenant;
-import io.openaev.database.repository.DomainRepository;
-import io.openaev.database.repository.TenantRepository;
+import io.openaev.database.repository.*;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -43,11 +42,11 @@ class TenantServiceTest extends IntegrationTest {
   @Autowired private TenantService tenantService;
 
   @Autowired private TenantComposer tenantComposer;
-  @Autowired private TenantRepository tenantRepository;
   @Autowired protected EntityManager entityManager;
   @Autowired private MinioConfig minioConfig;
   @Autowired private MinioClient minioClient;
   @Autowired private DomainRepository domainRepository;
+  @Autowired private TenantRepository tenantRepository;
 
   @Test
   void should_create_and_find_tenant() throws Exception {
@@ -196,6 +195,11 @@ class TenantServiceTest extends IntegrationTest {
     assertThat(purged).isEqualTo(1);
     assertThat(tenantRepository.findById(tenantExpired.getId())).isEmpty();
     assertThat(tenantRepository.findById(tenantRecent.getId())).isPresent();
+
+    // Verify no domain anymore for the deleted tenant
+    Session session = entityManager.unwrap(Session.class);
+    session.enableFilter("tenantFilter").setParameter("tenantId", tenantExpired.getId());
+    assertThat(domainRepository.findAll()).isEmpty();
   }
 
   @Test
