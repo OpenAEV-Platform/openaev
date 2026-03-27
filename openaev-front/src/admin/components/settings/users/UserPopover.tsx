@@ -1,6 +1,7 @@
 import { useContext, useState } from 'react';
 
-import { type OrganizationHelper, type TagHelper } from '../../../../actions/helper';
+import { type OrganizationHelper } from '../../../../actions/helper';
+import { type TagHelper } from '../../../../actions/tags/tag-helper';
 import { deleteUser, updateUser, updateUserPassword } from '../../../../actions/users/User';
 import { type UserInputForm, type UserResult } from '../../../../actions/users/users-helper';
 import ButtonPopover from '../../../../components/common/ButtonPopover';

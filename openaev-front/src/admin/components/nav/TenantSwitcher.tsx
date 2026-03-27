@@ -1,5 +1,5 @@
-import { CheckOutlined } from '@mui/icons-material';
-import { Autocomplete, Box, TextField, Typography } from '@mui/material';
+import { CheckOutlined, WarningAmberOutlined } from '@mui/icons-material';
+import { Autocomplete, Box, Chip, TextField, Tooltip, Typography } from '@mui/material';
 import { type FunctionComponent, useCallback, useState } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
@@ -40,19 +40,37 @@ const TenantSwitcher: FunctionComponent = () => {
 
   if (!currentUserTenant) {
     return (
-      <TextField
-        variant="outlined"
-        size="small"
-        disabled
-        placeholder={userTenants.length === 0 ? t('No tenant available') : t('No tenant selected')}
-        sx={theme => ({
-          display: 'inline-flex',
-          verticalAlign: 'middle',
-          width: theme.spacing(28),
-          mr: theme.spacing(1),
-        })}
-        slotProps={{ input: { sx: theme => ({ backgroundColor: theme.palette.background.paper }) } }}
-      />
+      <Box sx={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        verticalAlign: 'middle',
+      }}
+      >
+        <Tooltip title={userTenants.length === 0
+          ? t('No tenant available — using default tenant as fallback')
+          : t('Loading tenants — using default tenant as fallback')}
+        >
+          <Chip
+            icon={<WarningAmberOutlined fontSize="small" />}
+            label={t('Default tenant')}
+            color="warning"
+            variant="outlined"
+            size="small"
+            sx={theme => ({ mr: theme.spacing(1) })}
+          />
+        </Tooltip>
+        <TextField
+          variant="outlined"
+          size="small"
+          disabled
+          placeholder={userTenants.length === 0 ? t('No tenant available') : t('No tenant selected')}
+          sx={theme => ({
+            width: theme.spacing(28),
+            mr: theme.spacing(1),
+          })}
+          slotProps={{ input: { sx: theme => ({ backgroundColor: theme.palette.background.paper }) } }}
+        />
+      </Box>
     );
   }
 

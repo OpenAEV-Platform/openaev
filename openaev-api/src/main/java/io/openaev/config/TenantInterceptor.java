@@ -1,5 +1,7 @@
 package io.openaev.config;
 
+import static io.openaev.config.TenantUriUtils.TENANT_ID_PATH_VARIABLE;
+
 import io.openaev.context.TenantContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -15,16 +17,14 @@ import org.springframework.web.servlet.HandlerMapping;
 @Component
 public class TenantInterceptor implements HandlerInterceptor {
 
-  private static final String TENANT_ID_ATTRIBUTE = "tenantId";
-
   @Override
   @SuppressWarnings("unchecked")
   public boolean preHandle(
       HttpServletRequest request, HttpServletResponse response, Object handler) {
     Map<String, String> pathVariables =
         (Map<String, String>) request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
-    if (pathVariables != null && pathVariables.containsKey(TENANT_ID_ATTRIBUTE)) {
-      TenantContext.setCurrentTenant(pathVariables.get(TENANT_ID_ATTRIBUTE));
+    if (pathVariables != null && pathVariables.containsKey(TENANT_ID_PATH_VARIABLE)) {
+      TenantContext.setCurrentTenant(pathVariables.get(TENANT_ID_PATH_VARIABLE));
     }
     return true;
   }

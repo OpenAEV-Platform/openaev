@@ -9,7 +9,7 @@ export interface UserContextType {
   userTenants: TenantOutput[];
   currentUserTenant: TenantOutput | null;
   switchUserTenant: (tenantId: string) => Promise<void>;
-  reloadUserTenants: () => Promise<void>;
+  reloadUserTenants: (newCurrentTenantId?: string) => Promise<void>;
 }
 
 const defaultContext: UserContextType = {
@@ -19,7 +19,7 @@ const defaultContext: UserContextType = {
   userTenants: [],
   currentUserTenant: null,
   switchUserTenant: async (_tenantId: string) => {},
-  reloadUserTenants: async () => {},
+  reloadUserTenants: async (_newCurrentTenantId?: string) => {},
 };
 export const UserContext = createContext<UserContextType>(defaultContext);
 

@@ -10,13 +10,14 @@ import { fetchAttackPatterns } from '../actions/AttackPattern';
 import fetchDomains from '../actions/domains/domain-actions';
 import { type LoggedHelper } from '../actions/helper';
 import { fetchKillChainPhases } from '../actions/KillChainPhase';
-import { fetchTags } from '../actions/Tag';
+import { fetchTags } from '../actions/tags/tag-action';
 import { errorWrapper } from '../components/Error';
 import Loader from '../components/Loader';
 import NotFound from '../components/NotFound';
 import { computeBannerSettings } from '../public/components/systembanners/utils';
 import { useHelper } from '../store';
 import { useAppDispatch } from '../utils/hooks';
+import useAuth from '../utils/hooks/useAuth';
 import useDataLoader from '../utils/hooks/useDataLoader';
 import ProtectedRoute from '../utils/permissions/ProtectedRoute';
 import { ACTIONS, SUBJECTS } from '../utils/permissions/types';
@@ -73,6 +74,8 @@ const Index = () => {
   const chatbotMargin = useChatbotContentMargin();
   const chatbotTransition = useChatbotContentTransition(theme);
 
+  const { currentUserTenant } = useAuth();
+
   const boxSx = {
     flexGrow: 1,
     paddingTop: 2,
@@ -83,13 +86,13 @@ const Index = () => {
     overflowX: 'hidden',
     overflowY: 'hidden',
   };
-  // load taxonomies one time at login
+  // load taxonomies at login and reload tenant-scoped data on tenant switch
   useDataLoader(() => {
     dispatch(fetchAttackPatterns());
     dispatch(fetchKillChainPhases());
     dispatch(fetchTags());
     dispatch(fetchDomains());
-  });
+  }, [currentUserTenant?.tenant_id]);
   const { bannerHeight } = computeBannerSettings(settings);
   const [goToGettingStarted, setGoToGettingStarted] = useLocalStorage<boolean>(GETTING_STARTED_LOCAL_STORAGE_KEY, true);
   useEffect(() => {

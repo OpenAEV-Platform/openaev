@@ -1,7 +1,10 @@
 package io.openaev.rest.tag;
 
+import static io.openaev.database.specification.TagSpecification.byName;
+import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.StringUtils.generateRandomColor;
+import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static java.time.Instant.now;
 
 import io.openaev.database.model.Tag;
@@ -9,35 +12,36 @@ import io.openaev.database.repository.TagRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.tag.form.TagCreateInput;
 import io.openaev.rest.tag.form.TagUpdateInput;
+import io.openaev.utils.FilterUtilsJpa;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
 @Service
 public class TagService {
+
   private final TagRepository tagRepository;
 
-  // -- CRUD --
+  // -- CREATE --
 
-  public Set<Tag> tagSet(@NotNull final List<String> tagIds) {
-    return iterableToSet(this.tagRepository.findAllById(tagIds));
+  public Tag createTag(TagCreateInput input) {
+    Tag tag = new Tag();
+    tag.setUpdateAttributes(input);
+    return tagRepository.save(tag);
   }
 
   public Tag createTag(String name) {
-    return createTag(name, getColourForName(name));
-  }
-
-  private Tag createTag(String name, String colour) {
     TagCreateInput tagCreateInput = new TagCreateInput();
     tagCreateInput.setName(name);
-    tagCreateInput.setColor(colour);
+    tagCreateInput.setColor(Tag.WellKnown.getOrDefault(name, generateRandomColor()));
     return upsertTag(tagCreateInput);
-  }
-
-  private String getColourForName(String name) {
-    return Tag.WellKnown.getOrDefault(name, generateRandomColor());
   }
 
   public Tag upsertTag(TagCreateInput input) {
@@ -49,13 +53,6 @@ public class TagService {
       newTag.setUpdateAttributes(input);
       return tagRepository.save(newTag);
     }
-  }
-
-  public Tag updateTag(String tagId, TagUpdateInput input) {
-    Tag tag = tagRepository.findById(tagId).orElseThrow(ElementNotFoundException::new);
-    tag.setUpdateAttributes(input);
-    tag.setUpdatedAt(now());
-    return tagRepository.save(tag);
   }
 
   /**
@@ -103,5 +100,54 @@ public class TagService {
                   }));
     }
     return wellKnownTags;
+  }
+
+  // -- READ --
+
+  public Set<Tag> tagSet(@NotNull final List<String> tagIds) {
+    return iterableToSet(this.tagRepository.findAllById(tagIds));
+  }
+
+  public Iterable<Tag> tags() {
+    return tagRepository.findAll();
+  }
+
+  public Page<Tag> search(SearchPaginationInput searchPaginationInput) {
+    return buildPaginationJPA(
+        (Specification<Tag> specification, Pageable pageable) ->
+            this.tagRepository.findAll(specification, pageable),
+        searchPaginationInput,
+        Tag.class);
+  }
+
+  // -- UPDATE --
+
+  public Tag updateTag(String tagId, TagUpdateInput input) {
+    Tag tag = tagRepository.findById(tagId).orElseThrow(ElementNotFoundException::new);
+    tag.setUpdateAttributes(input);
+    tag.setUpdatedAt(now());
+    return tagRepository.save(tag);
+  }
+
+  // -- DELETE --
+
+  public void deleteTag(String tagId) {
+    tagRepository.deleteById(tagId);
+  }
+
+  // -- OPTIONS --
+
+  public List<FilterUtilsJpa.Option> optionsByName(String searchText) {
+    return fromIterable(
+            this.tagRepository.findAll(byName(searchText), Sort.by(Sort.Direction.ASC, "name")))
+        .stream()
+        .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
+        .toList();
+  }
+
+  public List<FilterUtilsJpa.Option> optionsById(List<String> ids) {
+    return fromIterable(this.tagRepository.findAllById(ids)).stream()
+        .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
+        .toList();
   }
 }

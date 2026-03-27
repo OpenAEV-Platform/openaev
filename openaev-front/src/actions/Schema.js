@@ -10,9 +10,6 @@ export const document = new schema.Entity(
 );
 export const arrayOfDocuments = new schema.Array(document);
 
-export const tag = new schema.Entity('tags', {}, { idAttribute: 'tag_id' });
-export const arrayOfTags = new schema.Array(tag);
-
 export const injectorContract = new schema.Entity(
   'injector_contracts',
   {},

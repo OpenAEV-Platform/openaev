@@ -2,8 +2,8 @@ import { FileDownloadOutlined } from '@mui/icons-material';
 import { ToggleButton, Tooltip } from '@mui/material';
 import { CSVLink } from 'react-csv';
 
-import { type TagHelper } from '../../actions/helper';
 import { exportCsvMapper } from '../../actions/mapper/mapper-actions';
+import { type TagHelper } from '../../actions/tags/tag-helper';
 import { useHelper } from '../../store';
 import { type SearchPaginationInput } from '../../utils/api-types';
 import { exportData } from '../../utils/Environment';
