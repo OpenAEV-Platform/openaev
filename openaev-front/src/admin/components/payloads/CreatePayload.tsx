@@ -7,13 +7,13 @@ import { addPayload } from '../../../actions/payloads/payload-actions';
 import Drawer from '../../../components/common/Drawer';
 import { useFormatter } from '../../../components/i18n';
 import {
-  type Domain, InjectorContractActionOutput,
+  type Domain, type InjectorContractActionOutput,
   type PayloadCreateInput as ApiPayloadCreateInput,
 } from '../../../utils/api-types';
-import { type DetectionRemediationForm } from './utils/payloadFormToPayloadInput';
+import { type PayloadCreateInput } from '../../../utils/api-types-custom';
+import { useAppDispatch } from '../../../utils/hooks';
 import PayloadForm from './PayloadForm';
-import {useAppDispatch} from "../../../utils/hooks";
-import {PayloadCreateInput} from "../../../utils/api-types-custom";
+import { type DetectionRemediationForm } from './utils/payloadFormToPayloadInput';
 
 const useStyles = makeStyles()({
   createButton: {
@@ -23,9 +23,7 @@ const useStyles = makeStyles()({
   },
 });
 
-interface Props {
-  onCreate?: (payloads: InjectorContractActionOutput) => void;
-}
+interface Props { onCreate?: (payloads: InjectorContractActionOutput) => void }
 
 function handleCleanupCommandValue(cleanupCommand: string | null | undefined): string | null {
   return cleanupCommand === '' ? null : (cleanupCommand ?? null);
@@ -71,7 +69,7 @@ const CreatePayload: FunctionComponent<Props> = ({ onCreate }) => {
         }),
     } as ApiPayloadCreateInput;
 
-    return dispatch(addPayload(inputValues).then(({data }: {data: InjectorContractActionOutput}) => {
+    return dispatch(addPayload(inputValues).then(({ data }: { data: InjectorContractActionOutput }) => {
       if (data && onCreate) {
         onCreate(data);
       }
@@ -105,4 +103,3 @@ const CreatePayload: FunctionComponent<Props> = ({ onCreate }) => {
 };
 
 export default CreatePayload;
-
