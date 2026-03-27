@@ -88,21 +88,6 @@ public class WorkflowService {
   }
 
   /**
-   * Marks a workflow template as edited when at least one run has been executed from it.
-   *
-   * @param workflowId the ID of the workflow to update
-   * @throws ElementNotFoundException if no TEMPLATE workflow is found with the given ID
-   */
-  public void updateWorkflowTemplate(String workflowId) {
-    Workflow workflow = getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
-    boolean newEditedValue = !workflow.getWorkflowsExecuted().isEmpty();
-    if (workflow.isEdited() != newEditedValue) {
-      workflow.setEdited(newEditedValue);
-      workflowRepository.save(workflow);
-    }
-  }
-
-  /**
    * Loads the TEMPLATE workflow, applies the configuration input and persists it only when at least
    * one field or scope rule has actually changed.
    *
@@ -120,8 +105,9 @@ public class WorkflowService {
     Workflow workflow = getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
     boolean changed = applyConfigurationInput(input, workflow);
     if (changed) {
-      updateWorkflowTemplate(workflowId);
-      return workflowRepository.save(workflow);
+      boolean workflowExecutedNotEmpty = !workflow.getWorkflowsExecuted().isEmpty();
+      workflow.setEdited(workflowExecutedNotEmpty);
+      workflowRepository.save(workflow);
     }
     return workflow;
   }
