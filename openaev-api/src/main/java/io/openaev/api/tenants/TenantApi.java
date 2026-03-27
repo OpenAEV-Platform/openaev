@@ -84,17 +84,36 @@ public class TenantApi {
     return toOutput(tenantService.update(tenantId, TenantMapper.fromInput(tenantId, input)));
   }
 
+  @Operation(
+      summary = "Reactivate a soft-deleted tenant",
+      description =
+          "Reactivates a previously soft-deleted tenant within the 30-day grace period."
+              + " Fails if the grace period has expired.")
+  @AccessControl(
+      resourceId = "#tenantId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.TENANT,
+      isEnterpriseEdition = true)
+  @PostMapping("/{tenantId}/reactivate")
+  public TenantOutput reactivate(@PathVariable String tenantId) {
+    return toOutput(tenantService.reactivate(tenantId));
+  }
+
   // -- DELETE --
 
-  @Operation(summary = "Delete a tenant", description = "Deletes a tenant by its ID")
+  @Operation(
+      summary = "Soft-delete a tenant",
+      description =
+          "Marks a tenant as deleted. Data is preserved for 30 days."
+              + " An admin can reactivate the tenant within this grace period."
+              + " After 30 days, the tenant and all associated data are permanently removed.")
   @AccessControl(
       resourceId = "#tenantId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.TENANT,
       isEnterpriseEdition = true)
   @DeleteMapping("/{tenantId}")
-  @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void delete(@PathVariable String tenantId) throws DependenciesManagerException {
-    tenantService.delete(tenantId);
+  public TenantOutput softDelete(@PathVariable String tenantId) {
+    return toOutput(tenantService.softDelete(tenantId));
   }
 }

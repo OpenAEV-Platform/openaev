@@ -1,5 +1,6 @@
 package io.openaev.scheduler;
 
+import static io.openaev.scheduler.jobs.TenantPurgeJob.TENANT_PURGE_TRIGGER;
 import static io.openaev.scheduler.jobs.user_event.UserEventRetentionJob.USER_EVENT_RETENTION_TRIGGER;
 import static org.quartz.CronScheduleBuilder.cronSchedule;
 import static org.quartz.SimpleScheduleBuilder.repeatMinutelyForever;
@@ -101,6 +102,16 @@ public class PlatformTriggers {
         .forJob(this.platformJobs.userEventRetentionJobDetail())
         .withIdentity(USER_EVENT_RETENTION_TRIGGER)
         .withSchedule(cronSchedule("0 0 0 * * ?"))
+        .build();
+  }
+
+  @Bean
+  @Profile("!test")
+  public Trigger tenantPurgeTrigger() {
+    return newTrigger()
+        .forJob(this.platformJobs.tenantPurgeJobDetail())
+        .withIdentity(TENANT_PURGE_TRIGGER)
+        .withSchedule(cronSchedule("0 0 2 * * ?")) // Daily at 2:00 AM
         .build();
   }
 }

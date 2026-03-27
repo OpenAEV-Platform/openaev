@@ -7213,6 +7213,8 @@ export interface TenantInput {
 }
 
 export interface TenantOutput {
+  /** @format date-time */
+  tenant_deleted_at?: string;
   tenant_description?: string;
   /** @minLength 1 */
   tenant_id: string;
