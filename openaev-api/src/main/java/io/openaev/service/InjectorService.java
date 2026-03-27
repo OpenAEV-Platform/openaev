@@ -353,7 +353,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
             .filter(c -> !existing.contains(c.getId()))
             .map(in -> injectorContractService.convertInjectorFromInput(in, injector))
             .toList();
-    injectorContractRepository.deleteByIdIn(toDeletes);
+    injectorContractRepository.deleteAllById(toDeletes);
     injectorContractRepository.saveAll(toCreates);
     return injectorRepository.save(injector);
   }
@@ -560,7 +560,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
             .toList();
 
     // Persist changes
-    injectorContractRepository.deleteByIdIn(toDelete);
+    injectorContractRepository.deleteAllById(toDelete);
     injectorContractRepository.saveAll(toCreate);
     injectorContractRepository.saveAll(toUpdate);
     injectorRepository.save(injector);

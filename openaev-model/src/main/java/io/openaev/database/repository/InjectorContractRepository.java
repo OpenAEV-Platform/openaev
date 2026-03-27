@@ -114,7 +114,7 @@ public interface InjectorContractRepository
 
   @Modifying
   @Query("DELETE FROM InjectorContract ic WHERE ic.compositeId.id IN :ids")
-  void deleteByIdIn(@Param("ids") @NotNull List<String> ids);
+  void deleteAllById(@Param("ids") @NotNull List<String> ids);
 
   @Query(
       value =
