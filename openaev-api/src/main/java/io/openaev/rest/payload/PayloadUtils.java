@@ -140,10 +140,6 @@ public class PayloadUtils {
         Optional.ofNullable(origin.getPrerequisites())
             .map(ArrayList::new)
             .orElseGet(ArrayList::new));
-    // TODO Marine
-    //    duplicate.setAttackPatterns(new ArrayList<>(origin.getAttackPatterns()));
-    //    duplicate.setTags(new HashSet<>(origin.getTags()));
-    //    duplicate.setDomains(new HashSet<>(origin.getDomains()));
     duplicate.setCollectorType(null);
     duplicate.setSource(Payload.PAYLOAD_SOURCE.MANUAL);
     duplicate.setStatus(Payload.PAYLOAD_STATUS.UNVERIFIED);

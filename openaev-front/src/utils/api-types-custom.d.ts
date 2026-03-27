@@ -2,7 +2,7 @@
 
 import type { ContractVariable } from '../actions/contract/contract';
 import type { ExpectationInput } from '../admin/components/common/injects/expectations/Expectation';
-import type { Domain } from './api-types';
+import type * as ApiTypes from './api-types';
 
 type PayloadCreateInputOmit
   = 'payload_type'
