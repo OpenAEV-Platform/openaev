@@ -202,7 +202,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
   );
 };
 
-const ExerciseHeader = ({ onLoading, isLoading}: {
+const ExerciseHeader = ({ onLoading, isLoading }: {
   onLoading: (loading: boolean) => void;
   isLoading: boolean;
 }) => {
