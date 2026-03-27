@@ -13,7 +13,7 @@ import java.util.Set;
  * @see io.openaev.database.model.Asset
  * @see RawEndpoint
  */
-public interface RawAsset extends RawTenant {
+public interface RawAssetIndexing extends RawTenant {
 
   /**
    * Returns the unique identifier of the asset.
@@ -84,5 +84,4 @@ public interface RawAsset extends RawTenant {
    * @return set of associated tag IDs
    */
   Set<String> getAsset_tags();
-
 }

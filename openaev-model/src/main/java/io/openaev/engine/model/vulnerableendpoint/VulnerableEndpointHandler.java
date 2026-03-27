@@ -3,7 +3,7 @@ package io.openaev.engine.model.vulnerableendpoint;
 import static io.openaev.engine.EsUtils.buildRestrictions;
 
 import io.openaev.database.model.Finding;
-import io.openaev.database.raw.RawVulnerableEndpoint;
+import io.openaev.database.raw.RawVulnerableEndpointIndexing;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.VulnerableEndpointRepository;
 import io.openaev.engine.Handler;
@@ -28,7 +28,7 @@ public class VulnerableEndpointHandler implements Handler<EsVulnerableEndpoint> 
   @Override
   public List<EsVulnerableEndpoint> fetch(Instant from) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
-    List<RawVulnerableEndpoint> forIndexing =
+    List<RawVulnerableEndpointIndexing> forIndexing =
         this.vulnerableEndpointRepository.findForIndexing(queryFrom);
     return forIndexing.stream()
         .map(

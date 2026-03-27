@@ -1,7 +1,5 @@
 package io.openaev.database.raw;
 
-import java.time.Instant;
-
 /**
  * Spring Data projection interface for tenant data.
  *
@@ -19,5 +17,4 @@ public interface RawTenant {
    * @return the tenant ID
    */
   String getTenant_id();
-
 }

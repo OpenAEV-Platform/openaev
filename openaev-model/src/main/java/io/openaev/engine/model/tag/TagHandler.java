@@ -2,7 +2,7 @@ package io.openaev.engine.model.tag;
 
 import static io.openaev.engine.EsUtils.buildRestrictions;
 
-import io.openaev.database.raw.RawTag;
+import io.openaev.database.raw.RawTagIndexing;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.engine.Handler;
 import java.time.Instant;
@@ -23,7 +23,7 @@ public class TagHandler implements Handler<EsTag> {
   @Override
   public List<EsTag> fetch(Instant from) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
-    List<RawTag> forIndexing = tagRepository.findForIndexing(queryFrom);
+    List<RawTagIndexing> forIndexing = tagRepository.findForIndexing(queryFrom);
     return forIndexing.stream()
         .map(
             tag -> {

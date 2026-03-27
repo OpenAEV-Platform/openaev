@@ -1,7 +1,7 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.Domain;
-import io.openaev.database.raw.RawDomain;
+import io.openaev.database.raw.RawDomainIndexing;
 import io.openaev.utils.Constants;
 import java.time.Instant;
 import java.util.Collection;
@@ -36,5 +36,5 @@ public interface DomainRepository
               + Constants.INDEXING_RECORD_SET_SIZE
               + ";",
       nativeQuery = true)
-  List<RawDomain> findForIndexing(@Param("from") Instant from);
+  List<RawDomainIndexing> findForIndexing(@Param("from") Instant from);
 }

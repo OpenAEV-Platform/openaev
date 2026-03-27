@@ -2,7 +2,7 @@ package io.openaev.database.raw;
 
 import java.time.Instant;
 
-public interface RawDomain {
+public interface RawDomainIndexing extends RawTenant {
 
   String getDomain_id();
 
@@ -13,6 +13,4 @@ public interface RawDomain {
   Instant getDomain_created_at();
 
   Instant getDomain_updated_at();
-
-  String getTenant_id();
 }

@@ -1,9 +1,7 @@
 package io.openaev.engine.model.team;
 
-import io.openaev.annotation.EsQueryable;
 import io.openaev.annotation.Indexable;
 import io.openaev.annotation.Queryable;
-import io.openaev.engine.model.EsBase;
 import io.openaev.engine.model.tenant.EsTenantBase;
 import lombok.Getter;
 import lombok.Setter;
@@ -16,5 +14,4 @@ public class EsTeam extends EsTenantBase {
   /* Except relationships, they should have same name on every model! */
   @Queryable(label = "team name")
   private String name;
-
 }

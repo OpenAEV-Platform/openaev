@@ -4,7 +4,7 @@ import static io.openaev.engine.EsUtils.buildRestrictions;
 import static org.springframework.util.CollectionUtils.isEmpty;
 import static org.springframework.util.StringUtils.hasText;
 
-import io.openaev.database.raw.RawSimulation;
+import io.openaev.database.raw.RawSimulationIndexing;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.engine.Handler;
 import java.time.Instant;
@@ -22,7 +22,7 @@ public class SimulationHandler implements Handler<EsSimulation> {
   @Override
   public List<EsSimulation> fetch(Instant from) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
-    List<RawSimulation> forIndexing = simulationRepository.findForIndexing(queryFrom);
+    List<RawSimulationIndexing> forIndexing = simulationRepository.findForIndexing(queryFrom);
     return forIndexing.stream()
         .map(
             simulation -> {

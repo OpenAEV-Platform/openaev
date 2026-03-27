@@ -3,7 +3,7 @@ package io.openaev.engine.model.finding;
 import static io.openaev.engine.EsUtils.buildRestrictions;
 import static org.springframework.util.StringUtils.hasText;
 
-import io.openaev.database.raw.RawFinding;
+import io.openaev.database.raw.RawFindingIndexing;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.engine.Handler;
 import java.time.Instant;
@@ -25,7 +25,7 @@ public class FindingHandler implements Handler<EsFinding> {
   @Override
   public List<EsFinding> fetch(Instant from) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
-    List<RawFinding> forIndexing = findingRepository.findForIndexing(queryFrom);
+    List<RawFindingIndexing> forIndexing = findingRepository.findForIndexing(queryFrom);
     return forIndexing.stream()
         .map(
             finding -> {

@@ -10,7 +10,7 @@ import java.util.Set;
  * without loading full entity relationships. Used for list views and summary displays.
  *
  * @see io.openaev.database.model.Exercise
- * @see RawSimulation
+ * @see RawSimulationIndexing
  */
 public interface RawExerciseSimple {
 

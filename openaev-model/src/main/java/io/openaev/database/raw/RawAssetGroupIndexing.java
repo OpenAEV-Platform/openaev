@@ -2,7 +2,7 @@ package io.openaev.database.raw;
 
 import java.time.Instant;
 
-public interface RawAssetGroupIndexing {
+public interface RawAssetGroupIndexing extends RawTenant {
 
   String getAsset_group_id();
 
@@ -11,6 +11,4 @@ public interface RawAssetGroupIndexing {
   Instant getAsset_group_updated_at();
 
   Instant getAsset_group_created_at();
-
-  String getTenant_id();
 }

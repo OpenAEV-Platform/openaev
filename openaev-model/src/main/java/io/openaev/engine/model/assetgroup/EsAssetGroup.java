@@ -1,24 +1,17 @@
 package io.openaev.engine.model.assetgroup;
 
-import io.openaev.annotation.EsQueryable;
 import io.openaev.annotation.Indexable;
 import io.openaev.annotation.Queryable;
-import io.openaev.engine.model.EsBase;
+import io.openaev.engine.model.tenant.EsTenantBase;
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
 @Indexable(index = "asset-group", label = "Asset group")
-public class EsAssetGroup extends EsBase {
+public class EsAssetGroup extends EsTenantBase {
   /* Every attribute must be uniq, so prefixed with the entity type! */
   /* Except relationships, they should have same name on every model! */
   @Queryable(label = "asset group name")
   private String name;
-
-  // --SIDE --
-
-  @Queryable(label = "tenant", filterable = true, dynamicValues = true)
-  @EsQueryable(keyword = true)
-  private String base_tenant_side;
 }

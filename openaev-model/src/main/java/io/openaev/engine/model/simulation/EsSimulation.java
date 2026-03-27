@@ -5,7 +5,7 @@ import io.openaev.annotation.Indexable;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.ExerciseStatus;
-import io.openaev.engine.model.EsBase;
+import io.openaev.engine.model.tenant.EsTenantBase;
 import java.time.Instant;
 import java.util.Set;
 import lombok.Getter;
@@ -14,7 +14,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Indexable(index = "simulation", label = "Simulation")
-public class EsSimulation extends EsBase {
+public class EsSimulation extends EsTenantBase {
   /* Every attribute must be uniq, so prefixed with the entity type! */
   /* Except relationships, they should have same name on every model! */
 
@@ -49,10 +49,6 @@ public class EsSimulation extends EsBase {
   @Queryable(label = "scenario", filterable = true, dynamicValues = true)
   @EsQueryable(keyword = true)
   private String base_scenario_side; // Must finish by _side
-
-  @Queryable(label = "tenant", filterable = true, dynamicValues = true)
-  @EsQueryable(keyword = true)
-  private String base_tenant_side;
 
   // -- SIDE DENORMALIZED --
   // like side but directly names instead of ids in the Set

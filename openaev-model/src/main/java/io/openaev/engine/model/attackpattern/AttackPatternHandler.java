@@ -3,7 +3,7 @@ package io.openaev.engine.model.attackpattern;
 import static org.springframework.util.CollectionUtils.isEmpty;
 import static org.springframework.util.StringUtils.hasText;
 
-import io.openaev.database.raw.RawAttackPattern;
+import io.openaev.database.raw.RawAttackPatternIndexing;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.engine.Handler;
 import java.time.Instant;
@@ -21,7 +21,7 @@ public class AttackPatternHandler implements Handler<EsAttackPattern> {
   @Override
   public List<EsAttackPattern> fetch(Instant from) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
-    List<RawAttackPattern> forIndexing = attackPatternRepository.findForIndexing(queryFrom);
+    List<RawAttackPatternIndexing> forIndexing = attackPatternRepository.findForIndexing(queryFrom);
     return forIndexing.stream()
         .map(
             attackPattern -> {

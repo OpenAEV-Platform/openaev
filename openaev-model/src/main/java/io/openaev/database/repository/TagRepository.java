@@ -1,7 +1,7 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.Tag;
-import io.openaev.database.raw.RawTag;
+import io.openaev.database.raw.RawTagIndexing;
 import io.openaev.utils.Constants;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -34,5 +34,5 @@ public interface TagRepository extends CrudRepository<Tag, String>, JpaSpecifica
               + Constants.INDEXING_RECORD_SET_SIZE
               + ";",
       nativeQuery = true)
-  List<RawTag> findForIndexing(@Param("from") Instant from);
+  List<RawTagIndexing> findForIndexing(@Param("from") Instant from);
 }
