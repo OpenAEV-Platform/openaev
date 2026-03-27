@@ -7,6 +7,7 @@ import {
   Home,
   HubOutlined,
   InsertChartOutlined,
+  LayersOutlined,
   MovieFilterOutlined,
   OnlinePredictionOutlined,
   PersonOutlined,
@@ -16,7 +17,6 @@ import {
   SmartButtonOutlined,
   TerminalOutlined,
   Widgets,
-  LayersOutlined,
 } from '@mui/icons-material';
 import {
   Binoculars,

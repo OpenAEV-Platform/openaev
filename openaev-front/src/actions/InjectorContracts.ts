@@ -3,7 +3,7 @@ import { type Dispatch } from 'redux';
 import { delReferential, getReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../utils/Action';
 import {
   type InjectorContract,
-  type InjectorContractAddInput, InjectorContractSearchPaginationInput,
+  type InjectorContractAddInput, type InjectorContractSearchPaginationInput,
   type InjectorContractUpdateInput,
   type InjectorContractUpdateMappingInput,
   type SearchPaginationInput,

@@ -1,7 +1,7 @@
 import { AttachmentOutlined } from '@mui/icons-material';
 import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import {type CSSProperties, Fragment, type FunctionComponent, useMemo} from 'react';
+import { type CSSProperties, Fragment, type FunctionComponent, useMemo } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { type AttackPatternHelper } from '../../../actions/attack_patterns/attackpattern-helper';
@@ -71,12 +71,12 @@ const inlineStyles: Record<string, CSSProperties> = {
 interface Props {
   selectedPayload: PayloadType | null;
   documentsMap: Record<string, Document> | null;
-  attackPatternIds: string[],
+  attackPatternIds: string[];
   domains: Domain[] | string[];
-  tagIds: string[],
+  tagIds: string[];
 }
 
-const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documentsMap, attackPatternIds,domains, tagIds  }) => {
+const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documentsMap, attackPatternIds, domains, tagIds }) => {
   // Standard hooks
   const { classes } = useStyles();
   const { t } = useFormatter();
@@ -145,10 +145,10 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
           >
             {t('Attack patterns')}
           </Typography>
-          {attackPatterns.length === 0 ? '-' :
-            attackPatterns?.map((a) =>  (
-            <AttackPatternChip key={a.attack_pattern_id} attackPattern={a}></AttackPatternChip>
-          ))}
+          {attackPatterns.length === 0 ? '-'
+            : attackPatterns?.map(a => (
+                <AttackPatternChip key={a.attack_pattern_id} attackPattern={a}></AttackPatternChip>
+              ))}
         </div>
 
         <div>

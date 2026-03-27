@@ -2,8 +2,7 @@
 
 import type { ContractVariable } from '../actions/contract/contract';
 import type { ExpectationInput } from '../admin/components/common/injects/expectations/Expectation';
-import type * as ApiTypes from './api-types';
-import type { Domain } from "./api-types";
+import type { Domain } from './api-types';
 
 type PayloadCreateInputOmit
   = 'payload_type'
@@ -15,7 +14,7 @@ type PayloadCreateInputOmit
     | 'payload_output_parsers';
 type PayloadCreateInputMore = {
   remediations?: Record<string, DetectionRemediationInput>;
-  payload_domains: Domain[]
+  payload_domains: Domain[];
   payload_output_parsers?: (
         Omit<ApiTypes.OutputParser, 'output_parser_created_at' | 'output_parser_updated_at' | 'output_parser_id' | 'output_parser_contract_output_elements'>
         & {

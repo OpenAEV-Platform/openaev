@@ -9,14 +9,14 @@ import Button from '../../../../../components/common/button/Button';
 import Drawer from '../../../../../components/common/Drawer';
 import Transition from '../../../../../components/common/Transition';
 import { useFormatter } from '../../../../../components/i18n';
+import { useHelper } from '../../../../../store.ts';
 import { attackPatternOptions } from '../../../../../utils/Option';
 import { Can } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import InjectorContractCustomForm from './InjectorContractCustomForm';
 import InjectorContractForm from './InjectorContractForm';
-import { useHelper } from "../../../../../store.ts";
 
-const InjectorContractPopover = ({ injectorContract, onUpdate, canDelete=true, canEditCustomForm=true }) => {
+const InjectorContractPopover = ({ injectorContract, onUpdate, canDelete = true, canEditCustomForm = true }) => {
   const { attackPatternsMap, killChainPhasesMap } = useHelper(helper => ({
     attackPatternsMap: helper.getAttackPatternsMap(),
     killChainPhasesMap: helper.getKillChainPhasesMap(),
@@ -42,8 +42,8 @@ const InjectorContractPopover = ({ injectorContract, onUpdate, canDelete=true, c
     const inputValues = {
       contract_attack_patterns_ids:
           data.injector_contract_attack_patterns?.map(p => p.id),
-      contract_domains: data.injector_contract_domains.map(d => d.domain_id ? d.domain_id: d ),
-      contract_tags_ids: data.injector_contract_tags
+      contract_domains: data.injector_contract_domains.map(d => d.domain_id ? d.domain_id : d),
+      contract_tags_ids: data.injector_contract_tags,
     };
 
     return dispatch(
@@ -139,8 +139,14 @@ const InjectorContractPopover = ({ injectorContract, onUpdate, canDelete=true, c
         onClose={handlePopoverClose}
       >
         <MenuItem onClick={handleOpenEdit}>{t('Update')}</MenuItem>
-        {canDelete && <MenuItem onClick={handleOpenDelete}
-                   disabled={!injectorContract.injector_contract_custom}>{t('Delete')}</MenuItem>}
+        {canDelete && (
+          <MenuItem
+            onClick={handleOpenDelete}
+            disabled={!injectorContract.injector_contract_custom}
+          >
+            {t('Delete')}
+          </MenuItem>
+        )}
       </Menu>
       <Dialog
         open={openDelete}

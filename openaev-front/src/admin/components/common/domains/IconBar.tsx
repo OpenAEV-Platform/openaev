@@ -1,4 +1,4 @@
-import {Card, CardContent, IconButton, Paper, Typography} from '@mui/material';
+import { Card, CardContent, IconButton, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import type { FunctionComponent } from 'react';
 
@@ -14,75 +14,76 @@ const IconBar: FunctionComponent<Props> = ({ elements }) => {
     <Paper
       variant="outlined"
       sx={{
-        marginBottom: theme.spacing(2.5),
-        display: "flex",
-        flexWrap: 'nowrap',
-        overflowX: 'auto',
-        padding: theme.spacing(1),
+        'marginBottom': theme.spacing(2.5),
+        'display': 'flex',
+        'flexWrap': 'nowrap',
+        'overflowX': 'auto',
+        'padding': theme.spacing(1),
         '&::-webkit-scrollbar': { height: theme.spacing(1) },
         '&::-webkit-scrollbar-thumb': {
           backgroundColor: theme.palette.action.focus,
           borderRadius: 2,
         },
-        gap: theme.spacing(1)
+        'gap': theme.spacing(1),
       }}
     >
-        {elements.map((element: IconBarElement) => {
-          const isSelected = element.color === 'success';
-          return (
-            <Card
-              onClick={element.function}
-              sx={{
-                flexGrow: 1,
-                flexShrink:0,
-                'height': '100%',
-                'cursor': 'pointer',
-                'transition': theme.transitions.create('background-color'),
-                'color': isSelected
-                  ? theme.palette.text.primary
-                  : theme.palette.text.secondary,
-                'backgroundColor': isSelected
-                  ? theme.palette.action.selected
-                  : theme.palette.background.paper,
-                '&:hover': { backgroundColor: theme.palette.action.hover },
-              }}
-            >
-              <CardContent sx={{ textAlign: 'center' }}>
-                <IconButton
-                  size="large"
-                  disableRipple
-                  sx={{
-                    'color': 'inherit',
-                    '& svg': { fontSize: '2rem' },
-                  }}
-                >
-                  {element.icon()}
-                </IconButton>
+      {elements.map((element: IconBarElement) => {
+        const isSelected = element.color === 'success';
+        return (
+          <Card
+            key={element.name}
+            onClick={element.function}
+            sx={{
+              'flexGrow': 1,
+              'flexShrink': 0,
+              'height': '100%',
+              'cursor': 'pointer',
+              'transition': theme.transitions.create('background-color'),
+              'color': isSelected
+                ? theme.palette.text.primary
+                : theme.palette.text.secondary,
+              'backgroundColor': isSelected
+                ? theme.palette.action.selected
+                : theme.palette.background.paper,
+              '&:hover': { backgroundColor: theme.palette.action.hover },
+            }}
+          >
+            <CardContent sx={{ textAlign: 'center' }}>
+              <IconButton
+                size="large"
+                disableRipple
+                sx={{
+                  'color': 'inherit',
+                  '& svg': { fontSize: '2rem' },
+                }}
+              >
+                {element.icon()}
+              </IconButton>
+              <Typography
+                variant="subtitle1"
+                noWrap
+                sx={{
+                  lineHeight: 1,
+                  fontSize: 14,
+                }}
+              >
+                {t(element.name)}
+              </Typography>
+              {element.count !== undefined && (
                 <Typography
-                  variant="subtitle1"
-                  noWrap
+                  variant="caption"
                   sx={{
-                    lineHeight: 1,
-                    fontSize: 14,
+                    fontStyle: 'italic',
+                    color: theme.palette.text.secondary,
                   }}
                 >
-                  {t(element.name)}
+                  {element.count}
                 </Typography>
-                {element.count !== undefined && (
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontStyle: 'italic',
-                      color: theme.palette.text.secondary,
-                    }}
-                  >
-                    {element.count}
-                  </Typography>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
     </Paper>
   );
 };
