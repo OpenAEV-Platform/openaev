@@ -1,6 +1,7 @@
 package io.openaev.rest.injector.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.service.BrokerConnectionInfo;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -9,12 +10,12 @@ import lombok.Setter;
 public class InjectorRegistration {
 
   @JsonProperty("connection")
-  private InjectorConnection connection;
+  private BrokerConnectionInfo connection;
 
   @JsonProperty("listen")
   private String listen;
 
-  public InjectorRegistration(InjectorConnection connection, String listen) {
+  public InjectorRegistration(BrokerConnectionInfo connection, String listen) {
     this.connection = connection;
     this.listen = listen;
   }

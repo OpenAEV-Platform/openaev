@@ -12,9 +12,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
-import io.openaev.asset.QueueService;
 import io.openaev.database.model.*;
 import io.openaev.rest.inject.form.DirectInjectInput;
+import io.openaev.service.RabbitmqService;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
@@ -44,7 +44,7 @@ public class SimulationInjectApiTest extends IntegrationTest {
   @Autowired private ConnectorInstanceComposer connectorInstanceComposer;
   @Autowired private ConnectorInstanceConfigurationComposer connectorInstanceConfigurationComposer;
 
-  @MockitoBean private QueueService queueService;
+  @MockitoBean private RabbitmqService queueService;
 
   private Exercise exercise;
   private Injector externalInjector;

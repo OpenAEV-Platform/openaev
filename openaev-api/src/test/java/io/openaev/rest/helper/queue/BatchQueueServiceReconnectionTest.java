@@ -6,8 +6,9 @@ import static org.mockito.Mockito.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.*;
 import io.openaev.config.QueueConfig;
-import io.openaev.config.RabbitMQSslConfiguration;
-import io.openaev.config.RabbitmqConfig;
+import io.openaev.driver.RabbitmqDriver;
+import io.openaev.service.queue.BatchQueueService;
+import io.openaev.service.queue.QueueExecution;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -19,7 +20,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.MockedConstruction;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
@@ -32,25 +32,18 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class BatchQueueServiceReconnectionTest {
 
   @Mock private QueueExecution<BatchQueueServiceTest.TestQueueable> queueExecution;
+  @Mock private RabbitmqDriver rabbitmqDriver;
+  @Mock private ConnectionFactory connectionFactory;
   @Mock private Connection connection;
   @Mock private Channel publisherChannel;
   @Mock private Channel consumerChannel;
-  @Mock private RabbitMQSslConfiguration rabbitMQSslConfiguration;
 
+  private static final String RABBITMQ_PREFIX = "test_";
   private BatchQueueService<BatchQueueServiceTest.TestQueueable> service;
-  private MockedConstruction<ConnectionFactory> mockedFactory;
   private ShutdownListener capturedShutdownListener;
 
   @BeforeEach
   void setUp() throws IOException, TimeoutException {
-    RabbitmqConfig rabbitmqConfig = new RabbitmqConfig();
-    rabbitmqConfig.setPrefix("test_");
-    rabbitmqConfig.setHostname("localhost");
-    rabbitmqConfig.setPort(5672);
-    rabbitmqConfig.setUser("guest");
-    rabbitmqConfig.setPass("guest");
-    rabbitmqConfig.setVhost("/");
-
     QueueConfig queueConfig = new QueueConfig();
     queueConfig.setQueueName("test-queue");
     queueConfig.setPublisherNumber(1);
@@ -61,21 +54,18 @@ class BatchQueueServiceReconnectionTest {
     queueConfig.setPublisherQos(10);
     queueConfig.setConsumerQos(10);
 
-    mockedFactory =
-        mockConstruction(
-            ConnectionFactory.class,
-            (mock, context) -> when(mock.newConnection()).thenReturn(connection));
-
+    when(rabbitmqDriver.createBatchConnectionFactory(anyInt())).thenReturn(connectionFactory);
+    when(connectionFactory.newConnection()).thenReturn(connection);
     when(connection.createChannel()).thenReturn(publisherChannel, consumerChannel);
 
     service =
         new BatchQueueService<>(
             BatchQueueServiceTest.TestQueueable.class,
             queueExecution,
-            rabbitmqConfig,
+            RABBITMQ_PREFIX,
             new ObjectMapper(),
             queueConfig,
-            rabbitMQSslConfiguration);
+            rabbitmqDriver);
 
     // Capture the ShutdownListener registered on the connection
     ArgumentCaptor<ShutdownListener> captor = ArgumentCaptor.forClass(ShutdownListener.class);
@@ -86,7 +76,6 @@ class BatchQueueServiceReconnectionTest {
   @AfterEach
   void tearDown() throws IOException, TimeoutException {
     if (service != null) service.stop();
-    if (mockedFactory != null) mockedFactory.close();
   }
 
   @Test
