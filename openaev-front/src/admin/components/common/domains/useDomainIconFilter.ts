@@ -52,8 +52,7 @@ const useDomainIconFilter = ({
       return;
     }
 
-    const hasDomainFilter =
-      searchPaginationInput?.filterGroup?.filters?.some(({ key }) => key === domainFilterKey) ?? false;
+    const hasDomainFilter = searchPaginationInput?.filterGroup?.filters?.some(({ key }) => key === domainFilterKey) ?? false;
 
     if (hasDomainFilter) {
       filterHelpers.handleAddMultipleValueFilter(domainFilterKey, nextSelectedDomains);

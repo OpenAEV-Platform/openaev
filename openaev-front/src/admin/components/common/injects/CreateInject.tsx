@@ -1,6 +1,7 @@
 import { Add, HelpOutlined, HighlightOffOutlined, KeyboardArrowRight } from '@mui/icons-material';
-import {  Avatar, Checkbox, Chip,
-  Grid, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Slide, Tooltip
+import {
+  Avatar, Checkbox, Chip,
+  Grid, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Slide, Tooltip,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -15,7 +16,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import { type AttackPatternHelper } from '../../../../actions/attack_patterns/attackpattern-helper';
 import { type DomainHelper } from '../../../../actions/domains/domain-helper';
-import {searchInjectorContracts} from '../../../../actions/InjectorContracts';
+import { searchInjectorContracts } from '../../../../actions/InjectorContracts';
 import { type InjectorHelper } from '../../../../actions/injectors/injector-helper';
 import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
 import { type KillChainPhaseHelper } from '../../../../actions/kill_chain_phases/killchainphase-helper';
@@ -368,7 +369,7 @@ const CreateInject: FunctionComponent<Props> = ({
       : null;
   }
   const domainOptions: Domain[] = useHelper((helper: DomainHelper) => helper.getDomains());
-  const {iconBarOrderedDomains} = useDomainIconFilter({
+  const { iconBarOrderedDomains } = useDomainIconFilter({
     domainOptions,
     searchPaginationInput,
     queryableHelpers,

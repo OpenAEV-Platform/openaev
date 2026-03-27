@@ -127,16 +127,16 @@ const InjectorContractForm = (props) => {
             style={{ marginTop: theme.spacing(3) }}
             useExternalId={!editing}
           />
-            <Field name="injector_contract_domains">
-              {({ input, meta }) => (
-                <DomainsAutocompleteField
-                  input={input}
-                  meta={meta}
-                  domainOptions={domainOptions}
-                  label={t('Domains')}
-                />
-              )}
-            </Field>
+          <Field name="injector_contract_domains">
+            {({ input, meta }) => (
+              <DomainsAutocompleteField
+                input={input}
+                meta={meta}
+                domainOptions={domainOptions}
+                label={t('Domains')}
+              />
+            )}
+          </Field>
 
           {contract.fields.map((field) => {
             return (

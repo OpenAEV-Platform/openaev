@@ -30,17 +30,17 @@ export const fetchPayload = (payloadId: string) => {
   return simpleCall(uri);
 };
 
-export const updatePayload = (payloadId: Payload['payload_id'], data: PayloadUpdateInput, responseType="INJECTOR_CONTRACT" ) => (dispatch: Dispatch) => {
+export const updatePayload = (payloadId: Payload['payload_id'], data: PayloadUpdateInput, responseType = 'INJECTOR_CONTRACT') => (dispatch: Dispatch) => {
   const uri = `/api/payloads/${payloadId}?responseType=${responseType}`;
   return putReferential(payload, uri, data)(dispatch);
 };
 
-export const addPayload = (data: PayloadCreateInput, responseType="INJECTOR_CONTRACT") => {
+export const addPayload = (data: PayloadCreateInput, responseType = 'INJECTOR_CONTRACT') => {
   const uri = `/api/payloads?responseType=${responseType}`;
   return simplePostCall(uri, data);
 };
 
-export const duplicatePayload = (payloadId: Payload['payload_id'], responseType="INJECTOR_CONTRACT") => (dispatch: Dispatch) => {
+export const duplicatePayload = (payloadId: Payload['payload_id'], responseType = 'INJECTOR_CONTRACT') => (dispatch: Dispatch) => {
   const uri = `/api/payloads/${payloadId}/duplicate?responseType=${responseType}`;
   return postReferential(payload, uri, {})(dispatch);
 };
