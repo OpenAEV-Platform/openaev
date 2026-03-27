@@ -18,6 +18,7 @@ public class TenantMapper {
   }
 
   public static TenantOutput toOutput(Tenant tenant) {
-    return new TenantOutput(tenant.getId(), tenant.getName(), tenant.getDescription());
+    return new TenantOutput(
+        tenant.getId(), tenant.getName(), tenant.getDescription(), tenant.getDeletedAt());
   }
 }

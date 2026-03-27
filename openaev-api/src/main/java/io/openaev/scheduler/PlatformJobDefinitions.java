@@ -1,5 +1,6 @@
 package io.openaev.scheduler;
 
+import static io.openaev.scheduler.jobs.TenantPurgeJob.TENANT_PURGE_JOB;
 import static io.openaev.scheduler.jobs.user_event.UserEventRetentionJob.USER_EVENT_RETENTION_JOB;
 import static org.quartz.JobKey.jobKey;
 
@@ -77,15 +78,10 @@ public class PlatformJobDefinitions {
         .build();
   }
 
-  /**
-   * Create the job for the requeue system of the execution traces
-   *
-   * @return the job
-   */
   @Bean
-  public JobDetail getExecutionTracesBatchRequeueJob() {
-    return JobBuilder.newJob(ExecutionTracesBatchRequeueJob.class)
-        .withIdentity("executionTracesBatchRequeueJob")
+  public JobDetail tenantPurgeJobDetail() {
+    return JobBuilder.newJob(TenantPurgeJob.class)
+        .withIdentity(TENANT_PURGE_JOB)
         .storeDurably()
         .build();
   }

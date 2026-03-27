@@ -1,6 +1,7 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.Tenant;
+import java.time.Instant;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
@@ -20,10 +21,14 @@ public interface TenantRepository
       value =
           "SELECT t.* FROM tenants t"
               + " JOIN users_tenants ut ON ut.tenant_id = t.tenant_id"
-              + " WHERE ut.user_id = :userId"
+              + " WHERE ut.user_id = :userId AND t.tenant_deleted_at IS NULL"
               + " ORDER BY t.tenant_name",
       nativeQuery = true)
   List<Tenant> findTenantsByUserId(@Param("userId") String userId);
+
+  /** Returns soft-deleted tenants whose grace period has expired. */
+  @Query("SELECT t FROM Tenant t WHERE t.deletedAt IS NOT NULL AND t.deletedAt < :cutoffDate")
+  List<Tenant> findAllExpiredSoftDeleted(@Param("cutoffDate") Instant cutoffDate);
 
   // -- WRITE --
 
@@ -39,6 +44,6 @@ public interface TenantRepository
   // -- DELETE --
 
   @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Query(value = "DELETE FROM tenants t WHERE t.tenant_id = :tenantId", nativeQuery = true)
-  void deleteByIdNative(@Param("tenantId") String tenantId);
+  @Query(value = "DELETE FROM tenants t WHERE t.tenant_id IN :tenantIds", nativeQuery = true)
+  void deleteAllByIdsNative(@Param("tenantIds") List<String> tenantIds);
 }
