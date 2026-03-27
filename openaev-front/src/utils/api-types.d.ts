@@ -1734,10 +1734,6 @@ export interface CweOutput {
   cwe_source?: string;
 }
 
-export interface DataInputStep {
-  type: string;
-}
-
 export type DateHistogramWidget = UtilRequiredKeys<
   WidgetConfiguration,
   "widget_configuration_type" | "time_range" | "date_attribute"
@@ -3828,7 +3824,7 @@ export interface InjectIndividualExportRequestInput {
   options?: ExportOptionsInput;
 }
 
-export type InjectInput = DataInputStep & {
+export interface InjectInput {
   inject_all_teams?: boolean;
   inject_asset_groups?: string[];
   inject_assets?: string[];
@@ -3847,7 +3843,7 @@ export type InjectInput = DataInputStep & {
   inject_teams?: string[];
   /** @minLength 1 */
   inject_title: string;
-};
+}
 
 export interface InjectOutput {
   /** Footer of the inject */
