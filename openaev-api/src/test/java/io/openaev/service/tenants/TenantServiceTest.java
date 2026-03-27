@@ -1,6 +1,5 @@
 package io.openaev.service.tenants;
 
-import static io.openaev.service.tenants.TenantService.SOFT_DELETE_RETENTION_DAYS;
 import static io.openaev.utils.fixtures.tenants.TenantFixture.TENANT_NAME;
 import static io.openaev.utils.fixtures.tenants.TenantFixture.getTenant;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,10 +42,10 @@ class TenantServiceTest extends IntegrationTest {
   @Autowired private TenantService tenantService;
 
   @Autowired private TenantComposer tenantComposer;
-  @Autowired private TenantRepository tenantRepository;
   @Autowired protected EntityManager entityManager;
   @Autowired private MinioConfig minioConfig;
   @Autowired private MinioClient minioClient;
+  @Autowired private MinioService minioService;
   @Autowired private DomainRepository domainRepository;
   @Autowired private CustomDashboardRepository customDashboardRepository;
   @Autowired private ScenarioRepository scenarioRepository;

@@ -9,7 +9,6 @@ import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
-import jakarta.validation.constraints.NotBlank;
 import java.util.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -129,7 +128,7 @@ public class V20260101_Starter_pack extends DataPack {
       this.importDashboardsFromResources();
       return true;
     } catch (Exception e) {
-      recordError("Unexpected error during DataPack 20260101 initialization.", e);
+      log.error("Unexpected error during DataPack 20260101 initialization.", e);
       return false;
     }
   }
@@ -175,7 +174,7 @@ public class V20260101_Starter_pack extends DataPack {
                     "Successfully imported StarterPack scenario file : {}",
                     resourceToAdd.getFilename());
               } catch (Exception e) {
-                recordError(
+                log.error(
                     "Failed to import StarterPack scenario file : " + resourceToAdd.getFilename(),
                     e);
               }
@@ -199,7 +198,7 @@ public class V20260101_Starter_pack extends DataPack {
                     "Successfully imported StarterPack dashboard file : {}",
                     resourceToAdd.getFilename());
               } catch (Exception e) {
-                recordError(
+                log.error(
                     "Failed to import StarterPack dashboard file : " + resourceToAdd.getFilename(),
                     e);
               }
@@ -213,7 +212,7 @@ public class V20260101_Starter_pack extends DataPack {
                   "classpath:" + Config.STARTER_PACK_KEY + "/" + folderName + "/*.zip"))
           .toList();
     } catch (Exception e) {
-      recordError(
+      log.error(
           "Failed to import StarterPack files from resource folder "
               + Config.STARTER_PACK_KEY
               + "/"
@@ -221,10 +220,6 @@ public class V20260101_Starter_pack extends DataPack {
           e);
       return Collections.emptyList();
     }
-  }
-
-  private void recordError(@NotBlank final String message, Throwable cause) {
-    log.error(message, cause);
   }
 
   private void setDefaultDashboard(String filename, String dashboardId) {

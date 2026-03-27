@@ -16,7 +16,7 @@ import org.hibernate.annotations.Filter;
 public class DataPack implements TenantBase {
 
   @EmbeddedId
-  @JsonProperty("datapackTenantId_relationship")
+  @JsonProperty("datapack_tenant_id_relationship")
   private DatapackTenantId compositeId = new DatapackTenantId();
 
   @Override
