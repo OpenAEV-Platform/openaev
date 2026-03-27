@@ -52,10 +52,10 @@ public interface InjectorContractRepository
               + "FROM injectors_contracts injcon "
               + "LEFT JOIN injectors_contracts_attack_patterns injconatt ON injcon.injector_contract_id = injconatt.injector_contract_id "
               + "LEFT JOIN attack_patterns attpatt ON injconatt.attack_pattern_id = attpatt.attack_pattern_id "
-              + "WHERE injcon.tenant_id = :tenantId "
+              + "WHERE injcon.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY injcon.injector_contract_id",
       nativeQuery = true)
-  List<RawInjectorsContracts> getAllRawInjectorsContracts(@Param("tenantId") String tenantId);
+  List<RawInjectorsContracts> getAllRawInjectorsContracts();
 
   /**
    * Retrieves injector contracts accessible to a specific user.
@@ -73,7 +73,7 @@ public interface InjectorContractRepository
               + "FROM injectors_contracts injcon "
               + "LEFT JOIN injectors_contracts_attack_patterns injconatt ON injcon.injector_contract_id = injconatt.injector_contract_id "
               + "LEFT JOIN attack_patterns attpatt ON injconatt.attack_pattern_id = attpatt.attack_pattern_id "
-              + "WHERE injcon.tenant_id = :tenantId "
+              + "WHERE injcon.tenant_id = :#{#tenantContext.currentTenant} "
               + "AND (injcon.injector_contract_payload IS NULL "
               + "OR EXISTS ( "
               + "  SELECT 1 FROM users u "
@@ -86,7 +86,7 @@ public interface InjectorContractRepository
               + "GROUP BY injcon.injector_contract_id",
       nativeQuery = true)
   List<RawInjectorsContracts> getAllRawInjectorsContractsWithoutPayloadOrGranted(
-      @Param("userId") String userId, @Param("tenantId") String tenantId);
+      @Param("userId") String userId);
 
   @NotNull
   @Query("SELECT ic FROM InjectorContract ic WHERE ic.compositeId.id = :id")
@@ -132,13 +132,12 @@ public interface InjectorContractRepository
             JOIN vulnerabilities vulnerability
               ON icv.vulnerability_id = vulnerability.vulnerability_id
             WHERE LOWER(vulnerability.vulnerability_external_id) IN (:externalIds)
-              AND ic.tenant_id = :tenantId
+              AND ic.tenant_id = :#{#tenantContext.currentTenant}
         ) ranked
         WHERE ranked.rn <= :contractsPerVulnerability
         """,
       nativeQuery = true)
   Set<InjectorContract> findInjectorContractsByVulnerabilityIdIn(
       @Param("externalIds") Set<String> externalIds,
-      @Param("contractsPerVulnerability") Integer contractsPerVulnerability,
-      @Param("tenantId") String tenantId);
+      @Param("contractsPerVulnerability") Integer contractsPerVulnerability);
 }

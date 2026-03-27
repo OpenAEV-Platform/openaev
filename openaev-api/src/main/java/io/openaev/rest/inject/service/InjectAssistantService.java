@@ -3,7 +3,6 @@ package io.openaev.rest.inject.service;
 import static io.openaev.utils.AssetUtils.mapEndpointsByPlatformArch;
 import static java.util.Collections.emptyList;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.helper.InjectorContractRepositoryHelper;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -299,7 +298,7 @@ public class InjectAssistantService {
 
     Set<InjectorContract> contracts =
         injectorContractRepository.findInjectorContractsByVulnerabilityIdIn(
-            vulnerabilityExternalIds, injectsPerVulnerability, TenantContext.getCurrentTenant());
+            vulnerabilityExternalIds, injectsPerVulnerability);
 
     Map<String, Set<InjectorContract>> mapVulnerabilityInjectorContract = new HashMap<>();
 

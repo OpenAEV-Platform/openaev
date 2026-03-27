@@ -236,10 +236,10 @@ public class InjectorContractService implements DependenciesManager {
     String tenantId = TenantContext.getCurrentTenant();
     if (currentUser.isAdminOrBypass()
         || currentUser.getCapabilities().contains(Capability.ACCESS_PAYLOADS)) {
-      return injectorContractRepository.getAllRawInjectorsContracts(tenantId);
+      return injectorContractRepository.getAllRawInjectorsContracts();
     }
     return injectorContractRepository.getAllRawInjectorsContractsWithoutPayloadOrGranted(
-        currentUser.getId(), tenantId);
+        currentUser.getId());
   }
 
   /**
@@ -268,7 +268,6 @@ public class InjectorContractService implements DependenciesManager {
   public InjectorContract createNewInjectorContract(InjectorContractAddInput input) {
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setCustom(true);
-    injectorContract.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     injectorContract.setUpdateAttributes(input);
     List<AttackPattern> aps = new ArrayList<>();
     if (!input.getAttackPatternsExternalIds().isEmpty()) {
