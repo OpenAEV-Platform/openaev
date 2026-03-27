@@ -86,7 +86,9 @@ public class TenantService {
     Instant cutoff = tenant.getDeletedAt().plus(SOFT_DELETE_RETENTION_DAYS, ChronoUnit.DAYS);
     if (Instant.now().isAfter(cutoff)) {
       throw new IllegalStateException(
-          "Reactivation of " + SOFT_DELETE_RETENTION_DAYS + " days period expired: "
+          "Reactivation of "
+              + SOFT_DELETE_RETENTION_DAYS
+              + " days period expired: "
               + tenantId
               + ". Deleted at: "
               + tenant.getDeletedAt());
