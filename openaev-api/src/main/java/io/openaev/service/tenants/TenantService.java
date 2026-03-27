@@ -80,13 +80,13 @@ public class TenantService {
     Tenant tenant = findById(tenantId);
 
     if (tenant.getDeletedAt() == null) {
-      throw new IllegalStateException("Tenant is not deleted: " + tenantId);
+      throw new IllegalStateException("Tenant is already enabled: " + tenantId);
     }
 
     Instant cutoff = tenant.getDeletedAt().plus(SOFT_DELETE_RETENTION_DAYS, ChronoUnit.DAYS);
     if (Instant.now().isAfter(cutoff)) {
       throw new IllegalStateException(
-          "Reactivation period expired for tenant: "
+          "Reactivation of " + SOFT_DELETE_RETENTION_DAYS + " days period expired: "
               + tenantId
               + ". Deleted at: "
               + tenant.getDeletedAt());
