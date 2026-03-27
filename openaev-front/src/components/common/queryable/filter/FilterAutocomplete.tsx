@@ -50,14 +50,10 @@ const FilterAutocomplete: FunctionComponent<Props> = ({
     helpers.handleClearAllFilters();
   };
 
-  const computeOptions = () => {
-    return options
-  };
-
   return (
     <div className={classes.container}>
       <MuiAutocomplete
-        options={computeOptions()}
+        options={options}
         sx={{ width: domains ? '95%' : 200 }}
         value={null}
         onChange={(_, selectOptionValue) => {

@@ -1,5 +1,5 @@
 import { type Filter, type FilterGroup } from '../../../../utils/api-types';
-import { isExistFilter } from './FilterUtils';
+import {generateFilterId, isExistingFilter} from "./FilterUtils";
 
 const updateFilters = (filters: FilterGroup, updateFn: (filter: Filter) => Filter): FilterGroup => {
   return {
@@ -16,28 +16,47 @@ export const handleSwitchMode = (filters: FilterGroup) => {
 };
 
 export const handleAddFilterWithEmptyValueUtil = (filterGroup: FilterGroup, filter: Filter) => {
+	const filterWithId = { ...filter, id: filter.id || generateFilterId() };
 	return {
 		...filterGroup,
-		filters: [...filterGroup.filters ?? [], filter],
+		filters: [...filterGroup.filters ?? [], filterWithId],
 	};
 };
 
 export const handleAddSingleValueFilterUtil = (filters: FilterGroup, key: string, value: string) => {
-  return updateFilters(filters, f => (f.key === key
-    ? {
-        ...f,
-        values: [value],
-      }
-    : f));
+	const existingFilter = isExistingFilter(filters, key);
+	if (existingFilter) {
+		return updateFilters(filters, f => (f.key === key
+			? { ...f, values: [value] }
+			: f));
+	} else {
+		const newFilter: Filter = {
+			id: generateFilterId(),
+			key,
+			values: [value],
+			operator: 'eq',
+			mode: 'or',
+		};
+		return handleAddFilterWithEmptyValueUtil(filters, newFilter);
+	}
 };
 
 export const handleAddMultipleValueFilterUtil = (filters: FilterGroup, key: string, values: string[]) => {
-  return updateFilters(filters, f => (f.key === key
-    ? {
-        ...f,
-        values,
-      }
-    : f));
+	const existingFilter = isExistingFilter(filters, key);
+	if (existingFilter) {
+		return updateFilters(filters, f => (f.key === key
+			? { ...f, values: Array.from(new Set([...(f.values as string[]), ...values])) }
+			: f));
+	} else {
+		const newFilter: Filter = {
+			id: generateFilterId(),
+			key,
+			values,
+			operator: 'eq',
+			mode: 'or',
+		};
+		return handleAddFilterWithEmptyValueUtil(filters, newFilter);
+	}
 };
 
 export const handleChangeOperatorFiltersUtil = (filters: FilterGroup, key: string, operator: Filter['operator']) => {
@@ -63,4 +82,37 @@ export const handleSwitchLocalModeUtil = (filters: FilterGroup, key: string): Fi
 			? { ...f, mode: f.mode === 'and' ? 'or' : 'and' }
 			: f,
 	);
+};
+
+export const handleRemoveFilterByIdUtil = (filters: FilterGroup, filterId: string) => {
+	return {
+		...filters,
+		filters: filters.filters?.filter(f => f.id !== filterId),
+	};
+};
+
+export const handleUpdateFilterByIdUtil = (filters: FilterGroup, filterId: string, updates: Partial<Omit<Filter, 'id'>>) => {
+	return updateFilterById(filters, filterId, f => ({ ...f, ...updates }));
+};
+
+export const handleSwitchLocalModeByIdUtil = (filters: FilterGroup, filterId: string): FilterGroup => {
+	return updateFilterById(filters, filterId, f => ({
+		...f,
+		mode: f.mode === 'and' ? 'or' : 'and'
+	}));
+};
+
+export const handleChangeOperatorByIdUtil = (filters: FilterGroup, filterId: string, operator: Filter['operator']) => {
+	return updateFilterById(filters, filterId, f => ({
+		...f,
+		operator,
+		values: operator && ['empty', 'not_empty'].includes(operator) ? [] : f.values,
+	}));
+};
+
+const updateFilterById = (filters: FilterGroup, filterId: string, updateFn: (filter: Filter) => Filter): FilterGroup => {
+	return {
+		...filters,
+		filters: filters.filters?.map(f => f.id === filterId ? updateFn(f) : f),
+	} as FilterGroup;
 };

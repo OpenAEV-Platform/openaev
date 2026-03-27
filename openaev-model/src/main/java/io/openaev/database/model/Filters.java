@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import javax.annotation.Nullable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -63,6 +64,23 @@ public class Filters {
     }
 
     // -- UTILS --
+    public Optional<Filter> findById(@NotBlank final String filterId) {
+      if (this.getFilters() == null) {
+        return Optional.empty();
+      }
+      return this.getFilters().stream()
+          .filter(filter -> filter.getId().equals(filterId))
+          .findFirst();
+    }
+
+    public void removeById(@NotBlank final String filterId) {
+      if (this.getFilters() == null) {
+        return;
+      }
+      List<Filter> newFilters =
+          this.getFilters().stream().filter(filter -> !filter.getId().equals(filterId)).toList();
+      this.setFilters(newFilters);
+    }
 
     public Optional<Filter> findByKey(@NotBlank final String filterKey) {
       if (this.getFilters() == null) {
@@ -90,7 +108,7 @@ public class Filters {
   @NoArgsConstructor
   @AllArgsConstructor
   public static class Filter {
-
+    @NotNull private String id;
     @NotNull private String key;
     @Builder.Default private FilterMode mode = FilterMode.and;
     private List<String> values;
@@ -98,6 +116,7 @@ public class Filters {
 
     public static Filter getNewDefaultEqualFilter(String key, List<String> values) {
       Filter filter = new Filter();
+      filter.setId(UUID.randomUUID().toString());
       filter.setKey(key);
       filter.setMode(Filters.FilterMode.or);
       filter.setOperator(Filters.FilterOperator.eq);

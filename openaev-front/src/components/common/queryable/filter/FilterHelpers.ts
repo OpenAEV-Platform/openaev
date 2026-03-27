@@ -9,4 +9,11 @@ export interface FilterHelpers {
   handleChangeOperatorFilters: (key: string, operator: Filter['operator']) => void;
   handleClearAllFilters: () => void;
   handleRemoveFilterByKey: (key: string) => void;
+
+	handleRemoveFilterById: (filterId: string) => void;
+	handleUpdateFilterById: (filterId: string, updates: Partial<Omit<Filter, 'id'>>) => void;
+	handleAddFilter: (filterData: Omit<Filter, 'id'>) => void;
+	handleSwitchLocalModeById: (filterId: string) => void;
+	handleChangeOperatorById: (filterId: string, operator: Filter['operator']) => void;
+	handleUpdateValuesById: (filterId: string, values: string[]) => void;
 }

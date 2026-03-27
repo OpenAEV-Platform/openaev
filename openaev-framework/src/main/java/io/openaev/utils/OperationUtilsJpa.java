@@ -79,7 +79,11 @@ public final class OperationUtilsJpa {
   // -- CONTAINS --
 
   public static Predicate containsTexts(
-      Expression<String> paths, CriteriaBuilder cb, List<String> texts, Class<?> type, FilterMode mode) {
+      Expression<String> paths,
+      CriteriaBuilder cb,
+      List<String> texts,
+      Class<?> type,
+      FilterMode mode) {
     if (isEmpty(texts)) {
       return cb.conjunction();
     }

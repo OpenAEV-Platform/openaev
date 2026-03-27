@@ -22,7 +22,9 @@ export const BasicTextInput: FunctionComponent<Props> = ({
 }) => {
   // Standard hooks
   const { t } = useFormatter();
-
+	const handleValueChange = (value: string) => {
+  		helpers.handleUpdateValuesById(filter.id, [value.trim()]);
+	};
   return (
     <TextField
       variant="outlined"
@@ -31,20 +33,14 @@ export const BasicTextInput: FunctionComponent<Props> = ({
       label={t(filter.key)}
       defaultValue={filter.values?.[0] ?? ''}
       autoFocus
-      onKeyDown={(event) => {
-        if (event.key === 'Enter') {
-          helpers.handleAddSingleValueFilter(
-            filter.key,
-            (event.target as HTMLInputElement).value.trim(),
-          );
-        }
-      }}
-      onBlur={(event) => {
-        helpers.handleAddSingleValueFilter(
-          filter.key,
-          (event.target as HTMLInputElement).value.trim(),
-        );
-      }}
+			onKeyDown={(event) => {
+				if (event.key === 'Enter') {
+					handleValueChange((event.target as HTMLInputElement).value);
+				}
+			}}
+			onBlur={(event) => {
+				handleValueChange((event.target as HTMLInputElement).value);
+			}}
     />
   );
 };
@@ -90,7 +86,7 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
     const newValues = isIncluded
       ? (filter.values?.filter(v => v !== optionId) ?? [])
       : [...(filter.values ?? []), optionId];
-    helpers.handleAddMultipleValueFilter(filter.key, newValues);
+		helpers.handleUpdateValuesById(filter.id, newValues);
   };
 
   return (
@@ -148,16 +144,15 @@ export const BasicFilterDate: FunctionComponent<Props> = ({
 }) => {
   // Standard hooks
   const { t } = useFormatter();
-
+	const handleValueChange = (date: Date) => {
+		helpers.handleUpdateValuesById(filter.id, [date.toISOString()]);
+	};
   return (
     <DateTimePicker
       label={t(filter.key)}
       onChange={(date) => {
         if (date) {
-          helpers.handleAddSingleValueFilter(
-            filter.key,
-            date.toISOString(),
-          );
+					handleValueChange(date)
         }
       }}
       slotProps={{

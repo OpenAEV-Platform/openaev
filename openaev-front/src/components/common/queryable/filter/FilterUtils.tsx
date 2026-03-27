@@ -4,6 +4,11 @@ import * as R from 'ramda';
 import { type Filter, type FilterGroup, type PropertySchemaDTO, type RelatedEntityOutput } from '../../../../utils/api-types';
 import { buildSearchPagination } from '../QueryableUtils';
 
+export const generateFilterId = (): string => {
+	return crypto.randomUUID ? crypto.randomUUID() :
+		Math.random().toString(36).substring(2) + Date.now().toString(36);
+};
+
 export const emptyFilterGroup: FilterGroup = {
   mode: 'and',
   filters: [],
@@ -27,8 +32,8 @@ export const buildFilter = (key: string, values: string[], operator: Filter['ope
   };
 };
 
-export const isExistFilter = (filterGroup: FilterGroup, key: string) => {
-  return filterGroup.filters?.some(f => f.key === key);
+export const isExistingFilter = (filterGroup: FilterGroup, key: string) => {
+  return filterGroup.filters?.find(f => f.key === key);
 };
 
 export const isEmptyFilter = (filterGroup: FilterGroup, key: string) => {
@@ -45,6 +50,7 @@ export const craftedDocumentFilter = (item: RelatedEntityOutput, keyFilter: stri
         mode: 'and',
         filters: [
           {
+						id: generateFilterId(),
             key: keyFilter,
             operator: 'eq',
             values: [item.name ?? ''],

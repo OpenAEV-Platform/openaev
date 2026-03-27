@@ -223,7 +223,8 @@ public final class FilterUtilsJpa {
     return switch (operator) {
       case not_contains ->
           (paths, texts) -> notContainsTexts((Expression<String>) paths, cb, texts, type);
-      case contains -> (paths, texts) -> containsTexts((Expression<String>) paths, cb, texts, type, mode);
+      case contains ->
+          (paths, texts) -> containsTexts((Expression<String>) paths, cb, texts, type, mode);
       case not_starts_with ->
           (paths, texts) -> notStartWithTexts((Expression<String>) paths, cb, texts, type);
       case starts_with ->

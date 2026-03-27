@@ -70,7 +70,6 @@ const FilterChipValues: FunctionComponent<Props> = ({
 
 	const i18nMode = (mode: Filter['mode']) => {
 		const canClick = !!helpers && (filter.values?.length ?? 0) > 1;
-		console.log('canClick', canClick, filter.values, helpers);
 		return (
 			<div
 				className={cx({
@@ -117,7 +116,7 @@ const FilterChipValues: FunctionComponent<Props> = ({
     let str = '';
     options.forEach((o, idx) => {
       if (idx > 0) {
-        str = `${str} ${t('OR')}`;
+        str = `${str} ${t('or')}`;
       }
       if (propertySchema?.schema_property_type.includes('instant')) {
         str = `${str} ${o.label ? fldt(o.label) : o.label}`;
