@@ -1,6 +1,5 @@
 package io.openaev.service.chaining;
 
-import io.jsonwebtoken.lang.Collections;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.database.model.*;
@@ -164,18 +163,16 @@ public class WorkflowService {
    * workflow owns its own rule rows.
    */
   private void copyScopeRules(Workflow source, Workflow target) {
-    List<WorkflowScopeRule> sourceRules = workflowScopeRuleRepository.findAllByWorkflowId(source.getId());
+    List<WorkflowScopeRule> sourceRules =
+        workflowScopeRuleRepository.findAllByWorkflowId(source.getId());
 
-    if(CollectionUtils.isEmpty(sourceRules)) {
+    if (CollectionUtils.isEmpty(sourceRules)) {
       return;
     }
 
     target
         .getWorkflowScopeRules()
-        .addAll(
-            sourceRules.stream()
-                .map(rule -> WorkflowScopeRule.copyOf(rule, target))
-                .toList());
+        .addAll(sourceRules.stream().map(rule -> WorkflowScopeRule.copyOf(rule, target)).toList());
   }
 
   /**
