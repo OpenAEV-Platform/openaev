@@ -415,7 +415,6 @@ class WorkflowServiceTest {
       // Prepare
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow = mock(Workflow.class);
-      Workflow savedWorkflow = mock(Workflow.class);
 
       // rateLimitEnabled differs from mock default (false) → change detected
       WorkflowConfigurationInput input = new WorkflowConfigurationInput();
@@ -424,16 +423,16 @@ class WorkflowServiceTest {
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
       when(workflow.getWorkflowsExecuted()).thenReturn(Collections.emptyList());
-      when(workflowRepository.save(workflow)).thenReturn(savedWorkflow);
 
       // Act
       Workflow result = workflowService.updateWorkflowConfiguration(workflowId, input);
 
-      // Assert — service loads the entity, applies the input, then saves
+      // Assert — service loads the entity, applies the input, saves, and returns the original
+      // entity
       verify(workflowRepository, times(1)).findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
       verify(workflowRepository).save(workflowCaptor.capture());
       assertSame(workflow, workflowCaptor.getValue());
-      assertEquals(savedWorkflow, result);
+      assertSame(workflow, result);
     }
 
     @DisplayName("should throw ElementNotFoundException when workflow is missing")
