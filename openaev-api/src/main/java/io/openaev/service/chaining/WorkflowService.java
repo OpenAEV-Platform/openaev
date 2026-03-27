@@ -272,15 +272,21 @@ public class WorkflowService {
 
     boolean changed = existing.removeIf(r -> !inputIds.contains(r.getId()));
 
+    Set<String> processedIds = new HashSet<>();
+
     for (WorkflowScopeRuleInput ruleInput : deduplicated) {
-      if (ruleInput.getId() == null) {
+      String ruleId = ruleInput.getId();
+      if (ruleId == null) {
         existing.add(buildScopeRule(ruleInput, workflow));
         changed = true;
       } else {
-        WorkflowScopeRule existingRule = existingById.get(ruleInput.getId());
-        if (existingRule != null && hasRuleChanged(existingRule, ruleInput)) {
-          updateScopeRule(existingRule, ruleInput);
-          changed = true;
+        if (!processedIds.contains(ruleId)) {
+          WorkflowScopeRule existingRule = existingById.get(ruleId);
+          if (existingRule != null && hasRuleChanged(existingRule, ruleInput)) {
+            updateScopeRule(existingRule, ruleInput);
+            changed = true;
+          }
+          processedIds.add(ruleId);
         }
       }
     }
