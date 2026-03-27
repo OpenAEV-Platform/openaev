@@ -846,6 +846,11 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_short_description?: string;
 }
 
+export interface ChainingOutput {
+  conditions?: EventOutput[];
+  steps?: StepOutput[];
+}
+
 export interface Challenge {
   challenge_category?: string;
   challenge_content?: string;
@@ -1197,6 +1202,46 @@ export interface Condition {
   key: string;
   operator: "eq";
   value?: boolean;
+}
+
+/** Condition used to execute a step. Can be a Template or an Execution depending on the status of stepFrom. */
+export interface ConditionCreateInput {
+  /** Path to the value in the output of the step from */
+  key_type?: string;
+  /** ID of the step linked to the key */
+  step_from?: string;
+  /** Temporary ID of the condition */
+  temporary_id?: string;
+  /** Temporary ID of the parent condition */
+  temporary_id_condition_parent?: string;
+  /** Condition type: AND, OR, EQ, NEQ, IS_NULL, IS_NOT_NULL, GT, GTE, LT, LTE, IN, NIN, AFTER, BEFORE, MAPPER, or DEPEND_ON */
+  type?:
+    | "AND"
+    | "OR"
+    | "EQ"
+    | "NEQ"
+    | "IS_NULL"
+    | "IS_NOT_NULL"
+    | "GT"
+    | "GTE"
+    | "LT"
+    | "LTE"
+    | "IN"
+    | "NIN"
+    | "AFTER"
+    | "BEFORE"
+    | "MAPPER"
+    | "DEPEND_ON";
+  /** Value to be compared */
+  value?: string;
+}
+
+export interface ConditionOutput {
+  condition_id?: string;
+  condition_parent_id?: string;
+  key_type?: string;
+  type?: string;
+  value?: string;
 }
 
 export interface Configuration {
@@ -1687,6 +1732,10 @@ export interface CweOutput {
   cwe_external_id: string;
   /** Source of the CWE */
   cwe_source?: string;
+}
+
+export interface DataInputStep {
+  type: string;
 }
 
 export type DateHistogramWidget = UtilRequiredKeys<
@@ -2624,6 +2673,34 @@ export interface Evaluation {
 export interface EvaluationInput {
   /** @format int64 */
   evaluation_score?: number;
+}
+
+export interface EventInput {
+  /** @minItems 1 */
+  conditions: ConditionCreateInput[];
+  description?: string;
+  /** @minLength 1 */
+  name: string;
+  step_from?: string;
+  step_ids?: string[];
+  /** @minLength 1 */
+  workflow_id: string;
+}
+
+export interface EventOutput {
+  event_conditions?: ConditionOutput[];
+  /** @format date-time */
+  event_created_at?: string;
+  event_description?: string;
+  /** @minLength 1 */
+  event_id: string;
+  /** @minLength 1 */
+  event_name: string;
+  /** @format date-time */
+  event_updated_at?: string;
+  /** @minLength 1 */
+  event_workflow_id: string;
+  step_from?: string;
 }
 
 export interface Executable {
@@ -3751,7 +3828,7 @@ export interface InjectIndividualExportRequestInput {
   options?: ExportOptionsInput;
 }
 
-export interface InjectInput {
+export type InjectInput = DataInputStep & {
   inject_all_teams?: boolean;
   inject_asset_groups?: string[];
   inject_assets?: string[];
@@ -3770,7 +3847,7 @@ export interface InjectInput {
   inject_teams?: string[];
   /** @minLength 1 */
   inject_title: string;
-}
+};
 
 export interface InjectOutput {
   /** Footer of the inject */
@@ -7104,6 +7181,29 @@ export interface StatusPayloadOutput {
   /** @uniqueItems true */
   payload_tags?: string[];
   payload_type?: string;
+}
+
+export interface StepInput {
+  condition_ids?: string[];
+  conditions?: ConditionCreateInput[];
+  data_step?: InjectInput;
+  /** @format int32 */
+  limit_execution?: number;
+  step_action: "INJECT_EXECUTION";
+  /** @minLength 1 */
+  workflow_id: string;
+}
+
+export interface StepOutput {
+  /** @format date-time */
+  step_created_at?: string;
+  step_data?: string;
+  step_id?: string;
+  /** @format int32 */
+  step_limit_execution?: number;
+  step_status?: string;
+  /** @format date-time */
+  step_updated_at?: string;
 }
 
 export type StreamingResponseBody = any;
