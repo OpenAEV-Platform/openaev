@@ -378,6 +378,8 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   @JsonProperty("scenario_lessons_anonymized")
   private boolean lessonsAnonymized = false;
 
+  // -- TENANT --
+
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
