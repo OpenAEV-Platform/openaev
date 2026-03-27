@@ -29,19 +29,27 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
+const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoading }: {
   exerciseId: Exercise['exercise_id'];
   exerciseStatus: Exercise['exercise_status'];
   exerciseName: Exercise['exercise_name'];
+  onLoading: (loading: boolean) => void;
+  isLoading: boolean;
 }) => {
   // Standard hooks
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const permissions = useSimulationPermissions(exerciseId);
   const [openChangeStatus, setOpenChangeStatus] = useState<Exercise['exercise_status'] | null>(null);
-  const submitUpdateStatus = (status: { exercise_status: Exercise['exercise_status'] | null }) => {
-    dispatch(updateExerciseStatus(exerciseId, { exercise_status: status.exercise_status ?? undefined }));
+
+  const submitUpdateStatus = async (status: { exercise_status: Exercise['exercise_status'] | null }) => {
     setOpenChangeStatus(null);
+    onLoading(true);
+    try {
+      await dispatch(updateExerciseStatus(exerciseId, { exercise_status: status.exercise_status ?? undefined }));
+    } finally {
+      onLoading(false);
+    }
   };
   const executionButton = () => {
     switch (exerciseStatus) {
@@ -58,6 +66,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
               size="small"
               color="primary"
               onClick={() => setOpenChangeStatus('RUNNING')}
+              disabled={isLoading}
             >
               {t('Start now')}
             </Button>
@@ -75,6 +84,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
               color="warning"
               size="small"
               onClick={() => setOpenChangeStatus('PAUSED')}
+              disabled={isLoading}
             >
               {t('Pause')}
             </Button>
@@ -91,6 +101,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
               startIcon={<PlayArrowOutlined />}
               color="success"
               onClick={() => setOpenChangeStatus('RUNNING')}
+              disabled={isLoading}
             >
               {t('Resume')}
             </Button>
@@ -115,6 +126,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
               startIcon={<CancelOutlined />}
               color="error"
               onClick={() => setOpenChangeStatus('CANCELED')}
+              disabled={isLoading}
             >
               {t('Stop')}
             </Button>
@@ -132,6 +144,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
               startIcon={<RestartAltOutlined />}
               color="warning"
               onClick={() => setOpenChangeStatus('SCHEDULED')}
+              disabled={isLoading}
             >
               {t('Reset')}
             </Button>
@@ -189,7 +202,10 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
   );
 };
 
-const ExerciseHeader = () => {
+const ExerciseHeader = ({ onLoading, isLoading }: {
+  onLoading: (loading: boolean) => void;
+  isLoading: boolean;
+}) => {
   // Standard hooks
   const theme = useTheme();
   const { classes } = useStyles();
@@ -219,7 +235,13 @@ const ExerciseHeader = () => {
       />
       <ExerciseStatus exerciseStatus={exercise.exercise_status} exerciseStartDate={exercise.exercise_start_date} />
       <div className={classes.actions}>
-        <Buttons exerciseId={exercise.exercise_id} exerciseStatus={exercise.exercise_status} exerciseName={exercise.exercise_name} />
+        <Buttons
+          exerciseId={exercise.exercise_id}
+          exerciseStatus={exercise.exercise_status}
+          exerciseName={exercise.exercise_name}
+          onLoading={onLoading}
+          isLoading={isLoading}
+        />
         <ExercisePopover
           exercise={exercise}
           actions={actions}
