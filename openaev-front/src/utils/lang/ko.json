@@ -1006,6 +1006,7 @@
   "injector_contract_arch": "아키텍처",
   "injector_contract_domains": "도메인",
   "injector_contract_injector": "인젝터",
+  "injector_contract_injectors": "인젝터",
   "injector_contract_kill_chain_phases": "킬 체인 단계",
   "injector_contract_labels": "레이블",
   "injector_contract_platforms": "플랫폼",

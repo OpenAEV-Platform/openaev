@@ -1006,6 +1006,7 @@
   "injector_contract_arch": "Architettura",
   "injector_contract_domains": "Domini",
   "injector_contract_injector": "Iniettore",
+  "injector_contract_injectors": "Iniettore",
   "injector_contract_kill_chain_phases": "Fase della catena di morte",
   "injector_contract_labels": "Etichetta",
   "injector_contract_platforms": "Piattaforme",

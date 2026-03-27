@@ -1006,6 +1006,7 @@
   "injector_contract_arch": "Architecture",
   "injector_contract_domains": "Domains",
   "injector_contract_injector": "Injector",
+  "injector_contract_injectors": "Injector",
   "injector_contract_kill_chain_phases": "Kill chain phase",
   "injector_contract_labels": "Label",
   "injector_contract_platforms": "Platforms",

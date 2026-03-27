@@ -61,7 +61,7 @@ public class InjectMapper {
         .title(inject.getTitle())
         .description(inject.getDescription())
         .content(inject.getContent())
-        .type(ofNullable(inject.getInjector()).map(Injector::getType).orElse(null))
+        .type(inject.getType())
         .tagIds(inject.getTags().stream().map(Tag::getId).toList())
         .documentIds(documentIds)
         .injectorContract(toInjectorContractOutput(injectorContract))
@@ -282,7 +282,7 @@ public class InjectMapper {
 
   public InjectOutput toInjectOutput(Inject inject, List<HealthCheck> healthchecks) {
     InjectorContract injectorContract = inject.getInjectorContract().orElse(null);
-    String type = ofNullable(inject.getInjector()).map(Injector::getType).orElse(null);
+    String type = inject.getType();
     return toInjectOutput(
         inject.getId(),
         inject.getTitle(),
