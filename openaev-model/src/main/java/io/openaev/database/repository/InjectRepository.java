@@ -483,4 +483,7 @@ public interface InjectRepository
   @Modifying
   @Query(value = "DELETE FROM injects WHERE inject_id IN :ids", nativeQuery = true)
   void deleteByAllIdsNative(@Param("ids") List<String> ids);
+
+  @Query("SELECT i FROM Inject i WHERE i.exercise.id = :simulationId")
+  List<Inject> findAllInjectBySimulationId(@Param("simulationId") String simulationId);
 }

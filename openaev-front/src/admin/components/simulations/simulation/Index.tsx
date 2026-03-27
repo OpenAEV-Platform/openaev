@@ -46,6 +46,7 @@ const useStyles = makeStyles()(() => ({
 }));
 
 const IndexComponent: FunctionComponent<{ exercise: ExerciseType }> = ({ exercise }) => {
+  const [isLoading, setIsLoading] = useState(false);
   const { t, fldt } = useFormatter();
   const location = useLocation();
   const { classes } = useStyles();
@@ -80,6 +81,7 @@ const IndexComponent: FunctionComponent<{ exercise: ExerciseType }> = ({ exercis
   return (
     <PermissionsContext.Provider value={permissionsContext}>
       <DocumentContext.Provider value={documentContext}>
+
         <div style={{ paddingRight: ['/results', '/animation'].some(el => location.pathname.includes(el)) ? 200 : 0 }}>
           <Breadcrumbs
             variant="object"
@@ -94,91 +96,97 @@ const IndexComponent: FunctionComponent<{ exercise: ExerciseType }> = ({ exercis
               },
             ]}
           />
-          <ExerciseHeader />
-          <Box
-            sx={{
-              borderBottom: 1,
-              borderColor: 'divider',
-              marginBottom: 2,
-            }}
-          >
-            <Tabs value={tabValue}>
-              <Tab
-                component={Link}
-                to={`/admin/simulations/${exercise.exercise_id}`}
-                value={`/admin/simulations/${exercise.exercise_id}`}
-                label={t('Overview')}
-              />
-              <Tab
-                component={Link}
-                to={`/admin/simulations/${exercise.exercise_id}/definition`}
-                value={`/admin/simulations/${exercise.exercise_id}/definition`}
-                label={t('Definition')}
-              />
-              <Tab
-                component={Link}
-                to={`/admin/simulations/${exercise.exercise_id}/injects`}
-                value={`/admin/simulations/${exercise.exercise_id}/injects`}
-                label={t('Injects')}
-              />
-              <Tab
-                component={Link}
-                to={`/admin/simulations/${exercise.exercise_id}/tests`}
-                value={`/admin/simulations/${exercise.exercise_id}/tests`}
-                label={t('Tests')}
-              />
-              <Tab
-                component={Link}
-                to={`/admin/simulations/${exercise.exercise_id}/animation`}
-                value={`/admin/simulations/${exercise.exercise_id}/animation`}
-                label={t('Animation')}
-              />
-              <Tab
-                component={Link}
-                to={`/admin/simulations/${exercise.exercise_id}/lessons`}
-                value={`/admin/simulations/${exercise.exercise_id}/lessons`}
-                label={t('Lessons learned')}
-              />
-              <Tab
-                component={Link}
-                to={`/admin/simulations/${exercise.exercise_id}/findings`}
-                value={`/admin/simulations/${exercise.exercise_id}/findings`}
-                label={t('Findings')}
-              />
-              <Tab
-                component={Link}
-                to={`/admin/simulations/${exercise.exercise_id}/analysis`}
-                value={`/admin/simulations/${exercise.exercise_id}/analysis`}
-                label={t('Analysis')}
-              />
-            </Tabs>
-            {permissionsContext.permissions.canManage && (
-              <div className={classes.scheduling}>
-                <ExerciseDatePopover exercise={exercise} />
-                {exercise.exercise_start_date ? fldt(exercise.exercise_start_date) : t('Manual')}
-              </div>
-            )}
-          </Box>
-          <Suspense fallback={<Loader />}>
-            <Routes>
-              <Route path="" element={errorWrapper(Simulation)()} />
-              <Route path="definition" element={errorWrapper(SimulationDefinition)()} />
-              <Route path="injects" element={errorWrapper(Injects)()} />
-              <Route path="tests/:statusId?" element={errorWrapper(Tests)()} />
-              <Route path="animation" element={<Navigate to="timeline" replace={true} />} />
-              <Route path="animation/timeline" element={errorWrapper(TimelineOverview)()} />
-              <Route path="animation/mails" element={errorWrapper(Mails)()} />
-              <Route path="animation/mails/:injectId" element={errorWrapper(MailsInject)()} />
-              <Route path="animation/logs" element={errorWrapper(Logs)()} />
-              <Route path="animation/chat" element={errorWrapper(Chat)()} />
-              <Route path="animation/validations" element={errorWrapper(Validations)()} />
-              <Route path="lessons" element={errorWrapper(Lessons)()} />
-              <Route path="findings" element={errorWrapper(SimulationFindings)()} />
-              <Route path="analysis" element={errorWrapper(SimulationAnalysis)()} />
-              {/* Not found */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
+          <ExerciseHeader onLoading={setIsLoading} isLoading={isLoading} />
+          {isLoading
+            ? <Loader />
+            : (
+                <>
+                  <Box
+                    sx={{
+                      borderBottom: 1,
+                      borderColor: 'divider',
+                      marginBottom: 2,
+                    }}
+                  >
+                    <Tabs value={tabValue}>
+                      <Tab
+                        component={Link}
+                        to={`/admin/simulations/${exercise.exercise_id}`}
+                        value={`/admin/simulations/${exercise.exercise_id}`}
+                        label={t('Overview')}
+                      />
+                      <Tab
+                        component={Link}
+                        to={`/admin/simulations/${exercise.exercise_id}/definition`}
+                        value={`/admin/simulations/${exercise.exercise_id}/definition`}
+                        label={t('Definition')}
+                      />
+                      <Tab
+                        component={Link}
+                        to={`/admin/simulations/${exercise.exercise_id}/injects`}
+                        value={`/admin/simulations/${exercise.exercise_id}/injects`}
+                        label={t('Injects')}
+                      />
+                      <Tab
+                        component={Link}
+                        to={`/admin/simulations/${exercise.exercise_id}/tests`}
+                        value={`/admin/simulations/${exercise.exercise_id}/tests`}
+                        label={t('Tests')}
+                      />
+                      <Tab
+                        component={Link}
+                        to={`/admin/simulations/${exercise.exercise_id}/animation`}
+                        value={`/admin/simulations/${exercise.exercise_id}/animation`}
+                        label={t('Animation')}
+                      />
+                      <Tab
+                        component={Link}
+                        to={`/admin/simulations/${exercise.exercise_id}/lessons`}
+                        value={`/admin/simulations/${exercise.exercise_id}/lessons`}
+                        label={t('Lessons learned')}
+                      />
+                      <Tab
+                        component={Link}
+                        to={`/admin/simulations/${exercise.exercise_id}/findings`}
+                        value={`/admin/simulations/${exercise.exercise_id}/findings`}
+                        label={t('Findings')}
+                      />
+                      <Tab
+                        component={Link}
+                        to={`/admin/simulations/${exercise.exercise_id}/analysis`}
+                        value={`/admin/simulations/${exercise.exercise_id}/analysis`}
+                        label={t('Analysis')}
+                      />
+                    </Tabs>
+                    {permissionsContext.permissions.canManage && (
+                      <div className={classes.scheduling}>
+                        <ExerciseDatePopover exercise={exercise} />
+                        {exercise.exercise_start_date ? fldt(exercise.exercise_start_date) : t('Manual')}
+                      </div>
+                    )}
+                  </Box>
+                  <Suspense fallback={<Loader />}>
+                    <Routes>
+                      <Route path="" element={errorWrapper(Simulation)()} />
+                      <Route path="definition" element={errorWrapper(SimulationDefinition)()} />
+                      <Route path="injects" element={errorWrapper(Injects)()} />
+                      <Route path="tests/:statusId?" element={errorWrapper(Tests)()} />
+                      <Route path="animation" element={<Navigate to="timeline" replace={true} />} />
+                      <Route path="animation/timeline" element={errorWrapper(TimelineOverview)()} />
+                      <Route path="animation/mails" element={errorWrapper(Mails)()} />
+                      <Route path="animation/mails/:injectId" element={errorWrapper(MailsInject)()} />
+                      <Route path="animation/logs" element={errorWrapper(Logs)()} />
+                      <Route path="animation/chat" element={errorWrapper(Chat)()} />
+                      <Route path="animation/validations" element={errorWrapper(Validations)()} />
+                      <Route path="lessons" element={errorWrapper(Lessons)()} />
+                      <Route path="findings" element={errorWrapper(SimulationFindings)()} />
+                      <Route path="analysis" element={errorWrapper(SimulationAnalysis)()} />
+                      {/* Not found */}
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </Suspense>
+                </>
+              )}
         </div>
       </DocumentContext.Provider>
     </PermissionsContext.Provider>
