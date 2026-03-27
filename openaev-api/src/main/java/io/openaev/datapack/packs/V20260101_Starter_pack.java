@@ -93,6 +93,11 @@ public class V20260101_Starter_pack extends DataPack {
       return false;
     }
 
+    if (this.settingRepository.findByKey(Config.STARTER_PACK_KEY).isPresent()) {
+      log.info("Starter pack already initialized");
+      return true;
+    }
+
     // unconditionally run this code
     Set<Tag> tags = tagService.ensureWellKnownTags();
     Set<TagRule> tagRules = tagRuleService.ensurePresetRules();
@@ -124,7 +129,7 @@ public class V20260101_Starter_pack extends DataPack {
       this.importDashboardsFromResources();
       return true;
     } catch (Exception e) {
-      recordError("Unexpected error during StarterPack initialization.", e);
+      recordError("Unexpected error during DataPack 20260101 initialization.", e);
       return false;
     }
   }

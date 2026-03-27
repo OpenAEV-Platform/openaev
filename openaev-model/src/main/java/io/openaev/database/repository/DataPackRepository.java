@@ -13,5 +13,5 @@ public interface DataPackRepository
     extends CrudRepository<DataPack, String>, JpaSpecificationExecutor<DataPack> {
 
   @NotNull
-  Optional<DataPack> findByCompositeId(DatapackTenantId datapackTenantId);
+  Optional<DataPack> findByCompositeId(@NotNull DatapackTenantId datapackTenantId);
 }
