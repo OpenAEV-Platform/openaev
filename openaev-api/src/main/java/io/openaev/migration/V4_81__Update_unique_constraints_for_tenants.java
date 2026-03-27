@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_80__Update_unique_constraints_for_tenants extends BaseJavaMigration {
+public class V4_81__Update_unique_constraints_for_tenants extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
