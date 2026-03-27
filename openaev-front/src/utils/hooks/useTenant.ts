@@ -95,6 +95,7 @@ const useTenant = (me: User | undefined, logged: unknown) => {
     if (current) {
       setTenant(current);
       setCurrentTenantStorage(current);
+      window.location.reload();
     }
   }, [currentUserTenant, userTenants, setCurrentTenantStorage, setTenant]);
 
