@@ -25,11 +25,6 @@ const ScenarioCreation: FunctionComponent = () => {
 
   const dispatch = useAppDispatch();
 
-  const handleClose = useCallback(() => {
-    setOpen(false);
-    setIsChaining(isChainingFeatureEnabled ? null : false);
-  }, [isChainingFeatureEnabled]);
-
   const handleTypeSelected = useCallback((chaining: boolean) => {
     setIsChaining(chaining);
   }, []);
@@ -46,7 +41,7 @@ const ScenarioCreation: FunctionComponent = () => {
       }) => {
         if (result.entities) {
           navigate(`${SCENARIO_BASE_URL}/${result.result}?openScenarioAssistant=${isScenarioAssistantChecked}`);
-          handleClose();
+          setOpen(false);
         }
       },
     );
@@ -76,7 +71,7 @@ const ScenarioCreation: FunctionComponent = () => {
         <ScenarioForm
           onSubmit={onSubmit}
           initialValues={initialValues}
-          handleClose={handleClose}
+          handleClose={() => setOpen(false)}
           isCreation
         />
       );
@@ -93,7 +88,7 @@ const ScenarioCreation: FunctionComponent = () => {
           <ScenarioFormChaining
             onSubmit={onSubmit}
             initialValues={initialValues}
-            handleClose={handleClose}
+            handleClose={() => setOpen(false)}
             isCreation
             isChaining={isChaining}
           />
@@ -106,7 +101,7 @@ const ScenarioCreation: FunctionComponent = () => {
       <ButtonCreate onClick={() => setOpen(true)} />
       <Drawer
         open={open}
-        handleClose={handleClose}
+        handleClose={() => setOpen(false)}
         title={t('Create a new scenario')}
       >
         {renderDrawerContent}

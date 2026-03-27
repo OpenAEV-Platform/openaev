@@ -23,11 +23,6 @@ const ExerciseCreation = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
-  const handleClose = useCallback(() => {
-    setOpen(false);
-    setIsChaining(isChainingFeatureEnabled ? null : false);
-  }, [isChainingFeatureEnabled]);
-
   const handleTypeSelected = useCallback((chaining: boolean) => {
     setIsChaining(chaining);
   }, []);
@@ -41,7 +36,7 @@ const ExerciseCreation = () => {
       result: string;
       entities: { scenarios: Record<string, Exercise> };
     }) => {
-      handleClose();
+      setOpen(false);
       navigate(`/admin/simulations/${result.result}`);
     });
   };
@@ -70,7 +65,7 @@ const ExerciseCreation = () => {
       return (
         <ExerciseForm
           onSubmit={onSubmit}
-          handleClose={handleClose}
+          handleClose={() => setOpen(false)}
           initialValues={initialValues}
           edit={false}
         />
@@ -87,7 +82,7 @@ const ExerciseCreation = () => {
         {isChaining !== null && (
           <ExerciseFormChaining
             onSubmit={onSubmit}
-            handleClose={handleClose}
+            handleClose={() => setOpen(false)}
             initialValues={initialValues}
             edit={false}
             isChaining={isChaining}
@@ -102,7 +97,7 @@ const ExerciseCreation = () => {
       <ButtonCreate onClick={() => setOpen(true)} />
       <Drawer
         open={open}
-        handleClose={handleClose}
+        handleClose={() => setOpen(false)}
         title={t('Create a new simulation')}
       >
         {renderDrawerContent}
