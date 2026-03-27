@@ -1,5 +1,6 @@
 package io.openaev.service.tenants;
 
+import static io.openaev.service.tenants.TenantService.SOFT_DELETE_RETENTION_DAYS;
 import static io.openaev.utils.fixtures.tenants.TenantFixture.TENANT_NAME;
 import static io.openaev.utils.fixtures.tenants.TenantFixture.getTenant;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -14,7 +15,6 @@ import io.openaev.IntegrationTest;
 import io.openaev.config.MinioConfig;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.*;
-import io.openaev.service.MinioService;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -45,14 +45,8 @@ class TenantServiceTest extends IntegrationTest {
   @Autowired protected EntityManager entityManager;
   @Autowired private MinioConfig minioConfig;
   @Autowired private MinioClient minioClient;
-  @Autowired private MinioService minioService;
   @Autowired private DomainRepository domainRepository;
-  @Autowired private CustomDashboardRepository customDashboardRepository;
-  @Autowired private ScenarioRepository scenarioRepository;
-  @Autowired private TagRepository tagRepository;
-  @Autowired private TagRuleRepository tagRuleRepository;
-  @Autowired private AssetGroupRepository assetGroupRepository;
-  @Autowired private EndpointRepository endpointRepository;
+  @Autowired private TenantRepository tenantRepository;
 
   @Test
   void should_create_and_find_tenant() throws Exception {
@@ -202,10 +196,10 @@ class TenantServiceTest extends IntegrationTest {
     assertThat(tenantRepository.findById(tenantExpired.getId())).isEmpty();
     assertThat(tenantRepository.findById(tenantRecent.getId())).isPresent();
 
-      // Verify no domain anymore for the deleted tenant
-      Session session = entityManager.unwrap(Session.class);
-      session.enableFilter("tenantFilter").setParameter("tenantId", tenantExpired.getId());
-      assertThat(domainRepository.findAll()).isEmpty();
+    // Verify no domain anymore for the deleted tenant
+    Session session = entityManager.unwrap(Session.class);
+    session.enableFilter("tenantFilter").setParameter("tenantId", tenantExpired.getId());
+    assertThat(domainRepository.findAll()).isEmpty();
   }
 
   @Test
