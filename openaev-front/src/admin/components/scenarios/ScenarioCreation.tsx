@@ -30,10 +30,7 @@ const ScenarioCreation: FunctionComponent = () => {
   }, []);
 
   const onSubmit = (data: ScenarioInput, isScenarioAssistantChecked?: boolean) => {
-    const payload: ScenarioInput = {
-      ...data,
-      scenario_is_chaining: isChaining ?? false,
-    };
+    const payload: ScenarioInput = { ...data };
     dispatch(addScenario(payload)).then(
       (result: {
         result: string;
