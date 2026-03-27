@@ -9,10 +9,9 @@ import Drawer from '../../../components/common/Drawer';
 import Transition from '../../../components/common/Transition';
 import { useFormatter } from '../../../components/i18n';
 import {
-  Domain,
-  InjectorContractActionOutput,
-  Payload, PayloadOutput,
-  PayloadUpdateInput,
+  type Domain,
+  type InjectorContractActionOutput, type PayloadCreateInput as ApiPayloadCreateInput,
+  type PayloadOutput,
 } from '../../../utils/api-types';
 import { type PayloadCreateInput } from '../../../utils/api-types-custom';
 import { useAppDispatch } from '../../../utils/hooks';
@@ -115,7 +114,7 @@ const PayloadPopover = ({
   };
 
   const onSubmitEdit = (data: PayloadCreateInput) => {
-    const inputValues: PayloadUpdateInput = {
+    const inputValues: ApiPayloadCreateInput = {
       ...data,
       payload_domains: data.payload_domains.map((domain: Domain) => domain.domain_id),
       payload_cleanup_executor: handleCleanupExecutorValue(
@@ -134,10 +133,12 @@ const PayloadPopover = ({
             author_rule: remediation.author_rule,
           };
         }),
-    } as PayloadUpdateInput;
+    } as ApiPayloadCreateInput;
 
-    return dispatch(updatePayload(payloadId, inputValues)).then((result: { entities: { payloads: Record<string, InjectorContractActionOutput> }; result: string }) => {
-      debugger;
+    return dispatch(updatePayload(payloadId, inputValues)).then((result: {
+      entities: { payloads: Record<string, InjectorContractActionOutput> };
+      result: string;
+    }) => {
       if (onUpdate) {
         onUpdate(result.entities.payloads[result.result]);
       }
@@ -164,7 +165,10 @@ const PayloadPopover = ({
   const handleCloseDuplicate = () => setOpenDuplicate(false);
 
   const submitDuplicate = () => {
-    return dispatch(duplicatePayload(payloadId)).then((result: { entities: { payloads: Record<string, InjectorContractActionOutput> }; result: string }) => {
+    return dispatch(duplicatePayload(payloadId)).then((result: {
+      entities: { payloads: Record<string, InjectorContractActionOutput> };
+      result: string;
+    }) => {
       if (onDuplicate) {
         onDuplicate(result.entities.payloads[result.result]);
       }
@@ -251,4 +255,3 @@ const PayloadPopover = ({
 };
 
 export default PayloadPopover;
-
