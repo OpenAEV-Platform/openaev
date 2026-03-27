@@ -1430,7 +1430,7 @@ public class V1_DataImporter implements Importer {
     payloadCreateInput.setDetectionRemediations(buildDetectionRemediationsJsonNode(payloadNode));
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadCreationService.createPayload(payloadCreateInput);
-    // TODO MARINE : check if tags are well set with this function
+    // TODO : Next chunk 4458
     //    payload.setTags(
     //        resolveJsonIds(payloadNode, "payload_tags").stream()
     //            .map(baseIds::get)
@@ -1472,7 +1472,7 @@ public class V1_DataImporter implements Importer {
     payloadCreateInput.setDetectionRemediations(buildDetectionRemediationsJsonNode(payloadNode));
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadCreationService.createPayload(payloadCreateInput);
-    // TODO Marine : check is tags are correctly set
+    // TODO next chunk 4458
     //    payload.setTags(
     //        resolveJsonIds(payloadNode, "payload_tags").stream()
     //            .map(baseIds::get)
