@@ -5,7 +5,6 @@ import com.rabbitmq.client.*;
 import io.openaev.config.QueueConfig;
 import io.openaev.config.RabbitMQSslConfiguration;
 import io.openaev.config.RabbitmqConfig;
-import io.openaev.multitenancy.DependenciesManager;
 import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
