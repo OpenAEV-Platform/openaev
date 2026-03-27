@@ -176,14 +176,12 @@ public class WorkflowService {
    * workflow owns its own rule rows.
    */
   private void copyScopeRules(Workflow source, Workflow target) {
-    List<WorkflowScopeRule> sourceRules =
-        workflowScopeRuleRepository.findAllByWorkflowId(source.getId());
-    if (sourceRules == null || sourceRules.isEmpty()) {
-      return;
-    }
-    sourceRules.stream()
-        .map(rule -> WorkflowScopeRule.copyOf(rule, target))
-        .forEach(target.getWorkflowScopeRules()::add);
+    target
+        .getWorkflowScopeRules()
+        .addAll(
+            workflowScopeRuleRepository.findAllByWorkflowId(source.getId()).stream()
+                .map(rule -> WorkflowScopeRule.copyOf(rule, target))
+                .toList());
   }
 
   /**
