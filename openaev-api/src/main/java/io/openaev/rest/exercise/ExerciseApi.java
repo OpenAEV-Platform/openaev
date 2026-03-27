@@ -7,9 +7,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.rest.exercise.form.SimulationDetails.fromRawExercise;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
-import static java.time.Duration.between;
 import static java.time.Instant.now;
-import static java.time.temporal.ChronoUnit.MINUTES;
 import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.aop.LogExecutionTime;
@@ -17,7 +15,8 @@ import io.openaev.aop.RBAC;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.*;
 import io.openaev.database.repository.*;
-import io.openaev.database.specification.*;
+import io.openaev.database.specification.ComcheckSpecification;
+import io.openaev.database.specification.ExerciseLogSpecification;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
@@ -35,7 +34,6 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.scenario.ScenarioService;
-import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -43,7 +41,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.Join;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletResponse;
@@ -51,7 +48,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
-import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -77,23 +73,17 @@ public class ExerciseApi extends RestBehavior {
   private final LogRepository logRepository;
   private final TagRepository tagRepository;
   private final UserRepository userRepository;
-  private final PauseRepository pauseRepository;
   private final DocumentRepository documentRepository;
   private final ExerciseRepository exerciseRepository;
   private final TeamRepository teamRepository;
   private final ExerciseTeamUserRepository exerciseTeamUserRepository;
   private final LogRepository exerciseLogRepository;
   private final ComcheckRepository comcheckRepository;
-  private final LessonsCategoryRepository lessonsCategoryRepository;
-  private final LessonsQuestionRepository lessonsQuestionRepository;
-  private final LessonsAnswerRepository lessonsAnswerRepository;
-  private final InjectStatusRepository injectStatusRepository;
   private final InjectRepository injectRepository;
   private final ObjectiveRepository objectiveRepository;
   private final EvaluationRepository evaluationRepository;
   private final KillChainPhaseRepository killChainPhaseRepository;
   private final GrantRepository grantRepository;
-  private final EntityManager entityManager;
   // endregion
 
   // region services
@@ -106,7 +96,6 @@ public class ExerciseApi extends RestBehavior {
   private final ExerciseService exerciseService;
   private final TeamService teamService;
   private final ExportService exportService;
-  private final ActionMetricCollector actionMetricCollector;
   private final ChannelService channelService;
   private final DocumentService documentService;
   private final ScenarioService scenarioService;
@@ -651,93 +640,10 @@ public class ExerciseApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SIMULATION)
-  @Transactional(rollbackFor = Exception.class)
   public Exercise changeExerciseStatus(
       @PathVariable String exerciseId, @Valid @RequestBody ExerciseUpdateStatusInput input) {
     ExerciseStatus status = input.getStatus();
-    Exercise exercise =
-        this.exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
-    // Check if next status is possible
-    List<ExerciseStatus> nextPossibleStatus = exercise.nextPossibleStatus();
-    if (!nextPossibleStatus.contains(status)) {
-      throw new UnsupportedOperationException(
-          "Exercise can't support moving to status " + status.name());
-    }
-    // In case of rescheduled of an exercise.
-    boolean isCloseState =
-        ExerciseStatus.CANCELED.equals(exercise.getStatus())
-            || ExerciseStatus.FINISHED.equals(exercise.getStatus());
-    if (isCloseState && ExerciseStatus.SCHEDULED.equals(status)) {
-      exercise.setStart(null);
-      exercise.setEnd(null);
-      // Reset pauses
-      exercise.setCurrentPause(null);
-      pauseRepository.deleteAll(pauseRepository.findAllForExercise(exerciseId));
-      // Reset injects outcome, communications and expectations
-      this.injectStatusRepository.deleteAllById(
-          exercise.getInjects().stream()
-              .map(Inject::getStatus)
-              .map(i -> i.map(InjectStatus::getId).orElse(""))
-              .toList());
-      exercise.getInjects().forEach(Inject::clean);
-      // Reset lessons learned answers
-      List<LessonsAnswer> lessonsAnswers =
-          lessonsCategoryRepository
-              .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
-              .stream()
-              .flatMap(
-                  lessonsCategory ->
-                      lessonsQuestionRepository
-                          .findAll(
-                              LessonsQuestionSpecification.fromCategory(lessonsCategory.getId()))
-                          .stream()
-                          .flatMap(
-                              lessonsQuestion ->
-                                  lessonsAnswerRepository
-                                      .findAll(
-                                          LessonsAnswerSpecification.fromQuestion(
-                                              lessonsQuestion.getId()))
-                                      .stream()))
-              .toList();
-      lessonsAnswerRepository.deleteAll(lessonsAnswers);
-      entityManager.flush();
-      entityManager.clear();
-      // Delete exercise transient files (communications, ...)
-      fileService.deleteDirectory(exerciseId);
-    }
-    // In case of manual start
-    if (ExerciseStatus.SCHEDULED.equals(exercise.getStatus())
-        && ExerciseStatus.RUNNING.equals(status)) {
-      exerciseService.throwIfExerciseNotLaunchable(exercise);
-      Instant nextMinute = now().truncatedTo(MINUTES).plus(1, MINUTES);
-      exercise.setStart(nextMinute);
-      actionMetricCollector.addSimulationPlayedCount();
-    }
-    // If exercise move from pause to running state,
-    // we log the pause date to be able to recompute inject dates.
-    if (ExerciseStatus.PAUSED.equals(exercise.getStatus())
-        && ExerciseStatus.RUNNING.equals(status)) {
-      Instant lastPause = exercise.getCurrentPause().orElseThrow(ElementNotFoundException::new);
-      exercise.setCurrentPause(null);
-      Pause pause = new Pause();
-      pause.setDate(lastPause);
-      pause.setExercise(exercise);
-      pause.setDuration(between(lastPause, now()).getSeconds());
-      pauseRepository.save(pause);
-    }
-    // If pause is asked, just set the pause date.
-    if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
-        && ExerciseStatus.PAUSED.equals(status)) {
-      exercise.setCurrentPause(Instant.now());
-    }
-    // Cancelation
-    if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
-        && ExerciseStatus.CANCELED.equals(status)) {
-      exercise.setEnd(now());
-    }
-    exercise.setUpdatedAt(now());
-    exercise.setStatus(status);
-    return exerciseRepository.save(exercise);
+    return exerciseService.changeExerciseStatus(status, exerciseId);
   }
 
   @LogExecutionTime
