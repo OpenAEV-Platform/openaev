@@ -1,7 +1,7 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.AttackPattern;
-import io.openaev.database.raw.RawAttackPattern;
+import io.openaev.database.raw.RawAttackPatternIndexing;
 import io.openaev.utils.Constants;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -34,7 +34,7 @@ public interface AttackPatternRepository
           "select ap.*, array_remove(array_agg(apphase.phase_id), NULL) as attack_pattern_kill_chain_phases from attack_patterns ap "
               + "left join attack_patterns_kill_chain_phases apphase ON ap.attack_pattern_id = apphase.attack_pattern_id WHERE ap.tenant_id = :#{#tenantContext.currentTenant} GROUP BY ap.attack_pattern_id",
       nativeQuery = true)
-  List<RawAttackPattern> rawAll();
+  List<RawAttackPatternIndexing> rawAll();
 
   // -- INDEXING --
 
@@ -49,5 +49,5 @@ public interface AttackPatternRepository
               + Constants.INDEXING_RECORD_SET_SIZE
               + ";",
       nativeQuery = true)
-  List<RawAttackPattern> findForIndexing(@Param("from") Instant from);
+  List<RawAttackPatternIndexing> findForIndexing(@Param("from") Instant from);
 }

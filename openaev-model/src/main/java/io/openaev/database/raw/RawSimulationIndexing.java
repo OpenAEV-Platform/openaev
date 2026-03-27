@@ -13,7 +13,7 @@ import java.util.Set;
  *
  * @see io.openaev.database.model.Exercise
  */
-public interface RawSimulation {
+public interface RawSimulationIndexing extends RawTenant {
 
   /**
    * Returns the unique identifier of the exercise.
@@ -217,11 +217,4 @@ public interface RawSimulation {
    * @return list of inject IDs
    */
   List<String> getInject_ids();
-
-  /**
-   * Returns the tenant ID to which this simulation belongs.
-   *
-   * @return the tenant ID
-   */
-  String getTenant_id();
 }

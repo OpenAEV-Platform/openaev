@@ -10,7 +10,7 @@ import java.time.Instant;
  *
  * @see io.openaev.database.model.Tag
  */
-public interface RawTag {
+public interface RawTagIndexing extends RawTenant {
 
   /**
    * Returns the unique identifier of the tag.
@@ -46,11 +46,4 @@ public interface RawTag {
    * @return the update timestamp
    */
   Instant getTag_updated_at();
-
-  /**
-   * Returns the tenant ID to which this tag belongs.
-   *
-   * @return the tenant ID
-   */
-  String getTenant_id();
 }

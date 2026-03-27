@@ -210,7 +210,7 @@ public interface ExerciseRepository
               + "WHERE ex.exercise_id = :exerciseId "
               + "GROUP BY ex.exercise_id, inj.inject_scenario, se.scenario_id ;",
       nativeQuery = true)
-  RawSimulation rawDetailsById(@Param("exerciseId") String exerciseId);
+  RawSimulationIndexing rawDetailsById(@Param("exerciseId") String exerciseId);
 
   @Query(
       value =
@@ -330,5 +330,5 @@ public interface ExerciseRepository
               + Constants.INDEXING_RECORD_SET_SIZE
               + ";",
       nativeQuery = true)
-  List<RawSimulation> findForIndexing(@Param("from") Instant from);
+  List<RawSimulationIndexing> findForIndexing(@Param("from") Instant from);
 }

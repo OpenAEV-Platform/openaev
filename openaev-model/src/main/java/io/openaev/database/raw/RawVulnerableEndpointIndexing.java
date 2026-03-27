@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 
-public interface RawVulnerableEndpoint {
+public interface RawVulnerableEndpointIndexing extends RawTenant {
   String getBase_id();
 
   String getVulnerable_endpoint_id();
@@ -37,6 +37,4 @@ public interface RawVulnerableEndpoint {
   Set<String> getVulnerable_endpoint_cves();
 
   Set<String> getVulnerable_endpoint_tags();
-
-  String getTenant_id();
 }

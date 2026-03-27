@@ -1,9 +1,8 @@
 package io.openaev.engine.model.attackpattern;
 
-import io.openaev.annotation.EsQueryable;
 import io.openaev.annotation.Indexable;
 import io.openaev.annotation.Queryable;
-import io.openaev.engine.model.EsBase;
+import io.openaev.engine.model.tenant.EsTenantBase;
 import java.util.List;
 import java.util.Set;
 import lombok.Getter;
@@ -12,7 +11,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Indexable(index = "attack-pattern", label = "Attack pattern")
-public class EsAttackPattern extends EsBase {
+public class EsAttackPattern extends EsTenantBase {
   /* Every attribute must be uniq, so prefixed with the entity type! */
   /* Except relationships, they should have same name on every model! */
 
@@ -38,8 +37,4 @@ public class EsAttackPattern extends EsBase {
 
   @Queryable(label = "kill chain phases")
   private Set<String> base_kill_chain_phases_side; // Must finish by _side
-
-  @Queryable(label = "tenant", filterable = true, dynamicValues = true)
-  @EsQueryable(keyword = true)
-  private String base_tenant_side;
 }

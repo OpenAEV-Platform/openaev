@@ -2,7 +2,7 @@ package io.openaev.engine.model.team;
 
 import static io.openaev.engine.EsUtils.buildRestrictions;
 
-import io.openaev.database.raw.RawTeam;
+import io.openaev.database.raw.RawTeamIndexing;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.engine.Handler;
 import java.time.Instant;
@@ -19,7 +19,7 @@ public class TeamHandler implements Handler<EsTeam> {
   @Override
   public List<EsTeam> fetch(Instant from) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
-    List<RawTeam> forIndexing = teamRepository.findForIndexing(queryFrom);
+    List<RawTeamIndexing> forIndexing = teamRepository.findForIndexing(queryFrom);
     return forIndexing.stream()
         .map(
             team -> {

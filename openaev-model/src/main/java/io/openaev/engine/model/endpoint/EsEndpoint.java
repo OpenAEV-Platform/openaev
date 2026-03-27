@@ -5,7 +5,7 @@ import io.openaev.annotation.Indexable;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Filters;
-import io.openaev.engine.model.EsBase;
+import io.openaev.engine.model.tenant.EsTenantBase;
 import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
@@ -13,7 +13,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Indexable(index = "endpoint", label = "Endpoint")
-public class EsEndpoint extends EsBase {
+public class EsEndpoint extends EsTenantBase {
   /* Every attribute must be uniq, so prefixed with the entity type! */
   /* Except relationships, they should have same name on every model! */
 
@@ -77,10 +77,6 @@ public class EsEndpoint extends EsBase {
   @Queryable(label = "tags", filterable = true, dynamicValues = true)
   @EsQueryable(keyword = true)
   private Set<String> base_tags_side; // Must finish by _side
-
-  @Queryable(label = "tenant", filterable = true, dynamicValues = true)
-  @EsQueryable(keyword = true)
-  private String base_tenant_side; // Must finish by _side
 
   @Queryable(
       label = "simulation",

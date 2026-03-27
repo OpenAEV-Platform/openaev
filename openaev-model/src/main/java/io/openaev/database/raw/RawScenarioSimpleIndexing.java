@@ -12,7 +12,7 @@ import java.util.Set;
  * @see io.openaev.database.model.Scenario
  * @see RawScenario
  */
-public interface RawScenarioSimple {
+public interface RawScenarioSimpleIndexing extends RawTenant {
 
   /**
    * Returns the unique identifier of the scenario.
@@ -97,11 +97,4 @@ public interface RawScenarioSimple {
    * @return set of platform types
    */
   Set<String> getScenario_platforms();
-
-  /**
-   * Returns the tenant ID to which this scenario belongs.
-   *
-   * @return the tenant ID
-   */
-  String getTenant_id();
 }

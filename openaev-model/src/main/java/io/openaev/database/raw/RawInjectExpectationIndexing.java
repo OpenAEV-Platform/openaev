@@ -12,7 +12,7 @@ import java.util.Set;
  *
  * @see io.openaev.database.model.InjectExpectation
  */
-public interface RawInjectExpectation {
+public interface RawInjectExpectationIndexing extends RawTenant {
 
   /**
    * Returns the unique identifier of the inject expectation.
@@ -181,11 +181,4 @@ public interface RawInjectExpectation {
    * @return the tracking sent date
    */
   Instant getTracking_sent_date();
-
-  /**
-   * Returns the tenant ID to which this inject expectation belongs.
-   *
-   * @return the tenant ID
-   */
-  String getTenant_id();
 }

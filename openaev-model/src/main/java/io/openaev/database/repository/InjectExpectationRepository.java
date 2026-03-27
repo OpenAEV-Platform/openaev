@@ -1,7 +1,7 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.InjectExpectation;
-import io.openaev.database.raw.RawInjectExpectation;
+import io.openaev.database.raw.RawInjectExpectationIndexing;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -160,7 +160,7 @@ public interface InjectExpectationRepository
               + "AND i.agent_id is null ;",
       nativeQuery = true)
   // We don't include expectations for players, only for the team, neither for agents, if applicable
-  List<RawInjectExpectation> rawForComputeGlobalByInjectIds(
+  List<RawInjectExpectationIndexing> rawForComputeGlobalByInjectIds(
       @Param("injectIds") Set<String> injectIds);
 
   @Query(
@@ -184,7 +184,7 @@ public interface InjectExpectationRepository
               + "AND i.agent_id is null ;",
       nativeQuery = true)
   // We don't include expectations for players, only for the team, if applicable
-  List<RawInjectExpectation> rawForComputeGlobalByExerciseIds(
+  List<RawInjectExpectationIndexing> rawForComputeGlobalByExerciseIds(
       @Param("exerciseIds") Set<String> exerciseIds);
 
   @Query(
@@ -271,7 +271,7 @@ public interface InjectExpectationRepository
     LIMIT 500
     """,
       nativeQuery = true)
-  List<RawInjectExpectation> findForIndexing(@Param("from") Instant from);
+  List<RawInjectExpectationIndexing> findForIndexing(@Param("from") Instant from);
 
   /**
    * Retrieves a set of distinct inject IDs associated with the specified inject expectation IDs.

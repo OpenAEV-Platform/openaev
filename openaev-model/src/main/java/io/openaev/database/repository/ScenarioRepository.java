@@ -3,7 +3,7 @@ package io.openaev.database.repository;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawScenario;
-import io.openaev.database.raw.RawScenarioSimple;
+import io.openaev.database.raw.RawScenarioSimpleIndexing;
 import io.openaev.utils.Constants;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -69,7 +69,7 @@ public interface ScenarioRepository
               + Constants.INDEXING_RECORD_SET_SIZE
               + ";",
       nativeQuery = true)
-  List<RawScenarioSimple> findForIndexing(@Param("from") Instant from);
+  List<RawScenarioSimpleIndexing> findForIndexing(@Param("from") Instant from);
 
   @Query(
       value =
@@ -120,7 +120,7 @@ public interface ScenarioRepository
               + "WHERE users_groups.user_id = :userId AND sce.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
-  List<RawScenarioSimple> rawAllGranted(@Param("userId") String userId);
+  List<RawScenarioSimpleIndexing> rawAllGranted(@Param("userId") String userId);
 
   @Query(
       value =
@@ -134,7 +134,7 @@ public interface ScenarioRepository
               + "AND sce.scenario_id IN :scenarioIds "
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
-  List<RawScenarioSimple> rawGrantedByScenarioIds(
+  List<RawScenarioSimpleIndexing> rawGrantedByScenarioIds(
       @Param("userId") String userId, @Param("scenarioIds") List<String> scenarioIds);
 
   @Query(
@@ -145,7 +145,7 @@ public interface ScenarioRepository
               + "WHERE sce.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
-  List<RawScenarioSimple> rawAll();
+  List<RawScenarioSimpleIndexing> rawAll();
 
   @Query(
       value =
@@ -155,7 +155,7 @@ public interface ScenarioRepository
               + "WHERE sce.scenario_id IN :scenarioIds "
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
-  List<RawScenarioSimple> rawByScenarioIds(@Param("scenarioIds") List<String> scenarioIds);
+  List<RawScenarioSimpleIndexing> rawByScenarioIds(@Param("scenarioIds") List<String> scenarioIds);
 
   @Query(
       value =
