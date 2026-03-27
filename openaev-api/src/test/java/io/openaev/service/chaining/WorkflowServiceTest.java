@@ -104,100 +104,6 @@ class WorkflowServiceTest {
   }
 
   @Nested
-  @DisplayName("updateWorkflowTemplate")
-  class UpdateWorkflowTemplateTests {
-
-    @Test
-    @DisplayName("should mark workflow as edited")
-    void shouldMarkWorkflowAsEdited() {
-      String workflowId = UUID.randomUUID().toString();
-      Workflow workflow = mock(Workflow.class);
-      when(workflow.getWorkflowsExecuted())
-          .thenReturn(List.of(mock(Workflow.class))); // Simulate at least one run executed
-      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
-          .thenReturn(Optional.of(workflow));
-
-      workflowService.updateWorkflowTemplate(workflowId);
-
-      // Assert
-      verify(workflowRepository).findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
-      verify(workflow).setEdited(true);
-      verify(workflowRepository).save(workflow);
-    }
-
-    @Test
-    @DisplayName("should mark workflow as not edited when no runs have been executed")
-    void shouldMarkWorkflowAsNotEditedWhenNoRunsExecuted() {
-      // Prepare — workflow was previously marked edited, but all runs have been removed
-      String workflowId = UUID.randomUUID().toString();
-      Workflow workflow = mock(Workflow.class);
-      when(workflow.getWorkflowsExecuted()).thenReturn(Collections.emptyList());
-      when(workflow.isEdited()).thenReturn(true); // currently edited
-      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
-          .thenReturn(Optional.of(workflow));
-
-      // Act
-      workflowService.updateWorkflowTemplate(workflowId);
-
-      // Assert — should flip edited to false and persist
-      verify(workflow).setEdited(false);
-      verify(workflowRepository).save(workflow);
-    }
-
-    @Test
-    @DisplayName("should not save when workflow is already edited and has runs")
-    void shouldNotSaveWhenAlreadyEditedAndHasRuns() {
-      // Prepare — state is already consistent: edited=true and runs exist
-      String workflowId = UUID.randomUUID().toString();
-      Workflow workflow = mock(Workflow.class);
-      when(workflow.getWorkflowsExecuted()).thenReturn(List.of(mock(Workflow.class)));
-      when(workflow.isEdited()).thenReturn(true); // already correct
-      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
-          .thenReturn(Optional.of(workflow));
-
-      // Act
-      workflowService.updateWorkflowTemplate(workflowId);
-
-      // Assert — no state change, no save
-      verify(workflow, never()).setEdited(anyBoolean());
-      verify(workflowRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("should not save when workflow is not edited and has no runs")
-    void shouldNotSaveWhenNotEditedAndHasNoRuns() {
-      // Prepare — state is already consistent: edited=false and no runs
-      String workflowId = UUID.randomUUID().toString();
-      Workflow workflow = mock(Workflow.class);
-      when(workflow.getWorkflowsExecuted()).thenReturn(Collections.emptyList());
-      when(workflow.isEdited()).thenReturn(false); // already correct
-      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
-          .thenReturn(Optional.of(workflow));
-
-      // Act
-      workflowService.updateWorkflowTemplate(workflowId);
-
-      // Assert — no state change, no save
-      verify(workflow, never()).setEdited(anyBoolean());
-      verify(workflowRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("should throw ElementNotFoundException when workflow not found")
-    void shouldThrowExceptionWhenNotFound() {
-      // Prepare
-      String workflowId = UUID.randomUUID().toString();
-      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
-          .thenReturn(Optional.empty());
-
-      assertThrows(
-          ElementNotFoundException.class, () -> workflowService.updateWorkflowTemplate(workflowId));
-      verify(workflowRepository).findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
-      verify(workflowRepository, never()).save(any());
-    }
-  }
-
-  @Nested
   @DisplayName("saveWorkflowRun")
   class SaveWorkflowRunTests {
 
@@ -524,7 +430,7 @@ class WorkflowServiceTest {
       Workflow result = workflowService.updateWorkflowConfiguration(workflowId, input);
 
       // Assert — service loads the entity, applies the input, then saves
-      verify(workflowRepository, times(2)).findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
+      verify(workflowRepository, times(1)).findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
       verify(workflowRepository).save(workflowCaptor.capture());
       assertSame(workflow, workflowCaptor.getValue());
       assertEquals(savedWorkflow, result);
