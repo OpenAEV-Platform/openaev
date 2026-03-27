@@ -29,6 +29,7 @@ public class PermissionService {
           ResourceType.VULNERABILITY,
           ResourceType.TAG,
           ResourceType.ATTACK_PATTERN,
+          ResourceType.DOMAIN,
           ResourceType.KILL_CHAIN_PHASE,
           ResourceType.ORGANIZATION,
           // INJECTOR_CONTRACT is present here AND in the RESOURCES_USING_PARENT_PERMISSION list
