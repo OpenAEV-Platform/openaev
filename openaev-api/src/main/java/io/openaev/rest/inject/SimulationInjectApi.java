@@ -198,11 +198,12 @@ public class SimulationInjectApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
-  public Inject createInjectForExercise(
+  public InjectOutput createInjectForExercise(
       @PathVariable String exerciseId, @Valid @RequestBody InjectInput input) {
     Exercise exercise =
         exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
-    return this.injectService.createAndSaveInject(exercise, null, input);
+    Inject persistedInject = this.injectService.createAndSaveInject(exercise, null, input);
+    return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
 
   @PostMapping(EXERCISE_URI + "/{exerciseId}/injects/bulk")
@@ -223,11 +224,13 @@ public class SimulationInjectApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  public Inject duplicateInjectForExercise(
+  public InjectOutput duplicateInjectForExercise(
       @PathVariable @NotBlank final String exerciseId,
       @PathVariable @NotBlank final String injectId) {
-    return injectDuplicateService.duplicateInjectForExerciseWithDuplicateWordInTitle(
-        exerciseId, injectId);
+    Inject persistedInject =
+        injectDuplicateService.duplicateInjectForExerciseWithDuplicateWordInTitle(
+            exerciseId, injectId);
+    return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
 
   @Transactional(rollbackFor = Exception.class)
