@@ -7867,6 +7867,96 @@ export interface WidgetToEntitiesOutput {
   list_configuration?: ListConfiguration;
 }
 
+/** Input for creating or updating a workflow configuration. */
+export interface WorkflowConfigurationInput {
+  /**
+   * Maximum number of attempts allowed before the temporal rate limit kicks in (1–99).
+   * @format int32
+   * @min 1
+   * @max 99
+   */
+  workflow_configuration_max_attempts?: number;
+  /**
+   * Seconds to wait between attempts (1–59).
+   * @format int64
+   * @min 1
+   * @max 59
+   */
+  workflow_configuration_max_temporal_rate_seconds?: number;
+  /** Whether rate limiting is enabled. */
+  workflow_configuration_rate_limit_enabled?: boolean;
+  /**
+   * If enabled, exploits that could crash the customer environment will not be executed.
+   * @default true
+   */
+  workflow_configuration_safe_mode_enabled?: boolean;
+  /** Whether the timeout feature is enabled. */
+  workflow_configuration_timeout_enabled?: boolean;
+  /**
+   * Total timeout in seconds for the attack workflow scenario (0–86400).
+   * @format int64
+   * @min 0
+   * @max 86400
+   */
+  workflow_configuration_timeout_seconds?: number;
+  /** List scope rules. */
+  workflow_scope_rules?: WorkflowScopeRuleInput[];
+}
+
+/** Output for a workflow configuration. */
+export interface WorkflowConfigurationOutput {
+  /**
+   * Maximum number of attempts allowed before the temporal rate limit kicks in.
+   * @format int32
+   */
+  workflow_configuration_max_attempts?: number;
+  /**
+   * Seconds to wait between attempts.
+   * @format int64
+   */
+  workflow_configuration_max_temporal_rate_seconds?: number;
+  /** Whether rate limiting is enabled. */
+  workflow_configuration_rate_limit_enabled?: boolean;
+  /** If enabled, exploits that could crash the customer environment will not be executed. */
+  workflow_configuration_safe_mode_enabled?: boolean;
+  /** Whether the timeout feature is enabled. */
+  workflow_configuration_timeout_enabled?: boolean;
+  /**
+   * Total timeout in seconds for the attack workflow.
+   * @format int64
+   */
+  workflow_configuration_timeout_seconds?: number;
+  /** List scope rules */
+  workflow_scope_rules?: WorkflowScopeRuleOutput[];
+}
+
+/** Input for a scope rule used in workflow configuration. */
+export interface WorkflowScopeRuleInput {
+  /** ID of an existing scope rule. Null means a new rule will be created. */
+  workflow_scope_rule_id?: string;
+  /** Selected list mode where the rule should be applied */
+  workflow_scope_rule_selected_mode: "WHITELIST" | "BLACKLIST";
+  /** Source of the selected rule */
+  workflow_scope_rule_source: "ASSET" | "ASSET_GROUP" | "MANUAL" | "CSV";
+  /**
+   * Selected rule value
+   * @minLength 1
+   */
+  workflow_scope_rule_value: string;
+}
+
+/** Output for a scope rule used in workflow configuration. */
+export interface WorkflowScopeRuleOutput {
+  /** ID of the scope rule. */
+  workflow_scope_rule_id?: string;
+  /** Selected list mode where the rule is applied. */
+  workflow_scope_rule_selected_mode?: "WHITELIST" | "BLACKLIST";
+  /** Source of the selected item */
+  workflow_scope_rule_source?: "ASSET" | "ASSET_GROUP" | "MANUAL" | "CSV";
+  /** Selected item value */
+  workflow_scope_rule_value?: string;
+}
+
 export interface XtmComposerInstanceOutput {
   /**
    * Connector image
