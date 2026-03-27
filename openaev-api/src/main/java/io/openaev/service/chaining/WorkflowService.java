@@ -1,5 +1,6 @@
 package io.openaev.service.chaining;
 
+import io.jsonwebtoken.lang.Collections;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.database.model.*;
@@ -19,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 @RequiredArgsConstructor
 @Service
@@ -162,10 +164,16 @@ public class WorkflowService {
    * workflow owns its own rule rows.
    */
   private void copyScopeRules(Workflow source, Workflow target) {
+    List<WorkflowScopeRule> sourceRules = workflowScopeRuleRepository.findAllByWorkflowId(source.getId());
+
+    if(CollectionUtils.isEmpty(sourceRules)) {
+      return;
+    }
+
     target
         .getWorkflowScopeRules()
         .addAll(
-            workflowScopeRuleRepository.findAllByWorkflowId(source.getId()).stream()
+            sourceRules.stream()
                 .map(rule -> WorkflowScopeRule.copyOf(rule, target))
                 .toList());
   }
@@ -244,9 +252,16 @@ public class WorkflowService {
    * @return {@code true} if the collection was modified
    */
   private boolean applyScopeRules(List<WorkflowScopeRuleInput> ruleInputs, Workflow workflow) {
-    if (ruleInputs == null) {
+    List<WorkflowScopeRule> existing = workflow.getWorkflowScopeRules();
+
+    if (CollectionUtils.isEmpty(ruleInputs) && CollectionUtils.isEmpty(existing)) {
       return false;
     }
+    if (CollectionUtils.isEmpty(ruleInputs)) {
+      existing.clear();
+      return true;
+    }
+
     List<WorkflowScopeRuleInput> deduplicated = deduplicateRules(ruleInputs);
 
     Set<String> inputIds =
@@ -255,7 +270,6 @@ public class WorkflowService {
             .filter(Objects::nonNull)
             .collect(Collectors.toSet());
 
-    List<WorkflowScopeRule> existing = workflow.getWorkflowScopeRules();
     Map<String, WorkflowScopeRule> existingById =
         existing.stream().collect(Collectors.toMap(WorkflowScopeRule::getId, r -> r));
 
