@@ -55,7 +55,7 @@ services:
   # RabbitMQ message queue with management UI (default credentials: guest/guest)
   openaev-dev-rabbitmq:
     container_name: openaev-dev-rabbitmq
-    image: rabbitmq:4.1-management
+    image: rabbitmq:4.2-management
     restart: unless-stopped
     volumes:
       - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
