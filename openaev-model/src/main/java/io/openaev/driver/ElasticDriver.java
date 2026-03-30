@@ -154,7 +154,7 @@ public class ElasticDriver {
   }
 
   @SuppressWarnings("SameParameterValue")
-  private void createIndex(
+  private void setupIndex(
       ElasticsearchClient client, String name, String version, Map<String, Property> mappings)
       throws IOException {
     // Create template
@@ -303,15 +303,13 @@ public class ElasticDriver {
             esModel -> {
               Map<String, Property> mappings = mappingGeneratorForClass(esModel);
               try {
+                // Cleanup old index
                 if (indexingStatusRepository.findByType(esModel.getName()).isEmpty()) {
-                  // No indexing status → index needs to be (re)created
                   log.info("Cleanup old Index {}", esModel.getName());
                   cleanUpIndex(esModel.getName(), elasticClient);
-                  log.info("Creating Index {}", esModel.getName());
-                  createIndex(elasticClient, esModel.getName(), ES_MODEL_VERSION, mappings);
-                } else {
-                  log.debug("Index {} already up-to-date, skipping recreation", esModel.getName());
                 }
+                log.info("Creating Index " + esModel.getName());
+                setupIndex(elasticClient, esModel.getName(), ES_MODEL_VERSION, mappings);
               } catch (IOException e) {
                 throw new RuntimeException(e);
               }
