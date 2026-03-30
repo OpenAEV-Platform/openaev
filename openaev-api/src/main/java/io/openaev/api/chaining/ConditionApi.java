@@ -1,6 +1,6 @@
 package io.openaev.api.chaining;
 
-import static io.openaev.api.chaining.dto.EventMapper.toOutput;
+import static io.openaev.api.chaining.ConditionMapper.toOutput;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.api.chaining.dto.EventInput;
@@ -58,9 +58,7 @@ public class ConditionApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
   @GetMapping
   public List<EventOutput> findAll() {
-    return conditionService.findAll().stream()
-        .map(io.openaev.api.chaining.dto.EventMapper::toOutput)
-        .toList();
+    return conditionService.findAll().stream().map(ConditionMapper::toOutput).toList();
   }
 
   @Operation(
@@ -84,7 +82,7 @@ public class ConditionApi extends RestBehavior {
   @GetMapping(params = "workflow_id")
   public List<EventOutput> findAllByWorkflow(@RequestParam("workflow_id") String workflowId) {
     return conditionService.findConditionRootsByWorkflowId(workflowId).stream()
-        .map(io.openaev.api.chaining.dto.EventMapper::toOutput)
+        .map(ConditionMapper::toOutput)
         .toList();
   }
 

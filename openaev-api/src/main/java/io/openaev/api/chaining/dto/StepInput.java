@@ -17,7 +17,7 @@ import lombok.*;
 @NoArgsConstructor
 public class StepInput {
 
-  @JsonProperty("workflow_id")
+  @JsonProperty("step_workflow_id")
   @NotBlank
   private String workflowId;
 
@@ -25,17 +25,17 @@ public class StepInput {
   @NotNull
   private StepActionClass stepAction;
 
-  @JsonProperty("limit_execution")
+  @JsonProperty("step_limit_execution")
   private int limitExecution;
 
-  @JsonProperty("conditions")
+  @JsonProperty("step_conditions")
   @Valid
   private List<ConditionCreateInput> conditions;
 
   /** IDs of existing condition trees (roots) to link to this step. */
-  @JsonProperty("condition_ids")
+  @JsonProperty("step_condition_ids")
   private List<String> conditionIds;
 
-  @JsonProperty("data_step")
+  @JsonProperty("step_data_step")
   private InjectInput dataStep;
 }

@@ -20,11 +20,11 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class EventOutput {
-  @JsonProperty("event_id")
+  @JsonProperty("event_event_id")
   @NotBlank
   private String id;
 
-  @JsonProperty("event_name")
+  @JsonProperty("event_event_name")
   @NotBlank
   private String name;
 
@@ -38,7 +38,7 @@ public class EventOutput {
   @JsonProperty("event_conditions")
   private List<ConditionOutput> conditions;
 
-  @JsonProperty("step_from")
+  @JsonProperty("event_step_from")
   private String stepFrom;
 
   @JsonProperty("event_created_at")

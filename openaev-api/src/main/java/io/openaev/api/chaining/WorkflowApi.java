@@ -56,7 +56,6 @@ public class WorkflowApi extends RestBehavior {
   }
 
   // -- UPDATE --
-
   @Operation(
       summary = "Update workflow configuration for a workflow",
       description = "Update workflow configuration for a given workflow.")
