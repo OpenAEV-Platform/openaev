@@ -1,5 +1,7 @@
 package io.openaev.output_processor;
 
+import static org.springframework.util.StringUtils.hasText;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.ContractOutputField;
 import io.openaev.database.model.ContractOutputTechnicalType;
@@ -11,40 +13,45 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
-public class CredentialsOutputProcessor extends FindingCapableOutputProcessor {
+public class DelegationOutputProcessor extends FindingCapableOutputProcessor {
 
   private static final String ASSET_ID = "asset_id";
-  private static final String USERNAME = "username";
-  private static final String PASSWORD = "password";
-  private static final String HASH = "hash";
+  private static final String ACCOUNT = "account";
+  private static final String DELEGATION_TYPE = "delegation_type";
+  private static final String RIGHTS_TO = "rights_to";
   private static final String HOST = "host";
 
-  public CredentialsOutputProcessor(FindingService findingService) {
+  public DelegationOutputProcessor(FindingService findingService) {
     super(
-        ContractOutputType.Credentials,
+        ContractOutputType.Delegation,
         ContractOutputTechnicalType.Object,
         List.of(
             new ContractOutputField(ASSET_ID, ContractOutputTechnicalType.Text, false),
-            new ContractOutputField(USERNAME, ContractOutputTechnicalType.Text, true),
-            new ContractOutputField(PASSWORD, ContractOutputTechnicalType.Text, false),
-            new ContractOutputField(HASH, ContractOutputTechnicalType.Text, false),
+            new ContractOutputField(ACCOUNT, ContractOutputTechnicalType.Text, true),
+            new ContractOutputField(DELEGATION_TYPE, ContractOutputTechnicalType.Text, false),
+            new ContractOutputField(RIGHTS_TO, ContractOutputTechnicalType.Text, false),
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, false)),
         findingService);
   }
 
   @Override
   public boolean validate(JsonNode jsonNode) {
-    return jsonNode.hasNonNull(USERNAME)
-        && (jsonNode.hasNonNull(PASSWORD) || jsonNode.hasNonNull(HASH));
+    return jsonNode.hasNonNull(ACCOUNT);
   }
 
   @Override
   public String toFindingValue(JsonNode jsonNode) {
-    String username = buildString(jsonNode, USERNAME);
-    if (jsonNode.hasNonNull(PASSWORD)) {
-      return username + ":" + buildString(jsonNode, PASSWORD);
+    String account = buildString(jsonNode, ACCOUNT);
+    String delegationType = buildString(jsonNode, DELEGATION_TYPE);
+    String rightsTo = buildString(jsonNode, RIGHTS_TO);
+    StringBuilder sb = new StringBuilder(account);
+    if (hasText(delegationType)) {
+      sb.append(" [").append(delegationType).append("]");
     }
-    return username + ":" + buildString(jsonNode, HASH);
+    if (hasText(rightsTo)) {
+      sb.append(" -> ").append(rightsTo);
+    }
+    return sb.toString();
   }
 
   @Override

@@ -135,7 +135,19 @@ export interface AggregatedFindingOutput {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
   /** Finding Value */
   finding_value: string;
 }
@@ -1169,7 +1181,19 @@ export interface ContractOutputElement {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
   /** @format date-time */
   contract_output_element_updated_at: string;
   listened?: boolean;
@@ -1202,7 +1226,19 @@ export interface ContractOutputElementInput {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
 }
 
 /** Represents the rules for parsing the output of an execution. */
@@ -1229,7 +1265,19 @@ export interface ContractOutputElementSimple {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
 }
 
 export interface CreateConnectorInstanceInput {
@@ -2790,7 +2838,19 @@ export interface Finding {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
   /** @format date-time */
   finding_updated_at: string;
   finding_users?: string[];
@@ -2810,7 +2870,19 @@ export interface FindingInput {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
   finding_value: string;
 }
 
@@ -3553,6 +3625,7 @@ export interface Injector {
     | "IMAP"
     | "NUCLEI"
     | "NMAP"
+    | "NETEXEC"
     | "OpenAEV Email"
     | "OpenAEV Implant"
   )[];
@@ -5630,7 +5703,19 @@ export interface RelatedFindingOutput {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
   /** Finding Value */
   finding_value: string;
 }
