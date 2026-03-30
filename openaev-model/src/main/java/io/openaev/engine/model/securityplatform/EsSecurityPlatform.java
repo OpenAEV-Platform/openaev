@@ -2,7 +2,6 @@ package io.openaev.engine.model.securityplatform;
 
 import io.openaev.annotation.Indexable;
 import io.openaev.annotation.Queryable;
-import io.openaev.engine.model.EsBase;
 import io.openaev.engine.model.tenant.EsTenantBase;
 import lombok.Getter;
 import lombok.Setter;
