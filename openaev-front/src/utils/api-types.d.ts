@@ -2462,6 +2462,7 @@ export interface EsSecurityPlatform {
   base_id?: string;
   base_representative?: string;
   base_restrictions?: string[];
+  base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
   name?: string;
