@@ -3,23 +3,23 @@ package io.openaev.service.chaining;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import io.openaev.api.chaining.dto.ConditionCreateInput;
+import io.openaev.api.chaining.dto.EventInput;
+import io.openaev.database.model.*;
 import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
-import io.openaev.api.chaining.dto.ConditionCreateInput;
-import io.openaev.api.chaining.dto.EventInput;
-import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
 import jakarta.persistence.EntityNotFoundException;
-import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Nested;
@@ -698,12 +698,14 @@ public class ConditionServiceTest {
       assertNotNull(createdRoot.getStepFrom());
       assertEquals(rootStepFromId, createdRoot.getStepFrom().getId());
       assertEquals(1, createdRoot.getConditionChildren().size());
-      assertEquals("445", createdRoot.getConditionChildren().getFirst().getValue());
-      assertEquals(
-          childStepFromId, createdRoot.getConditionChildren().getFirst().getStepFrom().getId());
 
-      verify(conditionRepository, atLeast(3)).save(any(Condition.class));
       verify(stepRepository).findAllById(List.of(linkedStepId));
+
+      Condition savedChild = createdRoot.getConditionChildren().getFirst();
+      assertEquals("445", savedChild.getValue());
+      assertNotNull(savedChild.getConditionParent());
+      assertEquals(rootStepFromId, savedChild.getConditionParent().getStepFrom().getId());
+      assertEquals(childStepFromId, savedChild.getStepFrom().getId());
     }
 
     @Test

@@ -13,7 +13,6 @@ import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import jakarta.persistence.EntityNotFoundException;
-import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -138,6 +137,12 @@ public class ConditionService {
         }
 
         child = conditionRepository.save(child);
+
+        // Keep the in-memory graph consistent for API mapping/tests.
+        if (parent.getConditionChildren() == null) {
+          parent.setConditionChildren(new ArrayList<>());
+        }
+        parent.getConditionChildren().add(child);
 
         savedConditionsByTemporaryId.put(childInput.getTemporaryId(), child);
         queue.add(childInput.getTemporaryId());
