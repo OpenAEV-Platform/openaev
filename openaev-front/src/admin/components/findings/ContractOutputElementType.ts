@@ -23,6 +23,6 @@ enum ContractOutputElementType {
 
 export const CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS = Object.keys(
   ContractOutputElementType,
-) as Array<keyof typeof ContractOutputElementType>;
+) as [keyof typeof ContractOutputElementType, ...Array<keyof typeof ContractOutputElementType>];
 
 export default ContractOutputElementType;
