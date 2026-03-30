@@ -133,11 +133,11 @@ public class HealthCheckUtils {
    * Verify whether an injector contract depends on an injector and whether that injector is
    * registered; if not, add an error to the health check.
    *
-   * @param inject
-   * @param injectors
-   * @param externalServiceDependency
-   * @param type
-   * @return
+   * @param inject the inject to verify
+   * @param injectors the list of registered injectors
+   * @param externalServiceDependency the external service dependency to check against
+   * @param type the type of health check being performed
+   * @return a list of health check errors, empty if the injector is properly registered
    */
   public List<HealthCheck> runInjectorCheck(
       @NotNull final Inject inject,
@@ -204,25 +204,7 @@ public class HealthCheckUtils {
   public List<HealthCheck> runMissingContentChecks(@NotNull final Scenario scenario) {
     List<HealthCheck> result = new ArrayList<>();
     boolean atLeastOneInjectIsNotReady =
-        scenario.getInjects().stream()
-            .anyMatch(
-                inject ->
-                    !runContentChecks(
-                            inject.getInjectorContract().orElse(null),
-                            inject.getContent(),
-                            inject.isAllTeams(),
-                            ofNullable(inject.getTeams())
-                                .map(teams -> teams.stream().map(Team::getId).toList())
-                                .orElse(new ArrayList<>()),
-                            ofNullable(inject.getAssets())
-                                .map(assets -> assets.stream().map(Asset::getId).toList())
-                                .orElse(new ArrayList<>()),
-                            ofNullable(inject.getAssetGroups())
-                                .map(
-                                    assetGroups ->
-                                        assetGroups.stream().map(AssetGroup::getId).toList())
-                                .orElse(new ArrayList<>()))
-                        .isEmpty());
+        scenario.getInjects().stream().anyMatch(inject -> !runContentChecks(inject).isEmpty());
 
     if (atLeastOneInjectIsNotReady) {
       result.add(

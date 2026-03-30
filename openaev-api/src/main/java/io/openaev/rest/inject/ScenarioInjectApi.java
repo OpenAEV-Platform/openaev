@@ -18,6 +18,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.ScenarioInjectService;
 import io.openaev.service.*;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.persistence.criteria.Join;
@@ -42,6 +43,7 @@ public class ScenarioInjectApi extends RestBehavior {
   private final InjectService injectService;
   private final InjectDuplicateService injectDuplicateService;
   private final ScenarioInjectService scenarioInjectService;
+  private final InjectMapper injectMapper;
 
   // -- READ --
 
@@ -107,10 +109,11 @@ public class ScenarioInjectApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
-  public Inject createInjectForScenario(
+  public InjectOutput createInjectForScenario(
       @PathVariable @NotBlank final String scenarioId, @Valid @RequestBody InjectInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
-    return this.injectService.createAndSaveInject(null, scenario, input);
+    Inject persistedInject = this.injectService.createAndSaveInject(null, scenario, input);
+    return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/injects/bulk")
@@ -147,12 +150,14 @@ public class ScenarioInjectApi extends RestBehavior {
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.INJECT)
-  public Inject duplicateInjectForScenario(
+      resourceType = ResourceType.SCENARIO)
+  public InjectOutput duplicateInjectForScenario(
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId) {
-    return injectDuplicateService.duplicateInjectForScenarioWithDuplicateWordInTitle(
-        scenarioId, injectId);
+    Inject persistedInject =
+        injectDuplicateService.duplicateInjectForScenarioWithDuplicateWordInTitle(
+            scenarioId, injectId);
+    return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
 
   @GetMapping(SCENARIO_URI + "/{scenarioId}/injects")
@@ -184,12 +189,32 @@ public class ScenarioInjectApi extends RestBehavior {
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.INJECT)
-  public Inject updateInjectForScenario(
+      resourceType = ResourceType.SCENARIO)
+  public InjectOutput updateInjectForScenario(
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody @NotNull InjectInput input) {
-    return scenarioInjectService.updateInjectForScenario(scenarioId, injectId, input);
+    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    Inject inject = injectService.updateInject(injectId, input);
+
+    // It should not be possible to add EE executor on inject when the scenario is already
+    // scheduled.
+    if (scenario.getRecurrenceStart() != null) {
+      this.injectService.throwIfInjectNotLaunchable(inject);
+    }
+
+    // If Documents not yet linked directly to the exercise, attached it
+    inject
+        .getDocuments()
+        .forEach(
+            document -> {
+              if (!document.getDocument().getScenarios().contains(scenario)) {
+                scenario.getDocuments().add(document.getDocument());
+              }
+            });
+    this.scenarioService.updateScenario(scenario);
+    Inject persistedInject = injectRepository.save(inject);
+    return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
 
   @PutMapping(SCENARIO_URI + "/{scenarioId}/injects/{injectId}/activation")
