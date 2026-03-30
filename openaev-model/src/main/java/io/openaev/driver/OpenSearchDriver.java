@@ -21,7 +21,6 @@ import java.util.*;
 import javax.net.ssl.SSLContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.hc.client5.http.auth.AuthScope;
 import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
 import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
@@ -336,10 +335,14 @@ public class OpenSearchDriver {
 
     Map<String, Property> mappings = new HashMap<>();
     Class<?> model = esModel.getModel();
-    Field[] parentFields = model.getSuperclass().getDeclaredFields();
-    Field[] directFields = model.getDeclaredFields();
-    Field[] fields = ArrayUtils.addAll(directFields, parentFields);
-    for (Field field : fields) {
+    // Collect fields from the entire class hierarchy (not just the direct parent)
+    List<Field> allFields = new ArrayList<>();
+    for (Class<?> clazz = model;
+        clazz != null && clazz != Object.class;
+        clazz = clazz.getSuperclass()) {
+      allFields.addAll(List.of(clazz.getDeclaredFields()));
+    }
+    for (Field field : allFields) {
       Class<?> fieldType = field.getType();
       if (List.class.isAssignableFrom(field.getType()) || Set.class.isAssignableFrom(fieldType)) {
         ParameterizedType fieldGenericType = (ParameterizedType) field.getGenericType();
@@ -409,13 +412,15 @@ public class OpenSearchDriver {
             esModel -> {
               Map<String, Property> mappings = mappingGeneratorForClass(esModel);
               try {
-                // Cleanup old index
                 if (indexingStatusRepository.findByType(esModel.getName()).isEmpty()) {
+                  // No indexing status → index needs to be (re)created
                   log.info("Cleanup old Index {}", esModel.getName());
                   cleanUpIndex(esModel.getName(), openClient);
+                  log.info("Creating Index {}", esModel.getName());
+                  createIndex(openClient, esModel.getName(), ES_MODEL_VERSION, mappings);
+                } else {
+                  log.debug("Index {} already up-to-date, skipping recreation", esModel.getName());
                 }
-                log.info("Creating Index {}", esModel.getName());
-                createIndex(openClient, esModel.getName(), ES_MODEL_VERSION, mappings);
               } catch (IOException e) {
                 throw new AnalyticsEngineException(
                     "Error while cleanup of indexes with Opensearch - " + e);
