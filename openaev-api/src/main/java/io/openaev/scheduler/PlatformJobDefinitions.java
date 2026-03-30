@@ -85,4 +85,12 @@ public class PlatformJobDefinitions {
         .storeDurably()
         .build();
   }
+
+  @Bean
+  public JobDetail queueChainingJobDetail() {
+    return JobBuilder.newJob(QueueChainingJob.class)
+        .withIdentity("QueueChainingJob")
+        .storeDurably()
+        .build();
+  }
 }

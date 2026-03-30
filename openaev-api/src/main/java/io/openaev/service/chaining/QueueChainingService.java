@@ -29,7 +29,6 @@ public class QueueChainingService {
   private final ObjectMapper objectMapper;
   private final RabbitMQSslConfiguration rabbitMQSslConfiguration;
 
-  @Setter private BatchQueueService<StepEvent> delayQueueService; // TODO switch to DB queue
   @Setter private BatchQueueService<StepEvent> readyQueueService;
   @Setter private BatchQueueService<ExternalUpdateEvent> updateQueueService;
 
@@ -51,11 +50,6 @@ public class QueueChainingService {
           "workflows-update configuration is missing. Please refer to the documentation");
     }
 
-    if (openAEVConfig.getQueueConfig().get("workflows-delay") == null) {
-      throw new RuntimeException(
-          "workflows-delay configuration is missing. Please refer to the documentation");
-    }
-
     // Initializing the queue to manage tasks to schedule
     readyQueueService =
         new BatchQueueService<>(
@@ -64,16 +58,6 @@ public class QueueChainingService {
             rabbitmqConfig,
             objectMapper,
             openAEVConfig.getQueueConfig().get("workflows-ready"),
-            rabbitMQSslConfiguration);
-
-    // Initializing the queue to manage tasks blocked by a time condition
-    delayQueueService =
-        new BatchQueueService<>(
-            StepEvent.class,
-            null,
-            rabbitmqConfig,
-            objectMapper,
-            openAEVConfig.getQueueConfig().get("workflows-delay"),
             rabbitMQSslConfiguration);
 
     // Initializing the queue to manage update event from external sources
@@ -92,33 +76,10 @@ public class QueueChainingService {
     if (readyQueueService != null) {
       readyQueueService.stop();
     }
-    if (delayQueueService != null) {
-      delayQueueService.stop();
-    }
+
     if (updateQueueService != null) {
       updateQueueService.stop();
     }
-  }
-
-  /**
-   * Send a delay event in the delay queue for a given step template
-   *
-   * @param stepTemplate the step template to delay
-   * @param workflowRun the workflow associated with the run of the step
-   * @param delayMs the time, in milliseconds, to delay the step
-   * @throws IOException in case there is an error while sending the event
-   */
-  public void delayStep(Step stepTemplate, Workflow workflowRun, long delayMs) throws IOException {
-    log.info(
-        "PUBLISH STEP DELAY : {} CONDITION TIME: {} + {} milliseconds",
-        stepTemplate.getId(),
-        workflowRun.getWorkflowCreatedAt(),
-        delayMs);
-    StepEvent event = new StepEvent();
-    event.setStepId(stepTemplate.getId());
-    event.setWorkflowId(workflowRun.getId());
-    event.setEmissionDate(Instant.now().toEpochMilli());
-    delayQueueService.publish(event);
   }
 
   /**
@@ -149,15 +110,6 @@ public class QueueChainingService {
     event.setStepId(stepRunId);
     event.setEmissionDate(Instant.now().toEpochMilli());
     updateQueueService.publish(event);
-  }
-
-  /**
-   * Dynamically set a callback function for the delay queue
-   *
-   * @param callback function to call when receiving an event
-   */
-  public void setCallbackForDelayQueue(QueueExecution<StepEvent> callback) {
-    delayQueueService.setQueueExecution(callback);
   }
 
   /**

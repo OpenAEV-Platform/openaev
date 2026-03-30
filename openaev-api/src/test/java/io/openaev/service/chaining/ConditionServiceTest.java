@@ -3,13 +3,18 @@ package io.openaev.service.chaining;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import io.openaev.database.model.*;
+import io.openaev.database.model.Condition;
+import io.openaev.database.model.ConditionType;
+import io.openaev.database.model.Step;
+import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.rest.exception.ChainingException;
-import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -28,6 +33,7 @@ public class ConditionServiceTest {
   @Captor private ArgumentCaptor<List<Condition>> conditionsCaptor;
   @Mock private ConditionRepository conditionRepository;
   @Mock private QueueChainingService queueChainingService;
+  @Mock private StepDelayQueueService stepDelayQueueService;
   @Captor private ArgumentCaptor<Long> delayCaptor;
 
   /* ============================================================
@@ -368,48 +374,15 @@ public class ConditionServiceTest {
       // -------- Assert --------
       assertNull(result);
 
-      verify(queueChainingService)
-          .delayStep(eq(stepTemplate), eq(workflowRun), delayCaptor.capture());
+      verify(stepDelayQueueService)
+          .pushStepTemplateIntoStepDelayQueue(
+              eq(stepTemplate),
+              any(Instant.class),
+              anyString(),
+              delayCaptor.capture(),
+              eq(workflowRun),
+              any(Instant.class));
       assertTrue(delayCaptor.getValue() > 0, "delay should be > 0 when goal is in the future");
-    }
-
-    @Test
-    void shouldWrapIOException_whenDelayStepThrows() throws Exception {
-      // -------- Prepare --------
-      Step stepTemplate = mock(Step.class);
-      Workflow workflowRun = mock(Workflow.class);
-      StepService stepService = mock(StepService.class);
-
-      String stepId = UUID.randomUUID().toString();
-      when(stepTemplate.getId()).thenReturn(stepId);
-
-      Condition timeTemplate = mock(Condition.class);
-      when(timeTemplate.getType()).thenReturn(ConditionType.AFTER);
-      when(timeTemplate.getValue()).thenReturn("60000");
-
-      when(conditionRepository.findAllByStep_Id(stepId)).thenReturn(List.of(timeTemplate));
-
-      when(workflowRun.getWorkflowCreatedAt())
-          .thenReturn(Instant.now().plus(2, ChronoUnit.MINUTES));
-
-      doReturn(false)
-          .when(conditionService)
-          .isTimeConditionValid(eq(timeTemplate), any(Instant.class), any(Instant.class));
-
-      IOException io = new IOException("boom");
-      doThrow(io)
-          .when(queueChainingService)
-          .delayStep(any(Step.class), any(Workflow.class), anyLong());
-
-      // -------- Act --------
-      assertThrows(
-          ChainingException.class,
-          () ->
-              conditionService.checkCondition(
-                  stepTemplate, "{\"in\":1}", workflowRun, stepService));
-
-      // -------- Assert --------
-      verify(queueChainingService).delayStep(eq(stepTemplate), eq(workflowRun), anyLong());
     }
 
     @Test

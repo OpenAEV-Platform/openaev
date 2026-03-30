@@ -40,16 +40,6 @@ class QueueChainingServiceCallbackRegistrarTest {
     }
 
     @Test
-    @DisplayName("should register callback for delay queue")
-    void shouldRegisterCallbackForDelayQueue() {
-      // Act
-      registrar.registerCallbacks();
-
-      // Assert
-      verify(queueChainingService).setCallbackForDelayQueue(any());
-    }
-
-    @Test
     @DisplayName("should register callback for external update queue")
     void shouldRegisterCallbackForExternalUpdateQueue() {
       // Act
@@ -67,7 +57,6 @@ class QueueChainingServiceCallbackRegistrarTest {
 
       // Assert
       verify(queueChainingService).setCallbackForReadyQueue(any());
-      verify(queueChainingService).setCallbackForDelayQueue(any());
       verify(queueChainingService).setCallbackForExternalUpdateQueue(any());
       verifyNoMoreInteractions(queueChainingService);
     }
@@ -81,7 +70,6 @@ class QueueChainingServiceCallbackRegistrarTest {
       // Assert
       InOrder inOrder = inOrder(queueChainingService);
       inOrder.verify(queueChainingService).setCallbackForReadyQueue(any());
-      inOrder.verify(queueChainingService).setCallbackForDelayQueue(any());
       inOrder.verify(queueChainingService).setCallbackForExternalUpdateQueue(any());
     }
 
@@ -94,7 +82,6 @@ class QueueChainingServiceCallbackRegistrarTest {
 
       // Assert
       verify(queueChainingService, times(2)).setCallbackForReadyQueue(any());
-      verify(queueChainingService, times(2)).setCallbackForDelayQueue(any());
       verify(queueChainingService, times(2)).setCallbackForExternalUpdateQueue(any());
     }
   }
@@ -129,24 +116,6 @@ class QueueChainingServiceCallbackRegistrarTest {
 
       // Assert
       verify(stepService).handleReadyEvent(events);
-    }
-
-    @Test
-    @DisplayName("should invoke stepService.handleDelayEvent when delay queue callback is executed")
-    void shouldInvokeHandleDelayEvent() {
-      // Prepare
-      List<StepEvent> events = List.of(mock(StepEvent.class));
-
-      // Act
-      registrar.registerCallbacks();
-
-      // Capture and invoke callback
-      verify(queueChainingService).setCallbackForDelayQueue(delayQueueCallbackCaptor.capture());
-      QueueExecution<StepEvent> callback = delayQueueCallbackCaptor.getValue();
-      callback.perform(events);
-
-      // Assert
-      verify(stepService).handleDelayEvent(events);
     }
 
     @Test
