@@ -30,6 +30,7 @@ public class SecurityPlatformHandler implements Handler<EsSecurityPlatform> {
               esSecurityPlatform.setBase_created_at(securityPlatform.getAsset_created_at());
               esSecurityPlatform.setBase_updated_at(securityPlatform.getAsset_updated_at());
               esSecurityPlatform.setBase_representative(securityPlatform.getAsset_name());
+              esSecurityPlatform.setBase_tenant_side(securityPlatform.getTenant_id());
               esSecurityPlatform.setBase_restrictions(
                   buildRestrictions(securityPlatform.getAsset_id()));
               // Specific
