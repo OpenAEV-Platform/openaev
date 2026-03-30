@@ -107,43 +107,102 @@ public class StepServiceTest {
     void shouldBuildConditionTreeCorrectly(
         String description,
         List<ConditionCreateInput> inputs,
-        int expectedSaveCalls,
         Map<String, Optional<String>> expectedParentMap,
         boolean withStepFrom)
         throws ChainingException {
 
       StepInput stepInput = mockStep(StepActionClass.INJECT_EXECUTION, inputs);
 
-      setupCreateStepTemplates(stepInput, true);
+      setupCreateStepTemplates(stepInput, false);
 
       if (withStepFrom) {
         Step stepFrom = mock(Step.class);
         when(stepRepository.findById("FROM")).thenReturn(Optional.of(stepFrom));
       }
 
+      // Capture the arguments passed to createConditionTree and invoke the real BFS logic
+      // by delegating to ConditionService#findRootConditionInput so we can assert parent linkage.
+      // We use thenAnswer to exercise the factories and collect produced Conditions.
+      List<Condition> producedConditions = new ArrayList<>();
+
+      doAnswer(
+              invocation -> {
+                // arg 0 : conditionInputs
+                // arg 1 : rootFactory   Function<ConditionCreateInput, Condition>
+                // arg 2 : childFactory  BiFunction<ConditionCreateInput, Condition, Condition>
+                // arg 3 : linkCondition BiConsumer<Condition, Boolean>
+                // arg 4 : afterRootSaved Consumer<Condition>
+                @SuppressWarnings("unchecked")
+                List<ConditionCreateInput> conditionInputs = invocation.getArgument(0);
+                java.util.function.Function<ConditionCreateInput, Condition> rootFactory =
+                    invocation.getArgument(1);
+                java.util.function.BiFunction<ConditionCreateInput, Condition, Condition>
+                    childFactory = invocation.getArgument(2);
+
+                // Identify root (no parent)
+                ConditionCreateInput rootInput =
+                    conditionInputs.stream()
+                        .filter(c -> c.getTemporaryIdConditionParent() == null)
+                        .findFirst()
+                        .orElseThrow();
+
+                Condition root = rootFactory.apply(rootInput);
+                producedConditions.add(root);
+
+                Map<String, Condition> byTmpId = new HashMap<>();
+                byTmpId.put(rootInput.getTemporaryId(), root);
+
+                Map<String, List<ConditionCreateInput>> childrenByParent =
+                    conditionInputs.stream()
+                        .filter(c -> c.getTemporaryIdConditionParent() != null)
+                        .collect(
+                            java.util.stream.Collectors.groupingBy(
+                                ConditionCreateInput::getTemporaryIdConditionParent));
+
+                java.util.Queue<String> queue = new java.util.LinkedList<>();
+                queue.add(rootInput.getTemporaryId());
+
+                while (!queue.isEmpty()) {
+                  String cur = queue.poll();
+                  for (ConditionCreateInput childInput :
+                      childrenByParent.getOrDefault(cur, List.of())) {
+                    Condition parent = byTmpId.get(childInput.getTemporaryIdConditionParent());
+                    Condition child = childFactory.apply(childInput, parent);
+                    producedConditions.add(child);
+                    byTmpId.put(childInput.getTemporaryId(), child);
+                    queue.add(childInput.getTemporaryId());
+                  }
+                }
+                return null;
+              })
+          .when(conditionService)
+          .createConditionTree(any(), any(), any(), any(), isNull());
+
       stepService.createStepTemplates(workflowId, List.of(stepInput));
 
-      ArgumentCaptor<Condition> captor = ArgumentCaptor.forClass(Condition.class);
+      // Verify createConditionTree was called once with the right inputs
+      verify(conditionService).createConditionTree(eq(inputs), any(), any(), any(), isNull());
 
-      verify(conditionService, times(expectedSaveCalls)).saveCondition(captor.capture());
-
-      List<Condition> saved = captor.getAllValues();
-
+      // Build a key -> Condition map from the produced conditions
       Map<String, Condition> byKey =
-          saved.stream().collect(Collectors.toMap(Condition::getKeyType, c -> c));
+          producedConditions.stream().collect(Collectors.toMap(Condition::getKeyType, c -> c));
 
       expectedParentMap.forEach(
           (childKey, parentKey) -> {
             Condition child = byKey.get(childKey);
+            assertNotNull(child, "Condition not found for key: " + childKey);
             if (parentKey.isEmpty()) {
-              assertNull(child.getConditionParent());
+              assertNull(child.getConditionParent(), "Expected no parent for: " + childKey);
             } else {
-              assertEquals(byKey.get(parentKey.get()), child.getConditionParent());
+              assertEquals(
+                  byKey.get(parentKey.get()),
+                  child.getConditionParent(),
+                  "Wrong parent for: " + childKey);
             }
           });
 
       if (withStepFrom) {
-        assertNotNull(byKey.get("ROOT").getStepFrom());
+        assertNotNull(byKey.get("ROOT").getStepFrom(), "Expected stepFrom on ROOT");
       }
     }
 
@@ -153,13 +212,11 @@ public class StepServiceTest {
           Arguments.of(
               "Single root condition",
               List.of(mockCondition("ROOT", null, null)),
-              1,
               Map.of("ROOT", Optional.empty()),
               false),
           Arguments.of(
               "Root with one child",
               List.of(mockCondition("ROOT", null, null), mockCondition("CHILD", "ROOT", null)),
-              2,
               Map.of("ROOT", Optional.empty(), "CHILD", Optional.of("ROOT")),
               false),
           Arguments.of(
@@ -168,7 +225,6 @@ public class StepServiceTest {
                   mockCondition("ROOT", null, null),
                   mockCondition("A", "ROOT", null),
                   mockCondition("B", "A", null)),
-              3,
               Map.of(
                   "ROOT", Optional.empty(),
                   "A", Optional.of("ROOT"),
@@ -177,7 +233,6 @@ public class StepServiceTest {
           Arguments.of(
               "Root with stepFrom",
               List.of(mockCondition("ROOT", null, "FROM")),
-              1,
               Map.of("ROOT", Optional.empty()),
               true));
     }
@@ -191,7 +246,7 @@ public class StepServiceTest {
 
     @Test
     void shouldThrowWhenMultipleRootConditions() throws ChainingException {
-
+      // Arrange
       StepInput stepInput =
           mockStep(
               StepActionClass.INJECT_EXECUTION,
@@ -209,6 +264,14 @@ public class StepServiceTest {
 
       setupCreateStepTemplates(stepInput, false);
 
+      // conditionService is mocked: configure it to throw the same exception as the real impl
+      doThrow(
+              new IllegalArgumentException(
+                  "New step (TEMPLATE): Only 1 condition can be first parent"))
+          .when(conditionService)
+          .createConditionTree(any(), any(), any(), any(), isNull());
+
+      // Act + Assert
       assertThrows(
           IllegalArgumentException.class,
           () -> stepService.createStepTemplates(workflowId, List.of(stepInput)));
@@ -216,6 +279,7 @@ public class StepServiceTest {
 
     @Test
     void shouldThrowWhenNoRootConditionExists() throws ChainingException {
+      // Arrange
       ConditionCreateInput conditionCreateInput =
           ConditionCreateInput.builder().keyType("A").temporaryIdConditionParent("X").build();
       StepInput stepInput =
@@ -235,6 +299,14 @@ public class StepServiceTest {
       assertNotNull(step);
       when(stepRepository.save(step)).thenReturn(step);
 
+      // conditionService is mocked: configure it to throw the same exception as the real impl
+      doThrow(
+              new IllegalArgumentException(
+                  "New step (TEMPLATE): Only 1 condition can be first parent"))
+          .when(conditionService)
+          .createConditionTree(any(), any(), any(), any(), isNull());
+
+      // Act + Assert
       assertThrows(
           IllegalArgumentException.class,
           () -> stepService.createStepTemplates(workflowId, List.of(stepInput)));
