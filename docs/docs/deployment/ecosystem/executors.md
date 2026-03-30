@@ -29,7 +29,7 @@ payloads on endpoints.
 ## Tanium Agent
 
 The Tanium agent can be leveraged to execute implants as detached processes that will then execute payloads, according
-to the [OpenAEV architecture](https://docs.openaev.io/latest/deployment/overview).
+to the [OpenAEV architecture](https://docs.openaev.io/latest/deployment/platform/overview/).
 
 The implants will be downloaded to these folders on the different assets:
 
@@ -127,7 +127,7 @@ Endpoints from the selected computer groups should now appear in the **OpenAEV E
 ## CrowdStrike Falcon Agent
 
 The CrowdStrike Falcon agent can be leveraged to execute implants as detached processes that will then execute payloads
-according to the [OpenAEV architecture](https://docs.openaev.io/latest/deployment/overview).
+according to the [OpenAEV architecture](https://docs.openaev.io/latest/deployment/platform/overview/).
 
 The implants will be downloaded to these folders on the different assets:
 
@@ -297,7 +297,7 @@ Endpoint on the OpenAEV endpoint page.
 ## Palo Alto Cortex Agent
 
 The Palo Alto Cortex agent can be leveraged to execute implants as detached processes that will then execute payloads
-according to the [OpenAEV architecture](https://docs.openaev.io/latest/deployment/overview).
+according to the [OpenAEV architecture](https://docs.openaev.io/latest/deployment/platform/overview/).
 
 On Windows, because Palo Alto Cortex whitelists its own process tree, OpenAEV creates a scheduled task to detach the process that will execute the payloads. 
 
@@ -390,7 +390,7 @@ Endpoint on the OpenAEV endpoint page.
 ## SentinelOne Agent
 
 The SentinelOne agent can be leveraged to execute implants as detached processes that will then execute payloads
-according to the [OpenAEV architecture](https://docs.openaev.io/latest/deployment/overview).
+according to the [OpenAEV architecture](https://docs.openaev.io/latest/deployment/platform/overview/).
 
 The implants will be downloaded to these folders on the different assets:
 
@@ -490,7 +490,7 @@ Endpoint on the OpenAEV endpoint page.
 ## Caldera Agent
 
 The Caldera agent can be leveraged to execute implants as detached processes that will then execute payloads according to
-the [OpenAEV architecture](https://docs.openaev.io/latest/deployment/overview/#architecture).
+the [OpenAEV architecture](https://docs.openaev.io/latest/deployment/platform/overview/).
 
 !!! note "Caldera already installed"
 
