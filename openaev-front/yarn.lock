@@ -10465,7 +10465,7 @@ __metadata:
     react-dom: "npm:19.2.4"
     react-final-form: "npm:6.5.9"
     react-final-form-arrays: "npm:4.0.0"
-    react-grid-layout: "npm:2.2.2"
+    react-grid-layout: "npm:2.2.3"
     react-hook-form: "npm:7.72.0"
     react-intl: "npm:8.1.4"
     react-markdown: "npm:10.1.0"
@@ -11061,7 +11061,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-draggable@npm:^4.0.3, react-draggable@npm:^4.4.6":
+"react-draggable@npm:^4.4.6, react-draggable@npm:^4.5.0":
   version: 4.5.0
   resolution: "react-draggable@npm:4.5.0"
   dependencies:
@@ -11100,20 +11100,20 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-grid-layout@npm:2.2.2":
-  version: 2.2.2
-  resolution: "react-grid-layout@npm:2.2.2"
+"react-grid-layout@npm:2.2.3":
+  version: 2.2.3
+  resolution: "react-grid-layout@npm:2.2.3"
   dependencies:
     clsx: "npm:^2.1.1"
     fast-equals: "npm:^4.0.3"
     prop-types: "npm:^15.8.1"
     react-draggable: "npm:^4.4.6"
-    react-resizable: "npm:^3.0.5"
+    react-resizable: "npm:^3.1.3"
     resize-observer-polyfill: "npm:^1.5.1"
   peerDependencies:
     react: ">= 16.3.0"
     react-dom: ">= 16.3.0"
-  checksum: 10c0/4b38496948136b3d63689c141bcdfaece5e6ce9d228bffad89f751d3b510f6ab1589609982c6fa340a805bda7e0533b212bdff0185b8a52293e031a2e57ebdb9
+  checksum: 10c0/93657e6d06567ab096b02cadde6aa3f382910bfa2f2c8df127e8788d4df7aab6eca6f1e1235af6293246d5113d06a0bf41445192d5267d6381a535ea007cd280
   languageName: node
   linkType: hard
 
@@ -11252,15 +11252,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-resizable@npm:^3.0.5":
-  version: 3.0.5
-  resolution: "react-resizable@npm:3.0.5"
+"react-resizable@npm:^3.1.3":
+  version: 3.1.3
+  resolution: "react-resizable@npm:3.1.3"
   dependencies:
     prop-types: "npm:15.x"
-    react-draggable: "npm:^4.0.3"
+    react-draggable: "npm:^4.5.0"
   peerDependencies:
     react: ">= 16.3"
-  checksum: 10c0/cfe50aa6efb79e0aa09bd681a5beab2fcd1186737c4952eb4c3974ed9395d5d263ccd1130961d06b8f5e24c8f544dd2967b5c740ce68719962d1771de7bdb350
+    react-dom: ">= 16.3"
+  checksum: 10c0/de0f4447369381a446c0ce5f5770e85ec3a522a540d8eaf11998ec2d0b37835f879eb58f1765a89269ead53018c1eabf10b293eae5cb41c41a89057f2741563d
   languageName: node
   linkType: hard
 
