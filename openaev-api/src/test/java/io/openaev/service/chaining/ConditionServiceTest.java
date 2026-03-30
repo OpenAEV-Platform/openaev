@@ -536,7 +536,7 @@ public class ConditionServiceTest {
       Condition condition = new Condition();
       Step stepA = new Step();
       stepA.setId(removedStepId);
-      condition.linkToStep(stepA, true);
+      conditionService.linkToStep(condition, stepA, true);
 
       when(conditionRepository.findAllByStep_Id(removedStepId)).thenReturn(List.of(condition));
       when(conditionRepository.save(any(Condition.class)))
@@ -558,8 +558,8 @@ public class ConditionServiceTest {
       stepA.setId(removedStepId);
       Step stepB = new Step();
       stepB.setId("step-B");
-      condition.linkToStep(stepA, true);
-      condition.linkToStep(stepB, false);
+      conditionService.linkToStep(condition, stepA, true);
+      conditionService.linkToStep(condition, stepB, false);
 
       when(conditionRepository.findAllByStep_Id(removedStepId)).thenReturn(List.of(condition));
       when(conditionRepository.save(any(Condition.class)))
@@ -580,7 +580,7 @@ public class ConditionServiceTest {
       Condition condition = new Condition();
       Step stepA = new Step();
       stepA.setId(removedStepId);
-      condition.linkToStep(stepA, true);
+      conditionService.linkToStep(condition, stepA, true);
 
       Step stepFrom = new Step();
       stepFrom.setId("step-from");
@@ -753,7 +753,7 @@ public class ConditionServiceTest {
 
       Step oldLinkedStep = new Step();
       oldLinkedStep.setId("old-linked-step");
-      existingRoot.linkToStep(oldLinkedStep, true);
+      conditionService.linkToStep(oldChild, oldLinkedStep, true);
 
       ConditionCreateInput rootInput = new ConditionCreateInput();
       rootInput.setTemporaryId("tmp-root");

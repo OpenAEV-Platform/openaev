@@ -15,18 +15,18 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 public class EventInput {
-  @JsonProperty("name")
+  @JsonProperty("event_name")
   @NotBlank
   String name;
 
-  @JsonProperty("description")
+  @JsonProperty("event_description")
   String description;
 
-  @JsonProperty("workflow_id")
+  @JsonProperty("event_workflow_id")
   @NotBlank
   String workflowId;
 
-  @JsonProperty("conditions")
+  @JsonProperty("event_conditions")
   @NotEmpty
   @Valid
   List<ConditionCreateInput> conditions;
@@ -35,13 +35,13 @@ public class EventInput {
    * Optional step ID that this event depends on (step_from). Maps to the stepFrom field of the root
    * condition.
    */
-  @JsonProperty("step_from")
+  @JsonProperty("event_step_from")
   String stepFrom;
 
   /**
    * Optional list of step IDs to link to the root condition via the conditions_steps join table.
    * Each step will be linked with is_root=true on the root condition.
    */
-  @JsonProperty("step_ids")
+  @JsonProperty("event_step_ids")
   List<String> stepIds = new ArrayList<>();
 }

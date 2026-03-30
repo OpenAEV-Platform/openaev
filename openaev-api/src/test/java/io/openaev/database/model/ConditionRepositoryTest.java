@@ -55,7 +55,7 @@ class ConditionRepositoryTest extends IntegrationTest {
             .get();
 
     // WHEN
-    List<Condition> conditions = conditionRepository.findAllByStep_Id(condition1.getStep().getId());
+    List<Condition> conditions = conditionRepository.findAllByStep_Id(condition1.getId());
 
     // THEN
     Assertions.assertEquals(2, conditions.size());

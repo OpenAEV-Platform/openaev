@@ -39,9 +39,7 @@ public class ChainingApi {
   @GetMapping
   public ChainingOutput findAll() {
     List<EventOutput> conditions =
-        conditionService.findAll().stream()
-            .map(io.openaev.api.chaining.dto.EventMapper::toOutput)
-            .toList();
+        conditionService.findAll().stream().map(ConditionMapper::toOutput).toList();
 
     List<StepOutput> steps =
         stepService.findAllStepTemplates().stream()

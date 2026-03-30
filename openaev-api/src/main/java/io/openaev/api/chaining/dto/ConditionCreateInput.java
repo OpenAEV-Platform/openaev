@@ -18,22 +18,22 @@ public class ConditionCreateInput {
 
   /** Temporary ID of the condition */
   @Schema(description = "Temporary ID of the condition")
-  @JsonProperty("temporary_id")
+  @JsonProperty("condition_temporary_id")
   private String temporaryId;
 
   /** Temporary ID of the parent condition */
   @Schema(description = "Temporary ID of the parent condition")
-  @JsonProperty("temporary_id_condition_parent")
+  @JsonProperty("condition_temporary_id_condition_parent")
   private String temporaryIdConditionParent;
 
   /** Condition key: Path to the value in the output of the step from */
   @Schema(description = "Path to the value in the output of the step from")
-  @JsonProperty("key_type")
+  @JsonProperty("condition_key_type")
   private String keyType;
 
   /** Condition value: Value to be compared */
   @Schema(description = "Value to be compared")
-  @JsonProperty("value")
+  @JsonProperty("condition_value")
   private String value;
 
   /**
@@ -43,11 +43,11 @@ public class ConditionCreateInput {
   @Schema(
       description =
           "Condition type: AND, OR, EQ, NEQ, IS_NULL, IS_NOT_NULL, GT, GTE, LT, LTE, IN, NIN, AFTER, BEFORE, MAPPER, or DEPEND_ON")
-  @JsonProperty("type")
+  @JsonProperty("condition_type")
   private ConditionType type;
 
   /** ID of the step linked to the key */
   @Schema(description = "ID of the step linked to the key")
-  @JsonProperty("step_from")
+  @JsonProperty("condition_step_from")
   private String stepFrom;
 }

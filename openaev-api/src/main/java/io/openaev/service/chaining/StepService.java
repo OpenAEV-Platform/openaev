@@ -2,9 +2,8 @@ package io.openaev.service.chaining;
 
 import com.google.gson.*;
 import io.openaev.api.chaining.ActionStep;
+import io.openaev.api.chaining.ConditionMapper;
 import io.openaev.api.chaining.InjectExecutionStep;
-import io.openaev.api.chaining.dto.ConditionCreateInput;
-import io.openaev.api.chaining.dto.EventMapper;
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.StepRepository;
@@ -15,7 +14,6 @@ import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.*;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.math.NumberUtils;
@@ -158,7 +156,8 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
       Step finalStepReady = stepReady;
 
       // For each step template, IF condition is valid, create condition execution
-      conditionExecution.forEach(condition -> condition.setStep(finalStepReady));
+      conditionExecution.forEach(
+          condition -> conditionService.linkToStep(condition, finalStepReady, true));
       conditionService.saveAllConditions(conditionExecution);
 
       try {
@@ -262,84 +261,21 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
    * @param step step to check
    */
   void stepConditionTemplate(StepInput stepInput, Step step) {
-    // If no conditions are provided, nothing to process
     if (stepInput.getConditions() == null || stepInput.getConditions().isEmpty()) {
       return;
     }
-    // Find the root condition (the one without a parent)
-    ConditionCreateInput firstCondition =
-        stepInput.getConditions().stream()
-            .filter(
-                conditionCreateInput ->
-                    conditionCreateInput.getTemporaryIdConditionParent() == null)
-            .reduce(
-                (a, b) -> {
-                  throw new IllegalArgumentException(
-                      "New step (TEMPLATE): Only 1 condition can be first parent");
-                })
-            .orElseThrow(
-                () ->
-                    new IllegalArgumentException(
-                        "New step (TEMPLATE): Only 1 condition can be first parent"));
-
-    // Resolve the source step for the root condition
-    Step stepFrom = getStepFromCondition(firstCondition.getStepFrom());
-
-    // Map input to an entity and link it as the root condition of the step
-    Condition first = EventMapper.toCondition(firstCondition, stepFrom);
-    first.linkToStep(step, true);
-
-    // Persist the root condition
-    first = conditionService.saveCondition(first);
-
-    // Map to keep track of temporary IDs (from input) to persisted Condition entities
-    Map<String, Condition> temporaryIdAndSaveId = new HashMap<>();
-    temporaryIdAndSaveId.put(firstCondition.getTemporaryId(), first);
-
-    // Group all non-root conditions by their parent temporary ID
-    Map<String, List<ConditionCreateInput>> temporaryConditions =
-        stepInput.getConditions().stream()
-            .filter(
-                conditionCreateInput ->
-                    conditionCreateInput.getTemporaryIdConditionParent() != null)
-            .collect(Collectors.groupingBy(ConditionCreateInput::getTemporaryIdConditionParent));
-
-    // Queue for breadth-first traversal of the condition tree
-    Queue<String> currentId = new LinkedList<>();
-    currentId.add(firstCondition.getTemporaryId());
-
-    // Process conditions level by level (parent -> children)
-    while (!currentId.isEmpty()) {
-      String currentTemporaryId = currentId.poll();
-
-      // Get all children of the current parent
-      List<ConditionCreateInput> conditions =
-          temporaryConditions.getOrDefault(currentTemporaryId, new ArrayList<>());
-
-      for (ConditionCreateInput condition : conditions) {
-        // Resolve the source step for the current condition
-        Step stepFromCondition = getStepFromCondition(condition.getStepFrom());
-
-        // Create the condition entity with its real persisted parent
-        Condition current =
-            EventMapper.toCondition(
-                condition,
-                stepFromCondition,
-                temporaryIdAndSaveId.get(condition.getTemporaryIdConditionParent()));
-
-        // Link condition to the step (false = not root)
-        current.linkToStep(step, false);
-
-        // Persist the condition
-        current = conditionService.saveCondition(current);
-
-        // Store mapping for future children resolution
-        temporaryIdAndSaveId.put(condition.getTemporaryId(), current);
-
-        // Add this condition to the queue to process its children later
-        currentId.add(condition.getTemporaryId());
-      }
-    }
+    conditionService.createConditionTree(
+        stepInput.getConditions(),
+        rootInput -> {
+          Step stepFrom = getStepFromCondition(rootInput.getStepFrom());
+          return ConditionMapper.toCondition(rootInput, stepFrom);
+        },
+        (childInput, parent) -> {
+          Step stepFrom = getStepFromCondition(childInput.getStepFrom());
+          return ConditionMapper.toCondition(childInput, stepFrom, parent);
+        },
+        (condition, isRoot) -> conditionService.linkToStep(condition, step, isRoot),
+        null);
   }
 
   /**

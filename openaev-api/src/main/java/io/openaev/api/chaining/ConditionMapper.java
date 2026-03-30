@@ -1,5 +1,8 @@
-package io.openaev.api.chaining.dto;
+package io.openaev.api.chaining;
 
+import io.openaev.api.chaining.dto.ConditionCreateInput;
+import io.openaev.api.chaining.dto.ConditionOutput;
+import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.database.model.Condition;
 import io.openaev.database.model.Step;
 import java.util.ArrayList;
@@ -9,9 +12,9 @@ import java.util.Map;
 import java.util.Objects;
 
 /** Static mapper between {@link Condition} and event DTOs. */
-public class EventMapper {
+public class ConditionMapper {
 
-  private EventMapper() {}
+  private ConditionMapper() {}
 
   /**
    * Maps a condition tree root to output. If children are initialized on the root, the full tree is
@@ -47,7 +50,7 @@ public class EventMapper {
     deduplicatedById.putIfAbsent(root.getId(), root);
 
     List<ConditionOutput> conditionOutputs =
-        deduplicatedById.values().stream().map(EventMapper::toConditionOutput).toList();
+        deduplicatedById.values().stream().map(ConditionMapper::toConditionOutput).toList();
 
     String stepFromId = root.getStepFrom() != null ? root.getStepFrom().getId() : null;
 

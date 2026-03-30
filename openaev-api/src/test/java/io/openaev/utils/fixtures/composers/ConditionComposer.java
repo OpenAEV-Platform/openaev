@@ -3,6 +3,7 @@ package io.openaev.utils.fixtures.composers;
 import io.openaev.database.model.Condition;
 import io.openaev.database.model.Step;
 import io.openaev.database.repository.ConditionRepository;
+import io.openaev.service.chaining.ConditionService;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Component;
 public class ConditionComposer extends ComposerBase<Condition> {
 
   @Autowired private ConditionRepository conditionRepository;
+  @Autowired private ConditionService conditionService;
 
   public class Composer extends InnerComposerBase<Condition> {
 
@@ -25,7 +27,7 @@ public class ConditionComposer extends ComposerBase<Condition> {
     /** Sets the step to which this condition belongs. */
     public Composer withStep(StepComposer.Composer stepOriginComposer) {
       Step step = stepOriginComposer.get();
-      condition.setStep(step);
+      conditionService.linkToStep(condition, step, true);
       return this;
     }
 

@@ -1,5 +1,6 @@
 package io.openaev.service.chaining;
 
+import io.openaev.api.chaining.ConditionMapper;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.EventInput;
 import io.openaev.database.model.*;
@@ -9,16 +10,18 @@ import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.StepRepository;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import jakarta.persistence.EntityNotFoundException;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -48,39 +51,101 @@ public class ConditionService {
   public Condition createConditionTree(EventInput input) {
     Objects.requireNonNull(input, "input must not be null");
 
-    List<ConditionCreateInput> conditionInputs = input.getConditions();
-    // Find the root condition (the one without a parent)
+    return createConditionTree(
+        input.getConditions(),
+        rootInput -> {
+          Condition root = new Condition();
+          root.setWorkflowId(input.getWorkflowId());
+          root.setName(input.getName());
+          root.setDescription(input.getDescription());
+          root.setType(rootInput.getType());
+          root.setStepFrom(resolveStepFrom(input.getStepFrom()));
+          return root;
+        },
+        (childInput, parent) -> {
+          Condition child =
+              ConditionMapper.toCondition(
+                  childInput, resolveStepFrom(childInput.getStepFrom()), parent);
+          child.setWorkflowId(input.getWorkflowId());
+          return child;
+        },
+        null,
+        root -> linkStepsToRoot(root, input.getStepIds()));
+  }
+
+  public Condition createConditionTree(
+      List<ConditionCreateInput> conditionInputs,
+      Function<ConditionCreateInput, Condition> rootFactory,
+      BiFunction<ConditionCreateInput, Condition, Condition> childFactory,
+      BiConsumer<Condition, Boolean> linkCondition,
+      Consumer<Condition> afterRootSaved) {
+    Objects.requireNonNull(conditionInputs, "conditionInputs must not be null");
+
+    if (conditionInputs.isEmpty()) {
+      throw new BadRequestException("At least one condition is required");
+    }
+
+    // Find root condition
     ConditionCreateInput rootInput = findRootConditionInput(conditionInputs);
 
-    // Create root condition entity
-    Condition root = new Condition();
-    root.setWorkflowId(input.getWorkflowId());
-    root.setName(input.getName());
-    root.setDescription(input.getDescription());
-    root.setType(rootInput.getType());
-    // Resolve and set the source step of the root condition
-    root.setStepFrom(resolveStepFrom(input.getStepFrom()));
-    // Persist root condition first (needed, so children can reference it)
+    // Create and persist root
+    Condition root = rootFactory.apply(rootInput);
+
+    if (linkCondition != null) {
+      linkCondition.accept(root, true);
+    }
+
     root = conditionRepository.save(root);
 
-    // Link all related steps to the root condition
-    linkStepsToRoot(root, input.getStepIds());
+    if (afterRootSaved != null) {
+      afterRootSaved.accept(root);
+    }
 
-    // Map to keep track of temporary IDs -> persisted Condition entities
-    Map<String, Condition> saved = new HashMap<>();
-    saved.put(rootInput.getTemporaryId(), root);
+    // Keep track of temp ids -> persisted entities
+    Map<String, Condition> savedConditionsByTemporaryId = new HashMap<>();
+    savedConditionsByTemporaryId.put(rootInput.getTemporaryId(), root);
 
-    // Prepare remaining conditions (all except root)
-    List<ConditionCreateInput> remaining = new ArrayList<>(conditionInputs);
-    remaining.remove(rootInput);
+    // Group children by parent temporary id
+    Map<String, List<ConditionCreateInput>> childrenByParentTemporaryId =
+        conditionInputs.stream()
+            .filter(condition -> condition.getTemporaryIdConditionParent() != null)
+            .collect(Collectors.groupingBy(ConditionCreateInput::getTemporaryIdConditionParent));
 
-    // Persist the rest of the tree in dependency order (parents before children).
-    persistConditionTreeNodes(remaining, saved, input.getWorkflowId());
+    // BFS traversal
+    Queue<String> queue = new LinkedList<>();
+    queue.add(rootInput.getTemporaryId());
+
+    while (!queue.isEmpty()) {
+      String currentTemporaryId = queue.poll();
+
+      List<ConditionCreateInput> children =
+          childrenByParentTemporaryId.getOrDefault(currentTemporaryId, Collections.emptyList());
+
+      for (ConditionCreateInput childInput : children) {
+        Condition parent =
+            savedConditionsByTemporaryId.get(childInput.getTemporaryIdConditionParent());
+
+        if (parent == null) {
+          throw new BadRequestException(
+              "Parent condition not found for temporary id: "
+                  + childInput.getTemporaryIdConditionParent());
+        }
+
+        Condition child = childFactory.apply(childInput, parent);
+
+        if (linkCondition != null) {
+          linkCondition.accept(child, false);
+        }
+
+        child = conditionRepository.save(child);
+
+        savedConditionsByTemporaryId.put(childInput.getTemporaryId(), child);
+        queue.add(childInput.getTemporaryId());
+      }
+    }
 
     return root;
   }
-
-  // -- CONDITION TREE READ --
 
   /**
    * Finds a condition tree root by its ID.
@@ -88,11 +153,17 @@ public class ConditionService {
    * @param conditionRootId the root condition ID
    * @return the root {@link Condition}
    */
+  @Transactional(readOnly = true)
   public Condition findConditionRootById(String conditionRootId) {
-    return conditionRepository
-        .findById(conditionRootId)
-        .orElseThrow(
-            () -> new EntityNotFoundException("Condition root not found: " + conditionRootId));
+    Condition condition =
+        conditionRepository
+            .findById(conditionRootId)
+            .orElseThrow(
+                () -> new EntityNotFoundException("Condition root not found: " + conditionRootId));
+    if (condition.getConditionParent() != null) {
+      throw new EntityNotFoundException("Condition root not found: " + conditionRootId);
+    }
+    return condition;
   }
 
   /**
@@ -175,6 +246,34 @@ public class ConditionService {
     conditionRepository.deleteById(conditionRootId);
   }
 
+  /**
+   * Deletes conditions linked to a given step. Rules: - Always remove the current condition-step
+   * link for this step. - Delete the condition only if, after unlinking, it has no more
+   * condition-step links and no stepFrom.
+   *
+   * @param stepId step identifier
+   */
+  public void deleteAllConditionsByStepId(String stepId) {
+    List<Condition> conditions = findAllConditionsByStepId(stepId);
+    if (conditions.isEmpty()) {
+      return;
+    }
+
+    for (Condition condition : conditions) {
+      unlinkFromStep(condition, stepId);
+      Condition persisted = conditionRepository.save(condition);
+
+      boolean hasNoStepLinks =
+          persisted.getConditionSteps() == null || persisted.getConditionSteps().isEmpty();
+      boolean hasNoStepFrom = persisted.getStepFrom() == null;
+      boolean hasNoChildren =
+          persisted.getConditionChildren() == null || persisted.getConditionChildren().isEmpty();
+      if (hasNoStepLinks && hasNoStepFrom && hasNoChildren) {
+        conditionRepository.delete(persisted);
+      }
+    }
+  }
+
   // -- CONDITION PERSISTENCE HELPERS --
 
   /**
@@ -206,32 +305,6 @@ public class ConditionService {
   @Transactional(readOnly = true)
   public List<Condition> findAllConditionsByStepId(String stepId) {
     return conditionRepository.findAllByStep_Id(stepId);
-  }
-
-  /**
-   * Deletes conditions linked to a given step. Rules: - Always remove the current condition-step
-   * link for this step. - Delete the condition only if, after unlinking, it has no more
-   * condition-step links and no stepFrom.
-   *
-   * @param stepId step identifier
-   */
-  public void deleteAllConditionsByStepId(String stepId) {
-    List<Condition> conditions = findAllConditionsByStepId(stepId);
-    if (conditions.isEmpty()) {
-      return;
-    }
-
-    for (Condition condition : conditions) {
-      condition.unlinkFromStep(stepId);
-      Condition persisted = conditionRepository.save(condition);
-
-      boolean hasNoStepLinks =
-          persisted.getConditionSteps() == null || persisted.getConditionSteps().isEmpty();
-      boolean hasNoStepFrom = persisted.getStepFrom() == null;
-      if (hasNoStepLinks && hasNoStepFrom) {
-        conditionRepository.delete(persisted);
-      }
-    }
   }
 
   // -- CONDITION EVALUATION --
@@ -289,6 +362,9 @@ public class ConditionService {
   /**
    * Evaluates a time condition against the current time.
    *
+   * <p>TODO: this is for legacy behavior only (compare from start of workflow instead of previous
+   * step.
+   *
    * @param conditionTemplate the condition to evaluate
    * @param now current instant
    * @param goal target instant
@@ -317,20 +393,27 @@ public class ConditionService {
       throws ChainingException {
     List<Condition> conditionTemplate =
         findAllConditionsByStepId(nextStepTemplateToExecute.getId());
+
+    // No condition means direct execution:
     if (conditionTemplate == null || conditionTemplate.isEmpty()) return new ArrayList<>();
 
     List<Condition> conditionsExecution = new ArrayList<>();
+    List<Condition> timeConditions =
+        conditionTemplate.stream().filter(this::isTimeCondition).toList();
 
     // Time conditions
-    for (Condition condition : conditionTemplate.stream().filter(this::isTimeCondition).toList()) {
+    // TODO manage multi time condition (AND, OR: g C1 BEFORE OR C2 AFTER)
+    // Compute expected start time for the condition to be considered as valid
+    for (Condition condition : timeConditions) {
       Instant now = Instant.now();
       Instant start = workflowRun.getWorkflowCreatedAt();
+      // TODO: can this happen ? Shouldn't it throw an exception instead?
       if (start == null) start = now;
       long value = Long.parseLong(condition.getValue());
       Instant goal = start.plus(value, ChronoUnit.MILLIS);
 
       if (isTimeConditionValid(condition, now, goal)) {
-        conditionsExecution.add(Condition.executionOf(condition, goal));
+        conditionsExecution.add(ConditionFactory.executionOf(condition, goal));
         continue;
       }
       if (condition.getType().equals(ConditionType.AFTER)) {
@@ -343,42 +426,68 @@ public class ConditionService {
     }
 
     // Filter conditions
-    for (Condition condition :
-        conditionTemplate.stream().filter(this::isFilterCondition).toList()) {
-      Condition valid =
+    List<Condition> filterConditions =
+        conditionTemplate.stream().filter(this::isFilterCondition).toList();
+
+    for (Condition condition : filterConditions) {
+      Condition filterConditionValid =
           isFilterConditionValid(condition, input, nextStepTemplateToExecute.getData());
-      if (valid != null) conditionsExecution.add(valid);
+      if (filterConditionValid == null) {
+        // todo condition not valid break analyse
+      } else {
+        conditionsExecution.add(filterConditionValid);
+      }
     }
 
     // Mapper conditions
-    for (Condition condition :
-        conditionTemplate.stream().filter(this::isMapperCondition).toList()) {
-      Condition valid =
+    List<Condition> mapperConditions =
+        conditionTemplate.stream().filter(this::isMapperCondition).toList();
+
+    for (Condition condition : mapperConditions) {
+      Condition mapperConditionValid =
           isMapperConditionValid(condition, input, nextStepTemplateToExecute.getData());
-      if (valid != null) conditionsExecution.add(valid);
+      if (mapperConditionValid == null) {
+        // todo condition not valid break analyse
+      } else {
+        conditionsExecution.add(mapperConditionValid);
+      }
     }
 
     // StepFrom (DEPEND_ON) conditions
-    for (Condition condition :
-        conditionTemplate.stream().filter(c -> c.getStepFrom() != null).toList()) {
+    List<Condition> stepFrom =
+        conditionTemplate.stream().filter(condition -> condition.getStepFrom() != null).toList();
+    for (Condition condition : stepFrom) {
       String idStepFromTemplate = condition.getStepFrom().getId();
-      List<Step> dependOnRan =
+      List<Step> dependOnStepsRunByTemplateIdAndWorkflowRunId =
           stepService
               .findAllStepExecutedByStepTemplateIdAndWorkflowRunId(
                   idStepFromTemplate, workflowRun.getId())
               .stream()
-              .filter(s -> s.getOutput() != null)
+              .filter(step -> step.getOutput() != null)
               .toList();
+
+      // Count of current step template already run into this workflow run
       int stepExecutedCount =
           stepService.countExecutedStep(workflowRun.getId(), nextStepTemplateToExecute.getId());
-      if (!dependOnRan.isEmpty()
-          && stepExecutedCount < nextStepTemplateToExecute.getLimitExecution()) {
+
+      boolean hasDependencyOutput = !dependOnStepsRunByTemplateIdAndWorkflowRunId.isEmpty();
+      boolean underExecutionLimit =
+          stepExecutedCount < nextStepTemplateToExecute.getLimitExecution();
+
+      // todo : change : !dependOnStepsRunByTemplateIdAndWorkflowRunId.isEmpty()
+      // ( means at least 1 stepFrom is/has been running),
+      // to implement: check if input/output as already be used into the next stepToExecute
+      // This condition means:
+      // - the previews one has been executed and contain output
+      // - and the next one not reach his limit of execution
+      if (hasDependencyOutput && underExecutionLimit) {
         conditionsExecution.add(isDependOn(idStepFromTemplate));
       } else {
+        // Todo : condition not valid break analyse
         return null;
       }
     }
-
+    // todo Mapped input-data step
     return conditionsExecution;
   }
 
@@ -389,7 +498,7 @@ public class ConditionService {
    * @return the DEPEND_ON condition
    */
   public Condition isDependOn(String idStepFromTemplate) {
-    return Condition.dependOn(idStepFromTemplate);
+    return ConditionFactory.dependOn(idStepFromTemplate);
   }
 
   /**
@@ -404,7 +513,7 @@ public class ConditionService {
     }
     for (String conditionRootId : conditionRootIds) {
       Condition root = findConditionRootById(conditionRootId);
-      root.linkToStep(step, true);
+      linkToStep(root, step, true);
       conditionRepository.save(root);
     }
   }
@@ -424,13 +533,22 @@ public class ConditionService {
     if (stepIds == null || stepIds.isEmpty()) {
       return;
     }
-    List<Step> steps = stepRepository.findAllById(stepIds);
-    if (steps.size() != stepIds.size()) {
-      List<String> found = steps.stream().map(Step::getId).toList();
-      List<String> missing = stepIds.stream().filter(id -> !found.contains(id)).toList();
+
+    // Remove duplicates while preserving order
+    List<String> uniqueStepIds = new ArrayList<>(new LinkedHashSet<>(stepIds));
+
+    List<Step> steps = stepRepository.findAllById(uniqueStepIds);
+
+    if (steps.size() != uniqueStepIds.size()) {
+      Set<String> found = steps.stream().map(Step::getId).collect(Collectors.toSet());
+
+      List<String> missing = uniqueStepIds.stream().filter(id -> !found.contains(id)).toList();
+
       throw new EntityNotFoundException("Steps not found: " + missing);
     }
-    steps.forEach(step -> root.linkToStep(step, true));
+
+    steps.forEach(step -> linkToStep(root, step, true));
+
     conditionRepository.save(root);
   }
 
@@ -440,11 +558,19 @@ public class ConditionService {
    * @param inputs flat list of condition inputs
    * @return the root {@link ConditionCreateInput}
    */
-  private ConditionCreateInput findRootConditionInput(List<ConditionCreateInput> inputs) {
+  public ConditionCreateInput findRootConditionInput(List<ConditionCreateInput> inputs) {
     return inputs.stream()
-        .filter(c -> c.getTemporaryIdConditionParent() == null)
-        .findFirst()
-        .orElseThrow(() -> new IllegalArgumentException("No root condition found in input list"));
+        .filter(
+            conditionCreateInput -> conditionCreateInput.getTemporaryIdConditionParent() == null)
+        .reduce(
+            (a, b) -> {
+              throw new IllegalArgumentException(
+                  "New step (TEMPLATE): Only 1 condition can be first parent");
+            })
+        .orElseThrow(
+            () ->
+                new IllegalArgumentException(
+                    "New step (TEMPLATE): Only 1 condition can be first parent"));
   }
 
   /**
@@ -514,5 +640,52 @@ public class ConditionService {
                 new EntityNotFoundException(
                     "Condition references a non-existing step (field: step_from). Step ID: "
                         + stepFromId));
+  }
+
+  public void linkToStep(Condition condition, Step step, boolean isRoot) {
+    Objects.requireNonNull(condition, "condition must not be null");
+
+    if (step == null) {
+      return;
+    }
+
+    List<ConditionStep> conditionSteps = condition.getConditionSteps();
+    if (conditionSteps == null) {
+      throw new IllegalStateException("conditionSteps must not be null");
+    }
+
+    ConditionStep existingLink =
+        conditionSteps.stream()
+            .filter(link -> link.getStep() != null)
+            .filter(link -> Objects.equals(link.getStep().getId(), step.getId()))
+            .findFirst()
+            .orElse(null);
+
+    if (existingLink != null) {
+      existingLink.setRoot(isRoot);
+      return;
+    }
+
+    ConditionStep link = new ConditionStep();
+    link.setCondition(condition);
+    link.setStep(step);
+    link.setRoot(isRoot);
+    conditionSteps.add(link);
+  }
+
+  public void unlinkFromStep(Condition condition, String stepId) {
+    Objects.requireNonNull(condition, "condition must not be null");
+
+    if (stepId == null || stepId.isBlank()) {
+      return;
+    }
+
+    List<ConditionStep> conditionSteps = condition.getConditionSteps();
+    if (conditionSteps == null || conditionSteps.isEmpty()) {
+      return;
+    }
+
+    conditionSteps.removeIf(
+        link -> link.getStep() != null && Objects.equals(link.getStep().getId(), stepId));
   }
 }
