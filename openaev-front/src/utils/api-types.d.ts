@@ -6085,7 +6085,7 @@ export interface PublicScenario {
   name?: string;
 }
 
-export interface RawAttackPattern {
+export interface RawAttackPatternIndexing {
   /** @format date-time */
   attack_pattern_created_at?: string;
   attack_pattern_description?: string;
