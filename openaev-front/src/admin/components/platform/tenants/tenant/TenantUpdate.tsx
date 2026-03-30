@@ -5,6 +5,7 @@ import Drawer from '../../../../../components/common/Drawer';
 import { useFormatter } from '../../../../../components/i18n';
 import { type TenantInput, type TenantOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
+import useAuth from '../../../../../utils/hooks/useAuth';
 import TenantForm from './TenantForm';
 
 interface Props {
@@ -23,6 +24,7 @@ const TenantUpdate: FunctionComponent<Props> = ({
   // Standard hooks
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
+  const { reloadUserTenants } = useAuth();
 
   // Form
 
@@ -44,9 +46,10 @@ const TenantUpdate: FunctionComponent<Props> = ({
 
       const updatedTenant = result.entities.tenants[result.result];
       onUpdate?.(updatedTenant);
+      await reloadUserTenants();
       onClose();
     },
-    [dispatch, tenant.tenant_id, onUpdate, onClose],
+    [dispatch, tenant.tenant_id, onUpdate, onClose, reloadUserTenants],
   );
 
   return (

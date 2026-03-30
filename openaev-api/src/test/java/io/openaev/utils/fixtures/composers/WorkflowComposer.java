@@ -50,6 +50,17 @@ public class WorkflowComposer extends ComposerBase<Workflow> {
       return this;
     }
 
+    /**
+     * Applies default inline configuration (rate-limit and timeout disabled, safe-mode enabled)
+     * directly onto the workflow row.
+     */
+    public Composer withDefaultWorkflowConfiguration() {
+      workflow.setRateLimitEnabled(false);
+      workflow.setTimeoutEnabled(false);
+      workflow.setSafeModeEnabled(true);
+      return this;
+    }
+
     @Override
     public Composer persist() {
       simulationComposer.ifPresent(ExerciseComposer.Composer::persist);

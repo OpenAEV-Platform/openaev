@@ -6,6 +6,7 @@ import DialogDelete from '../../../../components/common/DialogDelete';
 import { useFormatter } from '../../../../components/i18n';
 import type { TenantOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
+import useAuth from '../../../../utils/hooks/useAuth';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import TenantUpdate from './tenant/TenantUpdate';
@@ -31,6 +32,7 @@ const TenantPopover: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
+  const { reloadUserTenants } = useAuth();
 
   // Edition
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -53,7 +55,8 @@ const TenantPopover: FunctionComponent<Props> = ({
     await dispatch(deleteTenant(tenant.tenant_id));
     handleCloseDelete();
     onDelete?.(tenant.tenant_id);
-  }, [dispatch, tenant.tenant_id, onDelete, handleCloseDelete]);
+    await reloadUserTenants();
+  }, [dispatch, tenant.tenant_id, onDelete, handleCloseDelete, reloadUserTenants]);
 
   // Button Popover
   const entries = useMemo(() => {

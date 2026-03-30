@@ -1,5 +1,6 @@
 package io.openaev.scheduler;
 
+import static io.openaev.scheduler.jobs.TenantPurgeJob.TENANT_PURGE_JOB;
 import static io.openaev.scheduler.jobs.user_event.UserEventRetentionJob.USER_EVENT_RETENTION_JOB;
 import static org.quartz.JobKey.jobKey;
 
@@ -73,6 +74,14 @@ public class PlatformJobDefinitions {
   public JobDetail userEventRetentionJobDetail() {
     return JobBuilder.newJob(UserEventRetentionJob.class)
         .withIdentity(USER_EVENT_RETENTION_JOB)
+        .storeDurably()
+        .build();
+  }
+
+  @Bean
+  public JobDetail tenantPurgeJobDetail() {
+    return JobBuilder.newJob(TenantPurgeJob.class)
+        .withIdentity(TENANT_PURGE_JOB)
         .storeDurably()
         .build();
   }
