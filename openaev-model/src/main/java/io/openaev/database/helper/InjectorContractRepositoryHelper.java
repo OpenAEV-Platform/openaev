@@ -1,5 +1,6 @@
 package io.openaev.database.helper;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.InjectorContract;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -75,7 +76,7 @@ public class InjectorContractRepositoryHelper {
     sql.append(" ORDER BY RANDOM() LIMIT :limit");
 
     Query query = this.entityManager.createNativeQuery(sql.toString(), InjectorContract.class);
-    query.setParameter("tenantId", ":#{#tenantContext.currentTenant}");
+    query.setParameter("tenantId", TenantContext.getCurrentTenant());
     query.setParameter("attackPatternExternalId", attackPatternExternalId + "%");
     query.setParameter("limit", limit);
 
