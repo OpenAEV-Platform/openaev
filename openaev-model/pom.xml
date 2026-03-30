@@ -15,7 +15,7 @@
 
     <properties>
         <elasticsearch.version>8.19.13</elasticsearch.version>
-        <opensearch.version>3.7.0</opensearch.version>
+        <opensearch.version>3.8.0</opensearch.version>
     </properties>
 
     <dependencies>
