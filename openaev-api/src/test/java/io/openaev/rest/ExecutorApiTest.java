@@ -170,6 +170,7 @@ public class ExecutorApiTest extends IntegrationTest {
       assertThatJson(response)
           .inPath("catalog_connector_id")
           .isEqualTo(instance.getCatalogConnector().getId());
+      assertThatJson(response).inPath("connector_registered").isEqualTo(true);
     }
 
     @Test
@@ -194,6 +195,7 @@ public class ExecutorApiTest extends IntegrationTest {
               .getContentAsString();
       assertThatJson(response).inPath("connector_instance_id").isEqualTo(null);
       assertThatJson(response).inPath("catalog_connector_id").isEqualTo(catalogConnector.getId());
+      assertThatJson(response).inPath("connector_registered").isEqualTo(true);
     }
 
     @Test
@@ -211,6 +213,7 @@ public class ExecutorApiTest extends IntegrationTest {
               .getContentAsString();
       assertThatJson(response).inPath("connector_instance_id").isEqualTo(null);
       assertThatJson(response).inPath("catalog_connector_id").isEqualTo(null);
+      assertThatJson(response).inPath("connector_registered").isEqualTo(true);
     }
   }
 }
