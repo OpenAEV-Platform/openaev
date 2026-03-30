@@ -11,6 +11,7 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.model.Expectation;
 import io.openaev.model.expectation.*;
+import io.openaev.utils.StringUtils;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -27,6 +28,22 @@ public class InjectExpectationUtils {
   private InjectExpectationUtils() {}
 
   public static final double FAILED_SCORE_VALUE = 0.0;
+
+  // -- VALIDATION --
+
+  /**
+   * Validates that an expectation has meaningful data. An expectation without at least a name,
+   * description, or positive score is considered empty/invalid and should not be persisted — see
+   * OpenAEV-Platform/openaev#4891.
+   */
+  public static boolean isExpectationValid(InjectExpectation expectation) {
+    if (expectation == null) {
+      return false;
+    }
+    return !StringUtils.isBlank(expectation.getName())
+        || !StringUtils.isBlank(expectation.getDescription())
+        || (expectation.getExpectedScore() != null && expectation.getExpectedScore() > 0);
+  }
 
   // -- SCORE --
 

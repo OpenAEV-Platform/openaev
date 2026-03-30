@@ -831,6 +831,13 @@ public class InjectService {
     }
   }
 
+  public void resetInjectByExerciseId(String simulationId) {
+    List<Inject> injects = injectRepository.findAllInjectBySimulationId(simulationId);
+    if (injects.isEmpty()) return;
+    injects.forEach(Inject::clean);
+    injectRepository.saveAll(injects);
+  }
+
   /**
    * Update the inject entities
    *

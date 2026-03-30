@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.IntegrationTest;
 import io.openaev.database.model.RuleAttribute;
 import io.openaev.utils.InjectImportUtils;
 import io.openaev.utils.mockMapper.MockMapperUtils;
@@ -20,7 +19,7 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.*;
 
-public class InjectImportServiceTest extends IntegrationTest {
+class InjectImportServiceTest {
   private Row row;
   private Cell cell;
   private ObjectNode json;
@@ -54,7 +53,7 @@ public class InjectImportServiceTest extends IntegrationTest {
 
   @DisplayName("Test get a date cell as string")
   @Test
-  void testGetDateAsString() throws Exception {
+  void testGetDateAsString() {
     // -- PREPARE --
     Date date = Date.from(LocalDateTime.of(2025, 1, 1, 12, 0).toInstant(ZoneOffset.UTC));
     cell.setCellValue(date);
@@ -68,7 +67,7 @@ public class InjectImportServiceTest extends IntegrationTest {
 
   @DisplayName("Test get a date cell as string with a specific time pattern")
   @Test
-  void testGetDateAsStringWithTimePattern() throws Exception {
+  void testGetDateAsStringWithTimePattern() {
     // -- PREPARE --
     Date date = Date.from(LocalDateTime.of(2025, 1, 2, 12, 0).toInstant(ZoneOffset.UTC));
     cell.setCellValue(date);
@@ -82,7 +81,7 @@ public class InjectImportServiceTest extends IntegrationTest {
 
   @DisplayName("Test get a date cell as string when no column specified")
   @Test
-  void testGetDateAsStringWhenNoColumn() throws Exception {
+  void testGetDateAsStringWhenNoColumn() {
     // -- PREPARE --
     cell.setCellValue(Date.from(LocalDateTime.of(2025, 1, 1, 12, 0).toInstant(ZoneOffset.UTC)));
     // -- EXECUTE --
@@ -95,7 +94,7 @@ public class InjectImportServiceTest extends IntegrationTest {
 
   @DisplayName("Test get a date cell as string when it's already plain text")
   @Test
-  void testGetDateAsStringWhenAlreadyString() throws Exception {
+  void testGetDateAsStringWhenAlreadyString() {
     // -- PREPARE --
     cell.setCellValue("J+1");
     // -- EXECUTE --
@@ -108,7 +107,7 @@ public class InjectImportServiceTest extends IntegrationTest {
 
   @DisplayName("Test get a string cell as string")
   @Test
-  void testGetCellValueAsString() throws Exception {
+  void testGetCellValueAsString() {
     // -- PREPARE --
     cell.setCellValue("A value");
     // -- EXECUTE --
@@ -121,7 +120,7 @@ public class InjectImportServiceTest extends IntegrationTest {
 
   @DisplayName("Test get a string cell as string when no column specified")
   @Test
-  void testGetCellValueAsStringWhenNoColumn() throws Exception {
+  void testGetCellValueAsStringWhenNoColumn() {
     // -- PREPARE --
     cell.setCellValue("A value");
     // -- EXECUTE --
@@ -134,7 +133,7 @@ public class InjectImportServiceTest extends IntegrationTest {
 
   @DisplayName("Test get a numeric cell as string")
   @Test
-  void testGetCellValueAsStringWhenAlreadyString() throws Exception {
+  void testGetCellValueAsStringWhenAlreadyString() {
     // -- PREPARE --
     cell.setCellValue(10.0);
     // -- EXECUTE --
@@ -147,7 +146,7 @@ public class InjectImportServiceTest extends IntegrationTest {
 
   @DisplayName("Test get a double cell as string")
   @Test
-  void testGetCellDoubleAsString() throws Exception {
+  void testGetCellDoubleAsString() {
     // -- PREPARE --
     cell.setCellValue("10.0");
     // -- EXECUTE --
@@ -160,7 +159,7 @@ public class InjectImportServiceTest extends IntegrationTest {
 
   @DisplayName("Test get a double cell as string when no column specified")
   @Test
-  void testGetCellDoubleAsStringWhenNoColumn() throws Exception {
+  void testGetCellDoubleAsStringWhenNoColumn() {
     // -- PREPARE --
     cell.setCellValue("A value");
     // -- EXECUTE --
@@ -173,7 +172,7 @@ public class InjectImportServiceTest extends IntegrationTest {
 
   @DisplayName("Test get a double cell when it's already a double")
   @Test
-  void testGetCellDoubleAsStringWhenAlreadyString() throws Exception {
+  void testGetCellDoubleAsStringWhenAlreadyString() {
     // -- PREPARE --
     cell.setCellValue(10.0);
     // -- EXECUTE --
@@ -186,7 +185,7 @@ public class InjectImportServiceTest extends IntegrationTest {
 
   @DisplayName("Test get a string cell and convert it to HTML")
   @Test
-  void testExtractAndConvertCellAsHTML() throws Exception {
+  void testExtractAndConvertCellAsHTML() {
     // -- PREPARE --
     cell.setCellValue("Test\nTest");
     RuleAttribute ruleAttribute = MockMapperUtils.createRuleAttribute();
@@ -203,7 +202,7 @@ public class InjectImportServiceTest extends IntegrationTest {
 
   @DisplayName("Test get a string cell and keep it as plain text")
   @Test
-  void testExtractWithoutConvertingCellAsHTML() throws Exception {
+  void testExtractWithoutConvertingCellAsHTML() {
     // -- PREPARE --
     cell.setCellValue("Test\nTest");
     RuleAttribute ruleAttribute = MockMapperUtils.createRuleAttribute();
@@ -221,7 +220,7 @@ public class InjectImportServiceTest extends IntegrationTest {
 
   @DisplayName("Test get inject date without pattern but with an ISO_DATE_TIME format")
   @Test
-  void testGetInjectDateWithoutPattern() throws Exception {
+  void testGetInjectDateWithoutPattern() {
     // -- PREPARE --
     InjectTime injectTime = new InjectTime();
     injectTime.setUnformattedDate(LocalDateTime.of(2025, 1, 1, 12, 0, 0).toString());
@@ -235,7 +234,7 @@ public class InjectImportServiceTest extends IntegrationTest {
 
   @DisplayName("Test get inject time without pattern but with an ISO_TIME format")
   @Test
-  void testGetInjectTimeWithoutPattern() throws Exception {
+  void testGetInjectTimeWithoutPattern() {
     // -- PREPARE --
     InjectTime injectTime = new InjectTime();
     injectTime.setUnformattedDate(LocalTime.of(12, 0, 0).format(DateTimeFormatter.ISO_TIME));
@@ -249,7 +248,7 @@ public class InjectImportServiceTest extends IntegrationTest {
 
   @DisplayName("Test get inject time without pattern and in an unknown format")
   @Test
-  void testGetInjectTimeUndetected() throws Exception {
+  void testGetInjectTimeUndetected() {
     // -- PREPARE --
     InjectTime injectTime = new InjectTime();
     injectTime.setUnformattedDate("13 heures et demi");
@@ -262,7 +261,7 @@ public class InjectImportServiceTest extends IntegrationTest {
 
   @DisplayName("Test get inject date and time with a specified pattern")
   @Test
-  void testGetInjectDateTimeWithPattern() throws Exception {
+  void testGetInjectDateTimeWithPattern() {
     // -- PREPARE --
     InjectTime injectTime = new InjectTime();
     injectTime.setUnformattedDate("25/01/20 13h05:52");
@@ -276,7 +275,7 @@ public class InjectImportServiceTest extends IntegrationTest {
 
   @DisplayName("Test get inject time with a specified pattern")
   @Test
-  void testGetInjectTimeWithPattern() throws Exception {
+  void testGetInjectTimeWithPattern() {
     // -- PREPARE --
     InjectTime injectTime = new InjectTime();
     injectTime.setUnformattedDate("13h05:52");
@@ -290,7 +289,7 @@ public class InjectImportServiceTest extends IntegrationTest {
 
   @DisplayName("Test get inject time with a specified pattern that does not match")
   @Test
-  void testGetInjectTimeUndetectedWithTimePattern() throws Exception {
+  void testGetInjectTimeUndetectedWithTimePattern() {
     // -- PREPARE --
     InjectTime injectTime = new InjectTime();
     injectTime.setUnformattedDate("13 heures et demi");
