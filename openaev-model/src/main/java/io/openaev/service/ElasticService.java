@@ -285,11 +285,20 @@ public class ElasticService implements EngineService {
         dataQueryBuilder.should(shouldList).minimumShouldMatch("1").build()._toQuery();
     mainMust.add(dataQuery);
 
-    Query currentTenantQuery =
+    // Filter by current tenant: match tenant-scoped documents belonging to this tenant,
+    // or platform-level documents that have no tenant field at all.
+    Query matchesTenant =
         TermQuery.of(
                 t -> t.field("base_tenant_side.keyword").value(TenantContext.getCurrentTenant()))
             ._toQuery();
-    mainQuery.filter(currentTenantQuery);
+    Query noTenantField =
+        BoolQuery.of(
+                b -> b.mustNot(ExistsQuery.of(e -> e.field("base_tenant_side.keyword"))._toQuery()))
+            ._toQuery();
+    Query tenantFilter =
+        BoolQuery.of(b -> b.should(matchesTenant, noTenantField).minimumShouldMatch("1"))
+            ._toQuery();
+    mainQuery.filter(tenantFilter);
     return mainQuery.must(mainMust).build()._toQuery();
   }
 

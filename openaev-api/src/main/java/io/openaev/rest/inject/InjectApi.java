@@ -30,6 +30,7 @@ import io.openaev.rest.helper.ValidationErrorBag;
 import io.openaev.rest.helper.queue.BatchQueueService;
 import io.openaev.rest.helper.queue.executor.BatchExecutionTraceExecutor;
 import io.openaev.rest.inject.form.*;
+import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.inject.service.ExecutableInjectService;
 import io.openaev.rest.inject.service.InjectExecutionService;
 import io.openaev.rest.inject.service.InjectExportService;
@@ -41,6 +42,7 @@ import io.openaev.service.UserService;
 import io.openaev.service.targets.TargetService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TargetType;
+import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -93,6 +95,8 @@ public class InjectApi extends RestBehavior {
   private final UserService userService;
   private final DocumentService documentService;
   private final BatchExecutionTraceExecutor batchExecutionTraceExecutor;
+
+  private final InjectMapper injectMapper;
 
   private final RabbitmqConfig rabbitmqConfig;
   private final OpenAEVConfig openAEVConfig;
@@ -435,7 +439,7 @@ public class InjectApi extends RestBehavior {
           @Content(
               mediaType = "application/json",
               schema = @Schema(implementation = ValidationErrorBag.class)))
-  public Inject updateInject(
+  public InjectOutput updateInject(
       @PathVariable String exerciseId,
       @PathVariable String injectId,
       @Valid @RequestBody InjectInput input) {
@@ -459,7 +463,8 @@ public class InjectApi extends RestBehavior {
               }
             });
     this.exerciseRepository.save(exercise);
-    return injectRepository.save(inject);
+    Inject persistedInject = injectRepository.save(inject);
+    return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
 
   @GetMapping(INJECT_URI + "/next")

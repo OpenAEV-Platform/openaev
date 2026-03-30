@@ -6,7 +6,7 @@ import { Component } from 'react';
 import { connect } from 'react-redux';
 import { withStyles } from 'tss-react/mui';
 
-import { addTag } from '../../../../actions/Tag';
+import { addTag } from '../../../../actions/tags/tag-action';
 import Drawer from '../../../../components/common/Drawer';
 import inject18n from '../../../../components/i18n';
 import TagForm from './TagForm';

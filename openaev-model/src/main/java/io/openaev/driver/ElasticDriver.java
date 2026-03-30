@@ -32,7 +32,6 @@ import java.util.*;
 import javax.net.ssl.SSLContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -155,7 +154,7 @@ public class ElasticDriver {
   }
 
   @SuppressWarnings("SameParameterValue")
-  private void createIndex(
+  private void setupIndex(
       ElasticsearchClient client, String name, String version, Map<String, Property> mappings)
       throws IOException {
     // Create template
@@ -230,10 +229,14 @@ public class ElasticDriver {
 
     Map<String, Property> mappings = new HashMap<>();
     Class<?> model = esModel.getModel();
-    Field[] parentFields = model.getSuperclass().getDeclaredFields();
-    Field[] directFields = model.getDeclaredFields();
-    Field[] fields = ArrayUtils.addAll(directFields, parentFields);
-    for (Field field : fields) {
+    // Collect fields from the entire class hierarchy (not just the direct parent)
+    List<Field> allFields = new ArrayList<>();
+    for (Class<?> clazz = model;
+        clazz != null && clazz != Object.class;
+        clazz = clazz.getSuperclass()) {
+      allFields.addAll(List.of(clazz.getDeclaredFields()));
+    }
+    for (Field field : allFields) {
       Class<?> fieldType = field.getType();
       if (List.class.isAssignableFrom(field.getType()) || Set.class.isAssignableFrom(fieldType)) {
         ParameterizedType fieldGenericType = (ParameterizedType) field.getGenericType();
@@ -306,7 +309,7 @@ public class ElasticDriver {
                   cleanUpIndex(esModel.getName(), elasticClient);
                 }
                 log.info("Creating Index " + esModel.getName());
-                createIndex(elasticClient, esModel.getName(), ES_MODEL_VERSION, mappings);
+                setupIndex(elasticClient, esModel.getName(), ES_MODEL_VERSION, mappings);
               } catch (IOException e) {
                 throw new RuntimeException(e);
               }

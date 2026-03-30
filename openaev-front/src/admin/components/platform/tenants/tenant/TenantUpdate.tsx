@@ -1,6 +1,6 @@
 import { type FunctionComponent, useCallback, useMemo } from 'react';
 
-import { updateTenant } from '../../../../../actions/tenants/tenant-actions';
+import { updateTenant } from '../../../../../actions/platform/tenants/tenant-action';
 import Drawer from '../../../../../components/common/Drawer';
 import { useFormatter } from '../../../../../components/i18n';
 import { type TenantInput, type TenantOutput } from '../../../../../utils/api-types';

@@ -9,7 +9,6 @@ import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
-import jakarta.validation.constraints.NotBlank;
 import java.util.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,7 +42,6 @@ public class V20260101_Starter_pack extends DataPack {
 
   private static final class Config {
     static final String STARTER_PACK_KEY = "starterpack";
-    static final String STARTER_PACK_SETTING_VALUE = "StarterPack creation process completed";
     static final String SCENARIOS_FOLDER_NAME = "scenarios";
     static final String DASHBOARDS_FOLDER_NAME = "dashboards";
     static final String DEFAULT_FILE_DASHBOARD_HOME = "default_home";
@@ -86,20 +84,17 @@ public class V20260101_Starter_pack extends DataPack {
 
   private final ResourcePatternResolver resolver;
 
-  private boolean hasError = false;
-  private String errorMessage = null;
-
   @Override
-  protected void doProcess() {
+  protected boolean doProcess() {
     // early break for when the starter pack was already run
     if (!isStarterPackEnabled) {
       log.info("Starter pack is disabled by configuration");
-      return;
+      return false;
     }
 
     if (this.settingRepository.findByKey(Config.STARTER_PACK_KEY).isPresent()) {
       log.info("Starter pack already initialized");
-      return;
+      return true;
     }
 
     // unconditionally run this code
@@ -131,11 +126,11 @@ public class V20260101_Starter_pack extends DataPack {
 
       this.importScenariosFromResources(honeyScanMeEndpoint, allEndpointAssetGroup);
       this.importDashboardsFromResources();
+      return true;
     } catch (Exception e) {
-      recordError("Unexpected error during StarterPack initialization.", e);
+      log.error("Unexpected error during DataPack 20260101 initialization.", e);
+      return false;
     }
-
-    this.createSetting();
   }
 
   private Endpoint createHoneyScanMeAgentlessEndpoint(List<String> tags) {
@@ -179,7 +174,7 @@ public class V20260101_Starter_pack extends DataPack {
                     "Successfully imported StarterPack scenario file : {}",
                     resourceToAdd.getFilename());
               } catch (Exception e) {
-                recordError(
+                log.error(
                     "Failed to import StarterPack scenario file : " + resourceToAdd.getFilename(),
                     e);
               }
@@ -203,7 +198,7 @@ public class V20260101_Starter_pack extends DataPack {
                     "Successfully imported StarterPack dashboard file : {}",
                     resourceToAdd.getFilename());
               } catch (Exception e) {
-                recordError(
+                log.error(
                     "Failed to import StarterPack dashboard file : " + resourceToAdd.getFilename(),
                     e);
               }
@@ -217,7 +212,7 @@ public class V20260101_Starter_pack extends DataPack {
                   "classpath:" + Config.STARTER_PACK_KEY + "/" + folderName + "/*.zip"))
           .toList();
     } catch (Exception e) {
-      recordError(
+      log.error(
           "Failed to import StarterPack files from resource folder "
               + Config.STARTER_PACK_KEY
               + "/"
@@ -225,12 +220,6 @@ public class V20260101_Starter_pack extends DataPack {
           e);
       return Collections.emptyList();
     }
-  }
-
-  private void recordError(@NotBlank final String message, Throwable cause) {
-    this.hasError = true;
-    this.errorMessage = message;
-    log.error(message, cause);
   }
 
   private void setDefaultDashboard(String filename, String dashboardId) {
@@ -247,16 +236,5 @@ public class V20260101_Starter_pack extends DataPack {
       defaultDashboardSetting.setValue(dashboardId);
       settingRepository.save(defaultDashboardSetting);
     }
-  }
-
-  private void createSetting() {
-    Setting setting = new Setting();
-    setting.setKey(Config.STARTER_PACK_KEY);
-    if (hasError) {
-      setting.setValue(this.errorMessage);
-    } else {
-      setting.setValue(Config.STARTER_PACK_SETTING_VALUE);
-    }
-    this.settingRepository.save(setting);
   }
 }

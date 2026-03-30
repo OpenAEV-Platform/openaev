@@ -7,7 +7,6 @@ import {
   type Scenario,
   type ScenarioChallengesReader,
   type SimulationChallengesReader,
-  type Tag,
   type Token,
   type User,
 } from '../utils/api-types';
@@ -21,12 +20,6 @@ export interface UserHelper {
 export interface OrganizationHelper {
   getOrganizations: () => Organization[];
   getOrganizationsMap: () => Record<string, Organization>;
-}
-
-export interface TagHelper {
-  getTag: (tagId: Tag['tag_id']) => Tag;
-  getTags: () => Tag[];
-  getTagsMap: () => Record<string, Tag>;
 }
 
 export interface LoggedHelper {

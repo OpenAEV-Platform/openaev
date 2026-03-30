@@ -5,8 +5,9 @@ import { CSVLink } from 'react-csv';
 import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { type OrganizationHelper, type TagHelper, type UserHelper } from '../../../actions/helper';
+import { type OrganizationHelper, type UserHelper } from '../../../actions/helper';
 import { fetchOrganizations } from '../../../actions/Organization';
+import { type TagHelper } from '../../../actions/tags/tag-helper';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import useBodyItemsStyles from '../../../components/common/queryable/style/style';
 import { useFormatter } from '../../../components/i18n';

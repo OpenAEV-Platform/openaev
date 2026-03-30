@@ -1,5 +1,6 @@
 package io.openaev.service.tenants;
 
+import static io.openaev.service.tenants.TenantService.SOFT_DELETE_RETENTION_DAYS;
 import static io.openaev.utils.fixtures.tenants.TenantFixture.TENANT_NAME;
 import static io.openaev.utils.fixtures.tenants.TenantFixture.getTenant;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -11,10 +12,11 @@ import io.minio.PutObjectArgs;
 import io.minio.Result;
 import io.minio.messages.Item;
 import io.openaev.IntegrationTest;
+import io.openaev.api.tenants.TenantInput;
+import io.openaev.api.tenants.TenantOutput;
 import io.openaev.config.MinioConfig;
 import io.openaev.database.model.Tenant;
-import io.openaev.database.repository.DomainRepository;
-import io.openaev.service.MinioService;
+import io.openaev.database.repository.*;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -23,6 +25,8 @@ import jakarta.persistence.EntityNotFoundException;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import org.hibernate.Session;
 import org.hibernate.exception.ConstraintViolationException;
@@ -43,8 +47,8 @@ class TenantServiceTest extends IntegrationTest {
   @Autowired protected EntityManager entityManager;
   @Autowired private MinioConfig minioConfig;
   @Autowired private MinioClient minioClient;
-  @Autowired private MinioService minioService;
   @Autowired private DomainRepository domainRepository;
+  @Autowired private TenantRepository tenantRepository;
 
   @Test
   void should_create_and_find_tenant() throws Exception {
@@ -97,12 +101,12 @@ class TenantServiceTest extends IntegrationTest {
     tenantComposer.forTenant(tenantA).persist();
     tenantComposer.forTenant(tenantB).persist();
 
-    tenantB.setName("Tenant A");
+    TenantInput duplicateNameInput = new TenantInput("Tenant A", null);
 
     // -- ACT & ASSERT --
     assertThatThrownBy(
             () -> {
-              tenantService.update(tenantB.getId(), tenantB);
+              tenantService.update(tenantB.getId(), duplicateNameInput);
               entityManager.flush();
             })
         .isInstanceOf(ConstraintViolationException.class);
@@ -123,10 +127,12 @@ class TenantServiceTest extends IntegrationTest {
     searchInput.setSize(10);
 
     // -- ACT --
-    Page<Tenant> result = tenantService.search(searchInput);
+    Page<TenantOutput> result = tenantService.search(searchInput);
 
     // -- ASSERT --
-    assertThat(result.getContent()).extracting(Tenant::getName).contains(tenantNameA, tenantNameB);
+    assertThat(result.getContent())
+        .extracting(TenantOutput::name)
+        .contains(tenantNameA, tenantNameB);
   }
 
   @Test
@@ -137,44 +143,66 @@ class TenantServiceTest extends IntegrationTest {
 
     // -- ACT --
     String newTenantName = "Tenant B";
-    Tenant update = getTenant(newTenantName);
+    TenantInput updateInput = new TenantInput(newTenantName, null);
 
-    Tenant updated = tenantService.update(existing.getId(), update);
+    Tenant updated = tenantService.update(existing.getId(), updateInput);
 
     // -- ASSERT --
     assertThat(updated.getName()).isEqualTo(newTenantName);
   }
 
   @Test
-  void should_delete_tenant() throws Exception {
+  void should_soft_delete_tenant() {
     // -- ARRANGE --
     Tenant tenant = getTenant("Tenant A");
     Tenant created = tenantComposer.forTenant(tenant).persist().get();
 
-    // Upload a file to verify MinIO path-based isolation works
-    byte[] content = "file-to-be-wiped".getBytes(StandardCharsets.UTF_8);
-    InputStream data = new ByteArrayInputStream(content);
-    minioClient.putObject(
-        PutObjectArgs.builder()
-            .bucket(minioConfig.getBucket())
-            .object(created.getId() + "/docs/report.pdf")
-            .stream(data, content.length, -1)
-            .contentType("application/pdf")
-            .build());
-
     // -- ACT --
-    tenantService.delete(created.getId());
+    Tenant softDeleted = tenantService.softDelete(created.getId());
 
     // -- ASSERT --
-    assertThatThrownBy(() -> tenantService.findById(created.getId()))
-        .isInstanceOf(EntityNotFoundException.class);
+    assertThat(softDeleted.getDeletedAt()).isNotNull();
+    assertThat(tenantRepository.findById(created.getId())).isPresent();
+  }
 
-    // Verify the file is removed under the tenant prefix
-    assertThat(minioService.countObjects(created.getName() + "/")).isZero();
+  @Test
+  void should_reactivate_soft_deleted_tenant() {
+    // -- ARRANGE --
+    Tenant tenant = getTenant("Tenant A");
+    tenantComposer.forTenant(tenant).persist();
+    tenantService.softDelete(tenant.getId());
 
-    // Verify no domain anymore for this tenant
+    // -- ACT --
+    Tenant reactivated = tenantService.reactivate(tenant.getId());
+
+    // -- ASSERT --
+    assertThat(reactivated.getDeletedAt()).isNull();
+  }
+
+  @Test
+  void should_purge_expired_tenants() {
+    // -- ARRANGE --
+    Tenant tenantExpired = getTenant("Tenant Expired");
+    tenantComposer.forTenant(tenantExpired).persist();
+    tenantExpired.setDeletedAt(
+        Instant.now().minus(SOFT_DELETE_RETENTION_DAYS + 1, ChronoUnit.DAYS));
+    tenantRepository.save(tenantExpired);
+
+    Tenant tenantRecent = getTenant("Tenant Recent");
+    tenantComposer.forTenant(tenantRecent).persist();
+    tenantService.softDelete(tenantRecent.getId());
+
+    // -- ACT --
+    int purged = tenantService.purgeExpiredTenants();
+
+    // -- ASSERT --
+    assertThat(purged).isEqualTo(1);
+    assertThat(tenantRepository.findById(tenantExpired.getId())).isEmpty();
+    assertThat(tenantRepository.findById(tenantRecent.getId())).isPresent();
+
+    // Verify no domain anymore for the deleted tenant
     Session session = entityManager.unwrap(Session.class);
-    session.enableFilter("tenantFilter").setParameter("tenantId", created.getId());
+    session.enableFilter("tenantFilter").setParameter("tenantId", tenantExpired.getId());
     assertThat(domainRepository.findAll()).isEmpty();
   }
 
