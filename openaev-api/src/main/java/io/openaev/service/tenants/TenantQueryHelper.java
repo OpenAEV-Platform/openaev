@@ -8,6 +8,7 @@ import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Root;
+import java.time.Instant;
 import java.util.List;
 
 public class TenantQueryHelper {
@@ -19,7 +20,8 @@ public class TenantQueryHelper {
     cq.multiselect(
             root.get("id").alias(ALIAS_ID),
             root.get("name").alias(ALIAS_NAME),
-            root.get("description").alias(ALIAS_DESCRIPTION))
+            root.get("description").alias(ALIAS_DESCRIPTION),
+            root.get("deletedAt").alias(ALIAS_DELETED_AT))
         .distinct(true);
   }
 
@@ -31,7 +33,8 @@ public class TenantQueryHelper {
                 new TenantOutput(
                     tuple.get(ALIAS_ID, String.class),
                     tuple.get(ALIAS_NAME, String.class),
-                    tuple.get(ALIAS_DESCRIPTION, String.class)))
+                    tuple.get(ALIAS_DESCRIPTION, String.class),
+                    tuple.get(ALIAS_DELETED_AT, Instant.class)))
         .toList();
   }
 }
