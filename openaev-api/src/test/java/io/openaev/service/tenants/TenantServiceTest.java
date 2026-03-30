@@ -12,6 +12,8 @@ import io.minio.PutObjectArgs;
 import io.minio.Result;
 import io.minio.messages.Item;
 import io.openaev.IntegrationTest;
+import io.openaev.api.tenants.TenantInput;
+import io.openaev.api.tenants.TenantOutput;
 import io.openaev.config.MinioConfig;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.*;
@@ -99,12 +101,12 @@ class TenantServiceTest extends IntegrationTest {
     tenantComposer.forTenant(tenantA).persist();
     tenantComposer.forTenant(tenantB).persist();
 
-    tenantB.setName("Tenant A");
+    TenantInput duplicateNameInput = new TenantInput("Tenant A", null);
 
     // -- ACT & ASSERT --
     assertThatThrownBy(
             () -> {
-              tenantService.update(tenantB.getId(), tenantB);
+              tenantService.update(tenantB.getId(), duplicateNameInput);
               entityManager.flush();
             })
         .isInstanceOf(ConstraintViolationException.class);
@@ -125,10 +127,12 @@ class TenantServiceTest extends IntegrationTest {
     searchInput.setSize(10);
 
     // -- ACT --
-    Page<Tenant> result = tenantService.search(searchInput);
+    Page<TenantOutput> result = tenantService.search(searchInput);
 
     // -- ASSERT --
-    assertThat(result.getContent()).extracting(Tenant::getName).contains(tenantNameA, tenantNameB);
+    assertThat(result.getContent())
+        .extracting(TenantOutput::name)
+        .contains(tenantNameA, tenantNameB);
   }
 
   @Test
@@ -139,9 +143,9 @@ class TenantServiceTest extends IntegrationTest {
 
     // -- ACT --
     String newTenantName = "Tenant B";
-    Tenant update = getTenant(newTenantName);
+    TenantInput updateInput = new TenantInput(newTenantName, null);
 
-    Tenant updated = tenantService.update(existing.getId(), update);
+    Tenant updated = tenantService.update(existing.getId(), updateInput);
 
     // -- ASSERT --
     assertThat(updated.getName()).isEqualTo(newTenantName);

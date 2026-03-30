@@ -1,6 +1,6 @@
 import { type FunctionComponent, useCallback, useContext, useMemo, useState } from 'react';
 
-import { deleteTenant } from '../../../../actions/tenants/tenant-actions';
+import { deleteTenant } from '../../../../actions/platform/tenants/tenant-action';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import { useFormatter } from '../../../../components/i18n';

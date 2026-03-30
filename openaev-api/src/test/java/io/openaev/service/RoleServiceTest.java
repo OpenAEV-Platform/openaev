@@ -3,40 +3,25 @@ package io.openaev.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.openaev.IntegrationTest;
 import io.openaev.database.model.Capability;
-import io.openaev.database.repository.RoleRepository;
-import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.TestExecutionListeners;
 
-@SpringBootTest
-@TestExecutionListeners(
-    value = {RabbitMQTestListener.class},
-    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
-public class RoleServiceTest extends IntegrationTest {
-
-  @Mock RoleRepository roleRepository;
-
-  @InjectMocks RoleService roleService;
+class RoleServiceTest {
 
   @Test
-  void test_getCapabilitiesWithParents_when_inputwithmissingparent_then_should_add_parent() {
+  void test_resolveWithParents_when_inputwithmissingparent_then_should_add_parent() {
     Set<Capability> input = Set.of(Capability.MANAGE_CHANNELS);
-    Set<Capability> output = roleService.getCapabilitiesWithParents(input);
+    Set<Capability> output = Capability.resolveWithParents(input);
     assertEquals(2, output.size());
     assertTrue(output.contains(Capability.MANAGE_CHANNELS));
     assertTrue(output.contains(Capability.ACCESS_CHANNELS));
   }
 
   @Test
-  void test_getCapabilitiesWithParents_when_inputwithnomissingparent_then_should_return_input() {
+  void test_resolveWithParents_when_inputwithnomissingparent_then_should_return_input() {
     Set<Capability> input = Set.of(Capability.ACCESS_CHANNELS);
-    Set<Capability> output = roleService.getCapabilitiesWithParents(input);
+    Set<Capability> output = Capability.resolveWithParents(input);
     assertEquals(1, output.size());
     assertTrue(output.contains(Capability.ACCESS_CHANNELS));
   }

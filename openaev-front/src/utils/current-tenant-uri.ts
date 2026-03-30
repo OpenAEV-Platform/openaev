@@ -1,4 +1,4 @@
-import { TENANT_URI } from '../actions/tenants/tenant-actions';
+import { TENANT_URI } from '../actions/platform/tenants/tenant-action';
 import { TENANT_STORAGE_KEY } from './hooks/useTenant';
 
 /**

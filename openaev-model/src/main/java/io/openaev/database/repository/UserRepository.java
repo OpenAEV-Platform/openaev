@@ -23,6 +23,8 @@ public interface UserRepository
   @NotNull
   Optional<User> findById(@NotNull String id);
 
+  long countByIdIn(Set<String> ids);
+
   Optional<User> findByEmailIgnoreCase(String email);
 
   List<User> findAllByEmailInIgnoreCase(List<String> emails);
@@ -180,7 +182,6 @@ public interface UserRepository
   // -- PAGINATION --
 
   @NotNull
-  @EntityGraph(value = "Player.tags-organization", type = EntityGraph.EntityGraphType.LOAD)
   Page<User> findAll(@NotNull Specification<User> spec, @NotNull Pageable pageable);
 
   @Query("SELECT u FROM User u JOIN Token t ON u.id = t.user.id WHERE t.value = :token")
