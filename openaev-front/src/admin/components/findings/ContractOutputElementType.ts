@@ -21,27 +21,8 @@ enum ContractOutputElementType {
   vulnerability = 'Vulnerability',
 }
 
-export const CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS = [
-  'account_with_password_not_required',
-  'admin_username',
-  'asreproastable_account',
-  'computer',
-  'credentials',
-  'cve',
-  'delegation',
-  'group',
-  'ipv4',
-  'ipv6',
-  'kerberoastable_account',
-  'number',
-  'password_policy',
-  'port',
-  'portscan',
-  'share',
-  'sid',
-  'text',
-  'username',
-  'vulnerability',
-] as const;
+export const CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS = Object.keys(
+  ContractOutputElementType,
+) as Array<keyof typeof ContractOutputElementType>;
 
 export default ContractOutputElementType;
