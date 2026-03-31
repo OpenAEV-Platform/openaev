@@ -147,6 +147,14 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
       attackPatternComposer.forEach(AttackPatternComposer.Composer::persist);
       vulnerabilityComposer.forEach(VulnerabilityComposer.Composer::persist);
       if (!WELL_KNOWN_CONTRACT_IDS.contains(injectorContract.getId())) {
+        // Persist injectors first — they are the owning side of the ManyToMany
+        // join table. Before the ManyToOne→ManyToMany migration, the FK on
+        // injectors_contracts forced implicit persistence; now it must be explicit.
+        for (Injector injector : new ArrayList<>(injectorContract.getInjectors())) {
+          if (!entityManager.contains(injector)) {
+            entityManager.persist(injector);
+          }
+        }
         entityManager.persist(injectorContract);
         for (Injector injector : new ArrayList<>(injectorContract.getInjectors())) {
           injector.linkContract(injectorContract);
