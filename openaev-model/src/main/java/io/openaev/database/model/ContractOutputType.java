@@ -28,6 +28,42 @@ public enum ContractOutputType {
   @JsonProperty("cve")
   CVE("cve"),
 
+  @JsonProperty("username")
+  Username("username"),
+
+  @JsonProperty("share")
+  Share("share"),
+
+  @JsonProperty("admin_username")
+  AdminUsername("admin_username"),
+
+  @JsonProperty("group")
+  Group("group"),
+
+  @JsonProperty("computer")
+  Computer("computer"),
+
+  @JsonProperty("password_policy")
+  PasswordPolicy("password_policy"),
+
+  @JsonProperty("delegation")
+  Delegation("delegation"),
+
+  @JsonProperty("sid")
+  Sid("sid"),
+
+  @JsonProperty("vulnerability")
+  Vulnerability("vulnerability"),
+
+  @JsonProperty("account_with_password_not_required")
+  AccountWithPasswordNotRequired("account_with_password_not_required"),
+
+  @JsonProperty("asreproastable_account")
+  AsreproastableAccount("asreproastable_account"),
+
+  @JsonProperty("kerberoastable_account")
+  KerberoastableAccount("kerberoastable_account"),
+
   @Hidden
   @JsonProperty("asset")
   Asset("asset");
