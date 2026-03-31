@@ -69,7 +69,6 @@ public class V20260330_Default_tenant_data extends DataPack {
               vulnerability.setCwes(new ArrayList<>(List.of(cwe)));
               vulnerability.setReferenceUrls(new ArrayList<>(input.referenceUrls()));
               vulnerabilityRepository.save(vulnerability);
-              // TODO unique key cwe :/
             });
         // Init roles/groups and the current user (if he exists) to admin group/role for the new
         // tenant created
