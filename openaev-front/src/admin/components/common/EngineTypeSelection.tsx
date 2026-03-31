@@ -79,7 +79,7 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
 
   const handleCardClick = (type: NonNullable<EngineType>) => {
     if (type === 'chaining' && !isEnterpriseEdition) {
-      setEEFeatureDetectedInfo(t('Chaining Scenario'));
+      setEEFeatureDetectedInfo(t('chaining.chaining-scenario.title'));
       openEnterpriseEditionDialog();
       return;
     }
