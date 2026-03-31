@@ -145,7 +145,7 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
       attackPatternComposer.forEach(AttackPatternComposer.Composer::persist);
       vulnerabilityComposer.forEach(VulnerabilityComposer.Composer::persist);
       if (!WELL_KNOWN_CONTRACT_IDS.contains(injectorContract.getId())) {
-        for (Injector injector : injectorContract.getInjectors()) {
+        for (Injector injector : new ArrayList<>(injectorContract.getInjectors())) {
           injector.linkContract(injectorContract);
         }
       }
