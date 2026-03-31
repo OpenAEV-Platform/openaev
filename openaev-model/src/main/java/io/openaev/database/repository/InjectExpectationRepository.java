@@ -1,7 +1,7 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.InjectExpectation;
-import io.openaev.database.raw.RawInjectExpectation;
+import io.openaev.database.raw.RawInjectExpectationIndexing;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -160,7 +160,7 @@ public interface InjectExpectationRepository
               + "AND i.agent_id is null ;",
       nativeQuery = true)
   // We don't include expectations for players, only for the team, neither for agents, if applicable
-  List<RawInjectExpectation> rawForComputeGlobalByInjectIds(
+  List<RawInjectExpectationIndexing> rawForComputeGlobalByInjectIds(
       @Param("injectIds") Set<String> injectIds);
 
   @Query(
@@ -184,7 +184,7 @@ public interface InjectExpectationRepository
               + "AND i.agent_id is null ;",
       nativeQuery = true)
   // We don't include expectations for players, only for the team, if applicable
-  List<RawInjectExpectation> rawForComputeGlobalByExerciseIds(
+  List<RawInjectExpectationIndexing> rawForComputeGlobalByExerciseIds(
       @Param("exerciseIds") Set<String> exerciseIds);
 
   @Query(
@@ -234,6 +234,7 @@ public interface InjectExpectationRepository
       ie.agent_id,
       ie.asset_id,
       ie.asset_group_id,
+      i.tenant_id,
       i.inject_title as inject_title,
       MAX(ins.tracking_sent_date) AS tracking_sent_date,
       array_agg(DISTINCT ap.attack_pattern_id) FILTER ( WHERE ap.attack_pattern_id IS NOT NULL ) AS attack_pattern_ids,
@@ -261,7 +262,8 @@ public interface InjectExpectationRepository
     GROUP BY
       ie.inject_expectation_id,
       ic.injector_contract_id,
-      i.inject_title
+      i.inject_title,
+        i.tenant_id
     )
     SELECT * FROM inject_expectation_data ied
     WHERE ied.inject_expectation_updated_at > :from AND ied.agent_id IS NULL
@@ -269,7 +271,7 @@ public interface InjectExpectationRepository
     LIMIT 500
     """,
       nativeQuery = true)
-  List<RawInjectExpectation> findForIndexing(@Param("from") Instant from);
+  List<RawInjectExpectationIndexing> findForIndexing(@Param("from") Instant from);
 
   /**
    * Retrieves a set of distinct inject IDs associated with the specified inject expectation IDs.

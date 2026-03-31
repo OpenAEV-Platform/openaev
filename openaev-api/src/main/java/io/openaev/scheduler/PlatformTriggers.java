@@ -7,10 +7,13 @@ import static org.quartz.SimpleScheduleBuilder.repeatMinutelyForever;
 import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
 import static org.quartz.TriggerBuilder.newTrigger;
 
+import io.openaev.service.InjectChainingCondition;
 import org.quartz.SimpleScheduleBuilder;
 import org.quartz.Trigger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
@@ -18,6 +21,9 @@ import org.springframework.stereotype.Component;
 public class PlatformTriggers {
 
   private PlatformJobDefinitions platformJobs;
+
+  @Value("${openaev.cron.config.steps.delay.queue.polling.interval:10000}")
+  private int stepDelayQueue;
 
   @Autowired
   public void setPlatformJobs(PlatformJobDefinitions platformJobs) {
@@ -102,6 +108,20 @@ public class PlatformTriggers {
         .forJob(this.platformJobs.userEventRetentionJobDetail())
         .withIdentity(USER_EVENT_RETENTION_TRIGGER)
         .withSchedule(cronSchedule("0 0 0 * * ?"))
+        .build();
+  }
+
+  @Bean
+  @Profile("!test")
+  @Conditional(InjectChainingCondition.class)
+  public Trigger queueChainingTrigger() {
+    SimpleScheduleBuilder _10_seconds =
+        simpleSchedule().withIntervalInMilliseconds(stepDelayQueue).repeatForever();
+
+    return newTrigger()
+        .forJob(this.platformJobs.queueChainingJobDetail())
+        .withIdentity("QueueChainingJob")
+        .withSchedule(_10_seconds)
         .build();
   }
 

@@ -2,8 +2,12 @@ package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.annotation.OnDelete;
+import io.openaev.annotation.OnDeleteAction;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Table;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -11,10 +15,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.annotations.UpdateTimestamp;
-import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.annotations.*;
 import org.hibernate.type.SqlTypes;
 
 @Entity
@@ -78,6 +79,7 @@ public class Workflow implements Base {
   @Builder.Default
   @JsonIgnore
   @Schema(description = "Workflows that were executed based on this template workflow")
+  @OnDelete(action = OnDeleteAction.SET_REFERENCE_NULL, fieldName = "workflowTemplate")
   private List<Workflow> workflowsExecuted = new ArrayList<>();
 
   @OneToMany(

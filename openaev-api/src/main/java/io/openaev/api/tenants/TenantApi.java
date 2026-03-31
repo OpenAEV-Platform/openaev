@@ -9,8 +9,6 @@ import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.service.tenants.TenantService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.*;
-import io.swagger.v3.oas.annotations.responses.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -67,7 +65,7 @@ public class TenantApi {
   @PostMapping("/search")
   public Page<TenantOutput> search(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return tenantService.search(searchPaginationInput).map(TenantMapper::toOutput);
+    return tenantService.search(searchPaginationInput);
   }
 
   // -- UPDATE --
@@ -81,7 +79,7 @@ public class TenantApi {
   @PutMapping("/{tenantId}")
   public TenantOutput update(@PathVariable String tenantId, @Valid @RequestBody TenantInput input) {
 
-    return toOutput(tenantService.update(tenantId, TenantMapper.fromInput(tenantId, input)));
+    return toOutput(tenantService.update(tenantId, input));
   }
 
   @Operation(

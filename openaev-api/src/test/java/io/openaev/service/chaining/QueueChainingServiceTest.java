@@ -41,7 +41,6 @@ class QueueChainingServiceTest {
 
   @BeforeEach
   void setUp() {
-    queueChainingService.setDelayQueueService(delayQueueService);
     queueChainingService.setReadyQueueService(readyQueueService);
     queueChainingService.setUpdateQueueService(updateQueueService);
   }
@@ -84,21 +83,6 @@ class QueueChainingServiceTest {
     }
 
     @Test
-    @DisplayName("should throw RuntimeException when workflows-delay config is missing")
-    void shouldThrowWhenDelayConfigMissing() {
-      // Prepare
-      Map<String, QueueConfig> queueConfig = new HashMap<>();
-      queueConfig.put("workflows-ready", new QueueConfig());
-      queueConfig.put("workflows-update", new QueueConfig());
-      when(openAEVConfig.getQueueConfig()).thenReturn(queueConfig);
-
-      // Act & Assert
-      RuntimeException exception =
-          assertThrows(RuntimeException.class, () -> queueChainingService.init());
-      assertTrue(exception.getMessage().contains("workflows-delay"));
-    }
-
-    @Test
     @DisplayName("should throw RuntimeException when all configs are missing")
     void shouldThrowWhenAllConfigsMissing() {
       // Prepare
@@ -107,104 +91,6 @@ class QueueChainingServiceTest {
 
       // Act & Assert
       assertThrows(RuntimeException.class, () -> queueChainingService.init());
-    }
-  }
-
-  // ========================================================================
-  // delayStep Tests
-  // ========================================================================
-  @Nested
-  @DisplayName("delayStep")
-  class DelayStepTests {
-
-    @Captor private ArgumentCaptor<StepEvent> eventCaptor;
-
-    @Test
-    @DisplayName("should publish event with correct step id")
-    void shouldPublishEventWithCorrectStepId() throws IOException {
-      // Prepare
-      String stepId = UUID.randomUUID().toString();
-      String workflowId = UUID.randomUUID().toString();
-      long delayMs = 5000L;
-
-      Step stepTemplate = mock(Step.class);
-      when(stepTemplate.getId()).thenReturn(stepId);
-
-      Workflow workflowRun = mock(Workflow.class);
-      when(workflowRun.getId()).thenReturn(workflowId);
-
-      // Act
-      queueChainingService.delayStep(stepTemplate, workflowRun, delayMs);
-
-      // Assert
-      verify(delayQueueService).publish(eventCaptor.capture());
-      StepEvent event = eventCaptor.getValue();
-      assertEquals(stepId, event.getStepId());
-    }
-
-    @Test
-    @DisplayName("should publish event with correct workflow id")
-    void shouldPublishEventWithCorrectWorkflowId() throws IOException {
-      // Prepare
-      String stepId = UUID.randomUUID().toString();
-      String workflowId = UUID.randomUUID().toString();
-      long delayMs = 5000L;
-
-      Step stepTemplate = mock(Step.class);
-      when(stepTemplate.getId()).thenReturn(stepId);
-
-      Workflow workflowRun = mock(Workflow.class);
-      when(workflowRun.getId()).thenReturn(workflowId);
-
-      // Act
-      queueChainingService.delayStep(stepTemplate, workflowRun, delayMs);
-
-      // Assert
-      verify(delayQueueService).publish(eventCaptor.capture());
-      StepEvent event = eventCaptor.getValue();
-      assertEquals(workflowId, event.getWorkflowId());
-    }
-
-    @Test
-    @DisplayName("should publish event with emission date")
-    void shouldPublishEventWithEmissionDate() throws IOException {
-      // Prepare
-      Step stepTemplate = mock(Step.class);
-      when(stepTemplate.getId()).thenReturn(UUID.randomUUID().toString());
-
-      Workflow workflowRun = mock(Workflow.class);
-      when(workflowRun.getId()).thenReturn(UUID.randomUUID().toString());
-
-      long beforeTest = Instant.now().toEpochMilli();
-
-      // Act
-      queueChainingService.delayStep(stepTemplate, workflowRun, 5000L);
-
-      long afterTest = Instant.now().toEpochMilli();
-
-      // Assert
-      verify(delayQueueService).publish(eventCaptor.capture());
-      StepEvent event = eventCaptor.getValue();
-      assertTrue(event.getEmissionDate() >= beforeTest);
-      assertTrue(event.getEmissionDate() <= afterTest);
-    }
-
-    @Test
-    @DisplayName("should propagate IOException from queue service")
-    void shouldPropagateIOException() throws IOException {
-      // Prepare
-      Step stepTemplate = mock(Step.class);
-      when(stepTemplate.getId()).thenReturn(UUID.randomUUID().toString());
-
-      Workflow workflowRun = mock(Workflow.class);
-      when(workflowRun.getId()).thenReturn(UUID.randomUUID().toString());
-
-      doThrow(new IOException("Queue error")).when(delayQueueService).publish(any());
-
-      // Act & Assert
-      assertThrows(
-          IOException.class,
-          () -> queueChainingService.delayStep(stepTemplate, workflowRun, 5000L));
     }
   }
 
@@ -355,30 +241,6 @@ class QueueChainingServiceTest {
 
       // Act & Assert
       assertThrows(IOException.class, () -> queueChainingService.updateStep(stepRunId));
-    }
-  }
-
-  // ========================================================================
-  // setCallbackForDelayQueue Tests
-  // ========================================================================
-  @Nested
-  @DisplayName("setCallbackForDelayQueue")
-  class SetCallbackForDelayQueueTests {
-
-    @Captor private ArgumentCaptor<QueueExecution<StepEvent>> callbackCaptor;
-
-    @Test
-    @DisplayName("should set callback on delay queue service")
-    void shouldSetCallbackOnDelayQueueService() {
-      // Prepare
-      QueueExecution<StepEvent> callback = mock(QueueExecution.class);
-
-      // Act
-      queueChainingService.setCallbackForDelayQueue(callback);
-
-      // Assert
-      verify(delayQueueService).setQueueExecution(callbackCaptor.capture());
-      assertEquals(callback, callbackCaptor.getValue());
     }
   }
 

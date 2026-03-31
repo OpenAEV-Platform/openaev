@@ -210,7 +210,7 @@ public interface ExerciseRepository
               + "WHERE ex.exercise_id = :exerciseId "
               + "GROUP BY ex.exercise_id, inj.inject_scenario, se.scenario_id ;",
       nativeQuery = true)
-  RawSimulation rawDetailsById(@Param("exerciseId") String exerciseId);
+  RawSimulationIndexing rawDetailsById(@Param("exerciseId") String exerciseId);
 
   @Query(
       value =
@@ -307,7 +307,7 @@ public interface ExerciseRepository
   @Query(
       value =
           "WITH exercise_data AS ("
-              + "SELECT ex.exercise_id, ex.exercise_name, ex.exercise_status, ex.exercise_start_date, ex.exercise_created_at, MAX(se.scenario_id) AS scenario_id, " // MAX here is used to get 1 element and not a list because we know that 1 exercise is linked to only 1 scenario
+              + "SELECT ex.exercise_id, ex.exercise_name, ex.exercise_status, ex.exercise_start_date, ex.exercise_created_at,ex.tenant_id, MAX(se.scenario_id) AS scenario_id, " // MAX here is used to get 1 element and not a list because we know that 1 exercise is linked to only 1 scenario
               + "GREATEST(ex.exercise_updated_at, max(inj.inject_updated_at), max(ic.injector_contract_updated_at)) as exercise_injects_updated_at, "
               + "array_agg(DISTINCT et.tag_id) FILTER ( WHERE et.tag_id IS NOT NULL ) as exercise_tags, "
               + "array_agg(DISTINCT ete.team_id) FILTER ( WHERE ete.team_id IS NOT NULL ) as exercise_teams, "
@@ -330,5 +330,5 @@ public interface ExerciseRepository
               + Constants.INDEXING_RECORD_SET_SIZE
               + ";",
       nativeQuery = true)
-  List<RawSimulation> findForIndexing(@Param("from") Instant from);
+  List<RawSimulationIndexing> findForIndexing(@Param("from") Instant from);
 }

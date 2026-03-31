@@ -20,8 +20,8 @@ import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawExerciseSimple;
-import io.openaev.database.raw.RawInjectExpectation;
-import io.openaev.database.raw.RawSimulation;
+import io.openaev.database.raw.RawInjectExpectationIndexing;
+import io.openaev.database.raw.RawSimulationIndexing;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.expectation.ExpectationType;
@@ -171,8 +171,8 @@ public class ExerciseService {
         .orElseThrow(() -> new ElementNotFoundException("Exercise not found"));
   }
 
-  public RawSimulation rawSimulation(@NotBlank final String simulationId) {
-    RawSimulation rawSimulation = exerciseRepository.rawDetailsById(simulationId);
+  public RawSimulationIndexing rawSimulation(@NotBlank final String simulationId) {
+    RawSimulationIndexing rawSimulation = exerciseRepository.rawDetailsById(simulationId);
     if (rawSimulation == null) {
       throw new ElementNotFoundException("Simulation not found");
     }
@@ -673,7 +673,7 @@ public class ExerciseService {
     Set<String> exerciseIds = getExerciseIds(exercises);
     MappingsByExerciseIds mappingsByExerciseIds = getResultsByExerciseIds(exerciseIds);
 
-    Map<String, List<RawInjectExpectation>> expectationsByExerciseIds =
+    Map<String, List<RawInjectExpectationIndexing>> expectationsByExerciseIds =
         getExpectationsByExerciseId(exerciseIds);
 
     for (ExerciseSimple exercise : exercises) {
@@ -739,18 +739,19 @@ public class ExerciseService {
       Map<String, List<Object[]>> assetsByExerciseIds,
       Map<String, List<Object[]>> assetGroupsByExerciseIds) {}
 
-  private Map<String, List<RawInjectExpectation>> getExpectationsByExerciseId(
+  private Map<String, List<RawInjectExpectationIndexing>> getExpectationsByExerciseId(
       Set<String> exerciseIds) {
     return ofNullable(injectExpectationRepository.rawForComputeGlobalByExerciseIds(exerciseIds))
         .orElse(emptyList())
         .stream()
         .filter(Objects::nonNull)
-        .collect(Collectors.groupingBy(RawInjectExpectation::getExercise_id));
+        .collect(Collectors.groupingBy(RawInjectExpectationIndexing::getExercise_id));
   }
 
   private void setGlobalScore(
-      ExerciseSimple exercise, Map<String, List<RawInjectExpectation>> expectationsByExerciseIds) {
-    List<RawInjectExpectation> expectations =
+      ExerciseSimple exercise,
+      Map<String, List<RawInjectExpectationIndexing>> expectationsByExerciseIds) {
+    List<RawInjectExpectationIndexing> expectations =
         expectationsByExerciseIds.getOrDefault(exercise.getId(), emptyList());
     HashSet<String> injectIds = new HashSet<>(Arrays.asList(exercise.getInjectIds()));
 

@@ -10,7 +10,7 @@ import static java.util.Optional.ofNullable;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
-import io.openaev.database.raw.RawInjectExpectation;
+import io.openaev.database.raw.RawInjectExpectationIndexing;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.InjectExpectationRepository;
@@ -397,7 +397,7 @@ public class InjectSearchService {
       Map<String, List<Object[]>> teamMap = fetchRelatedTargets(injectIds, "teams");
       Map<String, List<Object[]>> assetMap = fetchRelatedTargets(injectIds, "assets");
       Map<String, List<Object[]>> assetGroupMap = fetchRelatedTargets(injectIds, "assetGroups");
-      Map<String, List<RawInjectExpectation>> expectationMap = fetchExpectations(injectIds);
+      Map<String, List<RawInjectExpectationIndexing>> expectationMap = fetchExpectations(injectIds);
 
       // Map results to InjectResultOutput and set targets
       mapResultsToInjects(injects, teamMap, assetMap, assetGroupMap, expectationMap);
@@ -433,7 +433,7 @@ public class InjectSearchService {
         .collect(Collectors.groupingBy(row -> (String) row[0]));
   }
 
-  private Map<String, List<RawInjectExpectation>> fetchExpectations(Set<String> injectIds) {
+  private Map<String, List<RawInjectExpectationIndexing>> fetchExpectations(Set<String> injectIds) {
     if (injectIds == null || injectIds.isEmpty()) {
       return new HashMap<>();
     }
@@ -442,7 +442,7 @@ public class InjectSearchService {
         .orElse(emptyList())
         .stream()
         .filter(Objects::nonNull)
-        .collect(Collectors.groupingBy(RawInjectExpectation::getInject_id));
+        .collect(Collectors.groupingBy(RawInjectExpectationIndexing::getInject_id));
   }
 
   private void mapResultsToInjects(
@@ -450,7 +450,7 @@ public class InjectSearchService {
       Map<String, List<Object[]>> teamMap,
       Map<String, List<Object[]>> assetMap,
       Map<String, List<Object[]>> assetGroupMap,
-      Map<String, List<RawInjectExpectation>> expectationMap) {
+      Map<String, List<RawInjectExpectationIndexing>> expectationMap) {
 
     for (InjectResultOutput inject : injects) {
       if (inject.getId() != null) {

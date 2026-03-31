@@ -2170,6 +2170,7 @@ export interface EsAssetGroup {
   base_id?: string;
   base_representative?: string;
   base_restrictions?: string[];
+  base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
   name?: string;
@@ -2202,6 +2203,7 @@ export interface EsAttackPattern {
   base_kill_chain_phases_side?: string[];
   base_representative?: string;
   base_restrictions?: string[];
+  base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
   description?: string;
@@ -2263,6 +2265,7 @@ export interface EsEndpoint {
   base_simulation_side?: string[];
   /** @uniqueItems true */
   base_tags_side?: string[];
+  base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
   endpoint_arch?: string;
@@ -2316,6 +2319,7 @@ export interface EsFinding {
   base_restrictions?: string[];
   base_scenario_side?: string;
   base_simulation_side?: string;
+  base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
   finding_field?: string;
@@ -2352,6 +2356,7 @@ export interface EsInject {
   base_tags_side?: string[];
   /** @uniqueItems true */
   base_teams_side?: string[];
+  base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
   /** @format date-time */
@@ -2380,6 +2385,7 @@ export interface EsInjectExpectation {
   base_security_platforms_side?: string[];
   base_simulation_side?: string;
   base_team_side?: string;
+  base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
   base_user_side?: string;
@@ -2418,6 +2424,7 @@ export interface EsScenario {
   base_tags_side?: string[];
   /** @uniqueItems true */
   base_teams_side?: string[];
+  base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
   name?: string;
@@ -2443,6 +2450,7 @@ export interface EsSecurityDomain {
   base_id?: string;
   base_representative?: string;
   base_restrictions?: string[];
+  base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
   domain_color?: string;
@@ -2456,6 +2464,7 @@ export interface EsSecurityPlatform {
   base_id?: string;
   base_representative?: string;
   base_restrictions?: string[];
+  base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
   name?: string;
@@ -2495,6 +2504,7 @@ export interface EsSimulation {
   base_tags_side?: string[];
   /** @uniqueItems true */
   base_teams_side?: string[];
+  base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
   /** @format date-time */
@@ -2511,6 +2521,7 @@ export interface EsTag {
   base_id?: string;
   base_representative?: string;
   base_restrictions?: string[];
+  base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
   tag_color?: string;
@@ -2524,6 +2535,7 @@ export interface EsTeam {
   base_id?: string;
   base_representative?: string;
   base_restrictions?: string[];
+  base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
   name?: string;
@@ -2545,6 +2557,7 @@ export interface EsVulnerableEndpoint {
   base_simulation_side?: string;
   /** @uniqueItems true */
   base_tags_side?: string[];
+  base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
   vulnerable_endpoint_action?: string;
@@ -5274,6 +5287,44 @@ export interface PagePayload {
   totalPages?: number;
 }
 
+export interface PagePlatformGroupOutput {
+  content?: PlatformGroupOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PagePlatformRoleOutput {
+  content?: PlatformRoleOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
 export interface PagePlayerOutput {
   content?: PlayerOutput[];
   empty?: boolean;
@@ -5765,6 +5816,89 @@ export interface PayloadsDeprecateInput {
   payload_external_ids: string[];
 }
 
+export interface PlatformGroupInput {
+  platform_group_description?: string;
+  /** @minLength 1 */
+  platform_group_name: string;
+}
+
+export interface PlatformGroupOutput {
+  platform_group_description?: string;
+  /** @minLength 1 */
+  platform_group_id: string;
+  /** @minLength 1 */
+  platform_group_name: string;
+}
+
+export interface PlatformGroupUpdateRolesInput {
+  platform_group_platform_roles?: string[];
+}
+
+export interface PlatformGroupUpdateUsersInput {
+  platform_group_users?: string[];
+}
+
+export interface PlatformRoleInput {
+  /** @uniqueItems true */
+  platform_role_capabilities?: (
+    | "BYPASS"
+    | "ACCESS_ASSESSMENT"
+    | "MANAGE_ASSESSMENT"
+    | "DELETE_ASSESSMENT"
+    | "LAUNCH_ASSESSMENT"
+    | "ACCESS_TEAMS_AND_PLAYERS"
+    | "MANAGE_TEAMS_AND_PLAYERS"
+    | "DELETE_TEAMS_AND_PLAYERS"
+    | "ACCESS_ASSETS"
+    | "MANAGE_ASSETS"
+    | "DELETE_ASSETS"
+    | "ACCESS_PAYLOADS"
+    | "MANAGE_PAYLOADS"
+    | "DELETE_PAYLOADS"
+    | "ACCESS_DASHBOARDS"
+    | "MANAGE_DASHBOARDS"
+    | "DELETE_DASHBOARDS"
+    | "ACCESS_FINDINGS"
+    | "MANAGE_FINDINGS"
+    | "DELETE_FINDINGS"
+    | "ACCESS_DOCUMENTS"
+    | "MANAGE_DOCUMENTS"
+    | "DELETE_DOCUMENTS"
+    | "ACCESS_CHANNELS"
+    | "MANAGE_CHANNELS"
+    | "DELETE_CHANNELS"
+    | "ACCESS_CHALLENGES"
+    | "MANAGE_CHALLENGES"
+    | "DELETE_CHALLENGES"
+    | "ACCESS_LESSONS_LEARNED"
+    | "MANAGE_LESSONS_LEARNED"
+    | "DELETE_LESSONS_LEARNED"
+    | "ACCESS_SECURITY_PLATFORMS"
+    | "MANAGE_SECURITY_PLATFORMS"
+    | "DELETE_SECURITY_PLATFORMS"
+    | "ACCESS_PLATFORM_SETTINGS"
+    | "MANAGE_PLATFORM_SETTINGS"
+    | "ACCESS_TENANTS"
+    | "MANAGE_TENANTS"
+    | "DELETE_TENANTS"
+    | "ACCESS_PLATFORM_GROUPS_AND_ROLES"
+    | "MANAGE_PLATFORM_GROUPS_AND_ROLES"
+    | "DELETE_PLATFORM_GROUPS_AND_ROLES"
+    | "MANAGE_STIX_BUNDLE"
+  )[];
+  platform_role_description?: string;
+  /** @minLength 1 */
+  platform_role_name: string;
+}
+
+export interface PlatformRoleOutput {
+  platform_role_description?: string;
+  /** @minLength 1 */
+  platform_role_id: string;
+  /** @minLength 1 */
+  platform_role_name: string;
+}
+
 export interface PlatformSettings {
   /** True if Saml2 is enabled */
   auth_saml2_enable?: boolean;
@@ -6075,7 +6209,7 @@ export interface PublicScenario {
   name?: string;
 }
 
-export interface RawAttackPattern {
+export interface RawAttackPatternIndexing {
   /** @format date-time */
   attack_pattern_created_at?: string;
   attack_pattern_description?: string;
@@ -6090,6 +6224,7 @@ export interface RawAttackPattern {
   attack_pattern_stix_id?: string;
   /** @format date-time */
   attack_pattern_updated_at?: string;
+  tenant_id?: string;
 }
 
 export interface RawDocument {

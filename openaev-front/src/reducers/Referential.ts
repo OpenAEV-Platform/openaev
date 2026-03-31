@@ -58,7 +58,8 @@ export const entitiesInitializer = Map({
     domains: Map({}),
     catalog_connectors: Map({}),
     connector_instances: Map({}),
-    capabilities: Map({}),
+    platform_capabilities: Map({}),
+    tenant_capabilities: Map({}),
   }),
 });
 
