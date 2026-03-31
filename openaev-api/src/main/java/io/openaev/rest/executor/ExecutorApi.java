@@ -3,6 +3,8 @@ package io.openaev.rest.executor;
 import static io.openaev.service.EndpointService.SERVICE;
 import static io.openaev.utils.AgentUtils.AVAILABLE_ARCHITECTURES;
 import static io.openaev.utils.AgentUtils.AVAILABLE_PLATFORMS;
+import static io.openaev.utils.AgentUtils.normalizeArchitecture;
+import static io.openaev.utils.AgentUtils.normalizePlatform;
 import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,6 +37,7 @@ import java.io.InputStream;
 import java.time.Instant;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -43,6 +46,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 public class ExecutorApi extends RestBehavior {
@@ -187,6 +191,9 @@ public class ExecutorApi extends RestBehavior {
         @ApiResponse(
             responseCode = "400",
             description = "Invalid platform or architecture specified."),
+        @ApiResponse(
+            responseCode = "404",
+            description = "Agent binary not found for the given platform/architecture."),
       })
   @GetMapping(
       value = "/api/agent/executable/openaev/{platform}/{architecture}",
@@ -195,43 +202,90 @@ public class ExecutorApi extends RestBehavior {
   public @ResponseBody ResponseEntity<byte[]> getOpenAevAgentExecutable(
       @Parameter(
               description =
-                  "Target platform for the agent installation (e.g., windows, linux, mac). Case insensitive.",
+                  "Target platform for the agent installation (e.g., windows, linux, macos). "
+                      + "Aliases supported: darwin → macos. Case insensitive.",
               required = true)
           @PathVariable
           String platform,
       @Parameter(
               description =
-                  "Target architecture for the agent installation (e.g., x86_64, arm64). Case insensitive.",
+                  "Target architecture for the agent installation (e.g., x86_64, arm64). "
+                      + "Aliases supported: aarch64 → arm64, amd64 → x86_64. Case insensitive.",
               required = true)
           @PathVariable
           String architecture)
       throws IOException {
-    platform = Optional.ofNullable(platform).map(String::toLowerCase).orElse("");
-    architecture = Optional.ofNullable(architecture).map(String::toLowerCase).orElse("");
+    // Normalize OS-reported values to OpenAEV canonical names
+    // e.g. uname -m returns "aarch64" on ARM64 Linux, but we use "arm64"
+    String normalizedPlatform = normalizePlatform(platform);
+    String normalizedArch = normalizeArchitecture(architecture);
 
-    if (!AVAILABLE_PLATFORMS.contains(platform)) {
-      throw new IllegalArgumentException("Platform invalid : " + platform);
+    log.info(
+        "[agent-download] Executable request: platform={} (raw={}), arch={} (raw={}), "
+            + "version={}, origin={}",
+        normalizedPlatform,
+        platform,
+        normalizedArch,
+        architecture,
+        executorOpenaevBinariesVersion,
+        executorOpenaevBinariesOrigin);
+
+    if (!AVAILABLE_PLATFORMS.contains(normalizedPlatform)) {
+      log.warn(
+          "[agent-download] Rejected: unsupported platform '{}' (raw='{}'). Available: {}",
+          normalizedPlatform,
+          platform,
+          AVAILABLE_PLATFORMS);
+      return ResponseEntity.badRequest()
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(
+              ("{\"error\":\"unsupported_platform\","
+                      + "\"message\":\"Platform '"
+                      + platform
+                      + "' is not supported. Available: "
+                      + AVAILABLE_PLATFORMS
+                      + "\"}")
+                  .getBytes());
     }
-    if (!AVAILABLE_ARCHITECTURES.contains(architecture)) {
-      throw new IllegalArgumentException("Architecture invalid : " + architecture);
+    if (!AVAILABLE_ARCHITECTURES.contains(normalizedArch)) {
+      log.warn(
+          "[agent-download] Rejected: unsupported architecture '{}' (raw='{}'). Available: {}",
+          normalizedArch,
+          architecture,
+          AVAILABLE_ARCHITECTURES);
+      return ResponseEntity.badRequest()
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(
+              ("{\"error\":\"unsupported_architecture\","
+                      + "\"message\":\"Architecture '"
+                      + architecture
+                      + "' is not supported. Available: "
+                      + AVAILABLE_ARCHITECTURES
+                      + "\"}")
+                  .getBytes());
     }
 
     InputStream in = null;
-    String resourcePath = "/openaev-agent/" + platform + "/" + architecture + "/";
+    String resourcePath = "/openaev-agent/" + normalizedPlatform + "/" + normalizedArch + "/";
     String filename = "";
 
-    if (executorOpenaevBinariesOrigin.equals("local")) { // if we want the local binaries
-      filename = "openaev-agent-" + version + (platform.equals("windows") ? ".exe" : "");
+    if (executorOpenaevBinariesOrigin.equals("local")) {
+      filename =
+          "openaev-agent-" + version + (normalizedPlatform.equals("windows") ? ".exe" : "");
       in = getClass().getResourceAsStream("/agents" + resourcePath + filename);
-    } else if (executorOpenaevBinariesOrigin.equals(
-        "repository")) { // if we want a specific version from artifactory
+    } else if (executorOpenaevBinariesOrigin.equals("repository")) {
       filename =
           "openaev-agent-"
               + executorOpenaevBinariesVersion
-              + (platform.equals("windows") ? ".exe" : "");
+              + (normalizedPlatform.equals("windows") ? ".exe" : "");
       in = new BufferedInputStream(validateJFrogUri(resourcePath, filename).toURL().openStream());
     }
     if (in != null) {
+      log.info(
+          "[agent-download] Serving agent executable: {} ({}/{})",
+          filename,
+          normalizedPlatform,
+          normalizedArch);
       HttpHeaders headers = new HttpHeaders();
       headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename);
       return ResponseEntity.ok()
@@ -239,7 +293,27 @@ public class ExecutorApi extends RestBehavior {
           .contentType(MediaType.APPLICATION_OCTET_STREAM)
           .body(IOUtils.toByteArray(in));
     }
-    throw new UnsupportedOperationException("Agent " + platform + " executable not supported");
+
+    log.error(
+        "[agent-download] Binary not found: platform={}, arch={}, version={}, origin={}",
+        normalizedPlatform,
+        normalizedArch,
+        executorOpenaevBinariesVersion,
+        executorOpenaevBinariesOrigin);
+    return ResponseEntity.status(404)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(
+            ("{\"error\":\"binary_not_found\","
+                    + "\"message\":\"Agent binary not found for "
+                    + normalizedPlatform
+                    + "/"
+                    + normalizedArch
+                    + " (version: "
+                    + executorOpenaevBinariesVersion
+                    + ", origin: "
+                    + executorOpenaevBinariesOrigin
+                    + ")\"}")
+                .getBytes());
   }
 
   // Public API
@@ -255,6 +329,9 @@ public class ExecutorApi extends RestBehavior {
         @ApiResponse(
             responseCode = "400",
             description = "Invalid platform or architecture specified."),
+        @ApiResponse(
+            responseCode = "404",
+            description = "Agent package not found for the given platform/architecture."),
       })
   @GetMapping(
       value = "/api/agent/package/openaev/{platform}/{architecture}/{installationMode}",
@@ -263,13 +340,15 @@ public class ExecutorApi extends RestBehavior {
   public @ResponseBody ResponseEntity<byte[]> getOpenAevAgentPackage(
       @Parameter(
               description =
-                  "Target platform for the agent package (e.g., windows, linux, mac). Case insensitive.",
+                  "Target platform for the agent package (e.g., windows, linux, macos). "
+                      + "Aliases supported: darwin → macos. Case insensitive.",
               required = true)
           @PathVariable
           String platform,
       @Parameter(
               description =
-                  "Target architecture for the agent package (e.g., x86, x64, arm). Case insensitive.",
+                  "Target architecture for the agent package (e.g., x86_64, arm64). "
+                      + "Aliases supported: aarch64 → arm64, amd64 → x86_64. Case insensitive.",
               required = true)
           @PathVariable
           String architecture,
@@ -279,44 +358,104 @@ public class ExecutorApi extends RestBehavior {
           @PathVariable
           String installationMode)
       throws IOException {
-    platform = Optional.ofNullable(platform).map(String::toLowerCase).orElse("");
-    architecture = Optional.ofNullable(architecture).map(String::toLowerCase).orElse("");
+    // Normalize OS-reported values to OpenAEV canonical names
+    String normalizedPlatform = normalizePlatform(platform);
+    String normalizedArch = normalizeArchitecture(architecture);
 
-    if (!AVAILABLE_PLATFORMS.contains(platform)) {
-      throw new IllegalArgumentException("Platform invalid : " + platform);
+    log.info(
+        "[agent-download] Package request: platform={} (raw={}), arch={} (raw={}), "
+            + "mode={}, version={}, origin={}",
+        normalizedPlatform,
+        platform,
+        normalizedArch,
+        architecture,
+        installationMode,
+        executorOpenaevBinariesVersion,
+        executorOpenaevBinariesOrigin);
+
+    if (!AVAILABLE_PLATFORMS.contains(normalizedPlatform)) {
+      log.warn(
+          "[agent-download] Rejected: unsupported platform '{}' (raw='{}'). Available: {}",
+          normalizedPlatform,
+          platform,
+          AVAILABLE_PLATFORMS);
+      return ResponseEntity.badRequest()
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(
+              ("{\"error\":\"unsupported_platform\","
+                      + "\"message\":\"Platform '"
+                      + platform
+                      + "' is not supported. Available: "
+                      + AVAILABLE_PLATFORMS
+                      + "\"}")
+                  .getBytes());
     }
-    if (!AVAILABLE_ARCHITECTURES.contains(architecture)) {
-      throw new IllegalArgumentException("Architecture invalid : " + architecture);
+    if (!AVAILABLE_ARCHITECTURES.contains(normalizedArch)) {
+      log.warn(
+          "[agent-download] Rejected: unsupported architecture '{}' (raw='{}'). Available: {}",
+          normalizedArch,
+          architecture,
+          AVAILABLE_ARCHITECTURES);
+      return ResponseEntity.badRequest()
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(
+              ("{\"error\":\"unsupported_architecture\","
+                      + "\"message\":\"Architecture '"
+                      + architecture
+                      + "' is not supported. Available: "
+                      + AVAILABLE_ARCHITECTURES
+                      + "\"}")
+                  .getBytes());
     }
 
     byte[] file = null;
     String filename = null;
 
-    if (platform.equals("windows")) {
+    if (normalizedPlatform.equals("windows")) {
       InputStream in = null;
-      String resourcePath = "/openaev-agent/windows/" + architecture + "/";
+      String resourcePath = "/openaev-agent/windows/" + normalizedArch + "/";
 
       filename = "openaev-agent-installer-";
       if (installationMode != null && !installationMode.equals(SERVICE)) {
         filename = filename.concat(installationMode).concat("-");
       }
 
-      if (executorOpenaevBinariesOrigin.equals("local")) { // if we want the local binaries
+      if (executorOpenaevBinariesOrigin.equals("local")) {
         filename = filename.concat(version).concat(".exe");
         in = getClass().getResourceAsStream("/agents" + resourcePath + filename);
-      } else if (executorOpenaevBinariesOrigin.equals(
-          "repository")) { // if we want a specific version from artifactory
+      } else if (executorOpenaevBinariesOrigin.equals("repository")) {
         filename = filename.concat(executorOpenaevBinariesVersion).concat(".exe");
         in = new BufferedInputStream(validateJFrogUri(resourcePath, filename).toURL().openStream());
       }
       if (in == null) {
-        throw new UnsupportedOperationException(
-            "Agent version " + executorOpenaevBinariesVersion + " not found");
+        log.error(
+            "[agent-download] Package not found: platform={}, arch={}, mode={}, version={}",
+            normalizedPlatform,
+            normalizedArch,
+            installationMode,
+            executorOpenaevBinariesVersion);
+        return ResponseEntity.status(404)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(
+                ("{\"error\":\"package_not_found\","
+                        + "\"message\":\"Agent package version "
+                        + executorOpenaevBinariesVersion
+                        + " not found for "
+                        + normalizedPlatform
+                        + "/"
+                        + normalizedArch
+                        + "\"}")
+                    .getBytes());
       }
       file = IOUtils.toByteArray(in);
     }
     // linux & macos - No package needed
     if (file != null) {
+      log.info(
+          "[agent-download] Serving agent package: {} ({}/{})",
+          filename,
+          normalizedPlatform,
+          normalizedArch);
       HttpHeaders headers = new HttpHeaders();
       headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename);
       return ResponseEntity.ok()
@@ -324,7 +463,20 @@ public class ExecutorApi extends RestBehavior {
           .contentType(MediaType.APPLICATION_OCTET_STREAM)
           .body(file);
     }
-    throw new UnsupportedOperationException("Agent " + platform + " package not supported");
+
+    log.warn(
+        "[agent-download] No package available for platform={}, arch={}, mode={}",
+        normalizedPlatform,
+        normalizedArch,
+        installationMode);
+    return ResponseEntity.status(404)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(
+            ("{\"error\":\"package_not_available\","
+                    + "\"message\":\"Agent package is not available for "
+                    + normalizedPlatform
+                    + " (only Windows packages are supported)\"}")
+                .getBytes());
   }
 
   // Public API
@@ -345,7 +497,7 @@ public class ExecutorApi extends RestBehavior {
   public @ResponseBody ResponseEntity<String> getOpenAevAgentInstaller(
       @Parameter(
               description =
-                  "Target platform for the agent installation (e.g., windows, linux, mac). Case insensitive.",
+                  "Target platform for the agent installation (e.g., windows, linux, macos). Case insensitive.",
               required = true)
           @PathVariable
           String platform,
@@ -363,9 +515,13 @@ public class ExecutorApi extends RestBehavior {
           String installationDir,
       @Parameter(description = "Service name") @RequestParam(required = false) String serviceName)
       throws IOException {
-    platform = Optional.ofNullable(platform).map(String::toLowerCase).orElse("");
+    // Normalize platform — the installer endpoint doesn't take architecture,
+    // but we still normalize platform for consistency (e.g. darwin → macos)
+    String normalizedPlatform =
+        normalizePlatform(
+            Optional.ofNullable(platform).map(String::toLowerCase).orElse(""));
 
-    if (!AVAILABLE_PLATFORMS.contains(platform)) {
+    if (!AVAILABLE_PLATFORMS.contains(normalizedPlatform)) {
       throw new IllegalArgumentException("Platform invalid : " + platform);
     }
     Optional<Token> resolvedToken = tokenRepository.findByValue(token);
@@ -374,7 +530,7 @@ public class ExecutorApi extends RestBehavior {
     }
     String installCommand =
         this.endpointService.generateInstallCommand(
-            platform, token, installationMode, installationDir, serviceName);
+            normalizedPlatform, token, installationMode, installationDir, serviceName);
     return ResponseEntity.ok().contentType(MediaType.TEXT_PLAIN).body(installCommand);
   }
 }
