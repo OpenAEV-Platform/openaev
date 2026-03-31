@@ -252,7 +252,7 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
                         {t('If you remove the default email address, the email reception for this simulation / scenario will be disabled.')}
                       </span>
                     )}
-                inputProps={register('scenario_mail_from')}
+                slotProps={{ htmlInput: register('scenario_mail_from') }}
                 disabled={disabled}
               />
               <Controller
@@ -313,7 +313,7 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
                 label={t('Messages header')}
                 error={!!errors.scenario_message_header}
                 helperText={errors.scenario_message_header && errors.scenario_message_header?.message}
-                inputProps={register('scenario_message_header')}
+                slotProps={{ htmlInput: register('scenario_message_header') }}
                 disabled={disabled}
               />
               <MuiTextField
@@ -322,7 +322,7 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
                 label={t('Messages footer')}
                 error={!!errors.scenario_message_footer}
                 helperText={errors.scenario_message_footer && errors.scenario_message_footer?.message}
-                inputProps={register('scenario_message_footer')}
+                slotProps={{ htmlInput: register('scenario_message_footer') }}
                 disabled={disabled}
               />
             </AccordionDetails>
