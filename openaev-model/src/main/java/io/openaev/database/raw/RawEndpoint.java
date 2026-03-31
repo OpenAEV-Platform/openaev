@@ -6,14 +6,14 @@ import java.util.Set;
 /**
  * Spring Data projection interface for endpoint asset data.
  *
- * <p>This interface extends {@link RawAsset} with endpoint-specific fields including network
- * information, platform details, and exercise/scenario associations. Used for queries that need
- * detailed endpoint information without full entity loading.
+ * <p>This interface extends {@link RawAssetIndexing} with endpoint-specific fields including
+ * network information, platform details, and exercise/scenario associations. Used for queries that
+ * need detailed endpoint information without full entity loading.
  *
  * @see io.openaev.database.model.Endpoint
- * @see RawAsset
+ * @see RawAssetIndexing
  */
-public interface RawEndpoint extends RawAsset {
+public interface RawEndpoint extends RawAssetIndexing {
 
   /**
    * Returns the set of IP addresses assigned to this endpoint.

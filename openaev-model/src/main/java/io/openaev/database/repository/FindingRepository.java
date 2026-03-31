@@ -2,7 +2,7 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Finding;
-import io.openaev.database.raw.RawFinding;
+import io.openaev.database.raw.RawFindingIndexing;
 import io.openaev.utils.Constants;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -37,7 +37,7 @@ public interface FindingRepository
   @Query(
       value =
           "SELECT f.finding_id, f.finding_value, f.finding_type, f.finding_field,"
-              + " f.finding_inject_id, i.inject_exercise, se.scenario_id, fa.asset_id, f.finding_created_at, f.finding_updated_at "
+              + " f.finding_inject_id, i.inject_exercise, se.scenario_id, fa.asset_id, f.finding_created_at, f.finding_updated_at, f.tenant_id "
               + "FROM findings f "
               + "LEFT JOIN injects i ON i.inject_id = f.finding_inject_id "
               + "LEFT JOIN scenarios_exercises se ON i.inject_exercise = se.exercise_id "
@@ -46,7 +46,7 @@ public interface FindingRepository
               + Constants.INDEXING_RECORD_SET_SIZE
               + ";",
       nativeQuery = true)
-  List<RawFinding> findForIndexing(@Param("from") Instant from);
+  List<RawFindingIndexing> findForIndexing(@Param("from") Instant from);
 
   @Query(
       value =

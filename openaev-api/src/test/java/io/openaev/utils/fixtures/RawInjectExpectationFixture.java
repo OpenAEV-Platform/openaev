@@ -1,6 +1,6 @@
 package io.openaev.utils.fixtures;
 
-import io.openaev.database.raw.RawInjectExpectation;
+import io.openaev.database.raw.RawInjectExpectationIndexing;
 import java.time.Instant;
 import java.util.Set;
 
@@ -30,8 +30,9 @@ public class RawInjectExpectationFixture {
       String scenarioId,
       Set<String> securityPlatformIds,
       Set<String> domainIds,
-      Instant trackingSentDate)
-      implements RawInjectExpectation {
+      Instant trackingSentDate,
+      String tenantId)
+      implements RawInjectExpectationIndexing {
 
     @Override
     public String getInject_expectation_id() {
@@ -152,9 +153,13 @@ public class RawInjectExpectationFixture {
     public Instant getTracking_sent_date() {
       return trackingSentDate;
     }
+
+    public String getTenant_id() {
+      return tenantId;
+    }
   }
 
-  public static RawInjectExpectation createDefaultInjectExpectation(
+  public static RawInjectExpectationIndexing createDefaultInjectExpectation(
       String expectationType, Double expectationScore, Double expectationExpectedScore) {
     return new TestableRawInjectExpectation(
         null,
@@ -167,6 +172,7 @@ public class RawInjectExpectationFixture {
         expectationExpectedScore,
         null,
         false,
+        null,
         null,
         null,
         null,

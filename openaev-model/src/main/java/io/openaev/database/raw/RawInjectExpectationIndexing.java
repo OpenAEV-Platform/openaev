@@ -12,7 +12,7 @@ import java.util.Set;
  *
  * @see io.openaev.database.model.InjectExpectation
  */
-public interface RawInjectExpectation {
+public interface RawInjectExpectationIndexing extends RawTenant {
 
   /**
    * Returns the unique identifier of the inject expectation.

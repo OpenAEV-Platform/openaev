@@ -150,7 +150,7 @@ public class ScenarioService {
   }
 
   public List<ScenarioSimple> scenarios() {
-    List<RawScenarioSimple> scenarios;
+    List<RawScenarioSimpleIndexing> scenarios;
     User currentUser = userService.currentUser();
     if (currentUser.isAdminOrBypass()
         || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)) {
@@ -162,7 +162,7 @@ public class ScenarioService {
   }
 
   public List<ScenarioSimple> scenarios(final List<String> scenarioIds) {
-    List<RawScenarioSimple> scenarios;
+    List<RawScenarioSimpleIndexing> scenarios;
     User currentUser = userService.currentUser();
     if (currentUser.isAdminOrBypass()
         || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)) {

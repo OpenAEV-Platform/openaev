@@ -30,6 +30,7 @@ public class AssetGroupHandler implements Handler<EsAssetGroup> {
               esAssetGroup.setBase_updated_at(assetGroup.getAsset_group_updated_at());
               esAssetGroup.setBase_representative(assetGroup.getAsset_group_name());
               esAssetGroup.setBase_restrictions(buildRestrictions(assetGroup.getAsset_group_id()));
+              esAssetGroup.setBase_tenant_side(assetGroup.getTenant_id());
               // Specific
               return esAssetGroup;
             })

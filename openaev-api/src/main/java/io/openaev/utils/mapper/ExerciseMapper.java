@@ -7,7 +7,7 @@ import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ExerciseStatus;
 import io.openaev.database.model.Inject;
 import io.openaev.database.raw.RawExerciseSimple;
-import io.openaev.database.raw.RawInjectExpectation;
+import io.openaev.database.raw.RawInjectExpectationIndexing;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.InjectExpectationRepository;
@@ -117,9 +117,9 @@ public class ExerciseMapper {
         assetGroupRepository.assetGroupsByExerciseIds(exerciseIds).stream()
             .collect(Collectors.groupingBy(row -> (String) row[0]));
 
-    Map<String, List<RawInjectExpectation>> expectationMap =
+    Map<String, List<RawInjectExpectationIndexing>> expectationMap =
         injectExpectationRepository.rawForComputeGlobalByExerciseIds(exerciseIds).stream()
-            .collect(Collectors.groupingBy(RawInjectExpectation::getExercise_id));
+            .collect(Collectors.groupingBy(RawInjectExpectationIndexing::getExercise_id));
 
     List<ExerciseSimple> exerciseSimples = new ArrayList<>();
 
@@ -142,7 +142,7 @@ public class ExerciseMapper {
       List<Object[]> teams,
       List<Object[]> assets,
       List<Object[]> assetGroups,
-      List<RawInjectExpectation> expectations) {
+      List<RawInjectExpectationIndexing> expectations) {
 
     ExerciseSimple simple = fromRawExerciseSimple(rawExercise);
 

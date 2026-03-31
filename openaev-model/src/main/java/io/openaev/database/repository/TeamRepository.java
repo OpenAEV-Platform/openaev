@@ -1,7 +1,7 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.Team;
-import io.openaev.database.raw.RawTeam;
+import io.openaev.database.raw.RawTeamIndexing;
 import io.openaev.utils.Constants;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -40,7 +40,7 @@ public interface TeamRepository
               + "FROM teams "
               + "WHERE team_id IN :ids ORDER BY team_name;",
       nativeQuery = true)
-  List<RawTeam> rawTeamByIds(@Param("ids") List<String> ids);
+  List<RawTeamIndexing> rawTeamByIds(@Param("ids") List<String> ids);
 
   @Query(
       value =
@@ -54,7 +54,7 @@ public interface TeamRepository
               + "WHERE teams.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY teams.team_id ;",
       nativeQuery = true)
-  List<RawTeam> rawTeams();
+  List<RawTeamIndexing> rawTeams();
 
   @NotNull
   Page<Team> findAll(@NotNull Specification<Team> spec, @NotNull Pageable pageable);
@@ -102,11 +102,11 @@ public interface TeamRepository
 
   @Query(
       value =
-          "SELECT t.team_id, t.team_name, t.team_updated_at, t.team_created_at "
+          "SELECT t.team_id, t.team_name, t.team_updated_at, t.team_created_at, t.tenant_id "
               + "FROM teams t "
               + "WHERE t.team_updated_at > :from ORDER BY t.team_updated_at LIMIT "
               + Constants.INDEXING_RECORD_SET_SIZE
               + ";",
       nativeQuery = true)
-  List<RawTeam> findForIndexing(@Param("from") Instant from);
+  List<RawTeamIndexing> findForIndexing(@Param("from") Instant from);
 }

@@ -3,7 +3,7 @@ package io.openaev.engine.model.vulnerableendpoint;
 import static io.openaev.engine.EsUtils.buildRestrictions;
 
 import io.openaev.database.model.Finding;
-import io.openaev.database.raw.RawVulnerableEndpoint;
+import io.openaev.database.raw.RawVulnerableEndpointIndexing;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.VulnerableEndpointRepository;
 import io.openaev.engine.Handler;
@@ -28,7 +28,7 @@ public class VulnerableEndpointHandler implements Handler<EsVulnerableEndpoint> 
   @Override
   public List<EsVulnerableEndpoint> fetch(Instant from) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
-    List<RawVulnerableEndpoint> forIndexing =
+    List<RawVulnerableEndpointIndexing> forIndexing =
         this.vulnerableEndpointRepository.findForIndexing(queryFrom);
     return forIndexing.stream()
         .map(
@@ -40,6 +40,7 @@ public class VulnerableEndpointHandler implements Handler<EsVulnerableEndpoint> 
                   endpoint.getVulnerable_endpoint_hostname());
               esVulnerableEndpoint.setBase_created_at(endpoint.getVulnerable_endpoint_created_at());
               esVulnerableEndpoint.setBase_updated_at(endpoint.getVulnerable_endpoint_updated_at());
+              esVulnerableEndpoint.setBase_tenant_side(endpoint.getTenant_id());
               // not sure what to put here, if anything
               esVulnerableEndpoint.setBase_restrictions(
                   buildRestrictions(endpoint.getVulnerable_endpoint_id()));

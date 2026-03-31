@@ -3,7 +3,7 @@ package io.openaev.database.raw;
 import java.time.Instant;
 import java.util.Set;
 
-public interface RawInjectIndexing {
+public interface RawInjectIndexing extends RawTenant {
 
   String getInject_id();
 

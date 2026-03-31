@@ -14,7 +14,7 @@ import java.util.Set;
  * @see io.openaev.database.model.AttackPattern
  */
 @SuppressWarnings("unused")
-public interface RawAttackPattern {
+public interface RawAttackPatternIndexing extends RawTenant {
 
   /**
    * Returns the unique identifier of the attack pattern.

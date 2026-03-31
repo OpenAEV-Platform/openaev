@@ -50,6 +50,7 @@ public class InjectHandler implements Handler<EsInject> {
               }
               esInject.setBase_restrictions(
                   buildRestrictions(inject.getInject_scenario(), inject.getInject_Exercise()));
+              esInject.setBase_tenant_side(inject.getTenant_id());
               // Specific
               esInject.setInject_title(inject.getInject_title());
               esInject.setInject_status(

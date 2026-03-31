@@ -12,7 +12,7 @@ import java.util.Set;
  * @see io.openaev.database.model.Scenario
  * @see RawScenario
  */
-public interface RawScenarioSimple {
+public interface RawScenarioSimpleIndexing extends RawTenant {
 
   /**
    * Returns the unique identifier of the scenario.

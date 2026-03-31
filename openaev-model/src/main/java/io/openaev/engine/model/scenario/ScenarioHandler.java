@@ -4,7 +4,7 @@ import static io.openaev.engine.EsUtils.buildRestrictions;
 import static org.springframework.util.CollectionUtils.isEmpty;
 
 import io.openaev.database.model.Scenario;
-import io.openaev.database.raw.RawScenarioSimple;
+import io.openaev.database.raw.RawScenarioSimpleIndexing;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.engine.Handler;
 import java.time.Instant;
@@ -26,7 +26,7 @@ public class ScenarioHandler implements Handler<EsScenario> {
   @Override
   public List<EsScenario> fetch(Instant from) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
-    List<RawScenarioSimple> forIndexing = scenarioRepository.findForIndexing(queryFrom);
+    List<RawScenarioSimpleIndexing> forIndexing = scenarioRepository.findForIndexing(queryFrom);
     return forIndexing.stream()
         .map(
             scenario -> {
@@ -43,6 +43,7 @@ public class ScenarioHandler implements Handler<EsScenario> {
 
               esScenario.setBase_representative(scenario.getScenario_name());
               esScenario.setBase_restrictions(buildRestrictions(scenario.getScenario_id()));
+              esScenario.setBase_tenant_side(scenario.getTenant_id());
               // Specific
               esScenario.setBase_platforms_side_denormalized(scenario.getScenario_platforms());
               // Dependencies (see base_dependencies in EsBase)

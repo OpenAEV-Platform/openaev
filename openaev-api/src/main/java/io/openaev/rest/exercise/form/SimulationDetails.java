@@ -9,7 +9,7 @@ import io.openaev.database.model.ExerciseTeamUser;
 import io.openaev.database.model.KillChainPhase;
 import io.openaev.database.model.Objective;
 import io.openaev.database.model.Scenario.SEVERITY;
-import io.openaev.database.raw.RawSimulation;
+import io.openaev.database.raw.RawSimulationIndexing;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -148,7 +148,7 @@ public class SimulationDetails {
    * @return an Exercise Simple object
    */
   public static SimulationDetails fromRawExercise(
-      RawSimulation exercise,
+      RawSimulationIndexing exercise,
       List<ExerciseTeamUser> exerciseTeamsUsers,
       List<Objective> objectives) {
     SimulationDetailsBuilder details =

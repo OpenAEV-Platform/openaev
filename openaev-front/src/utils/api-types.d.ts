@@ -2209,6 +2209,7 @@ export interface EsAssetGroup {
   base_id?: string;
   base_representative?: string;
   base_restrictions?: string[];
+  base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
   name?: string;
@@ -2241,6 +2242,7 @@ export interface EsAttackPattern {
   base_kill_chain_phases_side?: string[];
   base_representative?: string;
   base_restrictions?: string[];
+  base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
   description?: string;
@@ -2302,6 +2304,7 @@ export interface EsEndpoint {
   base_simulation_side?: string[];
   /** @uniqueItems true */
   base_tags_side?: string[];
+  base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
   endpoint_arch?: string;
@@ -2355,6 +2358,7 @@ export interface EsFinding {
   base_restrictions?: string[];
   base_scenario_side?: string;
   base_simulation_side?: string;
+  base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
   finding_field?: string;
@@ -2391,6 +2395,7 @@ export interface EsInject {
   base_tags_side?: string[];
   /** @uniqueItems true */
   base_teams_side?: string[];
+  base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
   /** @format date-time */
@@ -2419,6 +2424,7 @@ export interface EsInjectExpectation {
   base_security_platforms_side?: string[];
   base_simulation_side?: string;
   base_team_side?: string;
+  base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
   base_user_side?: string;
@@ -2457,6 +2463,7 @@ export interface EsScenario {
   base_tags_side?: string[];
   /** @uniqueItems true */
   base_teams_side?: string[];
+  base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
   name?: string;
@@ -2482,6 +2489,7 @@ export interface EsSecurityDomain {
   base_id?: string;
   base_representative?: string;
   base_restrictions?: string[];
+  base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
   domain_color?: string;
@@ -2495,6 +2503,7 @@ export interface EsSecurityPlatform {
   base_id?: string;
   base_representative?: string;
   base_restrictions?: string[];
+  base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
   name?: string;
@@ -2534,6 +2543,7 @@ export interface EsSimulation {
   base_tags_side?: string[];
   /** @uniqueItems true */
   base_teams_side?: string[];
+  base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
   /** @format date-time */
@@ -2550,6 +2560,7 @@ export interface EsTag {
   base_id?: string;
   base_representative?: string;
   base_restrictions?: string[];
+  base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
   tag_color?: string;
@@ -2563,6 +2574,7 @@ export interface EsTeam {
   base_id?: string;
   base_representative?: string;
   base_restrictions?: string[];
+  base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
   name?: string;
@@ -2584,6 +2596,7 @@ export interface EsVulnerableEndpoint {
   base_simulation_side?: string;
   /** @uniqueItems true */
   base_tags_side?: string[];
+  base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
   vulnerable_endpoint_action?: string;
@@ -6294,7 +6307,7 @@ export interface PublicScenario {
   name?: string;
 }
 
-export interface RawAttackPattern {
+export interface RawAttackPatternIndexing {
   /** @format date-time */
   attack_pattern_created_at?: string;
   attack_pattern_description?: string;
@@ -6309,6 +6322,7 @@ export interface RawAttackPattern {
   attack_pattern_stix_id?: string;
   /** @format date-time */
   attack_pattern_updated_at?: string;
+  tenant_id?: string;
 }
 
 export interface RawDocument {

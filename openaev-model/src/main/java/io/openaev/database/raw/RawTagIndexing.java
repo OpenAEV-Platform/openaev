@@ -10,7 +10,7 @@ import java.time.Instant;
  *
  * @see io.openaev.database.model.Tag
  */
-public interface RawTag {
+public interface RawTagIndexing extends RawTenant {
 
   /**
    * Returns the unique identifier of the tag.
