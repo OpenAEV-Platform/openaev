@@ -10,6 +10,7 @@ import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.database.model.*;
+import io.openaev.database.model.ConditionKeyType;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -107,7 +108,7 @@ public class StepServiceTest {
     void shouldBuildConditionTreeCorrectly(
         String description,
         List<ConditionCreateInput> inputs,
-        Map<String, Optional<String>> expectedParentMap,
+        Map<ConditionKeyType, Optional<ConditionKeyType>> expectedParentMap,
         boolean withStepFrom)
         throws ChainingException {
 
@@ -184,7 +185,7 @@ public class StepServiceTest {
       verify(conditionService).createConditionTree(eq(inputs), any(), any(), any(), isNull());
 
       // Build a key -> Condition map from the produced conditions
-      Map<String, Condition> byKey =
+      Map<ConditionKeyType, Condition> byKey =
           producedConditions.stream().collect(Collectors.toMap(Condition::getKeyType, c -> c));
 
       expectedParentMap.forEach(
@@ -202,7 +203,7 @@ public class StepServiceTest {
           });
 
       if (withStepFrom) {
-        assertNotNull(byKey.get("ROOT").getStepFrom(), "Expected stepFrom on ROOT");
+        assertNotNull(byKey.get(ConditionKeyType.Text).getStepFrom(), "Expected stepFrom on ROOT");
       }
     }
 
@@ -211,29 +212,33 @@ public class StepServiceTest {
       return Stream.of(
           Arguments.of(
               "Single root condition",
-              List.of(mockCondition("ROOT", null, null)),
-              Map.of("ROOT", Optional.empty()),
+              List.of(mockCondition("ROOT", ConditionKeyType.Text, null, null)),
+              Map.of(ConditionKeyType.Text, Optional.empty()),
               false),
           Arguments.of(
               "Root with one child",
-              List.of(mockCondition("ROOT", null, null), mockCondition("CHILD", "ROOT", null)),
-              Map.of("ROOT", Optional.empty(), "CHILD", Optional.of("ROOT")),
+              List.of(
+                  mockCondition("ROOT", ConditionKeyType.Text, null, null),
+                  mockCondition("CHILD", ConditionKeyType.Number, "ROOT", null)),
+              Map.of(
+                  ConditionKeyType.Text, Optional.empty(),
+                  ConditionKeyType.Number, Optional.of(ConditionKeyType.Text)),
               false),
           Arguments.of(
               "Root with two-level tree",
               List.of(
-                  mockCondition("ROOT", null, null),
-                  mockCondition("A", "ROOT", null),
-                  mockCondition("B", "A", null)),
+                  mockCondition("ROOT", ConditionKeyType.Text, null, null),
+                  mockCondition("A", ConditionKeyType.Port, "ROOT", null),
+                  mockCondition("B", ConditionKeyType.IPv4, "A", null)),
               Map.of(
-                  "ROOT", Optional.empty(),
-                  "A", Optional.of("ROOT"),
-                  "B", Optional.of("A")),
+                  ConditionKeyType.Text, Optional.empty(),
+                  ConditionKeyType.Port, Optional.of(ConditionKeyType.Text),
+                  ConditionKeyType.IPv4, Optional.of(ConditionKeyType.Port)),
               false),
           Arguments.of(
               "Root with stepFrom",
-              List.of(mockCondition("ROOT", null, "FROM")),
-              Map.of("ROOT", Optional.empty()),
+              List.of(mockCondition("ROOT", ConditionKeyType.Text, null, "FROM")),
+              Map.of(ConditionKeyType.Text, Optional.empty()),
               true));
     }
   }
@@ -252,12 +257,12 @@ public class StepServiceTest {
               StepActionClass.INJECT_EXECUTION,
               List.of(
                   ConditionCreateInput.builder()
-                      .keyType("ROOT 1")
+                      .keyType(ConditionKeyType.Text)
                       .temporaryIdConditionParent(null)
                       .stepFrom(null)
                       .build(),
                   ConditionCreateInput.builder()
-                      .keyType("ROOT 2")
+                      .keyType(ConditionKeyType.Number)
                       .temporaryIdConditionParent(null)
                       .stepFrom(null)
                       .build()));
@@ -281,7 +286,10 @@ public class StepServiceTest {
     void shouldThrowWhenNoRootConditionExists() throws ChainingException {
       // Arrange
       ConditionCreateInput conditionCreateInput =
-          ConditionCreateInput.builder().keyType("A").temporaryIdConditionParent("X").build();
+          ConditionCreateInput.builder()
+              .keyType(ConditionKeyType.Text)
+              .temporaryIdConditionParent("X")
+              .build();
       StepInput stepInput =
           mockStep(StepActionClass.INJECT_EXECUTION, List.of(conditionCreateInput));
 
@@ -1446,12 +1454,12 @@ public class StepServiceTest {
   }
 
   private static ConditionCreateInput mockCondition(
-      String key, String parentTempId, String stepFrom) {
+      String temporaryId, ConditionKeyType keyType, String parentTempId, String stepFrom) {
 
     ConditionCreateInput c = mock(ConditionCreateInput.class);
 
-    when(c.getKeyType()).thenReturn(key);
-    when(c.getTemporaryId()).thenReturn(key);
+    when(c.getKeyType()).thenReturn(keyType);
+    when(c.getTemporaryId()).thenReturn(temporaryId);
     when(c.getTemporaryIdConditionParent()).thenReturn(parentTempId);
     when(c.getStepFrom()).thenReturn(stepFrom);
 

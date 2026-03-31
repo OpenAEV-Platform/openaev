@@ -352,7 +352,7 @@ public class InjectExecutionStep implements ActionStep {
       if (ConditionType.MAPPER.equals(condition.getType())) {
 
         Map<String, Object> input = new HashMap<>();
-        input.put("key", condition.getKeyType());
+        input.put("keyType", condition.getKeyType());
         input.put("path", condition.getValue());
         input.put("id_step_from", condition.getStepFrom());
 

@@ -7,6 +7,7 @@ import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.EventInput;
 import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.database.model.Condition;
+import io.openaev.database.model.ConditionKeyType;
 import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.Step;
 import io.openaev.service.chaining.ConditionService;
@@ -138,7 +139,7 @@ class ConditionApiTest {
     child.setId(rootId + "-child");
     child.setWorkflowId(workflowId);
     child.setType(ConditionType.EQ);
-    child.setKeyType("portscan.port");
+    child.setKeyType(ConditionKeyType.PortsScan);
     child.setValue("445");
     child.setConditionParent(root);
 

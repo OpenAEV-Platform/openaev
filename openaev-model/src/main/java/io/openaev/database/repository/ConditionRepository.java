@@ -23,7 +23,7 @@ public interface ConditionRepository extends JpaRepository<Condition, String> {
       JOIN c.conditionSteps cs
       WHERE cs.step.id = :stepId
       """)
-  List<Condition> findAllByStep_Id(@Param("stepId") String stepId);
+  List<Condition> findAllLinkedToStepId(@Param("stepId") String stepId);
 
   /**
    * Retrieves all root conditions (events) for a given workflow. A root condition has no parent.

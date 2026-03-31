@@ -1,6 +1,8 @@
 package io.openaev.api.chaining.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.database.model.ConditionKeySubtype;
+import io.openaev.database.model.ConditionKeyType;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -16,7 +18,10 @@ public class ConditionOutput {
   private String id;
 
   @JsonProperty("condition_key_type")
-  private String keyType;
+  private ConditionKeyType keyType;
+
+  @JsonProperty("condition_key_subtype")
+  private ConditionKeySubtype keySubtype;
 
   @JsonProperty("condition_type")
   private String type;

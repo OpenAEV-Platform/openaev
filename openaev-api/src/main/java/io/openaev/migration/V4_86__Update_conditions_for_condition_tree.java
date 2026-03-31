@@ -18,7 +18,8 @@ public class V4_86__Update_conditions_for_condition_tree extends BaseJavaMigrati
           "ALTER TABLE conditions ADD COLUMN IF NOT EXISTS condition_key_type VARCHAR(255);");
       stmt.execute("ALTER TABLE conditions ADD COLUMN IF NOT EXISTS condition_name VARCHAR(255);");
       stmt.execute("ALTER TABLE conditions ADD COLUMN IF NOT EXISTS condition_description TEXT;");
-
+      stmt.execute(
+          "ALTER TABLE conditions ADD COLUMN IF NOT EXISTS condition_key_subtype VARCHAR(255);");
       stmt.execute(
           """
           UPDATE conditions
@@ -26,6 +27,7 @@ public class V4_86__Update_conditions_for_condition_tree extends BaseJavaMigrati
           WHERE condition_key_type IS NULL
             AND condition_key IS NOT NULL;
           """);
+      stmt.execute("ALTER TABLE conditions DROP COLUMN IF EXISTS condition_key");
 
       // Legacy compatibility: if old conditions.step_id still exists, it must be nullable.
       stmt.execute(

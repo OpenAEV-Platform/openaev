@@ -58,6 +58,8 @@ public class ConditionService {
           root.setName(input.getName());
           root.setDescription(input.getDescription());
           root.setType(rootInput.getType());
+          root.setKeyType(rootInput.getKeyType());
+          root.setKeySubtype(rootInput.getKeySubtype());
           root.setStepFrom(resolveStepFrom(input.getStepFrom()));
           return root;
         },
@@ -216,6 +218,8 @@ public class ConditionService {
     root.setDescription(input.getDescription());
     root.setWorkflowId(input.getWorkflowId());
     root.setType(rootInput.getType());
+    root.setKeyType(rootInput.getKeyType());
+    root.setKeySubtype(rootInput.getKeySubtype());
     root.setStepFrom(resolveStepFrom(input.getStepFrom()));
 
     // Clear existing relationships (children and linked steps)
@@ -248,6 +252,11 @@ public class ConditionService {
    * @param conditionRootId the root condition ID
    */
   public void deleteConditionTree(String conditionRootId) {
+    Objects.requireNonNull(conditionRootId, "conditionRootId must not be null");
+
+    if (!conditionRepository.existsById(conditionRootId)) {
+      throw new EntityNotFoundException("Condition not found: " + conditionRootId);
+    }
     conditionRepository.deleteById(conditionRootId);
   }
 
@@ -309,7 +318,7 @@ public class ConditionService {
    */
   @Transactional(readOnly = true)
   public List<Condition> findAllConditionsByStepId(String stepId) {
-    return conditionRepository.findAllByStep_Id(stepId);
+    return conditionRepository.findAllLinkedToStepId(stepId);
   }
 
   // -- CONDITION EVALUATION --
@@ -610,6 +619,7 @@ public class ConditionService {
         Condition child = new Condition();
         child.setWorkflowId(workflowId);
         child.setKeyType(ci.getKeyType());
+        child.setKeySubtype(ci.getKeySubtype());
         child.setType(ci.getType());
         child.setValue(ci.getValue());
         child.setStepFrom(resolveStepFrom(ci.getStepFrom()));

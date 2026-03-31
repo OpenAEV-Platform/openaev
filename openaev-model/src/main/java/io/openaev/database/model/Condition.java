@@ -7,6 +7,7 @@ import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import javax.annotation.Nullable;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
@@ -42,8 +43,17 @@ public class Condition implements Base {
   private String workflowId;
 
   @Column(name = "condition_key_type")
+  @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   @Schema(description = "Key type")
-  private String keyType;
+  private ConditionKeyType keyType;
+
+  @Column(name = "condition_key_subtype")
+  @Nullable
+  @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+  @Schema(description = "Key subtype")
+  private ConditionKeySubtype keySubtype;
 
   @Column(name = "condition_type")
   @Enumerated(EnumType.STRING)
