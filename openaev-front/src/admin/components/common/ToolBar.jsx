@@ -609,22 +609,25 @@ class ToolBarComponent extends Component {
                 <ClearOutlined fontSize="small" />
               </IconButton>
             </Typography>
-            <Tooltip title={t('Export')}>
-              <span>
-                <IconButton
-                  aria-label="export"
-                  disabled={
-                    numberOfSelectedElements === 0
-                    || this.state.processing
-                  }
-                  onClick={this.handleOpenExport.bind(this)}
-                  color="primary"
-                  size="small"
-                >
-                  <FileDownloadOutlined fontSize="small" />
-                </IconButton>
-              </span>
-            </Tooltip>
+            {this.props.customAction && (this.props.customAction)}
+            {this.props.handleExport && (
+              <Tooltip title={t('Export')}>
+                <span>
+                  <IconButton
+                    aria-label="export"
+                    disabled={
+                      numberOfSelectedElements === 0
+                      || this.state.processing
+                    }
+                    onClick={this.handleOpenExport.bind(this)}
+                    color="primary"
+                    size="small"
+                  >
+                    <FileDownloadOutlined fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            )}
             {this.props.canManage && (
               <Tooltip title={t('Update')}>
                 <span>
