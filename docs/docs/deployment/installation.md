@@ -84,6 +84,31 @@ docker compose up -d
 
     You can now navigate to [http://localhost:8080](http://localhost:8080/) and log in with the credentials filled in your configuration.
 
+### Troubleshooting
+
+#### PostgreSQL: password authentication failed
+
+
+This error occurs when the PostgreSQL container cannot authenticate with the credentials provided in your `.env` file.
+
+**Common causes:**
+
+| Cause | Solution |
+|:------|:---------|
+| `POSTGRES_USER` set to a reserved name (e.g. `admin`) | Use a different username (e.g. `openaev`) |
+| Mismatch between `POSTGRES_USER`/`POSTGRES_PASSWORD` and `SPRING_DATASOURCE_USERNAME`/`SPRING_DATASOURCE_PASSWORD` | Ensure both sets of credentials match |
+
+#### Container fails to start
+
+If the OpenAEV container exits immediately after starting:
+
+1. Check the logs: `docker compose logs openaev`
+2. Verify all required environment variables are set in your `.env` file
+3. Ensure all dependency containers (PostgreSQL, ElasticSearch, RabbitMQ, MinIO) are healthy:
+   ```bash
+   docker compose ps
+   ```
+
 ## Manual installation
 
 This section provides instructions to install and run a pre-built OpenAEV server with its dependencies. Note that this
