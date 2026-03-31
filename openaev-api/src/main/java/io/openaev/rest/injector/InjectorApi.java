@@ -4,6 +4,8 @@ import static io.openaev.database.specification.InjectorSpecification.byName;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.AgentUtils.AVAILABLE_ARCHITECTURES;
 import static io.openaev.utils.AgentUtils.AVAILABLE_PLATFORMS;
+import static io.openaev.utils.AgentUtils.normalizeArchitecture;
+import static io.openaev.utils.AgentUtils.normalizePlatform;
 import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -163,7 +165,7 @@ public class InjectorApi extends RestBehavior {
       value = "/api/implant/caldera/{platform}/{arch}",
       produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
   @RBAC(skipRBAC = true)
-  public @ResponseBody byte[] getCalderaImplant(
+  public @ResponseBody ResponseEntity<byte[]> getCalderaImplant(
       @PathVariable String platform, @PathVariable String arch) throws IOException {
     return getCalderaFile(platform, arch, null);
   }
@@ -172,30 +174,95 @@ public class InjectorApi extends RestBehavior {
       value = "/api/implant/caldera/{platform}/{arch}/{extension}",
       produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
   @RBAC(skipRBAC = true)
-  public @ResponseBody byte[] getCalderaScript(
+  public @ResponseBody ResponseEntity<byte[]> getCalderaScript(
       @PathVariable String platform, @PathVariable String arch, @PathVariable String extension)
       throws IOException {
     return getCalderaFile(platform, arch, extension);
   }
 
-  private byte[] getCalderaFile(String platform, String arch, String extension) throws IOException {
-    if (!AVAILABLE_PLATFORMS.contains(platform)) {
-      throw new IllegalArgumentException("Platform invalid : " + platform);
+  private ResponseEntity<byte[]> getCalderaFile(String platform, String arch, String extension)
+      throws IOException {
+    // Normalize OS-reported values to OpenAEV canonical names
+    String normalizedPlatform = normalizePlatform(platform);
+    String normalizedArch = normalizeArchitecture(arch);
+
+    log.info(
+        "[implant-download] Caldera request: platform={} (raw={}), arch={} (raw={}), extension={}",
+        normalizedPlatform,
+        platform,
+        normalizedArch,
+        arch,
+        extension);
+
+    if (!AVAILABLE_PLATFORMS.contains(normalizedPlatform)) {
+      log.warn(
+          "[implant-download] Rejected: unsupported platform '{}' (raw='{}'). Available: {}",
+          normalizedPlatform,
+          platform,
+          AVAILABLE_PLATFORMS);
+      return ResponseEntity.badRequest()
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(
+              ("{\"error\":\"unsupported_platform\","
+                      + "\"message\":\"Platform '"
+                      + platform
+                      + "' is not supported. Available: "
+                      + AVAILABLE_PLATFORMS
+                      + "\"}")
+                  .getBytes());
     }
-    if (!AVAILABLE_ARCHITECTURES.contains(arch)) {
-      throw new IllegalArgumentException("Architecture invalid : " + arch);
+    if (!AVAILABLE_ARCHITECTURES.contains(normalizedArch)) {
+      log.warn(
+          "[implant-download] Rejected: unsupported architecture '{}' (raw='{}'). Available: {}",
+          normalizedArch,
+          arch,
+          AVAILABLE_ARCHITECTURES);
+      return ResponseEntity.badRequest()
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(
+              ("{\"error\":\"unsupported_architecture\","
+                      + "\"message\":\"Architecture '"
+                      + arch
+                      + "' is not supported. Available: "
+                      + AVAILABLE_ARCHITECTURES
+                      + "\"}")
+                  .getBytes());
     }
 
     String resource =
-        "/implants/caldera/" + platform + "/" + arch + "/oaev-implant-caldera-" + platform;
+        "/implants/caldera/"
+            + normalizedPlatform
+            + "/"
+            + normalizedArch
+            + "/oaev-implant-caldera-"
+            + normalizedPlatform;
     if (extension != null) {
       resource += "." + extension;
     }
     InputStream in = getClass().getResourceAsStream(resource);
     if (in != null) {
-      return IOUtils.toByteArray(in);
+      log.info(
+          "[implant-download] Serving caldera implant: {}/{} (extension={})",
+          normalizedPlatform,
+          normalizedArch,
+          extension);
+      return ResponseEntity.ok()
+          .contentType(MediaType.APPLICATION_OCTET_STREAM)
+          .body(IOUtils.toByteArray(in));
     }
-    return null;
+
+    log.error(
+        "[implant-download] Caldera binary not found at resource path: {}", resource);
+    return ResponseEntity.status(404)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(
+            ("{\"error\":\"binary_not_found\","
+                    + "\"message\":\"Caldera implant not found for "
+                    + normalizedPlatform
+                    + "/"
+                    + normalizedArch
+                    + "\"}")
+                .getBytes());
   }
 
   // Public API
@@ -209,34 +276,99 @@ public class InjectorApi extends RestBehavior {
       @RequestParam(required = false) final String injectId,
       @RequestParam(required = false) final String agentId)
       throws IOException {
-    if (!AVAILABLE_PLATFORMS.contains(platform)) {
-      this.injectStatusService.setImplantErrorTrace(
-          injectId, agentId, "Unable to download the implant. Platform invalid: " + platform);
-    }
-    if (!AVAILABLE_ARCHITECTURES.contains(architecture)) {
+    // Normalize OS-reported values to OpenAEV canonical names
+    String normalizedPlatform = normalizePlatform(platform);
+    String normalizedArch = normalizeArchitecture(architecture);
+
+    log.info(
+        "[implant-download] OpenAEV implant request: platform={} (raw={}), arch={} (raw={}), "
+            + "injectId={}, agentId={}, version={}, origin={}",
+        normalizedPlatform,
+        platform,
+        normalizedArch,
+        architecture,
+        injectId,
+        agentId,
+        executorOpenaevBinariesVersion,
+        executorOpenaevBinariesOrigin);
+
+    if (!AVAILABLE_PLATFORMS.contains(normalizedPlatform)) {
+      log.warn(
+          "[implant-download] Rejected: unsupported platform '{}' (raw='{}'). Available: {}",
+          normalizedPlatform,
+          platform,
+          AVAILABLE_PLATFORMS);
       this.injectStatusService.setImplantErrorTrace(
           injectId,
           agentId,
-          "Unable to download the implant. Architecture invalid: " + architecture);
+          "Unable to download the implant. Platform invalid: "
+              + platform
+              + " (normalized: "
+              + normalizedPlatform
+              + "). Available: "
+              + AVAILABLE_PLATFORMS);
+      return ResponseEntity.badRequest()
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(
+              ("{\"error\":\"unsupported_platform\","
+                      + "\"message\":\"Platform '"
+                      + platform
+                      + "' is not supported. Available: "
+                      + AVAILABLE_PLATFORMS
+                      + "\"}")
+                  .getBytes());
+    }
+    if (!AVAILABLE_ARCHITECTURES.contains(normalizedArch)) {
+      log.warn(
+          "[implant-download] Rejected: unsupported architecture '{}' (raw='{}'). Available: {}",
+          normalizedArch,
+          architecture,
+          AVAILABLE_ARCHITECTURES);
+      this.injectStatusService.setImplantErrorTrace(
+          injectId,
+          agentId,
+          "Unable to download the implant. Architecture invalid: "
+              + architecture
+              + " (normalized: "
+              + normalizedArch
+              + "). Available: "
+              + AVAILABLE_ARCHITECTURES);
+      return ResponseEntity.badRequest()
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(
+              ("{\"error\":\"unsupported_architecture\","
+                      + "\"message\":\"Architecture '"
+                      + architecture
+                      + "' is not supported. Available: "
+                      + AVAILABLE_ARCHITECTURES
+                      + "\"}")
+                  .getBytes());
     }
 
     InputStream in = null;
     String filename = "";
-    String resourcePath = "/openaev-implant/" + platform + "/" + architecture + "/";
+    String resourcePath = "/openaev-implant/" + normalizedPlatform + "/" + normalizedArch + "/";
 
-    if (executorOpenaevBinariesOrigin.equals("local")) { // if we want the local binaries
-      filename = "openaev-implant-" + version + (platform.equals("windows") ? ".exe" : "");
+    if (executorOpenaevBinariesOrigin.equals("local")) {
+      filename =
+          "openaev-implant-"
+              + version
+              + (normalizedPlatform.equals("windows") ? ".exe" : "");
       in = getClass().getResourceAsStream("/implants" + resourcePath + filename);
-    } else if (executorOpenaevBinariesOrigin.equals(
-        "repository")) { // if we want a specific version from artifactory
+    } else if (executorOpenaevBinariesOrigin.equals("repository")) {
       filename =
           "openaev-implant-"
               + executorOpenaevBinariesVersion
-              + (platform.equals("windows") ? ".exe" : "");
+              + (normalizedPlatform.equals("windows") ? ".exe" : "");
       in = new BufferedInputStream(validateJFrogUri(resourcePath, filename).toURL().openStream());
     }
 
     if (in != null) {
+      log.info(
+          "[implant-download] Serving OpenAEV implant: {} ({}/{})",
+          filename,
+          normalizedPlatform,
+          normalizedArch);
       HttpHeaders headers = new HttpHeaders();
       headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename);
       return ResponseEntity.ok()
@@ -244,7 +376,27 @@ public class InjectorApi extends RestBehavior {
           .contentType(MediaType.APPLICATION_OCTET_STREAM)
           .body(IOUtils.toByteArray(in));
     }
-    throw new UnsupportedOperationException("Implant " + platform + " executable not supported");
+
+    log.error(
+        "[implant-download] Binary not found: platform={}, arch={}, version={}, origin={}",
+        normalizedPlatform,
+        normalizedArch,
+        executorOpenaevBinariesVersion,
+        executorOpenaevBinariesOrigin);
+    return ResponseEntity.status(404)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(
+            ("{\"error\":\"binary_not_found\","
+                    + "\"message\":\"Implant binary not found for "
+                    + normalizedPlatform
+                    + "/"
+                    + normalizedArch
+                    + " (version: "
+                    + executorOpenaevBinariesVersion
+                    + ", origin: "
+                    + executorOpenaevBinariesOrigin
+                    + ")\"}")
+                .getBytes());
   }
 
   // -- OPTION --
