@@ -1,1 +1,28 @@
-package io.openaev.database.model;import com.fasterxml.jackson.annotation.JsonProperty;import lombok.Getter;@Getterpublic enum ConditionKeySubtype {  @JsonProperty("port")  Port("port"),  @JsonProperty("ipv4")  IPv4("ipv4"),  @JsonProperty("ipv6")  IPv6("ipv6"),  @JsonProperty("username")  Username("username"),  @JsonProperty("password")  Password("password");  private final String label;  ConditionKeySubtype(String label) {    this.label = label;  }}
+package io.openaev.database.model;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Getter;
+
+@Getter
+public enum ConditionKeySubtype {
+  @JsonProperty("port")
+  Port("port"),
+
+  @JsonProperty("ipv4")
+  IPv4("ipv4"),
+
+  @JsonProperty("ipv6")
+  IPv6("ipv6"),
+
+  @JsonProperty("username")
+  Username("username"),
+
+  @JsonProperty("password")
+  Password("password");
+
+  private final String label;
+
+  ConditionKeySubtype(String label) {
+    this.label = label;
+  }
+}
