@@ -15,10 +15,16 @@ import { APP_BASE_PATH, MESSAGING$ } from './Environment';
 import { notifyErrorHandler } from './error/errorHandlerUtil';
 import { oaevLocaleMap } from './locales';
 import { buildTenantApiPath } from './tenant-url-helper';
+import { isFeatureEnabled } from "./utils";
 
 const cache = createIntlCache();
 
-export const buildUri = (uri: string) => `${APP_BASE_PATH}${buildTenantApiPath(uri)}`;
+export const buildUri = (uri: string) => {
+    if (isFeatureEnabled('MULTI_TENANCY')) {
+        return `${APP_BASE_PATH}${buildTenantApiPath(uri)}`;
+    }
+    return `${APP_BASE_PATH}${uri}`;
+}
 
 const buildError = (data: AxiosError) => {
   const errorsExtractor = R.pipe(

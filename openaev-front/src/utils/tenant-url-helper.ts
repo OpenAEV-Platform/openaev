@@ -52,6 +52,7 @@ const TENANT_EXEMPT_PREFIXES = [
 ];
 
 /**
+ * TODO multi-tenancy:
  * API prefixes NOT YET migrated to /api/tenants/{tenantId}/… on the backend.
  *
  * As each BE controller is migrated, remove the corresponding prefix(es).
