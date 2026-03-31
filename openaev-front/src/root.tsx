@@ -23,6 +23,7 @@ import { UserContext } from './utils/hooks/useAuth';
 import useNetworkCheck from './utils/hooks/useCheckNetwork';
 import useTenant from './utils/hooks/useTenant';
 import PermissionsProvider from './utils/permissions/PermissionsProvider';
+import { buildTenantUrl, extractTenantFromUrl, getCurrentTenantId } from './utils/tenant-url-helper';
 
 const RootPublic = lazy(() => import('./public/Root'));
 const IndexPrivate = lazy(() => import('./private/Index'));
@@ -64,6 +65,16 @@ const Root = () => {
         <RootPublic />
       </Suspense>
     );
+  }
+
+  // When the user is authenticated but the URL has no tenant prefix
+  // (e.g. first visit at "/", or right after login), hard-redirect to
+  // the tenant-prefixed URL so BrowserRouter picks up the correct basename.
+  if (!extractTenantFromUrl()) {
+    const tenantId = currentUserTenant?.tenant_id ?? getCurrentTenantId();
+    const dest = logged.isOnlyPlayer ? '/private' : '/admin';
+    window.location.href = buildTenantUrl(tenantId, dest);
+    return <Loader />;
   }
 
   return (
