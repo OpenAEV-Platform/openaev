@@ -1,5 +1,6 @@
 import { HelpOutlineOutlined } from '@mui/icons-material';
 import {
+  Checkbox, IconButton,
   List,
   ListItem,
   ListItemButton,
@@ -41,6 +42,9 @@ import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
 import CreateThreatArsenalAction from './CreateThreatArsenalAction';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import ThreatArsenalInformationDrawer from './ThreatArsenalInformationDrawer';
+import ToolBar from "../common/ToolBar";
+import useEntityToggle from "../../../utils/hooks/useEntityToggle";
+import ThreatArsenalRunTestDrawer from "./ThreatArsenalRunTestDrawer";
 
 const useStyles = makeStyles()(theme => ({
   itemHead: { textTransform: 'uppercase' },
@@ -68,6 +72,7 @@ const ThreatArsenal = () => {
   const { classes } = useStyles();
 
   const [selectedThreatArsenalAction, setSelectedThreatArsenalAction] = useState<ThreatArsenalAction | null>(null);
+  const [isRunTestDrawerOpened, setRunTestDrawerOpened] = useState<boolean>(false);
 
   const [threatArsenalActions, setThreatArsenalActions] = useState<ThreatArsenalAction[]>([]);
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(
@@ -81,6 +86,17 @@ const ThreatArsenal = () => {
     setLoading(true);
     return searchThreatArsenalActions({ ...input }).finally(() => setLoading(false));
   };
+
+  // Toolbar
+  const {
+    selectedElements,
+    deSelectedElements,
+    selectAll,
+    handleClearSelectedElements,
+    handleToggleSelectAll,
+    onToggleEntity,
+    numberOfSelectedElements,
+  } = useEntityToggle<InjectorContractActionOutput>('injector_contract', injectorContracts, queryableHelpers.paginationHelpers.getTotalElements());
 
   const headers: Header[] = useMemo(() => [
     {
@@ -199,6 +215,15 @@ const ThreatArsenal = () => {
           style={{ paddingTop: 0 }}
           secondaryAction={<>&nbsp;</>}
         >
+          <ListItemIcon style={{ minWidth: 40 }}>
+            <Checkbox
+              edge="start"
+              checked={selectAll}
+              disableRipple
+              onChange={handleToggleSelectAll}
+              disabled={typeof handleToggleSelectAll !== 'function'}
+            />
+          </ListItemIcon>
 
           <ListItemIcon />
           <ListItemText
@@ -261,6 +286,21 @@ const ThreatArsenal = () => {
                       onClick={() => setSelectedThreatArsenalAction(action)}
                       selected={selectedThreatArsenalAction?.injector_contract_id === action.injector_contract_id}
                     >
+                      <ListItemIcon
+                        style={{ minWidth: 40 }}
+                        onClick={event => onToggleEntity(contract, event)}
+                      >
+                        <Checkbox
+                          edge="start"
+                          checked={
+                            (selectAll && !(contract.injector_contract_id
+                              in (deSelectedElements || {})))
+                            || contract.injector_contract_id in (selectedElements || {})
+                          }
+                          disableRipple
+                        />
+                      </ListItemIcon>
+
                       <ListItemIcon style={{ minWidth: 56 }}>
                         <InjectIcon
                           variant="list"
@@ -307,6 +347,43 @@ const ThreatArsenal = () => {
           threatArsenalAction={selectedThreatArsenalAction}
         />
       )}
+      {isRunTestDrawerOpened && (
+        <ThreatArsenalRunTestDrawer
+          isExclusionMode={selectAll}
+          isOnlyOneItemSelected={selectAll ? Object.keys(deSelectedElements).length === queryableHelpers.paginationHelpers.getTotalElements() - 1 : numberOfSelectedElements === 1}
+          selectedElements={selectedElements}
+          deSelectedElements={deSelectedElements}
+          open={isRunTestDrawerOpened}
+          onClose={() => setRunTestDrawerOpened(false)}
+        />
+      )}
+      {
+        numberOfSelectedElements > 0 && (
+          <ToolBar
+            numberOfSelectedElements={numberOfSelectedElements}
+            totalNumberOfElements={queryableHelpers.paginationHelpers.getTotalElements()}
+            selectedElements={selectedElements}
+            deSelectedElements={deSelectedElements}
+            selectAll={selectAll}
+            handleClearSelectedElements={handleClearSelectedElements}
+            teamsFromExerciseOrScenario={[]}
+            customAction={
+              <Tooltip title={t('Run a test')}>
+                <span>
+                  <IconButton
+                    aria-label="run-a-test"
+                    onClick={() => setRunTestDrawerOpened(true)}
+                    color="primary"
+                    size="small"
+                  >
+                    <MovieFilterOutlined fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            }
+          />
+        )
+      }
     </Stack>
   );
 };
