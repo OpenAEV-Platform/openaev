@@ -43,6 +43,51 @@ public class AgentUtils {
           Endpoint.PLATFORM_ARCH.arm64.name().toLowerCase());
 
   /**
+   * Normalizes OS-reported architecture names to OpenAEV canonical names.
+   *
+   * <p>Different operating systems and tools report CPU architecture differently:
+   * <ul>
+   *   <li>{@code uname -m} on Linux ARM64 returns "aarch64", not "arm64"</li>
+   *   <li>Some Windows tools report "amd64" instead of "x86_64"</li>
+   *   <li>Some tools report "x64" instead of "x86_64"</li>
+   * </ul>
+   *
+   * <p>This method maps all known aliases to the canonical values used in
+   * {@link #AVAILABLE_ARCHITECTURES}.
+   *
+   * @param architecture the raw architecture string (e.g. from {@code uname -m})
+   * @return the normalized architecture name, or the lowercase input if no alias is known
+   */
+  public static String normalizeArchitecture(String architecture) {
+    if (architecture == null || architecture.isBlank()) {
+      return "";
+    }
+    return switch (architecture.toLowerCase()) {
+      case "aarch64", "arm64" -> "arm64";
+      case "x86_64", "amd64", "x64" -> "x86_64";
+      default -> architecture.toLowerCase();
+    };
+  }
+
+  /**
+   * Normalizes OS-reported platform names to OpenAEV canonical names.
+   *
+   * <p>For example, macOS reports "Darwin" via {@code uname}, but OpenAEV uses "macos".
+   *
+   * @param platform the raw platform string (e.g. from {@code uname})
+   * @return the normalized platform name, or the lowercase input if no alias is known
+   */
+  public static String normalizePlatform(String platform) {
+    if (platform == null || platform.isBlank()) {
+      return "";
+    }
+    return switch (platform.toLowerCase()) {
+      case "darwin" -> "macos";
+      default -> platform.toLowerCase();
+    };
+  }
+
+  /**
    * Retrieves all active and valid agents from an asset for a specific inject.
    *
    * <p>This method unproxies the asset to access the underlying endpoint and filters its agents
