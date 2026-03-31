@@ -64,7 +64,7 @@ certificates in the folder are public PEM-armoured (*.pem), DER-encoded X509 cer
 | Parameter                                   | Environment variable                        | Default value      | Description                                   |
 |:--------------------------------------------|:--------------------------------------------|:-------------------|:----------------------------------------------|
 | logging.level.root                          | LOGGING_LEVEL_ROOT                          | fatal              | Root log level                                |
-| logging.level.io.openaev                    | LOGGING_LEVEL_IO_OPENAEV                    | warn               | OpenAEV log level                             |
+| logging.level.io.openaev                    | LOGGING_LEVEL_IO_OPENAEV                    | error              | OpenAEV log level                             |
 | logging.file.name                           | LOGGING_FILE_NAME                           | ./logs/openaev.log | Log file path (in addition to console output) |
 | logging.logback.rollingpolicy.max-file-size | LOGGING_LOGBACK_ROLLINGPOLICY_MAX-FILE-SIZE | 10MB               | Rolling max file size                         |
 | logging.logback.rollingpolicy.max-history   | LOGGING_LOGBACK_ROLLINGPOLICY_MAX-HISTORY   | 7                  | Rolling max days                              |
@@ -110,7 +110,7 @@ certificates in the folder are public PEM-armoured (*.pem), DER-encoded X509 cer
 | engine.username        | ENGINE_USERNAME        |                       | This parameter is optional. Login for the database                                             |
 | engine.password        | ENGINE_PASSWORD        |                       | This parameter is optional. Password for the database                                               |
 
-If you switch your engine selector, you’ll need to delete the `indexing_status` table in PostgreSQL to trigger a full
+If you switch your engine selector, you'll need to delete the `indexing_status` table in PostgreSQL to trigger a full
 reindex.
 
 #### RabbitMQ
