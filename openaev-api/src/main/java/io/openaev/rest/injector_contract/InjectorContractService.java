@@ -695,23 +695,42 @@ public class InjectorContractService implements DependenciesManager {
 
   @Override
   public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
-    for (String injectorContractId : listDefaultInjectorContract) {
-      InjectorContractId compositeId =
-          new InjectorContractId(injectorContractId, TenantContext.getCurrentTenant());
-      InjectorContract source = entityManager.find(InjectorContract.class, compositeId);
-      if (source == null) {
-        continue; // contract does not exist for the current tenant — skip
+    try {
+      for (String injectorContractId : listDefaultInjectorContract) {
+        InjectorContractId compositeId =
+            new InjectorContractId(injectorContractId, TenantContext.getCurrentTenant());
+        InjectorContract source = entityManager.find(InjectorContract.class, compositeId);
+        if (source == null) {
+          continue; // contract does not exist for the current tenant — skip
+        }
+        entityManager.detach(source);
+        source.setTenant(tenant);
+        entityManager.persist(source);
       }
-      entityManager.detach(source);
-      source.setTenant(tenant);
-      entityManager.persist(source);
+    } catch (Exception e) {
+      log.error(
+          "Failed to create default injector contracts for tenant {}: {}",
+          tenant.getId(),
+          e.getMessage());
+      throw new DependenciesManagerException(
+          "Failed to create default injector contracts for tenant " + tenant.getName(), e);
     }
   }
 
   @Override
   public void deleteDependencyForTenant(String tenantId) throws DependenciesManagerException {
-    for (String injectorContractId : listDefaultInjectorContract) {
-      injectorContractRepository.deleteById(injectorContractId);
+    try {
+      for (String injectorContractId : listDefaultInjectorContract) {
+        injectorContractRepository.deleteById(new InjectorContractId(injectorContractId, tenantId));
+      }
+
+    } catch (Exception e) {
+      log.error(
+          "Failed to create default injector contracts for tenant {}: {}",
+          tenantId,
+          e.getMessage());
+      throw new DependenciesManagerException(
+          "Failed to create default injector contracts for tenant " + tenantId, e);
     }
   }
 }
