@@ -20,11 +20,11 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class EventOutput {
-  @JsonProperty("event_event_id")
+  @JsonProperty("event_id")
   @NotBlank
   private String id;
 
-  @JsonProperty("event_event_name")
+  @JsonProperty("event_name")
   @NotBlank
   private String name;
 

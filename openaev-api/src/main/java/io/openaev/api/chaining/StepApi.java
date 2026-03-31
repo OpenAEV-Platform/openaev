@@ -43,15 +43,8 @@ public class StepApi {
       resourceType = ResourceType.SIMULATION_OR_SCENARIO)
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
-  public StepOutput createStep(@Valid @RequestBody StepInput input) {
-    try {
-      return toOutput(stepService.createStepTemplate(input.getWorkflowId(), toCreateInput(input)));
-    } catch (Exception e) {
-      log.error(
-          String.format(
-              "Unexpected error while creating a new Steps Workflow: %s", e.getMessage()));
-      return null;
-    }
+  public StepOutput createStep(@Valid @RequestBody StepInput input) throws ChainingException {
+    return toOutput(stepService.createStepTemplate(input.getWorkflowId(), toCreateInput(input)));
   }
 
   // -- READ --

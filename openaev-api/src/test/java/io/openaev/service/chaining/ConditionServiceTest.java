@@ -238,7 +238,7 @@ public class ConditionServiceTest {
       String stepId = UUID.randomUUID().toString();
       List<Condition> expected = List.of(mock(Condition.class), mock(Condition.class));
 
-      when(conditionRepository.findAllByStep_Id(stepId)).thenReturn(expected);
+      when(conditionRepository.findAllLinkedToStepId(stepId)).thenReturn(expected);
 
       // -------- Act --------
       List<Condition> result = conditionService.findAllConditionsByStepId(stepId);
@@ -246,7 +246,7 @@ public class ConditionServiceTest {
       // -------- Assert --------
       assertSame(expected, result);
 
-      verify(conditionRepository).findAllByStep_Id(stepId);
+      verify(conditionRepository).findAllLinkedToStepId(stepId);
       verifyNoMoreInteractions(conditionRepository);
     }
   }
@@ -267,7 +267,7 @@ public class ConditionServiceTest {
 
       // -------- Assert --------
       assertNotNull(result);
-      assertEquals("step_template_id", result.getKeyType());
+      assertEquals(ConditionKeyType.StepTemplateId, result.getKeyType());
       assertEquals(ConditionType.DEPEND_ON, result.getType());
       assertEquals(stepTemplateId, result.getValue());
     }
@@ -291,7 +291,7 @@ public class ConditionServiceTest {
       String stepId = UUID.randomUUID().toString();
       when(stepTemplate.getId()).thenReturn(stepId);
 
-      when(conditionRepository.findAllByStep_Id(stepId)).thenReturn(templates);
+      when(conditionRepository.findAllLinkedToStepId(stepId)).thenReturn(templates);
 
       // -------- Act --------
       List<Condition> result =
@@ -301,7 +301,7 @@ public class ConditionServiceTest {
       assertNotNull(result);
       assertTrue(result.isEmpty());
 
-      verify(conditionRepository).findAllByStep_Id(stepId);
+      verify(conditionRepository).findAllLinkedToStepId(stepId);
     }
 
     static Stream<Arguments> noConditionTemplates() {
@@ -323,7 +323,7 @@ public class ConditionServiceTest {
       when(timeTemplate.getType()).thenReturn(ConditionType.AFTER);
       when(timeTemplate.getValue()).thenReturn("0");
 
-      when(conditionRepository.findAllByStep_Id(stepId)).thenReturn(List.of(timeTemplate));
+      when(conditionRepository.findAllLinkedToStepId(stepId)).thenReturn(List.of(timeTemplate));
 
       // Make goal safely in the past => now.isAfter(goal) will be true
       when(workflowRun.getWorkflowCreatedAt()).thenReturn(Instant.EPOCH);
@@ -342,7 +342,7 @@ public class ConditionServiceTest {
       assertNotNull(result);
       assertEquals(1, result.size());
 
-      verify(conditionRepository).findAllByStep_Id(stepId);
+      verify(conditionRepository).findAllLinkedToStepId(stepId);
       verify(conditionService)
           .isTimeConditionValid(eq(timeTemplate), any(Instant.class), any(Instant.class));
       verifyNoInteractions(queueChainingService);
@@ -363,7 +363,7 @@ public class ConditionServiceTest {
       when(timeTemplate.getType()).thenReturn(ConditionType.AFTER);
       when(timeTemplate.getValue()).thenReturn("60000"); // +60s from start
 
-      when(conditionRepository.findAllByStep_Id(stepId)).thenReturn(List.of(timeTemplate));
+      when(conditionRepository.findAllLinkedToStepId(stepId)).thenReturn(List.of(timeTemplate));
 
       // Start in the future => goal in the future => AFTER should be invalid now
       Instant futureStart = Instant.now().plus(2, ChronoUnit.MINUTES);
@@ -466,7 +466,7 @@ public class ConditionServiceTest {
         when(stepFrom.getId()).thenReturn(stepFromTemplateId);
         when(depTemplate.getStepFrom()).thenReturn(stepFrom);
 
-        when(conditionRepository.findAllByStep_Id(nextId)).thenReturn(List.of(depTemplate));
+        when(conditionRepository.findAllLinkedToStepId(nextId)).thenReturn(List.of(depTemplate));
 
         Step executed = mock(Step.class);
         when(executed.getOutput()).thenReturn(hasOutput ? "out" : null);
@@ -520,11 +520,11 @@ public class ConditionServiceTest {
     @Test
     void shouldDoNothing_whenNoConditionLinkedToStep() {
       String stepId = UUID.randomUUID().toString();
-      when(conditionRepository.findAllByStep_Id(stepId)).thenReturn(List.of());
+      when(conditionRepository.findAllLinkedToStepId(stepId)).thenReturn(List.of());
 
       conditionService.deleteAllConditionsByStepId(stepId);
 
-      verify(conditionRepository).findAllByStep_Id(stepId);
+      verify(conditionRepository).findAllLinkedToStepId(stepId);
       verify(conditionRepository, never()).save(any());
       verify(conditionRepository, never()).delete(any());
     }
@@ -538,7 +538,7 @@ public class ConditionServiceTest {
       stepA.setId(removedStepId);
       conditionService.linkToStep(condition, stepA, true);
 
-      when(conditionRepository.findAllByStep_Id(removedStepId)).thenReturn(List.of(condition));
+      when(conditionRepository.findAllLinkedToStepId(removedStepId)).thenReturn(List.of(condition));
       when(conditionRepository.save(any(Condition.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -561,7 +561,7 @@ public class ConditionServiceTest {
       conditionService.linkToStep(condition, stepA, true);
       conditionService.linkToStep(condition, stepB, false);
 
-      when(conditionRepository.findAllByStep_Id(removedStepId)).thenReturn(List.of(condition));
+      when(conditionRepository.findAllLinkedToStepId(removedStepId)).thenReturn(List.of(condition));
       when(conditionRepository.save(any(Condition.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -586,7 +586,7 @@ public class ConditionServiceTest {
       stepFrom.setId("step-from");
       condition.setStepFrom(stepFrom);
 
-      when(conditionRepository.findAllByStep_Id(removedStepId)).thenReturn(List.of(condition));
+      when(conditionRepository.findAllLinkedToStepId(removedStepId)).thenReturn(List.of(condition));
       when(conditionRepository.save(any(Condition.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -661,7 +661,7 @@ public class ConditionServiceTest {
       childInput.setTemporaryId("tmp-child");
       childInput.setTemporaryIdConditionParent("tmp-root");
       childInput.setType(ConditionType.EQ);
-      childInput.setKeyType("portscan.port");
+      childInput.setKeyType(ConditionKeyType.PortsScan);
       childInput.setValue("445");
       childInput.setStepFrom(childStepFromId);
 
@@ -765,7 +765,7 @@ public class ConditionServiceTest {
       childInput.setTemporaryId("tmp-child");
       childInput.setTemporaryIdConditionParent("tmp-root");
       childInput.setType(ConditionType.EQ);
-      childInput.setKeyType("status");
+      childInput.setKeyType(ConditionKeyType.Status);
       childInput.setValue("ok");
 
       EventInput input =

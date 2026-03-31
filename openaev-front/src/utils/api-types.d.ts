@@ -1206,16 +1206,40 @@ export interface Condition {
 
 /** Condition used to execute a step. Can be a Template or an Execution depending on the status of stepFrom. */
 export interface ConditionCreateInput {
+  /** Condition key subtype */
+  condition_key_subtype?: "port" | "ipv4" | "ipv6" | "username" | "password";
   /** Path to the value in the output of the step from */
-  key_type?: string;
+  condition_key_type?:
+    | "execution_time"
+    | "step_template_id"
+    | "text"
+    | "status"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asset";
   /** ID of the step linked to the key */
-  step_from?: string;
+  condition_step_from?: string;
   /** Temporary ID of the condition */
-  temporary_id?: string;
+  condition_temporary_id?: string;
   /** Temporary ID of the parent condition */
-  temporary_id_condition_parent?: string;
+  condition_temporary_id_condition_parent?: string;
   /** Condition type: AND, OR, EQ, NEQ, IS_NULL, IS_NOT_NULL, GT, GTE, LT, LTE, IN, NIN, AFTER, BEFORE, MAPPER, or DEPEND_ON */
-  type?:
+  condition_type?:
     | "AND"
     | "OR"
     | "EQ"
@@ -1233,15 +1257,38 @@ export interface ConditionCreateInput {
     | "MAPPER"
     | "DEPEND_ON";
   /** Value to be compared */
-  value?: string;
+  condition_value?: string;
 }
 
 export interface ConditionOutput {
   condition_id?: string;
+  condition_key_subtype?: "port" | "ipv4" | "ipv6" | "username" | "password";
+  condition_key_type?:
+    | "execution_time"
+    | "step_template_id"
+    | "text"
+    | "status"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asset";
   condition_parent_id?: string;
-  key_type?: string;
-  type?: string;
-  value?: string;
+  condition_type?: string;
+  condition_value?: string;
 }
 
 export interface Configuration {
@@ -2673,14 +2720,14 @@ export interface EvaluationInput {
 
 export interface EventInput {
   /** @minItems 1 */
-  conditions: ConditionCreateInput[];
-  description?: string;
+  event_conditions: ConditionCreateInput[];
+  event_description?: string;
   /** @minLength 1 */
-  name: string;
-  step_from?: string;
-  step_ids?: string[];
+  event_name: string;
+  event_step_from?: string;
+  event_step_ids?: string[];
   /** @minLength 1 */
-  workflow_id: string;
+  event_workflow_id: string;
 }
 
 export interface EventOutput {
@@ -2692,11 +2739,11 @@ export interface EventOutput {
   event_id: string;
   /** @minLength 1 */
   event_name: string;
+  event_step_from?: string;
   /** @format date-time */
   event_updated_at?: string;
   /** @minLength 1 */
   event_workflow_id: string;
-  step_from?: string;
 }
 
 export interface Executable {
@@ -7180,14 +7227,14 @@ export interface StatusPayloadOutput {
 }
 
 export interface StepInput {
-  condition_ids?: string[];
-  conditions?: ConditionCreateInput[];
-  data_step?: InjectInput;
-  /** @format int32 */
-  limit_execution?: number;
   step_action: "INJECT_EXECUTION";
+  step_condition_ids?: string[];
+  step_conditions?: ConditionCreateInput[];
+  step_data_step?: InjectInput;
+  /** @format int32 */
+  step_limit_execution?: number;
   /** @minLength 1 */
-  workflow_id: string;
+  step_workflow_id: string;
 }
 
 export interface StepOutput {

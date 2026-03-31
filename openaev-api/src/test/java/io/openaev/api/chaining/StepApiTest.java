@@ -1,7 +1,6 @@
 package io.openaev.api.chaining;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import io.openaev.api.chaining.dto.StepInput;
@@ -42,19 +41,6 @@ class StepApiTest {
     assertEquals("TEMPLATE", result.getStatus());
     assertEquals("{\"a\":1}", result.getData());
     verify(stepService).createStepTemplate("wf-1", input);
-  }
-
-  @Test
-  void createStep_shouldReturnNullWhenServiceThrows() throws Exception {
-    StepInput input = new StepInput();
-    input.setWorkflowId("wf-1");
-    input.setStepAction(StepActionClass.INJECT_EXECUTION);
-
-    when(stepService.createStepTemplate(any(), any())).thenThrow(new RuntimeException("boom"));
-
-    StepOutput result = stepApi.createStep(input);
-
-    assertNull(result);
   }
 
   @Test

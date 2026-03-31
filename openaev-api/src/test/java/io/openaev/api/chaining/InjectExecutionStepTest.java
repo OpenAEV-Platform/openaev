@@ -219,7 +219,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType("ip")
+            .keyType(ConditionKeyType.IPv4)
             .value("output.message.ip")
             .stepFrom("firstStep")
             .type(ConditionType.MAPPER)
@@ -245,7 +245,9 @@ public class InjectExecutionStepTest extends IntegrationTest {
             stepTemplate.getData(), "inject_injector_contract.injector_contract_id"));
     assertEquals("output.message.ip", StepService.getField(stepTemplate.getInput(), "input.path"));
     assertEquals("firstStep", StepService.getField(stepTemplate.getInput(), "input.id_step_from"));
-    assertEquals("ip", StepService.getField(stepTemplate.getInput(), "input.key"));
+    assertEquals(
+        ConditionKeyType.IPv4.name(),
+        StepService.getField(stepTemplate.getInput(), "input.keyType"));
   }
 
   /**
@@ -272,7 +274,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType("ip")
+            .keyType(ConditionKeyType.IPv4)
             .value("output.message.ip")
             .stepFrom("firstStep")
             .type(ConditionType.MAPPER)
@@ -323,7 +325,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType("ip")
+            .keyType(ConditionKeyType.IPv4)
             .value("output.message.ip")
             .stepFrom("firstStep")
             .type(ConditionType.MAPPER)
@@ -361,7 +363,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType("ip")
+            .keyType(ConditionKeyType.IPv4)
             .value("output.message.ip")
             .stepFrom("firstStep")
             .type(ConditionType.MAPPER)
@@ -413,7 +415,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType("ip")
+            .keyType(ConditionKeyType.IPv4)
             .value("output.message.ip")
             .stepFrom("firstStep")
             .type(ConditionType.MAPPER)
@@ -463,7 +465,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType("ip")
+            .keyType(ConditionKeyType.IPv4)
             .value("output.message.ip")
             .stepFrom("firstStep")
             .type(ConditionType.MAPPER)
@@ -523,7 +525,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType("ip")
+            .keyType(ConditionKeyType.IPv4)
             .value("output.message.ip")
             .stepFrom("firstStep")
             .type(ConditionType.MAPPER)
