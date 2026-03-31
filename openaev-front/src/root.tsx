@@ -72,9 +72,8 @@ const Root = () => {
   // the tenant-prefixed URL so BrowserRouter picks up the correct basename.
   if (!extractTenantFromUrl()) {
     const tenantId = currentUserTenant?.tenant_id ?? getCurrentTenantId();
-    const base = APP_BASE_PATH || '';
-    const dest = logged.isOnlyPlayer ? 'private' : 'admin';
-    window.location.href = `${base}/${tenantId}/${dest}`;
+    const dest = logged.isOnlyPlayer ? '/private' : '/admin';
+    window.location.href = buildTenantUrl(tenantId, dest);
     return <Loader />;
   }
 
