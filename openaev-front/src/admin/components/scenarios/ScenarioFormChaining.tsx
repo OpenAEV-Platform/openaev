@@ -235,6 +235,7 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
             <AccordionDetails sx={{
               display: 'flex',
               flexDirection: 'column',
+              gap: theme.spacing(2),
             }}
             >
               <MuiTextField

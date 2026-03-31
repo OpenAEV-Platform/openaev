@@ -1,5 +1,5 @@
 import { OpenInNew } from '@mui/icons-material';
-import { Box, Card, CardActionArea, CardContent, Link, Radio, Typography } from '@mui/material';
+import { Card, CardActionArea, CardContent, Link, Radio, Stack, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -87,9 +87,9 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
   };
 
   return (
-    <Box sx={{ marginBottom: theme.spacing(0) }}>
-      <Box sx={{
-        display: 'flex',
+    <Stack sx={{ marginBottom: theme.spacing(0) }}>
+      <Stack sx={{
+        flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: theme.spacing(2),
@@ -113,8 +113,8 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
           <OpenInNew sx={{ fontSize: 14 }} />
           {t('chaining.doc-link')}
         </Link>
-      </Box>
-      <Box
+      </Stack>
+      <Stack
         sx={{
           display: 'grid',
           gap: theme.spacing(2),
@@ -153,8 +153,8 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
                   '&:last-child': { paddingBottom: 0 },
                 }}
                 >
-                  <Box sx={{
-                    display: 'flex',
+                  <Stack sx={{
+                    flexDirection: 'row',
                     alignItems: 'center',
                     gap: theme.spacing(0.5),
                   }}
@@ -172,23 +172,23 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
                       {option.title}
                     </Typography>
                     {isChaining && !isEnterpriseEdition && <EEChip clickable />}
-                  </Box>
+                  </Stack>
                   <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
                     {option.description}
                   </Typography>
                   {/* Illustrative workflow diagram */}
-                  <Box sx={{ marginTop: theme.spacing(1) }}>
+                  <Stack sx={{ marginTop: theme.spacing(1) }}>
                     {isChaining
                       ? <ChainingIllustration isDark={theme.palette.mode === 'dark'} />
                       : <TimeBasedIllustration isDark={theme.palette.mode === 'dark'} />}
-                  </Box>
+                  </Stack>
                 </CardContent>
               </CardActionArea>
             </Card>
           );
         })}
-      </Box>
-    </Box>
+      </Stack>
+    </Stack>
   );
 };
 
