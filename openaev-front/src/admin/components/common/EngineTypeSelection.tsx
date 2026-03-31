@@ -87,7 +87,7 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
   };
 
   return (
-    <Box sx={{ marginBottom: theme.spacing(3) }}>
+    <Box sx={{ marginBottom: theme.spacing(0) }}>
       <Box sx={{
         display: 'flex',
         justifyContent: 'space-between',

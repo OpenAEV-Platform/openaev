@@ -85,12 +85,16 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
           display: 'flex',
           flexDirection: 'column',
           gap: theme.spacing(2),
-          marginTop: theme.spacing(2),
         }}
         id="scenarioForm"
         onSubmit={handleSubmit((data: ScenarioInput) => onSubmit(data, isScenarioAssistantChecked))}
       >
-
+        <Typography
+          variant="h2"
+          gutterBottom
+        >
+          {t('General')}
+        </Typography>
         <>
           <TextField
             variant="standard"

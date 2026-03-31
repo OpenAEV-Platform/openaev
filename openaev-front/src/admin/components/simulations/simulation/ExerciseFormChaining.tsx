@@ -91,7 +91,6 @@ const ExerciseForm: FunctionComponent<Props> = ({
       <Typography
         variant="h2"
         gutterBottom
-        style={{ marginTop: 20 }}
       >
         {t('General')}
       </Typography>
