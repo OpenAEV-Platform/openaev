@@ -227,13 +227,14 @@ public class V4_87__Add_tenant_id_to_injectors_contracts extends BaseJavaMigrati
           """);
 
       // 7. Recreate FK from injects -> injectors_contracts (composite)
+      // CASCADE: if the injector contract is deleted, the inject no longer makes sense
       statement.execute(
           """
           ALTER TABLE injects
             ADD CONSTRAINT injector_contract_fk
             FOREIGN KEY (inject_injector_contract, tenant_id)
             REFERENCES injectors_contracts(injector_contract_id, tenant_id)
-            ON DELETE SET NULL;
+            ON DELETE CASCADE;
           """);
 
       // 8. Add tenant_id to inject_importers and recreate FK
