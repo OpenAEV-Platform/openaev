@@ -24,6 +24,7 @@ import {
   type PayloadPrerequisite,
 } from '../../../utils/api-types';
 import { emptyFilled } from '../../../utils/String';
+import { isFeatureEnabled } from '../../../utils/utils';
 import DocumentType from '../components/documents/DocumentType';
 
 const useStyles = makeStyles()(theme => ({
@@ -78,6 +79,7 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
   const { classes } = useStyles();
   const { t } = useFormatter();
   const theme = useTheme();
+  const isChainingEnabled = isFeatureEnabled('INJECT_CHAINING');
 
   const { attackPatternsMap }: { attackPatternsMap: ReturnType<AttackPatternHelper['getAttackPatternsMap']> } = useHelper((helper: AttackPatternHelper) => ({ attackPatternsMap: helper.getAttackPatternsMap() }));
   const getAttackCommand = (payload: PayloadType | null): string => {
@@ -314,9 +316,10 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
                   <Table sx={{ minWidth: 650 }}>
                     <TableHead>
                       <TableRow sx={{ fontWeight: 'bold' }}>
-                        <TableCell width="30%">{t('Type')}</TableCell>
-                        <TableCell width="30%">{t('Key')}</TableCell>
-                        <TableCell width="30%">{t('Default value')}</TableCell>
+                        <TableCell>{t('Type')}</TableCell>
+                        {isChainingEnabled && <TableCell>{t('Subtype')}</TableCell>}
+                        <TableCell>{t('Key')}</TableCell>
+                        <TableCell>{t('Default value')}</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -327,6 +330,7 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
                               <TableCell>
                                 {argument.type}
                               </TableCell>
+                              {isChainingEnabled && <TableCell>{argument.subtype ?? '-'}</TableCell>}
                               <TableCell>
                                 {argument.key}
                               </TableCell>

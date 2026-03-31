@@ -199,6 +199,28 @@ export interface AiResult {
   chunk_id?: string;
 }
 
+export interface ArgumentTypeOutput {
+  argument_subtypes?: (
+    | "host"
+    | "port"
+    | "service"
+    | "username"
+    | "password"
+    | "severity"
+  )[];
+  argument_type:
+    | "text"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "document"
+    | "targeted-asset";
+}
+
 export interface Article {
   article_author?: string;
   article_channel: string;
@@ -5803,8 +5825,19 @@ export interface PayloadArgument {
   /** @minLength 1 */
   key: string;
   separator?: string | null;
-  /** @minLength 1 */
-  type: string;
+  /** Optional sub-field key for structured output types */
+  subtype?: "host" | "port" | "service" | "username" | "password" | "severity";
+  type:
+    | "text"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "document"
+    | "targeted-asset";
 }
 
 export interface PayloadCommandBlock {

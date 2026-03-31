@@ -104,7 +104,7 @@ test.describe('Payload form', () => {
         // Add first argument
         await payloadForm.addArgument();
         await payloadForm.fillArgument(0, {
-          type: 'Text',
+          type: 'text',
           key: 'arg1',
           defaultValue: 'default1',
         });
@@ -112,7 +112,7 @@ test.describe('Payload form', () => {
         // Add second argument
         await payloadForm.addArgument();
         await payloadForm.fillArgument(1, {
-          type: 'Document',
+          type: 'document',
           key: 'arg2',
         });
 
@@ -153,6 +153,7 @@ test.describe('Payload form', () => {
       await payloadForm.selectCommandType(PayloadCommandTypes.EXECUTABLE);
 
       await payloadForm.addArgument();
+      await payloadForm.fillArgument(0, { type: 'text' });
       await payloadForm.save();
       await payloadForm.switchToCommandsTab();
 

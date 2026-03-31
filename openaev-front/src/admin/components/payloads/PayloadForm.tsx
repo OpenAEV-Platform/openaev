@@ -100,7 +100,8 @@ const PayloadForm = ({
   const payloadArgumentZodObject = z.object({
     default_value: z.string().nonempty(t('Should not be empty')),
     key: z.string().nonempty(t('Should not be empty')),
-    type: z.string().nonempty(t('Should not be empty')),
+    type: z.enum(['text', 'number', 'port', 'portscan', 'ipv4', 'ipv6', 'credentials', 'cve', 'document', 'targeted-asset'], { error: t('Should not be empty') }),
+    subtype: z.enum(['host', 'port', 'service', 'username', 'password', 'severity']).optional(),
     description: z.string().optional().nullable(),
     separator: z.string().optional().nullable(),
   }).refine(
