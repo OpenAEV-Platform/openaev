@@ -11,40 +11,35 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
-public class CredentialsOutputProcessor extends FindingCapableOutputProcessor {
+public class PasswordPolicyOutputProcessor extends FindingCapableOutputProcessor {
 
   private static final String ASSET_ID = "asset_id";
-  private static final String USERNAME = "username";
-  private static final String PASSWORD = "password";
-  private static final String HASH = "hash";
+  private static final String KEY = "key";
+  private static final String VALUE = "value";
   private static final String HOST = "host";
 
-  public CredentialsOutputProcessor(FindingService findingService) {
+  public PasswordPolicyOutputProcessor(FindingService findingService) {
     super(
-        ContractOutputType.Credentials,
+        ContractOutputType.PasswordPolicy,
         ContractOutputTechnicalType.Object,
         List.of(
             new ContractOutputField(ASSET_ID, ContractOutputTechnicalType.Text, false),
-            new ContractOutputField(USERNAME, ContractOutputTechnicalType.Text, true),
-            new ContractOutputField(PASSWORD, ContractOutputTechnicalType.Text, false),
-            new ContractOutputField(HASH, ContractOutputTechnicalType.Text, false),
+            new ContractOutputField(KEY, ContractOutputTechnicalType.Text, true),
+            new ContractOutputField(VALUE, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, false)),
         findingService);
   }
 
   @Override
   public boolean validate(JsonNode jsonNode) {
-    return jsonNode.hasNonNull(USERNAME)
-        && (jsonNode.hasNonNull(PASSWORD) || jsonNode.hasNonNull(HASH));
+    return jsonNode.hasNonNull(KEY) && jsonNode.hasNonNull(VALUE);
   }
 
   @Override
   public String toFindingValue(JsonNode jsonNode) {
-    String username = buildString(jsonNode, USERNAME);
-    if (jsonNode.hasNonNull(PASSWORD)) {
-      return username + ":" + buildString(jsonNode, PASSWORD);
-    }
-    return username + ":" + buildString(jsonNode, HASH);
+    String key = buildString(jsonNode, KEY);
+    String value = buildString(jsonNode, VALUE);
+    return key + ": " + value;
   }
 
   @Override

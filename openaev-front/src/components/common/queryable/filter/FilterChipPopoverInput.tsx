@@ -69,13 +69,17 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
   };
   useEffect(() => {
     if (propertySchema.schema_property_values && propertySchema.schema_property_values?.length > 0) {
-      setOptions(propertySchema.schema_property_values.map((value) => {
-        const label = wordsToExcludeFromTranslation.includes(value) ? value : t(value.charAt(0).toUpperCase() + value.slice(1).toLowerCase());
-        return ({
-          id: value,
-          label,
-        });
-      }));
+      setOptions(
+        propertySchema.schema_property_values
+          .map((value) => {
+            const label = wordsToExcludeFromTranslation.includes(value) ? value : t(value.charAt(0).toUpperCase() + value.slice(1).toLowerCase());
+            return ({
+              id: value,
+              label,
+            });
+          })
+          .sort((a, b) => a.label.localeCompare(b.label)),
+      );
     } else {
       handleSearchOptions('');
     }

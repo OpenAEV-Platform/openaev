@@ -1,6 +1,6 @@
 {
   "name": "openaev-front",
-  "version": "2.3.1",
+  "version": "2.3.2",
   "private": true,
   "main": "src/index.tsx",
   "license": "Apache-2.0",
@@ -24,7 +24,7 @@
     "@mui/x-date-pickers": "8.27.2",
     "@redux-devtools/extension": "3.3.0",
     "@uiw/react-md-editor": "4.0.11",
-    "@xyflow/react": "12.10.1",
+    "@xyflow/react": "12.10.2",
     "apexcharts": "5.3.6",
     "axios": "1.13.6",
     "ckeditor5": "45.2.2",
@@ -116,7 +116,7 @@
     "typescript": "5.9.3",
     "typescript-eslint": "8.57.0",
     "vite": "npm:rolldown-vite@7.3.1",
-    "vitest": "3.2.4"
+    "vitest": "4.1.0"
   },
   "resolutions": {
     "@types/react": "19.2.14",

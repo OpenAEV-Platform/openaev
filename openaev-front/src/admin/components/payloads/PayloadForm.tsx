@@ -12,6 +12,7 @@ import { type DetectionRemediationInput } from '../../../utils/api-types';
 import { type PayloadCreateInput } from '../../../utils/api-types-custom';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
 import EEChip from '../common/entreprise_edition/EEChip';
+import { CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS } from '../findings/ContractOutputElementType';
 import CommandsFormTab from './form/CommandsFormTab';
 import GeneralFormTab from './form/GeneralFormTab';
 import OutputFormTab from './form/OutputFormTab';
@@ -75,7 +76,7 @@ const PayloadForm = ({
     contract_output_element_is_finding: z.boolean(),
     contract_output_element_name: z.string().min(1, { message: t('Should not be empty') }),
     contract_output_element_key: z.string().min(1, { message: t('Should not be empty') }),
-    contract_output_element_type: z.enum(['text', 'number', 'port', 'portscan', 'ipv4', 'ipv6', 'credentials', 'cve'], { message: t('Should not be empty') }),
+    contract_output_element_type: z.enum(CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS, { message: t('Should not be empty') }),
     contract_output_element_tags: z.string().array().optional(),
     contract_output_element_rule: z.string().min(1, { message: t('Should not be empty') }),
     contract_output_element_regex_groups: z.array(regexGroupObject),

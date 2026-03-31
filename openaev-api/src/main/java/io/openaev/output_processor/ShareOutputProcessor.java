@@ -11,40 +11,39 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
-public class CredentialsOutputProcessor extends FindingCapableOutputProcessor {
+public class ShareOutputProcessor extends FindingCapableOutputProcessor {
 
   private static final String ASSET_ID = "asset_id";
-  private static final String USERNAME = "username";
-  private static final String PASSWORD = "password";
-  private static final String HASH = "hash";
+  private static final String SHARE_NAME = "share_name";
+  private static final String PERMISSIONS = "permissions";
   private static final String HOST = "host";
 
-  public CredentialsOutputProcessor(FindingService findingService) {
+  public ShareOutputProcessor(FindingService findingService) {
     super(
-        ContractOutputType.Credentials,
+        ContractOutputType.Share,
         ContractOutputTechnicalType.Object,
         List.of(
             new ContractOutputField(ASSET_ID, ContractOutputTechnicalType.Text, false),
-            new ContractOutputField(USERNAME, ContractOutputTechnicalType.Text, true),
-            new ContractOutputField(PASSWORD, ContractOutputTechnicalType.Text, false),
-            new ContractOutputField(HASH, ContractOutputTechnicalType.Text, false),
+            new ContractOutputField(SHARE_NAME, ContractOutputTechnicalType.Text, true),
+            new ContractOutputField(PERMISSIONS, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, false)),
         findingService);
   }
 
   @Override
   public boolean validate(JsonNode jsonNode) {
-    return jsonNode.hasNonNull(USERNAME)
-        && (jsonNode.hasNonNull(PASSWORD) || jsonNode.hasNonNull(HASH));
+    return jsonNode.hasNonNull(SHARE_NAME) && jsonNode.hasNonNull(PERMISSIONS);
   }
 
   @Override
   public String toFindingValue(JsonNode jsonNode) {
-    String username = buildString(jsonNode, USERNAME);
-    if (jsonNode.hasNonNull(PASSWORD)) {
-      return username + ":" + buildString(jsonNode, PASSWORD);
+    String shareName = buildString(jsonNode, SHARE_NAME);
+    String permissions = buildString(jsonNode, PERMISSIONS);
+    String host = buildString(jsonNode, HOST);
+    if (!host.isEmpty()) {
+      return "\\\\" + host + "\\" + shareName + " (" + permissions + ")";
     }
-    return username + ":" + buildString(jsonNode, HASH);
+    return shareName + " (" + permissions + ")";
   }
 
   @Override
