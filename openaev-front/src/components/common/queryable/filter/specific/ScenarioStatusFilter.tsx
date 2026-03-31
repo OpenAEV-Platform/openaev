@@ -2,7 +2,7 @@ import { Autocomplete, MenuItem, Select, TextField } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
 import { SCENARIO_NOT_SCHEDULED_STATUS, SCENARIO_SCHEDULED_STATUS } from '../../../../../admin/components/scenarios/scenario/ScenarioStatus';
-import {Filter, type PropertySchemaDTO} from '../../../../../utils/api-types';
+import { type Filter, type PropertySchemaDTO } from '../../../../../utils/api-types';
 import { type Option } from '../../../../../utils/Option';
 import { useFormatter } from '../../../../i18n';
 import { type FilterHelpers } from '../FilterHelpers';
@@ -11,11 +11,11 @@ import { OperatorKeyValues } from '../FilterUtils';
 const ScenarioStatusFilter: FunctionComponent<{
   propertySchema: PropertySchemaDTO;
   helpers: FilterHelpers;
-	filter: Filter;
+  filter: Filter;
 }> = ({
   propertySchema,
   helpers,
-	filter,
+  filter,
 }) => {
   // Standard hooks
   const { t } = useFormatter();
@@ -35,7 +35,7 @@ const ScenarioStatusFilter: FunctionComponent<{
 
   const onChange = (newValue: Option | null) => {
     if (newValue) {
-			helpers.handleUpdateValuesById(filter.id, [newValue.id]);
+      helpers.handleUpdateValuesById(filter.id, [newValue.id]);
     }
   };
 
@@ -61,7 +61,7 @@ const ScenarioStatusFilter: FunctionComponent<{
         options={options}
         getOptionLabel={option => option.label ?? ''}
         isOptionEqualToValue={(option, v) => option.id === v.id}
-				value={options.find(opt => filter.values?.includes(opt.id)) || null}
+        value={options.find(opt => filter.values?.includes(opt.id)) || null}
         onChange={(_event, newValue) => {
           onChange(newValue);
         }}

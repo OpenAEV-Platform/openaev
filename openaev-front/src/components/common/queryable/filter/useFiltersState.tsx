@@ -3,16 +3,17 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { type Filter, type FilterGroup } from '../../../../utils/api-types';
 import { type FilterHelpers } from './FilterHelpers';
 import {
-	handleAddFilterWithEmptyValueUtil,
-	handleAddMultipleValueFilterUtil,
-	handleAddSingleValueFilterUtil,
-	handleChangeOperatorFiltersUtil,
-	handleRemoveFilterUtil,
-	handleSwitchMode,
-	handleSwitchLocalModeUtil, handleRemoveFilterByIdUtil, handleUpdateFilterByIdUtil, handleSwitchLocalModeByIdUtil,
-	handleChangeOperatorByIdUtil,
+  handleAddFilterWithEmptyValueUtil,
+  handleAddMultipleValueFilterUtil,
+  handleAddSingleValueFilterUtil,
+  handleChangeOperatorByIdUtil,
+  handleChangeOperatorFiltersUtil,
+  handleRemoveFilterByIdUtil, handleRemoveFilterUtil,
+  handleSwitchLocalModeByIdUtil,
+  handleSwitchLocalModeUtil, handleSwitchMode,
+  handleUpdateFilterByIdUtil,
 } from './filtersManageStateUtils';
-import {emptyFilterGroup, generateFilterId} from './FilterUtils';
+import { emptyFilterGroup, generateFilterId } from './FilterUtils';
 
 interface Props {
   filters: FilterGroup;
@@ -21,17 +22,17 @@ interface Props {
 
 // Utility to ensure that all filters have an ID
 const ensureFiltersHaveIds = (filterGroup: FilterGroup): FilterGroup => {
-	if (!filterGroup.filters) {
-		return filterGroup;
-	}
+  if (!filterGroup.filters) {
+    return filterGroup;
+  }
 
-	return {
-		...filterGroup,
-		filters: filterGroup.filters.map(filter => ({
-			...filter,
-			id: filter.id || generateFilterId(),
-		})),
-	};
+  return {
+    ...filterGroup,
+    filters: filterGroup.filters.map(filter => ({
+      ...filter,
+      id: filter.id || generateFilterId(),
+    })),
+  };
 };
 
 const useFiltersState = (
@@ -57,13 +58,13 @@ const useFiltersState = (
         filters: handleSwitchMode(prevState.filters),
       }));
     }, []),
-		// Switch local mode for a filter
-		handleSwitchLocalMode: useCallback((key: string) => {
-			setFiltersState(prevState => ({
-				...prevState,
-				filters: handleSwitchLocalModeUtil(prevState.filters, key),
-			}));
-		}, []),
+    // Switch local mode for a filter
+    handleSwitchLocalMode: useCallback((key: string) => {
+      setFiltersState(prevState => ({
+        ...prevState,
+        filters: handleSwitchLocalModeUtil(prevState.filters, key),
+      }));
+    }, []),
     // Add Filter
     handleAddFilterWithEmptyValue: useCallback((filter: Filter) => {
       setFiltersState(prevState => ({
@@ -103,51 +104,51 @@ const useFiltersState = (
         filters: handleRemoveFilterUtil(prevState.filters, key),
       }));
     }, []),
-		handleRemoveFilterById: useCallback((filterId: string) => {
-			setFiltersState(prevState => ({
-				...prevState,
-				filters: handleRemoveFilterByIdUtil(prevState.filters, filterId),
-			}));
-		}, []),
+    handleRemoveFilterById: useCallback((filterId: string) => {
+      setFiltersState(prevState => ({
+        ...prevState,
+        filters: handleRemoveFilterByIdUtil(prevState.filters, filterId),
+      }));
+    }, []),
 
-		handleUpdateFilterById: useCallback((filterId: string, updates: Partial<Omit<Filter, 'id'>>) => {
-			setFiltersState(prevState => ({
-				...prevState,
-				filters: handleUpdateFilterByIdUtil(prevState.filters, filterId, updates),
-			}));
-		}, []),
+    handleUpdateFilterById: useCallback((filterId: string, updates: Partial<Omit<Filter, 'id'>>) => {
+      setFiltersState(prevState => ({
+        ...prevState,
+        filters: handleUpdateFilterByIdUtil(prevState.filters, filterId, updates),
+      }));
+    }, []),
 
-		handleAddFilter: useCallback((filterData: Omit<Filter, 'id'>) => {
-			const newFilter: Filter = {
-				...filterData,
-				id: generateFilterId(),
-			};
-			setFiltersState(prevState => ({
-				...prevState,
-				filters: handleAddFilterWithEmptyValueUtil(prevState.filters, newFilter),
-			}));
-		}, []),
+    handleAddFilter: useCallback((filterData: Omit<Filter, 'id'>) => {
+      const newFilter: Filter = {
+        ...filterData,
+        id: generateFilterId(),
+      };
+      setFiltersState(prevState => ({
+        ...prevState,
+        filters: handleAddFilterWithEmptyValueUtil(prevState.filters, newFilter),
+      }));
+    }, []),
 
-		handleSwitchLocalModeById: useCallback((filterId: string) => {
-			setFiltersState(prevState => ({
-				...prevState,
-				filters: handleSwitchLocalModeByIdUtil(prevState.filters, filterId),
-			}));
-		}, []),
+    handleSwitchLocalModeById: useCallback((filterId: string) => {
+      setFiltersState(prevState => ({
+        ...prevState,
+        filters: handleSwitchLocalModeByIdUtil(prevState.filters, filterId),
+      }));
+    }, []),
 
-		handleChangeOperatorById: useCallback((filterId: string, operator: Filter['operator']) => {
-			setFiltersState(prevState => ({
-				...prevState,
-				filters: handleChangeOperatorByIdUtil(prevState.filters, filterId, operator),
-			}));
-		}, []),
+    handleChangeOperatorById: useCallback((filterId: string, operator: Filter['operator']) => {
+      setFiltersState(prevState => ({
+        ...prevState,
+        filters: handleChangeOperatorByIdUtil(prevState.filters, filterId, operator),
+      }));
+    }, []),
 
-		handleUpdateValuesById: useCallback((filterId: string, values: string[]) => {
-			setFiltersState(prevState => ({
-				...prevState,
-				filters: handleUpdateFilterByIdUtil(prevState.filters, filterId, { values }),
-			}));
-		}, []),
+    handleUpdateValuesById: useCallback((filterId: string, values: string[]) => {
+      setFiltersState(prevState => ({
+        ...prevState,
+        filters: handleUpdateFilterByIdUtil(prevState.filters, filterId, { values }),
+      }));
+    }, []),
   };
 
   useEffect(() => {

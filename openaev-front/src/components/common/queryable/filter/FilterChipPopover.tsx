@@ -31,8 +31,8 @@ const FilterChipPopover: FunctionComponent<Props> = ({
   const { t } = useFormatter();
 
   const handleChangeOperator = (event: SelectChangeEvent) => {
-		helpers.handleChangeOperatorById(filter.id, event.target.value as Filter['operator']);
-	};
+    helpers.handleChangeOperatorById(filter.id, event.target.value as Filter['operator']);
+  };
 
   const displayOperatorAndFilter = () => {
     // Specific field

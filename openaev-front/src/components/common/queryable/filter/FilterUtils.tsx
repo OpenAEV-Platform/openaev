@@ -1,12 +1,13 @@
 import qs from 'qs';
 import * as R from 'ramda';
+import { v4 as uuidv4 } from 'uuid';
 
 import { type Filter, type FilterGroup, type PropertySchemaDTO, type RelatedEntityOutput } from '../../../../utils/api-types';
+import { type GroupOption, type Option } from '../../../../utils/Option';
 import { buildSearchPagination } from '../QueryableUtils';
 
 export const generateFilterId = (): string => {
-	return crypto.randomUUID ? crypto.randomUUID() :
-		Math.random().toString(36).substring(2) + Date.now().toString(36);
+  return uuidv4();
 };
 
 export const emptyFilterGroup: FilterGroup = {
@@ -50,7 +51,7 @@ export const craftedDocumentFilter = (item: RelatedEntityOutput, keyFilter: stri
         mode: 'and',
         filters: [
           {
-						id: generateFilterId(),
+            id: generateFilterId(),
             key: keyFilter,
             operator: 'eq',
             values: [item.name ?? ''],
@@ -178,4 +179,29 @@ export const convertJsonClassToJavaClass = (input: string) => {
       return segment.charAt(0).toUpperCase() + segment.slice(1);
     })
     .join('');
+};
+
+export const getSelectedOptions = (
+  entitiesOptions: Array<GroupOption | Option>,
+  filterValues: string[],
+  t_i18n: (s: string) => string,
+): GroupOption[] => {
+  const selectedGroup = t_i18n('selected').replace(/^./, letter => letter.toUpperCase());
+
+  return filterValues
+    .map((value) => {
+      const selectedOption = entitiesOptions.find(option => option.id === value);
+      if (selectedOption) {
+        return {
+          ...selectedOption,
+          group: selectedGroup,
+        };
+      }
+      return {
+        id: value,
+        label: value,
+        group: selectedGroup,
+      };
+    })
+    .sort((a, b) => a.label.localeCompare(b.label));
 };
