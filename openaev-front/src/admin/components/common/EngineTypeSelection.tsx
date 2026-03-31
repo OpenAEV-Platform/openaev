@@ -87,7 +87,7 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
   };
 
   return (
-    <Stack sx={{ marginBottom: theme.spacing(0) }}>
+    <>
       <Stack sx={{
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -118,7 +118,7 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
         sx={{
           display: 'grid',
           gap: theme.spacing(2),
-          gridTemplateColumns: '1fr 1fr',
+          gridTemplateColumns: 'repeat(2, 1fr)',
         }}
       >
         {options.map((option) => {
@@ -188,7 +188,7 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
           );
         })}
       </Stack>
-    </Stack>
+    </>
   );
 };
 
