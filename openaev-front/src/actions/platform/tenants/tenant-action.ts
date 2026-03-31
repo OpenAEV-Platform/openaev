@@ -1,6 +1,6 @@
 import type { Dispatch } from 'redux';
 
-import { delReferential, postReferential, putReferential, simplePostCall } from '../../../utils/Action';
+import { postReferential, putReferential, simpleDelCall, simplePostCall } from '../../../utils/Action';
 import { type SearchPaginationInput, type TenantInput, type TenantOutput } from '../../../utils/api-types';
 import { tenant } from './tenant-schema';
 
@@ -28,11 +28,16 @@ export const updateTenant
       return putReferential(tenant, uri, data)(dispatch);
     };
 
-// -- DELETE --
+// -- SOFT DELETE --
 
-export const deleteTenant
-  = (tenantId: TenantOutput['tenant_id']) =>
-    (dispatch: Dispatch) => {
-      const uri = `${TENANT_URI}/${tenantId}`;
-      return delReferential(uri, 'tenants', tenantId)(dispatch);
-    };
+export const softDeleteTenant = (tenantId: TenantOutput['tenant_id']) => {
+  const uri = `${TENANT_URI}/${tenantId}`;
+  return simpleDelCall(uri);
+};
+
+// -- REACTIVATE --
+
+export const reactivateTenant = (tenantId: TenantOutput['tenant_id']) => {
+  const uri = `${TENANT_URI}/${tenantId}/reactivate`;
+  return simplePostCall(uri, {});
+};
