@@ -11,7 +11,7 @@ import { useHelper } from '../../../store';
 import { type PlatformSettings, type Scenario, type ScenarioInput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import { isFeatureEnabled } from '../../../utils/utils';
-import EngineTypeSelection from '../common/EngineTypeSelection';
+import EngineTypeSelection, { type EngineType } from '../common/EngineTypeSelection';
 import ScenarioForm from './ScenarioForm';
 import ScenarioFormChaining from './ScenarioFormChaining';
 
@@ -19,14 +19,14 @@ const ScenarioCreation: FunctionComponent = () => {
   // Standard hooks
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const [open, setOpen] = useState(false);
-  const [isChaining, setIsChaining] = useState<boolean | null>(isChainingFeatureEnabled ? null : false);
+  const [isChaining, setIsChaining] = useState<EngineType>(isChainingFeatureEnabled ? null : 'time-based');
   const { t } = useFormatter();
   const navigate = useNavigate();
 
   const dispatch = useAppDispatch();
 
-  const handleTypeSelected = useCallback((chaining: boolean) => {
-    setIsChaining(chaining);
+  const handleTypeSelected = useCallback((type: EngineType) => {
+    setIsChaining(type);
   }, []);
 
   const onSubmit = (data: ScenarioInput, isScenarioAssistantChecked?: boolean) => {
@@ -87,7 +87,7 @@ const ScenarioCreation: FunctionComponent = () => {
             initialValues={initialValues}
             handleClose={() => setOpen(false)}
             isCreation
-            isChaining={isChaining}
+            isChaining={isChaining === 'chaining'}
           />
         )}
       </>

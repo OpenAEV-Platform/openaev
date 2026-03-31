@@ -41,9 +41,11 @@ const TimeBasedIllustration: FunctionComponent<{ isDark: boolean }> = ({ isDark 
   />
 );
 
+export type EngineType = 'chaining' | 'time-based' | null;
+
 interface EngineTypeSelectionProps {
-  selected: boolean | null;
-  onSelect: (isChaining: boolean) => void;
+  selected: EngineType;
+  onSelect: (type: EngineType) => void;
 }
 
 const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
@@ -59,29 +61,29 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
   } = useEnterpriseEdition();
 
   const options: Array<{
-    isChaining: boolean;
+    type: NonNullable<EngineType>;
     title: string;
     description: string;
   }> = [
     {
-      isChaining: true,
+      type: 'chaining',
       title: t('chaining.chaining-scenario.title'),
       description: t('chaining.chaining-scenario.description'),
     },
     {
-      isChaining: false,
+      type: 'time-based',
       title: t('chaining.chaining-timebased.title'),
       description: t('chaining.chaining-timebased.description'),
     },
   ];
 
-  const handleCardClick = (isChaining: boolean) => {
-    if (isChaining && !isEnterpriseEdition) {
+  const handleCardClick = (type: NonNullable<EngineType>) => {
+    if (type === 'chaining' && !isEnterpriseEdition) {
       setEEFeatureDetectedInfo(t('Chaining Scenario'));
       openEnterpriseEditionDialog();
       return;
     }
-    onSelect(isChaining);
+    onSelect(type);
   };
 
   return (
@@ -120,11 +122,12 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
         }}
       >
         {options.map((option) => {
-          const isSelected = selected === option.isChaining;
-          const isDisabled = option.isChaining && !isEnterpriseEdition;
+          const isChaining = option.type === 'chaining';
+          const isSelected = selected === option.type;
+          const isDisabled = isChaining && !isEnterpriseEdition;
           return (
             <Card
-              key={option.title}
+              key={option.type}
               variant="outlined"
               sx={{
                 'borderColor': isSelected ? theme.palette.primary.main : undefined,
@@ -135,7 +138,7 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
               }}
             >
               <CardActionArea
-                onClick={() => handleCardClick(option.isChaining)}
+                onClick={() => handleCardClick(option.type)}
                 sx={{
                   height: '100%',
                   padding: theme.spacing(2),
@@ -168,14 +171,14 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
                     <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
                       {option.title}
                     </Typography>
-                    {option.isChaining && !isEnterpriseEdition && <EEChip clickable />}
+                    {isChaining && !isEnterpriseEdition && <EEChip clickable />}
                   </Box>
                   <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
                     {option.description}
                   </Typography>
                   {/* Illustrative workflow diagram */}
                   <Box sx={{ marginTop: theme.spacing(1) }}>
-                    {option.isChaining
+                    {isChaining
                       ? <ChainingIllustration isDark={theme.palette.mode === 'dark'} />
                       : <TimeBasedIllustration isDark={theme.palette.mode === 'dark'} />}
                   </Box>

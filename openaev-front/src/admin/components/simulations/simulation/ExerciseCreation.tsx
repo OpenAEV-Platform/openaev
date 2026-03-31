@@ -10,7 +10,7 @@ import { useHelper } from '../../../../store';
 import { type CreateExerciseInput, type Exercise, type PlatformSettings } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { isFeatureEnabled } from '../../../../utils/utils';
-import EngineTypeSelection from '../../common/EngineTypeSelection';
+import EngineTypeSelection, { type EngineType } from '../../common/EngineTypeSelection';
 import ExerciseForm from './ExerciseForm';
 import ExerciseFormChaining from './ExerciseFormChaining';
 
@@ -18,19 +18,19 @@ const ExerciseCreation = () => {
   // Standard hooks
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const [open, setOpen] = useState(false);
-  const [isChaining, setIsChaining] = useState<boolean | null>(isChainingFeatureEnabled ? null : false);
+  const [isChaining, setIsChaining] = useState<EngineType>(isChainingFeatureEnabled ? null : 'time-based');
   const { t } = useFormatter();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
-  const handleTypeSelected = useCallback((chaining: boolean) => {
-    setIsChaining(chaining);
+  const handleTypeSelected = useCallback((type: EngineType) => {
+    setIsChaining(type);
   }, []);
 
   const onSubmit = (data: CreateExerciseInput) => {
     const payload: CreateExerciseInput = {
       ...data,
-      exercise_is_chaining: isChaining ?? false,
+      exercise_is_chaining: isChaining === 'chaining',
     };
     dispatch(addExercise(payload)).then((result: {
       result: string;
@@ -85,7 +85,7 @@ const ExerciseCreation = () => {
             handleClose={() => setOpen(false)}
             initialValues={initialValues}
             edit={false}
-            isChaining={isChaining}
+            isChaining={isChaining === 'chaining'}
           />
         )}
       </>
