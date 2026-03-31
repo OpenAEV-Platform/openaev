@@ -119,28 +119,33 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   }
 
   /**
-   * Create or get a dummmy injector, that is used when importing the starter pack before the real
-   * injectors are registered
+   * Create or get a dummy injector, that is used when importing the starter pack before the real
+   * injectors are registered.
    *
-   * @param injectorType
-   * @param injectorName
-   * @return
+   * <p>The dummy ID includes the tenant to avoid cross-tenant collisions when {@code
+   * injectorRepository.save()} would otherwise call {@code merge()} on an existing row belonging to
+   * a different tenant (the primary key is {@code injector_id} alone, not a composite with
+   * tenant_id).
+   *
+   * @param injectorType type identifier of the injector
+   * @param injectorName human-readable name
+   * @return the dummy injector for the current tenant
    */
   public Injector createOrGetDummyInjector(
       @NotBlank final String injectorType, @NotBlank final String injectorName) {
-    Injector injector =
-        injectorRepository
-            .findByTypeAndTenantId(injectorType + DUMMY_SUFFIX, TenantContext.getCurrentTenant())
-            .orElse(new Injector());
-    if (injector.getName() == null) {
-      injector.setName("Dummy " + injectorName);
-      injector.setType(injectorType + DUMMY_SUFFIX);
-      injector.setId(injectorType + DUMMY_SUFFIX);
-      injector.setDependencies(ExternalServiceDependency.fromInjectorType(injectorType));
-      return injectorRepository.save(injector);
-    } else {
-      return injector;
-    }
+    String currentTenant = TenantContext.getCurrentTenant();
+    return injectorRepository
+        .findByTypeAndTenantId(injectorType + DUMMY_SUFFIX, currentTenant)
+        .orElseGet(
+            () -> {
+              Injector injector = new Injector();
+              injector.setName("Dummy " + injectorName);
+              injector.setType(injectorType + DUMMY_SUFFIX);
+              // Include tenant in the ID so each tenant gets its own dummy row.
+              injector.setId(injectorType + DUMMY_SUFFIX + "_" + currentTenant);
+              injector.setDependencies(ExternalServiceDependency.fromInjectorType(injectorType));
+              return injectorRepository.save(injector);
+            });
   }
 
   public Injector injector(String id) {
@@ -459,7 +464,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   private void deleteDummyInjectorIfItExists(
       @NotBlank final String injectorType, final Injector newInjector) {
     injectorRepository
-        .findById(injectorType + DUMMY_SUFFIX)
+        .findByTypeAndTenantId(injectorType + DUMMY_SUFFIX, TenantContext.getCurrentTenant())
         .ifPresent(
             dummyInjector -> {
               if (newInjector != null) {
