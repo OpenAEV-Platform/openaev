@@ -503,5 +503,109 @@ public class ExecutorApiTest extends IntegrationTest {
                 .hasCauseInstanceOf(exceptionType);
       }
     }
+
+    private static Stream<Arguments> platformArchCombinationsExecutable() {
+      return Stream.of(
+              Arguments.of(
+                      Endpoint.PLATFORM_TYPE.MacOS.name(),
+                      Endpoint.PLATFORM_ARCH.arm64.name(),
+                      Outcome.succeed, null),
+              Arguments.of(
+                      Endpoint.PLATFORM_TYPE.MacOS.name(),
+                      Endpoint.PLATFORM_ARCH.x86_64.name(),
+                      Outcome.succeed, null),
+              Arguments.of(
+                      Endpoint.PLATFORM_TYPE.Linux.name(),
+                      Endpoint.PLATFORM_ARCH.arm64.name(),
+                      Outcome.succeed, null),
+              Arguments.of(
+                      Endpoint.PLATFORM_TYPE.Linux.name(),
+                      Endpoint.PLATFORM_ARCH.x86_64.name(),
+                      Outcome.succeed, null),
+              Arguments.of(
+                      Endpoint.PLATFORM_TYPE.Windows.name(),
+                      Endpoint.PLATFORM_ARCH.arm64.name(),
+                      Outcome.succeed,
+                      null),
+              Arguments.of(
+                      Endpoint.PLATFORM_TYPE.Windows.name(),
+                      Endpoint.PLATFORM_ARCH.x86_64.name(),
+                      Outcome.succeed,
+                      null),
+              Arguments.of(
+                      Endpoint.PLATFORM_TYPE.MacOS.name(),
+                      "aarch64",
+                      Outcome.succeed, null),
+              Arguments.of(
+                      Endpoint.PLATFORM_TYPE.Linux.name(),
+                      "aarch64",
+                      Outcome.succeed, null),
+              Arguments.of(
+                      Endpoint.PLATFORM_TYPE.Windows.name(),
+                      "aarch64",
+                      Outcome.succeed,
+                      null),
+              Arguments.of(
+                      Endpoint.PLATFORM_TYPE.MacOS.name(),
+                      "not an arch",
+                      Outcome.fail,
+                      IllegalArgumentException.class),
+              Arguments.of(
+                      Endpoint.PLATFORM_TYPE.Linux.name(),
+                      "not an arch",
+                      Outcome.fail,
+                      IllegalArgumentException.class),
+              Arguments.of(
+                      Endpoint.PLATFORM_TYPE.Windows.name(),
+                      "not an arch",
+                      Outcome.fail,
+                      IllegalArgumentException.class));
+    }
+
+    @ParameterizedTest(name = "GET executable for platform \"{0}\" arch \"{1}\" should {2} ")
+    @MethodSource("platformArchCombinationsExecutable")
+    public void given_platformAndArch_then_downloadExecutableWithOutcome(
+      String platform,
+      String arch,
+      Outcome outcome,
+      Class<? extends Exception> exceptionType) throws Exception {
+      switch (outcome) {
+        case succeed -> {
+          byte[] agentBytes =
+                  mvc.perform(
+                                  get("/api/agent/executable/openaev/%s/%s"
+                                          .formatted(platform, arch))
+                                          .contentType(MediaType.APPLICATION_OCTET_STREAM_VALUE)
+                                          .accept(MediaType.APPLICATION_OCTET_STREAM_VALUE))
+                          .andExpect(status().is2xxSuccessful())
+                          .andReturn()
+                          .getResponse()
+                          .getContentAsByteArray();
+
+          String baseFilename = "openaev-agent-Testing";
+          String filename = switch(platform) {
+            case "Windows" -> "%s.exe".formatted(baseFilename);
+            default -> baseFilename;
+          };
+          assertThat(HashUtils.getSha256HexDigest(agentBytes))
+                  .isEqualTo(
+                          getHexDigestFromBinaryResourcePath(
+                                  "/agents/openaev-agent/%s/%s/%s"
+                                          .formatted(
+                                                  platform.toLowerCase(),
+                                                  AgentUtils.getCanonicalArchitectureString(arch.toLowerCase()),
+                                                  filename)));
+        }
+        case fail ->
+                assertThatThrownBy(
+                        () ->
+                                mvc.perform(
+                                        get("/api/agent/executable/openaev/%s/%s"
+                                                .formatted(platform, arch))
+                                                .contentType(MediaType.APPLICATION_OCTET_STREAM_VALUE)
+                                                .accept(MediaType.APPLICATION_OCTET_STREAM_VALUE)))
+                        .hasCauseInstanceOf(exceptionType);
+      }
+    }
   }
 }
