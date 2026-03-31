@@ -4,7 +4,7 @@ import { type LeftMenuItem } from '../../../../components/common/menu/leftmenu/l
 import { useFormatter } from '../../../../components/i18n';
 import { type AppAbility } from '../../../../utils/permissions/ability';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../../utils/utils';
+import { useIsFeatureEnabled } from '../../../../utils/utils';
 import { TENANTS_PATH } from '../../platform/tenants/routes/TenantsRoutes';
 import { PLATFORM_USERS_CAPABILITIES_ROUTE } from '../../platform/users_capabilities/users-capabilities-constants';
 
@@ -15,7 +15,7 @@ const platformEntries = (ability: AppAbility): LeftMenuItem[] => {
   // Standard hooks
   const { t } = useFormatter();
 
-  if (!isFeatureEnabled('MULTI_TENANCY')) {
+  if (!useIsFeatureEnabled('MULTI_TENANCY')) {
     return [];
   }
 

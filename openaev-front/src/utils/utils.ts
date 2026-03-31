@@ -1,7 +1,7 @@
 import * as R from 'ramda';
 
 import { type LoggedHelper } from '../actions/helper';
-import { useHelper } from '../store';
+import { store, useHelper } from '../store';
 import { type PlatformSettings } from './api-types';
 import { MESSAGING$ } from './Environment';
 
@@ -129,12 +129,24 @@ type DevFeature = NonNullable<
   PlatformSettings['enabled_dev_features']
 >[number];
 
-export const isFeatureEnabled = (feature: DevFeature) => {
+export const useIsFeatureEnabled = (feature: DevFeature) => {
   const { settings } = useHelper((helper: LoggedHelper) => {
     return { settings: helper.getPlatformSettings() };
   });
 
   return (settings.enabled_dev_features ?? []).includes('FEATURE_FLAG_ALL') || (settings.enabled_dev_features ?? []).includes(feature);
+};
+
+/**
+ * Return if a feature flag is enabled. Can be used outside a Component as it does not use internal hooks.
+ * @param flagName
+ */
+export const isFeatureFlagEnabled = (flagName: string): boolean => {
+  const state = store.getState();
+  const app = (state as Record<string, unknown>)?.app as Record<string, unknown> | undefined;
+  const settings = app?.settings as Record<string, unknown> | undefined;
+  const featureFlags = settings?.platform_feature_flags as Record<string, unknown> | undefined;
+  return featureFlags?.[flagName] === true;
 };
 
 export const getUrl = (url: string, base: string): string => {
