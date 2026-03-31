@@ -5,10 +5,14 @@ import type { CapabilityOutput } from '../api-types';
 import { useAppDispatch } from '../hooks';
 import useDataLoader from './useDataLoader';
 
-const useCapabilities = (scope?: 'PLATFORM' | 'TENANT') => {
+const useCapabilities = (scope: 'PLATFORM' | 'TENANT') => {
   const dispatch = useAppDispatch();
 
-  const { capabilities } = useHelper((helper: CapabilityHelper) => ({ capabilities: helper.getCapabilities() }));
+  const { capabilities } = useHelper((helper: CapabilityHelper) => ({
+    capabilities: scope === 'PLATFORM'
+      ? helper.getPlatformCapabilities()
+      : helper.getTenantCapabilities(),
+  }));
 
   useDataLoader(() => {
     dispatch(fetchCapabilities(scope));

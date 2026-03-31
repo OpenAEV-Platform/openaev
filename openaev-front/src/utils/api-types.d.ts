@@ -5272,6 +5272,44 @@ export interface PagePayload {
   totalPages?: number;
 }
 
+export interface PagePlatformGroupOutput {
+  content?: PlatformGroupOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PagePlatformRoleOutput {
+  content?: PlatformRoleOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
 export interface PagePlayerOutput {
   content?: PlayerOutput[];
   empty?: boolean;
@@ -5761,6 +5799,89 @@ export interface PayloadUpsertInput {
 export interface PayloadsDeprecateInput {
   collector_id: string;
   payload_external_ids: string[];
+}
+
+export interface PlatformGroupInput {
+  platform_group_description?: string;
+  /** @minLength 1 */
+  platform_group_name: string;
+}
+
+export interface PlatformGroupOutput {
+  platform_group_description?: string;
+  /** @minLength 1 */
+  platform_group_id: string;
+  /** @minLength 1 */
+  platform_group_name: string;
+}
+
+export interface PlatformGroupUpdateRolesInput {
+  platform_group_platform_roles?: string[];
+}
+
+export interface PlatformGroupUpdateUsersInput {
+  platform_group_users?: string[];
+}
+
+export interface PlatformRoleInput {
+  /** @uniqueItems true */
+  platform_role_capabilities?: (
+    | "BYPASS"
+    | "ACCESS_ASSESSMENT"
+    | "MANAGE_ASSESSMENT"
+    | "DELETE_ASSESSMENT"
+    | "LAUNCH_ASSESSMENT"
+    | "ACCESS_TEAMS_AND_PLAYERS"
+    | "MANAGE_TEAMS_AND_PLAYERS"
+    | "DELETE_TEAMS_AND_PLAYERS"
+    | "ACCESS_ASSETS"
+    | "MANAGE_ASSETS"
+    | "DELETE_ASSETS"
+    | "ACCESS_PAYLOADS"
+    | "MANAGE_PAYLOADS"
+    | "DELETE_PAYLOADS"
+    | "ACCESS_DASHBOARDS"
+    | "MANAGE_DASHBOARDS"
+    | "DELETE_DASHBOARDS"
+    | "ACCESS_FINDINGS"
+    | "MANAGE_FINDINGS"
+    | "DELETE_FINDINGS"
+    | "ACCESS_DOCUMENTS"
+    | "MANAGE_DOCUMENTS"
+    | "DELETE_DOCUMENTS"
+    | "ACCESS_CHANNELS"
+    | "MANAGE_CHANNELS"
+    | "DELETE_CHANNELS"
+    | "ACCESS_CHALLENGES"
+    | "MANAGE_CHALLENGES"
+    | "DELETE_CHALLENGES"
+    | "ACCESS_LESSONS_LEARNED"
+    | "MANAGE_LESSONS_LEARNED"
+    | "DELETE_LESSONS_LEARNED"
+    | "ACCESS_SECURITY_PLATFORMS"
+    | "MANAGE_SECURITY_PLATFORMS"
+    | "DELETE_SECURITY_PLATFORMS"
+    | "ACCESS_PLATFORM_SETTINGS"
+    | "MANAGE_PLATFORM_SETTINGS"
+    | "ACCESS_TENANTS"
+    | "MANAGE_TENANTS"
+    | "DELETE_TENANTS"
+    | "ACCESS_PLATFORM_GROUPS_AND_ROLES"
+    | "MANAGE_PLATFORM_GROUPS_AND_ROLES"
+    | "DELETE_PLATFORM_GROUPS_AND_ROLES"
+    | "MANAGE_STIX_BUNDLE"
+  )[];
+  platform_role_description?: string;
+  /** @minLength 1 */
+  platform_role_name: string;
+}
+
+export interface PlatformRoleOutput {
+  platform_role_description?: string;
+  /** @minLength 1 */
+  platform_role_id: string;
+  /** @minLength 1 */
+  platform_role_name: string;
 }
 
 export interface PlatformSettings {
@@ -7213,6 +7334,8 @@ export interface TenantInput {
 }
 
 export interface TenantOutput {
+  /** @format date-time */
+  tenant_deleted_at?: string;
   tenant_description?: string;
   /** @minLength 1 */
   tenant_id: string;
@@ -7865,6 +7988,96 @@ export interface WidgetToEntitiesOutput {
   es_entities?: EsEntities;
   /** List configuration generated based on the input widget id and filter value */
   list_configuration?: ListConfiguration;
+}
+
+/** Input for creating or updating a workflow configuration. */
+export interface WorkflowConfigurationInput {
+  /**
+   * Maximum number of attempts allowed before the temporal rate limit kicks in (1–99).
+   * @format int32
+   * @min 1
+   * @max 99
+   */
+  workflow_configuration_max_attempts?: number;
+  /**
+   * Seconds to wait between attempts (1–59).
+   * @format int64
+   * @min 1
+   * @max 59
+   */
+  workflow_configuration_max_temporal_rate_seconds?: number;
+  /** Whether rate limiting is enabled. */
+  workflow_configuration_rate_limit_enabled?: boolean;
+  /**
+   * If enabled, exploits that could crash the customer environment will not be executed.
+   * @default true
+   */
+  workflow_configuration_safe_mode_enabled?: boolean;
+  /** Whether the timeout feature is enabled. */
+  workflow_configuration_timeout_enabled?: boolean;
+  /**
+   * Total timeout in seconds for the attack workflow scenario (0–86400).
+   * @format int64
+   * @min 0
+   * @max 86400
+   */
+  workflow_configuration_timeout_seconds?: number;
+  /** List scope rules. */
+  workflow_scope_rules?: WorkflowScopeRuleInput[];
+}
+
+/** Output for a workflow configuration. */
+export interface WorkflowConfigurationOutput {
+  /**
+   * Maximum number of attempts allowed before the temporal rate limit kicks in.
+   * @format int32
+   */
+  workflow_configuration_max_attempts?: number;
+  /**
+   * Seconds to wait between attempts.
+   * @format int64
+   */
+  workflow_configuration_max_temporal_rate_seconds?: number;
+  /** Whether rate limiting is enabled. */
+  workflow_configuration_rate_limit_enabled?: boolean;
+  /** If enabled, exploits that could crash the customer environment will not be executed. */
+  workflow_configuration_safe_mode_enabled?: boolean;
+  /** Whether the timeout feature is enabled. */
+  workflow_configuration_timeout_enabled?: boolean;
+  /**
+   * Total timeout in seconds for the attack workflow.
+   * @format int64
+   */
+  workflow_configuration_timeout_seconds?: number;
+  /** List scope rules */
+  workflow_scope_rules?: WorkflowScopeRuleOutput[];
+}
+
+/** Input for a scope rule used in workflow configuration. */
+export interface WorkflowScopeRuleInput {
+  /** ID of an existing scope rule. Null means a new rule will be created. */
+  workflow_scope_rule_id?: string;
+  /** Selected list mode where the rule should be applied */
+  workflow_scope_rule_selected_mode: "WHITELIST" | "BLACKLIST";
+  /** Source of the selected rule */
+  workflow_scope_rule_source: "ASSET" | "ASSET_GROUP" | "MANUAL" | "CSV";
+  /**
+   * Selected rule value
+   * @minLength 1
+   */
+  workflow_scope_rule_value: string;
+}
+
+/** Output for a scope rule used in workflow configuration. */
+export interface WorkflowScopeRuleOutput {
+  /** ID of the scope rule. */
+  workflow_scope_rule_id?: string;
+  /** Selected list mode where the rule is applied. */
+  workflow_scope_rule_selected_mode?: "WHITELIST" | "BLACKLIST";
+  /** Source of the selected item */
+  workflow_scope_rule_source?: "ASSET" | "ASSET_GROUP" | "MANUAL" | "CSV";
+  /** Selected item value */
+  workflow_scope_rule_value?: string;
 }
 
 export interface XtmComposerInstanceOutput {

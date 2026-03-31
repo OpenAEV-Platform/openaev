@@ -18,16 +18,22 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.rest.asset_group.form.AssetGroupInput;
 import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.TagFixture;
+import io.openaev.utils.fixtures.composers.AssetGroupComposer;
+import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import jakarta.servlet.ServletException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 import org.json.JSONArray;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -50,6 +56,8 @@ class AssetGroupApiTest extends IntegrationTest {
   @Autowired private InjectRepository injectRepository;
   @Autowired private ExerciseService exerciseService;
   @Autowired private EntityManager entityManager;
+  @Autowired private EndpointComposer endpointComposer;
+  @Autowired private AssetGroupComposer assetGroupComposer;
 
   @DisplayName(
       "Given valid AssetGroupInput, should create and get assetGroup without dynamic filter successfully")
@@ -111,14 +119,18 @@ class AssetGroupApiTest extends IntegrationTest {
   void given_validAssetGroupInput_should_createAndGetAssetGroupWithDynamicFilterSuccessfully()
       throws Exception {
     // -- PREPARE --
-    Filters.FilterGroup dynamicFilter = new Filters.FilterGroup();
-    dynamicFilter.setMode(Filters.FilterMode.or);
-    Filters.Filter filter = new Filters.Filter();
-    filter.setKey("endpoint_platform");
-    filter.setMode(Filters.FilterMode.or);
-    filter.setOperator(Filters.FilterOperator.eq);
-    filter.setValues(List.of("Windows"));
-    dynamicFilter.setFilters(List.of(filter));
+    Filters.FilterGroup dynamicFilter =
+        Filters.FilterGroup.builder()
+            .mode(Filters.FilterMode.or)
+            .filters(
+                List.of(
+                    Filters.Filter.builder()
+                        .key("endpoint_platform")
+                        .mode(Filters.FilterMode.or)
+                        .operator(Filters.FilterOperator.eq)
+                        .values(List.of("Windows"))
+                        .build()))
+            .build();
     AssetGroupInput assetGroupInput =
         createAssetGroupWithDynamicFilters("Asset group", dynamicFilter);
 
@@ -403,5 +415,185 @@ class AssetGroupApiTest extends IntegrationTest {
 
     // --ASSERT--
     assertEquals(expectedNumberOfResults, jsonArray.length());
+  }
+
+  @Nested
+  @DisplayName("GET /api/asset-groups - assets resolution")
+  class GetAssetGroupsAssets {
+
+    private Endpoint windowsX86;
+    private Endpoint windowsArm;
+    private Endpoint linuxX86;
+
+    @BeforeEach
+    void setUp() {
+      windowsX86 =
+          endpointComposer
+              .forEndpoint(
+                  EndpointFixture.createEndpoint(
+                      "win-x86",
+                      Endpoint.PLATFORM_TYPE.Windows,
+                      Endpoint.PLATFORM_ARCH.x86_64,
+                      "win-host-01",
+                      new String[] {"10.0.0.1"}))
+              .persist()
+              .get();
+      windowsArm =
+          endpointComposer
+              .forEndpoint(
+                  EndpointFixture.createEndpoint(
+                      "win-arm",
+                      Endpoint.PLATFORM_TYPE.Windows,
+                      Endpoint.PLATFORM_ARCH.arm64,
+                      "win-host-02",
+                      new String[] {"10.0.0.2"}))
+              .persist()
+              .get();
+      linuxX86 =
+          endpointComposer
+              .forEndpoint(
+                  EndpointFixture.createEndpoint(
+                      "linux-x86",
+                      Endpoint.PLATFORM_TYPE.Linux,
+                      Endpoint.PLATFORM_ARCH.x86_64,
+                      "linux-host-01",
+                      new String[] {"10.0.1.1"}))
+              .persist()
+              .get();
+    }
+
+    private List<String> getDynamicAssetIds(String response, String groupName) {
+      List<Map<String, Object>> groups =
+          JsonPath.read(response, "$[?(@.asset_group_name == '" + groupName + "')]");
+      assertEquals(1, groups.size());
+      return (List<String>) groups.getFirst().get("asset_group_dynamic_assets");
+    }
+
+    @DisplayName(
+        "Given a static asset group with endpoints, should return asset_group_assets with correct IDs")
+    @Test
+    @WithMockUser(isAdmin = true)
+    void given_staticAssetGroupWithEndpoints_should_returnCorrectAssetIds() throws Exception {
+      // Arrange
+      EndpointComposer.Composer winComposer = endpointComposer.forEndpoint(windowsX86);
+      EndpointComposer.Composer linuxComposer = endpointComposer.forEndpoint(linuxX86);
+      assetGroupComposer
+          .forAssetGroup(createDefaultAssetGroup("Static group"))
+          .withAsset(winComposer)
+          .withAsset(linuxComposer)
+          .persist();
+
+      // Act
+      String response =
+          mvc.perform(get(ASSET_GROUP_URI).accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<Map<String, Object>> matchingGroups =
+          JsonPath.read(response, "$[?(@.asset_group_name == 'Static group')]");
+      assertEquals(1, matchingGroups.size());
+
+      List<String> assetIds = (List<String>) matchingGroups.getFirst().get("asset_group_assets");
+      assertEquals(2, assetIds.size());
+      assertTrue(assetIds.contains(windowsX86.getId()));
+      assertTrue(assetIds.contains(linuxX86.getId()));
+
+      List<String> dynamicAssets =
+          (List<String>) matchingGroups.getFirst().get("asset_group_dynamic_assets");
+      assertTrue(dynamicAssets.isEmpty());
+    }
+
+    @DisplayName(
+        "Given an empty static asset group, should return empty asset_group_assets and empty dynamic_assets")
+    @Test
+    @WithMockUser(isAdmin = true)
+    void given_emptyStaticAssetGroup_should_returnEmptyAssets() throws Exception {
+      // Arrange
+      assetGroupComposer.forAssetGroup(createDefaultAssetGroup("Empty group")).persist();
+
+      // Act
+      String response =
+          mvc.perform(get(ASSET_GROUP_URI).accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<Map<String, Object>> matchingGroups =
+          JsonPath.read(response, "$[?(@.asset_group_name == 'Empty group')]");
+      assertEquals(1, matchingGroups.size());
+
+      List<String> staticAssets =
+          (List<String>) matchingGroups.getFirst().get("asset_group_assets");
+      assertTrue(staticAssets.isEmpty());
+
+      List<String> dynamicAssets =
+          (List<String>) matchingGroups.getFirst().get("asset_group_dynamic_assets");
+      assertTrue(dynamicAssets.isEmpty());
+    }
+
+    @DisplayName("Dynamic filter should return only matching endpoints")
+    @ParameterizedTest(name = "Filter on {0} ({1}) with value {2}")
+    @MethodSource("dynamicFilterParameters")
+    @WithMockUser(isAdmin = true)
+    void given_dynamicFilter_should_returnOnlyMatchingEndpoints(
+        String filterKey, String operator, List<String> values, List<String> expectedEndpointNames)
+        throws Exception {
+      // Arrange
+      Filters.FilterGroup dynamicFilter =
+          Filters.FilterGroup.builder()
+              .filters(
+                  List.of(
+                      Filters.Filter.builder()
+                          .key(filterKey)
+                          .operator(Filters.FilterOperator.valueOf(operator))
+                          .values(values)
+                          .build()))
+              .build();
+
+      AssetGroup group = createAssetGroupWithDynamicFilter("Dynamic filter group", dynamicFilter);
+      assetGroupComposer.forAssetGroup(group).persist();
+
+      // Act
+      String response =
+          mvc.perform(get(ASSET_GROUP_URI).accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> dynamicAssetIds = getDynamicAssetIds(response, "Dynamic filter group");
+      Map<String, Endpoint> endpointsByName =
+          Map.of("windowsX86", windowsX86, "windowsArm", windowsArm, "linuxX86", linuxX86);
+      List<String> expectedIds =
+          expectedEndpointNames.stream().map(name -> endpointsByName.get(name).getId()).toList();
+      assertEquals(expectedIds.size(), dynamicAssetIds.size());
+      assertTrue(dynamicAssetIds.containsAll(expectedIds));
+    }
+
+    static Stream<Arguments> dynamicFilterParameters() {
+      return Stream.of(
+          Arguments.of(
+              "endpoint_platform",
+              "eq",
+              List.of(Endpoint.PLATFORM_TYPE.Windows.name()),
+              List.of("windowsX86", "windowsArm")),
+          Arguments.of(
+              "endpoint_arch",
+              "eq",
+              List.of(Endpoint.PLATFORM_ARCH.arm64.name()),
+              List.of("windowsArm")),
+          Arguments.of(
+              "endpoint_hostname",
+              "contains",
+              List.of("win-host"),
+              List.of("windowsX86", "windowsArm")),
+          Arguments.of("endpoint_ips", "contains", List.of("10.0.1"), List.of("linuxX86")));
+    }
   }
 }
