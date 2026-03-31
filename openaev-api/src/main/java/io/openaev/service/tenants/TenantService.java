@@ -22,6 +22,7 @@ import lombok.extern.java.Log;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.ClassUtils;
 
 @Log
 @Service
@@ -55,7 +56,7 @@ public class TenantService {
    */
   private List<DependenciesManager> sortByPrerequisites(List<DependenciesManager> managers) {
     List<DependenciesManager> sorted = new ArrayList<>();
-    Set<Class<? extends DependenciesManager>> resolved = new HashSet<>();
+    Set<Class<?>> resolved = new HashSet<>();
 
     List<DependenciesManager> remaining = new ArrayList<>(managers);
     while (!remaining.isEmpty()) {
@@ -65,7 +66,7 @@ public class TenantService {
         DependenciesManager m = it.next();
         if (resolved.containsAll(m.getPrerequisite())) {
           sorted.add(m);
-          resolved.add(m.getClass());
+          resolved.add(ClassUtils.getUserClass(m));
           it.remove();
         }
       }
