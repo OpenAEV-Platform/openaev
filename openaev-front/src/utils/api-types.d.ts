@@ -1471,27 +1471,6 @@ export interface CreateNotificationRuleInput {
   type: string;
 }
 
-export interface CreateUserInput {
-  /** True if the user is admin */
-  user_admin?: boolean;
-  /**
-   * The email of the user
-   * @format email
-   * @minLength 1
-   */
-  user_email: string;
-  /** First name of the user */
-  user_firstname?: string;
-  /** Last name of the user */
-  user_lastname?: string;
-  /** Organization of the user */
-  user_organization?: string;
-  /** Password of the user as plain text */
-  user_plain_password?: string;
-  /** Tags of the user */
-  user_tags?: string[];
-}
-
 export interface CustomDashboard {
   /** @format date-time */
   custom_dashboard_created_at: string;
@@ -7563,36 +7542,6 @@ export interface UpdateUserInfoInput {
   user_phone?: string;
 }
 
-export interface UpdateUserInput {
-  /**
-   * Secondary phone of the user
-   * @pattern ^\+[\d\s\-.()]+$
-   */
-  user_phone2?: string;
-  /** True if the user is admin */
-  user_admin?: boolean;
-  /**
-   * The email of the user
-   * @format email
-   */
-  user_email?: string;
-  /** First name of the user */
-  user_firstname?: string;
-  /** Last name of the user */
-  user_lastname?: string;
-  /** Organization of the user */
-  user_organization?: string;
-  /** PGP key of the user */
-  user_pgp_key?: string;
-  /**
-   * Phone of the user
-   * @pattern ^\+[\d\s\-.()]+$
-   */
-  user_phone?: string;
-  /** Tags of the user */
-  user_tags?: string[];
-}
-
 export interface UpdateUsersTeamInput {
   /** The list of users the team contains */
   team_users?: string[];
@@ -7719,31 +7668,40 @@ export interface User {
   user_updated_at: string;
 }
 
-export interface UserOutput {
-  /** True if the user is admin */
-  user_admin?: boolean;
+export interface UserInput {
+  /** @pattern ^\+[\d\s\-.()]+$ */
+  user_phone2?: string;
   /**
-   * Email of the user
+   * @format email
    * @minLength 1
    */
   user_email: string;
-  /** First name of the user */
   user_firstname?: string;
+  user_lastname?: string;
+  user_organization?: string;
+  user_pgp_key?: string;
+  /** @pattern ^\+[\d\s\-.()]+$ */
+  user_phone?: string;
+  user_plain_password?: string;
+  user_tags?: string[];
+}
+
+export interface UserOutput {
+  user_phone2?: string;
   /**
-   * User ID
+   * @format email
    * @minLength 1
    */
+  user_email: string;
+  user_firstname?: string;
+  /** @minLength 1 */
   user_id: string;
-  /** Last name of the user */
   user_lastname?: string;
-  /** Organization of the user */
   user_organization_id?: string;
-  /** Organization of the user */
   user_organization_name?: string;
-  /**
-   * Tags of the user
-   * @uniqueItems true
-   */
+  user_pgp_key?: string;
+  user_phone?: string;
+  /** @uniqueItems true */
   user_tags?: string[];
 }
 
@@ -7797,15 +7755,6 @@ export interface VariableInput {
    */
   variable_key: string;
   variable_value?: string;
-}
-
-export interface ViolationErrorBag {
-  /** The error */
-  error?: string;
-  /** The message of the error */
-  message?: string;
-  /** The type of error */
-  type?: string;
 }
 
 export interface VulnerabilityBulkInsertInput {

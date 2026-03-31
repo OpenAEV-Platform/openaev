@@ -1,9 +1,12 @@
 package io.openaev.rest.user;
 
+import static io.openaev.api.users.dto.UserMapper.toOutput;
 import static io.openaev.database.specification.UserSpecification.fromIds;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UserRoleDescription;
+import io.openaev.api.users.dto.UserInput;
+import io.openaev.api.users.dto.UserOutput;
 import io.openaev.config.SessionManager;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -13,14 +16,9 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.rest.helper.ViolationErrorBag;
 import io.openaev.rest.user.form.login.LoginUserInput;
 import io.openaev.rest.user.form.login.ResetUserInput;
 import io.openaev.rest.user.form.user.ChangePasswordInput;
-import io.openaev.rest.user.form.user.CreateUserInput;
-import io.openaev.rest.user.form.user.UpdateUserInput;
-import io.openaev.rest.user.form.user.UserOutput;
-import io.openaev.rest.user.service.UserCriteriaBuilderService;
 import io.openaev.service.MailingService;
 import io.openaev.service.UserService;
 import io.openaev.service.user_events.UserEventService;
@@ -28,7 +26,6 @@ import io.openaev.utils.RandomUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -43,6 +40,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.map.PassiveExpiringMap;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -68,7 +66,6 @@ public class UserApi extends RestBehavior {
   private final UserRepository userRepository;
   private final UserService userService;
   private final MailingService mailingService;
-  private final UserCriteriaBuilderService userCriteriaBuilderService;
   private final RandomUtils randomUtils;
   private final UserEventService userEventService;
 
@@ -207,37 +204,7 @@ public class UserApi extends RestBehavior {
     return resetTokenMap.get(token) != null;
   }
 
-  @Operation(description = "List all the users", summary = "List users")
-  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of users")})
-  @GetMapping("/api/users")
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.USER)
-  public List<RawUser> users() {
-    return userRepository.rawAll();
-  }
-
-  @Operation(
-      description = "Search the users corresponding to the criteria",
-      summary = "Search users")
-  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of users")})
-  @PostMapping(USER_URI + "/search")
-  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.USER)
-  public Page<UserOutput> users(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return this.userCriteriaBuilderService.userPagination(searchPaginationInput);
-  }
-
-  @Operation(description = "Find a list of users based on their ids", summary = "Find users")
-  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of users")})
-  @PostMapping(USER_URI + "/find")
-  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.USER)
-  @Transactional(readOnly = true)
-  public List<UserOutput> findUsers(
-      @RequestBody @Valid @NotNull @Parameter(description = "List of ids")
-          final List<String> userIds) {
-    return this.userCriteriaBuilderService.find(fromIds(userIds));
-  }
-
-  @PutMapping("/api/users/{userId}/password")
+  @PutMapping(USER_URI + "/{userId}/password")
   @AccessControl(
       resourceId = "#userId",
       actionPerformed = Action.WRITE,
@@ -253,45 +220,79 @@ public class UserApi extends RestBehavior {
     return userRepository.save(user);
   }
 
-  @PostMapping("/api/users")
+  // -- CREATE --
+
+  @Operation(
+      summary = "Create a user",
+      description = "Creates a new user (Enterprise edition only)")
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.USER)
-  @Transactional(rollbackFor = Exception.class)
-  @Operation(description = "Create a new user", summary = "Create user")
-  @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "The new user"),
-    @ApiResponse(
-        responseCode = "409",
-        description = "Conflict",
-        content = @Content(schema = @Schema(implementation = ViolationErrorBag.class)))
-  })
-  public User createUser(@Valid @RequestBody CreateUserInput input) {
-    return userService.createUser(input, 1);
+  @PostMapping(USER_URI)
+  @ResponseStatus(HttpStatus.CREATED)
+  public UserOutput create(@Valid @RequestBody UserInput input) {
+    return toOutput(userService.createUser(input));
   }
 
-  @PutMapping("/api/users/{userId}")
+  // -- READ --
+
+  @Operation(summary = "Get user by ID", description = "Retrieves a user by its unique identifier")
+  @AccessControl(
+      resourceId = "#userId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.USER)
+  @GetMapping(USER_URI + "/{userId}")
+  public UserOutput getById(@PathVariable String userId) {
+    return toOutput(userService.user(userId));
+  }
+
+  @Operation(
+      summary = "Find users by IDs",
+      description = "Retrieves a list of users based on their IDs")
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.USER)
+  @PostMapping(USER_URI + "/find")
+  public List<UserOutput> find(@RequestBody @Valid @NotNull final List<String> userIds) {
+    return userService.find(fromIds(userIds));
+  }
+
+  @Operation(description = "List all the users", summary = "List users")
+  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of users")})
+  @GetMapping(USER_URI)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.USER)
+  public List<RawUser> users() {
+    return userRepository.rawAll();
+  }
+
+  // -- SEARCH --
+
+  @Operation(summary = "Search users", description = "Search users with pagination and filtering")
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.USER)
+  @PostMapping(USER_URI + "/search")
+  public Page<UserOutput> search(
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+    return userService.search(searchPaginationInput);
+  }
+
+  // -- UPDATE --
+
+  @Operation(summary = "Update a user", description = "Updates an existing user")
   @AccessControl(
       resourceId = "#userId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER)
-  @Transactional(rollbackFor = Exception.class)
-  @Operation(description = "Update a user", summary = "Update user")
-  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The modified user")})
-  public User updateUser(
-      @PathVariable @Schema(description = "ID of the user") String userId,
-      @Valid @RequestBody UpdateUserInput input) {
-    return userService.updateUser(userId, input);
+  @PutMapping(USER_URI + "/{userId}")
+  public UserOutput update(@PathVariable String userId, @Valid @RequestBody UserInput input) {
+    return toOutput(userService.updateUser(userId, input));
   }
 
-  @DeleteMapping("/api/users/{userId}")
+  // -- DELETE --
+
+  @Operation(summary = "Delete a user", description = "Deletes a user by its ID")
   @AccessControl(
       resourceId = "#userId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.USER)
-  @Transactional(rollbackFor = Exception.class)
-  @Operation(description = "Delete a user", summary = "Delete user")
-  @ApiResponses(value = {@ApiResponse(responseCode = "200")})
-  public void deleteUser(@PathVariable @Schema(description = "ID of the user") String userId) {
-    sessionManager.invalidateUserSession(userId);
-    userRepository.deleteById(userId);
+  @DeleteMapping(USER_URI + "/{userId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void delete(@PathVariable String userId) {
+    userService.delete(userId);
   }
 }

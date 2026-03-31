@@ -1,10 +1,9 @@
-import { CheckCircleOutlined, PersonOutlined } from '@mui/icons-material';
+import { PersonOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { fetchOrganizations } from '../../../../actions/Organization';
 import { searchUsers } from '../../../../actions/users/User';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import ExportButton from '../../../../components/common/ExportButton';
@@ -16,8 +15,6 @@ import { useQueryableWithLocalStorage } from '../../../../components/common/quer
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import { type User, type UserOutput } from '../../../../utils/api-types';
-import { useAppDispatch } from '../../../../utils/hooks';
-import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import SecurityMenu from '../SecurityMenu';
@@ -51,26 +48,17 @@ const useStyles = makeStyles()(() => ({
 }));
 
 const inlineStyles = {
-  user_email: { width: '20%' },
+  user_email: { width: '25%' },
   user_firstname: { width: '15%' },
   user_lastname: { width: '15%' },
-  user_organization: {
-    width: '15%',
-    cursor: 'default',
-  },
-  user_admin: { width: '10%' },
+  user_organization_name: { width: '20%' },
   user_tags: { width: '25%' },
 };
 
 const Users = () => {
   // Standard hooks
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
   const { t } = useFormatter();
-
-  useDataLoader(() => {
-    dispatch(fetchOrganizations());
-  });
 
   // Headers
   const headers = [
@@ -90,19 +78,14 @@ const Users = () => {
       isSortable: true,
     },
     {
-      field: 'user_organization',
+      field: 'user_organization_name',
       label: 'Organization',
       isSortable: false,
     },
     {
-      field: 'user_admin',
-      label: 'Administrator',
-      isSortable: true,
-    },
-    {
       field: 'user_tags',
       label: 'Tags',
-      isSortable: true,
+      isSortable: false,
     },
   ];
 
@@ -123,6 +106,8 @@ const Users = () => {
       'user_email',
       'user_firstname',
       'user_lastname',
+      'user_organization_name',
+      'user_tags',
     ],
     exportData: users,
     exportFileName: `${t('Users')}.csv`,
@@ -205,11 +190,8 @@ const Users = () => {
                     <div className={classes.bodyItem} style={inlineStyles.user_lastname}>
                       {user.user_lastname}
                     </div>
-                    <div className={classes.bodyItem} style={inlineStyles.user_organization}>
-                      {user.user_organization_name}
-                    </div>
-                    <div className={classes.bodyItem} style={inlineStyles.user_admin}>
-                      {user.user_admin ? (<CheckCircleOutlined fontSize="small" />) : ('-')}
+                    <div className={classes.bodyItem} style={inlineStyles.user_organization_name}>
+                      {user.user_organization_name ?? '-'}
                     </div>
                     <div className={classes.bodyItem} style={inlineStyles.user_tags}>
                       <ItemTags variant="list" tags={user.user_tags} />

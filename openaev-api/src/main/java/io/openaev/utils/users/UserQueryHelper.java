@@ -1,4 +1,4 @@
-package io.openaev.rest.user.helper;
+package io.openaev.utils.users;
 
 import static io.openaev.api.users.dto.UserOutput.*;
 import static io.openaev.utils.JpaUtils.createJoinArrayAggOnId;
@@ -26,21 +26,19 @@ public class UserQueryHelper {
     Expression<String[]> tagIdsExpression = createJoinArrayAggOnId(cb, userRoot, "tags");
     Join<User, Organization> organizationJoin = createLeftJoin(userRoot, "organization");
 
-    // Multiselect
     cq.multiselect(
-            userRoot.get("id").alias(ALIAS_ID),
-            userRoot.get("email").alias(ALIAS_EMAIL),
-            userRoot.get("firstname").alias(ALIAS_FIRSTNAME),
-            userRoot.get("lastname").alias(ALIAS_LASTNAME),
-            userRoot.get("pgpKey").alias(ALIAS_PGP_KEY),
-            userRoot.get("phone").alias(ALIAS_PHONE),
-            userRoot.get("phone2").alias(ALIAS_PHONE2),
-            organizationJoin.get("id").alias(ALIAS_ORGANIZATION_ID),
-            organizationJoin.get("name").alias(ALIAS_ORGANIZATION_NAME),
-            tagIdsExpression.alias(ALIAS_TAGS))
-        .distinct(true);
+        userRoot.get("id").alias(ALIAS_ID),
+        userRoot.get("email").alias(ALIAS_EMAIL),
+        userRoot.get("firstname").alias(ALIAS_FIRSTNAME),
+        userRoot.get("lastname").alias(ALIAS_LASTNAME),
+        userRoot.get("password").alias("user_password"),
+        userRoot.get("pgpKey").alias(ALIAS_PGP_KEY),
+        userRoot.get("phone").alias(ALIAS_PHONE),
+        userRoot.get("phone2").alias(ALIAS_PHONE2),
+        organizationJoin.get("id").alias(ALIAS_ORGANIZATION_ID),
+        organizationJoin.get("name").alias(ALIAS_ORGANIZATION_NAME),
+        tagIdsExpression.alias(ALIAS_TAGS));
 
-    // Group by
     cq.groupBy(userRoot.get("id"), organizationJoin.get("id"));
   }
 
@@ -50,6 +48,7 @@ public class UserQueryHelper {
     return query.getResultList().stream()
         .map(
             tuple -> {
+              String pgpKey = tuple.get(ALIAS_PGP_KEY, String.class);
               Set<String> tagIds =
                   Arrays.stream(tuple.get(ALIAS_TAGS, String[].class)).collect(Collectors.toSet());
               return new UserOutput(
@@ -57,7 +56,7 @@ public class UserQueryHelper {
                   tuple.get(ALIAS_EMAIL, String.class),
                   tuple.get(ALIAS_FIRSTNAME, String.class),
                   tuple.get(ALIAS_LASTNAME, String.class),
-                  tuple.get(ALIAS_PGP_KEY, String.class),
+                  pgpKey,
                   tuple.get(ALIAS_PHONE, String.class),
                   tuple.get(ALIAS_PHONE2, String.class),
                   tuple.get(ALIAS_ORGANIZATION_ID, String.class),
