@@ -462,7 +462,7 @@ public class StarterPackTest extends IntegrationTest {
     Iterable<InjectorContract> injectorContractsIterable =
         this.injectorContractRepository.findAll();
     List<InjectorContract> injectorContracts = Lists.newArrayList(injectorContractsIterable);
-    assertEquals(14, injectorContracts.size());
+    assertEquals(15, injectorContracts.size());
 
     InjectorContract injectorContractsDummyNuclei =
         injectorContracts.stream()
