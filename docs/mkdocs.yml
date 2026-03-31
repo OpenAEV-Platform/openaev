@@ -173,6 +173,7 @@ nav:
       - Importing injects into a Scenario: usage/scenario-import.md
       - Assets: usage/assets.md
       - People: usage/people.md
+      - Expectation: usage/expectations.md
       - Components:
         - Documents: usage/components/documents.md
         - Custom variables: usage/components/variables.md

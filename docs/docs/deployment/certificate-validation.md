@@ -126,5 +126,4 @@ When enabled, OpenAEV respects the standard `HTTP_PROXY`, `HTTPS_PROXY`, and `NO
 
 ## What's next?
 
-- [Configuration reference](../configuration.md) — Full list of OpenAEV platform parameters.
-- [Deployment overview](../overview.md) — Architecture and deployment options.
+- [Configuration reference](configuration.md) — Full list of OpenAEV platform parameters.

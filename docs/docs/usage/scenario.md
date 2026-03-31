@@ -27,7 +27,7 @@ XTM Hub provides access to a library of pre-built OpenAEV scenarios that you can
 
 From the XTM Hub, you can effortlessly deploy your desired scenario with just a single click.
 
-To get started, simply register your OpenAEV platform following the instructions in our [OpenAEV registration documentation](/administration/hub/).
+To get started, simply register your OpenAEV platform following the instructions in our [OpenAEV registration documentation](../administration/hub.md).
 Next, navigate to your preferred scenario and click the ```Deploy in OpenAEV``` button located in the top right corner.
 
 If you have multiple OpenAEV platforms registered, choose the platform in which you wish to deploy the scenario.
@@ -35,7 +35,7 @@ If you have multiple OpenAEV platforms registered, choose the platform in which 
 You will then be redirected to the OpenAEV platform, where the process will continue automatically. 
 Within a few seconds, you'll be taken to the scenarios list, where your newly created scenario will appear.
 
-![Import scenario option](/usage/assets/one-click-deploy.png)
+![Import scenario option](assets/one-click-deploy.png)
 
 ## Scenario overview
 
