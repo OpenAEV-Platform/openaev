@@ -81,6 +81,7 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
       this.injectorContract.setId(challengeInjectorContract.getId());
       this.injectorContract.setContent(challengeInjectorContract.getContent());
       this.injectorContract.setConvertedContent(challengeInjectorContract.getConvertedContent());
+      this.injectorContract.getInjectors().clear();
       this.injectorContract.addInjectors(challengeInjectorContract.getInjectors());
       this.injectorContract.setPlatforms(challengeInjectorContract.getPlatforms());
       this.injectorContract.setUpdatedAt(challengeInjectorContract.getUpdatedAt());
@@ -100,6 +101,7 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
       this.injectorContract.setId(articleInjectorContract.getId());
       this.injectorContract.setContent(articleInjectorContract.getContent());
       this.injectorContract.setConvertedContent(articleInjectorContract.getConvertedContent());
+      this.injectorContract.getInjectors().clear();
       this.injectorContract.addInjector(articleInjectorContract.getFirstInjector());
       this.injectorContract.setPlatforms(articleInjectorContract.getPlatforms());
       this.injectorContract.setUpdatedAt(articleInjectorContract.getUpdatedAt());
@@ -145,6 +147,7 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
       attackPatternComposer.forEach(AttackPatternComposer.Composer::persist);
       vulnerabilityComposer.forEach(VulnerabilityComposer.Composer::persist);
       if (!WELL_KNOWN_CONTRACT_IDS.contains(injectorContract.getId())) {
+        entityManager.persist(injectorContract);
         for (Injector injector : new ArrayList<>(injectorContract.getInjectors())) {
           injector.linkContract(injectorContract);
         }

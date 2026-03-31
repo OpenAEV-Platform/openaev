@@ -124,7 +124,9 @@ public class Injector extends BaseConnectorEntity implements TenantBase {
 
   public void linkContract(InjectorContract contract) {
     this.contracts.add(contract);
-    contract.getInjectors().add(this);
+    if (!contract.getInjectors().contains(this)) {
+      contract.getInjectors().add(this);
+    }
   }
 
   public void unlinkContract(InjectorContract contract) {

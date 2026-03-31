@@ -497,7 +497,10 @@ public class StarterPackTest extends IntegrationTest {
 
   private void verifyEndpointExist() {
     List<Asset> assets =
-        StreamSupport.stream(assetRepository.findAll().spliterator(), false).toList();
+        StreamSupport.stream(
+                assetRepository.findByTenantId(TenantContext.getCurrentTenant()).spliterator(),
+                false)
+            .toList();
     assertEquals(1, assets.size());
 
     Asset assetHoneyScanMe = assets.getFirst();
