@@ -43,6 +43,7 @@ public class AgentUtils {
           Endpoint.PLATFORM_ARCH.x86_64.name().toLowerCase(),
           Endpoint.PLATFORM_ARCH.arm64.name().toLowerCase());
 
+  /** All keys must be lowercase */
   private static final Map<String, String> ARCHITECTURE_ALIAS =
       Map.of("aarch64", Endpoint.PLATFORM_ARCH.arm64.name().toLowerCase());
 
@@ -53,7 +54,7 @@ public class AgentUtils {
    * @return canonical architecture string
    */
   public static String getCanonicalArchitectureString(String architecture) {
-    return ARCHITECTURE_ALIAS.getOrDefault(architecture, architecture);
+    return ARCHITECTURE_ALIAS.getOrDefault(architecture.toLowerCase(), architecture.toLowerCase());
   }
 
   /**

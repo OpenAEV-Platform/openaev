@@ -211,4 +211,8 @@ public class InjectorApiTest extends IntegrationTest {
       assertThatJson(response).inPath("catalog_connector_id").isEqualTo(null);
     }
   }
+
+  @Nested
+  @DisplayName("Implant downloads")
+  public class ImplantDownloadsTest {}
 }

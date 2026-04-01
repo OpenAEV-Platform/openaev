@@ -288,6 +288,7 @@ public class ExecutorApi extends RestBehavior {
         Optional.ofNullable(AgentUtils.getCanonicalArchitectureString(architecture))
             .map(String::toLowerCase)
             .orElse("");
+    installationMode = installationMode.toLowerCase();
 
     if (!AVAILABLE_PLATFORMS.contains(platform)) {
       throw new IllegalArgumentException("Platform invalid : " + platform);
