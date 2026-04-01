@@ -16,13 +16,13 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.ClassUtils;
 
 @Log
 @Service
@@ -38,16 +38,48 @@ public class TenantService {
 
   // -- CREATE --
 
-  /** Creates a new tenant and initializes all required dependencies. */
+  /** Creates a new tenant and initializes all required dependencies (ordered by prerequisites). */
   public Tenant create(Tenant tenant) throws DependenciesManagerException {
     Objects.requireNonNull(tenant, "tenant must not be null");
     Objects.requireNonNull(tenant.getName(), "tenant name must not be null");
 
     Tenant createdTenant = tenantRepository.save(tenant);
-    for (DependenciesManager dependency : dependencies) {
+    for (DependenciesManager dependency : sortByPrerequisites(dependencies)) {
       dependency.createDependencyForTenant(createdTenant);
     }
     return createdTenant;
+  }
+
+  /**
+   * Sorts managers so that each one appears after its prerequisites. Simple insertion approach —
+   * fine for the small number of DependenciesManager beans we have.
+   */
+  private List<DependenciesManager> sortByPrerequisites(List<DependenciesManager> managers) {
+    List<DependenciesManager> sorted = new ArrayList<>();
+    Set<Class<?>> resolved = new HashSet<>();
+
+    List<DependenciesManager> remaining = new ArrayList<>(managers);
+    while (!remaining.isEmpty()) {
+      int before = remaining.size();
+      Iterator<DependenciesManager> it = remaining.iterator();
+      while (it.hasNext()) {
+        DependenciesManager m = it.next();
+        if (resolved.containsAll(m.getPrerequisite())) {
+          sorted.add(m);
+          resolved.add(ClassUtils.getUserClass(m));
+          it.remove();
+        }
+      }
+      if (remaining.size() == before) {
+        log.warning(
+            "Circular prerequisite detected among DependenciesManagers, "
+                + "appending remaining in original order: "
+                + remaining);
+        sorted.addAll(remaining);
+        break;
+      }
+    }
+    return sorted;
   }
 
   // -- READ --

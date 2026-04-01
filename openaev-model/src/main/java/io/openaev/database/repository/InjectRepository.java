@@ -107,8 +107,9 @@ public interface InjectRepository
 
   @Query(
       value =
-          "select i.* from injects i where i.inject_injector_contract = '49229430-b5b5-431f-ba5b-f36f599b0233'"
-              + " and i.inject_content like :challengeId",
+          "select i.*, i.tenant_id as tenantId from injects i where i.inject_injector_contract = '49229430-b5b5-431f-ba5b-f36f599b0233'"
+              + " and i.inject_content like :challengeId"
+              + " and i.tenant_id = :#{#tenantContext.currentTenant}",
       nativeQuery = true)
   List<Inject> findAllForChallengeId(@Param("challengeId") String challengeId);
 
