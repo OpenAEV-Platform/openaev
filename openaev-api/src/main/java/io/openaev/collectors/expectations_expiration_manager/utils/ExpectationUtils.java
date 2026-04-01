@@ -5,7 +5,6 @@ import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
 import io.openaev.expectation.ExpectationType;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 
 public class ExpectationUtils {
 
@@ -18,9 +17,8 @@ public class ExpectationUtils {
    * @return true if the expectation has exceeded its expiration time
    */
   public static boolean isExpired(@NotNull final InjectExpectation expectation) {
-    // expirationTime is stored in seconds, convert to minutes for comparison
-    long expirationTimeInMinutes = expectation.getExpirationTime() / 60;
-    Instant expirationThreshold = Instant.now().minus(expirationTimeInMinutes, ChronoUnit.MINUTES);
+    long expirationTimeInSeconds = expectation.getExpirationTime();
+    Instant expirationThreshold = Instant.now().minusSeconds(expirationTimeInSeconds);
     return expectation.getCreatedAt().isBefore(expirationThreshold);
   }
 
