@@ -1306,7 +1306,7 @@ public class V1_DataImporter implements Importer {
     injectorContract.setContent(importNode.get("injector_contract_content").textValue());
     Injector dummyInjector = createOrGetDummyInjector(importNode);
     injectorContract.addInjector(dummyInjector);
-    injectorContract.setTenant(injector.getTenant());
+    injectorContract.setTenant(dummyInjector.getTenant());
     injectorContract.setConvertedContent((ObjectNode) importNode.get("convertedContent"));
     injectorContract.setExternalId(importNode.get("injector_contract_external_id").textValue());
     injectorContract.setAtomicTesting(
