@@ -31,12 +31,12 @@ public class ConditionCreateInput {
   /** Condition key: Path to the value in the output of the step from */
   @Schema(description = "Path to the value in the output of the step from")
   @JsonProperty("condition_key_type")
-  private ConditionKeyType keyType;
+  private ConditionKeyType keyType; //TODO Change to PayloadArgumentType
 
   /** Condition key subtype */
   @Schema(description = "Condition key subtype")
   @JsonProperty("condition_key_subtype")
-  private ConditionKeySubtype keySubtype;
+  private ConditionKeySubtype keySubtype; //TODO Change to PayloadArgumentSubtype
 
   /** Condition value: Value to be compared */
   @Schema(description = "Value to be compared")
