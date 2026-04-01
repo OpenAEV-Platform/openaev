@@ -10,6 +10,7 @@ import static io.openaev.utils.JpaUtils.arrayAggOnId;
 import static io.openaev.utils.StringUtils.duplicateString;
 import static io.openaev.utils.constants.Constants.ARTICLES;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilderWithNullHandling;
+import static java.time.Duration.between;
 import static java.time.Instant.now;
 import static java.time.temporal.ChronoUnit.MINUTES;
 import static java.util.Collections.emptyList;
@@ -24,6 +25,9 @@ import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
 import io.openaev.database.raw.RawSimulationIndexing;
 import io.openaev.database.repository.*;
+import io.openaev.database.specification.LessonsAnswerSpecification;
+import io.openaev.database.specification.LessonsCategorySpecification;
+import io.openaev.database.specification.LessonsQuestionSpecification;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.rest.atomic_testing.form.TargetSimple;
@@ -109,10 +113,14 @@ public class ExerciseService {
   private final InjectExpectationRepository injectExpectationRepository;
   private final ArticleRepository articleRepository;
   private final ExerciseRepository exerciseRepository;
+  private final InjectStatusRepository injectStatusRepository;
+  private final PauseRepository pauseRepository;
+  private final LessonsQuestionRepository lessonsQuestionRepository;
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
   private final ExerciseTeamUserRepository exerciseTeamUserRepository;
   private final InjectRepository injectRepository;
+  private final LessonsAnswerRepository lessonsAnswerRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
   private final LessonsService lessonsService;
 
@@ -125,7 +133,6 @@ public class ExerciseService {
 
   private final PauseExerciseService pauseExerciseService;
   private final FileService fileService;
-  private final LessonsService lessonsService;
 
   // region properties
   @Value("${openaev.mail.imap.enabled}")
@@ -586,7 +593,7 @@ public class ExerciseService {
     // In case of manual start
     if (ExerciseStatus.SCHEDULED.equals(exercise.getStatus())
         && ExerciseStatus.RUNNING.equals(status)) {
-      exerciseService.throwIfExerciseNotLaunchable(exercise);
+      throwIfExerciseNotLaunchable(exercise);
       Instant nextMinute = now().truncatedTo(MINUTES).plus(1, MINUTES);
       exercise.setStart(nextMinute);
       actionMetricCollector.addSimulationPlayedCount();
@@ -646,16 +653,6 @@ public class ExerciseService {
     exercise.setStart(null);
     exercise.setEnd(null);
     exercise.setCurrentPause(null);
-  }
-
-  /**
-   * Save a simulation
-   *
-   * @param simulation simulation to save
-   * @return the saved simulation
-   */
-  public Exercise saveSimulation(Exercise simulation) {
-    return exerciseRepository.save(simulation);
   }
 
   public void throwIfExerciseNotLaunchable(Exercise exercise) {

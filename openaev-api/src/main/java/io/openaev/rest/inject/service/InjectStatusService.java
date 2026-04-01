@@ -354,17 +354,4 @@ public class InjectStatusService {
             .toList();
     injectStatusRepository.deleteAllByIds(injectStatusIds);
   }
-
-  /**
-   * Delete all injects statuses for a list of injects
-   *
-   * @param injects the list of injects
-   */
-  public void deleteAllInjectStatusByInjects(List<Inject> injects) {
-    injectStatusRepository.deleteAllById(
-        injects.stream()
-            .map(Inject::getStatus)
-            .map(i -> i.map(InjectStatus::getId).orElse(""))
-            .toList());
-  }
 }
