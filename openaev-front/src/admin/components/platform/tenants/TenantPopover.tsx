@@ -2,6 +2,7 @@ import { type FunctionComponent, useCallback, useContext, useMemo, useState } fr
 
 import { reactivateTenant, softDeleteTenant } from '../../../../actions/platform/tenants/tenant-action';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
+import DialogConfirmation from '../../../../components/common/DialogConfirmation';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import { useFormatter } from '../../../../components/i18n';
 import type { TenantOutput } from '../../../../utils/api-types';
@@ -133,11 +134,12 @@ const TenantPopover: FunctionComponent<Props> = ({
         )}
       {actions.includes('Reactivate')
         && (
-          <DialogDelete
+          <DialogConfirmation
             open={isReactivateOpen}
             handleClose={handleCloseReactivate}
             handleSubmit={handleReactivate}
             text={`${t('Do you want to reactivate this tenant?')}`}
+            submitLabel={t('Reactivate')}
           />
         )}
     </>

@@ -2,6 +2,7 @@ import type { Dispatch } from 'redux';
 
 import { postReferential, putReferential, simpleDelCall, simplePostCall } from '../../../utils/Action';
 import { type SearchPaginationInput, type TenantInput, type TenantOutput } from '../../../utils/api-types';
+import { MESSAGING$ } from '../../../utils/Environment';
 import { tenant } from './tenant-schema';
 
 export const TENANT_URI = '/api/tenants';
@@ -32,12 +33,20 @@ export const updateTenant
 
 export const softDeleteTenant = (tenantId: TenantOutput['tenant_id']) => {
   const uri = `${TENANT_URI}/${tenantId}`;
-  return simpleDelCall(uri);
+  return simpleDelCall(uri, undefined, true, false)
+    .then((response) => {
+      MESSAGING$.notifySuccess('The tenant has been successfully deactivated.');
+      return response;
+    });
 };
 
 // -- REACTIVATE --
 
 export const reactivateTenant = (tenantId: TenantOutput['tenant_id']) => {
   const uri = `${TENANT_URI}/${tenantId}/reactivate`;
-  return simplePostCall(uri, {});
+  return simplePostCall(uri, {})
+    .then((response) => {
+      MESSAGING$.notifySuccess('The tenant has been successfully reactivated.');
+      return response;
+    });
 };
