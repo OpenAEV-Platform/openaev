@@ -102,12 +102,6 @@ public interface InjectorContractRepository
   List<InjectorContract> findByInjectorsContaining(@NotNull Injector injector);
 
   @NotNull
-  @Query(
-      "SELECT ic FROM InjectorContract ic JOIN ic.injectors i WHERE i = :injector AND ic.payload = :payload")
-  Optional<InjectorContract> findInjectorContractByInjectorAndPayload(
-      @NotNull @Param("injector") Injector injector, @NotNull @Param("payload") Payload payload);
-
-  @NotNull
   List<InjectorContract> findInjectorContractsByPayload(@NotNull Payload payload);
 
   @Modifying

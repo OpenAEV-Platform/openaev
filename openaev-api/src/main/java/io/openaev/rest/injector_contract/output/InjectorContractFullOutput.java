@@ -1,5 +1,7 @@
 package io.openaev.rest.injector_contract.output;
 
+import static java.util.Optional.ofNullable;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
@@ -67,7 +69,7 @@ public class InjectorContractFullOutput extends InjectorContractBaseOutput {
     this.setLabels(labels);
     this.setContent(content);
     this.setPlatforms(platforms);
-    this.setPayloadType(Optional.ofNullable(collectorType).orElse(payloadType));
+    this.setPayloadType(ofNullable(collectorType).orElse(payloadType));
     this.setInjectorName(injectorName);
     this.setInjectorType(injectorType);
     this.setAttackPatterns(
@@ -81,8 +83,6 @@ public class InjectorContractFullOutput extends InjectorContractBaseOutput {
   }
 
   public static InjectorContractFullOutput fromInjectorContract(InjectorContract sourceContract) {
-    // This is only used to get the injector name and injector type and they should all be the same
-    Injector injector = sourceContract.getFirstInjector();
     return new InjectorContractFullOutput(
         sourceContract.getId(),
         sourceContract.getExternalId(),
@@ -90,9 +90,9 @@ public class InjectorContractFullOutput extends InjectorContractBaseOutput {
         sourceContract.getContent(),
         sourceContract.getPlatforms(),
         sourceContract.getPayload() == null ? null : sourceContract.getPayload().getType(),
-        injector != null ? injector.getName() : null,
+        sourceContract.getInjectorName(),
         null,
-        injector != null ? injector.getType() : null,
+        sourceContract.getInjectorType(),
         sourceContract.getAttackPatterns().stream()
             .map(AttackPattern::getId)
             .toList()
