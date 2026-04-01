@@ -73,7 +73,7 @@ const FilterChipValues: FunctionComponent<Props> = ({
     return (
       <div
         className={cx({ [classes.mode]: true })}
-        onClick={canClick ? () => helpers!.handleSwitchLocalMode(filter.key) : undefined}
+        onClick={canClick ? () => helpers!.handleSwitchLocalModeById(filter.id) : undefined}
         style={canClick ? { cursor: 'pointer' } : undefined}
       >
         {t(mode === 'and' ? 'and' : 'or')}

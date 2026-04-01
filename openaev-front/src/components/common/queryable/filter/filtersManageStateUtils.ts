@@ -64,7 +64,7 @@ export const handleAddMultipleValueFilterUtil = (filters: FilterGroup, key: stri
     return updateFilters(filters, f => (f.key === key
       ? {
           ...f,
-          values: Array.from(new Set([...(f.values as string[]), ...values])),
+          values: Array.from(new Set([...(f.values ?? []), ...values])),
         }
       : f));
   } else {

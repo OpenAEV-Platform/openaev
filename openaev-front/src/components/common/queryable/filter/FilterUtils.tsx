@@ -15,8 +15,9 @@ export const emptyFilterGroup: FilterGroup = {
   filters: [],
 };
 
-export const buildEmptyFilter = (key: string, operator: Filter['operator']) => {
+export const buildEmptyFilter = (key: string, operator: Filter['operator']): Filter => {
   return {
+    id: generateFilterId(),
     key,
     mode: 'or' as Filter['mode'],
     values: [],
@@ -24,8 +25,9 @@ export const buildEmptyFilter = (key: string, operator: Filter['operator']) => {
   };
 };
 
-export const buildFilter = (key: string, values: string[], operator: Filter['operator']) => {
+export const buildFilter = (key: string, values: string[], operator: Filter['operator']): Filter => {
   return {
+    id: generateFilterId(),
     key,
     mode: 'or' as Filter['mode'],
     values,

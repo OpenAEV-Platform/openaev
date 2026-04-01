@@ -54,6 +54,7 @@ import { type ToolTasks } from '../toolBar/BulkToolBar-model';
 import InjectForm from './form/InjectForm';
 import InjectCardComponent from './InjectCardComponent';
 import InjectIcon from './InjectIcon';
+import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 
 const useStyles = makeStyles()(theme => ({
   itemHead: {},
@@ -210,6 +211,7 @@ const CreateInject: FunctionComponent<Props> = ({
     }
 
     filterGroup.filters?.push({
+      id: generateFilterId(),
       key: 'injector_contract_atomic_testing',
       operator: 'eq',
       values: ['true'],
@@ -397,6 +399,7 @@ const CreateInject: FunctionComponent<Props> = ({
 
       if (!domainFilterExists) {
         queryableHelpers.filterHelpers.handleAddFilterWithEmptyValue({
+          id: generateFilterId(),
           key: DOMAIN_FILTER_KEY,
           operator: 'contains',
           values: updated,

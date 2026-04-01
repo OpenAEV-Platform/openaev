@@ -1,6 +1,6 @@
 import { Autocomplete, Checkbox, TextField } from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers';
-import { type FunctionComponent, useContext, useEffect } from 'react';
+import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 
 import { type Filter, type PropertySchemaDTO } from '../../../../utils/api-types';
 import { type GroupOption, type Option } from '../../../../utils/Option';
@@ -54,6 +54,7 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
 }) => {
   // Standard hooks
   const { t } = useFormatter();
+  const [inputValue, setInputValue] = useState('');
   const { options, setOptions, searchOptions } = useSearchOptions();
   const { defaultValues } = useContext(FilterContext);
   const selectedOptions = getSelectedOptions(options, filter.values ?? [], t);
@@ -104,11 +105,18 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
       noOptionsText={t('No available options')}
       options={mergedOptions}
       value={selectedOptions}
+      inputValue={inputValue}
       renderValue={() => null}
       isOptionEqualToValue={(option, value) => option.id === value.id}
       groupBy={(option: GroupOption | Option) => 'group' in option ? option.group : ''}
       getOptionLabel={option => option.label ?? ''}
-      onInputChange={(_, search) => handleSearchOptions(search)}
+      onInputChange={(_, search, reason) => {
+        if (reason === 'reset') {
+          return;
+        }
+        setInputValue(search);
+        handleSearchOptions(search);
+      }}
       renderInput={paramsInput => (
         <TextField
           {...paramsInput}
