@@ -49,6 +49,8 @@ const TENANT_EXEMPT_PREFIXES = [
   '/api/tenants',
   '/api/logs',
   '/api/images',
+  '/api/platform-groups',
+  '/api/platform-roles',
 ];
 
 /**
@@ -96,6 +98,7 @@ const TENANT_MIGRATION_TODO: string[] = [
   '/api/detection-remediations',
   '/api/notification-rules',
   '/api/vulnerabilities',
+  '/api/lessons_templates',
   // PR8 — Integrations
   '/api/injectors',
   '/api/collectors',
@@ -109,14 +112,19 @@ const TENANT_MIGRATION_TODO: string[] = [
   '/api/mappers',
   '/api/tag-rules',
   '/api/dashboards',
+  '/api/custom-dashboards',
   '/api/fulltextsearch',
+  '/api/schemas',
+  '/api/engine',
   '/api/roles',
   '/api/groups',
   '/api/users',
   '/api/capabilities',
   '/api/xtmhub',
+  '/api/xtm-composer',
   '/api/variables',
   '/api/reports',
+  '/api/stream',
 ];
 
 /**
@@ -126,6 +134,7 @@ const TENANT_MIGRATION_TODO: string[] = [
  * one place that applies the tenant prefix to all API calls.
  */
 export const buildTenantApiPath = (uri: string): string => {
+  console.log("==> buildTenantApiPath uri",  uri);
   if (!uri.startsWith('/api/')) {
     return uri;
   }
@@ -135,7 +144,9 @@ export const buildTenantApiPath = (uri: string): string => {
   if (TENANT_MIGRATION_TODO.some(prefix => uri.startsWith(prefix))) {
     return uri;
   }
+
   const tenantId = getCurrentTenantId();
   const pathAfterApi = uri.slice('/api'.length);
+  console.log("==> buildTenantApiPath", tenantId, uri, pathAfterApi);
   return `/api/tenants/${tenantId}${pathAfterApi}`;
 };
