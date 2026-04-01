@@ -1,5 +1,4 @@
 import { Autocomplete, TextField } from '@mui/material';
-import { generateFilterId } from './common/queryable/filter/FilterUtils';
 import { type FunctionComponent, useEffect, useState } from 'react';
 import { type FieldError } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -8,6 +7,7 @@ import { searchInjectorContracts } from '../actions/InjectorContracts';
 import InjectIcon from '../admin/components/common/injects/InjectIcon';
 import { type FilterGroup, type InjectorContract } from '../utils/api-types';
 import { isNotEmptyField } from '../utils/utils';
+import { generateFilterId } from './common/queryable/filter/FilterUtils';
 import { initSorting, type Page } from './common/queryable/Page';
 import { useFormatter } from './i18n';
 
@@ -43,11 +43,11 @@ const InjectContractComponent: FunctionComponent<Props> = ({
   // Pagination
   const [contracts, setContracts] = useState<InjectorContract[]>([]);
   const searchContract = (val: string) => {
-     return contracts.filter(
-       type => type.injector_contract_id.includes(val)
-         || tPick(type.injector_contract_labels).includes(val),
-     );
-   };
+    return contracts.filter(
+      type => type.injector_contract_id.includes(val)
+        || tPick(type.injector_contract_labels).includes(val),
+    );
+  };
 
   const importFilter: FilterGroup = {
     mode: 'and',

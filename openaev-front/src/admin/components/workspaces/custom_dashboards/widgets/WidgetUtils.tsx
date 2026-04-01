@@ -1,6 +1,7 @@
 import { AccountTree, List, TableChart, VerifiedUser } from '@mui/icons-material';
 import { AlignHorizontalLeft, ChartBar, ChartDonut, ChartLine, Counter } from 'mdi-material-ui';
 
+import { generateFilterId } from '../../../../../components/common/queryable/filter/FilterUtils';
 import {
   type CustomDashboardParameters,
   type EsAttackPath,
@@ -15,7 +16,6 @@ import {
   type Widget,
 } from '../../../../../utils/api-types';
 import { createGroupOption, type GroupOption } from '../../../../../utils/Option';
-import { generateFilterId } from '../../../../../components/common/queryable/filter/FilterUtils';
 
 export type StepType = ('type' | 'series' | 'parameters');
 export const steps: StepType[] = ['type', 'series', 'parameters'];

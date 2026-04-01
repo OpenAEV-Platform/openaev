@@ -3,7 +3,7 @@ import { Autocomplete as MuiAutocomplete, IconButton, TextField, Tooltip } from 
 import { type CSSProperties, type FunctionComponent, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { type Filter, type FilterGroup } from '../../../../utils/api-types';
+import { type Filter } from '../../../../utils/api-types';
 import { type Option } from '../../../../utils/Option';
 import { useFormatter } from '../../../i18n';
 import { type FilterHelpers } from './FilterHelpers';
@@ -19,7 +19,6 @@ const useStyles = makeStyles()(() => ({
 export type OptionPropertySchema = Option & { operator: Filter['operator'] };
 
 interface Props {
-  filterGroup?: FilterGroup;
   options: OptionPropertySchema[];
   helpers: FilterHelpers;
   setPristine: (pristine: boolean) => void;
@@ -28,7 +27,6 @@ interface Props {
 }
 
 const FilterAutocomplete: FunctionComponent<Props> = ({
-  filterGroup,
   options,
   helpers,
   setPristine,

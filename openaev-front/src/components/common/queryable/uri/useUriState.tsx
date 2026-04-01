@@ -3,9 +3,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 
 import { type Filter, type SearchPaginationInput } from '../../../../utils/api-types';
+import { generateFilterId } from '../filter/FilterUtils';
 import { buildSearchPagination, SearchPaginationInputSchema } from '../QueryableUtils';
 import { type UriHelpers } from './UriHelpers';
-import { generateFilterId } from '../filter/FilterUtils';
 
 export const retrieveFromUri = (localStorageKey: string, searchParams: URLSearchParams): SearchPaginationInput | null => {
   const encodedParams = searchParams.get('query') || '';
@@ -23,7 +23,7 @@ export const retrieveFromUri = (localStorageKey: string, searchParams: URLSearch
   if (Object.keys(paramsJson).length > 0 && paramsJson.key === localStorageKey) {
     const parseResult = SearchPaginationInputSchema.safeParse(paramsJson);
     if (parseResult.success) {
-      const normalizedFilters: Filter[] | undefined = parseResult.data.filterGroup?.filters?.map(filter => {
+      const normalizedFilters: Filter[] | undefined = parseResult.data.filterGroup?.filters?.map((filter) => {
         const existingId = (filter as { id?: string }).id;
         return {
           ...filter,

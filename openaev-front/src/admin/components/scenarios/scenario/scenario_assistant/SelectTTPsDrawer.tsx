@@ -2,9 +2,9 @@ import { Button, Paper } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 
 import Drawer from '../../../../../components/common/Drawer';
+import type { FilterHelpers } from '../../../../../components/common/queryable/filter/FilterHelpers';
 import { useFormatter } from '../../../../../components/i18n';
 import type { Filter } from '../../../../../utils/api-types';
-import type { FilterHelpers } from '../../../../../components/common/queryable/filter/FilterHelpers';
 import MitreFilter from '../../../common/filters/MitreFilter';
 
 const useStyles = makeStyles()(theme => ({
