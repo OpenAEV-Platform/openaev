@@ -9,6 +9,7 @@ import io.openaev.security.error.AuthenticationError;
 import io.openaev.service.UserService;
 import io.openaev.xtmone.XtmOneConfig;
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 import java.util.Set;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -26,7 +27,7 @@ public class PlatformJwtExtractor implements ExtractorBase {
   private final UserService userService;
 
   @Override
-  public String extractToken(String value) throws JwtException, AuthenticationError {
+  public Optional<User> authUser(String value) throws JwtException, AuthenticationError {
     if (value == null) {
       String message = "No raw bearer token found";
       log.debug(message);
@@ -51,12 +52,6 @@ public class PlatformJwtExtractor implements ExtractorBase {
 
     String emailClaim = claims.get("email", String.class);
 
-    User user =
-        userService
-            .findByEmailIgnoreCase(emailClaim)
-            .orElseThrow(() -> new AuthenticationError("No user found with email claim."));
-
-    // FIXME: this is just translating a valid claim to any valid user token
-    return user.getTokens().getFirst().getValue();
+    return userService.findByEmailIgnoreCase(emailClaim);
   }
 }

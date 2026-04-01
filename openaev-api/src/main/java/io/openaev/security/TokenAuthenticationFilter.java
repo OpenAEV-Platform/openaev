@@ -3,9 +3,7 @@ package io.openaev.security;
 import static java.util.Optional.ofNullable;
 import static org.springframework.util.StringUtils.hasLength;
 
-import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
-import io.openaev.database.repository.TokenRepository;
 import io.openaev.security.token.ConnectorJwtExtractor;
 import io.openaev.security.token.ExtractorBase;
 import io.openaev.security.token.PlainTokenExtractor;
@@ -33,16 +31,10 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
   private static final String HEADER_NAME = "Authorization";
   private static final String BEARER_PREFIX = "bearer ";
 
-  private TokenRepository tokenRepository;
   private UserService userService;
   private ConnectorJwtExtractor connectorJwtExtractor;
   private PlainTokenExtractor plainTokenExtractor;
   private PlatformJwtExtractor platformJwtExtractor;
-
-  @Autowired
-  public void setTokenRepository(TokenRepository tokenRepository) {
-    this.tokenRepository = tokenRepository;
-  }
 
   @Autowired
   public void setUserService(UserService userService) {
@@ -64,32 +56,36 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
     this.plainTokenExtractor = plainTokenExtractor;
   }
 
-  private String parseAuthorization(String value) {
+  private Optional<User> getAuthedUserFromAuthorizationHeader(String value) {
     Set<ExtractorBase> extractors = Set.of(this.connectorJwtExtractor, this.platformJwtExtractor);
 
     if (!value.toLowerCase().startsWith(BEARER_PREFIX)) {
-      return value;
+      return Optional.empty();
     }
 
-    String candidate = value.substring(BEARER_PREFIX.length());
+    String candidateToken = value.substring(BEARER_PREFIX.length());
     for (ExtractorBase extractor : extractors) {
       try {
-        return extractor.extractToken(candidate);
+        Optional<User> candidateUser = extractor.authUser(candidateToken);
+        if (candidateUser.isPresent()) {
+          return candidateUser;
+        }
       } catch (Exception e) {
         log.debug("Could not authenticate using extractor {}", extractor, e);
       }
     }
-    return this.plainTokenExtractor.extractToken(candidate);
+    return this.plainTokenExtractor.authUser(candidateToken);
   }
 
-  private String getAuthToken(HttpServletRequest request) {
+  private Optional<User> getAuthedUser(HttpServletRequest request) {
     String header = request.getHeader(HEADER_NAME);
     Cookie[] cookies = ofNullable(request.getCookies()).orElse(new Cookie[0]);
     Optional<Cookie> defaultCookie =
         Arrays.stream(cookies).filter(cookie -> COOKIE_NAME.equals(cookie.getName())).findFirst();
     return hasLength(header)
-        ? parseAuthorization(header)
-        : defaultCookie.orElseGet(() -> new Cookie(COOKIE_NAME, null)).getValue();
+        ? getAuthedUserFromAuthorizationHeader(header)
+        : this.plainTokenExtractor.authUser(
+            defaultCookie.orElseGet(() -> new Cookie(COOKIE_NAME, null)).getValue());
   }
 
   @Override
@@ -97,16 +93,12 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
       throws ServletException, IOException {
-    String authToken = getAuthToken(request);
-    if (authToken != null) {
-      Optional<Token> token = tokenRepository.findByValue(authToken);
-      SecurityContext userContext = SecurityContextHolder.getContext();
-      if (token.isPresent()) {
-        User user = token.get().getUser();
-        userService.createUserSession(user);
-      } else if (userContext.getAuthentication() != null) {
-        SecurityContextHolder.setContext(SecurityContextHolder.createEmptyContext());
-      }
+    Optional<User> authedUser = getAuthedUser(request);
+    SecurityContext userContext = SecurityContextHolder.getContext();
+    if (authedUser.isPresent()) {
+      userService.createUserSession(authedUser.get());
+    } else if (userContext.getAuthentication() != null) {
+      SecurityContextHolder.setContext(SecurityContextHolder.createEmptyContext());
     }
     filterChain.doFilter(request, response);
   }
