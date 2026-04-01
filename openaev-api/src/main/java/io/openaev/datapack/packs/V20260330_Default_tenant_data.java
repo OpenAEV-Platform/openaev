@@ -12,8 +12,7 @@ import io.openaev.datapack.DataPack;
 import io.openaev.datapack.PresetTenantData;
 import io.openaev.service.DataPackService;
 import io.openaev.service.RoleService;
-import java.math.BigDecimal;
-import java.time.Instant;
+
 import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -49,25 +48,11 @@ public class V20260330_Default_tenant_data extends DataPack {
     try {
       if (!Tenant.DEFAULT_TENANT_UUID.equals(TenantContext.getCurrentTenant())) {
         // Init vulnerabilities
-        PresetTenantData.DEFAULT_VULNERABILITIES.forEach(
+        PresetTenantData.DEFAULT_VULNERABILITY_CWES.forEach(
             input -> {
-              Cwe cwe = new Cwe();
-              cwe.setExternalId(input.cweExternalId());
-              cwe.setSource(input.cweSource());
-              cweRepository.save(cwe);
-              Vulnerability vulnerability = new Vulnerability();
-              Instant published = Instant.parse(input.published());
-              vulnerability.setExternalId(input.externalId());
-              vulnerability.setSourceIdentifier(input.externalId());
-              vulnerability.setPublished(published);
-              vulnerability.setDescription(input.description());
-              vulnerability.setCvssV31(new BigDecimal(input.cvss()));
-              vulnerability.setCisaExploitAdd(published);
-              vulnerability.setCisaActionDue(published);
-              vulnerability.setCisaRequiredAction(input.requiredAction());
-              vulnerability.setCisaVulnerabilityName(input.vulnerabilityName());
+              Cwe cwe = cweRepository.save(input.cwe());
+              Vulnerability vulnerability = input.vulnerability();
               vulnerability.setCwes(new ArrayList<>(List.of(cwe)));
-              vulnerability.setReferenceUrls(new ArrayList<>(input.referenceUrls()));
               vulnerabilityRepository.save(vulnerability);
             });
         // Init roles/groups and the current user (if he exists) to admin group/role for the new
@@ -80,7 +65,7 @@ public class V20260330_Default_tenant_data extends DataPack {
               group.setDescription(roleName);
               group.setDefaultUserAssignation(false);
               group.setRoles(List.of(role));
-              if ("Admin".equals(roleName)) {
+              if (PresetTenantData.ADMIN.equals(roleName)) {
                 userRepository
                     .findById(currentUser().getId())
                     .ifPresent(user -> group.setUsers(List.of(user)));

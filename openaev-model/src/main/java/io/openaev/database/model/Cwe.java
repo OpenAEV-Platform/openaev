@@ -20,6 +20,9 @@ import org.hibernate.annotations.UuidGenerator;
 @Table(name = "cwes")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Cwe implements TenantBase {
 
   @Id

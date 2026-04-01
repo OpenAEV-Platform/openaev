@@ -21,7 +21,6 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.*;
 import io.openaev.datapack.packs.V20260330_Default_tenant_data;
 import io.openaev.helper.StreamHelper;
-import io.openaev.service.DataPackService;
 import io.openaev.service.RoleService;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -55,12 +54,11 @@ class TenantServiceTest extends IntegrationTest {
   @Autowired private MinioClient minioClient;
   @Autowired private DomainRepository domainRepository;
   @Autowired private TenantRepository tenantRepository;
-  @Autowired private DataPackService dataPackService;
   @Autowired private VulnerabilityRepository vulnerabilityRepository;
   @Autowired private CweRepository cweRepository;
   @Autowired private RoleService roleService;
   @Autowired private GroupRepository groupRepository;
-  @Autowired private UserRepository userRepository;
+  @Autowired private V20260330_Default_tenant_data datapack;
 
   @Test
   void should_create_and_find_tenant() throws Exception {
@@ -71,14 +69,6 @@ class TenantServiceTest extends IntegrationTest {
     Tenant created = tenantService.create(tenant);
     TenantContext.setCurrentTenant(tenant.getId());
     // Simulate for tenant creation because Dataprocessor has @Profile("!test")
-    V20260330_Default_tenant_data datapack =
-        new V20260330_Default_tenant_data(
-            dataPackService,
-            vulnerabilityRepository,
-            cweRepository,
-            roleService,
-            groupRepository,
-            userRepository);
     datapack.process(created);
 
     // Upload a file to verify MinIO path-based isolation works
