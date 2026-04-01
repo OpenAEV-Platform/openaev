@@ -212,9 +212,8 @@ public class InjectorApi extends RestBehavior {
       throws IOException {
     platform = Optional.ofNullable(platform).map(String::toLowerCase).orElse("");
     architecture =
-        Optional.ofNullable(AgentUtils.getCanonicalArchitectureString(architecture))
-            .map(String::toLowerCase)
-            .orElse("");
+        AgentUtils.getCanonicalArchitectureString(
+            Optional.ofNullable(architecture).map(String::toLowerCase).orElse(""));
     if (!AVAILABLE_PLATFORMS.contains(platform)) {
       this.injectStatusService.setImplantErrorTrace(
           injectId, agentId, "Unable to download the implant. Platform invalid: " + platform);
