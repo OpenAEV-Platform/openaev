@@ -10,4 +10,3 @@ interface Window {
   ENABLED_DEV_FEATURES?: string;
   __assetsPath?: (filename: string) => string;
 }
-

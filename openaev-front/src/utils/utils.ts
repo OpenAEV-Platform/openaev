@@ -137,8 +137,6 @@ export const useIsFeatureEnabled = (feature: DevFeature) => {
   return (settings.enabled_dev_features ?? []).includes('FEATURE_FLAG_ALL') || (settings.enabled_dev_features ?? []).includes(feature);
 };
 
-
-
 export const getUrl = (url: string, base: string): string => {
   const urlToReturn = new URL(url, base);
   return urlToReturn.toString();

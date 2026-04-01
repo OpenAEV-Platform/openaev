@@ -19,7 +19,7 @@ import { buildTenantApiPath } from './tenant-url-helper';
 const cache = createIntlCache();
 
 export const buildUri = (uri: string) => {
-    if (isFeatureFlagEnabled('MULTI_TENANCY')) {
+  if (isFeatureFlagEnabled('MULTI_TENANCY')) {
     return `${APP_BASE_PATH}${buildTenantApiPath(uri)}`;
   }
   return `${APP_BASE_PATH}${uri}`;
