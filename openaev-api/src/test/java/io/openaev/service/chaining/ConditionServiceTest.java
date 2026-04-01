@@ -846,7 +846,6 @@ public class ConditionServiceTest {
       stepFrom.setId(stepFromId);
 
       when(stepRepository.findById(stepFromId)).thenReturn(Optional.of(stepFrom));
-      when(stepRepository.findAllById(any())).thenReturn(List.of());
       when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
 
       // -------- Act --------
@@ -879,7 +878,6 @@ public class ConditionServiceTest {
       stepFrom.setId(stepFromId);
 
       when(stepRepository.findById(stepFromId)).thenReturn(Optional.of(stepFrom));
-      when(stepRepository.findAllById(any())).thenReturn(List.of());
       when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
 
       // -------- Act --------
@@ -915,7 +913,6 @@ public class ConditionServiceTest {
       stepFrom.setId(stepFromId);
 
       when(stepRepository.findById(stepFromId)).thenReturn(Optional.of(stepFrom));
-      when(stepRepository.findAllById(any())).thenReturn(List.of());
       when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
 
       // -------- Act --------
