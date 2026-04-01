@@ -6,7 +6,7 @@ import io.openaev.annotation.Queryable;
 import io.openaev.database.model.Filters;
 import io.openaev.database.model.InjectExpectation.EXPECTATION_STATUS;
 import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
-import io.openaev.engine.model.EsBase;
+import io.openaev.engine.model.tenant.EsTenantBase;
 import java.time.Instant;
 import java.util.Set;
 import lombok.Getter;
@@ -15,7 +15,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Indexable(index = "expectation-inject", label = "Inject expectation", ref = "InjectExpectation")
-public class EsInjectExpectation extends EsBase {
+public class EsInjectExpectation extends EsTenantBase {
   /* Every attribute must be uniq, so prefixed with the entity type! */
   /* Except relationships, they should have same name on every model! */
 

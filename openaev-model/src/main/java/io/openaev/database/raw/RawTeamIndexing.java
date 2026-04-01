@@ -11,7 +11,7 @@ import java.util.Set;
  *
  * @see io.openaev.database.model.Team
  */
-public interface RawTeam {
+public interface RawTeamIndexing extends RawTenant {
 
   /**
    * Returns the unique identifier of the team.

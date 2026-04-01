@@ -2,7 +2,7 @@ package io.openaev.engine.model.attackpattern;
 
 import io.openaev.annotation.Indexable;
 import io.openaev.annotation.Queryable;
-import io.openaev.engine.model.EsBase;
+import io.openaev.engine.model.tenant.EsTenantBase;
 import java.util.List;
 import java.util.Set;
 import lombok.Getter;
@@ -11,7 +11,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Indexable(index = "attack-pattern", label = "Attack pattern")
-public class EsAttackPattern extends EsBase {
+public class EsAttackPattern extends EsTenantBase {
   /* Every attribute must be uniq, so prefixed with the entity type! */
   /* Except relationships, they should have same name on every model! */
 

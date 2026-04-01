@@ -4,14 +4,14 @@ import io.openaev.annotation.EsQueryable;
 import io.openaev.annotation.Indexable;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.model.ContractOutputType;
-import io.openaev.engine.model.EsBase;
+import io.openaev.engine.model.tenant.EsTenantBase;
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
 @Indexable(index = "finding", label = "Finding")
-public class EsFinding extends EsBase {
+public class EsFinding extends EsTenantBase {
   /* Every attribute must be uniq, so prefixed with the entity type! */
   /* Except relationships, they should have same name on every model! */
 

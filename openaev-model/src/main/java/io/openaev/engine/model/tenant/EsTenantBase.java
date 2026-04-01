@@ -1,20 +1,19 @@
-package io.openaev.engine.model.tag;
+package io.openaev.engine.model.tenant;
 
 import io.openaev.annotation.EsQueryable;
-import io.openaev.annotation.Indexable;
 import io.openaev.annotation.Queryable;
-import io.openaev.engine.model.tenant.EsTenantBase;
+import io.openaev.engine.model.EsBase;
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
-@Indexable(index = "tag", label = "Tag")
-public class EsTag extends EsTenantBase {
+public class EsTenantBase extends EsBase {
+
   /* Every attribute must be uniq, so prefixed with the entity type! */
   /* Except relationships, they should have same name on every model! */
 
-  @Queryable(label = "tag color", filterable = true)
+  @Queryable(label = "tenant", filterable = true, dynamicValues = true)
   @EsQueryable(keyword = true)
-  private String tag_color;
+  private String base_tenant_side; // Must finish by _side
 }

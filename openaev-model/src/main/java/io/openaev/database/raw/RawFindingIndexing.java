@@ -11,7 +11,7 @@ import java.time.Instant;
  *
  * @see io.openaev.database.model.Finding
  */
-public interface RawFinding {
+public interface RawFindingIndexing extends RawTenant {
 
   /**
    * Returns the unique identifier of the finding.
