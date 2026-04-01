@@ -134,7 +134,6 @@ const TENANT_MIGRATION_TODO: string[] = [
  * one place that applies the tenant prefix to all API calls.
  */
 export const buildTenantApiPath = (uri: string): string => {
-  console.log("==> buildTenantApiPath uri",  uri);
   if (!uri.startsWith('/api/')) {
     return uri;
   }
@@ -147,6 +146,5 @@ export const buildTenantApiPath = (uri: string): string => {
 
   const tenantId = getCurrentTenantId();
   const pathAfterApi = uri.slice('/api'.length);
-  console.log("==> buildTenantApiPath", tenantId, uri, pathAfterApi);
   return `/api/tenants/${tenantId}${pathAfterApi}`;
 };

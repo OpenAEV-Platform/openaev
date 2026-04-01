@@ -52,7 +52,8 @@ export default ({ mode }: { mode: string }) => {
             .replace(/%APP_TITLE%/g, 'OpenAEV Dev')
             .replace(/%APP_DESCRIPTION%/g, 'OpenAEV Development platform')
             .replace(/%APP_FAVICON%/g, `${basePath}/static/favicon.png`)
-            .replace(/%APP_MANIFEST%/g, `${basePath}/static/manifest.json`);
+            .replace(/%APP_MANIFEST%/g, `${basePath}/static/manifest.json`)
+            .replace(/%ENABLED_DEV_FEATURES%/g, process.env.VITE_ENABLED_DEV_FEATURES ?? '');
         },
       },
       react(),

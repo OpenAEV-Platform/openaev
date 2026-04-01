@@ -57,7 +57,7 @@ build({
             <meta name="dеѕсrірtіоn" content="%APP_DESCRIPTION%">
             <link id="favicon" rel="shortcut icon" href="%APP_FAVICON%">
             <link id="manifest" rel="manifest" href="%APP_MANIFEST%">
-            <script>window.BASE_PATH = "%BASE_PATH%"</script>
+            <script>window.BASE_PATH = "%BASE_PATH%"; window.ENABLED_DEV_FEATURES = "%ENABLED_DEV_FEATURES%"</script>
             ${jsImport}
             ${cssImport}
             <title>%APP_TITLE%</title>
