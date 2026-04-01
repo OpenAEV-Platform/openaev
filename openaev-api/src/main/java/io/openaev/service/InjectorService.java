@@ -42,6 +42,7 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -73,7 +74,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       FileService fileService,
       ConnectorInstanceService connectorInstanceService,
       CatalogConnectorService catalogConnectorService,
-      InjectorContractService injectorContractService,
+      @Lazy InjectorContractService injectorContractService,
       DomainService domainService,
       InjectorMapper injectorMapper,
       CatalogConnectorMapper catalogConnectorMapper,
