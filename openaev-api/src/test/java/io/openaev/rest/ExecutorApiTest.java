@@ -25,7 +25,6 @@ import io.openaev.utils.fixtures.composers.ConnectorInstanceComposer;
 import io.openaev.utils.fixtures.composers.ConnectorInstanceConfigurationComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.transaction.Transactional;
-import java.io.InputStream;
 import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
@@ -226,12 +225,6 @@ public class ExecutorApiTest extends IntegrationTest {
   @Nested
   @DisplayName("Agent downloads")
   public class AgentDownloadsTest {
-    private String getHexDigestFromBinaryResourcePath(String path) throws Exception {
-      try (InputStream inputStream = getClass().getResourceAsStream(path)) {
-        return HashUtils.getSha256HexDigest(inputStream.readAllBytes());
-      }
-    }
-
     private static Stream<Arguments> platformArchCombinationsFailure() {
       return Stream.of(
           Arguments.of(
@@ -445,7 +438,7 @@ public class ExecutorApiTest extends IntegrationTest {
           };
       assertThat(HashUtils.getSha256HexDigest(agentBytes))
           .isEqualTo(
-              getHexDigestFromBinaryResourcePath(
+              HashUtils.getSha256HexDigest(
                   "/agents/openaev-agent/%s/%s/%s"
                       .formatted(
                           platform.toLowerCase(),
@@ -488,7 +481,7 @@ public class ExecutorApiTest extends IntegrationTest {
           };
       assertThat(HashUtils.getSha256HexDigest(agentBytes))
           .isEqualTo(
-              getHexDigestFromBinaryResourcePath(
+              HashUtils.getSha256HexDigest(
                   "/agents/openaev-agent/%s/%s/%s"
                       .formatted(
                           platform.toLowerCase(),

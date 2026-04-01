@@ -210,6 +210,7 @@ public class InjectorApi extends RestBehavior {
       @RequestParam(required = false) final String injectId,
       @RequestParam(required = false) final String agentId)
       throws IOException {
+    platform = Optional.ofNullable(platform).map(String::toLowerCase).orElse("");
     architecture =
         Optional.ofNullable(AgentUtils.getCanonicalArchitectureString(architecture))
             .map(String::toLowerCase)
