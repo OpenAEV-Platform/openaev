@@ -20,8 +20,6 @@ import java.util.Optional;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 @Slf4j
@@ -57,10 +55,11 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
   }
 
   private Optional<User> getAuthedUserFromAuthorizationHeader(String value) {
-    Set<ExtractorBase> extractors = Set.of(this.connectorJwtExtractor, this.platformJwtExtractor);
+    Set<ExtractorBase> extractors =
+        Set.of(this.connectorJwtExtractor, this.platformJwtExtractor, this.plainTokenExtractor);
 
     if (!value.toLowerCase().startsWith(BEARER_PREFIX)) {
-      return Optional.empty();
+      return this.plainTokenExtractor.authUser(value);
     }
 
     String candidateToken = value.substring(BEARER_PREFIX.length());
@@ -74,7 +73,7 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
         log.debug("Could not authenticate using extractor {}", extractor, e);
       }
     }
-    return this.plainTokenExtractor.authUser(candidateToken);
+    return Optional.empty();
   }
 
   private Optional<User> getAuthedUser(HttpServletRequest request) {
@@ -93,13 +92,7 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
       throws ServletException, IOException {
-    Optional<User> authedUser = getAuthedUser(request);
-    SecurityContext userContext = SecurityContextHolder.getContext();
-    if (authedUser.isPresent()) {
-      userService.createUserSession(authedUser.get());
-    } else if (userContext.getAuthentication() != null) {
-      SecurityContextHolder.setContext(SecurityContextHolder.createEmptyContext());
-    }
+    getAuthedUser(request).ifPresent(user -> userService.createUserSession(user));
     filterChain.doFilter(request, response);
   }
 }

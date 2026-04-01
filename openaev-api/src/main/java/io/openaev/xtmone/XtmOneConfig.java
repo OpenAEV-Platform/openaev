@@ -23,13 +23,13 @@ public class XtmOneConfig {
   private volatile String platformVersion;
 
   public String getEffectiveWebToken() {
-    if (!StringUtils.isBlank(webToken)) {
-      return webToken;
+    if (!StringUtils.isBlank(getWebToken())) {
+      return getWebToken();
     }
-    return discoveredWebToken;
+    return getDiscoveredWebToken();
   }
 
   public boolean isConfigured() {
-    return !StringUtils.isBlank(url) && !StringUtils.isBlank(token);
+    return !StringUtils.isBlank(getUrl()) && !StringUtils.isBlank(getToken());
   }
 }
