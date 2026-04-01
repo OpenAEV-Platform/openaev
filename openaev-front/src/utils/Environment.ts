@@ -75,7 +75,9 @@ const ENABLED_DEV_FEATURES: string[] = rawFeatures.includes('%')
  * from the server-injected window global, not from the Redux store.
  */
 export const isFeatureFlagEnabled = (flagName: string): boolean =>
-  ENABLED_DEV_FEATURES.includes('FEATURE_FLAG_ALL') || ENABLED_DEV_FEATURES.includes(flagName);
+  ENABLED_DEV_FEATURES.includes('FEATURE_FLAG_ALL')
+  || ENABLED_DEV_FEATURES.includes('*')
+  || ENABLED_DEV_FEATURES.includes(flagName);
 
 export const fileUri = (fileImport: string): string => `${APP_BASE_PATH}${fileImport}`; // No slash here, will be replaced by the builder
 
