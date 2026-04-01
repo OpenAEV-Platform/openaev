@@ -21,12 +21,12 @@ const useStyles = makeStyles()(theme => ({
   },
 }));
 
-const getBackgroundColor = (successRate: number | null): string | undefined => {
+export const getBackgroundColor = (successRate: number | null): string | undefined => {
   if (successRate === null) return undefined;
-  if (successRate === 1) return SUCCESS_100_COLOR;
-  if (successRate === 0) return SUCCESS_25_COLOR;
-  if (successRate >= 0.75) return SUCCESS_75_COLOR;
-  return SUCCESS_50_COLOR;
+  if (successRate >= 0.75) return SUCCESS_100_COLOR;
+  if (successRate >= 0.50) return SUCCESS_75_COLOR;
+  if (successRate >= 0.25) return SUCCESS_50_COLOR;
+  return SUCCESS_25_COLOR;
 };
 
 const getTextColor = (theme: Theme, total: number): string | undefined => {
