@@ -125,6 +125,7 @@ public class PayloadService {
       String contractId = String.valueOf(UUID.randomUUID());
       injectorContractToUpdate = new InjectorContract();
       injectorContractToUpdate.setId(contractId);
+      injectorContractToUpdate.setTenant(injector.getTenant());
     }
 
     setInjectorContractPropertyBasedOnPayload(injectorContractToUpdate, payload, injector);

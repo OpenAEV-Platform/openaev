@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { Routes } from 'react-router';
+import { Navigate, Route, Routes } from 'react-router';
 
 import Loader from '../payloads/Loader';
 import TenantRoutes from './tenants/routes/TenantsRoutes';
@@ -9,6 +9,7 @@ const PlatformIndex = () => {
   return (
     <Suspense fallback={<Loader />}>
       <Routes>
+        <Route index element={<Navigate to="tenants" replace />} />
         {TenantRoutes}
         {UsersCapabilitiesRoutes}
       </Routes>
