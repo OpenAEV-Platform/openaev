@@ -66,8 +66,7 @@ public class HomeApi {
             .replaceAll("%APP_MANIFEST%", basePath + "/static/manifest.json")
             .replaceAll("%BASE_PATH%", basePath)
             .replaceAll(
-                "%ENABLED_DEV_FEATURES%",
-                enabledDevFeatures != null ? enabledDevFeatures : "");
+                "%ENABLED_DEV_FEATURES%", enabledDevFeatures != null ? enabledDevFeatures : "");
     return ResponseEntity.ok().header(HttpHeaders.CACHE_CONTROL, "no-cache").body(newIndex);
   }
 }
