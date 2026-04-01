@@ -15,6 +15,7 @@ import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.rest.exercise.service.PauseExerciseService;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.chaining.WorkflowService;
@@ -75,6 +76,9 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private InjectExpectationMapper injectExpectationMapper;
   @Autowired private ScenarioRecurrenceService scenarioRecurrenceService;
   @Autowired private InjectorContractFixture injectorContractFixture;
+  @Autowired private LessonsService lessonsService;
+  @Autowired private FileService fileService;
+  @Autowired private PauseExerciseService pauseExerciseService;
 
   @Autowired private LessonsService lessonsService;
   @Autowired private WorkflowService workflowService;
@@ -116,6 +120,10 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             lessonsCategoryRepository,
             lessonsService,
             injectExpectationMapper,
+            scenarioRecurrenceService,
+            pauseExerciseService,
+            fileService,
+            lessonsService,
             scenarioRecurrenceService,
             workflowService,
             previewFeatureService);

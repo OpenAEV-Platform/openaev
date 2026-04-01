@@ -11,6 +11,7 @@ import static io.openaev.utils.StringUtils.duplicateString;
 import static io.openaev.utils.constants.Constants.ARTICLES;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilderWithNullHandling;
 import static java.time.Instant.now;
+import static java.time.temporal.ChronoUnit.MINUTES;
 import static java.util.Collections.emptyList;
 import static java.util.Optional.ofNullable;
 
@@ -63,6 +64,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
@@ -72,12 +74,15 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 
 @RequiredArgsConstructor
 @Validated
 @Service
+@Slf4j
 public class ExerciseService {
 
   @PersistenceContext private EntityManager entityManager;
@@ -117,6 +122,10 @@ public class ExerciseService {
 
   private final WorkflowService workflowService;
   private final PreviewFeatureService previewFeatureService;
+
+  private final PauseExerciseService pauseExerciseService;
+  private final FileService fileService;
+  private final LessonsService lessonsService;
 
   // region properties
   @Value("${openaev.mail.imap.enabled}")
@@ -517,6 +526,136 @@ public class ExerciseService {
    */
   public void deleteById(String simulationId) {
     exerciseRepository.deleteById(simulationId);
+  }
+
+  @Transactional(rollbackFor = Exception.class)
+  public Exercise changeExerciseStatus(ExerciseStatus status, String exerciseId) {
+    Exercise exercise =
+        this.exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+    // Check if next status is possible
+    List<ExerciseStatus> nextPossibleStatus = exercise.nextPossibleStatus();
+    if (!nextPossibleStatus.contains(status)) {
+      throw new UnsupportedOperationException(
+          "Exercise can't support moving to status " + status.name());
+    }
+    // In case of rescheduled of an exercise.
+    boolean isCloseState =
+        ExerciseStatus.CANCELED.equals(exercise.getStatus())
+            || ExerciseStatus.FINISHED.equals(exercise.getStatus());
+    if (isCloseState && ExerciseStatus.SCHEDULED.equals(status)) {
+      exercise.setStart(null);
+      exercise.setEnd(null);
+      // Reset pauses
+      exercise.setCurrentPause(null);
+      pauseRepository.deleteAll(pauseRepository.findAllForExercise(exerciseId));
+      // Reset injects outcome, communications and expectations
+      this.injectStatusRepository.deleteAllById(
+          exercise.getInjects().stream()
+              .map(Inject::getStatus)
+              .map(i -> i.map(InjectStatus::getId).orElse(""))
+              .toList());
+      exercise.getInjects().forEach(Inject::clean);
+      // Reset lessons learned answers
+      List<LessonsAnswer> lessonsAnswers =
+          lessonsCategoryRepository
+              .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
+              .stream()
+              .flatMap(
+                  lessonsCategory ->
+                      lessonsQuestionRepository
+                          .findAll(
+                              LessonsQuestionSpecification.fromCategory(lessonsCategory.getId()))
+                          .stream()
+                          .flatMap(
+                              lessonsQuestion ->
+                                  lessonsAnswerRepository
+                                      .findAll(
+                                          LessonsAnswerSpecification.fromQuestion(
+                                              lessonsQuestion.getId()))
+                                      .stream()))
+              .toList();
+      lessonsAnswerRepository.deleteAll(lessonsAnswers);
+      entityManager.flush();
+      entityManager.clear();
+      // Reload exercise after clearing entity manager to avoid detached entity issues
+      exercise =
+          this.exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+      // Delete exercise transient files (communications, ...)
+      fileService.deleteDirectory(exerciseId);
+    }
+    // In case of manual start
+    if (ExerciseStatus.SCHEDULED.equals(exercise.getStatus())
+        && ExerciseStatus.RUNNING.equals(status)) {
+      exerciseService.throwIfExerciseNotLaunchable(exercise);
+      Instant nextMinute = now().truncatedTo(MINUTES).plus(1, MINUTES);
+      exercise.setStart(nextMinute);
+      actionMetricCollector.addSimulationPlayedCount();
+    }
+    // If exercise move from pause to running state,
+    // we log the pause date to be able to recompute inject dates.
+    if (ExerciseStatus.PAUSED.equals(exercise.getStatus())
+        && ExerciseStatus.RUNNING.equals(status)) {
+      Instant lastPause = exercise.getCurrentPause().orElseThrow(ElementNotFoundException::new);
+      exercise.setCurrentPause(null);
+      Pause pause = new Pause();
+      pause.setDate(lastPause);
+      pause.setExercise(exercise);
+      pause.setDuration(between(lastPause, now()).getSeconds());
+      pauseRepository.save(pause);
+    }
+    // If pause is asked, just set the pause date.
+    if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
+        && ExerciseStatus.PAUSED.equals(status)) {
+      exercise.setCurrentPause(Instant.now());
+    }
+    // Cancelation
+    if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
+        && ExerciseStatus.CANCELED.equals(status)) {
+      exercise.setEnd(now());
+    }
+    exercise.setUpdatedAt(now());
+    exercise.setStatus(status);
+    return exerciseRepository.save(exercise);
+  }
+
+  private void resetExercise(Exercise exercise) {
+    // 1. DELETE PAUSES
+    pauseExerciseService.deleteAllPauseByExerciseId(exercise.getId());
+
+    // 2. RESET INJECTS (status, communications, findings, expectations, collect status)
+    // Fetched separately from exercise.getInjects() for performance (avoids Eager loading overhead)
+    injectService.resetInjectByExerciseId(exercise.getId());
+
+    // 3. RESET LESSONS ANSWERS
+    lessonsService.resetLessonsAnswer(exercise.getId());
+
+    // 4. SCHEDULE MINIO CLEANUP (after commit to avoid cleanup on rollback)
+    TransactionSynchronizationManager.registerSynchronization(
+        new TransactionSynchronization() {
+          @Override
+          public void afterCommit() {
+            try {
+              fileService.deleteDirectory(exercise.getId());
+            } catch (Exception e) {
+              log.error("Failed to delete directory for exercise {}", exercise.getId(), e);
+            }
+          }
+        });
+
+    // 5. RESET EXERCISE DATES
+    exercise.setStart(null);
+    exercise.setEnd(null);
+    exercise.setCurrentPause(null);
+  }
+
+  /**
+   * Save a simulation
+   *
+   * @param simulation simulation to save
+   * @return the saved simulation
+   */
+  public Exercise saveSimulation(Exercise simulation) {
+    return exerciseRepository.save(simulation);
   }
 
   public void throwIfExerciseNotLaunchable(Exercise exercise) {

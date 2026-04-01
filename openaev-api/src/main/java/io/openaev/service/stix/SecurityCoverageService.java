@@ -23,7 +23,6 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
-import io.openaev.service.AssetService;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.stix.error.BundleValidationError;
@@ -71,7 +70,6 @@ public class SecurityCoverageService {
   private final InjectService injectService;
   private final ResultUtils resultUtils;
   private final ExerciseService exerciseService;
-  private final AssetService assetService;
 
   private final ScenarioRepository scenarioRepository;
   private final SecurityCoverageRepository securityCoverageRepository;
@@ -511,7 +509,8 @@ public class SecurityCoverageService {
           objects);
     }
 
-    for (SecurityPlatform securityPlatform : assetService.securityPlatforms()) {
+    for (SecurityPlatform securityPlatform :
+        injectService.extractSecurityPlatforms(simulation.getInjects())) {
       DomainObject platformIdentity = securityPlatform.toStixDomainObject();
       objects.add(platformIdentity);
 

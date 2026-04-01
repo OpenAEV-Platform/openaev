@@ -7,8 +7,7 @@ description: "Backend Java/Spring conventions: entities, services, controllers, 
 
 ## ⚠️ Module Rule
 
-**`openaev-framework` is deprecated** — never add new code there. It will be removed.
-Place new utilities, services, and classes in `openaev-api` or `openaev-model` instead.
+> `openaev-framework` is deprecated — see [copilot-instructions.md](../copilot-instructions.md) for details. Never add new code there.
 
 ## Layering
 
@@ -20,7 +19,7 @@ Place new utilities, services, and classes in `openaev-api` or `openaev-model` i
 ## New Controllers (package `io.openaev.api.*`)
 
 - `@RestController @RequestMapping("/api/{entities}") @RequiredArgsConstructor`
-- Every endpoint: `@AccessControl`
+- Every endpoint: `@AccessControl` + `@LogExecutionTime` + `@Operation`
 - URI: lowercase, hyphens, nouns — HTTP method defines the action
 - Search: `@PostMapping("/search")`, Create: `201`, Delete: `204`
 - Organize endpoints with section comments: `// -- CREATE --`, `// -- READ --`, `// -- UPDATE --`, `// -- DELETE --`
@@ -35,22 +34,26 @@ For each entity exposed via REST, create three files in the same `io.openaev.api
 - **`{Entity}Mapper.java`** — Utility class with `private` constructor, static methods `toOutput(Entity)` and optionally `fromInput(String id, Input)`
 
 ```java
-// Example: PlatformRoleOutput.java
-public record PlatformRoleOutput(
-    @JsonProperty("platform_role_id") @NotBlank String id,
-    @JsonProperty("platform_role_name") @NotBlank String name,
-    ...) {}
+// DTOs — immutable Java record
+public record {Entity}Input(
+    @JsonProperty("entity_name") @NotBlank String name,
+    @JsonProperty("entity_description") String description) {}
 
-// Example: PlatformRoleMapper.java
-public class PlatformRoleMapper {
-  private PlatformRoleMapper() {}
-  public static PlatformRoleOutput toOutput(PlatformRole role) { ... }
+public record {Entity}Output(
+    @JsonProperty("entity_id") @NotBlank String id,
+    @JsonProperty("entity_name") @NotBlank String name,
+    @JsonProperty("entity_description") String description) {}
+
+// Mapper
+public class {Entity}Mapper {
+  private {Entity}Mapper() {}
+  public static {Entity}Output toOutput({Entity} entity) { ... }
 }
 
 // Usage in controller (static import):
-import static io.openaev.api.platform.PlatformRoleMapper.toOutput;
-public PlatformRoleOutput findById(...) { return toOutput(service.findById(id)); }
-public Page<PlatformRoleOutput> search(...) { return service.search(input).map(Mapper::toOutput); }
+import static io.openaev.api.feature.{Entity}Mapper.toOutput;
+public {Entity}Output findById(...) { return toOutput(service.findById(id)); }
+public Page<{Entity}Output> search(...) { return service.search(input).map({Entity}Mapper::toOutput); }
 ```
 
 ## Entities
@@ -66,15 +69,13 @@ public Page<PlatformRoleOutput> search(...) { return service.search(input).map(M
 
 - Collections must be mutable — never `List.of()` directly on entity fields
 - Prefer unidirectional relationships
+- `@Transactional` does NOT work on self-calls (Spring proxy bypass)
+- Background tasks: explicit `@Transactional` (no OSIV outside controllers)
 - `deleteById()` does a SELECT first — use native `@Query @Modifying` for perf-critical deletes
 
 ## Services
 
-- Every new service class should have these annotations:
-@Service — marks the class as a Spring-managed service bean
-@RequiredArgsConstructor — Lombok generates a constructor for all private final fields (replacing @Autowired)
-- Methods on Service class should uses
-@Transactional(rollbackFor = Exception.class) — wraps every public method in a transaction that rolls back on any exception (not just unchecked ones, which is the Spring default)
+- `@Service @RequiredArgsConstructor @Transactional(rollbackFor = Exception.class)`
 - Read methods: `@Transactional(readOnly = true)`
 - Always use `org.springframework.transaction.annotation.Transactional` — **never** `jakarta.transaction.Transactional` (which lacks `rollbackFor`, `readOnly`, etc.)
 - Organize methods with section comments in this order: `// -- CREATE --`, `// -- READ --`, `// -- UPDATE --`, `// -- DELETE --`
@@ -84,7 +85,8 @@ public Page<PlatformRoleOutput> search(...) { return service.search(input).map(M
 
 ## Repositories
 
-- Use JpaRepository instead of CrudRepository
+- Use `JpaRepository` instead of `CrudRepository`
+- Extend `JpaSpecificationExecutor` for entities that need search/filtering
 
 ## Lombok
 

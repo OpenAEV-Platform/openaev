@@ -26,8 +26,50 @@ class ExerciseServiceTest extends IntegrationTest {
   @Autowired private EntityManager entityManager;
   @Autowired private ExerciseService actualExerciseService;
 
+  @Autowired private LessonsService lessonsService;
+  @Autowired private FileService fileService;
+  @Autowired private PauseExerciseService pauseExerciseService;
+  @Autowired private ScenarioRecurrenceService scenarioRecurrenceService;
+
+  @Mock private InjectExpectationMapper injectExpectationMapper;
+
+  @InjectMocks private ExerciseService mockedExerciseService;
+
   @BeforeEach
   void setUp() {
+    mockedExerciseService =
+        new ExerciseService(
+            eeService,
+            injectDuplicateService,
+            teamService,
+            variableService,
+            tagRuleService,
+            documentService,
+            injectService,
+            userService,
+            grantService,
+            exerciseTeamUserService,
+            exerciseMapper,
+            injectMapper,
+            resultUtils,
+            actionMetricCollector,
+            licenseCacheManager,
+            assetRepository,
+            assetGroupRepository,
+            injectExpectationRepository,
+            articleRepository,
+            exerciseRepository,
+            teamRepository,
+            userRepository,
+            exerciseTeamUserRepository,
+            injectRepository,
+            lessonsCategoryRepository,
+            injectExpectationMapper,
+            scenarioRecurrenceService,
+            pauseExerciseService,
+            fileService,
+            lessonsService);
+
     scenarioComposer.reset();
     exerciseComposer.reset();
   }

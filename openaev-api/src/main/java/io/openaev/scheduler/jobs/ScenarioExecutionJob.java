@@ -99,7 +99,7 @@ public class ScenarioExecutionJob implements Job {
           s.setRecurrence(null);
         });
     // Save it
-    this.scenarioService.updateScenarios(scenarios);
+    if (!validScenarios.isEmpty()) this.scenarioService.updateScenarios(validScenarios);
   }
 
   private boolean isScenarioOutdated(@NotNull final Scenario scenario) {
