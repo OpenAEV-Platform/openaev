@@ -131,8 +131,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             workflowService,
             previewFeatureService,
             pauseExerciseService,
-            fileService
-           );
+            fileService);
   }
 
   @AfterAll

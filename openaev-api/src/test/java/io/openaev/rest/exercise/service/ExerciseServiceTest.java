@@ -5,27 +5,27 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import io.openaev.IntegrationTest;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
+import io.openaev.database.model.Exercise;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.*;
+import io.openaev.service.FileService;
+import io.openaev.service.LessonsService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.ResultUtils;
 import io.openaev.utils.fixtures.*;
+import io.openaev.utils.fixtures.ExerciseFixture;
+import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.InjectExpectationMapper;
 import io.openaev.utils.mapper.InjectMapper;
-import io.openaev.database.model.Exercise;
-import io.openaev.service.FileService;
-import io.openaev.service.LessonsService;
-import io.openaev.utils.fixtures.ExerciseFixture;
-import io.openaev.utils.fixtures.ScenarioFixture;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
@@ -86,10 +86,8 @@ class ExerciseServiceTest extends IntegrationTest {
 
   @Mock private InjectExpectationMapper injectExpectationMapper;
 
-  @InjectMocks
-  private ExerciseService mockedExerciseService;
-  @Autowired
-  private InjectStatusRepository injectStatusRepository;
+  @InjectMocks private ExerciseService mockedExerciseService;
+  @Autowired private InjectStatusRepository injectStatusRepository;
 
   @BeforeEach
   void setUp() {
