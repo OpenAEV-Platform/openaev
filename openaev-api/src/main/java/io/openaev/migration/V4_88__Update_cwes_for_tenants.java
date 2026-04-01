@@ -8,7 +8,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_86__Update_cwes_for_tenants extends BaseJavaMigration {
+public class V4_88__Update_cwes_for_tenants extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
