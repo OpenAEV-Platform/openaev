@@ -59,4 +59,3 @@ const DialogConfirmation: FunctionComponent<DialogConfirmationProps> = ({
 };
 
 export default DialogConfirmation;
-
