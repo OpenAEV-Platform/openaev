@@ -59,23 +59,22 @@ public class ZipJsonApi<T extends Base> {
 
   // -- IMPORT --
 
-  public ResponseEntity<JsonApiDocument<ResourceObject>> handleImport(
-      MultipartFile file, String nameAttributeKey) throws IOException {
+  public ZipJsonService.ImportOutput<T> handleImport(MultipartFile file, String nameAttributeKey)
+      throws IOException {
     return handleImport(file, nameAttributeKey, null, null);
   }
 
-  public ResponseEntity<JsonApiDocument<ResourceObject>> handleImport(
+  public ZipJsonService.ImportOutput<T> handleImport(
       MultipartFile file,
       String nameAttributeKey,
       IncludeOptions includeOptions,
       Function<T, T> sanityCheck)
       throws IOException {
-    return ResponseEntity.ok(
-        this.zipJsonService.handleImport(
-            file.getBytes(),
-            nameAttributeKey,
-            includeOptions,
-            sanityCheck,
-            IMPORTED_OBJECT_NAME_SUFFIX));
+    return this.zipJsonService.handleImport(
+        file.getBytes(),
+        nameAttributeKey,
+        includeOptions,
+        sanityCheck,
+        IMPORTED_OBJECT_NAME_SUFFIX);
   }
 }

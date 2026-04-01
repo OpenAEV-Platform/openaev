@@ -192,12 +192,14 @@ public class V20260101_Starter_pack extends DataPack {
             resourceToAdd -> {
               try {
                 JsonApiDocument<ResourceObject> dashboard =
-                    this.zipJsonService.handleImport(
-                        resourceToAdd.getContentAsByteArray(),
-                        "custom_dashboard_name",
-                        null,
-                        CustomDashboardService::sanityCheck,
-                        "");
+                    this.zipJsonService
+                        .handleImport(
+                            resourceToAdd.getContentAsByteArray(),
+                            "custom_dashboard_name",
+                            null,
+                            CustomDashboardService::sanityCheck,
+                            "")
+                        .jsonApiDocument();
                 this.setDefaultDashboard(resourceToAdd.getFilename(), dashboard.data().id());
                 log.info(
                     "Successfully imported StarterPack dashboard file : {}",

@@ -9,7 +9,9 @@ import io.openaev.jsonapi.ResourceObject;
 import io.openaev.jsonapi.ZipJsonApi;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.payload.PayloadApi;
+import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.service.ImportService;
+import io.openaev.service.ZipJsonService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +33,7 @@ public class PayloadApiImporter extends RestBehavior {
 
   private final ZipJsonApi<Payload> zipJsonApi;
   private final ImportService importService;
+  private final PayloadService payloadService;
 
   @Operation(
       description =
@@ -44,7 +47,9 @@ public class PayloadApiImporter extends RestBehavior {
   public ResponseEntity<JsonApiDocument<ResourceObject>> importJson(
       @RequestPart("file") @NotNull MultipartFile file) throws Exception {
     try {
-      return zipJsonApi.handleImport(file, "payload_name");
+      ZipJsonService.ImportOutput<Payload> response = zipJsonApi.handleImport(file, "payload_name");
+      payloadService.updateInjectorContractsForPayload(response.persistedData());
+      return ResponseEntity.ok(response.jsonApiDocument());
     } catch (Exception ex) {
       log.warn("Fallback to old import due to {}", ex.getMessage(), ex);
       // Fall back to the legacy importer
