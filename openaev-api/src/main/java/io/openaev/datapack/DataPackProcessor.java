@@ -6,6 +6,7 @@ import io.openaev.database.repository.TenantRepository;
 import io.openaev.helper.StreamHelper;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
+import io.openaev.rest.domain.DomainService;
 import jakarta.annotation.PostConstruct;
 import java.util.Comparator;
 import java.util.List;
@@ -61,5 +62,11 @@ public class DataPackProcessor implements DependenciesManager {
   public void deleteDependencyForTenant(String tenantId) {
     // Automatic thanks to cascade delete
     log.info("Deleting all data from datapack and datapack itself for tenant {}.", tenantId);
+  }
+
+  @Override
+  public List<Class<? extends DependenciesManager>> getPrerequisite() {
+    // We want to process datapack after all the default domain are created for the tenant
+    return List.of(DomainService.class);
   }
 }

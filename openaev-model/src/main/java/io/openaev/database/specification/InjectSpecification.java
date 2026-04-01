@@ -104,7 +104,8 @@ public class InjectSpecification {
   // -- CONTRACT --
 
   public static Specification<Inject> fromContract(@NotBlank final String contract) {
-    return (root, query, cb) -> cb.equal(root.get("injectorContract").get("id"), contract);
+    return (root, query, cb) ->
+        cb.equal(root.get("injectorContract").get("compositeId").get("id"), contract);
   }
 
   // -- TEST --

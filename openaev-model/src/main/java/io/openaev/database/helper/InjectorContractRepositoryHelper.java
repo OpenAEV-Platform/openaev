@@ -1,5 +1,6 @@
 package io.openaev.database.helper;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.InjectorContract;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -48,7 +49,8 @@ public class InjectorContractRepositoryHelper {
                 + "JOIN payloads p ON ic.injector_contract_payload = p.payload_id "
                 + "JOIN injectors_contracts_attack_patterns injectorAttack ON ic.injector_contract_id = injectorAttack.injector_contract_id "
                 + "JOIN attack_patterns a ON injectorAttack.attack_pattern_id = a.attack_pattern_id "
-                + "WHERE a.attack_pattern_external_id LIKE :attackPatternExternalId");
+                + "WHERE ic.tenant_id = :tenantId "
+                + "AND a.attack_pattern_external_id LIKE :attackPatternExternalId");
 
     // Build parameterized query to prevent SQL injection
     List<String> platforms = new ArrayList<>();
@@ -74,6 +76,7 @@ public class InjectorContractRepositoryHelper {
     sql.append(" ORDER BY RANDOM() LIMIT :limit");
 
     Query query = this.entityManager.createNativeQuery(sql.toString(), InjectorContract.class);
+    query.setParameter("tenantId", TenantContext.getCurrentTenant());
     query.setParameter("attackPatternExternalId", attackPatternExternalId + "%");
     query.setParameter("limit", limit);
 

@@ -2,6 +2,7 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.InjectorContractId;
 import io.openaev.database.model.Payload;
 import io.openaev.database.raw.RawInjectorsContracts;
 import jakarta.validation.constraints.NotNull;
@@ -9,6 +10,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
@@ -32,7 +34,8 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface InjectorContractRepository
-    extends CrudRepository<InjectorContract, String>, JpaSpecificationExecutor<InjectorContract> {
+    extends CrudRepository<InjectorContract, InjectorContractId>,
+        JpaSpecificationExecutor<InjectorContract> {
 
   /**
    * Retrieves all injector contracts with their associated attack pattern external IDs.
@@ -49,6 +52,7 @@ public interface InjectorContractRepository
               + "FROM injectors_contracts injcon "
               + "LEFT JOIN injectors_contracts_attack_patterns injconatt ON injcon.injector_contract_id = injconatt.injector_contract_id "
               + "LEFT JOIN attack_patterns attpatt ON injconatt.attack_pattern_id = attpatt.attack_pattern_id "
+              + "WHERE injcon.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY injcon.injector_contract_id",
       nativeQuery = true)
   List<RawInjectorsContracts> getAllRawInjectorsContracts();
@@ -69,7 +73,8 @@ public interface InjectorContractRepository
               + "FROM injectors_contracts injcon "
               + "LEFT JOIN injectors_contracts_attack_patterns injconatt ON injcon.injector_contract_id = injconatt.injector_contract_id "
               + "LEFT JOIN attack_patterns attpatt ON injconatt.attack_pattern_id = attpatt.attack_pattern_id "
-              + "WHERE injcon.injector_contract_payload IS NULL "
+              + "WHERE injcon.tenant_id = :#{#tenantContext.currentTenant} "
+              + "AND (injcon.injector_contract_payload IS NULL "
               + "OR EXISTS ( "
               + "  SELECT 1 FROM users u "
               + "  INNER JOIN users_groups ug ON u.user_id = ug.user_id "
@@ -77,17 +82,21 @@ public interface InjectorContractRepository
               + "  INNER JOIN grants gr ON g.group_id = gr.grant_group "
               + "  WHERE u.user_id = :userId "
               + "  AND gr.grant_resource = injcon.injector_contract_payload "
-              + ") "
+              + ")) "
               + "GROUP BY injcon.injector_contract_id",
       nativeQuery = true)
   List<RawInjectorsContracts> getAllRawInjectorsContractsWithoutPayloadOrGranted(
       @Param("userId") String userId);
 
   @NotNull
-  Optional<InjectorContract> findById(@NotNull String id);
+  @Query("SELECT ic FROM InjectorContract ic WHERE ic.compositeId.id = :id")
+  Optional<InjectorContract> findById(@Param("id") @NotNull String id);
 
   @NotNull
-  Optional<InjectorContract> findByIdOrExternalId(String id, String externalId);
+  @Query(
+      "SELECT ic FROM InjectorContract ic WHERE ic.compositeId.id = :id OR ic.externalId = :externalId")
+  Optional<InjectorContract> findByIdOrExternalId(
+      @Param("id") String id, @Param("externalId") String externalId);
 
   @NotNull
   List<InjectorContract> findInjectorContractsByInjector(@NotNull Injector injector);
@@ -98,6 +107,14 @@ public interface InjectorContractRepository
 
   @NotNull
   List<InjectorContract> findInjectorContractsByPayload(@NotNull Payload payload);
+
+  @Modifying
+  @Query("DELETE FROM InjectorContract ic WHERE ic.compositeId.id = :id")
+  void deleteById(@Param("id") @NotNull String id);
+
+  @Modifying
+  @Query("DELETE FROM InjectorContract ic WHERE ic.compositeId.id IN :ids")
+  void deleteAllById(@Param("ids") @NotNull List<String> ids);
 
   @Query(
       value =
@@ -115,6 +132,7 @@ public interface InjectorContractRepository
             JOIN vulnerabilities vulnerability
               ON icv.vulnerability_id = vulnerability.vulnerability_id
             WHERE LOWER(vulnerability.vulnerability_external_id) IN (:externalIds)
+              AND ic.tenant_id = :#{#tenantContext.currentTenant}
         ) ranked
         WHERE ranked.rn <= :contractsPerVulnerability
         """,

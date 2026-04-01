@@ -164,32 +164,31 @@ public class InjectSearchService {
 
     // SELECT
     cq.multiselect(
-            injectRoot.get("id").alias("inject_id"),
-            injectRoot.get("title").alias("inject_title"),
-            injectRoot.get("enabled").alias("inject_enabled"),
-            injectRoot.get("content").alias("inject_content"),
-            injectRoot.get("allTeams").alias("inject_all_teams"),
-            injectExerciseJoin.get("id").alias("inject_exercise"),
-            injectScenarioJoin.get("id").alias("inject_scenario"),
-            injectRoot.get("dependsDuration").alias("inject_depends_duration"),
-            injectorContractJoin.alias("inject_injector_contract"),
-            tagIdsExpression.alias("inject_tags"),
-            teamIdsExpression.alias("inject_teams"),
-            assetIdsExpression.alias("inject_assets"),
-            assetGroupIdsExpression.alias("inject_asset_groups"),
-            injectorJoin.get("type").alias("inject_type"),
-            domainsPayloadIdExpression.alias("payload_domains"),
-            domainsContractIdExpression.alias("injector_contract_domains"),
-            injectDependency.alias("inject_depends_on"))
-        .distinct(true);
+        injectRoot.get("id").alias("inject_id"),
+        injectRoot.get("title").alias("inject_title"),
+        injectRoot.get("enabled").alias("inject_enabled"),
+        injectRoot.get("content").alias("inject_content"),
+        injectRoot.get("allTeams").alias("inject_all_teams"),
+        injectExerciseJoin.get("id").alias("inject_exercise"),
+        injectScenarioJoin.get("id").alias("inject_scenario"),
+        injectRoot.get("dependsDuration").alias("inject_depends_duration"),
+        injectorContractJoin.alias("inject_injector_contract"),
+        tagIdsExpression.alias("inject_tags"),
+        teamIdsExpression.alias("inject_teams"),
+        assetIdsExpression.alias("inject_assets"),
+        assetGroupIdsExpression.alias("inject_asset_groups"),
+        injectorJoin.get("type").alias("inject_type"),
+        domainsPayloadIdExpression.alias("payload_domains"),
+        domainsContractIdExpression.alias("injector_contract_domains"),
+        injectDependency.alias("inject_depends_on"));
 
-    // GROUP BY
+    // GROUP BY — compositeId expands to both PK columns (injector_contract_id + tenant_id)
     cq.groupBy(
         Arrays.asList(
             injectRoot.get("id"),
             injectExerciseJoin.get("id"),
             injectScenarioJoin.get("id"),
-            injectorContractJoin.get("id"),
+            injectorContractJoin.get("compositeId"),
             injectorJoin.get("id"),
             injectDependency.get("id")));
   }
@@ -519,34 +518,33 @@ public class InjectSearchService {
 
     // SELECT
     cq.multiselect(
-            injectRoot.get("id").alias("inject_id"),
-            injectRoot.get("title").alias("inject_title"),
-            injectRoot.get("updatedAt").alias("inject_updated_at"),
-            injectRoot.get("content").alias("inject_content"),
-            injectorJoin.get("type").alias("inject_type"),
-            injectorContractJoin.get("id").alias("injector_contract_id"),
-            injectorContractJoin.get("content").alias("injector_contract_content"),
-            injectorContractJoin.get("convertedContent").alias("convertedContent"),
-            injectorContractJoin.get("platforms").alias("injector_contract_platforms"),
-            injectorContractJoin.get("labels").alias("injector_contract_labels"),
-            payloadJoin.get("id").alias("payload_id"),
-            payloadJoin.get("type").alias("payload_type"),
-            collectorTypeJoin.get("name").alias("payload_collector_type"),
-            statusJoin.get("id").alias("status_id"),
-            statusJoin.get("name").alias("status_name"),
-            statusJoin.get("trackingSentDate").alias("status_tracking_sent_date"),
-            teamIdsExpression.alias("inject_teams"),
-            assetIdsExpression.alias("inject_assets"),
-            domainsPayloadIdExpression.alias("payload_domains"),
-            domainsContractIdExpression.alias("injector_contract_domains"),
-            assetGroupIdsExpression.alias("inject_asset_groups"))
-        .distinct(true);
+        injectRoot.get("id").alias("inject_id"),
+        injectRoot.get("title").alias("inject_title"),
+        injectRoot.get("updatedAt").alias("inject_updated_at"),
+        injectRoot.get("content").alias("inject_content"),
+        injectorJoin.get("type").alias("inject_type"),
+        injectorContractJoin.get("compositeId").get("id").alias("injector_contract_id"),
+        injectorContractJoin.get("content").alias("injector_contract_content"),
+        injectorContractJoin.get("convertedContent").alias("convertedContent"),
+        injectorContractJoin.get("platforms").alias("injector_contract_platforms"),
+        injectorContractJoin.get("labels").alias("injector_contract_labels"),
+        payloadJoin.get("id").alias("payload_id"),
+        payloadJoin.get("type").alias("payload_type"),
+        collectorTypeJoin.get("name").alias("payload_collector_type"),
+        statusJoin.get("id").alias("status_id"),
+        statusJoin.get("name").alias("status_name"),
+        statusJoin.get("trackingSentDate").alias("status_tracking_sent_date"),
+        teamIdsExpression.alias("inject_teams"),
+        assetIdsExpression.alias("inject_assets"),
+        domainsPayloadIdExpression.alias("payload_domains"),
+        domainsContractIdExpression.alias("injector_contract_domains"),
+        assetGroupIdsExpression.alias("inject_asset_groups"));
 
-    // GROUP BY
+    // GROUP BY — compositeId expands to both PK columns (injector_contract_id + tenant_id)
     cq.groupBy(
         Arrays.asList(
             injectRoot.get("id"),
-            injectorContractJoin.get("id"),
+            injectorContractJoin.get("compositeId"),
             injectorJoin.get("id"),
             payloadJoin.get("id"),
             collectorTypeJoin.get("name"),

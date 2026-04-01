@@ -22,6 +22,7 @@ import com.opencsv.bean.StatefulBeanToCsv;
 import com.opencsv.bean.StatefulBeanToCsvBuilder;
 import com.opencsv.exceptions.CsvDataTypeMismatchException;
 import com.opencsv.exceptions.CsvRequiredFieldEmptyException;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.ImportMapperRepository;
@@ -196,7 +197,14 @@ public class MapperService {
    * @return The map of injector contracts by ids
    */
   private Map<String, InjectorContract> getMapOfInjectorContracts(List<String> ids) {
-    return stream(injectorContractRepository.findAllById(ids).spliterator(), false)
+    return stream(
+            injectorContractRepository
+                .findAllById(
+                    ids.stream()
+                        .map(s -> new InjectorContractId(s, TenantContext.getCurrentTenant()))
+                        .toList())
+                .spliterator(),
+            false)
         .collect(Collectors.toMap(InjectorContract::getId, Function.identity()));
   }
 
