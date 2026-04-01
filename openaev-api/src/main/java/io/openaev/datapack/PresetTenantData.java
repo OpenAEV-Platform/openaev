@@ -28,6 +28,7 @@ public class PresetTenantData {
                   .cisaActionDue(Instant.parse("2021-03-02T00:00:00Z"))
                   .description("Microsoft Exchange Server ProxyLogon SSRF leading to RCE.")
                   .cvssV31(new BigDecimal("9.8"))
+                  .vulnStatus(Vulnerability.VulnerabilityStatus.ANALYZED)
                   .cisaRequiredAction("Apply updates per vendor instructions")
                   .cisaVulnerabilityName(
                       "Microsoft Exchange Server Remote Code Execution Vulnerability")
@@ -48,6 +49,7 @@ public class PresetTenantData {
                   .description(
                       "Cisco IOS XE Web UI remote code execution via unauthenticated command injection.")
                   .cvssV31(new BigDecimal("10.0"))
+                  .vulnStatus(Vulnerability.VulnerabilityStatus.ANALYZED)
                   .cisaRequiredAction("Verify compliance with BOD 23-02 and apply mitigations.")
                   .cisaVulnerabilityName("Cisco IOS XE Web UI Privilege Escalation Vulnerability")
                   .referenceUrls(
@@ -66,6 +68,7 @@ public class PresetTenantData {
                   .cisaActionDue(Instant.parse("2024-01-12T00:00:00Z"))
                   .description("Ivanti Connect Secure/Policy Secure gateway authentication bypass.")
                   .cvssV31(new BigDecimal("8.2"))
+                  .vulnStatus(Vulnerability.VulnerabilityStatus.ANALYZED)
                   .cisaRequiredAction(
                       "Apply mitigations per vendor instructions or discontinue product if unavailable.")
                   .cisaVulnerabilityName(
@@ -86,6 +89,7 @@ public class PresetTenantData {
                   .description(
                       "Improper neutralization of SQL elements in Fortinet FortiClientEMS allows RCE/commands.")
                   .cvssV31(new BigDecimal("9.8"))
+                  .vulnStatus(Vulnerability.VulnerabilityStatus.ANALYZED)
                   .cisaRequiredAction(
                       "Apply mitigations per vendor instructions or discontinue product if unavailable.")
                   .cisaVulnerabilityName("Fortinet FortiClient EMS SQL Injection Vulnerability")
@@ -102,6 +106,7 @@ public class PresetTenantData {
                   .description(
                       "Use-after-free in mongoose.c (mg_http_get_proto_data) leading to DoS or RCE.")
                   .cvssV31(new BigDecimal("8.6"))
+                  .vulnStatus(Vulnerability.VulnerabilityStatus.ANALYZED)
                   .cisaRequiredAction(
                       "Apply mitigations per vendor instructions or discontinue product if unavailable.")
                   .cisaVulnerabilityName("Cisco ASA and FTD Denial of Service Vulnerability")
@@ -119,6 +124,7 @@ public class PresetTenantData {
                   .cisaActionDue(Instant.parse("2018-05-14T00:00:00Z"))
                   .description("Cisco Smart Install buffer overflow leading to RCE/DoS.")
                   .cvssV31(new BigDecimal("9.8"))
+                  .vulnStatus(Vulnerability.VulnerabilityStatus.ANALYZED)
                   .cisaRequiredAction(
                       "Apply mitigations per vendor instructions or discontinue product if unavailable.")
                   .cisaVulnerabilityName(
@@ -136,6 +142,7 @@ public class PresetTenantData {
                   .description(
                       "Cisco IOS XE Web UI insufficient input validation leading to root command injection.")
                   .cvssV31(new BigDecimal("7.2"))
+                  .vulnStatus(Vulnerability.VulnerabilityStatus.ANALYZED)
                   .cisaRequiredAction("Verify compliance with BOD 23-02 and apply mitigations.")
                   .cisaVulnerabilityName("Cisco IOS XE Web UI Command Injection Vulnerability")
                   .referenceUrls(

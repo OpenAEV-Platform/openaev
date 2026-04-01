@@ -8,7 +8,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_88__Update_cwes_for_tenants extends BaseJavaMigration {
+public class V4_88__Update_for_tenants extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
@@ -48,6 +48,40 @@ public class V4_88__Update_cwes_for_tenants extends BaseJavaMigration {
                         ALTER TABLE vulnerabilities
                         ADD CONSTRAINT cves_cve_external_id_tenant_key UNIQUE (vulnerability_external_id, tenant_id);
                         """);
+      // Add delete cascade to linked roles table
+      statement.execute(
+          """
+                  ALTER TABLE groups_roles
+                  DROP CONSTRAINT IF EXISTS group_id_fk;
+                  """);
+      statement.execute(
+          """
+                  ALTER TABLE groups_roles
+                  DROP CONSTRAINT IF EXISTS role_id_fk;
+                  """);
+      statement.execute(
+          """
+                  ALTER TABLE groups_roles
+                  ADD CONSTRAINT group_id_fk
+                  FOREIGN KEY (group_id) REFERENCES groups (group_id) ON DELETE CASCADE;
+                  """);
+      statement.execute(
+          """
+                  ALTER TABLE groups_roles
+                  ADD CONSTRAINT role_id_fk
+                  FOREIGN KEY (role_id) REFERENCES roles (role_id) ON DELETE CASCADE;
+                  """);
+      statement.execute(
+          """
+                  ALTER TABLE roles_capabilities
+                  DROP CONSTRAINT IF EXISTS role_id_fk;
+                  """);
+      statement.execute(
+          """
+                  ALTER TABLE roles_capabilities
+                  ADD CONSTRAINT role_id_fk
+                  FOREIGN KEY (role_id) REFERENCES roles (role_id) ON DELETE CASCADE;
+                  """);
     }
   }
 }
