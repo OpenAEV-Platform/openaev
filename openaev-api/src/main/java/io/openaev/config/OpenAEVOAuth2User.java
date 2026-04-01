@@ -49,7 +49,7 @@ public class OpenAEVOAuth2User implements OpenAEVPrincipal, OAuth2User, Serializ
 
   @Override
   public boolean isAdmin() {
-    return false;
+    return this.user.isAdmin();
   }
 
   @Override
