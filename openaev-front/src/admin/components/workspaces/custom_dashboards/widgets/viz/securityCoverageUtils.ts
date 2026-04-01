@@ -82,3 +82,11 @@ export const SUCCESS_100_COLOR = '#103822';
 export const SUCCESS_75_COLOR = '#2f5e3d';
 export const SUCCESS_50_COLOR = '#644100';
 export const SUCCESS_25_COLOR = '#5C1717';
+
+export const getBackgroundColor = (successRate: number | null): string | undefined => {
+  if (successRate === null) return undefined;
+  if (successRate >= 0.75) return SUCCESS_100_COLOR;
+  if (successRate >= 0.50) return SUCCESS_75_COLOR;
+  if (successRate >= 0.25) return SUCCESS_50_COLOR;
+  return SUCCESS_25_COLOR;
+};

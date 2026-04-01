@@ -3,7 +3,7 @@ import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent, memo, useMemo } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { SUCCESS_25_COLOR, SUCCESS_50_COLOR, SUCCESS_75_COLOR, SUCCESS_100_COLOR } from './securityCoverageUtils';
+import { getBackgroundColor } from './securityCoverageUtils';
 
 const useStyles = makeStyles()(theme => ({
   button: {
@@ -20,14 +20,6 @@ const useStyles = makeStyles()(theme => ({
     padding: `${theme.spacing(0.5)} ${theme.spacing(1)}`,
   },
 }));
-
-export const getBackgroundColor = (successRate: number | null): string | undefined => {
-  if (successRate === null) return undefined;
-  if (successRate >= 0.75) return SUCCESS_100_COLOR;
-  if (successRate >= 0.50) return SUCCESS_75_COLOR;
-  if (successRate >= 0.25) return SUCCESS_50_COLOR;
-  return SUCCESS_25_COLOR;
-};
 
 const getTextColor = (theme: Theme, total: number): string | undefined => {
   if (total === 0) return theme.typography.h3.color;

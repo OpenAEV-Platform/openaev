@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { getBackgroundColor } from '../../admin/components/workspaces/custom_dashboards/widgets/viz/AttackPatternBox';
 import {
+  getBackgroundColor,
   SUCCESS_25_COLOR,
   SUCCESS_50_COLOR,
   SUCCESS_75_COLOR,
