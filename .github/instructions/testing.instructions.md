@@ -1,11 +1,9 @@
 ---
-applyTo: "**/*Test.java,**/*Test*.java,**/test/**,**/*.test.*,**/*.spec.*"
+applyTo: "**/*Test.java,**/*Test*.java,**/test/**,**/*.test.*,**/*.spec.*,**/tests_e2e/**"
 description: "Testing conventions: integration tests, unit tests, fixtures, composers, assertions"
 ---
 
 # Testing Conventions
-
-> Templates: see `prompts/new-test.prompt.md`. Reference examples: search for `GroupApiTest.java` or `RoleApiTest.java`.
 
 ## Integration Tests (API)
 
@@ -34,3 +32,9 @@ description: "Testing conventions: integration tests, unit tests, fixtures, comp
 
 - `@Component`, extends `ComposerBase<{Entity}>`
 - Call `.reset()` in `@BeforeEach`
+
+## Frontend Tests
+
+- Vitest for unit tests: `yarn test`
+- Playwright for E2E: `yarn test:e2e`
+- E2E config: `tests_e2e/`, fixtures in `tests_e2e/fixtures/`

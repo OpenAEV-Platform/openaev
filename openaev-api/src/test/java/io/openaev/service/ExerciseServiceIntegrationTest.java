@@ -70,7 +70,11 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private AssetGroupRepository assetGroupRepository;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
   @Autowired private UserRepository userRepository;
+  @Autowired private PauseRepository pauseRepository;
   @Autowired private InjectRepository injectRepository;
+  @Autowired private LessonsCategoryRepository lessonsCategoryRepository;
+  @Autowired private LessonsQuestionRepository lessonsQuestionRepository;
+  @Autowired private LessonsAnswerRepository lessonsAnswerRepository;
   @Autowired private ExerciseTeamUserRepository exerciseTeamUserRepository;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private LicenseCacheManager licenseCacheManager;
@@ -79,11 +83,11 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
 
   @Autowired private ScenarioRecurrenceService scenarioRecurrenceService;
   @Autowired private InjectorContractFixture injectorContractFixture;
+  @Autowired private InjectStatusRepository injectStatusRepository;
   @Autowired private LessonsService lessonsService;
   @Autowired private FileService fileService;
   @Autowired private PauseExerciseService pauseExerciseService;
 
-  @Autowired private LessonsService lessonsService;
   @Autowired private WorkflowService workflowService;
 
   private static String USER_ID;
@@ -116,14 +120,22 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             injectExpectationRepository,
             articleRepository,
             exerciseRepository,
+            injectStatusRepository,
+            pauseRepository,
+            lessonsQuestionRepository,
             teamRepository,
             userRepository,
             exerciseTeamUserRepository,
+            injectRepository,
+            lessonsAnswerRepository,
+            lessonsCategoryRepository,
             lessonsService,
             injectExpectationMapper,
             scenarioRecurrenceService,
             workflowService,
-            previewFeatureService);
+            previewFeatureService,
+            pauseExerciseService,
+            fileService);
   }
 
   @AfterAll

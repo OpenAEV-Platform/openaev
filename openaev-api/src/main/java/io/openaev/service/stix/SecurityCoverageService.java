@@ -512,7 +512,8 @@ public class SecurityCoverageService {
           objects);
     }
 
-    for (SecurityPlatform securityPlatform : assetService.securityPlatforms()) {
+    for (SecurityPlatform securityPlatform :
+        injectService.extractSecurityPlatforms(simulation.getInjects())) {
       DomainObject platformIdentity = securityPlatform.toStixDomainObject();
       objects.add(platformIdentity);
 

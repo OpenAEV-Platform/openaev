@@ -664,8 +664,6 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                 ExtendedProperties.VALID_FROM.toString(), new Timestamp(simulationStartTime),
                 ExtendedProperties.LAST_RESULT.toString(), new Timestamp(simulationStartTime),
                 ExtendedProperties.VALID_TO.toString(), new Timestamp(nextSimulationStartTime)));
-    List<DomainObject> expectedPlatformIdentities =
-        generatedSecurityPlatforms.stream().map(SecurityPlatform::toStixDomainObject).toList();
 
     // main assessment is completed with coverage
     assertThatJson(

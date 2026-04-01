@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -29,7 +28,10 @@ import io.openaev.jsonapi.ResourceObject;
 import io.openaev.service.ZipJsonService;
 import io.openaev.utils.fixtures.DetectionRemediationFixture;
 import io.openaev.utils.mockUser.WithMockUser;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -287,9 +289,17 @@ class PayloadApiImporterTest extends IntegrationTest {
                     List.of(new ResourceIdentifier(elementId, "contract_output_elements")))));
 
     // Payload + OutputParser
-    Map<String, Object> payloadAttrs = buildDefaultPayloadAttributes();
-    payloadAttrs.put("payload_name", "Payload With Output Parser");
+    Map<String, Object> payloadAttrs = new HashMap<>();
+    payloadAttrs.put("payload_type", "Command");
+    payloadAttrs.put("command_executor", "psh");
     payloadAttrs.put("command_content", "ipconfig");
+    payloadAttrs.put("payload_name", "Payload With Output Parser");
+    payloadAttrs.put("payload_description", "");
+    payloadAttrs.put("payload_platforms", new String[] {"Windows"});
+    payloadAttrs.put("payload_source", "MANUAL");
+    payloadAttrs.put("payload_expectations", new String[] {"VULNERABILITY"});
+    payloadAttrs.put("payload_status", "VERIFIED");
+    payloadAttrs.put("payload_execution_arch", "ALL_ARCHITECTURES");
 
     JsonApiDocument<ResourceObject> document =
         new JsonApiDocument<>(
@@ -302,14 +312,22 @@ class PayloadApiImporterTest extends IntegrationTest {
                     new Relationship(List.of(new ResourceIdentifier(parserId, "output_parsers"))))),
             List.of(outputParserResource, contractOutputElementResource, regexGroupResource));
 
-    MockMultipartFile zipFile = buildZipFile(document);
+    byte[] zip = zipJsonService.writeZip(document, emptyMap());
+    MockMultipartFile zipFile =
+        new MockMultipartFile("file", "payload.zip", "application/zip", zip);
 
     // -- EXECUTE --
-    String response = performImport(zipFile);
+    String response =
+        mockMvc
+            .perform(multipart(PAYLOAD_URI + "/import").file(zipFile))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
 
     // -- ASSERT --
     assertNotNull(response);
-    JsonNode json = objectMapper.readTree(response);
+    JsonNode json = new ObjectMapper().readTree(response);
 
     assertEquals("command", json.at("/data/type").asText());
     assertEquals(
@@ -435,11 +453,17 @@ class PayloadApiImporterTest extends IntegrationTest {
                         new ResourceIdentifier(element2Id, "contract_output_elements")))));
 
     // Payload + OutputParser
-    Map<String, Object> payloadAttrs = buildDefaultPayloadAttributes();
-    payloadAttrs.put("payload_name", "Payload With Multiple Elements");
+    Map<String, Object> payloadAttrs = new HashMap<>();
+    payloadAttrs.put("payload_type", "Command");
     payloadAttrs.put("command_executor", "bash");
     payloadAttrs.put("command_content", "netstat -an");
+    payloadAttrs.put("payload_name", "Payload With Multiple Elements");
+    payloadAttrs.put("payload_description", "");
     payloadAttrs.put("payload_platforms", new String[] {"Linux"});
+    payloadAttrs.put("payload_source", "MANUAL");
+    payloadAttrs.put("payload_expectations", new String[] {"VULNERABILITY"});
+    payloadAttrs.put("payload_status", "VERIFIED");
+    payloadAttrs.put("payload_execution_arch", "ALL_ARCHITECTURES");
 
     JsonApiDocument<ResourceObject> document =
         new JsonApiDocument<>(
@@ -458,14 +482,22 @@ class PayloadApiImporterTest extends IntegrationTest {
                 regexGroup2,
                 regexGroup3));
 
-    MockMultipartFile zipFile = buildZipFile(document);
+    byte[] zip = zipJsonService.writeZip(document, emptyMap());
+    MockMultipartFile zipFile =
+        new MockMultipartFile("file", "payload.zip", "application/zip", zip);
 
     // -- EXECUTE --
-    String response = performImport(zipFile);
+    String response =
+        mockMvc
+            .perform(multipart(PAYLOAD_URI + "/import").file(zipFile))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
 
     // -- ASSERT --
     assertNotNull(response);
-    JsonNode json = objectMapper.readTree(response);
+    JsonNode json = new ObjectMapper().readTree(response);
     assertEquals("command", json.at("/data/type").asText());
     assertEquals(
         "Payload With Multiple Elements" + IMPORTED_OBJECT_NAME_SUFFIX,

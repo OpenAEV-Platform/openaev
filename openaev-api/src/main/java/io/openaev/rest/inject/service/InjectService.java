@@ -893,7 +893,6 @@ public class InjectService {
     List<Inject> injects = injectRepository.findAllInjectBySimulationId(simulationId);
     if (injects.isEmpty()) return;
     injects.forEach(Inject::clean);
-    injectStatusService.deleteAllInjectStatusByInjects(injects);
     injectRepository.saveAll(injects);
   }
 
@@ -1380,6 +1379,20 @@ public class InjectService {
     healthChecks.addAll(healthCheckUtils.runContentChecks(inject));
 
     return healthChecks;
+  }
+
+  /**
+   * Extract all security platform from a list of injects
+   *
+   * @param injects to extract security platforms
+   * @return distinct security platforms
+   */
+  public List<SecurityPlatform> extractSecurityPlatforms(List<Inject> injects) {
+    Stream<InjectExpectation> allInjectExpectationsStream =
+        extractInjectExpectationsFromInjects(injects);
+    Set<String> assetIds =
+        extractAssetIdsFromInjectExpectationsResults(allInjectExpectationsStream);
+    return assetService.securityPlatformsByIds(assetIds);
   }
 
   /**
