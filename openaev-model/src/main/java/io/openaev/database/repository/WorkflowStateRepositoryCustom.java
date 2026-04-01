@@ -1,6 +1,6 @@
 package io.openaev.database.repository;
 
-public interface StepStateRepositoryCustom {
+public interface WorkflowStateRepositoryCustom {
   void addInput(Long id, String input);
 
   void addCorrelated(Long id, String correlated);

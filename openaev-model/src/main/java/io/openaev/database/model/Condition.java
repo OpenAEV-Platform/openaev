@@ -42,6 +42,10 @@ public class Condition implements Base {
   @Schema(description = "Workflow id related to the condition")
   private String workflowId;
 
+  @Column(name = "condition_key")
+  @Schema(description = "Key")
+  private String key;
+
   @Column(name = "condition_key_type")
   @Enumerated(EnumType.STRING)
   @JdbcTypeCode(SqlTypes.NAMED_ENUM)

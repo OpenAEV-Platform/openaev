@@ -7,10 +7,12 @@ import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.gson.*;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Executor;
 import io.openaev.rest.document.DocumentService;
@@ -23,14 +25,19 @@ import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
+import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowStateService;
 import io.openaev.utils.TargetType;
+import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import jakarta.validation.constraints.NotBlank;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Implementation of {@link ActionStep} for executing Inject steps.
@@ -52,7 +59,10 @@ import org.springframework.stereotype.Component;
 @Component
 @Slf4j
 public class InjectExecutionStep implements ActionStep {
+
   private static final Gson gson = new Gson();
+  @Resource protected ObjectMapper mapper;
+
   private final InjectorContractService injectorContractService;
   private final UserService userService;
   private final AssetService assetService;
@@ -62,9 +72,16 @@ public class InjectExecutionStep implements ActionStep {
   private final InjectService injectService;
   private final TagRuleService tagRuleService;
   private final AssetGroupService assetGroupService;
-  private final InjectorContractContentUtils injectorContractContentUtils;
-  private final Executor executor;
   private final InjectStatusService injectStatusService;
+  private final WorkflowStateService workflowStateService;
+
+  private final InjectorContractRepository injectorContractRepository;
+
+  private final InjectorContractContentUtils injectorContractContentUtils;
+
+  private final Executor executor;
+  private final ConditionService conditionService;
+
   @PersistenceContext private EntityManager em;
 
   /**
@@ -79,6 +96,7 @@ public class InjectExecutionStep implements ActionStep {
     String data = stepData(newStep, workflow.getSimulation());
 
     String input = stepInputFromConditionMapper(newStep.getConditions());
+
     // TODO: get outputParser
     String outputParser = this.stepOutputParser("");
     Step stepTemplate =
@@ -131,6 +149,7 @@ public class InjectExecutionStep implements ActionStep {
    * @return the updated step with execution info, or null if execution fails
    */
   @Override
+  @Transactional(rollbackFor = Exception.class)
   public Optional<Step> run(Step readyStep) throws ChainingException {
     // CALL BY QUEUE READY
     Inject inject = getInjectFromDataStep(readyStep);
@@ -177,10 +196,11 @@ public class InjectExecutionStep implements ActionStep {
     String data = stepRun.getData();
     String injectId = StepService.getField(data, "inject_id");
     Inject inject = injectService.findInjectOrNull(injectId);
-    if (inject == null)
+    if (inject == null) {
       throw new ChainingException(
           "Inject not found. ID: " + injectId,
           new ElementNotFoundException("Inject not found. ID: " + injectId));
+    }
 
     // GET INJECT STATUS
     InjectStatus injectStatus = inject.getStatus().orElse(null);
@@ -206,7 +226,12 @@ public class InjectExecutionStep implements ActionStep {
       JsonObject jsonObject = new JsonObject();
       jsonObject.add("outputs", elements);
 
+      // UPDATE step output
       stepRun.setOutput(jsonObject.toString());
+
+      // UPDATE Global Workflow State
+      workflowStateService.syncInjectOutputToGlobalState(inject, stepRun);
+
       return Optional.of(stepRun);
     }
 
@@ -249,12 +274,14 @@ public class InjectExecutionStep implements ActionStep {
 
     InjectInput data = (InjectInput) step.getDataStep();
 
-    if (data == null)
+    if (data == null) {
       throw new IllegalArgumentException("Data step of new step (TEMPLATE) is null");
+    }
 
-    if (data.getInjectorContract() == null)
+    if (data.getInjectorContract() == null) {
       throw new IllegalArgumentException(
           "Data step of new step (TEMPLATE) do not contain injector contract");
+    }
 
     InjectorContract injectorContract =
         this.injectorContractService.injectorContract(data.getInjectorContract());
@@ -345,7 +372,9 @@ public class InjectExecutionStep implements ActionStep {
    * @return a JSON string representing the mapped step input, or an empty JSON object if none
    */
   private static String stepInputFromConditionMapper(List<ConditionCreateInput> conditions) {
-    if (conditions == null || conditions.isEmpty()) return "{}";
+    if (conditions == null || conditions.isEmpty()) {
+      return "{}";
+    }
     List<Map<String, Object>> inputs = new ArrayList<>();
 
     for (ConditionCreateInput condition : conditions) {
@@ -353,8 +382,10 @@ public class InjectExecutionStep implements ActionStep {
 
         Map<String, Object> input = new HashMap<>();
         input.put("keyType", condition.getKeyType());
-        input.put("path", condition.getValue());
         input.put("id_step_from", condition.getStepFrom());
+        // Related to mapping type default, local or global
+        input.put("mappingType", condition.getMappingType());
+        input.put("value", condition.getValue());
 
         inputs.add(input);
       }
@@ -426,7 +457,7 @@ public class InjectExecutionStep implements ActionStep {
    *
    * @param step the {@link Step} containing the JSON data for the inject
    * @return the deserialized {@link Inject} object with its injector set if found; {@code null} if
-   *     the injector or contract is missing or if an exception occurs during deserialization
+   *     the injector or r or contract is missing or if an exception occurs during deserialization
    */
   private Inject getInjectFromDataStep(Step step) throws ChainingException {
     ObjectMapper om =
@@ -442,37 +473,101 @@ public class InjectExecutionStep implements ActionStep {
       ObjectMapper mapper = new ObjectMapper();
       JsonNode root = mapper.readTree(step.getData());
 
-      if (inject.getInjectorContract().isEmpty())
+      if (inject.getInjectorContract().isEmpty()) {
         throw new ChainingException(
             "Injector contract not found for step (READY) ID: " + step.getId());
+      }
 
-      InjectorContract injectorContract = inject.getInjectorContract().get();
+      InjectorContract managedContract =
+          injectorContractRepository
+              .findById(inject.getInjectorContract().get().getId())
+              .orElseThrow(
+                  () ->
+                      new ChainingException(
+                          "Injector contract not found for step (READY) ID: " + step.getId()));
+
       JsonNode injectorNode =
           root.path("inject_injector_contract").path("injector_contract_injector");
 
-      if (injectorNode.isMissingNode() && injectorNode.isEmpty())
+      if (injectorNode.isMissingNode() && injectorNode.isEmpty()) {
         throw new ChainingException(
             "Injector not found for injectorContractId "
-                + injectorContract.getId()
+                + managedContract.getId()
                 + " and step (READY) ID "
                 + step.getId());
+      }
 
-      if (injectorContract.getInjector() == null) {
+      if (managedContract.getInjector() == null) {
         String injectorId = injectorNode.asText();
         Injector injector = em.find(Injector.class, injectorId);
 
-        if (injector == null)
+        if (injector == null) {
           throw new ChainingException(
               "Injector not found for injectorId "
                   + injectorId
                   + " and step (READY) ID "
                   + step.getId());
+        }
 
-        injectorContract.setInjector(injector);
+        managedContract.setInjector(injector);
       }
+
+      // Modify payload arguments with inputs from step
+      ObjectNode updatedContent = updateContentWithInputs(step, managedContract.getContent());
+      inject.setContent(updatedContent);
+
+      inject.setInjectorContract(managedContract);
       return inject;
     } catch (JsonProcessingException e) {
       throw new ChainingException("Step (READY) : Error processing JSON to Inject ", e);
+    }
+  }
+
+  /**
+   * Merges step input values into injector contract content to build runtime payload arguments.
+   *
+   * <p>This method reads the current contract content JSON, fetches input values resolved during
+   * chaining from {@link Step#getInput()}, then maps those values to contract keys using MAPPER
+   * conditions. The resulting JSON is used as inject content for execution.
+   *
+   * @param step the READY step containing resolved input values used as payload arguments
+   * @param contentJson base injector contract content JSON
+   * @return updated contract content with mapped input values injected; empty object if parsing
+   *     fails
+   */
+  private ObjectNode updateContentWithInputs(Step step, @NotBlank String contentJson) {
+    if (contentJson == null || contentJson.isBlank()) {
+      return mapper.createObjectNode();
+    }
+
+    try {
+      ObjectNode contentNode = (ObjectNode) mapper.readTree(contentJson);
+
+      String inputJson = step.getInput();
+      if (inputJson == null || inputJson.isEmpty() || "{}".equals(inputJson)) {
+        return contentNode;
+      }
+
+      JsonNode inputValues = mapper.readTree(inputJson);
+
+      List<Condition> mappings =
+          conditionService.findAllConditionsByStepId(step.getId()).stream()
+              .filter(conditionService::isMapperCondition)
+              .toList();
+
+      for (Condition mapping : mappings) {
+        String inputKey = mapping.getKeyType().name(); // e.g., "IPv4"
+        String targetJsonKey = mapping.getKey();
+
+        if (inputValues.has(inputKey)) {
+          contentNode.set(targetJsonKey, inputValues.get(inputKey));
+        }
+      }
+
+      return contentNode;
+
+    } catch (JsonProcessingException e) {
+      return mapper.createObjectNode();
     }
   }
 
@@ -497,7 +592,9 @@ public class InjectExecutionStep implements ActionStep {
     List<ExecutionTrace> traces = injectStatus.getTraces();
     for (ExecutionTrace trace : traces) {
       Map<String, JsonElement> map = new HashMap<>();
-      if (trace.getAgent() == null) continue;
+      if (trace.getAgent() == null) {
+        continue;
+      }
       map.put("agent_id", gson.toJsonTree(trace.getAgent().getId()));
       if (trace.getStructuredOutput() != null) {
         map.put("parsed", gson.toJsonTree(trace.getStructuredOutput()));

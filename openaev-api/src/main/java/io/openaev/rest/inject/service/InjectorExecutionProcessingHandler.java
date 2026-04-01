@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.ExecutionTraceAction;
 import io.openaev.database.model.InjectorContract;
-import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
 import io.openaev.output_processor.OutputProcessorFactory;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import jakarta.annotation.Resource;
@@ -73,23 +72,11 @@ public class InjectorExecutionProcessingHandler extends AbstractExecutionProcess
         executionContext.inject().getInjectorContract().orElseThrow();
 
     List<ContractOutputContext> contractOutputContexts =
-        getAllContractOutputs(injectorContract).stream().map(ContractOutputContext::from).toList();
+        injectorContractContentUtils.getAllContractOutputs(injectorContract).stream()
+            .map(ContractOutputContext::from)
+            .toList();
     dispatchToProcessors(executionContext, contractOutputContexts, structuredOutput);
 
     return Optional.of(structuredOutput);
-  }
-
-  /**
-   * Retrieves all contract output elements from the injector contract.
-   *
-   * @param injectorContract the injector contract to inspect
-   * @return list of contract output elements
-   */
-  private List<InjectorContractContentOutputElement> getAllContractOutputs(
-      InjectorContract injectorContract) {
-    return injectorContractContentUtils
-        .getContractOutputs(injectorContract.getConvertedContent(), mapper)
-        .stream()
-        .toList();
   }
 }

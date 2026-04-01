@@ -84,6 +84,7 @@ public class ConditionMapper {
 
     ConditionOutput output = new ConditionOutput();
     output.setId(c.getId());
+    output.setKey(c.getKey());
     output.setKeyType(c.getKeyType());
     output.setKeySubtype(c.getKeySubtype());
     output.setType(c.getType() != null ? c.getType().name() : null);
@@ -118,6 +119,7 @@ public class ConditionMapper {
     Objects.requireNonNull(input, "condition create input must not be null");
 
     Condition condition = new Condition();
+    condition.setKey(input.getKey());
     condition.setKeyType(input.getKeyType());
     condition.setKeySubtype(input.getKeySubtype());
     condition.setType(input.getType());

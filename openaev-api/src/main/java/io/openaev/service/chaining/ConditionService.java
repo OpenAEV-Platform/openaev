@@ -1,20 +1,20 @@
 package io.openaev.service.chaining;
 
+import static java.util.Collections.emptyList;
+
+import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
+import com.google.gson.reflect.TypeToken;
 import io.openaev.api.chaining.ConditionMapper;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.EventInput;
 import io.openaev.database.model.*;
-import io.openaev.database.model.Condition;
-import io.openaev.database.model.ConditionType;
-import io.openaev.database.model.Step;
-import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -31,6 +31,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Transactional(rollbackFor = Exception.class)
 public class ConditionService {
+
+  private static final Gson gson = new Gson();
+
   private final ConditionRepository conditionRepository;
   private final StepRepository stepRepository;
   private final QueueChainingService queueChainingService;
@@ -121,7 +124,7 @@ public class ConditionService {
       String currentTemporaryId = queue.poll();
 
       List<ConditionCreateInput> children =
-          childrenByParentTemporaryId.getOrDefault(currentTemporaryId, Collections.emptyList());
+          childrenByParentTemporaryId.getOrDefault(currentTemporaryId, emptyList());
 
       for (ConditionCreateInput childInput : children) {
         Condition parent =
@@ -248,6 +251,7 @@ public class ConditionService {
   }
 
   // -- CONDITION TREE DELETE --
+
   /**
    * Deletes a condition tree root and all its children (cascade).
    *
@@ -339,43 +343,6 @@ public class ConditionService {
   }
 
   /**
-   * Checks whether the condition is a mapper condition.
-   *
-   * @param condition condition to evaluate
-   * @return {@code true} if the condition type is MAPPER
-   */
-  public boolean isMapperCondition(Condition condition) {
-    return condition.getType() == ConditionType.MAPPER;
-  }
-
-  /**
-   * @return null (todo: implement)
-   */
-  public Condition isMapperConditionValid(Condition condition, String input, String data) {
-    return null;
-  }
-
-  /**
-   * Checks whether the condition is a filter condition.
-   *
-   * @param condition condition to evaluate
-   * @return {@code true} if it is not a time or mapper condition
-   */
-  public boolean isFilterCondition(Condition condition) {
-    return switch (condition.getType()) {
-      case ConditionType.AFTER, ConditionType.BEFORE, ConditionType.MAPPER -> false;
-      default -> true;
-    };
-  }
-
-  /**
-   * @return null (todo: implement)
-   */
-  public Condition isFilterConditionValid(Condition condition, String input, String data) {
-    return null;
-  }
-
-  /**
    * Evaluates a time condition against the current time.
    *
    * <p>TODO: this is for legacy behavior only (compare from start of workflow instead of previous
@@ -396,6 +363,112 @@ public class ConditionService {
   }
 
   /**
+   * Checks whether the condition is a mapper condition.
+   *
+   * @param condition condition to evaluate
+   * @return {@code true} if the condition type is MAPPER
+   */
+  public boolean isMapperCondition(Condition condition) {
+    return condition.getType() == ConditionType.MAPPER;
+  }
+
+  /**
+   * @return null (todo: implement)
+   */
+  public Condition isMapperConditionValid(Condition condition, String input, String data) {
+    // Build inputs validated
+    // Here I need check if mapper condition has all values to be executed (at least one value for
+    // every mapper) and we have to update local state to say what we have already executed
+    return null;
+  }
+
+  /**
+   * Checks whether the condition is a filter condition.
+   *
+   * @param condition condition to evaluate
+   * @return {@code true} if it is not a time or mapper condition
+   */
+  public boolean isFilterCondition(Condition condition) {
+    return switch (condition.getType()) {
+      case ConditionType.AFTER, ConditionType.BEFORE, ConditionType.MAPPER -> false;
+      default -> true;
+    };
+  }
+
+  public boolean isFilterConditionValid(String value, Condition rootFilter) {
+    if (rootFilter == null) {
+      return true;
+    }
+
+    // Handle Logical Groups (AND / OR)
+    // If the condition has children, it's a logical operator node
+    if (rootFilter.getType() == ConditionType.AND) {
+      return rootFilter.getConditionChildren().stream()
+          .allMatch(child -> isFilterConditionValid(value, child));
+    }
+
+    if (rootFilter.getType() == ConditionType.OR) {
+      return rootFilter.getConditionChildren().stream()
+          .anyMatch(child -> isFilterConditionValid(value, child));
+    }
+
+    // Handle Leaf Nodes
+    // If it's not AND/OR, evaluate using existing switch logic
+    return evaluateLeafCondition(value, rootFilter);
+  }
+
+  private boolean evaluateLeafCondition(String actualValue, Condition filter) {
+    ConditionType type = filter.getType();
+    String target = filter.getValue();
+
+    switch (type) {
+      case IS_NULL:
+        return actualValue == null;
+      case IS_NOT_NULL:
+        return actualValue != null;
+      case EQ:
+        return actualValue != null && actualValue.equalsIgnoreCase(target);
+      case NEQ:
+        return actualValue != null && !actualValue.equalsIgnoreCase(target);
+      case IN, NIN:
+        if (actualValue == null || target == null) {
+          return false;
+        }
+        List<String> targetList = Arrays.asList(target.split("\\s*,\\s*"));
+        boolean contains = targetList.stream().anyMatch(actualValue::equalsIgnoreCase);
+        return (type == ConditionType.IN) == contains;
+      case GT, GTE, LT, LTE:
+        return handleNumericComparison(actualValue, target, type);
+      default:
+        return true;
+    }
+  }
+
+  private static boolean handleNumericComparison(
+      String actualValue, String target, ConditionType type) {
+    if (actualValue == null || target == null) {
+      return false;
+    }
+    try {
+      double actualNum = Double.parseDouble(actualValue);
+      double targetNum = Double.parseDouble(target);
+      if (type == ConditionType.GT) {
+        return actualNum > targetNum;
+      }
+      if (type == ConditionType.GTE) {
+        return actualNum >= targetNum;
+      }
+      if (type == ConditionType.LT) {
+        return actualNum < targetNum;
+      }
+      return actualNum <= targetNum;
+    } catch (NumberFormatException e) {
+      log.warn("Numeric comparison failed for value: {} against target: {}", actualValue, target);
+      return false;
+    }
+  }
+
+  /**
    * Evaluates all conditions for a step template and returns valid ones for execution.
    *
    * @param nextStepTemplateToExecute the step to evaluate
@@ -407,43 +480,50 @@ public class ConditionService {
   public List<Condition> checkCondition(
       Step nextStepTemplateToExecute, String input, Workflow workflowRun, StepService stepService)
       throws ChainingException {
-    List<Condition> conditionTemplate =
+    List<Condition> conditionsTemplate =
         findAllConditionsByStepId(nextStepTemplateToExecute.getId());
 
     // No condition means direct execution:
-    if (conditionTemplate == null || conditionTemplate.isEmpty()) return new ArrayList<>();
+    if (conditionsTemplate == null || conditionsTemplate.isEmpty()) {
+      return new ArrayList<>();
+    }
 
     List<Condition> conditionsExecution = new ArrayList<>();
-    List<Condition> timeConditions =
-        conditionTemplate.stream().filter(this::isTimeCondition).toList();
 
     // Time conditions
     // TODO manage multi time condition (AND, OR: g C1 BEFORE OR C2 AFTER)
     // Compute expected start time for the condition to be considered as valid
+    /*
+    List<Condition> timeConditions =
+    conditionsTemplate.stream().filter(this::isTimeCondition).toList();
+
     for (Condition condition : timeConditions) {
-      Instant now = Instant.now();
-      Instant start = workflowRun.getWorkflowCreatedAt();
-      // TODO: can this happen ? Shouldn't it throw an exception instead?
-      if (start == null) start = now;
-      long value = Long.parseLong(condition.getValue());
-      Instant goal = start.plus(value, ChronoUnit.MILLIS);
+          Instant now = Instant.now();
+          Instant start = workflowRun.getWorkflowCreatedAt();
+          // TODO: can this happen ? Shouldn't it throw an exception instead?
+          if (start == null) {
+            start = now;
+          }
+          long value = Long.parseLong(condition.getValue());
+          Instant goal = start.plus(value, ChronoUnit.MILLIS);
 
-      if (isTimeConditionValid(condition, now, goal)) {
-        conditionsExecution.add(ConditionFactory.executionOf(condition, goal));
-        continue;
-      }
-      if (condition.getType().equals(ConditionType.AFTER)) {
-        long delay = ChronoUnit.MILLIS.between(now, goal);
+          if (isTimeConditionValid(condition, now, goal)) {
+            conditionsExecution.add(ConditionFactory.executionOf(condition, goal));
+            continue;
+          }
+          if (condition.getType().equals(ConditionType.AFTER)) {
+            long delay = ChronoUnit.MILLIS.between(now, goal);
 
-        stepDelayQueueService.pushStepTemplateIntoStepDelayQueue(
-            nextStepTemplateToExecute, now, input, delay, workflowRun, goal);
-        return null;
-      }
-    }
+            stepDelayQueueService.pushStepTemplateIntoStepDelayQueue(
+                nextStepTemplateToExecute, now, input, delay, workflowRun, goal);
+            return null;
+          }
+        }*/
 
     // Filter conditions
+    /*
     List<Condition> filterConditions =
-        conditionTemplate.stream().filter(this::isFilterCondition).toList();
+        conditionsTemplate.stream().filter(this::isFilterCondition).toList();
 
     for (Condition condition : filterConditions) {
       Condition filterConditionValid =
@@ -453,11 +533,11 @@ public class ConditionService {
       } else {
         conditionsExecution.add(filterConditionValid);
       }
-    }
+    }*/
 
     // Mapper conditions
     List<Condition> mapperConditions =
-        conditionTemplate.stream().filter(this::isMapperCondition).toList();
+        conditionsTemplate.stream().filter(this::isMapperCondition).toList();
 
     for (Condition condition : mapperConditions) {
       Condition mapperConditionValid =
@@ -470,8 +550,9 @@ public class ConditionService {
     }
 
     // StepFrom (DEPEND_ON) conditions
+    /*
     List<Condition> stepFrom =
-        conditionTemplate.stream().filter(condition -> condition.getStepFrom() != null).toList();
+        conditionsTemplate.stream().filter(condition -> condition.getStepFrom() != null).toList();
     for (Condition condition : stepFrom) {
       String idStepFromTemplate = condition.getStepFrom().getId();
       List<Step> dependOnStepsRunByTemplateIdAndWorkflowRunId =
@@ -503,7 +584,8 @@ public class ConditionService {
         return null;
       }
     }
-    // todo Mapped input-data step
+     */
+
     return conditionsExecution;
   }
 
@@ -705,5 +787,63 @@ public class ConditionService {
 
     conditionSteps.removeIf(
         link -> link.getStep() != null && Objects.equals(link.getStep().getId(), stepId));
+  }
+
+  public List<Condition> findAllFilterConditionsByKeyTypes(Set<ConditionKeyType> keyTypes) {
+    return conditionRepository.findAllByKeyTypeIn(keyTypes).stream()
+        .filter(this::isFilterCondition)
+        .toList();
+  }
+
+  /**
+   * Climbs the condition tree to find the top-level parent (AND/OR node). If the filter is already
+   * at the top, it returns itself.
+   */
+  public Condition fetchRootCondition(Condition condition) {
+    if (condition.getConditionParent() == null) {
+      return condition;
+    }
+    return fetchRootCondition(condition.getConditionParent());
+  }
+
+  /**
+   * Input payload and mapper conditions for one executable data-chaining batch.
+   *
+   * @param inputString resolved JSON input used to create a READY step
+   * @param usedMappers mapper conditions used to build this input
+   */
+  public record ExecutionBatch(String inputString, List<Condition> usedMappers) {}
+
+  /**
+   * Extracts distinct {@link ConditionKeyType} values from a step output JSON.
+   *
+   * @param currentOutput JSON array where each item may contain a {@code key}
+   * @return matching key types, or an empty set when input is blank/invalid
+   */
+  public Set<ConditionKeyType> extractKeyTypesFromOutput(String currentOutput) {
+    if (currentOutput == null || currentOutput.isBlank()) {
+      return Collections.emptySet();
+    }
+
+    try {
+      // Convert JSON string to
+      List<Map<String, Object>> dataList =
+          gson.fromJson(currentOutput, new TypeToken<List<Map<String, Object>>>() {}.getType());
+
+      if (dataList == null) {
+        return Collections.emptySet();
+      }
+
+      // Stream through the list, grab the "key" value, and convert to ConditionKeyType
+      return dataList.stream()
+          .map(entry -> (String) entry.get("key")) // Get "IPv4", "Text", etc.
+          .filter(Objects::nonNull)
+          .map(ConditionKeyType::valueOf) // Convert String to your Type/Enum
+          .collect(Collectors.toSet());
+
+    } catch (JsonSyntaxException e) {
+      log.error("Invalid JSON output: {}", currentOutput);
+      return Collections.emptySet();
+    }
   }
 }

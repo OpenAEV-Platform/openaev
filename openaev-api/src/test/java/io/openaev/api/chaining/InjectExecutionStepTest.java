@@ -22,6 +22,7 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.service.AssetService;
 import io.openaev.service.TeamService;
 import io.openaev.service.UserService;
+import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.AssetFixture;
@@ -35,21 +36,23 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @Transactional
 public class InjectExecutionStepTest {
-  @MockBean private InjectorContractService injectorContractService;
-  @MockBean private UserService userService;
-  @MockBean private TeamService teamService;
-  @MockBean private AssetService assetService;
-  @MockBean private TagService tagService;
-  @MockBean private DocumentService documentService;
-  @MockBean private InjectService injectService;
-  @MockBean private io.openaev.executors.Executor executor;
-  @MockBean private InjectStatusService injectStatusService;
+  @MockitoBean private InjectorContractService injectorContractService;
+  @MockitoBean private UserService userService;
+  @MockitoBean private TeamService teamService;
+  @MockitoBean private AssetService assetService;
+  @MockitoBean private TagService tagService;
+  @MockitoBean private DocumentService documentService;
+  @MockitoBean private InjectService injectService;
+  @MockitoBean private io.openaev.executors.Executor executor;
+  @MockitoBean private InjectStatusService injectStatusService;
+  @MockitoBean private ConditionService conditionService;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private InjectRepository injectRepository;
@@ -76,6 +79,8 @@ public class InjectExecutionStepTest {
     doReturn(null).when(documentService).document(any());
     doReturn(false).when(injectService).canApplyTargetType(any(), any());
     doReturn(new InjectStatus()).when(executor).directExecute(any());
+    doReturn(Collections.emptyList()).when(conditionService).findAllConditionsByStepId(any());
+    doReturn(true).when(conditionService).isMapperCondition(any());
 
     doAnswer(
             invocation -> {
@@ -154,6 +159,69 @@ public class InjectExecutionStepTest {
                 injectorContractSaved.getId(),
                 injectorContractSaved.getInjector().getId(),
                 asset.getId());
+  }
+
+  @Test
+  void given_mapperInput_should_updateContractPayloadArguments() {
+    // Arrange
+    Step step = new Step();
+    step.setId("step-1");
+    step.setInput("{\"IPv4\":\"10.10.10.10\"}");
+
+    String contentJson = "{\"target_ip\":\"0.0.0.0\",\"file\":\"script.bat\"}";
+
+    Condition mapperCondition = new Condition();
+    mapperCondition.setType(ConditionType.MAPPER);
+    mapperCondition.setKeyType(ConditionKeyType.IPv4);
+    mapperCondition.setKey("target_ip");
+
+    doReturn(List.of(mapperCondition)).when(conditionService).findAllConditionsByStepId("step-1");
+
+    // Act
+    com.fasterxml.jackson.databind.node.ObjectNode updated =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "updateContentWithInputs", step, contentJson);
+
+    // Assert
+    assertNotNull(updated);
+    assertEquals("10.10.10.10", updated.get("target_ip").asText());
+    assertEquals("script.bat", updated.get("file").asText());
+  }
+
+  @Test
+  void given_emptyStepInput_should_keepOriginalContractContent() {
+    // Arrange
+    Step step = new Step();
+    step.setId("step-2");
+    step.setInput("{}");
+    String contentJson = "{\"target_ip\":\"0.0.0.0\"}";
+
+    // Act
+    com.fasterxml.jackson.databind.node.ObjectNode updated =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "updateContentWithInputs", step, contentJson);
+
+    // Assert
+    assertNotNull(updated);
+    assertEquals("0.0.0.0", updated.get("target_ip").asText());
+    verify(conditionService, never()).findAllConditionsByStepId("step-2");
+  }
+
+  @Test
+  void given_invalidContractContent_should_returnEmptyObject() {
+    // Arrange
+    Step step = new Step();
+    step.setId("step-3");
+    step.setInput("{\"IPv4\":\"10.10.10.10\"}");
+
+    // Act
+    com.fasterxml.jackson.databind.node.ObjectNode updated =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "updateContentWithInputs", step, "{invalid-json");
+
+    // Assert
+    assertNotNull(updated);
+    assertTrue(updated.isEmpty());
   }
 
   @Test
@@ -240,11 +308,13 @@ public class InjectExecutionStepTest {
         injectorContractSaved.getId(),
         StepService.getField(
             stepTemplate.getData(), "inject_injector_contract.injector_contract_id"));
-    assertEquals("output.message.ip", StepService.getField(stepTemplate.getInput(), "input.path"));
-    assertEquals("firstStep", StepService.getField(stepTemplate.getInput(), "input.id_step_from"));
+    assertEquals(
+        "output.message.ip", StepService.getField(stepTemplate.getInput(), "input.0.value"));
+    assertEquals(
+        "firstStep", StepService.getField(stepTemplate.getInput(), "input.0.id_step_from"));
     assertEquals(
         ConditionKeyType.IPv4.name(),
-        StepService.getField(stepTemplate.getInput(), "input.keyType"));
+        StepService.getField(stepTemplate.getInput(), "input.0.keyType"));
   }
 
   /**
@@ -431,12 +501,11 @@ public class InjectExecutionStepTest {
         StepService.setField(
             stepReady.getData(), "inject_injector_contract.injector_contract_injector", ""));
 
-    ChainingException ex =
-        Assertions.assertThrows(ChainingException.class, () -> injectExecutionStep.run(stepReady));
+    Optional<Step> stepRunOpt = injectExecutionStep.run(stepReady);
 
     // ASSERT
-    Assertions.assertEquals(
-        "Injector not found for injectorId  and step (READY) ID null", ex.getMessage());
+    assertTrue(stepRunOpt.isPresent());
+    assertNotNull(StepService.getField(stepRunOpt.get().getData(), "inject_id"));
   }
 
   @Test

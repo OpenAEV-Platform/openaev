@@ -1,6 +1,7 @@
 package io.openaev.service.chaining;
 
 import com.google.gson.*;
+import com.google.gson.reflect.TypeToken;
 import io.openaev.api.chaining.ActionStep;
 import io.openaev.api.chaining.ConditionMapper;
 import io.openaev.api.chaining.InjectExecutionStep;
@@ -13,7 +14,9 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.math.NumberUtils;
@@ -23,13 +26,18 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Service
 public class StepService implements StepEventHandler, ExternalUpdateEventHandler {
+
+  private static final Gson gson = new Gson();
+  private static final String SCOPE_INPUTS = "inputs";
+
   private final InjectExecutionStep injectExecutionStep;
 
   private final WorkflowService workflowService;
-  private final StepRepository stepRepository;
-
+  private final WorkflowStateService workflowStateService;
   public final ConditionService conditionService;
   private final QueueChainingService queueChainingService;
+
+  private final StepRepository stepRepository;
 
   /**
    * Create a single step template.
@@ -83,13 +91,16 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
                 () ->
                     new ElementNotFoundException(
                         "Workflow (TEMPLATE) not found. Simulation ID: " + simulationId));
-    // Get all step template
+
+    // Get all step templates
     List<Step> stepsTemplate = this.findAllStepTemplateByWorkflow(workflowTemplate.getId());
     // todo Check edition content
     // If edited increase version workflow template
     // Create new workflow RUN save
     Workflow workflowRun = workflowService.launchWorkflow(workflowTemplate);
 
+    // We need at least one step template to start workflow (event if we have defined events), if
+    // not we can end it directly
     if (stepsTemplate.isEmpty()) {
       log.info(
           "No step template for workflow template {}. End running {}",
@@ -99,6 +110,8 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
       workflowService.saveWorkflowRun(workflowRun);
       return;
     }
+
+    prepareInitialWorkflowState(workflowRun);
 
     // Find step template with condition valid
     List<Step> stepWithValidCondition = new ArrayList<>();
@@ -133,36 +146,36 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     Step nextStepTemplateToExecutePersisted =
         findByIdAndStatus(nextStepTemplateToExecute.getId(), StepStatus.TEMPLATE);
 
-    // CHECK CONDITIONS
-    List<Condition> conditionExecution =
-        conditionService.checkCondition(
-            nextStepTemplateToExecutePersisted, input, workflowRun, this);
+    // Validate rate limit condition before create step ready
+    // conditionService.validateRateLimitCondition(nextStepTemplateToExecutePersisted, workflowRun);
 
-    // List<Condition> conditionExecution:
-    // 1. null  : push in delay queue or exced limit execution or condition invalid  -> no execution
-    // 2. empty  : no condition                                                  -> direct execution
-    // 3. not empty : all conditions are valid (will be saved as condition execution)   -> execution
-    if (conditionExecution != null) {
-      Step stepReady;
-      stepReady =
+    // Now receiving a list of batches (Input string + the Mappers that provided the data)
+    List<ConditionService.ExecutionBatch> batches =
+        extractInputsForStepExecution(nextStepTemplateToExecutePersisted, workflowRun);
+
+    for (ConditionService.ExecutionBatch batch : batches) {
+      Step stepReady =
           actionStep
-              .ready(nextStepTemplateToExecutePersisted, input, workflowRun)
+              .ready(nextStepTemplateToExecutePersisted, batch.inputString(), workflowRun)
               .orElseThrow(
                   () ->
                       new ChainingException(
                           "Error creating step (READY) from step (TEMPLATE). Step ID: "
                               + nextStepTemplateToExecute.getId()));
+
       stepReady = saveStep(stepReady);
       Step finalStepReady = stepReady;
 
-      // For each step template, IF condition is valid, create condition execution
-      conditionExecution.forEach(
-          condition -> conditionService.linkToStep(condition, finalStepReady, true));
-      conditionService.saveAllConditions(conditionExecution);
+      // Link and Save conditions
+      List<Condition> conditionsToSave = new ArrayList<>();
+      for (Condition mapper : batch.usedMappers()) {
+        conditionService.linkToStep(mapper, stepReady, true);
+        conditionsToSave.add(mapper);
+      }
+      conditionService.saveAllConditions(conditionsToSave);
 
       try {
         queueChainingService.readyStep(finalStepReady, workflowRun);
-        return Optional.of(stepReady);
       } catch (IOException e) {
         stepReady.setStatus(StepStatus.END);
         saveStep(stepReady);
@@ -173,7 +186,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
       }
     }
 
-    return Optional.empty();
+    return Optional.of(nextStepTemplateToExecutePersisted);
   }
 
   /**
@@ -588,7 +601,9 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
       StringBuilder copyPath = new StringBuilder(path.toString());
       copyPath.append(indexArray).append(".");
       if (tabIndex == null || tabIndex == indexArray) {
-        if (tabIndex != null) index++;
+        if (tabIndex != null) {
+          index++;
+        }
         if (index == treeToUpdate.size() - 1 && tabIndex != null) {
           actionJson(
               fieldsAndValue,
@@ -790,7 +805,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
    *
    * @param stepFromId the identifier of the step referenced by a condition; may be {@code null}
    * @return the persisted {@link Step} corresponding to the given identifier, or {@code null} if
-   *     the identifier is {@code null} {@link Step} is found
+   *     the identifier is r is {@code null} {@link Step} is found
    */
   private Step getStepFromCondition(String stepFromId) {
     if (stepFromId != null) {
@@ -888,49 +903,241 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     if (stepUpdatedOpt.isPresent()) {
       Step stepUpdated = stepUpdatedOpt.get();
       this.saveStep(stepUpdated);
-      // GET STEPS TEMPLATE
-      Step stepTemplateCurrent = this.findStepTemplateById(stepRun.getStepTemplate().getId());
-      Workflow workflowTemplate = stepTemplateCurrent.getWorkflow();
+      String currentOutput = stepUpdated.getOutput();
+      Workflow workflowExecution = stepUpdated.getWorkflow();
 
-      // Todo: system notif queue fail + system log for step + status FAIL
-      if (workflowTemplate == null) {
-        log.error(
-            "Workflow (TEMPLATE) not found for step (TEMPLATE). Step ID: {}",
-            stepRun.getStepTemplate().getId());
-        return;
-      }
+      processDataChaining(currentOutput, workflowExecution);
+    }
+  }
 
-      List<Step> stepsTemplate = this.findAllStepTemplateByWorkflow(workflowTemplate.getId());
+  /**
+   * Processes newly produced step output and attempts to ready downstream step templates.
+   *
+   * <p>This method resolves key types present in {@code currentOutput}, loads matching filter
+   * conditions, finds related target step templates, synchronizes mapper values into workflow local
+   * state, then evaluates readiness for execution when inputs changed.
+   *
+   * @param currentOutput JSON payload produced by a RUN step
+   * @param workflowExecution running workflow context used for state synchronization and readiness
+   *     checks
+   */
+  public void processDataChaining(String currentOutput, Workflow workflowExecution) {
+    // Extract KeyTypes present in the new output
+    Set<ConditionKeyType> keyTypes = conditionService.extractKeyTypesFromOutput(currentOutput);
 
-      // FIND OTHER STEP WHO NEED INPUT FROM THIS STEP
-      List<Step> nextStepToExecute = new ArrayList<>();
-      for (Step stepTemplate : stepsTemplate) {
-        List<Condition> conditions =
-            this.conditionService.findAllConditionsByStepId(stepTemplate.getId());
-        for (Condition conditionTemplate : conditions) {
-          if (conditionTemplate.getStepFrom() != null
-              && conditionTemplate
-                  .getStepFrom()
-                  .getId()
-                  .equals(stepRun.getStepTemplate().getId())) {
-            nextStepToExecute.add(stepTemplate);
+    // Fetch all Filter Conditions for this specific KeyType
+    Map<ConditionKeyType, List<Condition>> filtersByKey =
+        conditionService.findAllFilterConditionsByKeyTypes(keyTypes).stream()
+            .collect(Collectors.groupingBy(Condition::getKeyType));
+
+    // Evaluate every Output Type
+    for (ConditionKeyType keyType : filtersByKey.keySet()) {
+      List<Condition> filters = filtersByKey.getOrDefault(keyType, Collections.emptyList());
+
+      for (Condition filter : filters) {
+        // Traverse to the Root Parent
+        Condition rootCondition = conditionService.fetchRootCondition(filter);
+
+        // Find all Steps linked to this Filter Tree
+        List<Step> targetSteps =
+            rootCondition.getConditionSteps().stream().map(ConditionStep::getStep).toList();
+
+        for (Step targetTemplate : targetSteps) {
+          // Find Mappers on this step that match the current KeyType
+          List<Condition> mappers =
+              targetTemplate.getConditions().stream()
+                  .filter(conditionService::isMapperCondition)
+                  .filter(c -> c.getKeyType() == keyType)
+                  .toList();
+
+          if (mappers.isEmpty()) {
+            continue;
+          }
+
+          // Sync & Validate: Only if mappers are MappingType.LOCAL
+          boolean hasChanged =
+              workflowStateService.syncMappersToLocalPartition(
+                  targetTemplate, workflowExecution, currentOutput, rootCondition, mappers);
+
+          if (hasChanged) {
+            try {
+              ready(targetTemplate, workflowExecution, null);
+            } catch (ChainingException e) {
+              log.debug("Step {} not ready yet", targetTemplate.getId());
+            }
           }
         }
       }
+    }
+  }
 
-      for (Step stepTemplate : nextStepToExecute) {
-        // Todo: system notif queue fail + system log for step + status FAIL
-        try {
-          ready(stepTemplate, stepRun.getWorkflow(), null);
-        } catch (ChainingException e) {
-          log.error(
-              "Failed to execute step (TEMPLATE). Step ID: {} {}",
-              stepTemplate.getId(),
-              e.getMessage(),
-              e);
+  /**
+   * Initializes the global workflow state and triggers initial data-chaining evaluation.
+   *
+   * <p>After creating the global state from Scope configuration, this method extracts the {@code
+   * inputs} section from the persisted scope JSON and forwards it to {@link
+   * #processDataChaining(String, Workflow)} so mapper-dependent templates can be evaluated as soon
+   * as the workflow starts.
+   *
+   * @param workflowExecution running workflow that receives its initial global state
+   */
+  @Transactional
+  public void prepareInitialWorkflowState(Workflow workflowExecution) {
+    WorkflowState savedScopeData = workflowStateService.createGlobalState(workflowExecution);
+    String scopeJson = savedScopeData.getScope();
+    if (scopeJson == null || scopeJson.isBlank()) return;
+    try {
+      Map<String, Object> root =
+          gson.fromJson(scopeJson, new TypeToken<Map<String, Object>>() {}.getType());
+      Object inputsObj = root.get(SCOPE_INPUTS);
+      if (inputsObj != null) {
+        String inputsJsonString = gson.toJson(inputsObj);
+        processDataChaining(inputsJsonString, workflowExecution);
+      }
+    } catch (Exception e) {
+      log.error(
+          String.format(
+              "An error occurred while processing scope state data for workflow (workflow=%s). Error: %s",
+              workflowExecution.getId(), e.getMessage()),
+          e);
+    }
+  }
+
+  /**
+   * Builds execution batches for a template step from workflow global/local mapper states.
+   *
+   * <p>For each mapper on the template, this method collects candidate values from the relevant
+   * partition (GLOBAL or LOCAL), computes the Cartesian product of all dynamic values, merges
+   * DEFAULT mapper values, and keeps only combinations that satisfy required execution keys. Unique
+   * combinations are tracked via hash to avoid duplicate executions, persisted into LOCAL state,
+   * and returned as ready-to-run input batches with resolved mapper conditions.
+   *
+   * @param stepTemplate step template for which input combinations are generated
+   * @param workflowRun active workflow run used to resolve global/local workflow states
+   * @return list of execution batches; empty when no mapper-driven execution is currently possible
+   */
+  public List<ConditionService.ExecutionBatch> extractInputsForStepExecution(
+      Step stepTemplate, Workflow workflowRun) {
+    // Identify Mappers
+    List<Condition> mappers =
+        conditionService.findAllConditionsByStepId(stepTemplate.getId()).stream()
+            .filter(c -> c.getType() == ConditionType.MAPPER)
+            .toList();
+
+    if (mappers.isEmpty()) {
+      return new ArrayList<>();
+    }
+
+    // Fetch States
+    WorkflowState globalState =
+        workflowStateService.getGlobalStateByWorkflowId(workflowRun.getId());
+    WorkflowState localState =
+        workflowStateService.getLocalStateByWorkflowIdAndStepId(
+            stepTemplate.getId(), workflowRun.getId());
+
+    if (localState == null) {
+      return new ArrayList<>();
+    }
+
+    WorkflowStateEntries localEntries =
+        gson.fromJson(localState.getEntries(), WorkflowStateEntries.class);
+    WorkflowStateEntries globalEntries =
+        gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
+
+    // Define the "Requirement" for a unique execution
+    Set<String> requiredKeys =
+        mappers.stream()
+            .filter(m -> m.getMappingType() != MappingType.DEFAULT)
+            .map(m -> m.getKeyType().name())
+            .collect(Collectors.toSet());
+
+    // Build the lists for the Cartesian Product
+    List<List<WorkflowStateEntries.Pair>> allPairsList = new ArrayList<>();
+    Map<String, String> staticValues = new HashMap<>();
+
+    for (Condition m : mappers) {
+      String key = m.getKeyType().name();
+
+      if (m.getMappingType() == MappingType.DEFAULT) {
+        staticValues.put(key, m.getValue());
+      } else {
+        Set<String> vals =
+            (m.getMappingType() == MappingType.GLOBAL)
+                ? globalEntries.getInputByKey(key).getValues()
+                : localEntries.getInputByKey(key).getValues();
+
+        if (vals == null || vals.isEmpty()) {
+          return new ArrayList<>();
+        }
+
+        // Convert these values into Pairs for the combination engine
+        List<WorkflowStateEntries.Pair> pairs =
+            vals.stream().map(v -> new WorkflowStateEntries.Pair(key, v)).toList();
+        allPairsList.add(pairs);
+      }
+    }
+
+    // Generate every possible combination (Local values X Global values)
+    List<List<WorkflowStateEntries.Pair>> product = localEntries.cartesianProduct(allPairsList);
+    List<ConditionService.ExecutionBatch> batches = new ArrayList<>();
+
+    for (List<WorkflowStateEntries.Pair> comboPairs : product) {
+      // Create a sorted map of this specific combination for consistent hashing
+      Map<String, String> comboMap = new TreeMap<>();
+      comboPairs.forEach(p -> comboMap.put(p.key(), p.value()));
+
+      // Ensure this combo has everything the mappers required
+      if (localEntries.comboContainAllExecutionKeys(requiredKeys, comboMap)) {
+
+        // HASHING: This hash represents the UNIQUE combination of Local + Global data
+        long hash = localEntries.hashCombo(comboMap);
+
+        // Check if THIS specific step has already executed this combo
+        if (!localEntries.getHashExecution().contains(hash)) {
+
+          // Prepare the full input including static DEFAULT values
+          Map<String, String> fullInput = new HashMap<>(comboMap);
+          fullInput.putAll(staticValues);
+
+          List<Condition> resolvedMappers =
+              mappers.stream()
+                  .map(
+                      template -> {
+                        Condition resolved = new Condition();
+
+                        // Copy metadata from template
+                        resolved.setType(ConditionType.MAPPER);
+                        resolved.setKey(template.getKey());
+                        resolved.setKeyType(template.getKeyType());
+                        resolved.setMappingType(template.getMappingType());
+                        resolved.setDescription(template.getDescription());
+                        resolved.setKeySubtype(template.getKeySubtype());
+                        resolved.setName(template.getName());
+                        resolved.setWorkflowId(template.getWorkflowId());
+                        resolved.setCreationDate(Instant.now());
+                        resolved.setUpdateDate(Instant.now());
+
+                        // Fetch the specific value used in this execution batch
+                        String actualValue = fullInput.get(template.getKeyType().name());
+                        resolved.setValue(actualValue);
+
+                        return resolved;
+                      })
+                  .collect(Collectors.toList());
+
+          batches.add(new ConditionService.ExecutionBatch(gson.toJson(fullInput), resolvedMappers));
+
+          // Persist the hash locally
+          localEntries.getHashExecution().add(hash);
         }
       }
     }
+
+    // Save the updated hash list to the LOCAL state
+    localState.setEntries(gson.toJson(localEntries));
+    workflowStateService.save(localState);
+
+    return batches;
   }
 
   public enum ACTION_JSON {

@@ -116,8 +116,7 @@ class InjectorExecutionProcessingHandlerTest {
     element.setField("missing_key");
     element.setFindingCompatible(true);
 
-    when(injectorContract.getConvertedContent()).thenReturn(mapper.createObjectNode());
-    when(injectorContractContentUtils.getContractOutputs(any(), any()))
+    when(injectorContractContentUtils.getAllContractOutputs(any(InjectorContract.class)))
         .thenReturn(List.of(element));
 
     handler.processContext(ctx);
@@ -130,9 +129,6 @@ class InjectorExecutionProcessingHandlerTest {
   @DisplayName("Should skip dispatch when contract outputs list is empty")
   void shouldSkipDispatchWhenContractOutputsAreEmpty() throws Exception {
     ExecutionProcessingContext ctx = createValidCtx("{\"some_key\": \"value\"}");
-
-    when(injectorContract.getConvertedContent()).thenReturn(mapper.createObjectNode());
-    when(injectorContractContentUtils.getContractOutputs(any(), any())).thenReturn(List.of());
 
     Optional<ObjectNode> result = handler.processContext(ctx);
 
@@ -150,14 +146,14 @@ class InjectorExecutionProcessingHandlerTest {
     element.setType(ContractOutputType.CVE);
     element.setFindingCompatible(true);
 
-    when(injectorContract.getConvertedContent()).thenReturn(mapper.createObjectNode());
-    when(injectorContractContentUtils.getContractOutputs(any(), any()))
+    when(injectorContractContentUtils.getAllContractOutputs(any(InjectorContract.class)))
         .thenReturn(List.of(element));
     when(outputProcessorFactory.getProcessor(ContractOutputType.CVE)).thenReturn(Optional.empty());
 
     Optional<ObjectNode> result = handler.processContext(ctx);
 
     assertTrue(result.isPresent());
+    verify(outputProcessorFactory).getProcessor(ContractOutputType.CVE);
     verify(mockProcessor, never()).process(any(), any(), any());
   }
 
@@ -172,8 +168,7 @@ class InjectorExecutionProcessingHandlerTest {
     element.setType(ContractOutputType.CVE);
     element.setFindingCompatible(true);
 
-    when(injectorContract.getConvertedContent()).thenReturn(mapper.createObjectNode());
-    when(injectorContractContentUtils.getContractOutputs(any(), any()))
+    when(injectorContractContentUtils.getAllContractOutputs(any(InjectorContract.class)))
         .thenReturn(List.of(element));
     when(outputProcessorFactory.getProcessor(ContractOutputType.CVE))
         .thenReturn(Optional.of(mockProcessor));
