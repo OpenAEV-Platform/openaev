@@ -19,14 +19,14 @@ const ScenarioCreation: FunctionComponent = () => {
   // Standard hooks
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const [open, setOpen] = useState(false);
-  const [isChaining, setIsChaining] = useState<EngineType>(isChainingFeatureEnabled ? null : 'time-based');
+  const [engineType, setEngineType] = useState<EngineType>(isChainingFeatureEnabled ? null : 'time-based');
   const { t } = useFormatter();
   const navigate = useNavigate();
 
   const dispatch = useAppDispatch();
 
   const handleTypeSelected = useCallback((type: EngineType) => {
-    setIsChaining(type);
+    setEngineType(type);
   }, []);
 
   const onSubmit = (data: ScenarioInput, isScenarioAssistantChecked?: boolean) => {
@@ -77,16 +77,16 @@ const ScenarioCreation: FunctionComponent = () => {
     return (
       <>
         <EngineTypeSelection
-          selected={isChaining}
+          selected={engineType}
           onSelect={handleTypeSelected}
         />
-        {isChaining !== null && (
+        {engineType !== null && (
           <ScenarioFormChaining
             onSubmit={onSubmit}
             initialValues={initialValues}
             handleClose={() => setOpen(false)}
             isCreation
-            isChaining={isChaining === 'chaining'}
+            isChaining={engineType === 'chaining'}
           />
         )}
       </>

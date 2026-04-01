@@ -18,19 +18,19 @@ const ExerciseCreation = () => {
   // Standard hooks
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const [open, setOpen] = useState(false);
-  const [isChaining, setIsChaining] = useState<EngineType>(isChainingFeatureEnabled ? null : 'time-based');
+  const [engineType, setEngineType] = useState<EngineType>(isChainingFeatureEnabled ? null : 'time-based');
   const { t } = useFormatter();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
   const handleTypeSelected = useCallback((type: EngineType) => {
-    setIsChaining(type);
+    setEngineType(type);
   }, []);
 
   const onSubmit = (data: CreateExerciseInput) => {
     const payload: CreateExerciseInput = {
       ...data,
-      exercise_is_chaining: isChaining === 'chaining',
+      exercise_is_chaining: engineType === 'chaining',
     };
     dispatch(addExercise(payload)).then((result: {
       result: string;
@@ -75,17 +75,17 @@ const ExerciseCreation = () => {
     return (
       <>
         <EngineTypeSelection
-          selected={isChaining}
+          selected={engineType}
           onSelect={handleTypeSelected}
         />
         {/* if scenario type is selected (standard or chaining), then display the form */}
-        {isChaining !== null && (
+        {engineType !== null && (
           <ExerciseFormChaining
             onSubmit={onSubmit}
             handleClose={() => setOpen(false)}
             initialValues={initialValues}
             edit={false}
-            isChaining={isChaining === 'chaining'}
+            isChaining={engineType === 'chaining'}
           />
         )}
       </>
