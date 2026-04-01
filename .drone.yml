@@ -180,7 +180,7 @@ services:
     commands: 
       - docker-entrypoint.sh -c 'max_connections=500'
   - name: rabbitmq
-    image: rabbitmq:4.1-management
+    image: rabbitmq:4.2-management
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
@@ -199,7 +199,7 @@ services:
     commands: 
       - docker-entrypoint.sh -c 'max_connections=500'
   - name: rabbitmq-e2e
-    image: rabbitmq:4.1-management
+    image: rabbitmq:4.2-management
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest

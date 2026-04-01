@@ -2,23 +2,30 @@
 
 ## Repository Overview
 
-**OpenAEV** is an open source platform for planning, scheduling, and conducting cyber adversary simulation campaigns and tests. It helps organizations identify security gaps through simulations, training, and exercises from technical to strategic levels.
+**OpenAEV** is an open source platform for planning, scheduling, and conducting cyber adversary simulation campaigns and
+tests. It helps organizations identify security gaps through simulations, training, and exercises from technical to
+strategic levels.
 
 ### Architecture
-- **Backend**: Spring Boot 3.3.7 (Java 21), PostgreSQL, Elasticsearch/OpenSearch, MinIO, RabbitMQ
-- **Frontend**: React 19, TypeScript, Vite, Material-UI, Yarn 4.12.0
+
+- **Backend**: Spring Boot (Java), PostgreSQL, Elasticsearch/OpenSearch, MinIO, RabbitMQ
+- **Frontend**: React, TypeScript, Vite, Material-UI
 - **Multi-module Maven project** with 3 modules: `openaev-model`, `openaev-framework`, `openaev-api`
-- **Size**: ~1,882 Java files, ~809 TypeScript/React files
+- ⚠️ **`openaev-framework` is deprecated** — it will be removed. **Never add new code to `openaev-framework`**. Place
+  new utilities in `openaev-api` or `openaev-model` instead.
+
+> For exact framework/library versions, read `pom.xml` (backend) and `openaev-front/package.json` (frontend).
 
 ## Critical Build Requirements
 
 ### Java Version Requirement
-**ALWAYS use Java 21**. The project WILL FAIL to build with Java 17 or lower due to:
-- Maven compiler plugin configured for Java 21 (`<source>21</source>`, `<target>21</target>`)
-- Error message: `release version 21 not supported`
+
+The project requires the Java version configured in `pom.xml` (`maven-compiler-plugin` source/target).
+Building with an older version will fail with: `release version XX not supported`.
 
 ### Node.js Version Requirement
-**Use Node.js >= 22.11.0** as specified in `openaev-front/package.json` engines field.
+
+The minimum Node.js version is specified in `openaev-front/package.json` (`engines` field).
 
 ## Build & Development Workflow
 
@@ -26,7 +33,8 @@
 
 **ALWAYS follow this sequence:**
 
-1. **Start services**: `cd openaev-dev && docker-compose up -d openaev-dev-pgsql openaev-dev-minio openaev-dev-elasticsearch openaev-dev-rabbitmq`
+1. **Start services**:
+   `cd openaev-dev && docker-compose up -d openaev-dev-pgsql openaev-dev-minio openaev-dev-elasticsearch openaev-dev-rabbitmq`
 2. **Build frontend**: `cd openaev-front && yarn install && yarn build` (~4min)
 3. **Build backend**: `cd .. && mvn clean install -DskipTests -Pdev`
 
@@ -34,7 +42,8 @@
 
 **Backend**: `mvn spotless:check` / `mvn spotless:apply` (Google Java Format)
 **Frontend**: `yarn lint` (~60s), `yarn check-ts`, `yarn i18n-checker`
-**Known Issue**: Pre-existing Spotless errors in `DetectionRemediationApiTest.java` and `InjectExpectationUtils.java` - ignore unless your changes touch these.
+**Known Issue**: Pre-existing Spotless errors in `DetectionRemediationApiTest.java` and `InjectExpectationUtils.java` -
+ignore unless your changes touch these.
 
 ### Testing
 
@@ -45,15 +54,18 @@
 ## Continuous Integration
 
 ### Drone CI Pipeline
+
 Primary CI runs on every push:
+
 1. **API Tests**: `mvn spotless:check`, `mvn clean install -DskipTests`, tests, `mvn jacoco:check`
 2. **Frontend Tests**: `yarn install/build/check-ts/lint/i18n-checker/test`
 3. **E2E Tests**: Full app test with Playwright
 4. **Type Check**: `yarn generate-types-from-api` verification
 
-**Services**: PostgreSQL 17, MinIO RELEASE.2025-06-13T11-33-47Z, Elasticsearch 8.18.3, RabbitMQ 4.1
+**Services**: PostgreSQL, MinIO, Elasticsearch, RabbitMQ (see `.drone.yml` for exact versions)
 
 ### GitHub Actions
+
 - **test-feature-branch.yml**: Docker image build (Alpine Linux)
 - **codeql.yml**: Security scanning (weekly + master push)
 - **pr-title-check-worker.yml**: Conventional Commits validation
@@ -61,15 +73,17 @@ Primary CI runs on every push:
 ## Project Structure
 
 ### Root Files
-- `pom.xml` - Parent Maven POM (Spring Boot 3.3.7, Java 21)
+
+- `pom.xml` - Parent Maven POM
 - `.drone.yml` - Primary CI/CD pipeline
 - `docker-compose.yml` - Dev services (in `openaev-dev/`)
 - `Dockerfile` / `Dockerfile_ga` - Production / GitHub Actions images
 
 ### Backend
+
 ```
 openaev-model/       # Domain models, entities, DTOs
-openaev-framework/   # Core framework, utilities, base services
+openaev-framework/   # ⚠️ DEPRECATED — will be removed (see Architecture section above)
 openaev-api/         # REST API, main application
   src/main/java/io/openaev/
     api/             # REST controllers
@@ -82,6 +96,7 @@ openaev-api/         # REST API, main application
 ```
 
 ### Frontend
+
 ```
 openaev-front/
   src/
@@ -90,10 +105,11 @@ openaev-front/
     components/      # Reusable components
     utils/           # Utilities, API types
   builder/prod/      # Production build (esbuild)
-  package.json       # 2.0.10, Node >= 22.11.0
+  package.json
 ```
 
 ### Config Files
+
 - **Backend**: `pom.xml` (spotless-maven-plugin, Google Java Format)
 - **Frontend**: `eslint.config.js`, `tsconfig.json`, `vite.config.ts`
 
@@ -108,11 +124,13 @@ openaev-front/
 ## Commit Message Format
 
 **ALL commit messages MUST follow Conventional Commits format:**
+
 ```
 [<context>] <type>(<scope>?): <short description> (#<issue-number>?)
 ```
 
 **Examples:**
+
 - `[backend] feat(auth): add JWT authentication (#123)`
 - `[frontend] fix(ui): resolve button alignment issue`
 - `[docs] chore: update README with setup instructions`
@@ -123,6 +141,7 @@ openaev-front/
 ## Key Commands Reference
 
 ### Backend
+
 ```bash
 mvn spotless:check              # Check formatting
 mvn spotless:apply              # Fix formatting
@@ -132,6 +151,7 @@ mvn jacoco:check                # Verify coverage
 ```
 
 ### Frontend
+
 ```bash
 yarn install                    # Install dependencies
 yarn build                      # Production build
@@ -145,18 +165,50 @@ yarn generate-types-from-api    # Generate TypeScript types from API
 ```
 
 **Checklist:**
+
 - Formatting: `mvn spotless:check` (backend), `yarn lint` (frontend)
 - Type safety: `yarn check-ts` (frontend only)
 - Tests: Ensure existing tests pass, add tests for new functionality
 - Coverage: Maintain 50% line, 30% branch coverage (backend)
 
+## Code Conventions
+
+Conventions are defined in dedicated instruction files that activate automatically when you work on matching files:
+
+| Domain                               | File                                                                            |
+|--------------------------------------|---------------------------------------------------------------------------------|
+| Backend (Java/Spring/Hibernate)      | [backend.instructions.md](.github/instructions/backend.instructions.md)         |
+| Frontend (React/TypeScript/MUI)      | [frontend.instructions.md](.github/instructions/frontend.instructions.md)       |
+| Database (schema/migrations/tenancy) | [database.instructions.md](.github/instructions/database.instructions.md)       |
+| Tests (integration/unit/fixtures)    | [testing.instructions.md](.github/instructions/testing.instructions.md)         |
+| Security (RBAC/@AccessControl)       | [security.instructions.md](.github/instructions/security.instructions.md)       |
+| Performance (N+1/pagination/fetch)   | [performance.instructions.md](.github/instructions/performance.instructions.md) |
+| Code Review                          | [code-review.instructions.md](.github/instructions/code-review.instructions.md) |
+
+## PR & Review Conventions
+
+### Conventional Comments (for code reviews)
+
+Format: `<label>[decorations]: <subject>`
+
+Labels: `praise:`, `nitpick:`, `suggestion:`, `issue:`, `todo:`, `question:`, `thought:`, `chore:`, `note:`, `typo:`
+
+Decorations: `(non-blocking)`, `(blocking)`, `(if-minor)`
+
+Examples:
+
+- `suggestion (non-blocking): prefer functional approach for immutability`
+- `todo (blocking): remove debug comments before merging`
+- `praise: nice improvement 🤩`
+
 ## Important Notes
 
-1. **Trust these instructions**: Only search for information if instructions are incomplete or incorrect.
-2. **Pre-existing issues**: Don't fix unrelated linting/build issues unless they block your task.
-3. **Frontend must build first**: The backend copies frontend build artifacts.
-4. **Services required**: PostgreSQL, MinIO, Elasticsearch/OpenSearch, and RabbitMQ must be running for tests.
-5. **Java 21 is mandatory**: The project will not compile with earlier versions.
-6. **Node >= 22.11.0**: Required for frontend development.
-7. **API types**: After API changes, run `yarn generate-types-from-api` in frontend to update TypeScript types.
-8. **Coverage enforcement**: Backend tests must maintain 50% line coverage, 30% branch coverage.
+1. **Follow existing patterns** — before creating anything, search for a similar file and replicate its structure.
+2. **Trust these instructions**: Only search for information if instructions are incomplete or incorrect.
+3. **Pre-existing issues**: Don't fix unrelated linting/build issues unless they block your task.
+4. **Frontend must build first**: The backend copies frontend build artifacts.
+5. **Services required**: PostgreSQL, MinIO, Elasticsearch/OpenSearch, and RabbitMQ must be running for tests.
+6. **Java 21 is mandatory**: The project will not compile with earlier versions.
+7. **Node.js version**: Check `openaev-front/package.json` engines field for the minimum required version.
+8. **API types**: After API changes, run `yarn generate-types-from-api` in frontend to update TypeScript types.
+9. **Coverage enforcement**: Backend tests must maintain 50% line coverage, 30% branch coverage.
