@@ -87,6 +87,7 @@ public class ConditionMapper {
     output.setType(c.getType() != null ? c.getType().name() : null);
     output.setValue(c.getValue());
     output.setConditionParentId(parentId);
+    output.setMappingType(c.getMappingType());
     return output;
   }
 
@@ -103,6 +104,7 @@ public class ConditionMapper {
     condition.setKeySubtype(input.getKeySubtype());
     condition.setType(input.getType());
     condition.setValue(input.getValue());
+    condition.setMappingType(input.getMappingType());
     condition.setStepFrom(stepFrom);
     condition.setConditionParent(conditionParent);
     return condition;

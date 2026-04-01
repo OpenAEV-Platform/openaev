@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.ConditionKeySubtype;
 import io.openaev.database.model.ConditionKeyType;
 import io.openaev.database.model.ConditionType;
+import io.openaev.database.model.MappingType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
@@ -31,12 +32,12 @@ public class ConditionCreateInput {
   /** Condition key: Path to the value in the output of the step from */
   @Schema(description = "Path to the value in the output of the step from")
   @JsonProperty("condition_key_type")
-  private ConditionKeyType keyType; //TODO Change to PayloadArgumentType
+  private ConditionKeyType keyType;
 
   /** Condition key subtype */
   @Schema(description = "Condition key subtype")
   @JsonProperty("condition_key_subtype")
-  private ConditionKeySubtype keySubtype; //TODO Change to PayloadArgumentSubtype
+  private ConditionKeySubtype keySubtype;
 
   /** Condition value: Value to be compared */
   @Schema(description = "Value to be compared")
@@ -52,6 +53,11 @@ public class ConditionCreateInput {
           "Condition type: AND, OR, EQ, NEQ, IS_NULL, IS_NOT_NULL, GT, GTE, LT, LTE, IN, NIN, AFTER, BEFORE, MAPPER, or DEPEND_ON")
   @JsonProperty("condition_type")
   private ConditionType type;
+
+  /** Mapping type: DEFAULT, LOCAL, or GLOBAL */
+  @Schema(description = "Mapping type: DEFAULT, LOCAL, or GLOBAL")
+  @JsonProperty("condition_mapping_type")
+  private MappingType mappingType;
 
   /** ID of the step linked to the key */
   @Schema(description = "ID of the step linked to the key")

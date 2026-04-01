@@ -8,6 +8,7 @@ import io.openaev.api.chaining.dto.EventInput;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionType;
+import io.openaev.database.model.MappingType;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.ConditionRepository;
@@ -656,6 +657,7 @@ public class ConditionServiceTest {
       ConditionCreateInput rootInput = new ConditionCreateInput();
       rootInput.setTemporaryId("tmp-root");
       rootInput.setType(ConditionType.AND);
+      rootInput.setMappingType(MappingType.GLOBAL);
 
       ConditionCreateInput childInput = new ConditionCreateInput();
       childInput.setTemporaryId("tmp-child");
@@ -664,6 +666,7 @@ public class ConditionServiceTest {
       childInput.setKeyType(ConditionKeyType.PortsScan);
       childInput.setValue("445");
       childInput.setStepFrom(childStepFromId);
+      childInput.setMappingType(MappingType.LOCAL);
 
       EventInput input =
           EventInput.builder()
@@ -697,12 +700,14 @@ public class ConditionServiceTest {
       assertEquals(ConditionType.AND, createdRoot.getType());
       assertNotNull(createdRoot.getStepFrom());
       assertEquals(rootStepFromId, createdRoot.getStepFrom().getId());
+      assertEquals(MappingType.GLOBAL, createdRoot.getMappingType());
       assertEquals(1, createdRoot.getConditionChildren().size());
 
       verify(stepRepository).findAllById(List.of(linkedStepId));
 
       Condition savedChild = createdRoot.getConditionChildren().getFirst();
       assertEquals("445", savedChild.getValue());
+      assertEquals(MappingType.LOCAL, savedChild.getMappingType());
       assertNotNull(savedChild.getConditionParent());
       assertEquals(rootStepFromId, savedChild.getConditionParent().getStepFrom().getId());
       assertEquals(childStepFromId, savedChild.getStepFrom().getId());
@@ -760,6 +765,7 @@ public class ConditionServiceTest {
       ConditionCreateInput rootInput = new ConditionCreateInput();
       rootInput.setTemporaryId("tmp-root");
       rootInput.setType(ConditionType.AND);
+      rootInput.setMappingType(MappingType.DEFAULT);
 
       ConditionCreateInput childInput = new ConditionCreateInput();
       childInput.setTemporaryId("tmp-child");
@@ -767,6 +773,7 @@ public class ConditionServiceTest {
       childInput.setType(ConditionType.EQ);
       childInput.setKeyType(ConditionKeyType.Status);
       childInput.setValue("ok");
+      childInput.setMappingType(MappingType.LOCAL);
 
       EventInput input =
           EventInput.builder()
@@ -796,9 +803,11 @@ public class ConditionServiceTest {
       assertEquals("new-desc", updated.getDescription());
       assertEquals(workflowId, updated.getWorkflowId());
       assertEquals(ConditionType.AND, updated.getType());
+      assertEquals(MappingType.DEFAULT, updated.getMappingType());
       assertEquals(newRootStepFromId, updated.getStepFrom().getId());
       assertEquals(1, updated.getConditionChildren().size());
       assertEquals("ok", updated.getConditionChildren().getFirst().getValue());
+      assertEquals(MappingType.LOCAL, updated.getConditionChildren().getFirst().getMappingType());
 
       verify(conditionRepository).saveAndFlush(existingRoot);
       verify(conditionRepository, atLeast(2)).save(any(Condition.class));

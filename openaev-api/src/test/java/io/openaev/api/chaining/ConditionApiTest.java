@@ -9,6 +9,7 @@ import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionKeyType;
 import io.openaev.database.model.ConditionType;
+import io.openaev.database.model.MappingType;
 import io.openaev.database.model.Step;
 import io.openaev.service.chaining.ConditionService;
 import java.time.Instant;
@@ -41,6 +42,13 @@ class ConditionApiTest {
     assertEquals("wf-1", result.getWorkflowId());
     assertEquals("step-from-1", result.getStepFrom());
     assertEquals(2, result.getConditions().size());
+    assertEquals(
+        MappingType.LOCAL,
+        result.getConditions().stream()
+            .filter(c -> c.getId().equals("cond-root-child"))
+            .findFirst()
+            .orElseThrow()
+            .getMappingType());
     verify(conditionService).createConditionTree(input);
   }
 
@@ -141,6 +149,7 @@ class ConditionApiTest {
     child.setType(ConditionType.EQ);
     child.setKeyType(ConditionKeyType.PortsScan);
     child.setValue("445");
+    child.setMappingType(MappingType.LOCAL);
     child.setConditionParent(root);
 
     root.getConditionChildren().add(child);

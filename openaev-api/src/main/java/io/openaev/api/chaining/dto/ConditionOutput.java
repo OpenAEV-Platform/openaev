@@ -3,6 +3,7 @@ package io.openaev.api.chaining.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.ConditionKeySubtype;
 import io.openaev.database.model.ConditionKeyType;
+import io.openaev.database.model.MappingType;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -31,4 +32,7 @@ public class ConditionOutput {
 
   @JsonProperty("condition_parent_id")
   private String conditionParentId;
+
+  @JsonProperty("condition_mapping_type")
+  private MappingType mappingType;
 }

@@ -60,6 +60,7 @@ public class ConditionService {
           root.setType(rootInput.getType());
           root.setKeyType(rootInput.getKeyType());
           root.setKeySubtype(rootInput.getKeySubtype());
+          root.setMappingType(rootInput.getMappingType());
           root.setStepFrom(resolveStepFrom(input.getStepFrom()));
           return root;
         },
@@ -220,6 +221,7 @@ public class ConditionService {
     root.setType(rootInput.getType());
     root.setKeyType(rootInput.getKeyType());
     root.setKeySubtype(rootInput.getKeySubtype());
+    root.setMappingType(rootInput.getMappingType());
     root.setStepFrom(resolveStepFrom(input.getStepFrom()));
 
     // Clear existing relationships (children and linked steps)
