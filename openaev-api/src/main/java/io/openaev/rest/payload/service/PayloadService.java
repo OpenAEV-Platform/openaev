@@ -99,7 +99,7 @@ public class PayloadService {
     Injector referenceInjector = injectors.isEmpty() ? null : injectors.getFirst();
     if (referenceInjector != null) {
       setInjectorContractPropertyBasedOnPayload(contract, payload, referenceInjector);
-      injectorContractRepository.save(contract);
+      contract = injectorContractRepository.save(contract);
 
       // Link contract to all payload-supporting injectors via the owning side
       for (Injector injector : injectors) {

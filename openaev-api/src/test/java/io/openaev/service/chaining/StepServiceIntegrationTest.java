@@ -66,7 +66,7 @@ class StepServiceIntegrationTest {
 
     InjectorContract injectorContract = InjectorContractFixture.createImplantInjectorContract();
     injectorContract.addInjector(injectorSaved);
-    InjectorContract injectorContractSaved = injectorContractRepository.save(injectorContract);
+    injectorContractSaved = injectorContractRepository.save(injectorContract);
     // Link on the owning side and save to persist the join table
     injectorSaved.getContracts().add(injectorContractSaved);
     injectorRepository.save(injectorSaved);

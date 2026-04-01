@@ -66,7 +66,7 @@ public class InjectExecutionStepTest {
 
     InjectorContract injectorContract = InjectorContractFixture.createImplantInjectorContract();
     injectorContract.addInjector(injectorSaved);
-    InjectorContract injectorContractSaved = injectorContractRepository.save(injectorContract);
+    injectorContractSaved = injectorContractRepository.save(injectorContract);
     injectorSaved.getContracts().add(injectorContractSaved);
     injectorRepository.save(injectorSaved);
 
