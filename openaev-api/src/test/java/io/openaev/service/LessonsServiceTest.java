@@ -1,7 +1,6 @@
 package io.openaev.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
 import io.openaev.database.model.LessonsAnswer;
@@ -47,14 +46,6 @@ class LessonsServiceTest {
   @DisplayName("resetLessonsAnswer")
   class ResetLessonsAnswerTests {
 
-    @Captor private ArgumentCaptor<Specification<LessonsCategory>> categorySpecCaptor;
-
-    @Captor private ArgumentCaptor<Specification<LessonsQuestion>> questionSpecCaptor;
-
-    @Captor private ArgumentCaptor<Specification<LessonsAnswer>> answerSpecCaptor;
-
-    @Captor private ArgumentCaptor<List<LessonsAnswer>> answersToDeleteCaptor;
-
     @Test
     @DisplayName("should delete all answers when categories, questions and answers exist")
     void shouldDeleteAllAnswers() {
@@ -87,11 +78,8 @@ class LessonsServiceTest {
       verify(lessonsCategoryRepository).findAll(any(Specification.class));
       verify(lessonsQuestionRepository, times(2)).findAll(any(Specification.class));
       verify(lessonsAnswerRepository, times(2)).findAll(any(Specification.class));
-      verify(lessonsAnswerRepository).deleteAll(answersToDeleteCaptor.capture());
-
-      List<LessonsAnswer> deletedAnswers = answersToDeleteCaptor.getValue();
-      assertEquals(3, deletedAnswers.size());
-      assertTrue(deletedAnswers.containsAll(List.of(answer1, answer2, answer3)));
+      verify(lessonsAnswerRepository)
+          .deleteAllLessonsAnswersQuestionsCategoriesByExerciseId(exerciseId);
     }
 
     @Test
@@ -109,7 +97,8 @@ class LessonsServiceTest {
       verify(lessonsCategoryRepository).findAll(any(Specification.class));
       verify(lessonsQuestionRepository, never()).findAll(any(Specification.class));
       verify(lessonsAnswerRepository, never()).findAll(any(Specification.class));
-      verify(lessonsAnswerRepository, never()).deleteAll(anyList());
+      verify(lessonsAnswerRepository, never())
+          .deleteAllLessonsAnswersQuestionsCategoriesByExerciseId(anyString());
     }
 
     @Test
@@ -131,7 +120,8 @@ class LessonsServiceTest {
       verify(lessonsCategoryRepository).findAll(any(Specification.class));
       verify(lessonsQuestionRepository).findAll(any(Specification.class));
       verify(lessonsAnswerRepository, never()).findAll(any(Specification.class));
-      verify(lessonsAnswerRepository, never()).deleteAll(anyList());
+      verify(lessonsAnswerRepository, never())
+          .deleteAllLessonsAnswersQuestionsCategoriesByExerciseId(anyString());
     }
 
     @Test
@@ -156,7 +146,8 @@ class LessonsServiceTest {
       verify(lessonsCategoryRepository).findAll(any(Specification.class));
       verify(lessonsQuestionRepository).findAll(any(Specification.class));
       verify(lessonsAnswerRepository).findAll(any(Specification.class));
-      verify(lessonsAnswerRepository, never()).deleteAll(anyList());
+      verify(lessonsAnswerRepository, never())
+          .deleteAllLessonsAnswersQuestionsCategoriesByExerciseId(anyString());
     }
 
     @Test
@@ -178,9 +169,8 @@ class LessonsServiceTest {
       lessonsService.resetLessonsAnswer(exerciseId);
 
       // Assert
-      verify(lessonsAnswerRepository).deleteAll(answersToDeleteCaptor.capture());
-      assertEquals(1, answersToDeleteCaptor.getValue().size());
-      assertEquals(answer, answersToDeleteCaptor.getValue().get(0));
+      verify(lessonsAnswerRepository)
+          .deleteAllLessonsAnswersQuestionsCategoriesByExerciseId(exerciseId);
     }
 
     @Test
@@ -208,8 +198,8 @@ class LessonsServiceTest {
       // Assert
       verify(lessonsQuestionRepository).findAll(any(Specification.class));
       verify(lessonsAnswerRepository, times(2)).findAll(any(Specification.class));
-      verify(lessonsAnswerRepository).deleteAll(answersToDeleteCaptor.capture());
-      assertEquals(2, answersToDeleteCaptor.getValue().size());
+      verify(lessonsAnswerRepository)
+          .deleteAllLessonsAnswersQuestionsCategoriesByExerciseId(exerciseId);
     }
 
     private LessonsCategory createMockCategory() {
