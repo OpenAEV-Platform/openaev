@@ -54,12 +54,14 @@ public final class OperationUtilsJpa {
    * NOT LIKE} approach produces wrong results for multi-valued associations because a single
    * non-matching row is enough to satisfy the predicate even when another row does match.
    *
-   * <p>Generated SQL pattern (one subquery per text value, all combined with AND):
+   * <p>Generated SQL pattern (one correlated subquery per text value, all combined with AND):
    *
    * <pre>{@code
    * NOT EXISTS (
-   *   SELECT 1 FROM <joinRelation> d
-   *   WHERE d.id = <joinedPath> AND LOWER(d.<labelField>) LIKE '%text%'
+   *   SELECT 1
+   *   FROM <RootEntity> r2
+   *   JOIN r2.<joinRelation> d
+   *   WHERE r2 = <outerRoot> AND LOWER(d.<labelPath>) LIKE '%text%'
    * )
    * }</pre>
    *
