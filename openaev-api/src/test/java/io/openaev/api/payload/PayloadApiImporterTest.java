@@ -18,6 +18,8 @@ import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
+import io.openaev.integration.Manager;
+import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.Relationship;
 import io.openaev.jsonapi.ResourceIdentifier;
@@ -42,6 +44,7 @@ class PayloadApiImporterTest extends IntegrationTest {
   @Autowired private ZipJsonService<Payload> zipJsonService;
   @Autowired private PayloadRepository payloadRepository;
   @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
 
   // -- HELPERS --
 
@@ -80,11 +83,29 @@ class PayloadApiImporterTest extends IntegrationTest {
   @Test
   @DisplayName("Import payload should create injector contract")
   void importPayloadShouldCreateInjectorContract() throws Exception {
+    new Manager(List.of(openaevInjectorIntegrationFactory)).monitorIntegrations();
+
     // -- PREPARE --
+    String domainId = "02e33774-33ae-4d65-91fd-a9c0e1a37c7b";
+    Map<String, Object> domainAttributes = new HashMap<>();
+    domainAttributes.put("domain_id", domainId);
+    domainAttributes.put("domain_name", "Data Exfiltration");
+    domainAttributes.put("domain_color", "#9933CC");
+    domainAttributes.put("domain_created_at", "2026-02-02T14:55:27.442379Z");
+    domainAttributes.put("domain_updated_at", "2026-02-02T14:55:27.442379Z");
+    ResourceObject domainElement =
+        new ResourceObject(domainId, "domains", domainAttributes, emptyMap());
+
     JsonApiDocument<ResourceObject> document =
         new JsonApiDocument<>(
-            new ResourceObject(null, "command", buildDefaultPayloadAttributes(), emptyMap()),
-            emptyList());
+            new ResourceObject(
+                null,
+                "command",
+                buildDefaultPayloadAttributes(),
+                Map.of(
+                    "payload_domains",
+                    new Relationship(List.of(new ResourceIdentifier(domainId, "domains"))))),
+            List.of(domainElement));
 
     MockMultipartFile zipFile = buildZipFile(document);
 
