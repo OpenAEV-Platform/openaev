@@ -1,5 +1,6 @@
 package io.openaev.api.chaining.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.ConditionKeySubtype;
 import io.openaev.database.model.ConditionKeyType;
@@ -34,5 +35,6 @@ public class ConditionOutput {
   private String conditionParentId;
 
   @JsonProperty("condition_mapping_type")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   private MappingType mappingType;
 }

@@ -54,8 +54,13 @@ public class ConditionCreateInput {
   @JsonProperty("condition_type")
   private ConditionType type;
 
-  /** Mapping type: DEFAULT, LOCAL, or GLOBAL */
-  @Schema(description = "Mapping type: DEFAULT, LOCAL, or GLOBAL")
+  /**
+   * Mapping type: DEFAULT, LOCAL, or GLOBAL. Required when condition type is MAPPER, must be null
+   * otherwise.
+   */
+  @Schema(
+      description =
+          "Mapping type: DEFAULT, LOCAL, or GLOBAL. Required when condition type is MAPPER, must be null otherwise.")
   @JsonProperty("condition_mapping_type")
   private MappingType mappingType;
 

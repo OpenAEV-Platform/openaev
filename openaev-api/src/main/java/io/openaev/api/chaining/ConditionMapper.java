@@ -4,6 +4,8 @@ import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.ConditionOutput;
 import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.database.model.Condition;
+import io.openaev.database.model.ConditionType;
+import io.openaev.database.model.MappingType;
 import io.openaev.database.model.Step;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -91,6 +93,22 @@ public class ConditionMapper {
     return output;
   }
 
+  /**
+   * Resolves the effective {@link MappingType} for a condition input.
+   *
+   * <p>When the condition type is {@link ConditionType#MAPPER} and no mapping type is provided,
+   * defaults to {@link MappingType#DEFAULT}.
+   *
+   * @param input the condition input to resolve
+   * @return the resolved mapping type, or {@code null} for non-MAPPER conditions
+   */
+  public static MappingType resolveMappingType(ConditionCreateInput input) {
+    if (input.getType() == ConditionType.MAPPER && input.getMappingType() == null) {
+      return MappingType.DEFAULT;
+    }
+    return input.getMappingType();
+  }
+
   public static Condition toCondition(ConditionCreateInput input, Step stepFrom) {
     return toCondition(input, stepFrom, null);
   }
@@ -104,7 +122,7 @@ public class ConditionMapper {
     condition.setKeySubtype(input.getKeySubtype());
     condition.setType(input.getType());
     condition.setValue(input.getValue());
-    condition.setMappingType(input.getMappingType());
+    condition.setMappingType(resolveMappingType(input));
     condition.setStepFrom(stepFrom);
     condition.setConditionParent(conditionParent);
     return condition;

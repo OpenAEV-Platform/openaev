@@ -657,7 +657,6 @@ public class ConditionServiceTest {
       ConditionCreateInput rootInput = new ConditionCreateInput();
       rootInput.setTemporaryId("tmp-root");
       rootInput.setType(ConditionType.AND);
-      rootInput.setMappingType(MappingType.GLOBAL);
 
       ConditionCreateInput childInput = new ConditionCreateInput();
       childInput.setTemporaryId("tmp-child");
@@ -666,7 +665,6 @@ public class ConditionServiceTest {
       childInput.setKeyType(ConditionKeyType.PortsScan);
       childInput.setValue("445");
       childInput.setStepFrom(childStepFromId);
-      childInput.setMappingType(MappingType.LOCAL);
 
       EventInput input =
           EventInput.builder()
@@ -700,14 +698,12 @@ public class ConditionServiceTest {
       assertEquals(ConditionType.AND, createdRoot.getType());
       assertNotNull(createdRoot.getStepFrom());
       assertEquals(rootStepFromId, createdRoot.getStepFrom().getId());
-      assertEquals(MappingType.GLOBAL, createdRoot.getMappingType());
       assertEquals(1, createdRoot.getConditionChildren().size());
 
       verify(stepRepository).findAllById(List.of(linkedStepId));
 
       Condition savedChild = createdRoot.getConditionChildren().getFirst();
       assertEquals("445", savedChild.getValue());
-      assertEquals(MappingType.LOCAL, savedChild.getMappingType());
       assertNotNull(savedChild.getConditionParent());
       assertEquals(rootStepFromId, savedChild.getConditionParent().getStepFrom().getId());
       assertEquals(childStepFromId, savedChild.getStepFrom().getId());
@@ -765,7 +761,6 @@ public class ConditionServiceTest {
       ConditionCreateInput rootInput = new ConditionCreateInput();
       rootInput.setTemporaryId("tmp-root");
       rootInput.setType(ConditionType.AND);
-      rootInput.setMappingType(MappingType.DEFAULT);
 
       ConditionCreateInput childInput = new ConditionCreateInput();
       childInput.setTemporaryId("tmp-child");
@@ -773,7 +768,6 @@ public class ConditionServiceTest {
       childInput.setType(ConditionType.EQ);
       childInput.setKeyType(ConditionKeyType.Status);
       childInput.setValue("ok");
-      childInput.setMappingType(MappingType.LOCAL);
 
       EventInput input =
           EventInput.builder()
@@ -803,11 +797,9 @@ public class ConditionServiceTest {
       assertEquals("new-desc", updated.getDescription());
       assertEquals(workflowId, updated.getWorkflowId());
       assertEquals(ConditionType.AND, updated.getType());
-      assertEquals(MappingType.DEFAULT, updated.getMappingType());
       assertEquals(newRootStepFromId, updated.getStepFrom().getId());
       assertEquals(1, updated.getConditionChildren().size());
       assertEquals("ok", updated.getConditionChildren().getFirst().getValue());
-      assertEquals(MappingType.LOCAL, updated.getConditionChildren().getFirst().getMappingType());
 
       verify(conditionRepository).saveAndFlush(existingRoot);
       verify(conditionRepository, atLeast(2)).save(any(Condition.class));
@@ -822,6 +814,115 @@ public class ConditionServiceTest {
       assertThrows(
           EntityNotFoundException.class,
           () -> conditionService.updateConditionTree("missing-root", input));
+    }
+  }
+
+  /* ============================================================
+   * MappingTypeResolution
+   * ============================================================ */
+  @Nested
+  class MappingTypeResolution {
+
+    /** MAPPER condition with explicit LOCAL → stays LOCAL. */
+    @Test
+    void shouldPreserveMappingType_whenMapperConditionHasExplicitValue() {
+      // -------- Prepare --------
+      String stepFromId = "step-from-mr";
+
+      ConditionCreateInput mapperInput = new ConditionCreateInput();
+      mapperInput.setTemporaryId("tmp-mapper");
+      mapperInput.setType(ConditionType.MAPPER);
+      mapperInput.setMappingType(MappingType.LOCAL);
+
+      EventInput input =
+          EventInput.builder()
+              .name("ev-mr")
+              .workflowId("wf-mr")
+              .stepFrom(stepFromId)
+              .conditions(List.of(mapperInput))
+              .build();
+
+      Step stepFrom = new Step();
+      stepFrom.setId(stepFromId);
+
+      when(stepRepository.findById(stepFromId)).thenReturn(Optional.of(stepFrom));
+      when(stepRepository.findAllById(any())).thenReturn(List.of());
+      when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
+
+      // -------- Act --------
+      Condition root = conditionService.createConditionTree(input);
+
+      // -------- Assert --------
+      assertEquals(MappingType.LOCAL, root.getMappingType());
+    }
+
+    /** MAPPER condition with no mappingType → defaults to DEFAULT. */
+    @Test
+    void shouldDefaultMappingTypeToDefault_whenMapperConditionHasNullMappingType() {
+      // -------- Prepare --------
+      String stepFromId = "step-from-def";
+
+      ConditionCreateInput mapperInput = new ConditionCreateInput();
+      mapperInput.setTemporaryId("tmp-mapper");
+      mapperInput.setType(ConditionType.MAPPER);
+      mapperInput.setMappingType(null); // not provided — should be auto-defaulted
+
+      EventInput input =
+          EventInput.builder()
+              .name("ev-def")
+              .workflowId("wf-def")
+              .stepFrom(stepFromId)
+              .conditions(List.of(mapperInput))
+              .build();
+
+      Step stepFrom = new Step();
+      stepFrom.setId(stepFromId);
+
+      when(stepRepository.findById(stepFromId)).thenReturn(Optional.of(stepFrom));
+      when(stepRepository.findAllById(any())).thenReturn(List.of());
+      when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
+
+      // -------- Act --------
+      Condition root = conditionService.createConditionTree(input);
+
+      // -------- Assert --------
+      assertEquals(
+          MappingType.DEFAULT,
+          root.getMappingType(),
+          "mappingType should be auto-defaulted to DEFAULT for MAPPER conditions");
+    }
+
+    /** Non-MAPPER condition never carries a mappingType. */
+    @Test
+    void shouldLeaveMappingTypeNull_whenNonMapperCondition() {
+      // -------- Prepare --------
+      String stepFromId = "step-from-nm";
+
+      ConditionCreateInput eqInput = new ConditionCreateInput();
+      eqInput.setTemporaryId("tmp-eq");
+      eqInput.setType(ConditionType.EQ);
+      eqInput.setValue("445");
+
+      EventInput input =
+          EventInput.builder()
+              .name("ev-nm")
+              .workflowId("wf-nm")
+              .stepFrom(stepFromId)
+              .conditions(List.of(eqInput))
+              .build();
+
+      Step stepFrom = new Step();
+      stepFrom.setId(stepFromId);
+
+      when(stepRepository.findById(stepFromId)).thenReturn(Optional.of(stepFrom));
+      when(stepRepository.findAllById(any())).thenReturn(List.of());
+      when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
+
+      // -------- Act --------
+      Condition root = conditionService.createConditionTree(input);
+
+      // -------- Assert --------
+      assertNull(root.getMappingType(), "mappingType must be null for non-MAPPER conditions");
     }
   }
 }
