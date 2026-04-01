@@ -1,9 +1,10 @@
 package io.openaev.utils.fixtures;
 
-import io.openaev.database.model.Workflow;
-import io.openaev.database.model.WorkflowStatus;
+import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
+import io.openaev.database.model.*;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.List;
 
 public class WorkflowFixture {
 
@@ -29,5 +30,40 @@ public class WorkflowFixture {
     workflow.setWorkflowUpdatedAt(Instant.now());
     workflow.setSteps(new ArrayList<>());
     return workflow;
+  }
+
+  public static List<WorkflowScopeRuleInput> getDefaultWorkflowScopeRuleInputList() {
+    WorkflowScopeRuleInput ipRule =
+        WorkflowScopeRuleInput.builder()
+            .selectedMode(ScopeRuleSelectedMode.WHITELIST)
+            .ruleSource(ScopeRuleSource.MANUAL)
+            .ruleValue("10.10.10.10")
+            .build();
+    WorkflowScopeRuleInput domainRule =
+        WorkflowScopeRuleInput.builder()
+            .selectedMode(ScopeRuleSelectedMode.WHITELIST)
+            .ruleSource(ScopeRuleSource.MANUAL)
+            .ruleValue("example.org")
+            .build();
+    WorkflowScopeRuleInput assetRule =
+        WorkflowScopeRuleInput.builder()
+            .selectedMode(ScopeRuleSelectedMode.WHITELIST)
+            .ruleSource(ScopeRuleSource.ASSET)
+            .ruleValue("asset-123")
+            .build();
+    WorkflowScopeRuleInput subnetRule =
+        WorkflowScopeRuleInput.builder()
+            .selectedMode(ScopeRuleSelectedMode.BLACKLIST)
+            .ruleSource(ScopeRuleSource.MANUAL)
+            .ruleValue("10.10.10.0/24")
+            .build();
+    WorkflowScopeRuleInput assetGroupRule =
+        WorkflowScopeRuleInput.builder()
+            .selectedMode(ScopeRuleSelectedMode.BLACKLIST)
+            .ruleSource(ScopeRuleSource.ASSET_GROUP)
+            .ruleValue("asset-group-1")
+            .build();
+
+    return List.of(ipRule, domainRule, assetRule, subnetRule, assetGroupRule);
   }
 }

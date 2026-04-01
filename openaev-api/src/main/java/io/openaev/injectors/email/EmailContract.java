@@ -74,7 +74,7 @@ public class EmailContract extends Contractor {
             standardInstance,
             List.of(Endpoint.PLATFORM_TYPE.Service),
             false,
-            Set.of(PresetDomain.EMAIL_INFILTRATION, PresetDomain.TABLETOP));
+            Set.of(PresetDomain.getEmailInfiltration(), PresetDomain.getTabletop()));
     standardEmail.addVariable(documentUriVariable);
     // Global contract
     List<ContractElement> globalInstance =
@@ -93,7 +93,7 @@ public class EmailContract extends Contractor {
             globalInstance,
             List.of(Endpoint.PLATFORM_TYPE.Service),
             false,
-            Set.of(PresetDomain.EMAIL_INFILTRATION, PresetDomain.TABLETOP));
+            Set.of(PresetDomain.getEmailInfiltration(), PresetDomain.getTabletop()));
     globalEmail.addVariable(documentUriVariable);
     return List.of(standardEmail, globalEmail);
   }

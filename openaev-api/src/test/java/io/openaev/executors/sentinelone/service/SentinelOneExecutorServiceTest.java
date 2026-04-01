@@ -16,11 +16,11 @@ import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
 import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.executors.sentinelone.model.SentinelOneAgent;
+import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.utils.fixtures.*;
-import java.time.Instant;
 import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -103,11 +103,7 @@ public class SentinelOneExecutorServiceTest {
     when(config.getWindowsScriptId()).thenReturn("1234567890");
     Command payloadCommand =
         PayloadFixture.createCommand(
-            "cmd",
-            "whoami",
-            List.of(),
-            "whoami",
-            Set.of(new Domain(null, "To classify", "#000000", Instant.now(), null)));
+            "cmd", "whoami", List.of(), "whoami", Set.of(PresetDomain.getToClassify()));
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Map<String, String> executorCommands = new HashMap<>();
     executorCommands.put(

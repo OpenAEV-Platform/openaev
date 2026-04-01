@@ -13,6 +13,7 @@ import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.basic.PostgreSQLHStoreType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.converter.ContentConverter;
 import io.openaev.helper.MonoIdDeserializerHelper;
 import io.openaev.helper.MonoIdSerializer;
@@ -28,6 +29,7 @@ import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -35,14 +37,37 @@ import org.hibernate.annotations.UpdateTimestamp;
 @Setter
 @Entity
 @Table(name = "injectors_contracts")
-@EntityListeners(ModelBaseListener.class)
-public class InjectorContract implements Base {
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+public class InjectorContract implements TenantBase {
 
-  @Id
-  @Column(name = "injector_contract_id")
+  @EmbeddedId @JsonIgnore private InjectorContractId compositeId = new InjectorContractId();
+
+  // -- Delegate accessors for Base / TenantBase interfaces --
+
+  @Override
   @JsonProperty("injector_contract_id")
   @NotBlank
-  private String id;
+  public String getId() {
+    return compositeId.getId();
+  }
+
+  @Override
+  public void setId(String id) {
+    compositeId.setId(id);
+  }
+
+  @Override
+  @JsonIgnore
+  public Tenant getTenant() {
+    String tenantId = compositeId.getTenantId();
+    return tenantId != null ? new Tenant(tenantId) : null;
+  }
+
+  @Override
+  public void setTenant(Tenant tenant) {
+    compositeId.setTenantId(tenant != null ? tenant.getId() : null);
+  }
 
   @Column(name = "injector_contract_external_id", unique = true)
   @JsonProperty("injector_contract_external_id")
@@ -143,7 +168,10 @@ public class InjectorContract implements Base {
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
       name = "injectors_contracts_attack_patterns",
-      joinColumns = @JoinColumn(name = "injector_contract_id"),
+      joinColumns = {
+        @JoinColumn(name = "injector_contract_id", referencedColumnName = "injector_contract_id"),
+        @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")
+      },
       inverseJoinColumns = @JoinColumn(name = "attack_pattern_id"))
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
@@ -160,7 +188,10 @@ public class InjectorContract implements Base {
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
       name = "injectors_contracts_domains",
-      joinColumns = @JoinColumn(name = "injector_contract_id"),
+      joinColumns = {
+        @JoinColumn(name = "injector_contract_id", referencedColumnName = "injector_contract_id"),
+        @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")
+      },
       inverseJoinColumns = @JoinColumn(name = "domain_id"))
   @Getter(NONE)
   private Set<Domain> domains = new HashSet<>();
@@ -179,7 +210,10 @@ public class InjectorContract implements Base {
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
       name = "injectors_contracts_vulnerabilities",
-      joinColumns = @JoinColumn(name = "injector_contract_id"),
+      joinColumns = {
+        @JoinColumn(name = "injector_contract_id", referencedColumnName = "injector_contract_id"),
+        @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")
+      },
       inverseJoinColumns = @JoinColumn(name = "vulnerability_id"))
   @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
@@ -254,16 +288,16 @@ public class InjectorContract implements Base {
     if (this == o) {
       return true;
     }
-    if (o == null || !Base.class.isAssignableFrom(o.getClass())) {
+    if (o == null || !InjectorContract.class.isAssignableFrom(o.getClass())) {
       return false;
     }
-    Base base = (Base) o;
-    return id.equals(base.getId());
+    InjectorContract that = (InjectorContract) o;
+    return Objects.equals(compositeId, that.compositeId);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id);
+    return Objects.hash(compositeId);
   }
 
   // -- INJECTOR CONTRACT CONTENT --

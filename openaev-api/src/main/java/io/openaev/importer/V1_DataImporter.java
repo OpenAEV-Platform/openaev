@@ -253,7 +253,8 @@ public class V1_DataImporter implements Importer {
                 Domain createdDomain =
                     this.domainService.upsert(
                         nodeDomain.get("domain_name").textValue(),
-                        nodeDomain.get("domain_color").textValue());
+                        nodeDomain.get("domain_color").textValue(),
+                        new Tenant(TenantContext.getCurrentTenant()));
                 baseIds.put(createdDomain.getId(), createdDomain);
                 domainIds.add(createdDomain.getId());
               }
@@ -263,7 +264,7 @@ public class V1_DataImporter implements Importer {
     if (domainIds.isEmpty()) {
       domainIds.add(
           domainService
-              .findOptionalByName(PresetDomain.TOCLASSIFY.getName())
+              .findOptionalByName(PresetDomain.getToClassify().getName())
               .orElseThrow()
               .getId());
     }
@@ -1304,7 +1305,9 @@ public class V1_DataImporter implements Importer {
     injectorContract.setId(importNode.get("injector_contract_id").textValue());
     injectorContract.setCustom(false);
     injectorContract.setContent(importNode.get("injector_contract_content").textValue());
-    injectorContract.setInjector(createOrGetDummyInjector(importNode));
+    Injector injector = createOrGetDummyInjector(importNode);
+    injectorContract.setInjector(injector);
+    injectorContract.setTenant(injector.getTenant());
     injectorContract.setConvertedContent((ObjectNode) importNode.get("convertedContent"));
     injectorContract.setExternalId(importNode.get("injector_contract_external_id").textValue());
     injectorContract.setAtomicTesting(

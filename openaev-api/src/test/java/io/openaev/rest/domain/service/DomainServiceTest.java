@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Domain;
+import io.openaev.database.model.Tenant;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.utils.fixtures.ColourFixture;
@@ -28,14 +30,15 @@ public class DomainServiceTest extends IntegrationTest {
   @Test
   @DisplayName("Upsert DTOs with null parameter should not fail")
   void upsertWithNullShouldNotFail() {
-    Set<Domain> domains = this.domainService.upserts(null);
+    Set<Domain> domains = this.domainService.upserts(null, TenantContext.getCurrentTenant());
     assertTrue(domains.isEmpty());
   }
 
   @Test
   @DisplayName("Upsert entities with null parameter should not fail")
   void upsertEntitiesWithNullShouldNotFail() {
-    Set<Domain> domains = this.domainService.upsertDomainEntities(null);
+    Set<Domain> domains =
+        this.domainService.upsertDomainEntities(null, TenantContext.getCurrentTenant());
     assertTrue(domains.isEmpty());
   }
 
@@ -51,7 +54,8 @@ public class DomainServiceTest extends IntegrationTest {
       domains.add(DomainFixture.getRandomDomain());
     }
 
-    Set<Domain> upserted = this.domainService.upsertDomainEntities(domains);
+    Set<Domain> upserted =
+        this.domainService.upsertDomainEntities(domains, TenantContext.getCurrentTenant());
 
     assertThat(upserted).hasSameElementsAs(domains);
   }
@@ -73,7 +77,8 @@ public class DomainServiceTest extends IntegrationTest {
                         domain.getName(), ColourFixture.getRandomRgbString()))
             .collect(Collectors.toSet());
 
-    Set<Domain> upserted = this.domainService.upsertDomainEntities(modified);
+    Set<Domain> upserted =
+        this.domainService.upsertDomainEntities(modified, TenantContext.getCurrentTenant());
 
     assertThat(upserted)
         .hasSameElementsAs(domains.values())
@@ -88,43 +93,52 @@ public class DomainServiceTest extends IntegrationTest {
   @Test
   @DisplayName("Set should be merged")
   void setShouldBeMerged() {
-    Set<Domain> domainsA = Set.of(PresetDomain.CLOUD);
-    Set<Domain> domainsB = Set.of(PresetDomain.ENDPOINT);
+    Set<Domain> domainsA = Set.of(PresetDomain.getCloud());
+    Set<Domain> domainsB = Set.of(PresetDomain.getEndpoint());
 
-    Set<Domain> domains = this.domainService.mergeDomains(domainsA, domainsB);
+    Set<Domain> domains =
+        this.domainService.mergeDomains(
+            domainsA, domainsB, new Tenant(TenantContext.getCurrentTenant()));
 
-    assertThat(domains).containsExactlyInAnyOrder(PresetDomain.ENDPOINT, PresetDomain.CLOUD);
+    assertThat(domains)
+        .containsExactlyInAnyOrder(PresetDomain.getEndpoint(), PresetDomain.getCloud());
   }
 
   @Test
   @DisplayName("Set should not be merged, because existing is null")
   void setShouldNotBeMergedBecauseExistingIsNull() {
-    Set<Domain> domainsB = Set.of(PresetDomain.ENDPOINT);
+    Set<Domain> domainsB = Set.of(PresetDomain.getEndpoint());
 
-    Set<Domain> domains = this.domainService.mergeDomains(null, domainsB);
+    Set<Domain> domains =
+        this.domainService.mergeDomains(
+            null, domainsB, new Tenant(TenantContext.getCurrentTenant()));
 
-    assertThat(domains).containsExactly(PresetDomain.ENDPOINT);
+    assertThat(domains).containsExactly(PresetDomain.getEndpoint());
   }
 
   @Test
   @DisplayName("Set should not be merged, because existing is empty")
   void setShouldNotBeMergedBecauseExistingIsEmpty() {
-    Set<Domain> domainsB = Set.of(PresetDomain.ENDPOINT);
+    Set<Domain> domainsB = Set.of(PresetDomain.getEndpoint());
 
-    Set<Domain> domains = this.domainService.mergeDomains(Set.of(), domainsB);
+    Set<Domain> domains =
+        this.domainService.mergeDomains(
+            Set.of(), domainsB, new Tenant(TenantContext.getCurrentTenant()));
 
-    assertThat(domains).containsExactly(PresetDomain.ENDPOINT);
+    assertThat(domains).containsExactly(PresetDomain.getEndpoint());
   }
 
   @Test
   @DisplayName("Set should not be merged, because existing is to classify")
   void setShouldNotBeMergedBecauseExistingIsToClassify() {
-    Set<Domain> domainsA = Set.of(PresetDomain.TOCLASSIFY);
-    Set<Domain> domainsB = Set.of(PresetDomain.ENDPOINT);
+    Set<Domain> domainsA = Set.of(PresetDomain.getToClassify());
+    Set<Domain> domainsB = Set.of(PresetDomain.getEndpoint());
 
-    Set<Domain> domains = this.domainService.mergeDomains(domainsA, domainsB);
+    Set<Domain> domains =
+        this.domainService.mergeDomains(
+            domainsA, domainsB, new Tenant(TenantContext.getCurrentTenant()));
 
-    assertThat(domains).containsExactly(PresetDomain.ENDPOINT);
+    assertThat(domains).containsExactly(PresetDomain.getEndpoint());
   }
 
   @Test
@@ -132,7 +146,7 @@ public class DomainServiceTest extends IntegrationTest {
   void shouldFindEndpointBecauseNoAnyKeywordMatch() {
     Set<Domain> domains = this.domainService.findDomainByNameAndDescription("123456789");
 
-    assertThat(domains).containsExactly(PresetDomain.ENDPOINT);
+    assertThat(domains).containsExactly(PresetDomain.getEndpoint());
   }
 
   @Test
@@ -144,12 +158,12 @@ public class DomainServiceTest extends IntegrationTest {
 
     assertThat(domains)
         .containsExactlyInAnyOrder(
-            PresetDomain.EMAIL_INFILTRATION,
-            PresetDomain.DATA_EXFILTRATION,
-            PresetDomain.CLOUD,
-            PresetDomain.ENDPOINT,
-            PresetDomain.URL_FILTERING,
-            PresetDomain.NETWORK,
-            PresetDomain.WEB_APP);
+            PresetDomain.getEmailInfiltration(),
+            PresetDomain.getDataExfiltration(),
+            PresetDomain.getCloud(),
+            PresetDomain.getEndpoint(),
+            PresetDomain.getUrlFiltering(),
+            PresetDomain.getNetwork(),
+            PresetDomain.getWebApp());
   }
 }

@@ -2075,15 +2075,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@filigran/chatbot@npm:3.0.0":
-  version: 3.0.0
-  resolution: "@filigran/chatbot@npm:3.0.0"
+"@filigran/chatbot@npm:3.0.1":
+  version: 3.0.1
+  resolution: "@filigran/chatbot@npm:3.0.1"
   peerDependencies:
     react: ">=18"
     react-dom: ">=18"
     react-markdown: ">=10"
     remark-gfm: ">=4"
-  checksum: 10c0/c56f9d116343e2f8c6a65b498667b4ceb855d9339e31b1a6e9249f45ecb5b838e1ca2dd2d63ef43a94b4c3b8eca929033cba8a588d744e440aa6e86e68a3b7da
+  checksum: 10c0/ece3494aafd1ccbf920dc8916d72476cff6aa6516a038f7a03a6d5f238065b8b474efc45a81982fb61439ea1d125e1f607b2883ab9eb9d0cfee1afecc02f971c
   languageName: node
   linkType: hard
 
@@ -10399,7 +10399,7 @@ __metadata:
     "@emotion/styled": "npm:11.14.1"
     "@eslint/js": "npm:9.39.4"
     "@faker-js/faker": "npm:10.3.0"
-    "@filigran/chatbot": "npm:3.0.0"
+    "@filigran/chatbot": "npm:3.0.1"
     "@fontsource/geologica": "npm:5.2.8"
     "@fontsource/ibm-plex-sans": "npm:5.2.8"
     "@hello-pangea/dnd": "npm:18.0.1"

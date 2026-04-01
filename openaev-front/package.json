@@ -12,7 +12,7 @@
     "@dagrejs/dagre": "1.1.8",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
-    "@filigran/chatbot": "3.0.0",
+    "@filigran/chatbot": "3.0.1",
     "@fontsource/geologica": "5.2.8",
     "@fontsource/ibm-plex-sans": "5.2.8",
     "@hello-pangea/dnd": "18.0.1",

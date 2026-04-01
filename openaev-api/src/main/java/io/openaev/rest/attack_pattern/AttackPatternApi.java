@@ -7,7 +7,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
-import io.openaev.database.raw.RawAttackPattern;
+import io.openaev.database.raw.RawAttackPatternIndexing;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.KillChainPhaseRepository;
@@ -51,7 +51,7 @@ public class AttackPatternApi extends RestBehavior {
 
   @GetMapping("/api/attack_patterns")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ATTACK_PATTERN)
-  public List<RawAttackPattern> attackPatterns() {
+  public List<RawAttackPatternIndexing> attackPatterns() {
     return attackPatternRepository.rawAll();
   }
 

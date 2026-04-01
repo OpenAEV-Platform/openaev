@@ -12,7 +12,7 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.InjectExpectation;
-import io.openaev.database.raw.RawInjectExpectation;
+import io.openaev.database.raw.RawInjectExpectationIndexing;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
@@ -54,7 +54,7 @@ class ResultUtilsTest extends IntegrationTest {
 
     Set<String> injectIds = Set.of(injectId1, injectId2);
 
-    List<RawInjectExpectation> expectations =
+    List<RawInjectExpectationIndexing> expectations =
         List.of(
             createDefaultInjectExpectation(
                 InjectExpectation.EXPECTATION_TYPE.PREVENTION.toString(), 100.0, 100.0),

@@ -10,7 +10,7 @@ import static java.util.Optional.ofNullable;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
-import io.openaev.database.raw.RawInjectExpectation;
+import io.openaev.database.raw.RawInjectExpectationIndexing;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.InjectExpectationRepository;
@@ -164,32 +164,31 @@ public class InjectSearchService {
 
     // SELECT
     cq.multiselect(
-            injectRoot.get("id").alias("inject_id"),
-            injectRoot.get("title").alias("inject_title"),
-            injectRoot.get("enabled").alias("inject_enabled"),
-            injectRoot.get("content").alias("inject_content"),
-            injectRoot.get("allTeams").alias("inject_all_teams"),
-            injectExerciseJoin.get("id").alias("inject_exercise"),
-            injectScenarioJoin.get("id").alias("inject_scenario"),
-            injectRoot.get("dependsDuration").alias("inject_depends_duration"),
-            injectorContractJoin.alias("inject_injector_contract"),
-            tagIdsExpression.alias("inject_tags"),
-            teamIdsExpression.alias("inject_teams"),
-            assetIdsExpression.alias("inject_assets"),
-            assetGroupIdsExpression.alias("inject_asset_groups"),
-            injectorJoin.get("type").alias("inject_type"),
-            domainsPayloadIdExpression.alias("payload_domains"),
-            domainsContractIdExpression.alias("injector_contract_domains"),
-            injectDependency.alias("inject_depends_on"))
-        .distinct(true);
+        injectRoot.get("id").alias("inject_id"),
+        injectRoot.get("title").alias("inject_title"),
+        injectRoot.get("enabled").alias("inject_enabled"),
+        injectRoot.get("content").alias("inject_content"),
+        injectRoot.get("allTeams").alias("inject_all_teams"),
+        injectExerciseJoin.get("id").alias("inject_exercise"),
+        injectScenarioJoin.get("id").alias("inject_scenario"),
+        injectRoot.get("dependsDuration").alias("inject_depends_duration"),
+        injectorContractJoin.alias("inject_injector_contract"),
+        tagIdsExpression.alias("inject_tags"),
+        teamIdsExpression.alias("inject_teams"),
+        assetIdsExpression.alias("inject_assets"),
+        assetGroupIdsExpression.alias("inject_asset_groups"),
+        injectorJoin.get("type").alias("inject_type"),
+        domainsPayloadIdExpression.alias("payload_domains"),
+        domainsContractIdExpression.alias("injector_contract_domains"),
+        injectDependency.alias("inject_depends_on"));
 
-    // GROUP BY
+    // GROUP BY — compositeId expands to both PK columns (injector_contract_id + tenant_id)
     cq.groupBy(
         Arrays.asList(
             injectRoot.get("id"),
             injectExerciseJoin.get("id"),
             injectScenarioJoin.get("id"),
-            injectorContractJoin.get("id"),
+            injectorContractJoin.get("compositeId"),
             injectorJoin.get("id"),
             injectDependency.get("id")));
   }
@@ -397,7 +396,7 @@ public class InjectSearchService {
       Map<String, List<Object[]>> teamMap = fetchRelatedTargets(injectIds, "teams");
       Map<String, List<Object[]>> assetMap = fetchRelatedTargets(injectIds, "assets");
       Map<String, List<Object[]>> assetGroupMap = fetchRelatedTargets(injectIds, "assetGroups");
-      Map<String, List<RawInjectExpectation>> expectationMap = fetchExpectations(injectIds);
+      Map<String, List<RawInjectExpectationIndexing>> expectationMap = fetchExpectations(injectIds);
 
       // Map results to InjectResultOutput and set targets
       mapResultsToInjects(injects, teamMap, assetMap, assetGroupMap, expectationMap);
@@ -433,7 +432,7 @@ public class InjectSearchService {
         .collect(Collectors.groupingBy(row -> (String) row[0]));
   }
 
-  private Map<String, List<RawInjectExpectation>> fetchExpectations(Set<String> injectIds) {
+  private Map<String, List<RawInjectExpectationIndexing>> fetchExpectations(Set<String> injectIds) {
     if (injectIds == null || injectIds.isEmpty()) {
       return new HashMap<>();
     }
@@ -442,7 +441,7 @@ public class InjectSearchService {
         .orElse(emptyList())
         .stream()
         .filter(Objects::nonNull)
-        .collect(Collectors.groupingBy(RawInjectExpectation::getInject_id));
+        .collect(Collectors.groupingBy(RawInjectExpectationIndexing::getInject_id));
   }
 
   private void mapResultsToInjects(
@@ -450,7 +449,7 @@ public class InjectSearchService {
       Map<String, List<Object[]>> teamMap,
       Map<String, List<Object[]>> assetMap,
       Map<String, List<Object[]>> assetGroupMap,
-      Map<String, List<RawInjectExpectation>> expectationMap) {
+      Map<String, List<RawInjectExpectationIndexing>> expectationMap) {
 
     for (InjectResultOutput inject : injects) {
       if (inject.getId() != null) {
@@ -519,34 +518,33 @@ public class InjectSearchService {
 
     // SELECT
     cq.multiselect(
-            injectRoot.get("id").alias("inject_id"),
-            injectRoot.get("title").alias("inject_title"),
-            injectRoot.get("updatedAt").alias("inject_updated_at"),
-            injectRoot.get("content").alias("inject_content"),
-            injectorJoin.get("type").alias("inject_type"),
-            injectorContractJoin.get("id").alias("injector_contract_id"),
-            injectorContractJoin.get("content").alias("injector_contract_content"),
-            injectorContractJoin.get("convertedContent").alias("convertedContent"),
-            injectorContractJoin.get("platforms").alias("injector_contract_platforms"),
-            injectorContractJoin.get("labels").alias("injector_contract_labels"),
-            payloadJoin.get("id").alias("payload_id"),
-            payloadJoin.get("type").alias("payload_type"),
-            collectorTypeJoin.get("name").alias("payload_collector_type"),
-            statusJoin.get("id").alias("status_id"),
-            statusJoin.get("name").alias("status_name"),
-            statusJoin.get("trackingSentDate").alias("status_tracking_sent_date"),
-            teamIdsExpression.alias("inject_teams"),
-            assetIdsExpression.alias("inject_assets"),
-            domainsPayloadIdExpression.alias("payload_domains"),
-            domainsContractIdExpression.alias("injector_contract_domains"),
-            assetGroupIdsExpression.alias("inject_asset_groups"))
-        .distinct(true);
+        injectRoot.get("id").alias("inject_id"),
+        injectRoot.get("title").alias("inject_title"),
+        injectRoot.get("updatedAt").alias("inject_updated_at"),
+        injectRoot.get("content").alias("inject_content"),
+        injectorJoin.get("type").alias("inject_type"),
+        injectorContractJoin.get("compositeId").get("id").alias("injector_contract_id"),
+        injectorContractJoin.get("content").alias("injector_contract_content"),
+        injectorContractJoin.get("convertedContent").alias("convertedContent"),
+        injectorContractJoin.get("platforms").alias("injector_contract_platforms"),
+        injectorContractJoin.get("labels").alias("injector_contract_labels"),
+        payloadJoin.get("id").alias("payload_id"),
+        payloadJoin.get("type").alias("payload_type"),
+        collectorTypeJoin.get("name").alias("payload_collector_type"),
+        statusJoin.get("id").alias("status_id"),
+        statusJoin.get("name").alias("status_name"),
+        statusJoin.get("trackingSentDate").alias("status_tracking_sent_date"),
+        teamIdsExpression.alias("inject_teams"),
+        assetIdsExpression.alias("inject_assets"),
+        domainsPayloadIdExpression.alias("payload_domains"),
+        domainsContractIdExpression.alias("injector_contract_domains"),
+        assetGroupIdsExpression.alias("inject_asset_groups"));
 
-    // GROUP BY
+    // GROUP BY — compositeId expands to both PK columns (injector_contract_id + tenant_id)
     cq.groupBy(
         Arrays.asList(
             injectRoot.get("id"),
-            injectorContractJoin.get("id"),
+            injectorContractJoin.get("compositeId"),
             injectorJoin.get("id"),
             payloadJoin.get("id"),
             collectorTypeJoin.get("name"),

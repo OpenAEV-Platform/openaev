@@ -10,9 +10,6 @@ export const document = new schema.Entity(
 );
 export const arrayOfDocuments = new schema.Array(document);
 
-export const tag = new schema.Entity('tags', {}, { idAttribute: 'tag_id' });
-export const arrayOfTags = new schema.Array(tag);
-
 export const injectorContract = new schema.Entity(
   'injector_contracts',
   {},
@@ -492,4 +489,9 @@ export const storeHelper = state => ({
   getUnDeployedCatalogConnectors: () => entities('catalog_connectors', state).filter(c => c.get('instance_deployed_count') === 0),
   getCatalogConnector: id => entity(id, 'catalog_connectors', state),
   getConnectorInstance: id => entity(id, 'connectorinstances', state),
+  // capabilities
+  getPlatformCapabilities: () => entities('platform_capabilities', state),
+  getPlatformCapabilitiesMap: () => maps('platform_capabilities', state),
+  getTenantCapabilities: () => entities('tenant_capabilities', state),
+  getTenantCapabilitiesMap: () => maps('tenant_capabilities', state),
 });

@@ -19,8 +19,9 @@ import logoXtmHubLight from '../../../static/images/logo_xtm_hub_light.svg';
 import { MESSAGING$, XTM_HUB_DEFAULT_URL } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
 import useAuth from '../../../utils/hooks/useAuth';
-import { isNotEmptyField } from '../../../utils/utils';
+import { isFeatureEnabled, isNotEmptyField } from '../../../utils/utils';
 import AskArianeButton from '../ariane/AskArianeButton';
+import TenantSwitcher from './TenantSwitcher';
 
 const useStyles = makeStyles()(theme => ({
   appBar: {
@@ -294,6 +295,7 @@ const TopBar: FunctionComponent = () => {
             sx={{ height: '100%' }}
           >
             { settings.platform_license?.license_type === 'nfr' && <ItemBoolean variant="large" label="EE DEV LICENSE" status={false} /> }
+            {isFeatureEnabled('MULTI_TENANCY') && <TenantSwitcher />}
             <AskArianeButton />
             <Tooltip title={t('Install simulation agents')}>
               <IconButton

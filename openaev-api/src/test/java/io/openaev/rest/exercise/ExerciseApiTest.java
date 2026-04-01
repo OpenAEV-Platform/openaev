@@ -9,31 +9,36 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.test.util.AssertionErrors.assertNotEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
+import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
+import io.openaev.healthcheck.enums.ExternalServiceDependency;
+import io.openaev.injector_contract.ContractCardinality;
+import io.openaev.injector_contract.fields.ContractSelect;
 import io.openaev.rest.exercise.form.*;
+import io.openaev.rest.inject.SimulationInjectApi;
 import io.openaev.rest.inject.form.InjectInput;
+import io.openaev.rest.inject.output.InjectOutput;
+import io.openaev.rest.inject.service.InjectDuplicateService;
+import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
+import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.annotation.Nullable;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import java.util.*;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -55,6 +60,7 @@ public class ExerciseApiTest extends IntegrationTest {
   @Autowired private AgentComposer agentComposer;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private ExerciseComposer exerciseComposer;
+  @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private InjectComposer injectComposer;
   @Autowired private InjectStatusComposer injectStatusComposer;
   @Autowired private ExecutorFixture executorFixture;
@@ -559,6 +565,118 @@ public class ExerciseApiTest extends IntegrationTest {
       assertTrue(teamIds.contains(teamToKeep.getId()), "teamToKeep should still be present.");
       assertTrue(teamIds.contains(teamToAdd.getId()), "teamToAdd should be present");
       assertFalse(teamIds.contains(teamToRemove.getId()), "teamToRemove should have been removed");
+    }
+  }
+
+  @Nested
+  @DisplayName("Inject check")
+  @WithMockUser(isAdmin = true)
+  @Transactional
+  class SimulationInjectCheck {
+
+    @Autowired private SimulationInjectApi simulationInjectApi;
+    @Autowired private ExerciseRepository exerciseRepository;
+    @Autowired private InjectService injectService;
+    @Autowired private InjectDuplicateService injectDuplicateService;
+    @Autowired private InjectMapper injectMapper;
+    @Autowired private InjectRepository injectRepository;
+    @Autowired private InjectorContractRepository injectorContractRepository;
+
+    private Exercise exercise;
+    private String exerciseId;
+    private String validInjectorContractId;
+
+    @BeforeEach
+    void setUp() throws JsonProcessingException {
+      exercise =
+          exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()).persist().get();
+      exerciseId = exercise.getId();
+
+      ContractSelect obfuscatorSelect =
+          new ContractSelect("obfuscator", "Obfuscators", ContractCardinality.One);
+      obfuscatorSelect.setChoices(Map.of("plain-text", "plain-text", "base64", "base64"));
+      Injector i = InjectorFixture.createDefaultPayloadInjector();
+      i.setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NUCLEI});
+      InjectorContract icf =
+          InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
+              i, null, List.of(obfuscatorSelect));
+      InjectorContract ic = injectorContractComposer.forInjectorContract(icf).persist().get();
+      // On récupère un InjectorContract réellement présent en base (EMAIL_DEFAULT est enregistré au
+      // démarrage)
+      validInjectorContractId =
+          injectorContractRepository
+              .findById(ic.getId())
+              .map(InjectorContract::getId)
+              .orElseThrow(
+                  () ->
+                      new IllegalStateException(
+                          " injector contract not found in DB — check test data initialization"));
+    }
+
+    @Test
+    @DisplayName(
+        "createInjectForExercise: should return InjectOutput with inject_id and inject_checks")
+    void createInjectForExercise_shouldReturnInjectOutputWithChecks() {
+      // -- PREPARE --
+      InjectInput input = new InjectInput();
+      input.setTitle("Test inject");
+      input.setInjectorContract(validInjectorContractId);
+      input.setDependsDuration(0L);
+
+      // -- EXECUTE --
+      InjectOutput result = simulationInjectApi.createInjectForExercise(exerciseId, input);
+
+      // -- ASSERT --
+      assertNotNull(result, "La réponse ne doit pas être null");
+      assertNotNull(result.getId(), "inject_id ne doit pas être null");
+      // Sans teams/assets/contenu, l'inject ne peut pas être ready
+      assertFalse(result.isReady(), "L'inject sans contenu complet ne doit pas être ready");
+      assertTrue(injectRepository.existsById(result.getId()));
+    }
+
+    @Test
+    @DisplayName("createInjectForExercise: inject_checks should reflect missing content")
+    void createInjectForExercise_checksShouldReflectMissingContent() {
+      // -- PREPARE --
+      InjectInput input = new InjectInput();
+      input.setTitle("Inject with missing content");
+      input.setInjectorContract(validInjectorContractId);
+      input.setDependsDuration(0L);
+
+      // -- EXECUTE --
+      InjectOutput result = simulationInjectApi.createInjectForExercise(exerciseId, input);
+
+      // -- ASSERT --
+      assertNotNull(result);
+      assertFalse(result.isReady(), "Un inject sans teams/assets/contenu ne doit pas être ready");
+    }
+
+    @Test
+    @DisplayName(
+        "duplicateInjectForExercise: should return InjectOutput with new inject_id and inject_checks")
+    void duplicateInjectForExercise_shouldReturnInjectOutputWithChecks() {
+      // -- PREPARE --
+      InjectInput input = new InjectInput();
+      input.setTitle("Original inject");
+      input.setInjectorContract(validInjectorContractId);
+      input.setDependsDuration(0L);
+
+      InjectOutput original = simulationInjectApi.createInjectForExercise(exerciseId, input);
+      String originalInjectId = original.getId();
+
+      // -- EXECUTE --
+      InjectOutput result =
+          simulationInjectApi.duplicateInjectForExercise(exerciseId, originalInjectId);
+
+      // -- ASSERT --
+      assertNotNull(result, "La réponse ne doit pas être null");
+      assertNotNull(result.getId(), "inject_id ne doit pas être null");
+      assertNotEquals("", originalInjectId, result.getId());
+      assertFalse(result.isReady());
+      assertTrue(
+          result.getTitle().contains("duplicate"),
+          "Le titre de l'inject dupliqué doit contenir 'Duplicate'");
+      assertTrue(injectRepository.existsById(result.getId()));
     }
   }
 }

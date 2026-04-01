@@ -71,49 +71,49 @@ public class V4_58__Implement_Domains_notion extends BaseJavaMigration {
       stmt.execute(
           "INSERT INTO domains (domain_id, domain_name, domain_color) VALUES "
               + "  (gen_random_uuid(), '"
-              + PresetDomain.ENDPOINT.getName()
+              + PresetDomain.getEndpoint().getName()
               + "', '"
-              + PresetDomain.ENDPOINT.getColor()
+              + PresetDomain.getEndpoint().getColor()
               + "'),"
               + "  (gen_random_uuid(), '"
-              + PresetDomain.NETWORK.getName()
+              + PresetDomain.getNetwork().getName()
               + "', '"
-              + PresetDomain.NETWORK.getColor()
+              + PresetDomain.getNetwork().getColor()
               + "'),"
               + "  (gen_random_uuid(), '"
-              + PresetDomain.WEB_APP.getName()
+              + PresetDomain.getWebApp().getName()
               + "', '"
-              + PresetDomain.WEB_APP.getColor()
+              + PresetDomain.getWebApp().getColor()
               + "'),"
               + "  (gen_random_uuid(), '"
-              + PresetDomain.EMAIL_INFILTRATION.getName()
+              + PresetDomain.getEmailInfiltration().getName()
               + "', '"
-              + PresetDomain.EMAIL_INFILTRATION.getColor()
+              + PresetDomain.getEmailInfiltration().getColor()
               + "'),"
               + "  (gen_random_uuid(), '"
-              + PresetDomain.DATA_EXFILTRATION.getName()
+              + PresetDomain.getDataExfiltration().getName()
               + "', '"
-              + PresetDomain.DATA_EXFILTRATION.getColor()
+              + PresetDomain.getDataExfiltration().getColor()
               + "'),"
               + "  (gen_random_uuid(), '"
-              + PresetDomain.URL_FILTERING.getName()
+              + PresetDomain.getUrlFiltering().getName()
               + "', '"
-              + PresetDomain.URL_FILTERING.getColor()
+              + PresetDomain.getUrlFiltering().getColor()
               + "'),"
               + "  (gen_random_uuid(), '"
-              + PresetDomain.CLOUD.getName()
+              + PresetDomain.getCloud().getName()
               + "', '"
-              + PresetDomain.CLOUD.getColor()
+              + PresetDomain.getCloud().getColor()
               + "'),"
               + "  (gen_random_uuid(), '"
-              + PresetDomain.TABLETOP.getName()
+              + PresetDomain.getTabletop().getName()
               + "', '"
-              + PresetDomain.TABLETOP.getColor()
+              + PresetDomain.getTabletop().getColor()
               + "'),"
               + "  (gen_random_uuid(), '"
-              + PresetDomain.TOCLASSIFY.getName()
+              + PresetDomain.getToClassify().getName()
               + "', '"
-              + PresetDomain.TOCLASSIFY.getColor()
+              + PresetDomain.getToClassify().getColor()
               + "') ON CONFLICT (domain_name) DO NOTHING;");
 
       stmt.execute(
@@ -130,7 +130,7 @@ public class V4_58__Implement_Domains_notion extends BaseJavaMigration {
                   INNER JOIN domains d ON d.domain_name = '%s'
                 ON CONFLICT (payload_id, domain_id) DO NOTHING;
             """
-              .formatted(PresetDomain.TOCLASSIFY.getName()));
+              .formatted(PresetDomain.getToClassify().getName()));
 
       stmt.execute(
           """
@@ -147,7 +147,7 @@ public class V4_58__Implement_Domains_notion extends BaseJavaMigration {
                 WHERE ic.injector_contract_payload IS NULL
                 ON CONFLICT (injector_contract_id, domain_id) DO NOTHING;
             """
-              .formatted(PresetDomain.TOCLASSIFY.getName()));
+              .formatted(PresetDomain.getToClassify().getName()));
     }
   }
 }

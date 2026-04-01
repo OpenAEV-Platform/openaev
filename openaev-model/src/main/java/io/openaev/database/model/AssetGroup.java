@@ -85,12 +85,12 @@ public class AssetGroup implements TenantBase {
 
   @Getter(NONE)
   @Transient
-  @JsonProperty("asset_group_dynamic_assets")
   private List<Asset> dynamicAssets = new ArrayList<>();
 
   // Getter is Mandatory when we use @Transient annotation
   @Schema(implementation = String[].class)
   @JsonSerialize(using = MultiIdListSerializer.class)
+  @JsonProperty("asset_group_dynamic_assets")
   public List<Asset> getDynamicAssets() {
     return this.dynamicAssets;
   }
