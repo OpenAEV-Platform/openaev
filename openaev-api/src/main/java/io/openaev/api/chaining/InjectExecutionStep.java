@@ -1,6 +1,7 @@
 package io.openaev.api.chaining;
 
 import static io.openaev.service.chaining.StepService.setField;
+import static java.util.Optional.ofNullable;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.InjectableValues;
@@ -24,6 +25,7 @@ import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
 import io.openaev.service.chaining.StepService;
+import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -65,6 +67,7 @@ public class InjectExecutionStep implements ActionStep {
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final Executor executor;
   private final InjectStatusService injectStatusService;
+  private final InjectUtils injectUtils;
   @PersistenceContext private EntityManager em;
 
   /**
@@ -260,8 +263,10 @@ public class InjectExecutionStep implements ActionStep {
 
     InjectorContract injectorContract =
         this.injectorContractService.injectorContract(data.getInjectorContract());
-    Inject inject = data.toInject(injectorContract);
-    inject.setInjector(injectorContract.getInjector());
+
+    Injector injector =
+        injectUtils.resolveInjectorReference(data.getInjectorId(), injectorContract);
+    Inject inject = data.toInject(injectorContract, injector);
     inject.setUser(this.userService.currentUser());
 
     inject.setTeams(teamService.getTeamsByIds(data.getTeams()));
@@ -448,30 +453,23 @@ public class InjectExecutionStep implements ActionStep {
         throw new ChainingException(
             "Injector contract not found for step (READY) ID: " + step.getId());
 
-      InjectorContract injectorContract = inject.getInjectorContract().get();
-      JsonNode injectorNode =
-          root.path("inject_injector_contract").path("injector_contract_injector");
+      if (ofNullable(inject.getInjector()).isEmpty()) {
+        JsonNode injectorNode = root.path("inject_injector");
 
-      if (injectorNode.isMissingNode() && injectorNode.isEmpty())
-        throw new ChainingException(
-            "Injector not found for injectorContractId "
-                + injectorContract.getId()
-                + " and step (READY) ID "
-                + step.getId());
-
-      if (injectorContract.getInjector() == null) {
         String injectorId = injectorNode.asText();
-        Injector injector = em.find(Injector.class, injectorId);
+        inject.setInjector(
+            injectUtils.resolveInjectorReference(
+                injectorId, inject.getInjectorContract().orElse(null)));
 
-        if (injector == null)
+        if (ofNullable(inject.getInjector()).isEmpty()) {
           throw new ChainingException(
-              "Injector not found for injectorId "
-                  + injectorId
+              "Injector not found for inject "
+                  + inject.getId()
                   + " and step (READY) ID "
                   + step.getId());
-
-        injectorContract.setInjector(injector);
+        }
       }
+
       return inject;
     } catch (JsonProcessingException e) {
       throw new ChainingException("Step (READY) : Error processing JSON to Inject ", e);

@@ -134,8 +134,8 @@ const InjectorContracts = () => {
       mode: 'and',
       filters: [
         {
-          key: 'injector_contract_injector',
-          operator: 'eq',
+          key: 'injector_contract_injectors',
+          operator: 'contains',
           values: [injectorId],
         }],
     },

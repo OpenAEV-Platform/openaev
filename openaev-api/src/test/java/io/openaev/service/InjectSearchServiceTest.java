@@ -186,7 +186,7 @@ class InjectSearchServiceTest {
       assertThat(result.getId()).isEqualTo(inject.getId());
       assertThat(result.getTitle()).isEqualTo(inject.getTitle());
       assertThat(result.getUpdatedAt()).isNotNull();
-      assertThat(result.getInjectType()).isEqualTo(contract.getInjector().getType());
+      assertThat(result.getInjectType()).isEqualTo(contract.getInjectorType());
       assertThat(result.getInjectorContract()).isNotNull();
       assertThat(result.getInjectorContract().getId()).isEqualTo(contract.getId());
       assertThat(result.getStatus()).isNotNull();
@@ -276,7 +276,7 @@ class InjectSearchServiceTest {
       data.put("inject_content", inject.getContent());
 
       if (contract != null) {
-        data.put("inject_type", contract.getInjector().getType());
+        data.put("inject_type", contract.getInjectorType());
         data.put("injector_contract_id", contract.getId());
         data.put("injector_contract_content", contract.getContent());
         data.put("convertedContent", contract.getConvertedContent());

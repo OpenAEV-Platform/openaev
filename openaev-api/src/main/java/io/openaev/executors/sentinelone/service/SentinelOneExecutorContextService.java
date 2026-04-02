@@ -3,6 +3,7 @@ package io.openaev.executors.sentinelone.service;
 import static io.openaev.executors.ExecutorHelper.replaceArgs;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOSAndArch;
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
+import static java.util.Optional.ofNullable;
 
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
@@ -68,12 +69,12 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
     // Sometimes, assets from agents aren't fetched even with the EAGER property from Hibernate
     sentinelOneAgents.forEach(agent -> agent.setAsset((Asset) Hibernate.unproxy(agent.getAsset())));
 
+    Optional<InjectorContract> injectorContract = inject.getInjectorContract();
+    if (inject.getInjector() == null && injectorContract.isEmpty()) {
+      throw new UnsupportedOperationException("Inject does not have a contract");
+    }
     Injector injector =
-        inject
-            .getInjectorContract()
-            .map(InjectorContract::getInjector)
-            .orElseThrow(
-                () -> new UnsupportedOperationException("Inject does not have a contract"));
+        ofNullable(inject.getInjector()).orElse(injectorContract.get().getFirstInjector());
 
     sentinelOneAgents =
         executorService.manageWithoutPlatformAgents(sentinelOneAgents, injectStatus);

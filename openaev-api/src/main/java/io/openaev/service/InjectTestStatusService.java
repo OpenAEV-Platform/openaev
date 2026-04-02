@@ -121,12 +121,19 @@ public class InjectTestStatusService {
     ExecutionContext userInjectContext =
         this.executionContextService.executionContext(user, inject, "Direct test");
 
-    String injectorType =
-        inject
-            .getInjectorContract()
-            .map(contract -> contract.getInjector().getType())
-            .orElseThrow(() -> new EntityNotFoundException("Injector contract not found"));
+    String injectorType;
+    if (inject.getInjector() != null) {
+      injectorType = inject.getInjector().getType();
+    } else {
+      injectorType =
+          inject
+              .getInjectorContract()
+              .map(contract -> contract.getFirstInjector().getType())
+              .orElseThrow(() -> new EntityNotFoundException("Injector contract not found"));
+    }
 
+    // TODO we will need to do multiple execution in our next PR. For now, we can use the first
+    // injector we find.
     io.openaev.executors.Injector executor =
         managerFactory.getManager().requestInjectorExecutorByType(injectorType);
 

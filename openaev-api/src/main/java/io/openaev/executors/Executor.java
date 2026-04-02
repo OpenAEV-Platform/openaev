@@ -93,23 +93,23 @@ public class Executor {
             .orElseThrow(
                 () -> new UnsupportedOperationException("Inject does not have a contract"));
 
-    // Telemetry
-    actionMetricCollector.addInjectPlayedCount(injectorContract.getInjector().getType());
-
     // Resolve the injector instance from the inject entity directly
     Injector injector = inject.getInjector();
     if (injector == null) {
       // Fallback for legacy injects that may not have the field populated
       injector =
           injectorRepository
-              .findByTypeAndTenantId(
-                  injectorContract.getInjector().getType(), inject.getTenant().getId())
+              .findByTypeAndTenantId(inject.getType(), inject.getTenant().getId())
               .orElseThrow(
                   () ->
                       new IllegalStateException(
                           "Injector not found for type: "
-                              + injectorContract.getInjector().getType()));
+                              + injectorContract.getFirstInjector().getType()));
     }
+
+    // Telemetry - We shouldn't have multiple injector type per executable inject but if it happens,
+    // we might as well cover that case
+    actionMetricCollector.addInjectPlayedCount(injector.getType());
 
     boolean hasStartedConnectorInstanceForInjector =
         this.connectorInstanceService.hasStartedConnectorInstanceForInjector(injector.getId());

@@ -24,6 +24,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.inject.service.SimulationInjectService;
 import io.openaev.service.InjectSearchService;
+import io.openaev.utils.InjectUtils;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -65,6 +66,7 @@ public class SimulationInjectApi extends RestBehavior {
   private final InjectStatusService injectStatusService;
   private final SimulationInjectService simulationInjectService;
   private final InjectMapper injectMapper;
+  private final InjectUtils injectUtils;
 
   // -- READ --
 
@@ -235,11 +237,12 @@ public class SimulationInjectApi extends RestBehavior {
       @PathVariable @NotBlank final String exerciseId,
       @Valid @RequestPart("input") DirectInjectInput input,
       @RequestPart("file") Optional<MultipartFile> file) {
-    Inject inject =
-        input.toInject(
-            this.injectorContractRepository
-                .findById(input.getInjectorContract())
-                .orElseThrow(() -> new ElementNotFoundException("Injector contract not found")));
+    InjectorContract injectorContract =
+        this.injectorContractRepository
+            .findById(input.getInjectorContract())
+            .orElseThrow(() -> new ElementNotFoundException("Injector contract not found"));
+    Injector injector = injectUtils.resolveInjector(input.getInjectorId(), injectorContract);
+    Inject inject = input.toInject(injectorContract, injector);
     inject.setUser(
         this.userRepository
             .findById(currentUser().getId())

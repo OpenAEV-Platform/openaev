@@ -42,6 +42,7 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -73,7 +74,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       FileService fileService,
       ConnectorInstanceService connectorInstanceService,
       CatalogConnectorService catalogConnectorService,
-      InjectorContractService injectorContractService,
+      @Lazy InjectorContractService injectorContractService,
       DomainService domainService,
       InjectorMapper injectorMapper,
       CatalogConnectorMapper catalogConnectorMapper,
@@ -265,6 +266,10 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
                 .map(in -> injectorContractService.convertInjectorFromInput(in, savedInjector))
                 .toList();
         injectorContractRepository.saveAll(injectorContracts);
+        // Link contracts on the owning side now that they are persisted
+        savedInjector.getContracts().addAll(injectorContracts);
+        // Persist the owning side to save join table entries
+        injectorRepository.save(savedInjector);
 
         // delete the dummy injector if it was created when importing the starter pack
         deleteDummyInjectorIfItExists(input.getType(), savedInjector);
@@ -359,7 +364,11 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
             .map(in -> injectorContractService.convertInjectorFromInput(in, injector))
             .toList();
     injectorContractRepository.deleteAllById(toDeletes);
+    // Remove deleted contracts from the owning-side collection to keep it in sync
+    injector.getContracts().removeIf(c -> toDeletes.contains(c.getId()));
     injectorContractRepository.saveAll(toCreates);
+    // Link new contracts on the owning side now that they are persisted
+    injector.getContracts().addAll(toCreates);
     return injectorRepository.save(injector);
   }
 
@@ -469,9 +478,12 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
             dummyInjector -> {
               if (newInjector != null) {
                 List<InjectorContract> injectorContracts =
-                    injectorContractRepository.findInjectorContractsByInjector(dummyInjector);
+                    injectorContractRepository.findByInjectorsContaining(dummyInjector);
                 injectorContracts.forEach(
-                    injectorContract -> injectorContract.setInjector(newInjector));
+                    injectorContract -> {
+                      injectorContract.getInjectors().remove(dummyInjector);
+                      injectorContract.getInjectors().add(newInjector);
+                    });
                 injectorContractRepository.saveAll(injectorContracts);
               }
               injectorRepository.delete(dummyInjector);
@@ -546,7 +558,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
       if (matchingContract.isPresent()) {
         this.injectorContractService.updateBuiltInInjectorContract(
-            contractDB, matchingContract.get(), isPayloads);
+            contractDB, matchingContract.get(), isPayloads, injector);
         existingIds.add(contractDB.getId());
         toUpdate.add(contractDB);
       } else if (shouldDeleteContract(contractDB, injector)) {
@@ -566,8 +578,12 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
     // Persist changes
     injectorContractRepository.deleteAllById(toDelete);
+    // Remove deleted contracts from the owning-side collection to keep it in sync
+    injector.getContracts().removeIf(c -> toDelete.contains(c.getId()));
     injectorContractRepository.saveAll(toCreate);
     injectorContractRepository.saveAll(toUpdate);
+    // Link new contracts on the owning side now that they are persisted
+    injector.getContracts().addAll(toCreate);
     injectorRepository.save(injector);
   }
 
@@ -610,6 +626,10 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
                         contract, savedInjector, isPayloads))
             .toList();
     injectorContractRepository.saveAll(injectorContracts);
+    // Now that contracts are persisted, link them on the owning side (Injector.contracts)
+    savedInjector.getContracts().addAll(injectorContracts);
+    // Persist the owning side to save join table entries
+    injectorRepository.save(savedInjector);
     return savedInjector;
   }
 

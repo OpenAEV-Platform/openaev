@@ -99,11 +99,7 @@ public interface InjectorContractRepository
       @Param("id") String id, @Param("externalId") String externalId);
 
   @NotNull
-  List<InjectorContract> findInjectorContractsByInjector(@NotNull Injector injector);
-
-  @NotNull
-  Optional<InjectorContract> findInjectorContractByInjectorAndPayload(
-      @NotNull Injector injector, @NotNull Payload payload);
+  List<InjectorContract> findByInjectorsContaining(@NotNull Injector injector);
 
   @NotNull
   List<InjectorContract> findInjectorContractsByPayload(@NotNull Payload payload);

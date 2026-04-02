@@ -2,7 +2,6 @@ package io.openaev.rest.injector_contract;
 
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.model.InjectorContract.*;
-import static io.openaev.helper.DatabaseHelper.updateRelation;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
@@ -37,6 +36,7 @@ import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
+import io.openaev.service.InjectorService;
 import io.openaev.service.UserService;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -89,6 +89,7 @@ public class InjectorContractService implements DependenciesManager {
   private final InjectorRepository injectorRepository;
   private final UserService userService;
   private final AttackPatternRepository attackPatternRepository;
+  private final InjectorService injectorService;
 
   private final List<String> listDefaultInjectorContract =
       List.of(
@@ -283,33 +284,50 @@ public class InjectorContractService implements DependenciesManager {
     setVulnerabilitiesFromExternalOrInternalIds(
         input.getVulnerabilityExternalIds(), input.getVulnerabilityIds(), injectorContract);
 
-    injectorContract.setInjector(
-        updateRelation(input.getInjectorId(), injectorContract.getInjector(), injectorRepository));
+    // Resolve the injector specified in the input
+    Injector injector = injectorService.injector(input.getInjectorId());
+
+    // Link the contract to the specified injector only.
+    // Custom contracts are user-defined for a specific instance —
+    // sharing across instances of the same type is only done for builtin contracts
+    // during registration (InjectorService.registerBuiltinInjector).
+    injectorContract.addInjector(injector);
+
     injectorContract.setDomains(
-        !injectorContract.getInjector().isPayloads()
+        injector != null && !injector.isPayloads()
             ? this.domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant())
             : new HashSet<>());
-    return injectorContractRepository.save(injectorContract);
+    InjectorContract saved = injectorContractRepository.save(injectorContract);
+    // Link on the owning side now that the contract is persisted
+    injector.getContracts().add(saved);
+    injectorRepository.save(injector);
+    return saved;
   }
 
   public InjectorContract createBuiltinInjectorContract(
       Contract source, Injector injector, boolean isPayloads) {
     InjectorContract target = new InjectorContract();
     target.setId(source.getId());
-    target.setInjector(injector);
+    // Populate the inverse (non-owning) side only so getInjector() works
+    // for tenant resolution in applyBuiltinContractData.
+    // Do NOT call addInjector() here — it modifies the owning side (Injector.contracts)
+    // and causes auto-flush issues since this contract is still transient.
+    if (injector != null) {
+      target.getInjectors().add(injector);
+    }
     target.setTenant(injector.getTenant());
 
-    applyBuiltinContractData(target, source, isPayloads);
+    applyBuiltinContractData(target, source, isPayloads, injector);
     return target;
   }
 
   public void updateBuiltInInjectorContract(
-      InjectorContract target, Contract source, boolean isPayloads) {
-    applyBuiltinContractData(target, source, isPayloads);
+      InjectorContract target, Contract source, boolean isPayloads, Injector injector) {
+    applyBuiltinContractData(target, source, isPayloads, injector);
   }
 
   private void applyBuiltinContractData(
-      InjectorContract target, Contract source, boolean isPayloads) {
+      InjectorContract target, Contract source, boolean isPayloads, Injector injector) {
     target.setManual(source.isManual());
     target.setAtomicTesting(source.isAtomicTesting());
     target.setPlatforms(source.getPlatforms().toArray(new Endpoint.PLATFORM_TYPE[0]));
@@ -325,7 +343,7 @@ public class InjectorContractService implements DependenciesManager {
       List<AttackPattern> attackPatterns =
           fromIterable(
               attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
-                  source.getAttackPatternsExternalIds(), target.getInjector().getTenant().getId()));
+                  source.getAttackPatternsExternalIds(), injector.getTenant().getId()));
       target.setAttackPatterns(attackPatterns);
     } else {
       target.setAttackPatterns(new ArrayList<>());
@@ -338,16 +356,15 @@ public class InjectorContractService implements DependenciesManager {
           "Failed to serialize contract content for: " + target.getId(), e);
     }
 
-    if (!isPayloads) {
+    if (!isPayloads && injector != null) {
       Set<Domain> currentDomains =
           this.domainService.upsertDomainEntities(
-              target.getDomains(), target.getInjector().getTenant().getId());
+              target.getDomains(), injector.getTenant().getId());
       Set<Domain> domainsToAdd =
           this.domainService.upsertDomainEntities(
-              source.getDomains(), target.getInjector().getTenant().getId());
+              source.getDomains(), injector.getTenant().getId());
       target.setDomains(
-          this.domainService.mergeDomains(
-              currentDomains, domainsToAdd, target.getInjector().getTenant()));
+          this.domainService.mergeDomains(currentDomains, domainsToAdd, injector.getTenant()));
     }
     setupImportAvailable(target);
   }
@@ -492,7 +509,7 @@ public class InjectorContractService implements DependenciesManager {
     Join<Payload, CollectorType> payloadCollectorTypeJoin =
         injectorContractPayloadJoin.join("collectorType", JoinType.LEFT);
     Join<InjectorContract, Injector> injectorContractInjectorJoin =
-        createLeftJoin(injectorContractRoot, "injector");
+        createLeftJoin(injectorContractRoot, "injectors");
     // Array aggregations
     Expression<String[]> attackPatternIdsExpression =
         createJoinArrayAggOnId(cb, injectorContractRoot, "attackPatterns");
@@ -598,7 +615,7 @@ public class InjectorContractService implements DependenciesManager {
     injectorContract.setId(in.getId());
     injectorContract.setManual(in.isManual());
     injectorContract.setLabels(in.getLabels());
-    injectorContract.setInjector(injector);
+    injectorContract.addInjector(injector);
     injectorContract.setTenant(injector.getTenant());
     injectorContract.setContent(in.getContent());
     injectorContract.setAtomicTesting(in.isAtomicTesting());

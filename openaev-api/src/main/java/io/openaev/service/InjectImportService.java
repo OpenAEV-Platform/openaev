@@ -742,7 +742,9 @@ public class InjectImportService {
 
     // Once it's done, we set the injectorContract
     inject.setInjectorContract(injectorContract);
-    inject.setInjector(injectorContract.getInjector());
+    // Given that we import from XLS, we can't know the injector that will be wanted by the user so
+    // we get one that is available
+    inject.setInjector(injectorContract.getFirstInjector());
 
     // So far, we only support one expectation
     AtomicReference<InjectExpectation> expectation = new AtomicReference<>();

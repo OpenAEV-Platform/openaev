@@ -56,7 +56,7 @@ public class ComchecksExecutionJob implements Job {
     InjectorContract contract =
         injectorContractRepository.findById(EmailContract.EMAIL_DEFAULT).orElseThrow();
     emailInject.setInjectorContract(contract);
-    emailInject.setInjector(contract.getInjector());
+    emailInject.setInjector(contract.getFirstInjector());
     emailInject.setExercise(comCheck.getExercise());
     ObjectNode content = mapper.createObjectNode();
     content.set("subject", mapper.convertValue(comCheck.getSubject(), JsonNode.class));
