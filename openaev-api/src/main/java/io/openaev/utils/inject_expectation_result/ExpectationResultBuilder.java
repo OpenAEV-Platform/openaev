@@ -55,6 +55,7 @@ public final class ExpectationResultBuilder {
   private static final String NOT_APPLICABLE = null;
   private static final String NO_RESULT = null;
   private static final Double NO_SCORE = null;
+  private static final String NO_ASSET = null;
 
   // -- SCORE --
 
@@ -86,12 +87,14 @@ public final class ExpectationResultBuilder {
   private static InjectExpectationResult setUp(
       @NotNull final String sourceId,
       @NotNull final String sourceName,
-      @NotNull final String sourcePlatform) {
+      @NotNull final String sourcePlatform,
+      @NotNull final String sourceAssetId) {
     return InjectExpectationResult.builder()
         .sourceId(sourceId)
         .sourceType(COLLECTOR)
         .sourceName(sourceName)
         .sourcePlatform(sourcePlatform)
+        .sourceAssetId(sourceAssetId)
         .date(String.valueOf(Instant.now()))
         .build();
   }
@@ -106,7 +109,8 @@ public final class ExpectationResultBuilder {
                     c.getName(),
                     Optional.ofNullable(c.getSecurityPlatform())
                         .map(sp -> sp.getSecurityPlatformType().name())
-                        .orElse(null)))
+                        .orElse(null),
+                    getSourceAssetId(c)))
         .toList();
   }
 
@@ -128,6 +132,7 @@ public final class ExpectationResultBuilder {
               .sourceType(input.getSourceType())
               .sourceName(input.getSourceName())
               .sourcePlatform(input.getSourcePlatform())
+              .sourceAssetId(input.getSourceId())
               .result(resultMsg)
               .date(now().toString())
               .score(input.getScore())
@@ -160,6 +165,7 @@ public final class ExpectationResultBuilder {
                   Optional.ofNullable(collector.getSecurityPlatform())
                       .map(sp -> sp.getSecurityPlatformType().name())
                       .orElse(null))
+              .sourceAssetId(getSourceAssetId(collector))
               .result(input.getResult())
               .date(Instant.now().toString())
               .score(score)
@@ -185,10 +191,17 @@ public final class ExpectationResultBuilder {
         .sourceType(MEDIA_PRESSURE_SOURCE_TYPE)
         .sourceName(MEDIA_PRESSURE_SOURCE_NAME)
         .sourcePlatform(NOT_APPLICABLE)
+        .sourceAssetId(NO_ASSET)
         .result(result)
         .date(Instant.now().toString())
         .score(score)
         .build();
+  }
+
+  private static String getSourceAssetId(Collector collector) {
+    return collector.isExternal() && collector.getSecurityPlatform() != null
+        ? collector.getSecurityPlatform().getId()
+        : null;
   }
 
   public static InjectExpectationResult buildForMediaPressure(
@@ -207,6 +220,7 @@ public final class ExpectationResultBuilder {
         .sourceType(EXPECTATIONS_VULNERABILITY_COLLECTOR_TYPE)
         .sourceName(EXPECTATIONS_VULNERABILITY_COLLECTOR_NAME)
         .sourcePlatform(NOT_APPLICABLE)
+        .sourceAssetId(NO_ASSET)
         .score(score)
         .result(result)
         .date(String.valueOf(Instant.now()))
@@ -232,6 +246,7 @@ public final class ExpectationResultBuilder {
         .sourceType(PLAYER_MANUAL_VALIDATION_SOURCE_TYPE)
         .sourceName(PLAYER_MANUAL_VALIDATION_SOURCE_NAME)
         .sourcePlatform(NOT_APPLICABLE)
+        .sourceAssetId(NO_ASSET)
         .result(result)
         .score(score)
         .date(String.valueOf(Instant.now()))
@@ -245,6 +260,7 @@ public final class ExpectationResultBuilder {
         .sourceType(TEAM_MANUAL_VALIDATION_SOURCE_TYPE)
         .sourceName(TEAM_MANUAL_VALIDATION_SOURCE_NAME)
         .sourcePlatform(NOT_APPLICABLE)
+        .sourceAssetId(NO_ASSET)
         .result(result)
         .score(score)
         .date(String.valueOf(Instant.now()))
