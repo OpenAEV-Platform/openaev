@@ -44,18 +44,22 @@ public class QueueService {
   private final RabbitmqConfig rabbitmqConfig;
 
   /**
-   * Publishes a JSON message to RabbitMQ for a specific inject type.
+   * Publishes a JSON message to RabbitMQ for a specific injector instance.
    *
-   * @param injectType the type of inject, used to construct the routing key
+   * <p>The routing key is constructed from the injector ID, ensuring each injector instance has its
+   * own dedicated message queue — preventing cross-instance delivery with multi-instance
+   * deployments.
+   *
+   * @param injectorId the unique injector instance ID, used to construct the routing key
    * @param publishedJson the JSON payload to publish
    * @throws IOException if an I/O error occurs during publishing
    * @throws TimeoutException if the connection or publishing times out
-   * @throws IllegalArgumentException if injectType or publishedJson is null or empty
+   * @throws IllegalArgumentException if injectorId or publishedJson is null or empty
    */
-  public void publish(String injectType, String publishedJson)
+  public void publish(String injectorId, String publishedJson)
       throws IOException, TimeoutException {
-    if (injectType == null || injectType.isBlank()) {
-      throw new IllegalArgumentException("injectType cannot be null or empty");
+    if (injectorId == null || injectorId.isBlank()) {
+      throw new IllegalArgumentException("injectorId cannot be null or empty");
     }
     if (publishedJson == null || publishedJson.isBlank()) {
       throw new IllegalArgumentException("publishedJson cannot be null or empty");
@@ -65,7 +69,7 @@ public class QueueService {
 
     try (Connection connection = factory.newConnection();
         Channel channel = connection.createChannel()) {
-      String routingKey = rabbitmqConfig.getPrefix() + ROUTING_KEY + injectType;
+      String routingKey = rabbitmqConfig.getPrefix() + ROUTING_KEY + injectorId;
       String exchangeKey = rabbitmqConfig.getPrefix() + EXCHANGE_KEY;
       channel.basicPublish(
           exchangeKey, routingKey, null, publishedJson.getBytes(StandardCharsets.UTF_8));
@@ -77,11 +81,11 @@ public class QueueService {
       log.error(
           "I/O error publishing to RabbitMQ exchange '{}' with routing key '{}'",
           rabbitmqConfig.getPrefix() + EXCHANGE_KEY,
-          rabbitmqConfig.getPrefix() + ROUTING_KEY + injectType,
+          rabbitmqConfig.getPrefix() + ROUTING_KEY + injectorId,
           ex);
       throw ex;
     } catch (TimeoutException ex) {
-      log.error("Timeout while publishing to RabbitMQ for inject type '{}'", injectType, ex);
+      log.error("Timeout while publishing to RabbitMQ for injector '{}'", injectorId, ex);
       throw ex;
     }
   }

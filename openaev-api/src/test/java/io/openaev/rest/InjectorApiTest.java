@@ -284,7 +284,7 @@ public class InjectorApiTest extends IntegrationTest {
       assertThatJson(response).inPath("connection").isNotNull();
       assertThatJson(response).inPath("connection.host").isNotNull();
       assertThatJson(response).inPath("connection.port").isNotNull();
-      assertThatJson(response).inPath("listen").isString().contains("_injector_" + injectorType);
+      assertThatJson(response).inPath("listen").isString().contains("_injector_" + injectorId);
 
       Optional<Injector> persisted = injectorRepository.findById(injectorId);
       assertThat(persisted).isPresent();
@@ -429,6 +429,55 @@ public class InjectorApiTest extends IntegrationTest {
           .extracting(Injector::getId)
           .contains(realInjectorId)
           .doesNotContain(dummyId);
+    }
+
+    @Test
+    @DisplayName(
+        "Should assign distinct per-instance RabbitMQ queues when registering two injectors of the same type")
+    void shouldAssignDistinctQueuesForTwoInjectorsOfSameType() throws Exception {
+      // -- ARRANGE --
+      String sharedType = "openaev_shared_type";
+
+      InjectorCreateInput firstInput = new InjectorCreateInput();
+      firstInput.setId("instance-1");
+      firstInput.setName("First Instance");
+      firstInput.setType(sharedType);
+      firstInput.setContracts(List.of(buildContractInput("shared-contract-1")));
+
+      InjectorCreateInput secondInput = new InjectorCreateInput();
+      secondInput.setId("instance-2");
+      secondInput.setName("Second Instance");
+      secondInput.setType(sharedType);
+      secondInput.setContracts(List.of(buildContractInput("shared-contract-1")));
+
+      // -- ACT --
+      String firstResponse =
+          mvc.perform(
+                  multipart(INJECT0R_URI)
+                      .file(buildInputPart(firstInput))
+                      .file(buildEmptyIconPart())
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String secondResponse =
+          mvc.perform(
+                  multipart(INJECT0R_URI)
+                      .file(buildInputPart(secondInput))
+                      .file(buildEmptyIconPart())
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT --
+      assertThatJson(firstResponse).inPath("listen").isString().contains("_injector_instance-1");
+      assertThatJson(secondResponse).inPath("listen").isString().contains("_injector_instance-2");
+
+      assertThat(firstResponse).isNotEqualTo(secondResponse);
     }
   }
 }
