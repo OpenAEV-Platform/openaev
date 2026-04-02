@@ -11,6 +11,7 @@ import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.form.ExercisesGlobalScoresInput;
 import io.openaev.rest.inject.service.InjectDuplicateService;
@@ -331,13 +332,17 @@ class ExerciseServiceUnitTest {
 
     @ParameterizedTest(name = "chaining={0}")
     @ValueSource(booleans = {true, false})
-    void shouldCreateSimulation_withOrWithoutChaining(boolean chaining) {
+    void shouldCreateSimulation_withOrWithoutChaining(boolean chaining) throws ChainingException {
 
       Exercise saved = mock(Exercise.class);
       doReturn(saved).when(mockedExerciseService).createExercise(exercise);
-      if (chaining)
+      Exercise result;
+      if (chaining) {
         doReturn(true).when(previewFeatureService).isFeatureEnabled(PreviewFeature.INJECT_CHAINING);
-      Exercise result = mockedExerciseService.createSimulation(exercise, chaining);
+        result = mockedExerciseService.createSimulationChaining(exercise);
+      } else {
+        result = mockedExerciseService.createExercise(exercise);
+      }
 
       assertEquals(saved, result);
       verify(mockedExerciseService).createExercise(exercise);
@@ -345,7 +350,7 @@ class ExerciseServiceUnitTest {
       if (chaining) {
         verify(workflowService).creationWorkflow(saved);
       } else {
-        verify(workflowService, never()).creationWorkflow(any());
+        verify(workflowService, never()).creationWorkflow(any(Exercise.class));
       }
     }
   }

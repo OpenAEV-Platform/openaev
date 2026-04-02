@@ -29,10 +29,19 @@ import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.*;
+
+import static io.openaev.database.model.Command.COMMAND_TYPE;
+import static io.openaev.database.model.DnsResolution.DNS_RESOLUTION_TYPE;
+import static io.openaev.database.model.Executable.EXECUTABLE_TYPE;
+import static io.openaev.database.model.FileDrop.FILE_DROP_TYPE;
+import static io.openaev.service.chaining.StepService.setField;
 
 /**
  * Implementation of {@link ActionStep} for executing Inject steps.
@@ -80,7 +89,17 @@ public class InjectExecutionStep implements ActionStep {
   @Override
   public Optional<Step> create(StepsCreateInput.StepCreateInput newStep, Workflow workflow)
       throws ChainingException {
-    String data = stepData(newStep, workflow.getSimulation());
+    String data = null;
+
+    if (workflow.getScenario() != null) {
+      data = stepData(newStep, null, workflow.getScenario());
+
+    } else if (workflow.getSimulation() != null) {
+      data = stepData(newStep, workflow.getSimulation(), null);
+
+    }
+    if (data == null)
+      throw new ChainingException("New step (TEMPLATE): Error processing Inject. Workflow has no simulation or scenario");
 
     String input = stepInputFromConditionMapper(newStep.getConditions());
     // TODO: get outputParser
@@ -135,11 +154,15 @@ public class InjectExecutionStep implements ActionStep {
    * @return the updated step with execution info, or null if execution fails
    */
   @Override
+  @Transactional(rollbackFor = Exception.class)
   public Optional<Step> run(Step readyStep) throws ChainingException {
     // CALL BY QUEUE READY
     Inject inject = getInjectFromDataStep(readyStep);
     // CREATE & SAVE INJECT
+
     inject = injectService.createInject(inject);
+    String injectId = inject.getId();
+    prepareGetStatusPayloadFromInject(inject.getInjectorContract().get());
 
     try {
       String data = setInjectId(inject.getId(), readyStep.getData());
@@ -162,11 +185,28 @@ public class InjectExecutionStep implements ActionStep {
       executor.directExecute(executableInject);
       return Optional.of(readyStep);
     } catch (Exception e) {
-      injectStatusService.failInjectStatus(inject.getId(), e.getMessage());
-      throw new ChainingException("Inject execution failed. Inject ID: " + inject.getId(), e);
+      throw new ChainingException("Inject execution failed. Inject ID: " + injectId + " (transaction rolled back)", e);
     }
   }
 
+  private void prepareGetStatusPayloadFromInject(InjectorContract injectorContract) {
+    if (injectorContract.getPayload() == null) {
+      return;
+    }
+    Payload payload = injectorContract.getPayload();
+    if (COMMAND_TYPE.equals(injectorContract.getPayload().getType())) {
+      injectorContract.setPayload(em.find(Command.class, payload.getId()));
+    }
+    if (EXECUTABLE_TYPE.equals(injectorContract.getPayload().getType())) {
+      injectorContract.setPayload(em.find(Executable.class, payload.getId()));
+    }
+    if (FILE_DROP_TYPE.equals(injectorContract.getPayload().getType())) {
+      injectorContract.setPayload(em.find(FileDrop.class, payload.getId()));
+    }
+    if (DNS_RESOLUTION_TYPE.equals(injectorContract.getPayload().getType())) {
+      injectorContract.setPayload(em.find(DnsResolution.class, payload.getId()));
+    }
+  }
   /**
    * Updates a step after execution.
    *
@@ -249,7 +289,7 @@ public class InjectExecutionStep implements ActionStep {
    * @return a JSON string representing the serialized inject, or {@code null} if the injector
    *     contract is missing
    */
-  private String stepData(StepsCreateInput.StepCreateInput step, Exercise simulation)
+  private String stepData(StepsCreateInput.StepCreateInput step, Exercise simulation, Scenario scenario)
       throws ChainingException {
 
     InjectInput data = (InjectInput) step.getDataStep();
@@ -260,6 +300,9 @@ public class InjectExecutionStep implements ActionStep {
     if (data.getInjectorContract() == null)
       throw new IllegalArgumentException(
           "Data step of new step (TEMPLATE) do not contain injector contract");
+
+    if ((simulation == null && scenario == null) || (simulation != null && scenario != null))
+      throw new IllegalArgumentException("Exactly one of exercise or scenario should be present");
 
     InjectorContract injectorContract =
         this.injectorContractService.injectorContract(data.getInjectorContract());
@@ -280,7 +323,8 @@ public class InjectExecutionStep implements ActionStep {
             .toList();
     inject.setDocuments(injectDocuments);
     Set<Tag> tags = new HashSet<>();
-    // TODO Scenario or SIMULATION copy from io/openaev/rest/inject/service/InjectService.java:178
+    // TODO copy from io/openaev/rest/inject/service/InjectService.java:178
+    // EXERCISE
     if (simulation != null) {
       tags = simulation.getTags();
       inject.setExercise(simulation);
@@ -291,6 +335,20 @@ public class InjectExecutionStep implements ActionStep {
               document -> {
                 if (!document.getDocument().getExercises().contains(simulation)) {
                   simulation.getDocuments().add(document.getDocument());
+                }
+              });
+    }
+    // SCENARIO
+    if (scenario != null) {
+      tags = scenario.getTags();
+      //todo to brainstorm did we need Document on scenario ? why ?
+      // Linked documents directly to the scenario
+      inject
+          .getDocuments()
+          .forEach(
+              document -> {
+                if (!document.getDocument().getScenarios().contains(scenario)) {
+                  scenario.getDocuments().add(document.getDocument());
                 }
               });
     }

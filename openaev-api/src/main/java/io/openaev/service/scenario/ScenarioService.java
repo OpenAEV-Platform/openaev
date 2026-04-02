@@ -32,6 +32,7 @@ import io.openaev.export.Mixins;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.ObjectMapperHelper;
+import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.exports.ExerciseFileExport;
 import io.openaev.rest.exercise.exports.VariableMixin;
@@ -44,8 +45,10 @@ import io.openaev.rest.scenario.export.ScenarioFileExport;
 import io.openaev.rest.scenario.form.ScenarioSimple;
 import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.scenario.response.ScenarioTeamUserOutput;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.mapper.ExerciseMapper;
@@ -128,12 +131,27 @@ public class ScenarioService {
   private final HealthCheckUtils healthCheckUtils;
 
   private final ScenarioMapper scenarioMapper;
+  private final WorkflowService workflowService;
+  private final PreviewFeatureService previewFeatureService;
 
   @Transactional
   public Scenario createScenario(@NotNull final Scenario scenario) {
     computeEmails(scenario);
     this.actionMetricCollector.addScenarioCreatedCount();
     return this.scenarioRepository.save(scenario);
+  }
+
+  @Transactional
+  public Scenario createScenarioChaining(@NotNull final Scenario scenario) throws ChainingException {
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
+      throw new ChainingException("Feature chaining is not enabled");
+
+    computeEmails(scenario);
+    this.actionMetricCollector.addScenarioCreatedCount();
+    Scenario savedScenario = this.scenarioRepository.save(scenario);
+    workflowService.creationWorkflow(savedScenario);
+
+    return savedScenario;
   }
 
   public void computeEmails(@NotNull Scenario scenario) {

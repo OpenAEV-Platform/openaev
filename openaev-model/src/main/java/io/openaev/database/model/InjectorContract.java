@@ -277,7 +277,7 @@ public class InjectorContract implements TenantBase {
 
   @JsonProperty("injector_contract_atomic_testing")
   public boolean getAtomicTestingEffective() {
-    return isAtomicTesting;
+    return Boolean.TRUE.equals(isAtomicTesting);
   }
 
   // Fixes a bug due to a new version of jackson and lombok

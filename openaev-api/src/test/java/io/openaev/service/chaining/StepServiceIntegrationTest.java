@@ -1,18 +1,11 @@
 package io.openaev.service.chaining;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.InjectRepository;
-import io.openaev.database.repository.InjectorContractRepository;
-import io.openaev.database.repository.InjectorRepository;
-import io.openaev.database.repository.StepRepository;
+import io.openaev.database.repository.*;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
@@ -26,13 +19,20 @@ import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.helpers.InjectTestHelper;
-import java.util.*;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.mock.mockito.SpyBean;
+
+import java.util.*;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
 
 @SpringBootTest
 class StepServiceIntegrationTest {
@@ -58,6 +58,8 @@ class StepServiceIntegrationTest {
   String injectInputJson;
   InjectorContract injectorContractSaved;
   @SpyBean private StepService spyStepService;
+  @Autowired
+  private WorkflowRepository workflowRepository;
 
   @BeforeEach
   void beforeEach() throws Exception {
@@ -153,6 +155,11 @@ class StepServiceIntegrationTest {
                                 }
                                 """
             .formatted(injectorContractSaved.getId(), asset.getId());
+  }
+
+  @AfterEach
+  void afterEach(){
+    workflowRepository.deleteAll();
   }
 
   @Test

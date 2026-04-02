@@ -25,6 +25,9 @@ public interface WorkflowRepository extends JpaRepository<Workflow, String> {
    * @return the workflow matching the given simulation ID and status, or null if not found
    */
   Workflow findBySimulation_IdAndStatus(String simulationId, WorkflowStatus status);
+  List<Workflow> findAllBySimulation_IdAndStatus(String simulationId, WorkflowStatus status);
 
   Optional<Workflow> findByIdAndStatus(String workflowId, WorkflowStatus status);
+
+  List<Workflow> findByScenario_IdAndStatus(String scenarioId, WorkflowStatus workflowStatus);
 }

@@ -162,6 +162,7 @@ public class InjectExecutionStepTest {
   void create_shouldThrowException_whenStepDataIsNull() {
     StepsCreateInput.StepCreateInput stepInput = new StepsCreateInput.StepCreateInput();
     Workflow workflow = new Workflow();
+    workflow.setSimulation(ExerciseFixture.createDefaultExercise());
 
     IllegalArgumentException ex =
         Assertions.assertThrows(
@@ -229,6 +230,7 @@ public class InjectExecutionStepTest {
     step.setConditions(Collections.singletonList(conditionMapper));
 
     Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
 
     // ACT
     Optional<Step> stepTemplateOpt = injectExecutionStep.create(step, workflowTemplate);
@@ -282,6 +284,7 @@ public class InjectExecutionStepTest {
     step.setConditions(Collections.singletonList(conditionMapper));
 
     Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
 
     // ACT
     Optional<Step> stepTemplateOpt = injectExecutionStep.create(step, workflowTemplate);
@@ -316,6 +319,7 @@ public class InjectExecutionStepTest {
   public void runTest() throws JsonProcessingException, ChainingException {
     // PREPARE
     Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
 
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
@@ -371,9 +375,11 @@ public class InjectExecutionStepTest {
     step.setConditions(Collections.singletonList(conditionMapper));
     // ACT CREATE + READY + RUN
 
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
     // PERSIST STEP TEMPLATE
     Optional<Step> stepTemplateOpt =
-        injectExecutionStep.create(step, WorkflowFixture.getDefaultWorkflowTemplate());
+        injectExecutionStep.create(step, workflowTemplate);
     assertTrue(stepTemplateOpt.isPresent());
     Step stepTemplate = stepTemplateOpt.get();
 
@@ -406,6 +412,7 @@ public class InjectExecutionStepTest {
       throws JsonProcessingException, ChainingException {
     // PREPARE
     Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
 
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
@@ -426,6 +433,7 @@ public class InjectExecutionStepTest {
     Step stepTemplate = stepTemplateOpt.get();
 
     Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
 
     Optional<Step> stepReadyOpt =
         injectExecutionStep.ready(stepTemplate, "{\"input\" : \"do defined\"}", workflowRun);
@@ -452,6 +460,7 @@ public class InjectExecutionStepTest {
     doThrow(exception).when(executor).directExecute(any());
 
     Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
 
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
@@ -487,10 +496,10 @@ public class InjectExecutionStepTest {
 
     verify(executor).directExecute(any());
 
-    verify(injectStatusService).failInjectStatus(any(), eq("direct execute throw an exception"));
-
     // ASSERT
     Assertions.assertTrue(ex.getMessage().contains("Inject execution failed. Inject ID: "));
+    String idInject = ex.getMessage().replace("Inject execution failed. Inject ID: ","" );
+    Assertions.assertFalse(injectRepository.findById(idInject).isPresent(), idInject + " should not be persisted");
   }
 
   /**
@@ -511,6 +520,8 @@ public class InjectExecutionStepTest {
   public void updateTest() throws JsonProcessingException, ChainingException {
     // PREPARE
     Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
+
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
     StepsCreateInput.StepCreateInput step =

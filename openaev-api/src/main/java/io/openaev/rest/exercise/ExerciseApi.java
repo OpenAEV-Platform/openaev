@@ -22,6 +22,7 @@ import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.exercise.exports.ExportOptions;
@@ -32,8 +33,11 @@ import io.openaev.rest.exercise.service.ExportService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
+import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
@@ -104,6 +108,9 @@ public class ExerciseApi extends RestBehavior {
   private final UserService userService;
   private final PlatformSettingsService platformSettingsService;
 
+  private final WorkflowService workflowService;
+  private final StepService stepService;
+  private final PreviewFeatureService previewFeatureService;
   // endregion
 
   // region logs
@@ -697,7 +704,7 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SIMULATION)
   public Exercise changeExerciseStatus(
-      @PathVariable String exerciseId, @Valid @RequestBody ExerciseUpdateStatusInput input) {
+      @PathVariable String exerciseId, @Valid @RequestBody ExerciseUpdateStatusInput input) throws ChainingException {
     ExerciseStatus status = input.getStatus();
     return exerciseService.changeExerciseStatus(status, exerciseId);
   }

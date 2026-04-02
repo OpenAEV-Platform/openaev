@@ -3,11 +3,12 @@ package io.openaev.utils.fixtures.composers;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.WorkflowRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 
 @Component
 public class WorkflowComposer extends ComposerBase<Workflow> {
@@ -18,6 +19,7 @@ public class WorkflowComposer extends ComposerBase<Workflow> {
 
     private final Workflow workflow;
     private Optional<ExerciseComposer.Composer> simulationComposer = Optional.empty();
+    private Optional<ScenarioComposer.Composer> scenarioComposer = Optional.empty();
     private final List<StepComposer.Composer> stepComposers = new ArrayList<>();
     private final List<WorkflowComposer.Composer> workflowComposers = new ArrayList<>();
 
@@ -64,6 +66,7 @@ public class WorkflowComposer extends ComposerBase<Workflow> {
     @Override
     public Composer persist() {
       simulationComposer.ifPresent(ExerciseComposer.Composer::persist);
+      scenarioComposer.ifPresent(ScenarioComposer.Composer::persist);
       workflowRepository.save(workflow);
       workflowComposers.forEach(WorkflowComposer.Composer::persist);
       return this;
@@ -79,6 +82,13 @@ public class WorkflowComposer extends ComposerBase<Workflow> {
     @Override
     public Workflow get() {
       return workflow;
+    }
+
+    public Composer withScenario(ScenarioComposer.Composer scenarioComposer) {
+      this.scenarioComposer = Optional.of(scenarioComposer);
+      this.workflow.setScenario(scenarioComposer.get());
+
+      return this;
     }
   }
 
