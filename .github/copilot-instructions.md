@@ -8,25 +8,24 @@ strategic levels.
 
 ### Architecture
 
-- **Backend**: Spring Boot 3.3.7 (Java 21), PostgreSQL, Elasticsearch/OpenSearch, MinIO, RabbitMQ
-- **Frontend**: React 19, TypeScript, Vite, Material-UI, Yarn 4.12.0
+- **Backend**: Spring Boot (Java), PostgreSQL, Elasticsearch/OpenSearch, MinIO, RabbitMQ
+- **Frontend**: React, TypeScript, Vite, Material-UI
 - **Multi-module Maven project** with 3 modules: `openaev-model`, `openaev-framework`, `openaev-api`
 - ⚠️ **`openaev-framework` is deprecated** — it will be removed. **Never add new code to `openaev-framework`**. Place
   new utilities in `openaev-api` or `openaev-model` instead.
-- **Size**: ~1,882 Java files, ~809 TypeScript/React files
+
+> For exact framework/library versions, read `pom.xml` (backend) and `openaev-front/package.json` (frontend).
 
 ## Critical Build Requirements
 
 ### Java Version Requirement
 
-**ALWAYS use Java 21**. The project WILL FAIL to build with Java 17 or lower due to:
-
-- Maven compiler plugin configured for Java 21 (`<source>21</source>`, `<target>21</target>`)
-- Error message: `release version 21 not supported`
+The project requires the Java version configured in `pom.xml` (`maven-compiler-plugin` source/target).
+Building with an older version will fail with: `release version XX not supported`.
 
 ### Node.js Version Requirement
 
-**Use Node.js >= 22.11.0** as specified in `openaev-front/package.json` engines field.
+The minimum Node.js version is specified in `openaev-front/package.json` (`engines` field).
 
 ## Build & Development Workflow
 
@@ -63,7 +62,7 @@ Primary CI runs on every push:
 3. **E2E Tests**: Full app test with Playwright
 4. **Type Check**: `yarn generate-types-from-api` verification
 
-**Services**: PostgreSQL 17, MinIO RELEASE.2025-06-13T11-33-47Z, Elasticsearch 8.18.3, RabbitMQ 4.1
+**Services**: PostgreSQL, MinIO, Elasticsearch, RabbitMQ (see `.drone.yml` for exact versions)
 
 ### GitHub Actions
 
@@ -75,7 +74,7 @@ Primary CI runs on every push:
 
 ### Root Files
 
-- `pom.xml` - Parent Maven POM (Spring Boot 3.3.7, Java 21)
+- `pom.xml` - Parent Maven POM
 - `.drone.yml` - Primary CI/CD pipeline
 - `docker-compose.yml` - Dev services (in `openaev-dev/`)
 - `Dockerfile` / `Dockerfile_ga` - Production / GitHub Actions images
@@ -84,7 +83,7 @@ Primary CI runs on every push:
 
 ```
 openaev-model/       # Domain models, entities, DTOs
-openaev-framework/   # ⚠️ DEPRECATED — do not add new code here. Will be removed.
+openaev-framework/   # ⚠️ DEPRECATED — will be removed (see Architecture section above)
 openaev-api/         # REST API, main application
   src/main/java/io/openaev/
     api/             # REST controllers
@@ -106,7 +105,7 @@ openaev-front/
     components/      # Reusable components
     utils/           # Utilities, API types
   builder/prod/      # Production build (esbuild)
-  package.json       # 2.0.10, Node >= 22.11.0
+  package.json
 ```
 
 ### Config Files
@@ -210,6 +209,6 @@ Examples:
 4. **Frontend must build first**: The backend copies frontend build artifacts.
 5. **Services required**: PostgreSQL, MinIO, Elasticsearch/OpenSearch, and RabbitMQ must be running for tests.
 6. **Java 21 is mandatory**: The project will not compile with earlier versions.
-7. **Node >= 22.11.0**: Required for frontend development.
+7. **Node.js version**: Check `openaev-front/package.json` engines field for the minimum required version.
 8. **API types**: After API changes, run `yarn generate-types-from-api` in frontend to update TypeScript types.
 9. **Coverage enforcement**: Backend tests must maintain 50% line coverage, 30% branch coverage.

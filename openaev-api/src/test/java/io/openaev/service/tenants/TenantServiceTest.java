@@ -15,8 +15,13 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.tenants.TenantInput;
 import io.openaev.api.tenants.TenantOutput;
 import io.openaev.config.MinioConfig;
+import io.openaev.context.TenantContext;
+import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.*;
+import io.openaev.datapack.packs.V20260330_Default_tenant_data;
+import io.openaev.helper.StreamHelper;
+import io.openaev.service.RoleService;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -49,6 +54,11 @@ class TenantServiceTest extends IntegrationTest {
   @Autowired private MinioClient minioClient;
   @Autowired private DomainRepository domainRepository;
   @Autowired private TenantRepository tenantRepository;
+  @Autowired private VulnerabilityRepository vulnerabilityRepository;
+  @Autowired private CweRepository cweRepository;
+  @Autowired private RoleService roleService;
+  @Autowired private GroupRepository groupRepository;
+  @Autowired private V20260330_Default_tenant_data datapack;
 
   @Test
   void should_create_and_find_tenant() throws Exception {
@@ -57,6 +67,9 @@ class TenantServiceTest extends IntegrationTest {
 
     // -- ACT --
     Tenant created = tenantService.create(tenant);
+    TenantContext.setCurrentTenant(tenant.getId());
+    // Simulate for tenant creation because Dataprocessor has @Profile("!test")
+    datapack.process(created);
 
     // Upload a file to verify MinIO path-based isolation works
     byte[] content = "tenant-test-content".getBytes(StandardCharsets.UTF_8);
@@ -87,6 +100,19 @@ class TenantServiceTest extends IntegrationTest {
     Session session = entityManager.unwrap(Session.class);
     session.enableFilter("tenantFilter").setParameter("tenantId", created.getId());
     assertThat(domainRepository.findAll()).hasSize(9);
+    // Verify datapack
+    assertThat(vulnerabilityRepository.findAll()).hasSize(7);
+    assertThat(cweRepository.findAll()).hasSize(7);
+    assertThat(roleService.findAll()).hasSize(3);
+    List<Group> groups = StreamHelper.fromIterable(groupRepository.findAll());
+    assertThat(groups).hasSize(3);
+    assertThat(
+            groups.stream()
+                .filter(group -> group.getName().equals("Admin"))
+                .findFirst()
+                .get()
+                .getUsers())
+        .hasSize(1);
 
     Tenant exists = tenantService.findById(created.getId());
     assertThat(exists.getName()).isEqualTo(TENANT_NAME);
@@ -187,6 +213,7 @@ class TenantServiceTest extends IntegrationTest {
     tenantExpired.setDeletedAt(
         Instant.now().minus(SOFT_DELETE_RETENTION_DAYS + 1, ChronoUnit.DAYS));
     tenantRepository.save(tenantExpired);
+    TenantContext.setCurrentTenant(tenantExpired.getId());
 
     Tenant tenantRecent = getTenant("Tenant Recent");
     tenantComposer.forTenant(tenantRecent).persist();
@@ -204,6 +231,11 @@ class TenantServiceTest extends IntegrationTest {
     Session session = entityManager.unwrap(Session.class);
     session.enableFilter("tenantFilter").setParameter("tenantId", tenantExpired.getId());
     assertThat(domainRepository.findAll()).isEmpty();
+    // Verify datapack
+    assertThat(vulnerabilityRepository.findAll()).isEmpty();
+    assertThat(cweRepository.findAll()).isEmpty();
+    assertThat(roleService.findAll()).isEmpty();
+    assertThat(groupRepository.findAll()).isEmpty();
   }
 
   @Test
