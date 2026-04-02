@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
-  buildTenantApiPath,
+  buildTenantApiUri,
   DEFAULT_TENANT_UUID,
   getCurrentTenantId,
   TENANT_STORAGE_KEY,
@@ -63,10 +63,10 @@ describe('getCurrentTenantId', () => {
 });
 
 // ---------------------------------------------------------------------------
-// buildTenantApiPath
+// buildTenantApiUri
 // ---------------------------------------------------------------------------
 
-describe('buildTenantApiPath', () => {
+describe('buildTenantApiUri', () => {
   const fakeTenantId = 'aaaaaaaa-1111-2222-3333-ffffffffffff';
 
   beforeEach(() => {
@@ -84,9 +84,9 @@ describe('buildTenantApiPath', () => {
   // -- Non-API paths are returned untouched --
 
   it('returns non-API paths unchanged', () => {
-    expect(buildTenantApiPath('/login')).toBe('/login');
-    expect(buildTenantApiPath('/dashboard')).toBe('/dashboard');
-    expect(buildTenantApiPath('/')).toBe('/');
+    expect(buildTenantApiUri('/login')).toBe('/login');
+    expect(buildTenantApiUri('/dashboard')).toBe('/dashboard');
+    expect(buildTenantApiUri('/')).toBe('/');
   });
 
   // -- Tenant-exempt prefixes are not rewritten --
@@ -104,12 +104,12 @@ describe('buildTenantApiPath', () => {
     '/api/platform-roles',
   ])('exempt prefix %s', (prefix) => {
     it('is returned unchanged', () => {
-      expect(buildTenantApiPath(prefix)).toBe(prefix);
+      expect(buildTenantApiUri(prefix)).toBe(prefix);
     });
 
     it('is returned unchanged when it has a sub-path', () => {
       const path = `${prefix}/some/sub/path`;
-      expect(buildTenantApiPath(path)).toBe(path);
+      expect(buildTenantApiUri(path)).toBe(path);
     });
   });
 
@@ -164,12 +164,12 @@ describe('buildTenantApiPath', () => {
     '/api/stream',
   ])('not-yet-migrated prefix %s', (prefix) => {
     it('is returned unchanged', () => {
-      expect(buildTenantApiPath(prefix)).toBe(prefix);
+      expect(buildTenantApiUri(prefix)).toBe(prefix);
     });
 
     it('is returned unchanged with sub-path', () => {
       const path = `${prefix}/123/details`;
-      expect(buildTenantApiPath(path)).toBe(path);
+      expect(buildTenantApiUri(path)).toBe(path);
     });
   });
 
@@ -179,21 +179,21 @@ describe('buildTenantApiPath', () => {
     '/api/tags',
   ])('migrated prefix %s', (prefix) => {
     it('is rewritten with tenant prefix', () => {
-      expect(buildTenantApiPath(prefix)).toBe(
+      expect(buildTenantApiUri(prefix)).toBe(
         `/api/tenants/${fakeTenantId}${prefix.slice('/api'.length)}`,
       );
     });
 
     it('is rewritten with tenant prefix when it has a sub-path', () => {
       const path = `${prefix}/abc-123`;
-      expect(buildTenantApiPath(path)).toBe(
+      expect(buildTenantApiUri(path)).toBe(
         `/api/tenants/${fakeTenantId}${prefix.slice('/api'.length)}/abc-123`,
       );
     });
 
     it('uses DEFAULT_TENANT_UUID when no tenant is in storage', () => {
       localStorage.clear();
-      expect(buildTenantApiPath(prefix)).toBe(
+      expect(buildTenantApiUri(prefix)).toBe(
         `/api/tenants/${DEFAULT_TENANT_UUID}${prefix.slice('/api'.length)}`,
       );
     });
@@ -202,12 +202,12 @@ describe('buildTenantApiPath', () => {
   // -- Edge cases --
 
   it('does not rewrite an empty string', () => {
-    expect(buildTenantApiPath('')).toBe('');
+    expect(buildTenantApiUri('')).toBe('');
   });
 
   it('does not rewrite a path that is exactly /api/', () => {
     // /api/ doesn't match any exempt or TODO prefix, so it IS rewritten
-    expect(buildTenantApiPath('/api/')).toBe(
+    expect(buildTenantApiUri('/api/')).toBe(
       `/api/tenants/${fakeTenantId}/`,
     );
   });
@@ -215,6 +215,6 @@ describe('buildTenantApiPath', () => {
   it('does not double-prefix an already-prefixed path', () => {
     const alreadyPrefixed = `/api/tenants/${fakeTenantId}/tags`;
     // /api/tenants is in the exempt list, so it should stay as-is
-    expect(buildTenantApiPath(alreadyPrefixed)).toBe(alreadyPrefixed);
+    expect(buildTenantApiUri(alreadyPrefixed)).toBe(alreadyPrefixed);
   });
 });
