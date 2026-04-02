@@ -1,6 +1,6 @@
 version: 2.1
 orbs:
-  slack: circleci/slack@5.2.3
+  slack: circleci/slack@6.1.3
   kubernetes: circleci/kubernetes@2.0.2
 jobs:
   build_frontend:
