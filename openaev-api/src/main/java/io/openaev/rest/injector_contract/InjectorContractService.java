@@ -68,6 +68,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 /**
  * Service for managing injector contracts.
@@ -483,16 +484,24 @@ public class InjectorContractService implements DependenciesManager {
    * @param specification filtering/search specification for returned items
    * @param specificationCount specification used to compute total count
    * @param pageable pagination and sorting information
-   * @param mode output mode (defaults to FULL when null)
+   * @param input search input (defaults to FULL when null)
    * @return page of contracts mapped to the selected output format
    */
   public PageImpl<? extends InjectorContractBaseOutput> getSinglePage(
       Specification<InjectorContract> specification,
       Specification<InjectorContract> specificationCount,
       Pageable pageable,
-      OutputMode mode) {
-    OutputMode safeMode = (mode == null) ? OutputMode.FULL : mode;
+      InjectorContractSearchPaginationInput input) {
+    InjectorContractSearchPaginationInput.OutputMode safeMode =
+        (input.getOutputMode() == null) ? InjectorContractSearchPaginationInput.OutputMode.FULL : input.getOutputMode();
     OutputModeConfig config = CONFIGS.get(safeMode);
+
+    if (!CollectionUtils.isEmpty(input.getInjectorContractIdsToIgnore())) {
+        specification = specification.and(JpaUtils.computeNotIn(InjectorContract.ID_FIELD_NAME, input.getInjectorContractIdsToIgnore()));
+    }
+    if (!CollectionUtils.isEmpty(input.getInjectorContractIdsToProcess())) {
+        specification = specification.and(JpaUtils.computeIn(InjectorContract.ID_FIELD_NAME, input.getInjectorContractIdsToProcess()));
+    }
 
     QuerySetup qs = setupQuery(specification, specificationCount, pageable, config.selector());
 

@@ -43,11 +43,12 @@ import org.hibernate.annotations.UpdateTimestamp;
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class InjectorContract implements TenantBase, CompositeIdResolvableI {
 
+  public static final String ID_FIELD_NAME = "id";
+
   @EmbeddedId @JsonIgnore private InjectorContractId compositeId = new InjectorContractId();
 
-  // -- Delegate accessors for Base / TenantBase interfaces --
-
-  @Override
+  @Id
+  @Column(name = "injector_contract_id")
   @JsonProperty("injector_contract_id")
   @NotBlank
   public String getId() {
