@@ -62,23 +62,6 @@ const isEmptyPath = R.isNil(window.BASE_PATH) || R.isEmpty(window.BASE_PATH);
 const contextPath = isEmptyPath || window.BASE_PATH === '/' ? '' : window.BASE_PATH;
 export const APP_BASE_PATH = isEmptyPath || contextPath?.startsWith('/') ? contextPath : `/${contextPath}`;
 
-// Feature flags — parsed once at module load from the server-injected window global.
-// Available synchronously before the Redux store is initialised.
-const rawFeatures = window.ENABLED_DEV_FEATURES ?? '';
-const ENABLED_DEV_FEATURES: string[] = rawFeatures.includes('%')
-  ? [] // unreplaced placeholder (e.g. Vite dev without VITE_ENABLED_DEV_FEATURES)
-  : rawFeatures.split(',').map(s => s.trim()).filter(Boolean);
-
-/**
- * Check whether a feature flag is enabled.
- * Can be called anywhere (including outside React components) because it reads
- * from the server-injected window global, not from the Redux store.
- */
-export const isFeatureFlagEnabled = (flagName: string): boolean =>
-  ENABLED_DEV_FEATURES.includes('FEATURE_FLAG_ALL')
-  || ENABLED_DEV_FEATURES.includes('*')
-  || ENABLED_DEV_FEATURES.includes(flagName);
-
 export const fileUri = (fileImport: string): string => `${APP_BASE_PATH}${fileImport}`; // No slash here, will be replaced by the builder
 
 // Export

@@ -31,9 +31,6 @@ public class HomeApi {
   @Value("${server.servlet.context-path}")
   private String contextPath;
 
-  @Value("${openaev.enabled-dev-features:}")
-  private String enabledDevFeatures;
-
   // SPA catch-all: serves index.html for all paths except those handled by dedicated controllers.
   // The negative lookahead excludes specific path prefixes from matching.
   // "api" and "swagger-ui" use prefix matching (no $) to also exclude paths like
@@ -64,9 +61,7 @@ public class HomeApi {
                 "OpenAEV is an open source platform allowing organizations to plan, schedule and conduct adversary simulation campaigns and cyber crisis exercises.")
             .replaceAll("%APP_FAVICON%", basePath + "/static/favicon.png")
             .replaceAll("%APP_MANIFEST%", basePath + "/static/manifest.json")
-            .replaceAll("%BASE_PATH%", basePath)
-            .replaceAll(
-                "%ENABLED_DEV_FEATURES%", enabledDevFeatures != null ? enabledDevFeatures : "");
+            .replaceAll("%BASE_PATH%", basePath);
     return ResponseEntity.ok().header(HttpHeaders.CACHE_CONTROL, "no-cache").body(newIndex);
   }
 }

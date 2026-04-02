@@ -11,19 +11,14 @@ import * as Constants from '../constants/ActionTypes';
 import { DATA_FETCH_ERROR } from '../constants/ActionTypes';
 import { api } from '../network';
 import { store } from '../store';
-import { APP_BASE_PATH, isFeatureFlagEnabled, MESSAGING$ } from './Environment';
+import { APP_BASE_PATH, MESSAGING$ } from './Environment';
 import { notifyErrorHandler } from './error/errorHandlerUtil';
 import { oaevLocaleMap } from './locales';
 import { buildTenantApiPath } from './tenant-url-helper';
 
 const cache = createIntlCache();
 
-export const buildUri = (uri: string) => {
-  if (isFeatureFlagEnabled('MULTI_TENANCY')) {
-    return `${APP_BASE_PATH}${buildTenantApiPath(uri)}`;
-  }
-  return `${APP_BASE_PATH}${uri}`;
-};
+export const buildUri = (uri: string) => `${APP_BASE_PATH}${buildTenantApiPath(uri)}`;
 
 const buildError = (data: AxiosError) => {
   const errorsExtractor = R.pipe(
