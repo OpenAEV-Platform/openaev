@@ -7,17 +7,22 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Curve;
 import io.jsonwebtoken.security.Jwks;
 import java.security.KeyPair;
+import java.util.Base64;
 import java.util.Date;
 
 public class JwtFixture {
-  public record TokenKeyPair(String jwtToken, String jwks) {}
+  public record Bundle(String jwtToken, String jwks, KeyPair keyPair) {}
 
-  //
-  //  public static TokenKeyPair generateTokenKeyPairWithKey(String key, boolean expired) {
-  //
-  //  }
+  public static Bundle generateConnectorJwtBundle(boolean expired) throws Exception {
+    return generateBundle("opencti", "connector", expired);
+  }
 
-  public static TokenKeyPair generateTokenKeyPair(boolean expired) throws Exception {
+  public static Bundle generatePlatformJwtBundle(String subject, boolean expired) throws Exception {
+    return generateBundle("filigran-copilot", subject, expired);
+  }
+
+  private static Bundle generateBundle(String issuer, String subject, boolean expired)
+      throws Exception {
     Curve curve = Jwks.CRV.Ed25519;
     KeyPair pair = curve.keyPair().build();
 
@@ -25,8 +30,9 @@ public class JwtFixture {
 
     String jwt =
         Jwts.builder()
-            .issuer("opencti")
-            .subject("connector")
+            .issuer(issuer)
+            .subject(subject)
+            .claim("email", subject)
             .header()
             .keyId("test-123")
             .and()
@@ -39,6 +45,10 @@ public class JwtFixture {
             new ObjectMapper()
                 .writeValueAsString(Jwks.builder().id("test-123").key(pair.getPublic()).build()));
     String jwksJson = new JWKSet(jwk).toString();
-    return new TokenKeyPair(jwt, jwksJson);
+    return new Bundle(jwt, jwksJson, pair);
+  }
+
+  public static String b64(byte[] data) {
+    return Base64.getEncoder().encodeToString(data);
   }
 }

@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.jsonwebtoken.security.*;
 import io.openaev.IntegrationTest;
 import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
@@ -59,8 +58,8 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
   }
 
   private Stream<Arguments> authorizationOpenCTI() throws Exception {
-    JwtFixture.TokenKeyPair validJwtJwk = JwtFixture.generateTokenKeyPair(false);
-    JwtFixture.TokenKeyPair expiredJwtJwk = JwtFixture.generateTokenKeyPair(true);
+    JwtFixture.Bundle validJwtJwk = JwtFixture.generateConnectorJwtBundle(false);
+    JwtFixture.Bundle expiredJwtJwk = JwtFixture.generateConnectorJwtBundle(true);
 
     return Stream.of(
         Arguments.of(null, null, false, "Given no token should get 401 Unauthorized status"),

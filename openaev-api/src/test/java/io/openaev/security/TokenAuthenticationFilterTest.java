@@ -4,7 +4,6 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.jsonwebtoken.security.Jwks;
 import io.openaev.IntegrationTest;
 import io.openaev.utils.fixtures.JwtFixture;
 import io.openaev.utils.fixtures.TokenFixture;
@@ -14,7 +13,6 @@ import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockConfig.WithMockXtmOneConfig;
 import io.openaev.xtmone.XtmOneConfig;
 import jakarta.transaction.Transactional;
-import java.security.KeyPair;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -107,8 +105,6 @@ public class TokenAuthenticationFilterTest extends IntegrationTest {
       @Nested
       @DisplayName("With platform JWT")
       public class WithPlatformJwt {
-        private static final KeyPair signingKey = Jwks.CRV.Ed25519.keyPair().build();
-
         @Nested
         @DisplayName("When XTM One is not configured")
         @WithMockXtmOneConfig // unconfigured
@@ -116,12 +112,12 @@ public class TokenAuthenticationFilterTest extends IntegrationTest {
           @Test
           @DisplayName("Fail authentication")
           public void failAuthentication() throws Exception {
-            JwtFixture.TokenKeyPair pair = JwtFixture.generateTokenKeyPair(false);
+            JwtFixture.Bundle bundle = JwtFixture.generateConnectorJwtBundle(false);
 
             mvc.perform(
                     get("/api/me/tokens")
                         .accept(MediaType.APPLICATION_JSON)
-                        .header("Authorization", headerValueMask.formatted(pair.jwtToken())))
+                        .header("Authorization", headerValueMask.formatted(bundle.jwtToken())))
                 .andExpect(status().isUnauthorized());
           }
         }
@@ -132,15 +128,18 @@ public class TokenAuthenticationFilterTest extends IntegrationTest {
           @Test
           @DisplayName("Succeed authentication")
           public void failAuthentication() throws Exception {
-            JwtFixture.TokenKeyPair pair = JwtFixture.generateTokenKeyPair(false);
-            when(xtmOneConfig.getToken()).thenReturn(pair.jwks());
-            when(xtmOneConfig.getUrl()).thenReturn("xtm one url");
+            UserComposer.Composer userWrapper =
+                userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist();
+            JwtFixture.Bundle bundle =
+                JwtFixture.generatePlatformJwtBundle(userWrapper.get().getEmail(), false);
+            when(xtmOneConfig.getToken())
+                .thenReturn(JwtFixture.b64(bundle.keyPair().getPublic().getEncoded()));
             when(xtmOneConfig.isConfigured()).thenReturn(true);
 
             mvc.perform(
                     get("/api/me/tokens")
                         .accept(MediaType.APPLICATION_JSON)
-                        .header("Authorization", headerValueMask.formatted(pair.jwtToken())))
+                        .header("Authorization", headerValueMask.formatted(bundle.jwtToken())))
                 .andExpect(status().isOk());
           }
         }
