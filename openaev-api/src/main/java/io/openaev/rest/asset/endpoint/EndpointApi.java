@@ -94,7 +94,10 @@ public class EndpointApi extends RestBehavior {
 
   @Deprecated(since = "1.11.0")
   @LogExecutionTime
-  @GetMapping({ENDPOINT_URI + "/jobs/{endpointExternalReference}", TENANT_ENDPOINT_URI + "/jobs/{endpointExternalReference}"})
+  @GetMapping({
+    ENDPOINT_URI + "/jobs/{endpointExternalReference}",
+    TENANT_ENDPOINT_URI + "/jobs/{endpointExternalReference}"
+  })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
   public List<AssetAgentJob> getEndpointJobs(
@@ -103,7 +106,10 @@ public class EndpointApi extends RestBehavior {
         AssetAgentJobSpecification.forEndpoint(endpointExternalReference));
   }
 
-  @DeleteMapping({ENDPOINT_URI + "/jobs/{assetAgentJobId}", TENANT_ENDPOINT_URI + "/jobs/{assetAgentJobId}"})
+  @DeleteMapping({
+    ENDPOINT_URI + "/jobs/{assetAgentJobId}",
+    TENANT_ENDPOINT_URI + "/jobs/{assetAgentJobId}"
+  })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.JOB)
   @Transactional(rollbackFor = Exception.class)
   public void cleanupAssetAgentJob(@PathVariable @NotBlank final String assetAgentJobId) {
@@ -111,7 +117,10 @@ public class EndpointApi extends RestBehavior {
   }
 
   @Deprecated(since = "1.11.0")
-  @PostMapping({ENDPOINT_URI + "/jobs/{assetAgentJobId}", TENANT_ENDPOINT_URI + "/jobs/{assetAgentJobId}"})
+  @PostMapping({
+    ENDPOINT_URI + "/jobs/{assetAgentJobId}",
+    TENANT_ENDPOINT_URI + "/jobs/{assetAgentJobId}"
+  })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.JOB)
   @Transactional(rollbackFor = Exception.class)
   public void cleanupAssetAgentJobDepreacted(@PathVariable @NotBlank final String assetAgentJobId) {

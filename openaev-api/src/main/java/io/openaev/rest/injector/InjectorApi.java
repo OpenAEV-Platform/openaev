@@ -89,7 +89,10 @@ public class InjectorApi extends RestBehavior {
     return injectorService.injectorsOutput(includeNext);
   }
 
-  @GetMapping({INJECT0R_URI + "/{injectorId}/injector_contracts", TENANT_INJECTOR_URI + "/{injectorId}/injector_contracts"})
+  @GetMapping({
+    INJECT0R_URI + "/{injectorId}/injector_contracts",
+    TENANT_INJECTOR_URI + "/{injectorId}/injector_contracts"
+  })
   @AccessControl(
       resourceId = "#injectorId",
       actionPerformed = Action.READ,
@@ -139,7 +142,10 @@ public class InjectorApi extends RestBehavior {
     return injectorRepository.findById(injectorId).orElseThrow(ElementNotFoundException::new);
   }
 
-  @GetMapping({INJECT0R_URI + "/{injectorId}/related-ids", TENANT_INJECTOR_URI + "/{injectorId}/related-ids"})
+  @GetMapping({
+    INJECT0R_URI + "/{injectorId}/related-ids",
+    TENANT_INJECTOR_URI + "/{injectorId}/related-ids"
+  })
   @AccessControl(
       resourceId = "#injectorId",
       actionPerformed = Action.READ,

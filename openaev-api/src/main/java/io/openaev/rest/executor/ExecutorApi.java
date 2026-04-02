@@ -102,7 +102,10 @@ public class ExecutorApi extends RestBehavior {
     return executorService.executor(executorId);
   }
 
-  @GetMapping({EXECUTOR_URI + "/{executorId}/related-ids", TENANT_EXECUTOR_URI + "/{executorId}/related-ids"})
+  @GetMapping({
+    EXECUTOR_URI + "/{executorId}/related-ids",
+    TENANT_EXECUTOR_URI + "/{executorId}/related-ids"
+  })
   @AccessControl(
       resourceId = "#executorId",
       actionPerformed = Action.READ,
@@ -399,7 +402,12 @@ public class ExecutorApi extends RestBehavior {
     }
     String installCommand =
         this.endpointService.generateInstallCommand(
-            platform, token, installationMode, installationDir, serviceName);
+            platform,
+            token,
+            installationMode,
+            installationDir,
+            serviceName,
+            TenantContext.getCurrentTenant());
     return ResponseEntity.ok().contentType(MediaType.TEXT_PLAIN).body(installCommand);
   }
 }

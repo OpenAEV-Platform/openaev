@@ -37,7 +37,7 @@ public class OpenAEVExecutorContextService extends ExecutorContextService {
       case Windows, Linux, MacOS -> {
         String executorCommandKey = platform.name() + "." + arch.name();
         String cmd = injector.getExecutorCommands().get(executorCommandKey);
-        yield replaceArgs(platform, cmd, inject.getId(), agentId);
+        yield replaceArgs(platform, cmd, inject.getId(), agentId, inject.getTenant().getId());
       }
       default -> throw new RuntimeException("Unsupported platform: " + platform);
     };
