@@ -43,7 +43,7 @@ jobs:
       - run: cp openaev-api/target/openaev-api.jar openaev-build/
       - name: Docker meta
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: filigran/openaev-platform
           tags: |
@@ -81,7 +81,7 @@ jobs:
     steps:
       - name: Docker meta
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: filigran/openaev-platform
           tags: |
