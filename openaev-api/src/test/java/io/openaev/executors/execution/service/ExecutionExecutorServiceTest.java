@@ -256,7 +256,11 @@ public class ExecutionExecutorServiceTest {
 
       Command payloadCommand =
           PayloadFixture.createCommand(
-              "cmd", "whoami", List.of(), "whoami", new HashSet<>(Set.of(PresetDomain.TOCLASSIFY)));
+              "cmd",
+              "whoami",
+              List.of(),
+              "whoami",
+              new HashSet<>(Set.of(PresetDomain.getToClassify())));
       Injector injector = InjectorFixture.createDefaultPayloadInjector();
       Map<String, String> executorCommands = new HashMap<>();
       executorCommands.put(
@@ -438,7 +442,11 @@ public class ExecutionExecutorServiceTest {
 
       Command payloadCommand =
           PayloadFixture.createCommand(
-              "cmd", "whoami", List.of(), "whoami", new HashSet<>(Set.of(PresetDomain.TOCLASSIFY)));
+              "cmd",
+              "whoami",
+              List.of(),
+              "whoami",
+              new HashSet<>(Set.of(PresetDomain.getToClassify())));
       Injector injector = InjectorFixture.createDefaultPayloadInjector();
       Inject inject =
           InjectFixture.createTechnicalInject(
