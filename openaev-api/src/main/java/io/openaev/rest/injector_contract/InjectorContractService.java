@@ -526,24 +526,23 @@ public class InjectorContractService implements DependenciesManager {
 
     // SELECT
     cq.multiselect(
-            injectorContractRoot.get("compositeId").get("id").alias("injector_contract_id"),
-            injectorContractRoot.get("externalId").alias("injector_contract_external_id"),
-            injectorContractRoot.get("labels").alias("injector_contract_labels"),
-            injectorContractRoot.get("content").alias("injector_contract_content"),
-            injectorContractRoot.get("platforms").alias("injector_contract_platforms"),
-            injectorContractPayloadJoin.get("type").alias("payload_type"),
-            payloadCollectorTypeJoin.get("name").alias("collector_type"),
-            cb.least(injectorContractInjectorJoin.<String>get("type"))
-                .alias("injector_contract_injector_type"),
-            cb.least(injectorContractInjectorJoin.<String>get("name"))
-                .alias("injector_contract_injector_name"),
-            attackPatternIdsExpression.alias("injector_contract_attack_patterns"),
-            payloadDomainsIdsExpression.alias("payload_domains"),
-            domainsIdsExpression.alias("injector_contract_domains"),
-            injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"),
-            injectorContractPayloadJoin.get("executionArch").alias("payload_execution_arch"),
-            injectorIdsExpression.alias("injector_contract_injector_ids"))
-        .distinct(true);
+        injectorContractRoot.get("compositeId").get("id").alias("injector_contract_id"),
+        injectorContractRoot.get("externalId").alias("injector_contract_external_id"),
+        injectorContractRoot.get("labels").alias("injector_contract_labels"),
+        injectorContractRoot.get("content").alias("injector_contract_content"),
+        injectorContractRoot.get("platforms").alias("injector_contract_platforms"),
+        injectorContractPayloadJoin.get("type").alias("payload_type"),
+        payloadCollectorTypeJoin.get("name").alias("collector_type"),
+        cb.least(injectorContractInjectorJoin.<String>get("type"))
+            .alias("injector_contract_injector_type"),
+        cb.least(injectorContractInjectorJoin.<String>get("name"))
+            .alias("injector_contract_injector_name"),
+        attackPatternIdsExpression.alias("injector_contract_attack_patterns"),
+        payloadDomainsIdsExpression.alias("payload_domains"),
+        domainsIdsExpression.alias("injector_contract_domains"),
+        injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"),
+        injectorContractPayloadJoin.get("executionArch").alias("payload_execution_arch"),
+        injectorIdsExpression.alias("injector_contract_injector_ids"));
 
     // GROUP BY — compositeId expands to both PK columns (injector_contract_id + tenant_id)
     cq.groupBy(
