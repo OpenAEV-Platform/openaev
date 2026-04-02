@@ -6,6 +6,7 @@ import { type SyntheticEvent, useContext, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchInject } from '../../../../actions/Inject';
+import { type InjectorHelper } from '../../../../actions/injectors/injector-helper';
 import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
 import { fetchDocumentsPayloadByInject } from '../../../../actions/injects/inject-action';
 import { type InjectHelper } from '../../../../actions/injects/inject-helper';
@@ -18,6 +19,7 @@ import {
   type AttackPattern, type Document,
   type Inject,
   type InjectInput,
+  type Injector,
   type KillChainPhase, type Variable,
 } from '../../../../utils/api-types';
 import { type InjectorContractConverted } from '../../../../utils/api-types-custom';
@@ -74,7 +76,13 @@ const UpdateInject: React.FC<Props> = ({
   const [activeTab, setActiveTab] = useState<string>(availableTabs[0]);
 
   // Fetching data
-  const { inject }: { inject: InjectStore } = useHelper((helper: InjectHelper) => ({ inject: helper.getInject(injectId) }));
+  const { inject, injector }: {
+    inject: InjectStore;
+    injector: Injector | undefined;
+  } = useHelper((helper: InjectHelper & InjectorHelper) => ({
+    inject: helper.getInject(injectId),
+    injector: helper.getInject(injectId)?.inject_injector ? helper.getInjector(helper.getInject(injectId).inject_injector!) : undefined,
+  }));
   const contractPayload = inject?.inject_injector_contract?.injector_contract_payload;
   const injectorContract = inject?.inject_injector_contract;
   const [documentsMap, setDocumentsMap] = useState<Record<string, Document> | null>(null);
@@ -114,7 +122,7 @@ const UpdateInject: React.FC<Props> = ({
     if (injectorContract?.injector_contract_needs_executor) {
       return t('TTP Unknown');
     }
-    return injectorContract?.injector_contract_injector_type_name ? t(injectorContract?.injector_contract_injector_type_name) : '';
+    return injector?.injector_name ? t(injector.injector_name) : '';
   };
 
   const injectFormContent = (
