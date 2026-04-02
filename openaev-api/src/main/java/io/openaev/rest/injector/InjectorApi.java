@@ -20,6 +20,7 @@ import io.openaev.rest.injector.form.InjectorOutput;
 import io.openaev.rest.injector.form.InjectorUpdateInput;
 import io.openaev.rest.injector.response.InjectorRegistration;
 import io.openaev.service.InjectorService;
+import io.openaev.utils.AgentUtils;
 import io.openaev.utils.FilterUtilsJpa;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -209,6 +210,10 @@ public class InjectorApi extends RestBehavior {
       @RequestParam(required = false) final String injectId,
       @RequestParam(required = false) final String agentId)
       throws IOException {
+    platform = Optional.ofNullable(platform).map(String::toLowerCase).orElse("");
+    architecture =
+        AgentUtils.getCanonicalArchitectureString(
+            Optional.ofNullable(architecture).map(String::toLowerCase).orElse(""));
     if (!AVAILABLE_PLATFORMS.contains(platform)) {
       this.injectStatusService.setImplantErrorTrace(
           injectId, agentId, "Unable to download the implant. Platform invalid: " + platform);

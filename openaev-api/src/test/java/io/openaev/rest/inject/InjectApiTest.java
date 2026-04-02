@@ -2189,6 +2189,889 @@ class InjectApiTest extends IntegrationTest {
             .until(() -> injectTestHelper.hasInjectStatusTrace(ipv6Inject.getId()));
         assertTrue(injectTestHelper.findFindingsByInjectId(ipv6Inject.getId()).isEmpty());
       }
+
+      // Username
+
+      @Test
+      @DisplayName("Should create a finding for each username extracted from raw output")
+      void shouldCreateFindingForEachUsernameExtractedFromRawOutput() throws Exception {
+        // -- PREPARE --
+        RegexGroup usernameGroup = OutputParserFixture.getRegexGroup("username", "$1");
+        ContractOutputElement usernameElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Username, "USER:\\s*(\\S+)", Set.of(usernameGroup), true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(usernameElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject usernameInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        String rawOutput = "USER: jdoe\\nUSER: asmith\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, usernameInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () -> injectTestHelper.findFindingsByInjectId(usernameInject.getId()).size() >= 2);
+
+        List<Finding> usernameFindings =
+            injectTestHelper.findFindingsByInjectId(usernameInject.getId());
+        assertEquals(2, usernameFindings.size());
+        assertTrue(
+            usernameFindings.stream().anyMatch(f -> f.getValue().equals("jdoe")),
+            "Expected finding for jdoe");
+        assertTrue(
+            usernameFindings.stream().anyMatch(f -> f.getValue().equals("asmith")),
+            "Expected finding for asmith");
+        usernameFindings.forEach(f -> assertEquals(ContractOutputType.Username, f.getType()));
+      }
+
+      @Test
+      @DisplayName(
+          "Should not create Username findings when raw output contains no username matches")
+      void shouldNotCreateUsernameFindingsWhenRawOutputContainsNoUsernameMatches()
+          throws Exception {
+        // -- PREPARE --
+        RegexGroup usernameGroup = OutputParserFixture.getRegexGroup("username", "$1");
+        ContractOutputElement usernameElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Username, "USER:\\s*(\\S+)", Set.of(usernameGroup), true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(usernameElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject usernameInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = buildStdoutInput("no users found");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, usernameInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.hasInjectStatusTrace(usernameInject.getId()));
+        assertTrue(injectTestHelper.findFindingsByInjectId(usernameInject.getId()).isEmpty());
+      }
+
+      // Share
+
+      @Test
+      @DisplayName("Should create a finding for each network share extracted from raw output")
+      void shouldCreateFindingForEachShareExtractedFromRawOutput() throws Exception {
+        // -- PREPARE --
+        RegexGroup shareNameGroup = OutputParserFixture.getRegexGroup("share_name", "$1");
+        RegexGroup permissionsGroup = OutputParserFixture.getRegexGroup("permissions", "$2");
+        ContractOutputElement shareElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Share,
+                "SHARE:\\s*(\\S+)\\s+(\\w+)",
+                Set.of(shareNameGroup, permissionsGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(shareElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject shareInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        String rawOutput = "SHARE: SYSVOL READ\\nSHARE: NETLOGON WRITE\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, shareInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.findFindingsByInjectId(shareInject.getId()).size() >= 2);
+
+        List<Finding> shareFindings = injectTestHelper.findFindingsByInjectId(shareInject.getId());
+        assertEquals(2, shareFindings.size());
+        assertTrue(
+            shareFindings.stream().anyMatch(f -> f.getValue().contains("SYSVOL")),
+            "Expected finding for SYSVOL share");
+        assertTrue(
+            shareFindings.stream().anyMatch(f -> f.getValue().contains("NETLOGON")),
+            "Expected finding for NETLOGON share");
+        shareFindings.forEach(f -> assertEquals(ContractOutputType.Share, f.getType()));
+      }
+
+      @Test
+      @DisplayName("Should not create Share findings when raw output contains no share matches")
+      void shouldNotCreateShareFindingsWhenRawOutputContainsNoShareMatches() throws Exception {
+        // -- PREPARE --
+        RegexGroup shareNameGroup = OutputParserFixture.getRegexGroup("share_name", "$1");
+        RegexGroup permissionsGroup = OutputParserFixture.getRegexGroup("permissions", "$2");
+        ContractOutputElement shareElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Share,
+                "SHARE:\\s*(\\S+)\\s+(\\w+)",
+                Set.of(shareNameGroup, permissionsGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(shareElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject shareInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = buildStdoutInput("no shares found");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, shareInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.hasInjectStatusTrace(shareInject.getId()));
+        assertTrue(injectTestHelper.findFindingsByInjectId(shareInject.getId()).isEmpty());
+      }
+
+      // AdminUsername
+
+      @Test
+      @DisplayName("Should create a finding for each admin username extracted from raw output")
+      void shouldCreateFindingForEachAdminUsernameExtractedFromRawOutput() throws Exception {
+        // -- PREPARE --
+        RegexGroup usernameGroup = OutputParserFixture.getRegexGroup("username", "$1");
+        ContractOutputElement adminUsernameElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.AdminUsername, "ADMIN:\\s*(\\S+)", Set.of(usernameGroup), true);
+        OutputParser outputParser =
+            OutputParserFixture.getOutputParser(Set.of(adminUsernameElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject adminInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        String rawOutput = "ADMIN: administrator\\nADMIN: sysadmin\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, adminInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.findFindingsByInjectId(adminInject.getId()).size() >= 2);
+
+        List<Finding> adminFindings = injectTestHelper.findFindingsByInjectId(adminInject.getId());
+        assertEquals(2, adminFindings.size());
+        assertTrue(
+            adminFindings.stream().anyMatch(f -> f.getValue().equals("administrator")),
+            "Expected finding for administrator");
+        assertTrue(
+            adminFindings.stream().anyMatch(f -> f.getValue().equals("sysadmin")),
+            "Expected finding for sysadmin");
+        adminFindings.forEach(f -> assertEquals(ContractOutputType.AdminUsername, f.getType()));
+      }
+
+      @Test
+      @DisplayName(
+          "Should not create AdminUsername findings when raw output contains no admin matches")
+      void shouldNotCreateAdminUsernameFindingsWhenRawOutputContainsNoAdminMatches()
+          throws Exception {
+        // -- PREPARE --
+        RegexGroup usernameGroup = OutputParserFixture.getRegexGroup("username", "$1");
+        ContractOutputElement adminUsernameElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.AdminUsername, "ADMIN:\\s*(\\S+)", Set.of(usernameGroup), true);
+        OutputParser outputParser =
+            OutputParserFixture.getOutputParser(Set.of(adminUsernameElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject adminInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = buildStdoutInput("no admin accounts here");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, adminInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.hasInjectStatusTrace(adminInject.getId()));
+        assertTrue(injectTestHelper.findFindingsByInjectId(adminInject.getId()).isEmpty());
+      }
+
+      // Group
+
+      @Test
+      @DisplayName("Should create a finding for each group extracted from raw output")
+      void shouldCreateFindingForEachGroupExtractedFromRawOutput() throws Exception {
+        // -- PREPARE --
+        RegexGroup groupNameGroup = OutputParserFixture.getRegexGroup("group_name", "$1");
+        ContractOutputElement groupElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Group, "GROUP:\\s*(\\S+)", Set.of(groupNameGroup), true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(groupElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject groupInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        String rawOutput = "GROUP: Administrators\\nGROUP: DomainAdmins\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, groupInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.findFindingsByInjectId(groupInject.getId()).size() >= 2);
+
+        List<Finding> groupFindings = injectTestHelper.findFindingsByInjectId(groupInject.getId());
+        assertEquals(2, groupFindings.size());
+        assertTrue(
+            groupFindings.stream().anyMatch(f -> f.getValue().equals("Administrators")),
+            "Expected finding for Administrators");
+        assertTrue(
+            groupFindings.stream().anyMatch(f -> f.getValue().equals("DomainAdmins")),
+            "Expected finding for DomainAdmins");
+        groupFindings.forEach(f -> assertEquals(ContractOutputType.Group, f.getType()));
+      }
+
+      @Test
+      @DisplayName("Should not create Group findings when raw output contains no group matches")
+      void shouldNotCreateGroupFindingsWhenRawOutputContainsNoGroupMatches() throws Exception {
+        // -- PREPARE --
+        RegexGroup groupNameGroup = OutputParserFixture.getRegexGroup("group_name", "$1");
+        ContractOutputElement groupElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Group, "GROUP:\\s*(\\S+)", Set.of(groupNameGroup), true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(groupElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject groupInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = buildStdoutInput("no groups found");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, groupInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.hasInjectStatusTrace(groupInject.getId()));
+        assertTrue(injectTestHelper.findFindingsByInjectId(groupInject.getId()).isEmpty());
+      }
+
+      // Computer
+
+      @Test
+      @DisplayName("Should create a finding for each computer name extracted from raw output")
+      void shouldCreateFindingForEachComputerExtractedFromRawOutput() throws Exception {
+        // -- PREPARE --
+        RegexGroup computerNameGroup = OutputParserFixture.getRegexGroup("computer_name", "$1");
+        ContractOutputElement computerElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Computer,
+                "COMPUTER:\\s*(\\S+)",
+                Set.of(computerNameGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(computerElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject computerInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        String rawOutput = "COMPUTER: DESKTOP-ABC\\nCOMPUTER: SERVER01\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, computerInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () -> injectTestHelper.findFindingsByInjectId(computerInject.getId()).size() >= 2);
+
+        List<Finding> computerFindings =
+            injectTestHelper.findFindingsByInjectId(computerInject.getId());
+        assertEquals(2, computerFindings.size());
+        assertTrue(
+            computerFindings.stream().anyMatch(f -> f.getValue().equals("DESKTOP-ABC")),
+            "Expected finding for DESKTOP-ABC");
+        assertTrue(
+            computerFindings.stream().anyMatch(f -> f.getValue().equals("SERVER01")),
+            "Expected finding for SERVER01");
+        computerFindings.forEach(f -> assertEquals(ContractOutputType.Computer, f.getType()));
+      }
+
+      @Test
+      @DisplayName(
+          "Should not create Computer findings when raw output contains no computer matches")
+      void shouldNotCreateComputerFindingsWhenRawOutputContainsNoComputerMatches()
+          throws Exception {
+        // -- PREPARE --
+        RegexGroup computerNameGroup = OutputParserFixture.getRegexGroup("computer_name", "$1");
+        ContractOutputElement computerElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Computer,
+                "COMPUTER:\\s*(\\S+)",
+                Set.of(computerNameGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(computerElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject computerInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = buildStdoutInput("no computers found");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, computerInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.hasInjectStatusTrace(computerInject.getId()));
+        assertTrue(injectTestHelper.findFindingsByInjectId(computerInject.getId()).isEmpty());
+      }
+
+      // PasswordPolicy
+
+      @Test
+      @DisplayName(
+          "Should create a finding for each password policy entry extracted from raw output")
+      void shouldCreateFindingForEachPasswordPolicyEntryExtractedFromRawOutput() throws Exception {
+        // -- PREPARE --
+        RegexGroup keyGroup = OutputParserFixture.getRegexGroup("key", "$1");
+        RegexGroup valueGroup = OutputParserFixture.getRegexGroup("value", "$2");
+        ContractOutputElement passwordPolicyElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.PasswordPolicy,
+                "POLICY:\\s*(\\S+)\\s+=\\s+(\\S+)",
+                Set.of(keyGroup, valueGroup),
+                true);
+        OutputParser outputParser =
+            OutputParserFixture.getOutputParser(Set.of(passwordPolicyElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject policyInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        String rawOutput = "POLICY: MinPasswordLength = 8\\nPOLICY: MaxPasswordAge = 90\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, policyInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.findFindingsByInjectId(policyInject.getId()).size() >= 2);
+
+        List<Finding> policyFindings =
+            injectTestHelper.findFindingsByInjectId(policyInject.getId());
+        assertEquals(2, policyFindings.size());
+        assertTrue(
+            policyFindings.stream().anyMatch(f -> f.getValue().contains("MinPasswordLength")),
+            "Expected finding for MinPasswordLength");
+        assertTrue(
+            policyFindings.stream().anyMatch(f -> f.getValue().contains("MaxPasswordAge")),
+            "Expected finding for MaxPasswordAge");
+        policyFindings.forEach(f -> assertEquals(ContractOutputType.PasswordPolicy, f.getType()));
+      }
+
+      @Test
+      @DisplayName(
+          "Should not create PasswordPolicy findings when raw output contains no policy matches")
+      void shouldNotCreatePasswordPolicyFindingsWhenRawOutputContainsNoPolicyMatches()
+          throws Exception {
+        // -- PREPARE --
+        RegexGroup keyGroup = OutputParserFixture.getRegexGroup("key", "$1");
+        RegexGroup valueGroup = OutputParserFixture.getRegexGroup("value", "$2");
+        ContractOutputElement passwordPolicyElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.PasswordPolicy,
+                "POLICY:\\s*(\\S+)\\s+=\\s+(\\S+)",
+                Set.of(keyGroup, valueGroup),
+                true);
+        OutputParser outputParser =
+            OutputParserFixture.getOutputParser(Set.of(passwordPolicyElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject policyInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = buildStdoutInput("no policy settings here");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, policyInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.hasInjectStatusTrace(policyInject.getId()));
+        assertTrue(injectTestHelper.findFindingsByInjectId(policyInject.getId()).isEmpty());
+      }
+
+      // Delegation
+
+      @Test
+      @DisplayName("Should create a finding for each delegation account extracted from raw output")
+      void shouldCreateFindingForEachDelegationExtractedFromRawOutput() throws Exception {
+        // -- PREPARE --
+        RegexGroup accountGroup = OutputParserFixture.getRegexGroup("account", "$1");
+        ContractOutputElement delegationElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Delegation, "DELEGATION:\\s*(\\S+)", Set.of(accountGroup), true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(delegationElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject delegationInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        String rawOutput = "DELEGATION: svc_account\\nDELEGATION: http_service\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, delegationInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () ->
+                    injectTestHelper.findFindingsByInjectId(delegationInject.getId()).size() >= 2);
+
+        List<Finding> delegationFindings =
+            injectTestHelper.findFindingsByInjectId(delegationInject.getId());
+        assertEquals(2, delegationFindings.size());
+        assertTrue(
+            delegationFindings.stream().anyMatch(f -> f.getValue().equals("svc_account")),
+            "Expected finding for svc_account");
+        assertTrue(
+            delegationFindings.stream().anyMatch(f -> f.getValue().equals("http_service")),
+            "Expected finding for http_service");
+        delegationFindings.forEach(f -> assertEquals(ContractOutputType.Delegation, f.getType()));
+      }
+
+      @Test
+      @DisplayName(
+          "Should not create Delegation findings when raw output contains no delegation matches")
+      void shouldNotCreateDelegationFindingsWhenRawOutputContainsNoDelegationMatches()
+          throws Exception {
+        // -- PREPARE --
+        RegexGroup accountGroup = OutputParserFixture.getRegexGroup("account", "$1");
+        ContractOutputElement delegationElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Delegation, "DELEGATION:\\s*(\\S+)", Set.of(accountGroup), true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(delegationElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject delegationInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = buildStdoutInput("no delegation configured");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, delegationInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.hasInjectStatusTrace(delegationInject.getId()));
+        assertTrue(injectTestHelper.findFindingsByInjectId(delegationInject.getId()).isEmpty());
+      }
+
+      // Sid
+
+      @Test
+      @DisplayName("Should create a finding for each SID extracted from raw output")
+      void shouldCreateFindingForEachSidExtractedFromRawOutput() throws Exception {
+        // -- PREPARE --
+        RegexGroup sidGroup = OutputParserFixture.getRegexGroup("sid", "$1");
+        ContractOutputElement sidElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Sid, "SID:\\s*(S-\\d-[\\d-]+)", Set.of(sidGroup), true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(sidElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject sidInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        String rawOutput = "SID: S-1-5-21-12345\\nSID: S-1-5-21-67890\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, sidInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.findFindingsByInjectId(sidInject.getId()).size() >= 2);
+
+        List<Finding> sidFindings = injectTestHelper.findFindingsByInjectId(sidInject.getId());
+        assertEquals(2, sidFindings.size());
+        assertTrue(
+            sidFindings.stream().anyMatch(f -> f.getValue().equals("S-1-5-21-12345")),
+            "Expected finding for S-1-5-21-12345");
+        assertTrue(
+            sidFindings.stream().anyMatch(f -> f.getValue().equals("S-1-5-21-67890")),
+            "Expected finding for S-1-5-21-67890");
+        sidFindings.forEach(f -> assertEquals(ContractOutputType.Sid, f.getType()));
+      }
+
+      @Test
+      @DisplayName("Should not create Sid findings when raw output contains no SID matches")
+      void shouldNotCreateSidFindingsWhenRawOutputContainsNoSidMatches() throws Exception {
+        // -- PREPARE --
+        RegexGroup sidGroup = OutputParserFixture.getRegexGroup("sid", "$1");
+        ContractOutputElement sidElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Sid, "SID:\\s*(S-\\d-[\\d-]+)", Set.of(sidGroup), true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(sidElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject sidInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = buildStdoutInput("no SIDs found here");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, sidInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.hasInjectStatusTrace(sidInject.getId()));
+        assertTrue(injectTestHelper.findFindingsByInjectId(sidInject.getId()).isEmpty());
+      }
+
+      // Vulnerability
+
+      @Test
+      @DisplayName("Should create a finding for each vulnerability extracted from raw output")
+      void shouldCreateFindingForEachVulnerabilityExtractedFromRawOutput() throws Exception {
+        // -- PREPARE --
+        RegexGroup nameGroup = OutputParserFixture.getRegexGroup("name", "$1");
+        RegexGroup statusGroup = OutputParserFixture.getRegexGroup("status", "$2");
+        ContractOutputElement vulnerabilityElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Vulnerability,
+                "VULN:\\s*(\\S+)\\s+(\\S+)",
+                Set.of(nameGroup, statusGroup),
+                true);
+        OutputParser outputParser =
+            OutputParserFixture.getOutputParser(Set.of(vulnerabilityElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject vulnInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        String rawOutput = "VULN: EternalBlue EXPLOITABLE\\nVULN: BlueKeep PATCHED\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, vulnInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.findFindingsByInjectId(vulnInject.getId()).size() >= 2);
+
+        List<Finding> vulnFindings = injectTestHelper.findFindingsByInjectId(vulnInject.getId());
+        assertEquals(2, vulnFindings.size());
+        assertTrue(
+            vulnFindings.stream().anyMatch(f -> f.getValue().contains("EternalBlue")),
+            "Expected finding for EternalBlue");
+        assertTrue(
+            vulnFindings.stream().anyMatch(f -> f.getValue().contains("BlueKeep")),
+            "Expected finding for BlueKeep");
+        vulnFindings.forEach(f -> assertEquals(ContractOutputType.Vulnerability, f.getType()));
+      }
+
+      @Test
+      @DisplayName(
+          "Should not create Vulnerability findings when raw output contains no vulnerability matches")
+      void shouldNotCreateVulnerabilityFindingsWhenRawOutputContainsNoVulnerabilityMatches()
+          throws Exception {
+        // -- PREPARE --
+        RegexGroup nameGroup = OutputParserFixture.getRegexGroup("name", "$1");
+        RegexGroup statusGroup = OutputParserFixture.getRegexGroup("status", "$2");
+        ContractOutputElement vulnerabilityElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Vulnerability,
+                "VULN:\\s*(\\S+)\\s+(\\S+)",
+                Set.of(nameGroup, statusGroup),
+                true);
+        OutputParser outputParser =
+            OutputParserFixture.getOutputParser(Set.of(vulnerabilityElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject vulnInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = buildStdoutInput("no vulnerabilities found");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, vulnInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.hasInjectStatusTrace(vulnInject.getId()));
+        assertTrue(injectTestHelper.findFindingsByInjectId(vulnInject.getId()).isEmpty());
+      }
+
+      // AccountWithPasswordNotRequired
+
+      @Test
+      @DisplayName(
+          "Should create a finding for each account with password not required extracted from raw output")
+      void shouldCreateFindingForEachAccountWithPasswordNotRequiredExtractedFromRawOutput()
+          throws Exception {
+        // -- PREPARE --
+        RegexGroup accountGroup = OutputParserFixture.getRegexGroup("account", "$1");
+        ContractOutputElement accountElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.AccountWithPasswordNotRequired,
+                "NOPASS:\\s*(\\S+)",
+                Set.of(accountGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(accountElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject nopassInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        String rawOutput = "NOPASS: guest_account\\nNOPASS: test_user\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, nopassInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.findFindingsByInjectId(nopassInject.getId()).size() >= 2);
+
+        List<Finding> nopassFindings =
+            injectTestHelper.findFindingsByInjectId(nopassInject.getId());
+        assertEquals(2, nopassFindings.size());
+        assertTrue(
+            nopassFindings.stream().anyMatch(f -> f.getValue().equals("guest_account")),
+            "Expected finding for guest_account");
+        assertTrue(
+            nopassFindings.stream().anyMatch(f -> f.getValue().equals("test_user")),
+            "Expected finding for test_user");
+        nopassFindings.forEach(
+            f -> assertEquals(ContractOutputType.AccountWithPasswordNotRequired, f.getType()));
+      }
+
+      @Test
+      @DisplayName(
+          "Should not create AccountWithPasswordNotRequired findings when raw output contains no matches")
+      void shouldNotCreateAccountWithPasswordNotRequiredFindingsWhenRawOutputContainsNoMatches()
+          throws Exception {
+        // -- PREPARE --
+        RegexGroup accountGroup = OutputParserFixture.getRegexGroup("account", "$1");
+        ContractOutputElement accountElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.AccountWithPasswordNotRequired,
+                "NOPASS:\\s*(\\S+)",
+                Set.of(accountGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(accountElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject nopassInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = buildStdoutInput("all accounts require passwords");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, nopassInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.hasInjectStatusTrace(nopassInject.getId()));
+        assertTrue(injectTestHelper.findFindingsByInjectId(nopassInject.getId()).isEmpty());
+      }
+
+      // AsreproastableAccount
+
+      @Test
+      @DisplayName(
+          "Should create a finding for each AS-REP roastable account extracted from raw output")
+      void shouldCreateFindingForEachAsreproastableAccountExtractedFromRawOutput()
+          throws Exception {
+        // -- PREPARE --
+        RegexGroup usernameGroup = OutputParserFixture.getRegexGroup("username", "$1");
+        ContractOutputElement asrepElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.AsreproastableAccount,
+                "ASREP:\\s*(\\S+)",
+                Set.of(usernameGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(asrepElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject asrepInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        String rawOutput = "ASREP: victim_user\\nASREP: service_account\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, asrepInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.findFindingsByInjectId(asrepInject.getId()).size() >= 2);
+
+        List<Finding> asrepFindings = injectTestHelper.findFindingsByInjectId(asrepInject.getId());
+        assertEquals(2, asrepFindings.size());
+        assertTrue(
+            asrepFindings.stream().anyMatch(f -> f.getValue().equals("victim_user")),
+            "Expected finding for victim_user");
+        assertTrue(
+            asrepFindings.stream().anyMatch(f -> f.getValue().equals("service_account")),
+            "Expected finding for service_account");
+        asrepFindings.forEach(
+            f -> assertEquals(ContractOutputType.AsreproastableAccount, f.getType()));
+      }
+
+      @Test
+      @DisplayName(
+          "Should not create AsreproastableAccount findings when raw output contains no AS-REP matches")
+      void shouldNotCreateAsreproastableAccountFindingsWhenRawOutputContainsNoAsrepMatches()
+          throws Exception {
+        // -- PREPARE --
+        RegexGroup usernameGroup = OutputParserFixture.getRegexGroup("username", "$1");
+        ContractOutputElement asrepElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.AsreproastableAccount,
+                "ASREP:\\s*(\\S+)",
+                Set.of(usernameGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(asrepElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject asrepInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = buildStdoutInput("no AS-REP roastable accounts found");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, asrepInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.hasInjectStatusTrace(asrepInject.getId()));
+        assertTrue(injectTestHelper.findFindingsByInjectId(asrepInject.getId()).isEmpty());
+      }
+
+      // KerberoastableAccount
+
+      @Test
+      @DisplayName(
+          "Should create a finding for each Kerberoastable account extracted from raw output")
+      void shouldCreateFindingForEachKerberoastableAccountExtractedFromRawOutput()
+          throws Exception {
+        // -- PREPARE --
+        RegexGroup usernameGroup = OutputParserFixture.getRegexGroup("username", "$1");
+        ContractOutputElement kerbElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.KerberoastableAccount,
+                "KERB:\\s*(\\S+)",
+                Set.of(usernameGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(kerbElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject kerbInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        String rawOutput = "KERB: krbtgt\\nKERB: sql_service\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, kerbInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.findFindingsByInjectId(kerbInject.getId()).size() >= 2);
+
+        List<Finding> kerbFindings = injectTestHelper.findFindingsByInjectId(kerbInject.getId());
+        assertEquals(2, kerbFindings.size());
+        assertTrue(
+            kerbFindings.stream().anyMatch(f -> f.getValue().equals("krbtgt")),
+            "Expected finding for krbtgt");
+        assertTrue(
+            kerbFindings.stream().anyMatch(f -> f.getValue().equals("sql_service")),
+            "Expected finding for sql_service");
+        kerbFindings.forEach(
+            f -> assertEquals(ContractOutputType.KerberoastableAccount, f.getType()));
+      }
+
+      @Test
+      @DisplayName(
+          "Should not create KerberoastableAccount findings when raw output contains no Kerberoastable matches")
+      void shouldNotCreateKerberoastableAccountFindingsWhenRawOutputContainsNoKerbMatches()
+          throws Exception {
+        // -- PREPARE --
+        RegexGroup usernameGroup = OutputParserFixture.getRegexGroup("username", "$1");
+        ContractOutputElement kerbElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.KerberoastableAccount,
+                "KERB:\\s*(\\S+)",
+                Set.of(usernameGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(kerbElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject kerbInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = buildStdoutInput("no Kerberoastable accounts found");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, kerbInject.getId(), input);
+
+        // -- ASSERT --
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(() -> injectTestHelper.hasInjectStatusTrace(kerbInject.getId()));
+        assertTrue(injectTestHelper.findFindingsByInjectId(kerbInject.getId()).isEmpty());
+      }
     }
 
     @Nested

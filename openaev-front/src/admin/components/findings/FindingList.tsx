@@ -13,9 +13,11 @@ import useBodyItemsStyles from '../../../components/common/queryable/style/style
 import { useQueryableWithLocalStorage } from '../../../components/common/queryable/useQueryableWithLocalStorage';
 import { type Header } from '../../../components/common/SortHeadersList';
 import FindingIcon from '../../../components/FindingIcon';
+import { useFormatter } from '../../../components/i18n';
 import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import { type AggregatedFindingOutput, type RelatedFindingOutput, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
+import ContractOutputElementType from './ContractOutputElementType';
 import FindingDetail from './FindingDetail';
 
 const useStyles = makeStyles()(() => ({
@@ -35,6 +37,7 @@ interface Props {
 const FindingList = ({ searchFindings, searchDistinctFindings, filterLocalStorageKey, contextId, additionalHeaders = [], additionalFilterNames = [] }: Props) => {
   const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
+  const { t } = useFormatter();
   const [loading, setLoading] = useState<boolean>(true);
 
   const availableFilterNames = [
@@ -70,7 +73,8 @@ const FindingList = ({ searchFindings, searchDistinctFindings, filterLocalStorag
       field: 'finding_type',
       label: 'Type',
       isSortable: true,
-      value: (finding: AggregatedFindingOutput) => finding.finding_type,
+      value: (finding: AggregatedFindingOutput) =>
+        t(ContractOutputElementType[finding.finding_type] ?? finding.finding_type),
     },
     {
       field: 'finding_value',
