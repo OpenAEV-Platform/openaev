@@ -1,4 +1,3 @@
-import {SvgIconComponent} from "@mui/icons-material";
 import {Card, CardActionArea, CardContent, Typography} from "@mui/material";
 import {useTheme} from "@mui/material/styles";
 import {ReactElement} from "react";

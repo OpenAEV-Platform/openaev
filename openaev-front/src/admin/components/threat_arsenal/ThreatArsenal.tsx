@@ -341,6 +341,7 @@ const ThreatArsenal = () => {
           isOnlyOneItemSelected={selectAll ? Object.keys(deSelectedElements).length === queryableHelpers.paginationHelpers.getTotalElements() - 1 : numberOfSelectedElements === 1}
           selectedElements={selectedElements}
           deSelectedElements={deSelectedElements}
+          searchPaginationInput={searchPaginationInput}
           open={isRunTestDrawerOpened}
           onClose={() => setRunTestDrawerOpened(false)}
         />

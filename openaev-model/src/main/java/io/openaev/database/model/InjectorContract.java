@@ -37,6 +37,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 @EntityListeners(ModelBaseListener.class)
 public class InjectorContract implements Base {
 
+  public static final String ID_FIELD_NAME = "id";
+
   @Id
   @Column(name = "injector_contract_id")
   @JsonProperty("injector_contract_id")

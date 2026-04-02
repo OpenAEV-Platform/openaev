@@ -70,7 +70,7 @@ public class InjectorContractApi extends RestBehavior {
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
             this.injectorContractService.getSinglePage(
-                spec, specCount, pageable, input.getOutputMode()),
+                spec, specCount, pageable, input),
         handleArchitectureFilter(input),
         InjectorContract.class);
   }

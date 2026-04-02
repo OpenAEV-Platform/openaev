@@ -37,6 +37,7 @@ import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.rest.payload.output.PayloadSimple;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.UserService;
+import io.openaev.utils.JpaUtils;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Nullable;
@@ -62,6 +63,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 /**
  * Service for managing injector contracts.
@@ -441,17 +443,24 @@ public class InjectorContractService {
    * @param specification filtering/search specification for returned items
    * @param specificationCount specification used to compute total count
    * @param pageable pagination and sorting information
-   * @param mode output mode (defaults to FULL when null)
+   * @param input search input (defaults to FULL when null)
    * @return page of contracts mapped to the selected output format
    */
   public PageImpl<? extends InjectorContractBaseOutput> getSinglePage(
       Specification<InjectorContract> specification,
       Specification<InjectorContract> specificationCount,
       Pageable pageable,
-      InjectorContractSearchPaginationInput.OutputMode mode) {
+      InjectorContractSearchPaginationInput input) {
     InjectorContractSearchPaginationInput.OutputMode safeMode =
-        (mode == null) ? InjectorContractSearchPaginationInput.OutputMode.FULL : mode;
+        (input.getOutputMode() == null) ? InjectorContractSearchPaginationInput.OutputMode.FULL : input.getOutputMode();
     OutputModeConfig config = CONFIGS.get(safeMode);
+
+    if (!CollectionUtils.isEmpty(input.getInjectorContractIdsToIgnore())) {
+        specification = specification.and(JpaUtils.computeNotIn(InjectorContract.ID_FIELD_NAME, input.getInjectorContractIdsToIgnore()));
+    }
+    if (!CollectionUtils.isEmpty(input.getInjectorContractIdsToProcess())) {
+        specification = specification.and(JpaUtils.computeIn(InjectorContract.ID_FIELD_NAME, input.getInjectorContractIdsToProcess()));
+    }
 
     QuerySetup qs = setupQuery(specification, specificationCount, pageable, config.selector());
 
