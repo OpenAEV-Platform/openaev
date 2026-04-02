@@ -2,14 +2,14 @@ import { expect } from '@playwright/test';
 
 import { test } from '../../fixtures';
 import UpdateTeamDialog from '../../model/common/UpdateTeamDialog';
-// import type InjectFormComponent from '../../model/injects/InjectFormComponent';
+import InjectFormComponent from '../../model/injects/InjectFormComponent';
 import ScenarioPage from '../../model/scenario/ScenarioPage';
-// import MuiListHelpers from '../../utils/MuiListHelpers';
+import MuiListHelpers from '../../utils/MuiListHelpers';
 
 test.describe('Scenario - Teams management', () => {
   let scenarioPage: ScenarioPage;
   let updateTeamDialog: UpdateTeamDialog;
-  // let injectFormComponent: InjectFormComponent;
+  let injectFormComponent: InjectFormComponent;
 
   test.beforeEach(async ({ page, emptyScenario }) => {
     updateTeamDialog = new UpdateTeamDialog(page);
@@ -82,8 +82,7 @@ test.describe('Scenario - Teams management', () => {
     });
   });
 
-  // Test to review: searchAndSelectInjectInList times out
-  /* test.describe('Teams in Injects', () => {
+  test.describe('Teams in Injects', () => {
     test('should only show scenario teams in inject form', async ({ page, createTeam }) => {
       const [team1, team2, team3] = await Promise.all([
         createTeam(`Team 1-${Date.now()}-${Math.random()}`),
@@ -91,45 +90,40 @@ test.describe('Scenario - Teams management', () => {
         createTeam(`Team 3-${Date.now()}-${Math.random()}`),
       ]);
 
-      // Add team1 and team2 to scenario context
       await scenarioPage.addExistingTeam(team1.team_name);
       await scenarioPage.addExistingTeam(team2.team_name);
 
-      // Add individual mail inject and check teams available
       await scenarioPage.goToInjectsTab();
-      await (expect(scenarioPage.injectListSection).toBeVisible());
+      await expect(scenarioPage.injectListSection).toBeVisible();
       await scenarioPage.addIndividualMailInject();
 
-      // Open inject form and check available teams
-      await scenarioPage.searchAndSelectInjectInList('Send individual mails');
+      await MuiListHelpers.searchAndSelectItemInList(page, 'Send individual mails');
       injectFormComponent = new InjectFormComponent(page);
       await injectFormComponent.updateTargetTeamButton.click();
       await updateTeamDialog.searchField.clear();
+
       await expect(updateTeamDialog.listContainer.getByRole('button', { name: team1.team_name })).toBeVisible();
       await expect(updateTeamDialog.listContainer.getByRole('button', { name: team2.team_name })).toBeVisible();
       await expect(updateTeamDialog.listContainer.getByRole('button', { name: team3.team_name })).toBeHidden();
-      // Search for team3 and check no result
+
       await updateTeamDialog.searchField.fill(team3.team_name);
       await expect(updateTeamDialog.listContainer.getByRole('button', { name: team3.team_name })).toBeHidden();
 
-      // add team2 as target team
       await MuiListHelpers.searchAndSelectItemInList(updateTeamDialog.listContainer, team2.team_name);
       await updateTeamDialog.save();
       await injectFormComponent.save();
 
-      //  Verify team2 is added
       await page.reload();
-      await (expect(scenarioPage.injectListSection).toBeVisible());
-      await scenarioPage.searchAndSelectInjectInList('Send individual mails');
+      await expect(scenarioPage.injectListSection).toBeVisible();
+      await MuiListHelpers.searchAndSelectItemInList(page, 'Send individual mails');
       await expect(page.getByText(team2.team_name)).toBeVisible();
 
-      // Remove team2 from target teams
       await MuiListHelpers.clickSecondaryActionOnListItem(page, page, team2.team_name, 'Remove from the inject');
       await page.getByRole('button', { name: 'Remove' }).click();
       await injectFormComponent.save();
 
       await page.reload();
-      await (expect(scenarioPage.injectListSection).toBeVisible());
+      await expect(scenarioPage.injectListSection).toBeVisible();
       await MuiListHelpers.searchAndSelectItemInList(page, 'Send individual mails');
       await expect(page.getByText(team2.team_name)).toBeHidden();
     });
@@ -142,34 +136,34 @@ test.describe('Scenario - Teams management', () => {
       ]);
       const nameTeam = `Team1-${Date.now()}-${Math.random()}`;
       const team = await createTeamWithMultiplePlayers(nameTeam, [player1.user_id, player2.user_id, player3.user_id]);
-      // Add team to scenario
+
       await expect(scenarioPage.teamAddBtn).toBeVisible();
       await scenarioPage.addExistingTeam(team.team_name);
 
       await scenarioPage.goToInjectsTab();
-      await (expect(scenarioPage.injectListSection).toBeVisible());
+      await expect(scenarioPage.injectListSection).toBeVisible();
       await scenarioPage.addIndividualMailInject();
 
-      // Open inject form and check available teams
-      await scenarioPage.searchAndSelectInjectInList('Send individual mails');
+      await MuiListHelpers.searchAndSelectItemInList(page, 'Send individual mails');
       injectFormComponent = new InjectFormComponent(page);
       await injectFormComponent.updateTargetTeamButton.click();
       await MuiListHelpers.searchAndSelectItemInList(updateTeamDialog.listContainer, team.team_name);
       await updateTeamDialog.save();
+
       await expect(page.getByTestId('user-count')).toHaveText('3');
       await injectFormComponent.save();
 
-      // Disable one player in scenario context
       await scenarioPage.goToDefinitionTab();
       await expect(scenarioPage.getTeam(team.team_name)).toBeVisible();
       await scenarioPage.getTeam(team.team_name).click();
       await page.reload();
 
       await scenarioPage.goToInjectsTab();
-      await (expect(scenarioPage.injectListSection).toBeVisible());
-      await scenarioPage.searchAndSelectInjectInList('Send individual mails');
+      await expect(scenarioPage.injectListSection).toBeVisible();
+      await MuiListHelpers.searchAndSelectItemInList(page, 'Send individual mails');
       await expect(page.getByTestId('user-count')).toHaveText('3');
     });
+
     test('should be able to add all the scenario teams', async ({ page, createPlayer, createTeamWithMultiplePlayers }) => {
       const [player1, player2, player3, player4, player5] = await Promise.all([
         createPlayer(`tony-test3-${Date.now()}@test.io`),
@@ -180,7 +174,7 @@ test.describe('Scenario - Teams management', () => {
       ]);
       const team1 = await createTeamWithMultiplePlayers(`Team1 ${Date.now()}-${Math.random()}`, [player1.user_id, player2.user_id, player3.user_id]);
       const team2 = await createTeamWithMultiplePlayers(`Team2 ${Date.now()}-${Math.random()}`, [player4.user_id, player5.user_id]);
-      // Add team to scenario
+
       await expect(scenarioPage.teamAddBtn).toBeVisible();
       await scenarioPage.addExistingTeam(team1.team_name);
       await scenarioPage.addExistingTeam(team2.team_name);
@@ -188,12 +182,13 @@ test.describe('Scenario - Teams management', () => {
       await page.reload();
 
       await scenarioPage.goToInjectsTab();
-      await (expect(scenarioPage.injectListSection).toBeVisible());
+      await expect(scenarioPage.injectListSection).toBeVisible();
       await scenarioPage.addIndividualMailInject();
-      await scenarioPage.searchAndSelectInjectInList('Send individual mails');
+      await MuiListHelpers.searchAndSelectItemInList(page, 'Send individual mails');
       injectFormComponent = new InjectFormComponent(page);
       await injectFormComponent.switchAllTeamsCheckbox();
+
       await expect(page.getByTestId('user-count')).toHaveText('5');
     });
-  }); */
+  });
 });

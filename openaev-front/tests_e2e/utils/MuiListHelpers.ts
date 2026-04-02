@@ -1,4 +1,4 @@
-import { type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 class MuiListHelpers {
   constructor() {}
@@ -20,8 +20,14 @@ class MuiListHelpers {
   }
 
   static async searchAndSelectItemInList(locatorOrPage: Locator | Page, searchText: string) {
-    await locatorOrPage.getByRole('textbox', { name: 'Search these results...' }).fill(searchText);
-    await locatorOrPage.getByRole('button', { name: searchText }).click();
+    await locatorOrPage.getByPlaceholder('Search these results...').first().fill(searchText);
+    const itemRow = locatorOrPage
+      .getByRole('button')
+      .filter({ hasText: searchText })
+      .first();
+    await expect(itemRow).toBeVisible();
+    await itemRow.click({ trial: true });
+    await itemRow.click();
   }
 }
 

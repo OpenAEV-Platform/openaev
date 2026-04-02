@@ -44,6 +44,7 @@ class ScenarioPage {
 
   // -- Action methods
   async addExistingTeam(existingTeamName: string) {
+    await this.teamAddBtn.click({ trial: true });
     await this.teamAddBtn.click();
     await expect(this.updateTeamDialog.searchField).toBeVisible();
     await this.updateTeamDialog.searchField.clear();
