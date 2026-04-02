@@ -96,7 +96,9 @@ public class InjectorContractFullOutput extends InjectorContractBaseOutput {
         sourceContract.getContent(),
         sourceContract.getPlatforms(),
         sourceContract.getPayload() == null ? null : sourceContract.getPayload().getType(),
-        sourceContract.getInjectorName(),
+        sourceContract.getFirstInjector() != null
+            ? sourceContract.getFirstInjector().getName()
+            : null,
         null,
         sourceContract.getInjectorType(),
         sourceContract.getAttackPatterns().stream()

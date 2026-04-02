@@ -433,7 +433,6 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_injector_type_name":"OpenAEV Implant",
                           "injector_contract_domains":[]
                         }
                         """,
@@ -535,7 +534,6 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_injector_type_name":"OpenAEV Implant",
                           "injector_contract_domains":[]
                         }
                         """,
@@ -600,7 +598,6 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_injector_type_name":"OpenAEV Implant",
                           "injector_contract_domains":[]
                         }
                         """,
@@ -666,7 +663,6 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_injector_type_name":"OpenAEV Implant",
                           "injector_contract_domains":[]
                         }
                         """,
@@ -735,7 +731,6 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_injector_type_name":"OpenAEV Implant",
                           "injector_contract_domains":[]
                         }
                         """,
@@ -1081,7 +1076,6 @@ public class InjectorContractApiTest extends IntegrationTest {
                                     "injector_contract_atomic_testing":true,
                                     "injector_contract_import_available":false,"injector_contract_arch":null,
                                     "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_injector_type_name":"OpenAEV Implant",
                                     "injector_contract_domains":[]
                                   }""",
                     newId));
@@ -1136,7 +1130,6 @@ public class InjectorContractApiTest extends IntegrationTest {
                                       "injector_contract_atomic_testing":true,
                                       "injector_contract_import_available":false,"injector_contract_arch":null,
                                       "injector_contract_injector_type":"openaev_email",
-                                      "injector_contract_injector_type_name":"Email",
                                       "injector_contract_domains":[{domain_name: "%s", domain_color: "%s"}]
                                     }""",
                     newId, domain.getName(), domain.getColor()));

@@ -313,12 +313,6 @@ public class InjectorContract implements TenantBase {
     return first != null ? first.getType() : null;
   }
 
-  @JsonProperty("injector_contract_injector_type_name")
-  public String getInjectorName() {
-    Injector first = getFirstInjector();
-    return first != null ? first.getName() : null;
-  }
-
   @JsonIgnore
   @JsonProperty("injector_contract_kill_chain_phases")
   @Queryable(filterable = true, dynamicValues = true, path = "attackPatterns.killChainPhases.id")
