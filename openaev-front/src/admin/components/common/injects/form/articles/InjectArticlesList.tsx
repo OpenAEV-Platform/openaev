@@ -6,7 +6,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../../../components/i18n';
 import type { Article, Channel } from '../../../../../../utils/api-types';
-import { Can } from '../../../../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
 import ChannelIcon from '../../../../components/channels/ChannelIcon';
 import ArticlePopover from '../../../articles/ArticlePopover';

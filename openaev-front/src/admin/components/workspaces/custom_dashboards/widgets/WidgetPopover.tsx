@@ -5,7 +5,7 @@ import ButtonPopover, { type PopoverEntry } from '../../../../../components/comm
 import DialogDelete from '../../../../../components/common/DialogDelete';
 import { useFormatter } from '../../../../../components/i18n';
 import { type Widget } from '../../../../../utils/api-types';
-import { AbilityContext } from '../../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import WidgetForm from './configuration/WidgetForm';
 import { type WidgetInputWithoutLayout } from './WidgetUtils';

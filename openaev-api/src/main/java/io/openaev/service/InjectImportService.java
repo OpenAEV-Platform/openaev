@@ -1,6 +1,8 @@
 package io.openaev.service;
 
 import static io.openaev.config.SessionHelper.currentUser;
+import static io.openaev.service.InjectExpectationUtils.isExpectationValid;
+import static io.openaev.utils.RuleAttributeUtils.hasColumnsOrDefaultValue;
 import static io.openaev.utils.SecurityUtils.getSanitizedExtension;
 import static io.openaev.utils.SecurityUtils.validatePathTraversal;
 import static io.openaev.utils.StringUtils.isValidUUID;
@@ -765,7 +767,7 @@ public class InjectImportService {
     // No dependencies
     inject.setDependsOn(null);
 
-    if (expectation.get() != null) {
+    if (expectation.get() != null && isExpectationValid(expectation.get())) {
       // We set the expectation
       ArrayNode expectationsNode = mapper.createArrayNode();
       ObjectNode expectationNode = mapper.createObjectNode();
@@ -931,6 +933,9 @@ public class InjectImportService {
         }
         break;
       case "expectation":
+        if (!hasColumnsOrDefaultValue(ruleAttribute)) {
+          break;
+        }
         // If the rule type is of an expectation,
         if (expectation.get() == null) {
           expectation.set(new InjectExpectation());

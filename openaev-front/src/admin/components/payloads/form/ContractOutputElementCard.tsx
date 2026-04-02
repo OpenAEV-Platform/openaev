@@ -9,7 +9,8 @@ import SelectFieldController from '../../../../components/fields/SelectFieldCont
 import TagFieldController from '../../../../components/fields/TagFieldController';
 import TextFieldController from '../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../components/i18n';
-import { type ContractOutputElement, type RegexGroup } from '../../../../utils/api-types';
+import { type RegexGroup } from '../../../../utils/api-types';
+import ContractOutputElementType, { CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS } from '../../findings/ContractOutputElementType';
 
 interface Props {
   prefixName: string;
@@ -39,9 +40,21 @@ const ContractOutputElementCard = ({ prefixName, index, remove }: Props) => {
   const { t } = useFormatter();
 
   const defaultFields = {
-    credentials: ['username', 'password'],
+    credentials: ['username', 'password', 'hash'],
     portscan: ['host', 'port', 'service'],
     cve: ['id', 'host', 'severity'],
+    username: ['username', 'domain', 'host'],
+    share: ['share_name', 'permissions', 'host'],
+    admin_username: ['username', 'host'],
+    group: ['group_name', 'member_count', 'host'],
+    computer: ['computer_name', 'host'],
+    password_policy: ['key', 'value', 'host'],
+    delegation: ['account', 'delegation_type', 'rights_to', 'host'],
+    sid: ['sid', 'host'],
+    vulnerability: ['name', 'status', 'details', 'host'],
+    account_with_password_not_required: ['account', 'status', 'host'],
+    asreproastable_account: ['username', 'hash', 'host'],
+    kerberoastable_account: ['username', 'hash', 'host'],
   };
 
   const selectedContractOutputElementType = watch(`${prefixName}.${index}.contract_output_element_type`) as keyof typeof defaultFields | undefined;
@@ -51,14 +64,9 @@ const ContractOutputElementCard = ({ prefixName, index, remove }: Props) => {
   });
   const regexGroupsField = fields as (RegexGroup & { id: string })[];
 
-  type ContractOutputElementType = ContractOutputElement['contract_output_element_type'];
-  const contractOutputElementTypes: ContractOutputElementType[] = [
-    'text', 'number', 'port', 'portscan', 'ipv4', 'ipv6', 'credentials', 'cve',
-  ];
-
-  const outputParserTypeList = contractOutputElementTypes.map(type => ({
+  const outputParserTypeList = CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS.map(type => ({
     value: type,
-    label: t(type.charAt(0).toUpperCase() + type.slice(1)),
+    label: t(ContractOutputElementType[type]),
   }));
 
   useEffect(() => {

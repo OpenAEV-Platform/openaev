@@ -1,7 +1,7 @@
 import { useContext, useEffect, useState } from 'react';
 
 import { DialogConnectivityLostStatus } from '../../admin/components/xtm_hub/dialog/connectivity-lost/DialogConnectivityLost.types';
-import { AbilityContext } from '../permissions/PermissionsProvider';
+import { AbilityContext } from '../permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../permissions/types';
 import XtmHubClient from '../xtm-hub-client';
 import { UserContext } from './useAuth';

@@ -346,4 +346,18 @@ public class InjectStatusService {
     }
     throw new IllegalArgumentException(message);
   }
+
+  /**
+   * Delete all injects statuses for a list of injects
+   *
+   * @param injects the list of injects
+   */
+  public void deleteAllInjectStatusByInjects(List<Inject> injects) {
+    List<String> injectStatusIds =
+        injects.stream()
+            .map(Inject::getStatus)
+            .flatMap(i -> i.map(InjectStatus::getId).stream())
+            .toList();
+    injectStatusRepository.deleteAllByIds(injectStatusIds);
+  }
 }

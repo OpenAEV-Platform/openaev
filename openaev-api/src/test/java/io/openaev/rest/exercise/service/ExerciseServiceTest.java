@@ -83,6 +83,10 @@ class ExerciseServiceTest extends IntegrationTest {
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private EntityManager entityManager;
   @Autowired private ExerciseService actualExerciseService;
+
+  @Autowired private LessonsService lessonsService;
+  @Autowired private FileService fileService;
+  @Autowired private PauseExerciseService pauseExerciseService;
   @Autowired private ScenarioRecurrenceService scenarioRecurrenceService;
 
   @Mock private InjectExpectationMapper injectExpectationMapper;
@@ -119,7 +123,10 @@ class ExerciseServiceTest extends IntegrationTest {
             injectRepository,
             lessonsCategoryRepository,
             injectExpectationMapper,
-            scenarioRecurrenceService);
+            scenarioRecurrenceService,
+            pauseExerciseService,
+            fileService,
+            lessonsService);
 
     scenarioComposer.reset();
     exerciseComposer.reset();

@@ -19,7 +19,7 @@ import xtmhubLight from '../../../static/images/xtm/xtm_hub_light.png';
 import { MESSAGING$, XTM_HUB_DEFAULT_URL } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
 import useAuth from '../../../utils/hooks/useAuth';
-import { AbilityContext } from '../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 
 const useStyles = makeStyles()(theme => ({
