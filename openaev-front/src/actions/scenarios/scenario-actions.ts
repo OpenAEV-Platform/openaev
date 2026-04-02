@@ -17,7 +17,7 @@ import {
   type LessonsInput,
   type LessonsQuestionCreateInput,
   type LessonsQuestionUpdateInput, type Pagination,
-  type Scenario,
+  type Scenario, ScenarioAndInjectorContractsInputs,
   type ScenarioInput,
   type ScenarioRecurrenceInput,
   type ScenarioTeamPlayersEnableInput,
@@ -34,6 +34,11 @@ export const SCENARIO_URI = '/api/scenarios';
 
 export const addScenario = (data: ScenarioInput) => (dispatch: Dispatch) => {
   return postReferential(scenario, SCENARIO_URI, data)(dispatch);
+};
+
+export const addScenarioWithInjectorContracts = (data: ScenarioAndInjectorContractsInputs) => {
+  const uri = `${SCENARIO_URI}/with-injector-contracts`;
+  return simplePostCall(uri, data);
 };
 
 export const fetchScenarios = () => (dispatch: Dispatch) => {

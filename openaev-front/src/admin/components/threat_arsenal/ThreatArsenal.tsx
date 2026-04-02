@@ -1,4 +1,4 @@
-import {ForwardToInbox, HelpOutlineOutlined, MovieFilterOutlined} from '@mui/icons-material';
+import { ForwardToInbox, HelpOutlineOutlined, MovieFilterOutlined } from '@mui/icons-material';
 import {
   Checkbox, IconButton,
   List,
@@ -32,19 +32,19 @@ import {
   type InjectorContractActionOutput,
   type SearchPaginationInput,
 } from '../../../utils/api-types';
+import useEntityToggle from '../../../utils/hooks/useEntityToggle';
 import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import IconBar from '../common/domains/IconBar';
 import useDomainIconFilter from '../common/domains/useDomainIconFilter';
 import InjectIcon from '../common/injects/InjectIcon';
+import ToolBar from '../common/ToolBar';
 import InjectorContractPopover from '../integrations/injectors/injector_contracts/InjectorContractPopover';
 import CreatePayload from '../payloads/CreatePayload';
 import PayloadPopover from '../payloads/PayloadPopover';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
 import ThreatArsenalInformationDrawer from './ThreatArsenalInformationDrawer';
-import ToolBar from "../common/ToolBar";
-import useEntityToggle from "../../../utils/hooks/useEntityToggle";
-import ThreatArsenalRunTestDrawer from "./ThreatArsenalRunTestDrawer";
+import ThreatArsenalRunTestDrawer from './ThreatArsenalRunTestDrawer';
 
 const useStyles = makeStyles()(theme => ({
   itemHead: { textTransform: 'uppercase' },
@@ -283,7 +283,7 @@ const ThreatArsenal = () => {
                           checked={
                             (selectAll && !(contract.injector_contract_id
                               in (deSelectedElements || {})))
-                            || contract.injector_contract_id in (selectedElements || {})
+                              || contract.injector_contract_id in (selectedElements || {})
                           }
                           disableRipple
                         />
@@ -356,7 +356,7 @@ const ThreatArsenal = () => {
             selectAll={selectAll}
             handleClearSelectedElements={handleClearSelectedElements}
             teamsFromExerciseOrScenario={[]}
-            customAction={
+            customAction={(
               <Tooltip title={t('Run a test')}>
                 <span>
                   <IconButton
@@ -369,7 +369,7 @@ const ThreatArsenal = () => {
                   </IconButton>
                 </span>
               </Tooltip>
-            }
+            )}
           />
         )
       }

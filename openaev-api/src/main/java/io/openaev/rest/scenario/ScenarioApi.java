@@ -69,7 +69,6 @@ public class ScenarioApi extends RestBehavior {
   private final EndpointService endpointService;
   private final ChannelService channelService;
   private final DocumentService documentService;
-  private final PlatformSettingsService platformSettingsService;
 
   @PostMapping(SCENARIO_URI)
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
@@ -77,22 +76,24 @@ public class ScenarioApi extends RestBehavior {
     if (input == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Scenario input cannot be null");
     }
-    Scenario scenario = new Scenario();
-    scenario.setUpdateAttributes(input);
-    scenario.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
-    if (hasText(input.getCustomDashboard())) {
-      scenario.setCustomDashboard(
-          this.customDashboardService.customDashboard(input.getCustomDashboard()));
-    } else {
-      scenario.setCustomDashboard(
-          this.platformSettingsService
-              .setting(SettingKeys.DEFAULT_SCENARIO_DASHBOARD.key())
-              .map(Setting::getValue)
-              .filter(v -> !v.isEmpty())
-              .map(this.customDashboardService::customDashboard)
-              .orElse(null));
-    }
+    Scenario scenario = this.scenarioService.prepareScenarioFromScenarioInput(input);
     return this.scenarioService.createScenario(scenario);
+  }
+
+  @PostMapping(SCENARIO_URI + "/with-injector-contracts")
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
+  public Scenario createScenarioWithInjectorContracts(@Valid @RequestBody final ScenarioAndInjectorContractsInputs inputs) {
+      if (inputs == null) {
+          throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Input cannot be null");
+      }
+      if (inputs.getScenarioInput() == null) {
+          throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Scenario input cannot be null");
+      }
+      if (inputs.getInjectorContractSearchPaginationInput() == null) {
+          throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Injector contracts search input cannot be null");
+      }
+
+      return this.scenarioService.createScenarioWithInjectorContracts(inputs);
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}")

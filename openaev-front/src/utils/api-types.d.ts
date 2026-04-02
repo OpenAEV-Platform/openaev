@@ -6586,6 +6586,11 @@ export interface Scenario {
   scenario_users_number?: number;
 }
 
+export interface ScenarioAndInjectorContractsInputs {
+  injector_contract_search_pagination_input: InjectorContractSearchPaginationInput;
+  scenario_input: ScenarioInput;
+}
+
 export interface ScenarioChallengesReader {
   scenario_challenges?: ChallengeInformation[];
   scenario_id?: string;

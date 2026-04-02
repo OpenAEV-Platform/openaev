@@ -165,7 +165,7 @@ public class InjectService {
     return injectRepository.saveAll(injects);
   }
 
-  private Inject buildInject(
+  public Inject buildInject(
       @Nullable final Exercise exercise,
       @Nullable final Scenario scenario,
       @NotNull final InjectInput input) {

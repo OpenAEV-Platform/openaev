@@ -1,23 +1,24 @@
-import {Avatar, Slide} from "@mui/material";
+import { HelpOutlined } from '@mui/icons-material';
+import { Avatar, Slide } from '@mui/material';
+import type { AxiosResponse } from 'axios';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
+
+import { createAtomicTesting } from '../../../actions/atomic_testings/atomic-testing-actions';
+import { searchInjectorContracts } from '../../../actions/InjectorContracts';
+import { useFormatter } from '../../../components/i18n';
 import {
-  InjectInput,
-  InjectorContract,
-  InjectorContractActionOutput,
-  InjectorContractFullOutput,
-  InjectorContractSearchPaginationInput,
-} from "../../../utils/api-types";
-import {useEffect, useState} from "react";
-import {searchInjectorContracts} from "../../../actions/InjectorContracts";
-import type {AxiosResponse} from "axios";
-import InjectCardComponent from "../common/injects/InjectCardComponent";
-import InjectIcon from "../common/injects/InjectIcon";
-import { HelpOutlined } from "@mui/icons-material";
-import { isNotEmptyField } from "../../../utils/utils";
-import {useFormatter} from "../../../components/i18n";
-import InjectForm from "../common/injects/form/InjectForm";
-import type {InjectorContractConverted} from "../../../utils/api-types-custom";
-import {createAtomicTesting} from "../../../actions/atomic_testings/atomic-testing-actions";
-import {useNavigate} from "react-router";
+  type InjectInput,
+  type InjectorContract,
+  type InjectorContractActionOutput,
+  type InjectorContractFullOutput,
+  type InjectorContractSearchPaginationInput,
+} from '../../../utils/api-types';
+import type { InjectorContractConverted } from '../../../utils/api-types-custom';
+import { isNotEmptyField } from '../../../utils/utils';
+import InjectForm from '../common/injects/form/InjectForm';
+import InjectCardComponent from '../common/injects/InjectCardComponent';
+import InjectIcon from '../common/injects/InjectIcon';
 
 interface Props {
   isExclusionMode: boolean;
@@ -31,11 +32,12 @@ type InjectorContractFullOutputWithContractContent = InjectorContractFullOutput 
 const ThreatArsenalAtomicTestCreationComponent = ({ isExclusionMode, selectedElements, deSelectedElements, searchPaginationInput }: Props) => {
   const { t, tPick } = useFormatter();
   const navigate = useNavigate();
+
   const [selectedContract, setSelectedContract] = useState<InjectorContractFullOutputWithContractContent | null>(null);
 
   const onSubmitInject = async (data: InjectInput) => {
     const result = await createAtomicTesting(data);
-    return navigate(`/admin/atomic_testings/${result.data.inject_id}`);
+    return navigate(`/admin/atomic_testings/${result.data.inject_id}/injects`);
   };
 
   useEffect(() => {
@@ -46,11 +48,13 @@ const ThreatArsenalAtomicTestCreationComponent = ({ isExclusionMode, selectedEle
     }).then((response: AxiosResponse<{ content: InjectorContractFullOutputWithContractContent[] }>) => {
       if (response?.data?.content?.[0]) {
         const selectedContract = response.data.content[0];
-        selectedContract.injector_contract_content = typeof selectedContract.injector_contract_content === 'string' ? JSON.parse(selectedContract.injector_contract_content) : selectedContract.injector_contract_content;
+        selectedContract.injector_contract_content = typeof selectedContract.injector_contract_content === 'string'
+          ? JSON.parse(selectedContract.injector_contract_content)
+          : selectedContract.injector_contract_content;
         setSelectedContract(response?.data?.content[0]);
       }
     });
-  }, [])
+  }, []);
 
   return (
     <Slide in={true} direction="left" mountOnEnter unmountOnExit>
@@ -63,14 +67,15 @@ const ThreatArsenalAtomicTestCreationComponent = ({ isExclusionMode, selectedEle
           avatar={selectedContract ? (
             <InjectIcon
               type={selectedContract.injector_contract_payload_type ?? selectedContract.injector_contract_injector_type}
-              isPayload={isNotEmptyField(selectedContract?.injector_contract_payload_type)}/>
+              isPayload={isNotEmptyField(selectedContract?.injector_contract_payload_type)}
+            />
           ) : (
             <Avatar sx={{
               width: 24,
               height: 24,
             }}
             >
-              <HelpOutlined/>
+              <HelpOutlined />
             </Avatar>
           )}
           title={selectedContract?.injector_contract_injector_name || ''}
@@ -98,11 +103,11 @@ const ThreatArsenalAtomicTestCreationComponent = ({ isExclusionMode, selectedEle
             inject_assets: [],
             inject_asset_groups: [],
             inject_documents: [],
-            inject_content: {expectations: selectedContract?.injector_contract_content.fields.find(f => f.type == 'expectation')?.predefinedExpectations},
+            inject_content: { expectations: selectedContract?.injector_contract_content.fields.find(f => f.type == 'expectation')?.predefinedExpectations },
           }}
           injectorContractContent={selectedContract?.injector_contract_content}
           onSubmitInject={onSubmitInject}
-          uriVariable={''}
+          uriVariable=""
           articlesFromExerciseOrScenario={[]}
           variablesFromExerciseOrScenario={[]}
         />
