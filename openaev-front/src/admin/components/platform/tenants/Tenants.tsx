@@ -21,6 +21,7 @@ import {
   getTenantHeaders,
   LOCAL_STORAGE_KEY_TENANT,
   TENANT_FILTERS,
+  TENANT_INLINE_STYLES,
   TENANT_SORTS,
 } from './tenants.queryable';
 
@@ -35,7 +36,8 @@ const Tenants = () => {
     fetchTenants,
     addTenant,
     updateTenant,
-    removeTenant,
+    softDeleteTenant,
+    reactivateTenant,
   } = useTenants();
 
   const {
@@ -74,13 +76,13 @@ const Tenants = () => {
               <SortHeadersComponentV2
                 headers={headers}
                 sortHelpers={queryableHelpers.sortHelpers}
-                inlineStylesHeaders={{}}
+                inlineStylesHeaders={TENANT_INLINE_STYLES}
               />
             )}
           />
         </ListItem>
         {loading
-          ? <PaginatedListLoader Icon={HomeWorkOutlined} headers={headers} headerStyles={{}} />
+          ? <PaginatedListLoader Icon={HomeWorkOutlined} headers={headers} headerStyles={TENANT_INLINE_STYLES} />
           : (
               <PaginatedList<TenantOutput>
                 Icon={HomeWorkOutlined}
@@ -88,14 +90,16 @@ const Tenants = () => {
                   <TenantPopover
                     inList
                     tenant={tenant}
-                    actions={['Update', 'Delete']}
+                    actions={tenant.tenant_deleted_at ? ['Reactivate'] : ['Update', 'Delete']}
                     onUpdate={updateTenant}
-                    onDelete={removeTenant}
+                    onDelete={softDeleteTenant}
+                    onReactivate={reactivateTenant}
                   />
                 )}
                 headers={headers}
                 items={tenants}
                 rowKey="tenant_id"
+                itemWidth={TENANT_INLINE_STYLES}
               />
             )}
       </List>
