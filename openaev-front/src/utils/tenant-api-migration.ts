@@ -44,7 +44,6 @@ const TENANT_MIGRATION_TODO: string[] = [
   '/api/vulnerabilities',
   '/api/lessons_templates',
   // PR8 — Integrations
-  '/api/injectors',
   '/api/collectors',
   '/api/executors',
   '/api/connector-instances',
