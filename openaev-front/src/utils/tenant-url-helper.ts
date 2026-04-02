@@ -99,4 +99,3 @@ export const getCurrentTenantId = (): string => {
  */
 export const buildTenantApiUri = (path: string): string =>
   `${TENANT_URI}/${getCurrentTenantId()}${path}`;
-
