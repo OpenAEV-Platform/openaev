@@ -18,7 +18,6 @@ import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.codec.DecoderException;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -32,11 +31,7 @@ public class PlatformJwtExtractor implements ExtractorBase {
 
   @Override
   public Optional<User> authUser(String value)
-      throws JwtException,
-          AuthenticationError,
-          DecoderException,
-          NoSuchAlgorithmException,
-          InvalidKeySpecException {
+      throws JwtException, AuthenticationError, NoSuchAlgorithmException, InvalidKeySpecException {
     if (value == null) {
       String message = "No raw bearer token found";
       log.debug(message);
@@ -48,10 +43,10 @@ public class PlatformJwtExtractor implements ExtractorBase {
       throw new AuthenticationError(message);
     }
 
-    X509EncodedKeySpec kspec =
+    X509EncodedKeySpec keySpec =
         new X509EncodedKeySpec(Base64.getDecoder().decode(xtmOneConfig.getToken()));
     KeyFactory keyFactory = KeyFactory.getInstance("EdDSA");
-    PublicKey pubkey = keyFactory.generatePublic(kspec);
+    PublicKey pubkey = keyFactory.generatePublic(keySpec);
 
     Jws<Claims> jws = Jwts.parser().verifyWith(pubkey).build().parseSignedClaims(value);
 

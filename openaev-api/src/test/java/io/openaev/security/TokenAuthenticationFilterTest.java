@@ -13,6 +13,7 @@ import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockConfig.WithMockXtmOneConfig;
 import io.openaev.xtmone.XtmOneConfig;
 import jakarta.transaction.Transactional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -125,22 +126,76 @@ public class TokenAuthenticationFilterTest extends IntegrationTest {
         @Nested
         @DisplayName("When XTM One is configured")
         public class WhenXtmOneIsConfigured {
+          @BeforeEach
+          public void before() {
+            when(xtmOneConfig.isConfigured()).thenReturn(true);
+          }
+
           @Test
-          @DisplayName("Succeed authentication")
-          public void failAuthentication() throws Exception {
+          @DisplayName("Given existing user and valid issuer, succeed authentication")
+          public void given_existingUserAndValidIssuer_then_succeedAuthentication()
+              throws Exception {
             UserComposer.Composer userWrapper =
                 userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist();
             JwtFixture.Bundle bundle =
                 JwtFixture.generatePlatformJwtBundle(userWrapper.get().getEmail(), false);
             when(xtmOneConfig.getToken())
                 .thenReturn(JwtFixture.b64(bundle.keyPair().getPublic().getEncoded()));
-            when(xtmOneConfig.isConfigured()).thenReturn(true);
 
             mvc.perform(
                     get("/api/me/tokens")
                         .accept(MediaType.APPLICATION_JSON)
                         .header("Authorization", headerValueMask.formatted(bundle.jwtToken())))
                 .andExpect(status().isOk());
+          }
+
+          @Test
+          @DisplayName("Given existing user and invalid issuer, fail authentication")
+          public void given_existingUserAndInvalidIssuer_then_failAuthentication()
+              throws Exception {
+            UserComposer.Composer userWrapper =
+                userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist();
+            JwtFixture.Bundle bundle =
+                JwtFixture.generateForeignJwtBundle(userWrapper.get().getEmail(), false);
+            when(xtmOneConfig.getToken())
+                .thenReturn(JwtFixture.b64(bundle.keyPair().getPublic().getEncoded()));
+
+            mvc.perform(
+                    get("/api/me/tokens")
+                        .accept(MediaType.APPLICATION_JSON)
+                        .header("Authorization", headerValueMask.formatted(bundle.jwtToken())))
+                .andExpect(status().isUnauthorized());
+          }
+
+          @Test
+          @DisplayName("Given existing user and expired jwt, fail authentication")
+          public void given_existingUserAndExpiredJwt_then_failAuthentication() throws Exception {
+            UserComposer.Composer userWrapper =
+                userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist();
+            JwtFixture.Bundle bundle =
+                JwtFixture.generatePlatformJwtBundle(userWrapper.get().getEmail(), true);
+            when(xtmOneConfig.getToken())
+                .thenReturn(JwtFixture.b64(bundle.keyPair().getPublic().getEncoded()));
+
+            mvc.perform(
+                    get("/api/me/tokens")
+                        .accept(MediaType.APPLICATION_JSON)
+                        .header("Authorization", headerValueMask.formatted(bundle.jwtToken())))
+                .andExpect(status().isUnauthorized());
+          }
+
+          @Test
+          @DisplayName("Given missing user and valid jwt, fail authentication")
+          public void given_missingUserAndValidJwt_then_failAuthentication() throws Exception {
+            JwtFixture.Bundle bundle = JwtFixture.generatePlatformJwtBundle("anon@ymo.us", true);
+            when(xtmOneConfig.getToken())
+                .thenReturn(JwtFixture.b64(bundle.keyPair().getPublic().getEncoded()));
+
+            mvc.perform(
+                    get("/api/me/tokens")
+                        .accept(MediaType.APPLICATION_JSON)
+                        .header("Authorization", headerValueMask.formatted(bundle.jwtToken())))
+                .andExpect(status().isUnauthorized());
           }
         }
       }

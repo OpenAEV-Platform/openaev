@@ -21,6 +21,10 @@ public class JwtFixture {
     return generateBundle("filigran-copilot", subject, expired);
   }
 
+  public static Bundle generateForeignJwtBundle(String subject, boolean expired) throws Exception {
+    return generateBundle("rejected issuer", subject, expired);
+  }
+
   private static Bundle generateBundle(String issuer, String subject, boolean expired)
       throws Exception {
     Curve curve = Jwks.CRV.Ed25519;
