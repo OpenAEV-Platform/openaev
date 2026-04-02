@@ -1,6 +1,6 @@
-import {Card, CardActionArea, CardContent, Typography} from "@mui/material";
-import {useTheme} from "@mui/material/styles";
-import {ReactElement} from "react";
+import { Card, CardActionArea, CardContent, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { type ReactElement } from 'react';
 
 interface Props {
   executionMode: {
@@ -38,8 +38,8 @@ const ThreatArsenalExecutionModeCardComponent = ({ executionMode }: Props) => {
           }}
         >
           {executionMode.icon}
-          <Typography style={{ color: executionMode.disabled ? theme.palette.text?.disabled : "inherit" }}>{executionMode.title}</Typography>
-          <Typography style={{ color: executionMode.disabled ? theme.palette.text?.disabled : "inherit" }}>{executionMode.description}</Typography>
+          <Typography style={{ color: executionMode.disabled ? theme.palette.text?.disabled : 'inherit' }}>{executionMode.title}</Typography>
+          <Typography style={{ color: executionMode.disabled ? theme.palette.text?.disabled : 'inherit' }}>{executionMode.description}</Typography>
         </CardContent>
       </CardActionArea>
     </Card>

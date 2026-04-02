@@ -135,6 +135,7 @@ public class ScenarioService {
 
   private final ScenarioMapper scenarioMapper;
   private final WorkflowService workflowService;
+  private final ObjectMapper objectMapper;
 
   @Transactional
   public Scenario createScenario(@NotNull final Scenario scenario) {

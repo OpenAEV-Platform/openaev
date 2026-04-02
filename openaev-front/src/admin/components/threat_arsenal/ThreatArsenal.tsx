@@ -1,4 +1,4 @@
-import { HelpOutlineOutlined } from '@mui/icons-material';
+import {ForwardToInbox, HelpOutlineOutlined, MovieFilterOutlined} from '@mui/icons-material';
 import {
   Checkbox, IconButton,
   List,
@@ -32,11 +32,13 @@ import {
   type SearchPaginationInput,
   type ThreatArsenalAction,
 } from '../../../utils/api-types';
+import useEntityToggle from '../../../utils/hooks/useEntityToggle';
 import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import IconBar from '../common/domains/IconBar';
 import useDomainIconFilter from '../common/domains/useDomainIconFilter';
 import InjectIcon from '../common/injects/InjectIcon';
+import ToolBar from '../common/ToolBar';
 import InjectorContractPopover from '../integrations/injectors/injector_contracts/InjectorContractPopover';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
 import CreateThreatArsenalAction from './CreateThreatArsenalAction';
