@@ -1,4 +1,5 @@
 import { APP_BASE_PATH } from './Environment';
+import TENANT_MIGRATION_TODO from './tenant-api-migration';
 
 /**
  * Base API path for tenant endpoints.
@@ -96,12 +97,43 @@ export const getCurrentTenantId = (): string => {
 };
 
 // ---------------------------------------------------------------------------
-// API URI helper — building tenant-scoped backend API paths
+// API path rewriting
 // ---------------------------------------------------------------------------
 
 /**
- * Builds a tenant-scoped API URI using the active tenant from local storage.
- * Example: buildTenantApiUri('/tags') → '/api/tenants/<tenantId>/tags'
+ * API path prefixes that are NEVER tenant-scoped (platform-global endpoints).
  */
-export const buildTenantApiUri = (path: string): string =>
-  `${TENANT_URI}/${getCurrentTenantId()}${path}`;
+const TENANT_EXEMPT_PREFIXES = [
+  '/api/me',
+  '/api/login',
+  '/api/auth',
+  '/api/reset',
+  '/api/settings',
+  '/api/tenants',
+  '/api/logs',
+  '/api/images',
+  '/api/platform-groups',
+  '/api/platform-roles',
+];
+
+/**
+ * Rewrites an API path to include the tenant prefix.
+ *
+ * This is the FE equivalent of the BE's TenantInterceptor:
+ * one place that applies the tenant prefix to all API calls.
+ */
+export const buildTenantApiPath = (uri: string): string => {
+  if (!uri.startsWith('/api/')) {
+    return uri;
+  }
+  if (TENANT_EXEMPT_PREFIXES.some(prefix => uri.startsWith(prefix))) {
+    return uri;
+  }
+  if (TENANT_MIGRATION_TODO.some(prefix => uri.startsWith(prefix))) {
+    return uri;
+  }
+
+  const tenantId = getCurrentTenantId();
+  const pathAfterApi = uri.slice('/api'.length);
+  return `/api/tenants/${tenantId}${pathAfterApi}`;
+};
