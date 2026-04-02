@@ -43,6 +43,11 @@ public class PlatformJwtExtractor implements ExtractorBase {
       throw new AuthenticationError(message);
     }
 
+    /*
+     JWT is assumed signed with the EdDSA algorithm as per Filigran standard.
+     The configured key material retrieved with `XtmOneConfig.getToken()` must
+     be an ASN.1/DER encoded public key, itself Base64-encoded.
+    */
     X509EncodedKeySpec keySpec =
         new X509EncodedKeySpec(Base64.getDecoder().decode(xtmOneConfig.getToken()));
     KeyFactory keyFactory = KeyFactory.getInstance("EdDSA");
