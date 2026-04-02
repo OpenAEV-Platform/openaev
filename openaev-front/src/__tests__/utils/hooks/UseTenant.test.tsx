@@ -13,9 +13,7 @@ import { TENANT_STORAGE_KEY } from '../../../utils/tenant-url-helper';
 
 const mockFetchUserTenants = vi.fn();
 
-vi.mock('../../../actions/user/user-tenant-actions', () => ({
-  fetchUserTenants: () => mockFetchUserTenants(),
-}));
+vi.mock('../../../actions/user/user-tenant-actions', () => ({ fetchUserTenants: () => mockFetchUserTenants() }));
 
 const mockBuildTenantUrl = vi.fn(
   (tenantId: string, pathname: string, search: string, hash: string) =>
@@ -23,6 +21,7 @@ const mockBuildTenantUrl = vi.fn(
 );
 
 vi.mock('../../../utils/tenant-url-helper', async (importOriginal) => {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-imports
   const original = await importOriginal<typeof import('../../../utils/tenant-url-helper')>();
   return {
     ...original,
@@ -32,9 +31,7 @@ vi.mock('../../../utils/tenant-url-helper', async (importOriginal) => {
 
 const mockDispatch = vi.fn();
 
-vi.mock('../../../utils/hooks', () => ({
-  useAppDispatch: () => mockDispatch,
-}));
+vi.mock('../../../utils/hooks', () => ({ useAppDispatch: () => mockDispatch }));
 
 // -- TEST DATA --
 
@@ -104,7 +101,10 @@ describe('useTenant', () => {
     // Reset window.location.href tracking
     Object.defineProperty(window, 'location', {
       writable: true,
-      value: { ...window.location, href: '' },
+      value: {
+        ...window.location,
+        href: '',
+      },
     });
   });
 
@@ -127,9 +127,7 @@ describe('useTenant', () => {
       const useTenant = await importUseTenant();
 
       // Act
-      const { result } = renderHook(() => useTenant(MOCK_USER, true), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       // Assert
       await waitFor(() => {
@@ -145,9 +143,7 @@ describe('useTenant', () => {
       const useTenant = await importUseTenant();
 
       // Act
-      const { result } = renderHook(() => useTenant(undefined, true), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(() => useTenant(undefined, true), { wrapper: createWrapper() });
 
       // Assert
       await waitFor(() => {
@@ -163,9 +159,7 @@ describe('useTenant', () => {
       const useTenant = await importUseTenant();
 
       // Act
-      const { result } = renderHook(() => useTenant(MOCK_USER, false), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(() => useTenant(MOCK_USER, false), { wrapper: createWrapper() });
 
       // Assert
       await waitFor(() => {
@@ -181,9 +175,7 @@ describe('useTenant', () => {
       const useTenant = await importUseTenant();
 
       // Act
-      const { result } = renderHook(() => useTenant(MOCK_USER, true), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       // Assert
       await waitFor(() => {
@@ -204,9 +196,7 @@ describe('useTenant', () => {
       const useTenant = await importUseTenant();
 
       // Act
-      const { result } = renderHook(() => useTenant(MOCK_USER, true), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       // Assert
       await waitFor(() => {
@@ -225,9 +215,7 @@ describe('useTenant', () => {
       const useTenant = await importUseTenant();
 
       // Act
-      const { result } = renderHook(() => useTenant(MOCK_USER, true), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       // Assert
       await waitFor(() => {
@@ -241,9 +229,7 @@ describe('useTenant', () => {
       const useTenant = await importUseTenant();
 
       // Act
-      renderHook(() => useTenant(MOCK_USER, true), {
-        wrapper: createWrapper(),
-      });
+      renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       // Assert
       await waitFor(() => {
@@ -261,9 +247,7 @@ describe('useTenant', () => {
       const useTenant = await importUseTenant();
 
       // Act
-      renderHook(() => useTenant(MOCK_USER, true), {
-        wrapper: createWrapper(),
-      });
+      renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       // Assert
       await waitFor(() => {
@@ -282,9 +266,7 @@ describe('useTenant', () => {
       const useTenant = await importUseTenant();
 
       // Act
-      renderHook(() => useTenant(MOCK_USER, true), {
-        wrapper: createWrapper(),
-      });
+      renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       // Assert
       await waitFor(() => {
@@ -304,9 +286,7 @@ describe('useTenant', () => {
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
       const useTenant = await importUseTenant();
 
-      const { result } = renderHook(() => useTenant(MOCK_USER, true), {
-        wrapper: createWrapper('/admin/scenarios'),
-      });
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper('/admin/scenarios') });
 
       await waitFor(() => {
         expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
@@ -332,9 +312,7 @@ describe('useTenant', () => {
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
       const useTenant = await importUseTenant();
 
-      const { result } = renderHook(() => useTenant(MOCK_USER, true), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
@@ -354,9 +332,7 @@ describe('useTenant', () => {
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
       const useTenant = await importUseTenant();
 
-      const { result } = renderHook(() => useTenant(MOCK_USER, true), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(result.current.currentUserTenant).not.toBeNull();
@@ -380,9 +356,7 @@ describe('useTenant', () => {
       mockTenantsResponse([TENANT_ALPHA]);
       const useTenant = await importUseTenant();
 
-      const { result } = renderHook(() => useTenant(MOCK_USER, true), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(result.current.userTenants).toHaveLength(1);
@@ -408,9 +382,7 @@ describe('useTenant', () => {
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
       const useTenant = await importUseTenant();
 
-      const { result } = renderHook(() => useTenant(MOCK_USER, true), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
@@ -436,9 +408,7 @@ describe('useTenant', () => {
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
       const useTenant = await importUseTenant();
 
-      const { result } = renderHook(() => useTenant(MOCK_USER, true), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_BETA.tenant_id);
@@ -469,9 +439,7 @@ describe('useTenant', () => {
       const useTenant = await importUseTenant();
 
       // Act
-      const { result } = renderHook(() => useTenant(MOCK_USER, true), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       // Assert
       await waitFor(() => {
@@ -483,4 +451,3 @@ describe('useTenant', () => {
     });
   });
 });
-
