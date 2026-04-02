@@ -45,7 +45,6 @@ const TENANT_MIGRATION_TODO: string[] = [
   '/api/lessons_templates',
   // PR8 — Integrations
   '/api/collectors',
-  '/api/executors',
   '/api/connector-instances',
   '/api/catalog-connector',
   // PR9 — Reference data & Misc

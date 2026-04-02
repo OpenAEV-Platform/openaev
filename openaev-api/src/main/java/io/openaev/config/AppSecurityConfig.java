@@ -1,5 +1,6 @@
 package io.openaev.config;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.config.security.SecurityService.REGISTRATION_ID;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI;
@@ -78,7 +79,11 @@ public class AppSecurityConfig {
                     .permitAll()
                     .requestMatchers("/api/agent/**")
                     .permitAll()
+                    .requestMatchers(TENANT_PREFIX + "/agent/**")
+                    .permitAll()
                     .requestMatchers("/api/implant/**")
+                    .permitAll()
+                    .requestMatchers(TENANT_PREFIX + "/implant/**")
                     .permitAll()
                     .requestMatchers("/api/login")
                     .permitAll()
