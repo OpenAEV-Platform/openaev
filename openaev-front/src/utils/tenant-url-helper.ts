@@ -1,5 +1,11 @@
-import { TENANT_URI } from '../actions/platform/tenants/tenant-action';
 import { APP_BASE_PATH } from './Environment';
+
+/**
+ * Base API path for tenant endpoints.
+ * Defined here (not in tenant-action.ts) to avoid a dependency cycle:
+ * tenant-url-helper → tenant-action → Action → tenant-url-helper.
+ */
+export const TENANT_URI = '/api/tenants';
 
 /**
  * Local-storage key used to persist the selected tenant.

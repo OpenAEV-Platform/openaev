@@ -2,9 +2,9 @@ import type { Dispatch } from 'redux';
 
 import { delReferential, postReferential, putReferential, simplePostCall } from '../../../utils/Action';
 import { type SearchPaginationInput, type TenantInput, type TenantOutput } from '../../../utils/api-types';
+import { TENANT_URI } from '../../../utils/tenant-url-helper';
 import { tenant } from './tenant-schema';
 
-export const TENANT_URI = '/api/tenants';
 
 // -- CREATE --
 

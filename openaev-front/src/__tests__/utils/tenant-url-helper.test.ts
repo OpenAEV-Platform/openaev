@@ -1,11 +1,186 @@
+import { faker } from '@faker-js/faker';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   buildTenantApiUri,
+  buildTenantUrl,
+  computeTenantBasename,
   DEFAULT_TENANT_UUID,
+  extractTenantFromUrl,
   getCurrentTenantId,
   TENANT_STORAGE_KEY,
+  TENANT_URI,
 } from '../../utils/tenant-url-helper';
+
+// -- HELPERS --
+
+const VALID_UUID = faker.string.uuid();
+
+const setPathname = (pathname: string) => {
+  Object.defineProperty(window, 'location', {
+    writable: true,
+    value: { ...window.location, pathname },
+  });
+};
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+describe('Constants', () => {
+  it('given_import_should_exportTenantStorageKey', () => {
+    expect(TENANT_STORAGE_KEY).toBe('current-tenant-storage');
+  });
+
+  it('given_import_should_exportDefaultTenantUuid', () => {
+    expect(DEFAULT_TENANT_UUID).toBe('2cffad3a-0001-4078-b0e2-ef74274022c3');
+  });
+
+  it('given_import_should_exportTenantUri', () => {
+    expect(TENANT_URI).toBe('/api/tenants');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// extractTenantFromUrl
+// ---------------------------------------------------------------------------
+
+describe('extractTenantFromUrl', () => {
+  beforeEach(() => {
+    setPathname('/');
+  });
+
+  it('given_urlWithUuidFirstSegment_should_returnUuid', () => {
+    // Arrange
+    setPathname(`/${VALID_UUID}/admin/scenarios`);
+
+    // Act
+    const result = extractTenantFromUrl();
+
+    // Assert
+    expect(result).toBe(VALID_UUID);
+  });
+
+  it('given_urlWithUuidOnly_should_returnUuid', () => {
+    // Arrange
+    setPathname(`/${VALID_UUID}`);
+
+    // Act & Assert
+    expect(extractTenantFromUrl()).toBe(VALID_UUID);
+  });
+
+  it('given_urlWithUppercaseUuid_should_returnUuid', () => {
+    // Arrange
+    const uppercaseUuid = VALID_UUID.toUpperCase();
+    setPathname(`/${uppercaseUuid}/admin`);
+
+    // Act & Assert
+    expect(extractTenantFromUrl()).toBe(uppercaseUuid);
+  });
+
+  it('given_urlWithNonUuidFirstSegment_should_returnNull', () => {
+    // Arrange
+    setPathname('/login');
+
+    // Act & Assert
+    expect(extractTenantFromUrl()).toBeNull();
+  });
+
+  it('given_publicRouteComcheck_should_returnNull', () => {
+    setPathname('/comcheck/some-id');
+    expect(extractTenantFromUrl()).toBeNull();
+  });
+
+  it('given_resetRoute_should_returnNull', () => {
+    setPathname('/reset');
+    expect(extractTenantFromUrl()).toBeNull();
+  });
+
+  it('given_rootPath_should_returnNull', () => {
+    setPathname('/');
+    expect(extractTenantFromUrl()).toBeNull();
+  });
+
+  it('given_emptyPath_should_returnNull', () => {
+    setPathname('');
+    expect(extractTenantFromUrl()).toBeNull();
+  });
+
+  it('given_partialUuid_should_returnNull', () => {
+    setPathname('/2cffad3a-0001-4078/admin');
+    expect(extractTenantFromUrl()).toBeNull();
+  });
+
+  it('given_nonHexUuid_should_returnNull', () => {
+    // 'g' is not a valid hex character
+    setPathname('/gggggggg-0001-4078-b0e2-ef74274022c3/admin');
+    expect(extractTenantFromUrl()).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeTenantBasename
+// ---------------------------------------------------------------------------
+
+describe('computeTenantBasename', () => {
+  it('given_urlWithTenantUuid_should_returnBaseWithTenant', () => {
+    // Arrange
+    setPathname(`/${VALID_UUID}/admin/scenarios`);
+
+    // Act & Assert
+    expect(computeTenantBasename()).toBe(`/${VALID_UUID}`);
+  });
+
+  it('given_urlWithoutTenantUuid_should_returnEmptyString', () => {
+    // Arrange
+    setPathname('/login');
+
+    // Act & Assert
+    expect(computeTenantBasename()).toBe('');
+  });
+
+  it('given_rootUrl_should_returnEmptyString', () => {
+    // Arrange
+    setPathname('/');
+
+    // Act & Assert
+    expect(computeTenantBasename()).toBe('');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildTenantUrl
+// ---------------------------------------------------------------------------
+
+describe('buildTenantUrl', () => {
+  it('given_tenantIdAndPathname_should_buildCorrectUrl', () => {
+    expect(buildTenantUrl(VALID_UUID, '/admin/scenarios')).toBe(
+      `/${VALID_UUID}/admin/scenarios`,
+    );
+  });
+
+  it('given_pathnameWithoutLeadingSlash_should_normalizeAndBuildUrl', () => {
+    expect(buildTenantUrl(VALID_UUID, 'admin/scenarios')).toBe(
+      `/${VALID_UUID}/admin/scenarios`,
+    );
+  });
+
+  it('given_searchAndHash_should_appendThem', () => {
+    expect(buildTenantUrl(VALID_UUID, '/admin', '?page=1', '#section')).toBe(
+      `/${VALID_UUID}/admin?page=1#section`,
+    );
+  });
+
+  it('given_emptySearchAndHash_should_notAppendExtra', () => {
+    expect(buildTenantUrl(VALID_UUID, '/admin')).toBe(
+      `/${VALID_UUID}/admin`,
+    );
+  });
+
+  it('given_rootPathname_should_buildUrlWithSlash', () => {
+    expect(buildTenantUrl(VALID_UUID, '/')).toBe(`/${VALID_UUID}/`);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // getCurrentTenantId
@@ -20,35 +195,38 @@ describe('getCurrentTenantId', () => {
     vi.restoreAllMocks();
   });
 
-  it('returns DEFAULT_TENANT_UUID when nothing is stored', () => {
+  it('given_nothing_should_returnDefaultTenantUuid', () => {
     expect(getCurrentTenantId()).toBe(DEFAULT_TENANT_UUID);
   });
 
-  it('returns the stored tenant_id from localStorage', () => {
+  it('given_validTenantInStorage_should_returnStoredTenantId', () => {
+    // Arrange
     const tenantId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
     localStorage.setItem(
       TENANT_STORAGE_KEY,
       JSON.stringify({ tenant_id: tenantId }),
     );
+
+    // Act & Assert
     expect(getCurrentTenantId()).toBe(tenantId);
   });
 
-  it('returns DEFAULT_TENANT_UUID when stored JSON has no tenant_id', () => {
+  it('given_storedJsonWithNoTenantId_should_returnDefaultTenantUuid', () => {
     localStorage.setItem(TENANT_STORAGE_KEY, JSON.stringify({ other: 'value' }));
     expect(getCurrentTenantId()).toBe(DEFAULT_TENANT_UUID);
   });
 
-  it('returns DEFAULT_TENANT_UUID when stored value is malformed JSON', () => {
+  it('given_malformedJson_should_returnDefaultTenantUuid', () => {
     localStorage.setItem(TENANT_STORAGE_KEY, 'not-valid-json');
     expect(getCurrentTenantId()).toBe(DEFAULT_TENANT_UUID);
   });
 
-  it('returns DEFAULT_TENANT_UUID when stored value is an empty string', () => {
+  it('given_emptyString_should_returnDefaultTenantUuid', () => {
     localStorage.setItem(TENANT_STORAGE_KEY, '');
     expect(getCurrentTenantId()).toBe(DEFAULT_TENANT_UUID);
   });
 
-  it('returns DEFAULT_TENANT_UUID when tenant_id is empty string', () => {
+  it('given_emptyTenantId_should_returnDefaultTenantUuid', () => {
     localStorage.setItem(
       TENANT_STORAGE_KEY,
       JSON.stringify({ tenant_id: '' }),
@@ -56,7 +234,7 @@ describe('getCurrentTenantId', () => {
     expect(getCurrentTenantId()).toBe(DEFAULT_TENANT_UUID);
   });
 
-  it('returns DEFAULT_TENANT_UUID when stored value is null JSON', () => {
+  it('given_nullJson_should_returnDefaultTenantUuid', () => {
     localStorage.setItem(TENANT_STORAGE_KEY, 'null');
     expect(getCurrentTenantId()).toBe(DEFAULT_TENANT_UUID);
   });
@@ -81,140 +259,41 @@ describe('buildTenantApiUri', () => {
     vi.restoreAllMocks();
   });
 
-  // -- Non-API paths are returned untouched --
-
-  it('returns non-API paths unchanged', () => {
-    expect(buildTenantApiUri('/login')).toBe('/login');
-    expect(buildTenantApiUri('/dashboard')).toBe('/dashboard');
-    expect(buildTenantApiUri('/')).toBe('/');
-  });
-
-  // -- Tenant-exempt prefixes are not rewritten --
-
-  describe.each([
-    '/api/me',
-    '/api/login',
-    '/api/auth',
-    '/api/reset',
-    '/api/settings',
-    '/api/tenants',
-    '/api/logs',
-    '/api/images',
-    '/api/platform-groups',
-    '/api/platform-roles',
-  ])('exempt prefix %s', (prefix) => {
-    it('is returned unchanged', () => {
-      expect(buildTenantApiUri(prefix)).toBe(prefix);
-    });
-
-    it('is returned unchanged when it has a sub-path', () => {
-      const path = `${prefix}/some/sub/path`;
-      expect(buildTenantApiUri(path)).toBe(path);
-    });
-  });
-
-  // TODO multi-tenancy: migration paths are not rewritten yet
-
-  describe.each([
-    '/api/scenarios',
-    '/api/exercises',
-    '/api/simulations',
-    '/api/injects',
-    '/api/injector_contracts',
-    '/api/atomic-testings',
-    '/api/inject-expectations-traces',
-    '/api/teams',
-    '/api/players',
-    '/api/organizations',
-    '/api/endpoints',
-    '/api/asset_groups',
-    '/api/security_platforms',
-    '/api/channels',
-    '/api/challenges',
-    '/api/payloads',
-    '/api/documents',
-    '/api/findings',
-    '/api/detection-remediations',
-    '/api/notification-rules',
-    '/api/vulnerabilities',
-    '/api/lessons_templates',
-    '/api/injectors',
-    '/api/collectors',
-    '/api/executors',
-    '/api/connector-instances',
-    '/api/catalog-connector',
-    '/api/attack_patterns',
-    '/api/kill_chain_phases',
-    '/api/domains',
-    '/api/mappers',
-    '/api/tag-rules',
-    '/api/dashboards',
-    '/api/custom-dashboards',
-    '/api/fulltextsearch',
-    '/api/schemas',
-    '/api/engine',
-    '/api/roles',
-    '/api/groups',
-    '/api/users',
-    '/api/capabilities',
-    '/api/xtmhub',
-    '/api/xtm-composer',
-    '/api/variables',
-    '/api/reports',
-    '/api/stream',
-  ])('not-yet-migrated prefix %s', (prefix) => {
-    it('is returned unchanged', () => {
-      expect(buildTenantApiUri(prefix)).toBe(prefix);
-    });
-
-    it('is returned unchanged with sub-path', () => {
-      const path = `${prefix}/123/details`;
-      expect(buildTenantApiUri(path)).toBe(path);
-    });
-  });
-
-  // TODO multi-tenancy: Migrated tenant-scoped paths ARE rewritten
-
-  describe.each([
-    '/api/tags',
-  ])('migrated prefix %s', (prefix) => {
-    it('is rewritten with tenant prefix', () => {
-      expect(buildTenantApiUri(prefix)).toBe(
-        `/api/tenants/${fakeTenantId}${prefix.slice('/api'.length)}`,
-      );
-    });
-
-    it('is rewritten with tenant prefix when it has a sub-path', () => {
-      const path = `${prefix}/abc-123`;
-      expect(buildTenantApiUri(path)).toBe(
-        `/api/tenants/${fakeTenantId}${prefix.slice('/api'.length)}/abc-123`,
-      );
-    });
-
-    it('uses DEFAULT_TENANT_UUID when no tenant is in storage', () => {
-      localStorage.clear();
-      expect(buildTenantApiUri(prefix)).toBe(
-        `/api/tenants/${DEFAULT_TENANT_UUID}${prefix.slice('/api'.length)}`,
-      );
-    });
-  });
-
-  // -- Edge cases --
-
-  it('does not rewrite an empty string', () => {
-    expect(buildTenantApiUri('')).toBe('');
-  });
-
-  it('does not rewrite a path that is exactly /api/', () => {
-    // /api/ doesn't match any exempt or TODO prefix, so it IS rewritten
-    expect(buildTenantApiUri('/api/')).toBe(
-      `/api/tenants/${fakeTenantId}/`,
+  it('given_pathAndStoredTenant_should_buildScopedApiUri', () => {
+    expect(buildTenantApiUri('/tags')).toBe(
+      `/api/tenants/${fakeTenantId}/tags`,
     );
   });
 
-  it('does not double-prefix an already-prefixed path', () => {
-    const alreadyPrefixed = `/api/tenants/${fakeTenantId}/tags`;
-    // /api/tenants is in the exempt list, so it should stay as-is
-    expect(buildTenantApiUri(alreadyPrefixed)).toBe(alreadyPrefixed);
+  it('given_nestedPath_should_buildCorrectUri', () => {
+    expect(buildTenantApiUri('/tags/search')).toBe(
+      `/api/tenants/${fakeTenantId}/tags/search`,
+    );
+  });
+
+  it('given_pathWithIdParameter_should_buildCorrectUri', () => {
+    // Arrange
+    const tagId = faker.string.uuid();
+
+    // Act & Assert
+    expect(buildTenantApiUri(`/tags/${tagId}`)).toBe(
+      `/api/tenants/${fakeTenantId}/tags/${tagId}`,
+    );
+  });
+
+  it('given_emptyPath_should_buildUriWithTenantOnly', () => {
+    expect(buildTenantApiUri('')).toBe(
+      `/api/tenants/${fakeTenantId}`,
+    );
+  });
+
+  it('given_noStoredTenant_should_useDefaultTenantUuid', () => {
+    // Arrange
+    localStorage.clear();
+
+    // Act & Assert
+    expect(buildTenantApiUri('/tags')).toBe(
+      `/api/tenants/${DEFAULT_TENANT_UUID}/tags`,
+    );
   });
 });
