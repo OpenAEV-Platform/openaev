@@ -118,7 +118,7 @@
     "@types/react-dom": "19.2.3",
     "@types/react-syntax-highlighter": "15",
     "@typescript-eslint/utils": "8.57.0",
-    "@vitejs/plugin-react": "5.2.0",
+    "@vitejs/plugin-react": "6.0.1",
     "@vitest/eslint-plugin": "1.6.12",
     "chokidar": "5.0.0",
     "cross-env": "10.1.0",
@@ -141,7 +141,7 @@
     "swagger-typescript-api": "13.6.3",
     "typescript": "5.9.3",
     "typescript-eslint": "8.57.0",
-    "vite": "npm:rolldown-vite@7.3.1",
+    "vite": "8.0.7",
     "vitest": "4.1.0"
   },
   "resolutions": {
