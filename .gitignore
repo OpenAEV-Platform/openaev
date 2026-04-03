@@ -34,3 +34,6 @@ openaev-dev/.telemetry.json
 
 ### VS Code ###
 .vscode/
+
+### macOS ###
+.DS_Store
