@@ -88,9 +88,7 @@ public class ExecutionExecutorService {
         // Resolve the ConnectorInstance that owns this executor
         ConnectorInstancePersisted instance =
             connectorInstanceService.findByExecutorId(executor.getId());
-        executorContextService =
-            manager.requestForInstance(
-                instance, new ComponentRequest(executor.getName()), ExecutorContextService.class);
+        executorContextService = manager.requestForInstance(instance, ExecutorContextService.class);
       } catch (NoSuchElementException instanceNotFound) {
         if (instanceNotFound.getMessage().startsWith("No component found")) {
           // Fallback for builtin executors without a persisted ConnectorInstance (e.g. OpenAEV

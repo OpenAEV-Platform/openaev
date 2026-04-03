@@ -136,4 +136,31 @@ public abstract class Integration {
         .filter(Objects::nonNull)
         .toList();
   }
+
+  /**
+   * Resolves a component solely by its Java type, ignoring the @QualifiedComponent identifier. This
+   * is useful when the caller already knows which Integration to target (e.g. via
+   * requestForInstance) and only needs the component of the right type.
+   *
+   * @param componentType the desired Java type
+   * @return the component instance, or empty list if not found / not initialized
+   * @param <T> the desired type
+   * @throws IllegalStateException if more than one field of the requested type is found
+   */
+  public <T> List<T> requestComponentByType(Class<T> componentType) throws IllegalStateException {
+    List<Field> candidates =
+        FieldUtils.getAllFields(this.getClass()).stream()
+            .filter(f -> f.isAnnotationPresent(QualifiedComponent.class))
+            .filter(f -> componentType.isAssignableFrom(f.getType()))
+            .toList();
+
+    if (candidates.size() > 1) {
+      throw new IllegalStateException("Too many components qualify for requested type.");
+    }
+
+    return candidates.stream()
+        .map(candidate -> (T) FieldUtils.getField(this, candidate))
+        .filter(Objects::nonNull)
+        .toList();
+  }
 }

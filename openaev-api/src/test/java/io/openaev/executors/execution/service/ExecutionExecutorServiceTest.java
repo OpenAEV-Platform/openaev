@@ -309,8 +309,7 @@ public class ExecutionExecutorServiceTest {
       stubFindByExecutorId(executor.getId(), connectorInstance);
 
       ExecutorContextService mockContextService = mock(ExecutorContextService.class);
-      when(manager.requestForInstance(
-              eq(connectorInstance), any(ComponentRequest.class), eq(ExecutorContextService.class)))
+      when(manager.requestForInstance(eq(connectorInstance), eq(ExecutorContextService.class)))
           .thenReturn(mockContextService);
       when(mockContextService.launchBatchExecutorSubprocess(any(), any(), any()))
           .thenReturn(List.of());
@@ -321,9 +320,7 @@ public class ExecutionExecutorServiceTest {
       // Assert
       verify(connectorInstanceConfigurationRepository)
           .findInstanceAndCatalogIdsByKeyValue("EXECUTOR_ID", executor.getId());
-      verify(manager)
-          .requestForInstance(
-              eq(connectorInstance), any(ComponentRequest.class), eq(ExecutorContextService.class));
+      verify(manager).requestForInstance(eq(connectorInstance), eq(ExecutorContextService.class));
       verify(mockContextService).launchBatchExecutorSubprocess(eq(inject), any(), any());
       verify(mockContextService).launchExecutorSubprocess(eq(inject), any(Endpoint.class), any());
     }
@@ -350,11 +347,10 @@ public class ExecutionExecutorServiceTest {
 
       // But requestForInstance throws NoSuchElementException with "No component found" message
       // (e.g. the integration is started but has no matching component)
-      when(manager.requestForInstance(
-              eq(connectorInstance), any(ComponentRequest.class), eq(ExecutorContextService.class)))
+      when(manager.requestForInstance(eq(connectorInstance), eq(ExecutorContextService.class)))
           .thenThrow(
               new NoSuchElementException(
-                  "No component found for requestId=OpenAEV Agent, requestedType=ExecutorContextService in instance id=instance-openaev"));
+                  "No component found for requestedType=ExecutorContextService in instance id=instance-openaev"));
 
       ExecutorContextService mockContextService = mock(ExecutorContextService.class);
       when(manager.request(any(ComponentRequest.class), eq(ExecutorContextService.class)))
@@ -366,9 +362,7 @@ public class ExecutionExecutorServiceTest {
       executorService.launchExecutorContext(inject);
 
       // Assert
-      verify(manager)
-          .requestForInstance(
-              eq(connectorInstance), any(ComponentRequest.class), eq(ExecutorContextService.class));
+      verify(manager).requestForInstance(eq(connectorInstance), eq(ExecutorContextService.class));
       verify(manager).request(any(ComponentRequest.class), eq(ExecutorContextService.class));
       verify(mockContextService).launchBatchExecutorSubprocess(eq(inject), any(), any());
     }
@@ -393,8 +387,7 @@ public class ExecutionExecutorServiceTest {
       stubFindByExecutorId(executor.getId(), connectorInstance);
 
       ExecutorContextService mockContextService = mock(ExecutorContextService.class);
-      when(manager.requestForInstance(
-              eq(connectorInstance), any(ComponentRequest.class), eq(ExecutorContextService.class)))
+      when(manager.requestForInstance(eq(connectorInstance), eq(ExecutorContextService.class)))
           .thenReturn(mockContextService);
       when(mockContextService.launchBatchExecutorSubprocess(any(), any(), any()))
           .thenThrow(new RuntimeException("CrowdStrike API timeout"));
@@ -473,11 +466,9 @@ public class ExecutionExecutorServiceTest {
       ExecutorContextService mockCtx1 = mock(ExecutorContextService.class);
       ExecutorContextService mockCtx2 = mock(ExecutorContextService.class);
 
-      when(manager.requestForInstance(
-              eq(instance1), any(ComponentRequest.class), eq(ExecutorContextService.class)))
+      when(manager.requestForInstance(eq(instance1), eq(ExecutorContextService.class)))
           .thenReturn(mockCtx1);
-      when(manager.requestForInstance(
-              eq(instance2), any(ComponentRequest.class), eq(ExecutorContextService.class)))
+      when(manager.requestForInstance(eq(instance2), eq(ExecutorContextService.class)))
           .thenReturn(mockCtx2);
       when(mockCtx1.launchBatchExecutorSubprocess(any(), any(), any())).thenReturn(List.of());
       when(mockCtx2.launchBatchExecutorSubprocess(any(), any(), any())).thenReturn(List.of());
@@ -486,12 +477,8 @@ public class ExecutionExecutorServiceTest {
       executorService.launchExecutorContext(inject);
 
       // Assert
-      verify(manager)
-          .requestForInstance(
-              eq(instance1), any(ComponentRequest.class), eq(ExecutorContextService.class));
-      verify(manager)
-          .requestForInstance(
-              eq(instance2), any(ComponentRequest.class), eq(ExecutorContextService.class));
+      verify(manager).requestForInstance(eq(instance1), eq(ExecutorContextService.class));
+      verify(manager).requestForInstance(eq(instance2), eq(ExecutorContextService.class));
       verify(mockCtx1).launchBatchExecutorSubprocess(eq(inject), any(), any());
       verify(mockCtx2).launchBatchExecutorSubprocess(eq(inject), any(), any());
       verify(mockCtx1).launchExecutorSubprocess(eq(inject), any(Endpoint.class), eq(agent1));
