@@ -4,6 +4,7 @@ import { test } from '../../fixtures';
 import UpdateTeamDialog from '../../model/common/UpdateTeamDialog';
 // import type InjectFormComponent from '../../model/injects/InjectFormComponent';
 import ScenarioPage from '../../model/scenario/ScenarioPage';
+import tenantUrl from '../../utils/tenant-url';
 // import MuiListHelpers from '../../utils/MuiListHelpers';
 
 test.describe('Scenario - Teams management', () => {
@@ -24,7 +25,7 @@ test.describe('Scenario - Teams management', () => {
       `;
       document.head.appendChild(style);
     });
-    await page.goto(`/admin/scenarios/${emptyScenario.scenario_id}`);
+    await page.goto(tenantUrl(`/admin/scenarios/${emptyScenario.scenario_id}`));
     await scenarioPage.goToDefinitionTab();
   });
 

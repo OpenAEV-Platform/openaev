@@ -70,10 +70,10 @@ const Root = () => {
   // When the user is authenticated but the URL has no tenant prefix
   // (e.g. first visit at "/", or right after login), hard-redirect to
   // the tenant-prefixed URL so BrowserRouter picks up the correct basename.
+  // buildTenantUrl() preserves the current deep link path, search and hash.
   if (!extractTenantFromUrl()) {
     const tenantId = currentUserTenant?.tenant_id ?? getCurrentTenantId();
-    const dest = logged.isOnlyPlayer ? '/private' : '/admin';
-    window.location.href = buildTenantUrl(tenantId, dest);
+    window.location.href = buildTenantUrl(tenantId);
     return <Loader />;
   }
 
