@@ -12,7 +12,6 @@ import io.openaev.database.specification.InjectTestSpecification;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
-import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.inject.output.InjectTestStatusOutput;
@@ -143,10 +142,7 @@ public class InjectTestStatusService {
       executor =
           managerFactory
               .getManager()
-              .requestForInstance(
-                  connectorInstancePersisted,
-                  new ComponentRequest(injector.getType()),
-                  io.openaev.executors.Injector.class);
+              .requestForInstance(connectorInstancePersisted, io.openaev.executors.Injector.class);
     }
 
     ExecutableInject injection =

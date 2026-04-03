@@ -70,18 +70,18 @@ public class Manager {
   /**
    * Resolves a qualified component of the requested type from the integration bound to the given
    * {@link ConnectorInstance}. Unlike {@link #request(ComponentRequest, Class)}, this method
-   * targets a <b>specific</b> instance — ensuring commands are routed to the correct tenant/config.
+   * targets a <b>specific</b> instance and resolves the component <b>by Java type only</b>,
+   * ignoring the {@code @QualifiedComponent} identifier. This avoids mismatches when executors have
+   * custom names that differ from the hardcoded identifier in the annotation.
    *
    * @param instance the connector instance to look up
-   * @param request a request object with the desired matching criteria
    * @param requestedType a Java class representing the desired type
    * @return an instance of the requested type from the targeted integration
    * @param <T> the desired type of the returned object
    * @throws NoSuchElementException if the instance is not found, not started, or has no matching
    *     component
    */
-  public <T> T requestForInstance(
-      ConnectorInstance instance, ComponentRequest request, Class<T> requestedType) {
+  public <T> T requestForInstance(ConnectorInstance instance, Class<T> requestedType) {
     Integration integration = spawnedIntegrations.get(instance);
     if (integration == null) {
       throw new NoSuchElementException(
@@ -94,12 +94,12 @@ public class Manager {
               "Integration for connector instance id=%s is not started (status=%s)",
               instance.getId(), integration.getCurrentStatus()));
     }
-    List<T> components = integration.requestComponent(request, requestedType);
+    List<T> components = integration.requestComponentByType(requestedType);
     if (components.isEmpty()) {
       throw new NoSuchElementException(
           String.format(
-              "No component found for requestId=%s, requestedType=%s in instance id=%s",
-              request.identifier(), requestedType.getCanonicalName(), instance.getId()));
+              "No component found for requestedType=%s in instance id=%s",
+              requestedType.getCanonicalName(), instance.getId()));
     }
     return components.getFirst();
   }
