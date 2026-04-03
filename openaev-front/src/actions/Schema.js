@@ -30,6 +30,12 @@ export const platformParameters = new schema.Entity(
   { idAttribute: () => 'parameters' },
 );
 
+export const tenantSettings = new schema.Entity(
+  'tenantSettings',
+  {},
+  { idAttribute: () => 'settings' },
+);
+
 export const token = new schema.Entity(
   'tokens',
   {},
@@ -381,6 +387,9 @@ export const storeHelper = state => ({
   getTeamsMap: () => maps('teams', state),
   getPlatformSettings: () => {
     return state.referential.getIn(['entities', 'platformParameters', 'parameters']) || Map({});
+  },
+  getTenantSettings: () => {
+    return state.referential.getIn(['entities', 'tenantSettings', 'settings']) || Map({});
   },
   getPlatformName: () => {
     return state.referential.getIn(['entities', 'platformParameters', 'parameters', 'platform_name']) || 'OpenAEV - Open Adversarial Exposure Validation Platform';
