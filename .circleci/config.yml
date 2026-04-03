@@ -44,7 +44,7 @@ jobs:
             git clone https://github.com/OpenAEV-Platform/collectors
             git clone https://github.com/FiligranHQ/filigran-ci-tools
             
-            apt-get update && apt-get install python3-poetry
+            apt-get update && apt-get install -y python3-poetry
             
             cd filigran-ci-tools/connector-manifest-writer
             poetry install
