@@ -25,11 +25,12 @@ interface Props {
   selectedElements: Record<string, InjectorContractActionOutput>;
   deSelectedElements: Record<string, InjectorContractActionOutput>;
   searchPaginationInput: InjectorContractSearchPaginationInput;
+  handleClose: () => void;
 }
 
 type InjectorContractFullOutputWithContractContent = InjectorContractFullOutput & { injector_contract_content: InjectorContractConverted['convertedContent'] };
 
-const ThreatArsenalAtomicTestCreationComponent = ({ isExclusionMode, selectedElements, deSelectedElements, searchPaginationInput }: Props) => {
+const ThreatArsenalAtomicTestCreationComponent = ({ isExclusionMode, selectedElements, deSelectedElements, searchPaginationInput, handleClose }: Props) => {
   const { t, tPick } = useFormatter();
   const navigate = useNavigate();
 
@@ -83,8 +84,7 @@ const ThreatArsenalAtomicTestCreationComponent = ({ isExclusionMode, selectedEle
           action={<></>}
         />
         <InjectForm
-          handleClose={() => {
-          }}
+          handleClose={handleClose}
           disabled={!selectedContract}
           isAtomic={true}
           isCreation

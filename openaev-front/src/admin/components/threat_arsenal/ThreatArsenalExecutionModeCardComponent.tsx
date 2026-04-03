@@ -1,4 +1,4 @@
-import { Card, CardActionArea, CardContent, Typography } from '@mui/material';
+import { Card, CardActionArea, CardContent, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type ReactElement } from 'react';
 
@@ -9,6 +9,7 @@ interface Props {
     description: string;
     onClick: () => void;
     disabled: boolean;
+    tooltip?: string;
   };
 }
 
@@ -16,33 +17,35 @@ const ThreatArsenalExecutionModeCardComponent = ({ executionMode }: Props) => {
   const theme = useTheme();
 
   return (
-    <Card
-      style={{
-        height: 150,
-        width: '25vw',
-        margin: theme.spacing(1.5),
-      }}
-    >
-      <CardActionArea
-        onClick={executionMode.onClick}
-        disabled={executionMode.disabled}
-        style={{ height: '100%' }}
+    <Tooltip title={executionMode.tooltip}>
+      <Card
+        style={{
+          height: 150,
+          width: '25vw',
+          margin: theme.spacing(1.5),
+        }}
       >
-        <CardContent
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            height: '100%',
-          }}
+        <CardActionArea
+          onClick={executionMode.onClick}
+          disabled={executionMode.disabled}
+          style={{ height: '100%' }}
         >
-          {executionMode.icon}
-          <Typography style={{ color: executionMode.disabled ? theme.palette.text?.disabled : 'inherit' }}>{executionMode.title}</Typography>
-          <Typography style={{ color: executionMode.disabled ? theme.palette.text?.disabled : 'inherit' }}>{executionMode.description}</Typography>
-        </CardContent>
-      </CardActionArea>
-    </Card>
+          <CardContent
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              height: '100%',
+            }}
+          >
+            {executionMode.icon}
+            <Typography style={{ color: executionMode.disabled ? theme.palette.text?.disabled : 'inherit' }}>{executionMode.title}</Typography>
+            <Typography style={{ color: executionMode.disabled ? theme.palette.text?.disabled : 'inherit' }}>{executionMode.description}</Typography>
+          </CardContent>
+        </CardActionArea>
+      </Card>
+    </Tooltip>
   );
 };
 

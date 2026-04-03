@@ -6588,6 +6588,8 @@ export interface Scenario {
 
 export interface ScenarioAndInjectorContractsInputs {
   injector_contract_search_pagination_input: InjectorContractSearchPaginationInput;
+  /** @minLength 1 */
+  locale: string;
   scenario_input: ScenarioInput;
 }
 
@@ -6595,6 +6597,14 @@ export interface ScenarioChallengesReader {
   scenario_challenges?: ChallengeInformation[];
   scenario_id?: string;
   scenario_information?: PublicScenario;
+}
+
+export interface ScenarioIdsAndInjectorContractsInputs {
+  injector_contract_search_pagination_input: InjectorContractSearchPaginationInput;
+  /** @minLength 1 */
+  locale: string;
+  /** @minItems 1 */
+  scenario_ids: string[];
 }
 
 export interface ScenarioInput {

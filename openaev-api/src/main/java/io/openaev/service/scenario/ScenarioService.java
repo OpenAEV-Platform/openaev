@@ -9,7 +9,6 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.rest.scenario.utils.ScenarioUtils.handleCustomFilter;
 import static io.openaev.service.ImportService.EXPORT_ENTRY_ATTACHMENT;
 import static io.openaev.service.ImportService.EXPORT_ENTRY_SCENARIO;
-import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
 import static io.openaev.utils.StringUtils.duplicateString;
 import static io.openaev.utils.constants.Constants.ARTICLES;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
@@ -23,7 +22,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
@@ -41,15 +39,12 @@ import io.openaev.rest.exercise.exports.ExerciseFileExport;
 import io.openaev.rest.exercise.exports.VariableMixin;
 import io.openaev.rest.exercise.exports.VariableWithValueMixin;
 import io.openaev.rest.exercise.form.ExerciseSimple;
-import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
-import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
-import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
+import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.kill_chain_phase.response.KillChainPhaseOutput;
 import io.openaev.rest.scenario.export.ScenarioFileExport;
-import io.openaev.rest.scenario.form.ScenarioAndInjectorContractsInputs;
 import io.openaev.rest.scenario.form.ScenarioInput;
 import io.openaev.rest.scenario.form.ScenarioSimple;
 import io.openaev.rest.scenario.response.ScenarioOutput;
@@ -142,72 +137,52 @@ public class ScenarioService {
   private final HealthCheckUtils healthCheckUtils;
 
   private final ScenarioMapper scenarioMapper;
-  private final ObjectMapper objectMapper;
 
   @Transactional
   public Scenario createScenario(@NotNull final Scenario scenario) {
-    computeEmails(scenario);
-    this.actionMetricCollector.addScenarioCreatedCount();
-    return this.scenarioRepository.save(scenario);
+    return computeAndCreateScenario(scenario);
   }
 
   public Scenario prepareScenarioFromScenarioInput(@NotNull final ScenarioInput input) {
-      Scenario scenario = new Scenario();
-      scenario.setUpdateAttributes(input);
-      scenario.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
-      if (hasText(input.getCustomDashboard())) {
-          scenario.setCustomDashboard(
-                  this.customDashboardService.customDashboard(input.getCustomDashboard()));
-      } else {
-          scenario.setCustomDashboard(
-                  this.platformSettingsService
-                          .setting(SettingKeys.DEFAULT_SCENARIO_DASHBOARD.key())
-                          .map(Setting::getValue)
-                          .filter(v -> !v.isEmpty())
-                          .map(this.customDashboardService::customDashboard)
-                          .orElse(null));
-      }
-      return scenario;
+    Scenario scenario = new Scenario();
+    scenario.setUpdateAttributes(input);
+    scenario.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    if (hasText(input.getCustomDashboard())) {
+      scenario.setCustomDashboard(
+          this.customDashboardService.customDashboard(input.getCustomDashboard()));
+    } else {
+      scenario.setCustomDashboard(
+          this.platformSettingsService
+              .setting(SettingKeys.DEFAULT_SCENARIO_DASHBOARD.key())
+              .map(Setting::getValue)
+              .filter(v -> !v.isEmpty())
+              .map(this.customDashboardService::customDashboard)
+              .orElse(null));
+    }
+    return scenario;
   }
 
   @Transactional
-  public Scenario createScenarioWithInjectorContracts(@NotNull final ScenarioAndInjectorContractsInputs inputs) {
-      Scenario preparedScenario = prepareScenarioFromScenarioInput(inputs.getScenarioInput());
-      Scenario scenario = createScenario(preparedScenario);
+  public Scenario createScenarioWithInjectorContracts(
+      @NotNull final ScenarioInput scenarioInput,
+      @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
+      @NotBlank final String locale) {
+    Scenario preparedScenario = prepareScenarioFromScenarioInput(scenarioInput);
+    Scenario scenario = computeAndCreateScenario(preparedScenario);
+    this.injectService.createInjectsFromInjectorContractInput(
+        null, new ArrayList<>(List.of(scenario)), injectorContractSearchPaginationInput, locale);
+    return scenario;
+  }
 
-      int pageNumber = 0;
-      int totalPages = 0;
-      inputs.getInjectorContractSearchPaginationInput().setSize(100);
-      do {
-          inputs.getInjectorContractSearchPaginationInput().setPage(pageNumber);
-
-          Page<? extends InjectorContractBaseOutput> page = buildPaginationCriteriaBuilder(
-                  (spec, specCount, pageable) ->
-                          this.injectorContractService.getSinglePage(
-                                  spec, specCount, pageable, inputs.getInjectorContractSearchPaginationInput()),
-                  handleArchitectureFilter(inputs.getInjectorContractSearchPaginationInput()),
-                  InjectorContract.class);
-          totalPages = page.getTotalPages();
-
-          List<InjectInput> injectInputs = page.getContent().stream()
-              .map(injectorContractBaseOutput -> {
-                  final InjectorContractFullOutput injectorContractFullOutput = (InjectorContractFullOutput) injectorContractBaseOutput;
-                  InjectInput injectInput = new InjectInput();
-                  injectInput.setTitle(injectorContractFullOutput.getLabels().get("en"));
-                  injectInput.setDependsDuration(0l);
-                  injectInput.setInjectorContract(injectorContractFullOutput.getId());
-                  try {
-                      injectInput.setContent((ObjectNode) objectMapper.readTree(injectorContractFullOutput.getContent()));
-                  } catch (JsonProcessingException e) {
-                      throw new RuntimeException(e);
-                  }
-                  return injectInput;
-              })
-              .toList();
-          this.injectService.createAndSaveInjectList(null, scenario, injectInputs);
-      } while(++pageNumber < totalPages);
-
-      return scenario;
+  @Transactional
+  public List<Scenario> updateScenariosWithInjectorContracts(
+      @NotNull final List<String> scenarioIds,
+      @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
+      @NotBlank final String locale) {
+    List<Scenario> scenarios = this.scenarioRepository.findAllById(scenarioIds);
+    this.injectService.createInjectsFromInjectorContractInput(
+        null, scenarios, injectorContractSearchPaginationInput, locale);
+    return scenarios;
   }
 
   public void computeEmails(@NotNull Scenario scenario) {
@@ -1111,5 +1086,11 @@ public class ScenarioService {
     healthChecks.addAll(healthCheckUtils.runTeamsChecks(scenario));
 
     return healthChecks;
+  }
+
+  private Scenario computeAndCreateScenario(Scenario scenario) {
+    computeEmails(scenario);
+    this.actionMetricCollector.addScenarioCreatedCount();
+    return this.scenarioRepository.save(scenario);
   }
 }

@@ -1,32 +1,35 @@
-import {Slide} from "@mui/material";
-import ScenarioForm from "../scenarios/ScenarioForm";
+import { Slide } from '@mui/material';
+import { useNavigate } from 'react-router';
+
+import type { LoggedHelper } from '../../../actions/helper';
+import { addScenarioWithInjectorContracts } from '../../../actions/scenarios/scenario-actions';
+import { useFormatter } from '../../../components/i18n';
+import { useHelper } from '../../../store';
 import {
-  type InjectorContractActionOutput, type InjectorContractSearchPaginationInput,
-  PlatformSettings, Scenario,
-  ScenarioAndInjectorContractsInputs,
-  ScenarioInput
-} from "../../../utils/api-types";
-import {useFormatter} from "../../../components/i18n";
-import {useHelper} from "../../../store";
-import type {LoggedHelper} from "../../../actions/helper";
-import type {AxiosResponse} from "axios";
-import {addScenarioWithInjectorContracts} from "../../../actions/scenarios/scenario-actions";
-import {useNavigate} from "react-router";
+  type InjectorContractActionOutput,
+  type InjectorContractSearchPaginationInput,
+  type PlatformSettings,
+  type ScenarioAndInjectorContractsInputs,
+  type ScenarioInput,
+} from '../../../utils/api-types';
+import ScenarioForm from '../scenarios/ScenarioForm';
 
 interface Props {
   isExclusionMode: boolean;
   selectedElements: Record<string, InjectorContractActionOutput>;
   deSelectedElements: Record<string, InjectorContractActionOutput>;
   searchPaginationInput: InjectorContractSearchPaginationInput;
+  handleClose: () => void;
 }
 
-const ThreatArsenalScenarioCreationComponent = ({ isExclusionMode, selectedElements, deSelectedElements, searchPaginationInput }: Props) => {
-  const { t } = useFormatter();
+const ThreatArsenalScenarioCreationComponent = ({ isExclusionMode, selectedElements, deSelectedElements, searchPaginationInput, handleClose }: Props) => {
+  const { t, locale } = useFormatter();
   const navigate = useNavigate();
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
 
   const onSubmit = async (data: ScenarioInput) => {
     const inputs: ScenarioAndInjectorContractsInputs = {
+      locale: locale,
       scenario_input: data,
       injector_contract_search_pagination_input: {
         ...searchPaginationInput,
@@ -64,7 +67,7 @@ const ThreatArsenalScenarioCreationComponent = ({ isExclusionMode, selectedEleme
         <ScenarioForm
           onSubmit={onSubmit}
           initialValues={initialValues}
-          handleClose={() => {}}
+          handleClose={handleClose}
           isCreation
         />
       </div>

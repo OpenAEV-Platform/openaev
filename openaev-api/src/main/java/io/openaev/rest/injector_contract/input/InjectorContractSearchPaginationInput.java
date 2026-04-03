@@ -2,9 +2,8 @@ package io.openaev.rest.injector_contract.input;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.utils.pagination.SearchPaginationInput;
-import lombok.*;
-
 import java.util.List;
+import lombok.*;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
