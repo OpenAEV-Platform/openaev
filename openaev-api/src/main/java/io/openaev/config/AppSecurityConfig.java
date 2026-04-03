@@ -1,6 +1,5 @@
 package io.openaev.config;
 
-import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.config.security.SecurityService.REGISTRATION_ID;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI;
@@ -51,6 +50,9 @@ import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
 @Slf4j
 public class AppSecurityConfig {
 
+  private static final String TENANT_AGENT_URI = "/api/tenants/*/agent/**";
+  private static final String TENANT_IMPLANT_URI = "/api/tenants/*/implant/**";
+
   private final OpenAEVConfig openAEVConfig;
   private final OpenSamlConfig openSamlConfig;
   private final SecurityService securityService;
@@ -79,11 +81,11 @@ public class AppSecurityConfig {
                     .permitAll()
                     .requestMatchers("/api/agent/**")
                     .permitAll()
-                    .requestMatchers(TENANT_PREFIX + "/agent/**")
+                    .requestMatchers(TENANT_AGENT_URI)
                     .permitAll()
                     .requestMatchers("/api/implant/**")
                     .permitAll()
-                    .requestMatchers(TENANT_PREFIX + "/implant/**")
+                    .requestMatchers(TENANT_IMPLANT_URI)
                     .permitAll()
                     .requestMatchers("/api/login")
                     .permitAll()
