@@ -49,7 +49,7 @@ jobs:
             cd filigran-ci-tools/connector-manifest-writer
             poetry install
             
-            poetry run python -m connector-manifest-writer \
+            poetry run python -m connector_manifest_writer \
               ../collectors/crowdstrike/ ../collectors/microsoft-entra \
               ../collectors/microsoft-intune ../collectors/microsoft-defender \
               ../collectors/microsoft-azure ../collectors/microsoft-sentinel \
