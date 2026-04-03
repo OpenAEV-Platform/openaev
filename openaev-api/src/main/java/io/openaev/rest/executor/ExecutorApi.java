@@ -38,6 +38,7 @@ import java.io.InputStream;
 import java.time.Instant;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -45,9 +46,11 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequiredArgsConstructor
+@Slf4j
 public class ExecutorApi extends RestBehavior {
 
   public static final String EXECUTOR_URI = "/api/executors";
@@ -99,7 +102,15 @@ public class ExecutorApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
   public Executor getExecutor(@PathVariable String executorId) {
-    return executorService.executor(executorId);
+    try {
+      return executorService.executor(executorId);
+    } catch (ElementNotFoundException e) {
+      log.warn(
+          "Executor with id {} not found - This may be because the executor has never been started yet",
+          executorId);
+      throw new ResponseStatusException(
+          org.springframework.http.HttpStatus.NOT_FOUND, "Executor not found");
+    }
   }
 
   @GetMapping({
