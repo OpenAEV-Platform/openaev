@@ -18,8 +18,8 @@ import ExecutorSelector from './ExecutorSelector';
 import InstructionSelector from './InstructionSelector';
 import PlatformSelector from './PlatformSelector';
 
-const OPENAEV_CALDERA = 'openaev_caldera_executor';
 const OPENAEV_AGENT = 'openaev_agent';
+const OPENAEV_CALDERA = 'openaev_caldera_executor';
 const OPENAEV_CROWDSTRIKE = 'openaev_crowdstrike_executor';
 const OPENAEV_TANIUM = 'openaev_tanium';
 const OPENAEV_SENTINELONE = 'openaev_sentinelone_executor';
@@ -56,9 +56,9 @@ const Executors = () => {
   };
 
   const sortedExecutors = executors.sort((a: ExecutorOutput, b: ExecutorOutput) => order[a.executor_type as keyof typeof order] - order[b.executor_type as keyof typeof order]);
-  const needInformationStepper = (selectedExecutor?.executor_type === OPENAEV_AGENT || selectedExecutor?.executor_type === OPENAEV_CALDERA);
+  const needInformationStepper = selectedExecutor?.executor_type === OPENAEV_AGENT;
   const showEEChip = (executor: ExecutorOutput) => !settings.platform_license?.license_is_validated
-    && (executor.executor_type === OPENAEV_TANIUM || executor.executor_type === OPENAEV_CROWDSTRIKE
+    && (executor.executor_type === OPENAEV_CALDERA || executor.executor_type === OPENAEV_TANIUM || executor.executor_type === OPENAEV_CROWDSTRIKE
       || executor.executor_type === OPENAEV_SENTINELONE || executor.executor_type === OPENAEV_PALOALTOCORTEX);
 
   // -- Manage Dialogs
@@ -80,7 +80,7 @@ const Executors = () => {
         }]}
       />
       <Alert variant="outlined" severity="info" style={{ marginBottom: theme.spacing(2) }}>
-        {`${t('Here, you can download and install simulation agents available in your executors. Depending on the integrations you have enabled, some of them may be unavailable. Each agent can be installed on Windows, Linux and MacOS using x86_64 or arm64 architectures.')} ${t('Learn more information about how to setup simulation agents')} `}
+        {`${t('Here, you can manage the simulation agents available in your executors. For the OpenAEV Agent, installation scripts are directly available. For other executors, you will be redirected to the relevant documentation.')} ${t('Depending on the integrations you have enabled, some executors may be unavailable.')} ${t('Learn more information about how to setup simulation agents')} `}
         <a
           href="https://docs.openaev.io/latest/deployment/ecosystem/executors/?h=agent#deploy-agents"
           target="_blank"

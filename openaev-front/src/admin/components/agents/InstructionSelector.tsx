@@ -1,14 +1,13 @@
 import { ContentCopyOutlined, TerminalOutlined } from '@mui/icons-material';
-import { Alert, Button, FormControl, FormControlLabel, InputLabel, MenuItem, Radio, RadioGroup, Select, Typography } from '@mui/material';
+import { Alert, Button, FormControlLabel, Radio, RadioGroup } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Bash, DownloadCircleOutline, Powershell } from 'mdi-material-ui';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
-import { fetchCalderaSettings } from '../../../actions/settings/settings-action';
 import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
 import useTabs from '../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../components/i18n';
-import { type BasePayload, type CalderaSettings, type ExecutorOutput, type Token } from '../../../utils/api-types';
+import { type ExecutorOutput, type Token } from '../../../utils/api-types';
 import useAuth from '../../../utils/hooks/useAuth';
 import { copyToClipboard, download } from '../../../utils/utils';
 
@@ -16,8 +15,6 @@ const USER = 'user';
 const WINDOWS = 'Windows';
 const MACOS = 'MacOS';
 const LINUX = 'Linux';
-const x86_64 = 'x86_64';
-const OPENAEV_CALDERA = 'openaev_caldera_executor';
 const OPENAEV_AGENT = 'openaev_agent';
 
 interface InstructionSelectorProps {
@@ -30,18 +27,6 @@ const InstructionSelector: React.FC<InstructionSelectorProps> = ({ userToken, pl
   const theme = useTheme();
   const { t } = useFormatter();
   const [selectedOption, setSelectedOption] = useState(USER);
-  const [agentFolder] = useState<null | string>(null);
-  const [arch, setArch] = useState<string>(x86_64);
-  const [calderaSettings, setCalderaSettings] = useState<null | CalderaSettings[]>(null);
-
-  // Fetching data
-  useEffect(() => {
-    fetchCalderaSettings().then(({ data }) => {
-      setCalderaSettings(data);
-    });
-  }, []);
-
-  const executorCalderaPublicUrl = calderaSettings !== null && Array.isArray(calderaSettings) && calderaSettings.length > 0 ? calderaSettings[0].executor_caldera_public_url : '';
 
   const tabEntries: TabsEntry[] = [{
     key: 'Standard Installation',
@@ -62,88 +47,6 @@ const InstructionSelector: React.FC<InstructionSelectorProps> = ({ userToken, pl
     if (currentTab === 'Standard Installation') return `${baseUrl}/session-user/${userToken?.token_value}`;
     if (currentTab === 'Advanced Installation' && selectedOption === USER) return `${baseUrl}/service-user/${userToken?.token_value}`;
     return `${baseUrl}/service/${userToken?.token_value}`;
-  };
-  const buildCalderaInstallerScript = () => {
-    switch (platform) {
-      case WINDOWS:
-        return {
-          icon: <Powershell />,
-          label: 'powershell',
-          defaultAgentFolder: 'C:\\Program Files (x86)\\Filigran\\OAEV Caldera',
-          exclusions: `${agentFolder ?? 'C:\\Program Files (x86)\\Filigran\\OAEV Caldera'}
-${agentFolder ?? 'C:\\Program Files (x86)\\Filigran\\OAEV Caldera'}\\oaev-agent-caldera.exe
-MD5: 68c1795fb45cb9b522d6cf48443fdc37
-SHA1: 5f87d06f818ff8cba9e11e8cd1c6f9d990eca0f8
-SHA256: 6b180913acb8cdac3fb8d3154a2f6a0bed13c056a477f4f94c4679414ec13b9f
-SHA512: 6185b7253eedfa6253f26cd85c4bcfaf05195219b6ab06b43d9b07279d7d0cdd3c957bd58d36058d7cde405bc8c5084f3ac060a6080bfc18a843738d3bee87fd`,
-          displayedCode: `$server="${executorCalderaPublicUrl}";
-$url="${settings.platform_base_url}/api/implant/caldera/windows/${arch}";
-$wc=New-Object System.Net.WebClient;
-$data=$wc.DownloadData($url);
-get-process | ? {$_.modules.filename -like '${agentFolder ?? 'C:\\Program Files (x86)\\Filigran\\OAEV Caldera'}\\oaev-agent-caldera.exe'} | stop-process -f;
-rm -force '${agentFolder ?? 'C:\\Program Files (x86)\\Filigran\\OAEV Caldera'}\\oaev-agent-caldera.exe' -ea ignore;
-New-Item -ItemType Directory -Force -Path '${agentFolder ?? 'C:\\Program Files (x86)\\Filigran\\OAEV Caldera'}' | Out-Null;
-[io.file]::WriteAllBytes('${agentFolder ?? 'C:\\Program Files (x86)\\Filigran\\OAEV Caldera'}\\oaev-agent-caldera.exe',$data) | Out-Null;
-$data=$wc.DownloadData($url + "/ps1");
-rm -force 'C:\\Program Files (x86)\\Filigran\\OAEV Caldera\\oaev-agent-caldera.ps1' -ea ignore;
-[io.file]::WriteAllBytes('C:\\Program Files (x86)\\Filigran\\OAEV Caldera\\oaev-agent-caldera.ps1',$data) | Out-Null;
-New-NetFirewallRule -DisplayName "Allow OpenAEV" -Direction Inbound -Program '${agentFolder ?? 'C:\\Program Files (x86)\\Filigran\\OAEV Caldera'}\\oaev-agent-caldera.exe' -Action Allow | Out-Null;
-New-NetFirewallRule -DisplayName "Allow OpenAEV" -Direction Outbound -Program '${agentFolder ?? 'C:\\Program Files (x86)\\Filigran\\OAEV Caldera'}\\oaev-agent-caldera.exe' -Action Allow | Out-Null;
-Start-Process -FilePath '${agentFolder ?? 'C:\\Program Files (x86)\\Filigran\\OAEV Caldera'}\\oaev-agent-caldera.exe' -ArgumentList "-server $server -group red" -WindowStyle hidden;
-schtasks /create /tn OpenAEVCaldera /sc onlogon /rl highest /tr "Powershell -ExecutionPolicy Bypass -NoProfile -WindowStyle hidden -File 'C:\\Program Files (x86)\\Filigran\\OAEV Caldera\\oaev-agent-caldera.ps1' $server";`,
-          code: `$server="${executorCalderaPublicUrl}";$url="${settings.platform_base_url}/api/implant/caldera/windows/${arch}";$wc=New-Object System.Net.WebClient;$data=$wc.DownloadData($url);get-process | ? {$_.modules.filename -like '${agentFolder ?? 'C:\\Program Files (x86)\\Filigran\\OAEV Caldera'}\\oaev-agent-caldera.exe'} | stop-process -f;rm -force '${agentFolder ?? 'C:\\Program Files (x86)\\Filigran\\OAEV Caldera'}\\oaev-agent-caldera.exe' -ea ignore;New-Item -ItemType Directory -Force -Path '${agentFolder ?? 'C:\\Program Files (x86)\\Filigran\\OAEV Caldera'}' | Out-Null;[io.file]::WriteAllBytes('${agentFolder ?? 'C:\\Program Files (x86)\\Filigran\\OAEV Caldera'}\\oaev-agent-caldera.exe',$data) | Out-Null;$data=$wc.DownloadData($url + "/ps1");rm -force 'C:\\Program Files (x86)\\Filigran\\OAEV Caldera\\oaev-agent-caldera.ps1' -ea ignore;[io.file]::WriteAllBytes('C:\\Program Files (x86)\\Filigran\\OAEV Caldera\\oaev-agent-caldera.ps1',$data) | Out-Null;New-NetFirewallRule -DisplayName "Allow OpenAEV" -Direction Inbound -Program '${agentFolder ?? 'C:\\Program Files (x86)\\Filigran\\OAEV Caldera'}\\oaev-agent-caldera.exe' -Action Allow | Out-Null;New-NetFirewallRule -DisplayName "Allow OpenAEV" -Direction Outbound -Program '${agentFolder ?? 'C:\\Program Files (x86)\\Filigran\\OAEV Caldera'}\\oaev-agent-caldera.exe' -Action Allow | Out-Null;Start-Process -FilePath '${agentFolder ?? 'C:\\Program Files (x86)\\Filigran\\OAEV Caldera'}\\oaev-agent-caldera.exe' -ArgumentList "-server $server -group red" -WindowStyle hidden;schtasks /create /tn OpenAEVCaldera /sc onlogon /rl highest /tr "Powershell -ExecutionPolicy Bypass -NoProfile -WindowStyle hidden -File 'C:\\Program Files (x86)\\Filigran\\OAEV Caldera\\oaev-agent-caldera.ps1' $server";`,
-        };
-      case LINUX:
-        return {
-          icon: <Bash />,
-          label: 'sh',
-          defaultAgentFolder: '/opt/openaev-caldera-agent',
-          exclusions: `${agentFolder ?? '/opt/openaev-caldera-agent'}
-${agentFolder ?? '/opt/openaev-caldera-agent/openaev-caldera-agent'}
-MD5: d604c952bb3c6d96621594d39992c499
-SHA1: 5b6087f87f5f2ae129f888bba799611836eb39a2
-SHA256: 98d1e64445bbef46a36d4724699a386646de78881a1b6f2b346122c76d696c12
-SHA512: ca07dc1d0a5297e29327e483f4f35dadb254d96a16a5c33da5ad048e6965a3863d621518a2be40f1a42226c68cbf5e779382a37ee5baa7dd7c538ec73ce059e8`,
-          displayedCode: `server="${executorCalderaPublicUrl}";
-mkdir -p ${agentFolder ?? '/opt/openaev-caldera-agent'};
-curl -s -X GET ${settings.platform_base_url}/api/implant/caldera/linux/${arch} > ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent;
-chmod +x ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent;
-nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -server $server -group red &`,
-          code: `server="${executorCalderaPublicUrl}";mkdir -p ${agentFolder ?? '/opt/openaev-caldera-agent'};curl -s -X GET ${settings.platform_base_url}/api/implant/caldera/linux/${arch} > ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent;chmod +x ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent;nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -server $server -group red &`,
-        };
-      case MACOS:
-        return {
-          icon: <TerminalOutlined />,
-          label: 'sh',
-          defaultAgentFolder: '/opt/openaev',
-          exclusions: `${agentFolder ?? '/opt/openaev'}
-${agentFolder ?? '/opt/openaev/openaev-caldera-agent'}
-MD5: 1132906cc40001f51673108847b88d0c
-SHA1: 3177df4a8fa13a2e13ce63670c579955ad55df3f
-SHA256: 2b4397160925bf6b9dcca0949073fd9b2fc590ab641ea1d1c3d7d36048ed674a
-SHA512: f1c8cf0c41c7d193bcb2aad21d7a739c785902c3231e15986b2eb37f911824a802f50cb2dbb509deba1c7a2a535fb7b34cf100303c61a6087102948628133747`,
-          displayedCode: `server="${executorCalderaPublicUrl}";
-mkdir -p ${agentFolder ?? '/opt/openaev'};
-curl -s -X GET ${settings.platform_base_url}/api/implant/caldera/macos/${arch} > ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent;
-chmod +x ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent;
-nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -server $server -group red &`,
-          code: `server="${executorCalderaPublicUrl}";mkdir -p ${agentFolder ?? '/opt/openaev-caldera-agent'};curl -s -X GET ${settings.platform_base_url}/api/implant/caldera/macos/${arch} > ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent;chmod +x ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent;nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -server $server -group red &`,
-        };
-      default:
-        return {
-          icon: <Bash />,
-          label: 'sh',
-          defaultAgentFolder: '/opt/openaev-caldera-agent',
-          exclusions: `${agentFolder ?? '/opt/openaev-caldera-agent'}
-${agentFolder ?? '/opt/openaev-caldera-agent/openaev-caldera-agent'}`,
-          displayedCode: `server="${executorCalderaPublicUrl}";
-mkdir -p ${agentFolder ?? '/opt/openaev-caldera-agent'};
-curl -s -X GET ${settings.platform_base_url}/api/implant/caldera/linux/${arch} > ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent;
-chmod +x ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent;
-nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -server $server -group red &`,
-          code: `server="${executorCalderaPublicUrl}";mkdir -p ${agentFolder ?? '/opt/openaev-caldera-agent'};curl -s -X GET ${settings.platform_base_url}/api/implant/caldera/linux/${arch} > ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent;chmod +x ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent;nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -server $server -group red &`,
-        };
-    }
   };
   const buildOpenAEVInstallerScript = () => {
     const buildExtraParams = (advanced: string, standard: string, other: string) => {
@@ -197,58 +100,10 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
         };
     }
   };
-  const buildArchitectureFormControl = () => {
-    if (platform !== MACOS) return <></>;
-
-    return (
-      <FormControl style={{
-        width: '100%',
-        margin: theme.spacing(1, 0),
-      }}
-      >
-        <InputLabel id="arch">{t('Architecture')}</InputLabel>
-        <Select
-          labelId="arch"
-          value={arch}
-          onChange={(event) => {
-            const allowedArchs = ['x86_64', 'arm64', 'ALL_ARCHITECTURES'] as const;
-            if (allowedArchs.includes(event.target.value as BasePayload['payload_execution_arch'])) {
-              setArch(event.target.value as BasePayload['payload_execution_arch']);
-            } else {
-              setArch(x86_64);
-            }
-          }}
-          fullWidth
-        >
-          <MenuItem value="x86_64">{t(x86_64)}</MenuItem>
-          <MenuItem value="arm64">{t('arm64')}</MenuItem>
-        </Select>
-      </FormControl>
-    );
-  };
-  const stepOneInstallationTitle = () => {
-    return (
-      <Typography variant="h2" style={{ marginTop: theme.spacing(3) }}>
-        {t('Step 1 - Install the agent')}
-      </Typography>
-    );
-  };
-  const buildStepTwoExclusions = () => {
-    const exclusions = selectedExecutor?.executor_type === OPENAEV_CALDERA ? buildCalderaInstallerScript().exclusions : buildOpenAEVInstallerScript().exclusions;
-    return (
-      <>
-        <Typography variant="h2" style={{ marginTop: theme.spacing(2) }}>{t('Step 2 - Add antivirus exclusions')}</Typography>
-        <p>
-          {t('You will need to add proper antivirus exclusions for this agent (to ensure injects execution to work properly). It may not be necessary in the future but this is generally a good practice to ensure the agent will be always available.')}
-        </p>
-        <pre style={{ margin: theme.spacing(2, 0, 1) }}>{exclusions}</pre>
-      </>
-    );
-  };
   const buildInstallationScriptsAndActionButtons = () => {
     const fileExtension = platform === WINDOWS ? 'ps1' : 'sh';
-    const code = selectedExecutor?.executor_type === OPENAEV_CALDERA ? buildCalderaInstallerScript().code : buildOpenAEVInstallerScript().code;
-    const displayedCode = selectedExecutor?.executor_type === OPENAEV_CALDERA ? buildCalderaInstallerScript().displayedCode : buildOpenAEVInstallerScript().displayedCode;
+    const code = buildOpenAEVInstallerScript().code;
+    const displayedCode = buildOpenAEVInstallerScript().displayedCode;
 
     const buildInstallationMessage = () => {
       let message = '';
@@ -279,11 +134,6 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
     return (
       <>
         {buildInstallationMessage()}
-        {selectedExecutor?.executor_type === OPENAEV_CALDERA && platform !== WINDOWS && (
-          <Alert variant="outlined" severity="warning">
-            {t('For the moment, the following snippet or script will not add the agent at boot. Please be sure to add it in rc.local or other files to make it persistent. We will release proper packages in the near future.')}
-          </Alert>
-        )}
         <pre style={{ margin: theme.spacing(2, 0, 1) }}>{displayedCode}</pre>
         <div style={{
           display: 'flex',
@@ -308,14 +158,6 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
             {t('Download')}
           </Button>
         </div>
-      </>
-    );
-  };
-  const buildPlatformInstallationForCaldera = () => {
-    return (
-      <>
-        {platform === WINDOWS && (buildInstallationScriptsAndActionButtons())}
-        {platform !== WINDOWS && (buildInstallationScriptsAndActionButtons())}
       </>
     );
   };
@@ -395,18 +237,6 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
     <div>
       {selectedExecutor && (
         <div style={{ padding: theme.spacing(0, 2, 1) }}>
-          {/* Caldera */}
-          {selectedExecutor.executor_type === OPENAEV_CALDERA && (
-            <div>
-              {buildArchitectureFormControl()}
-              {stepOneInstallationTitle()}
-              <Alert variant="outlined" severity="info">
-                {t('Installing the agent is requiring local administrator privileges.')}
-              </Alert>
-              {buildPlatformInstallationForCaldera()}
-              {buildStepTwoExclusions()}
-            </div>
-          )}
 
           {/* OAEV */}
           {selectedExecutor && selectedExecutor.executor_type === OPENAEV_AGENT && (

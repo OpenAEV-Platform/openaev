@@ -31,6 +31,8 @@ public class CalderaExecutorIntegration extends Integration {
   public static final String CALDERA_EXECUTOR_DEFAULT_ID = "20696a66-5780-4cbe-b5c1-be43efddb3f7";
   public static final String CALDERA_EXECUTOR_TYPE = "openaev_caldera_executor";
   public static final String CALDERA_EXECUTOR_NAME = "Caldera";
+  private static final String CALDERA_EXECUTOR_DOCUMENTATION_LINK =
+      "https://docs.openaev.io/latest/deployment/ecosystem/executors/#caldera-agent";
   public static final String CALDERA_BACKGROUND_COLOR = "#8B1316";
 
   @QualifiedComponent(identifier = CALDERA_EXECUTOR_NAME)
@@ -98,7 +100,7 @@ public class CalderaExecutorIntegration extends Integration {
             executorId,
             CALDERA_EXECUTOR_TYPE,
             CALDERA_EXECUTOR_NAME,
-            null,
+            CALDERA_EXECUTOR_DOCUMENTATION_LINK,
             CALDERA_BACKGROUND_COLOR,
             getClass().getResourceAsStream("/img/icon-caldera.png"),
             getClass().getResourceAsStream("/img/banner-caldera.png"),
