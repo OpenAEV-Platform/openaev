@@ -19,9 +19,11 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
+import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.fixtures.*;
@@ -74,8 +76,12 @@ class ScenarioServiceTest extends IntegrationTest {
   @Mock private InjectService injectService;
   @Mock private TagRuleService tagRuleService;
   @Mock private UserService userService;
+  @Mock private PlatformSettingsService platformSettingsService;
+  @Mock private CustomDashboardService customDashboardService;
+  @Mock private InjectorContractService injectorContractService;
   @InjectMocks private ScenarioService scenarioService;
   @Autowired private ScenarioMapper scenarioMapper;
+  @Autowired private TagRepository tagRepository;
 
   @Mock private LicenseCacheManager licenseCacheManager;
   @Autowired private ExerciseMapper exerciseMapper;
@@ -108,8 +114,12 @@ class ScenarioServiceTest extends IntegrationTest {
             tagRuleService,
             injectService,
             userService,
+            platformSettingsService,
+            customDashboardService,
+            injectorContractService,
             injectRepository,
             lessonsCategoryRepository,
+            tagRepository,
             healthCheckUtils,
             scenarioMapper);
   }
