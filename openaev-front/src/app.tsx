@@ -5,11 +5,15 @@ import NotFound from './components/NotFound';
 import RedirectManager from './components/RedirectManager';
 import Root from './root';
 import { store } from './store';
-import { APP_BASE_PATH } from './utils/Environment';
+import { computeTenantBasename } from './utils/tenant-url-helper';
+
+// Computed once at page load — tenant UUID is extracted from the URL.
+// On tenant switch the page does a full reload, so the basename is recomputed.
+const basename = computeTenantBasename();
 
 const App = () => (
   <Provider store={store}>
-    <BrowserRouter basename={APP_BASE_PATH}>
+    <BrowserRouter key={basename} basename={basename}>
       <RedirectManager>
         <Routes>
           <Route path="/*" element={<Root />} />
