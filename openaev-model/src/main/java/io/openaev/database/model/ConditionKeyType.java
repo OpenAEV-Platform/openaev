@@ -6,70 +6,67 @@ import lombok.Getter;
 @Getter
 public enum ConditionKeyType {
   @JsonProperty("execution_time")
-  ExecutionTime("execution_time"),
+  EXECUTION_TIME("execution_time"),
 
   @JsonProperty("step_template_id")
-  StepTemplateId("step_template_id"),
+  STEP_TEMPLATE_ID("step_template_id"),
 
   @JsonProperty("text")
-  Text("text"),
+  TEXT("text"),
 
   @JsonProperty("status")
-  Status("status"),
+  STATUS("status"),
 
   @JsonProperty("number")
-  Number("number"),
+  NUMBER("number"),
 
   @JsonProperty("port")
-  Port("port"),
+  PORT("port"),
 
   @JsonProperty("portscan")
-  PortsScan("portscan"),
+  PORTSCAN("portscan"),
 
   @JsonProperty("ipv4")
-  IPv4("ipv4"),
+  IPV4("ipv4"),
 
   @JsonProperty("ipv6")
-  IPv6("ipv6"),
+  IPV6("ipv6"),
 
   @JsonProperty("credentials")
-  Credentials("credentials"),
+  CREDENTIALS("credentials"),
 
   @JsonProperty("cve")
   CVE("cve"),
 
   @JsonProperty("username")
-  Username("username"),
+  USERNAME("username"),
 
   @JsonProperty("share")
-  Share("share"),
+  SHARE("share"),
 
   @JsonProperty("admin_username")
-  AdminUsername("admin_username"),
+  ADMIN_USERNAME("admin_username"),
 
   @JsonProperty("group")
-  Group("group"),
+  GROUP("group"),
 
   @JsonProperty("computer")
-  Computer("computer"),
+  COMPUTER("computer"),
 
   @JsonProperty("password_policy")
-  PasswordPolicy("password_policy"),
+  PASSWORD_POLICY("password_policy"),
 
   @JsonProperty("delegation")
-  Delegation("delegation"),
+  DELEGATION("delegation"),
 
   @JsonProperty("sid")
-  Sid("sid"),
+  SID("sid"),
 
   @JsonProperty("vulnerability")
-  Vulnerability("vulnerability"),
-
-  @JsonProperty("account_with_password_not_required")
-  AccountWithPasswordNotRequired("account_with_password_not_required"),
+  VULNERABILITY("vulnerability"),
 
   @JsonProperty("asset")
-  Asset("asset");
+  ASSET("asset");
 
   private final String label;
 

@@ -103,10 +103,9 @@ public class InjectExecutionStep implements ActionStep {
         Step.builder()
             .data(data)
             .input(input)
-            .output_parser(outputParser)
+            .outputParser(outputParser)
             .status(StepStatus.TEMPLATE)
             .stepAction(StepActionClass.INJECT_EXECUTION)
-            .limitExecution(newStep.getLimitExecution())
             .workflow(workflow)
             .build();
     return Optional.of(stepTemplate);
@@ -445,7 +444,6 @@ public class InjectExecutionStep implements ActionStep {
     StepsCreateInput.StepInput stepCreateInput = new StepsCreateInput.StepInput();
     stepCreateInput.setDataStep(input);
     stepCreateInput.setStepAction(StepActionClass.INJECT_EXECUTION);
-    stepCreateInput.setLimitExecution(1);
 
     if (input.getDependsDuration() != 0) {
       ConditionCreateInput conditionCreateInput =
@@ -453,6 +451,7 @@ public class InjectExecutionStep implements ActionStep {
               .temporaryId("0")
               .type(ConditionType.AFTER)
               .key(null)
+              .keyType(null)
               .value(String.valueOf(input.getDependsDuration()))
               .build();
       stepCreateInput.setConditions(List.of(conditionCreateInput));

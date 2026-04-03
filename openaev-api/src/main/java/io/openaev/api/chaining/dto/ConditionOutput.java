@@ -3,16 +3,14 @@ package io.openaev.api.chaining.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.ConditionKeySubtype;
 import io.openaev.database.model.ConditionKeyType;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 /** Nested output DTO for a single condition inside an event. */
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class ConditionOutput {
   @JsonProperty("condition_id")
   private String id;

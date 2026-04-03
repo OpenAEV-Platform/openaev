@@ -765,7 +765,7 @@ public class ConditionServiceTest {
       childInput.setTemporaryId("tmp-child");
       childInput.setTemporaryIdConditionParent("tmp-root");
       childInput.setType(ConditionType.EQ);
-      childInput.setKeyType(ConditionKeyType.Status);
+      childInput.setKeyType(ConditionKeyType.STATUS);
       childInput.setValue("ok");
 
       EventInput input =
@@ -773,7 +773,6 @@ public class ConditionServiceTest {
               .name("new-name")
               .description("new-desc")
               .workflowId(workflowId)
-              .stepFrom(newRootStepFromId)
               .conditions(List.of(rootInput, childInput))
               .stepIds(List.of(linkedStepId))
               .build();

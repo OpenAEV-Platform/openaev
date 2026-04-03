@@ -205,7 +205,7 @@ public class StepServiceTest {
           });
 
       if (withStepFrom) {
-        assertNotNull(byKey.get(ConditionKeyType.Text).getStepFrom(), "Expected stepFrom on ROOT");
+        assertNotNull(byKey.get(ConditionKeyType.TEXT).getStepFrom(), "Expected stepFrom on ROOT");
       }
     }
 
@@ -214,33 +214,33 @@ public class StepServiceTest {
       return Stream.of(
           Arguments.of(
               "Single root condition",
-              List.of(mockCondition("ROOT", ConditionKeyType.Text, null, null)),
-              Map.of(ConditionKeyType.Text, Optional.empty()),
+              List.of(mockCondition("ROOT", ConditionKeyType.TEXT, null, null)),
+              Map.of(ConditionKeyType.TEXT, Optional.empty()),
               false),
           Arguments.of(
               "Root with one child",
               List.of(
-                  mockCondition("ROOT", ConditionKeyType.Text, null, null),
-                  mockCondition("CHILD", ConditionKeyType.Number, "ROOT", null)),
+                  mockCondition("ROOT", ConditionKeyType.TEXT, null, null),
+                  mockCondition("CHILD", ConditionKeyType.NUMBER, "ROOT", null)),
               Map.of(
-                  ConditionKeyType.Text, Optional.empty(),
-                  ConditionKeyType.Number, Optional.of(ConditionKeyType.Text)),
+                  ConditionKeyType.TEXT, Optional.empty(),
+                  ConditionKeyType.NUMBER, Optional.of(ConditionKeyType.TEXT)),
               false),
           Arguments.of(
               "Root with two-level tree",
               List.of(
-                  mockCondition("ROOT", ConditionKeyType.Text, null, null),
-                  mockCondition("A", ConditionKeyType.Port, "ROOT", null),
-                  mockCondition("B", ConditionKeyType.IPv4, "A", null)),
+                  mockCondition("ROOT", ConditionKeyType.TEXT, null, null),
+                  mockCondition("A", ConditionKeyType.PORT, "ROOT", null),
+                  mockCondition("B", ConditionKeyType.IPV4, "A", null)),
               Map.of(
-                  ConditionKeyType.Text, Optional.empty(),
-                  ConditionKeyType.Port, Optional.of(ConditionKeyType.Text),
-                  ConditionKeyType.IPv4, Optional.of(ConditionKeyType.Port)),
+                  ConditionKeyType.TEXT, Optional.empty(),
+                  ConditionKeyType.PORT, Optional.of(ConditionKeyType.TEXT),
+                  ConditionKeyType.IPV4, Optional.of(ConditionKeyType.PORT)),
               false),
           Arguments.of(
               "Root with stepFrom",
-              List.of(mockCondition("ROOT", ConditionKeyType.Text, null, "FROM")),
-              Map.of(ConditionKeyType.Text, Optional.empty()),
+              List.of(mockCondition("ROOT", ConditionKeyType.TEXT, null, "FROM")),
+              Map.of(ConditionKeyType.TEXT, Optional.empty()),
               true));
     }
   }
@@ -259,12 +259,12 @@ public class StepServiceTest {
               StepActionClass.INJECT_EXECUTION,
               List.of(
                   ConditionCreateInput.builder()
-                      .keyType(ConditionKeyType.Text)
+                      .keyType(ConditionKeyType.TEXT)
                       .temporaryIdConditionParent(null)
                       .stepFrom(null)
                       .build(),
                   ConditionCreateInput.builder()
-                      .keyType(ConditionKeyType.Number)
+                      .keyType(ConditionKeyType.NUMBER)
                       .temporaryIdConditionParent(null)
                       .stepFrom(null)
                       .build()));
@@ -289,7 +289,7 @@ public class StepServiceTest {
       // Arrange
       ConditionCreateInput conditionCreateInput =
           ConditionCreateInput.builder()
-              .keyType(ConditionKeyType.Text)
+              .keyType(ConditionKeyType.TEXT)
               .temporaryIdConditionParent("X")
               .build();
       StepInput stepInput =
@@ -1571,7 +1571,7 @@ public class StepServiceTest {
       candidate.setLimitExecution(5);
       candidate.setData("{\"updated\":true}");
       candidate.setInput("{}");
-      candidate.setOutput_parser("{}");
+      candidate.setOutputParser("{}");
 
       when(stepInput.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
       when(stepInput.getConditions()).thenReturn(Collections.emptyList());

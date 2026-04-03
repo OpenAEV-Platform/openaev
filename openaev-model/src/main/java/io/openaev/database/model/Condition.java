@@ -8,12 +8,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -27,6 +22,7 @@ import org.hibernate.type.SqlTypes;
 @NoArgsConstructor
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@Builder
 public class Condition implements Base {
 
   @Id
@@ -41,6 +37,10 @@ public class Condition implements Base {
   @Column(name = "condition_workflow_id")
   @Schema(description = "Workflow id related to the condition")
   private String workflowId;
+
+  @Column(name = "condition_key")
+  @Schema(description = "Condition key")
+  private String key;
 
   @Column(name = "condition_key_type")
   @Enumerated(EnumType.STRING)

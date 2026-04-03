@@ -294,7 +294,14 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
   }
 
   /**
-   * Check that the condition for a step is fulfilled
+   * Creates the condition tree for a step template from the given input.
+   *
+   * <p>For each condition in the input, resolves the {@code stepFrom} reference — this is
+   * specifically used for {@link ConditionType#DEPEND_ON DEPEND_ON} conditions, where {@code
+   * stepFrom} identifies the <em>source</em> step whose output must be available before the current
+   * step can execute. The resolved {@link Step} is stored as a direct FK ({@code step_from_id}) on
+   * the {@link Condition} entity, while the <em>target</em> step (the one guarded by the condition)
+   * is linked via the {@code conditions_steps} join table.
    *
    * @param stepInput input that is going to be used for the step
    * @param step step to check
@@ -491,7 +498,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     existing.setLimitExecution(updatedCandidate.getLimitExecution());
     existing.setData(updatedCandidate.getData());
     existing.setInput(updatedCandidate.getInput());
-    existing.setOutput_parser(updatedCandidate.getOutput_parser());
+    existing.setOutputParser(updatedCandidate.getOutputParser());
     Step updated = saveStep(existing);
 
     // Remove all existing conditions (full replace strategy)
@@ -618,9 +625,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
   public static String getField(String jsonString, String path) {
     Map<String, Object> fieldsAndValue = getFields(jsonString, path);
     Object value = fieldsAndValue.get(path);
-    if (value == null) {
-      return null;
-    } else if (value instanceof JsonNull) {
+    if (value instanceof JsonNull) {
       return null;
     } else if (value instanceof JsonPrimitive) {
       return ((JsonPrimitive) value).getAsString();

@@ -1,8 +1,8 @@
 package io.openaev.api.chaining.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.api.chaining.DataInputStep;
 import io.openaev.database.model.StepActionClass;
-import io.openaev.rest.inject.form.InjectInput;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -25,9 +25,6 @@ public class StepInput {
   @NotNull
   private StepActionClass stepAction;
 
-  @JsonProperty("step_limit_execution")
-  private int limitExecution;
-
   @JsonProperty("step_conditions")
   @Valid
   private List<ConditionCreateInput> conditions;
@@ -37,5 +34,5 @@ public class StepInput {
   private List<String> conditionIds;
 
   @JsonProperty("step_data_step")
-  private InjectInput dataStep;
+  private DataInputStep dataStep;
 }

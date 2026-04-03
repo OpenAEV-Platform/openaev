@@ -6,12 +6,9 @@ import io.openaev.database.model.ConditionType;
 import java.util.Objects;
 
 public class ConditionFactory {
-  private static Condition build(ConditionType type, ConditionKeyType keyType, String value) {
-    Condition condition = new Condition();
-    condition.setType(type);
-    condition.setKeyType(keyType);
-    condition.setValue(value);
-    return condition;
+  private static Condition build(
+      String key, ConditionType type, ConditionKeyType keyType, String value) {
+    return Condition.builder().key(key).type(type).keyType(keyType).value(value).build();
   }
 
   public static Condition executionOf(Condition source, Object goal) {
@@ -19,8 +16,9 @@ public class ConditionFactory {
     Objects.requireNonNull(source.getType(), "source condition type must not be null");
 
     return build(
-        ConditionType.DEPEND_ON,
-        ConditionKeyType.ExecutionTime,
+        source.getKey(),
+        source.getType(),
+        ConditionKeyType.EXECUTION_TIME,
         goal != null ? goal.toString() : null);
   }
 
@@ -28,6 +26,7 @@ public class ConditionFactory {
     if (stepTemplateId == null || stepTemplateId.isBlank()) {
       throw new IllegalArgumentException("stepTemplateId must not be null or blank");
     }
-    return build(ConditionType.DEPEND_ON, ConditionKeyType.StepTemplateId, stepTemplateId);
+    return build(
+        stepTemplateId, ConditionType.DEPEND_ON, ConditionKeyType.STEP_TEMPLATE_ID, stepTemplateId);
   }
 }

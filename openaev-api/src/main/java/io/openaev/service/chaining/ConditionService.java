@@ -33,7 +33,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class ConditionService {
   private final ConditionRepository conditionRepository;
   private final StepRepository stepRepository;
-  private final QueueChainingService queueChainingService;
   private final StepDelayQueueService stepDelayQueueService;
 
   // -- CONDITION TREE CREATE --
@@ -52,17 +51,15 @@ public class ConditionService {
 
     return createConditionTree(
         input.getConditions(),
-        rootInput -> {
-          Condition root = new Condition();
-          root.setWorkflowId(input.getWorkflowId());
-          root.setName(input.getName());
-          root.setDescription(input.getDescription());
-          root.setType(rootInput.getType());
-          root.setKeyType(rootInput.getKeyType());
-          root.setKeySubtype(rootInput.getKeySubtype());
-          root.setStepFrom(resolveStepFrom(input.getStepFrom()));
-          return root;
-        },
+        rootInput ->
+            Condition.builder()
+                .workflowId(input.getWorkflowId())
+                .name(input.getName())
+                .description(input.getDescription())
+                .type(rootInput.getType())
+                .keyType(rootInput.getKeyType())
+                .keySubtype(rootInput.getKeySubtype())
+                .build(),
         (childInput, parent) -> {
           Condition child =
               ConditionMapper.toCondition(
@@ -220,7 +217,6 @@ public class ConditionService {
     root.setType(rootInput.getType());
     root.setKeyType(rootInput.getKeyType());
     root.setKeySubtype(rootInput.getKeySubtype());
-    root.setStepFrom(resolveStepFrom(input.getStepFrom()));
 
     // Clear existing relationships (children and linked steps)
     // This enables a full rebuild strategy (replace instead of partial update)
@@ -616,15 +612,17 @@ public class ConditionService {
           continue;
         }
         // Create child condition entity
-        Condition child = new Condition();
-        child.setWorkflowId(workflowId);
-        child.setKeyType(ci.getKeyType());
-        child.setKeySubtype(ci.getKeySubtype());
-        child.setType(ci.getType());
-        child.setValue(ci.getValue());
-        child.setStepFrom(resolveStepFrom(ci.getStepFrom()));
-        // Link a child to its parent
-        child.setConditionParent(parent);
+        Condition child =
+            Condition.builder()
+                .workflowId(workflowId)
+                .keyType(ci.getKeyType())
+                .keySubtype(ci.getKeySubtype())
+                .type(ci.getType())
+                .value(ci.getValue())
+                .stepFrom(resolveStepFrom(ci.getStepFrom()))
+                .conditionParent(parent) // Link a child to its parent
+                .build();
+
         Condition persistedChild = conditionRepository.save(child);
 
         // Keep the in-memory graph complete for response mapping.
@@ -659,9 +657,10 @@ public class ConditionService {
 
   public void linkToStep(Condition condition, Step step, boolean isRoot) {
     Objects.requireNonNull(condition, "condition must not be null");
+    Objects.requireNonNull(step, "step must not be null");
 
-    if (step == null) {
-      return;
+    if (step.getId() == null) {
+      throw new IllegalArgumentException("step id must not be null");
     }
 
     List<ConditionStep> conditionSteps = condition.getConditionSteps();
@@ -677,6 +676,8 @@ public class ConditionService {
             .orElse(null);
 
     if (existingLink != null) {
+      // A link between this condition and step already exists.
+      // We update the root flag instead of creating a duplicate link.
       existingLink.setRoot(isRoot);
       return;
     }

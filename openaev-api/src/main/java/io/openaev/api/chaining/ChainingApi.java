@@ -71,9 +71,7 @@ public class ChainingApi extends RestBehavior {
         conditionService.findAll().stream().map(ConditionMapper::toOutput).toList();
 
     List<StepOutput> steps =
-        stepService.findAllStepTemplates().stream()
-            .map(io.openaev.api.chaining.dto.StepMapper::toOutput)
-            .toList();
+        stepService.findAllStepTemplates().stream().map(StepMapper::toOutput).toList();
 
     return new ChainingOutput(conditions, steps);
   }

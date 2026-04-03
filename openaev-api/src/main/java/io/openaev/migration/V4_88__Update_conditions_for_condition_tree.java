@@ -20,27 +20,7 @@ public class V4_88__Update_conditions_for_condition_tree extends BaseJavaMigrati
       stmt.execute("ALTER TABLE conditions ADD COLUMN IF NOT EXISTS condition_description TEXT;");
       stmt.execute(
           "ALTER TABLE conditions ADD COLUMN IF NOT EXISTS condition_key_subtype VARCHAR(255);");
-      stmt.execute(
-          """
-              DO $$
-              BEGIN
-                IF EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_schema = 'public'
-                    AND table_name = 'conditions'
-                    AND column_name = 'condition_key'
-                ) THEN
-                  UPDATE conditions
-                  SET condition_key_type = condition_key
-                  WHERE condition_key_type IS NULL
-                    AND condition_key IS NOT NULL;
-
-                  ALTER TABLE conditions DROP COLUMN condition_key;
-                END IF;
-              END $$;
-              """);
-      stmt.execute("ALTER TABLE conditions DROP COLUMN IF EXISTS condition_key");
+      stmt.execute("ALTER TABLE conditions ADD COLUMN IF NOT EXISTS condition_key VARCHAR(255);");
 
       // Legacy compatibility: if old conditions.step_id still exists, it must be nullable.
       stmt.execute(
