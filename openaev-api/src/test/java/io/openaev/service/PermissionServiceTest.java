@@ -354,6 +354,9 @@ public class PermissionServiceTest extends IntegrationTest {
     assertFalse(
         permissionService.hasPermission(
             user, Optional.empty(), RESOURCE_ID, ResourceType.STEP, Action.READ));
+    assertFalse(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.CONDITION, Action.READ));
   }
 
   @Test
@@ -365,6 +368,9 @@ public class PermissionServiceTest extends IntegrationTest {
     assertFalse(
         permissionService.hasPermission(
             user, Optional.empty(), RESOURCE_ID, ResourceType.STEP, Action.WRITE));
+    assertFalse(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.CONDITION, Action.WRITE));
   }
 
   @Test
@@ -376,6 +382,9 @@ public class PermissionServiceTest extends IntegrationTest {
     assertFalse(
         permissionService.hasPermission(
             user, Optional.empty(), RESOURCE_ID, ResourceType.STEP, Action.DELETE));
+    assertFalse(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.CONDITION, Action.DELETE));
   }
 
   @Test
@@ -388,6 +397,9 @@ public class PermissionServiceTest extends IntegrationTest {
     assertTrue(
         permissionService.hasPermission(
             user, Optional.empty(), RESOURCE_ID, ResourceType.STEP, Action.READ));
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.CONDITION, Action.READ));
   }
 
   @Test
@@ -400,6 +412,9 @@ public class PermissionServiceTest extends IntegrationTest {
     assertTrue(
         permissionService.hasPermission(
             user, Optional.empty(), RESOURCE_ID, ResourceType.STEP, Action.WRITE));
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.CONDITION, Action.WRITE));
   }
 
   @Test
@@ -412,6 +427,9 @@ public class PermissionServiceTest extends IntegrationTest {
     assertTrue(
         permissionService.hasPermission(
             user, Optional.empty(), RESOURCE_ID, ResourceType.STEP, Action.DELETE));
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.CONDITION, Action.DELETE));
   }
 
   private User getUser(final String id, final boolean isAdmin) {
