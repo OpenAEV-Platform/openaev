@@ -10,6 +10,7 @@ import static io.openaev.utils.fixtures.InjectorFixture.createDefaultInjector;
 import static io.openaev.utils.fixtures.InjectorFixture.createInjector;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -22,7 +23,13 @@ import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.rest.injector.form.InjectorCreateInput;
 import io.openaev.rest.injector_contract.form.InjectorContractInput;
+import io.openaev.utils.AgentUtils;
+import io.openaev.utils.HashUtils;
+import io.openaev.utils.fixtures.AgentFixture;
+import io.openaev.utils.fixtures.EndpointFixture;
+import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import io.openaev.utils.fixtures.composers.ConnectorInstanceComposer;
 import io.openaev.utils.fixtures.composers.ConnectorInstanceConfigurationComposer;
@@ -33,10 +40,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
@@ -53,6 +60,9 @@ public class InjectorApiTest extends IntegrationTest {
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private EntityManager em;
 
+  @Autowired private InjectComposer injectComposer;
+  @Autowired private EndpointComposer endpointComposer;
+  @Autowired private AgentComposer agentComposer;
   @Autowired private CatalogConnectorComposer catalogConnectorComposer;
   @Autowired private ConnectorInstanceComposer connectorInstanceComposer;
   @Autowired private ConnectorInstanceConfigurationComposer connectorInstanceConfigurationComposer;
@@ -478,6 +488,92 @@ public class InjectorApiTest extends IntegrationTest {
       assertThatJson(secondResponse).inPath("listen").isString().contains("_injector_instance-2");
 
       assertThat(firstResponse).isNotEqualTo(secondResponse);
+    }
+  }
+
+  @Nested
+  @DisplayName("Implant downloads")
+  public class ImplantDownloadsTest {
+    private static Stream<Arguments> platformArchCombinationsImplantSuccess() {
+      return Stream.of(
+          Arguments.of(Endpoint.PLATFORM_TYPE.MacOS.name(), Endpoint.PLATFORM_ARCH.arm64.name()),
+          Arguments.of(Endpoint.PLATFORM_TYPE.MacOS.name(), Endpoint.PLATFORM_ARCH.x86_64.name()),
+          Arguments.of(Endpoint.PLATFORM_TYPE.Linux.name(), Endpoint.PLATFORM_ARCH.arm64.name()),
+          Arguments.of(Endpoint.PLATFORM_TYPE.Linux.name(), Endpoint.PLATFORM_ARCH.x86_64.name()),
+          Arguments.of(Endpoint.PLATFORM_TYPE.Windows.name(), Endpoint.PLATFORM_ARCH.arm64.name()),
+          Arguments.of(Endpoint.PLATFORM_TYPE.Windows.name(), Endpoint.PLATFORM_ARCH.x86_64.name()),
+          Arguments.of(Endpoint.PLATFORM_TYPE.MacOS.name(), "Aarch64"),
+          Arguments.of(Endpoint.PLATFORM_TYPE.Linux.name(), "Aarch64"),
+          Arguments.of(Endpoint.PLATFORM_TYPE.Windows.name(), "Aarch64"));
+    }
+
+    @ParameterizedTest(name = "GET implant for platform \"{0}\" arch \"{1}\" should succeed")
+    @MethodSource("platformArchCombinationsImplantSuccess")
+    public void given_platformAndArch_then_downloadExecutableSucceeds(String platform, String arch)
+        throws Exception {
+      InjectComposer.Composer injectWrapper =
+          injectComposer.forInject(InjectFixture.getDefaultInject()).persist();
+      AgentComposer.Composer agentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+      endpointComposer
+          .forEndpoint(EndpointFixture.createEndpoint())
+          .withAgent(agentWrapper)
+          .persist();
+      byte[] agentBytes =
+          mvc.perform(
+                  get("/api/implant/openaev/%s/%s".formatted(platform, arch))
+                      .contentType(MediaType.APPLICATION_OCTET_STREAM_VALUE)
+                      .accept(MediaType.APPLICATION_OCTET_STREAM_VALUE)
+                      .queryParam("injectId", injectWrapper.get().getId())
+                      .queryParam("agentId", agentWrapper.get().getId()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsByteArray();
+
+      String baseFilename = "openaev-implant-Testing";
+      String filename =
+          switch (platform) {
+            case "Windows" -> "%s.exe".formatted(baseFilename);
+            default -> baseFilename;
+          };
+      assertThat(HashUtils.getSha256HexDigest(agentBytes))
+          .isEqualTo(
+              HashUtils.getSha256HexDigest(
+                  "/implants/openaev-implant/%s/%s/%s"
+                      .formatted(
+                          platform.toLowerCase(),
+                          AgentUtils.getCanonicalArchitectureString(arch.toLowerCase()),
+                          filename)));
+    }
+
+    private static Stream<Arguments> platformArchCombinationsImplantFailure() {
+      return Stream.of(
+          Arguments.of(Endpoint.PLATFORM_TYPE.MacOS.name(), "not an arch"),
+          Arguments.of(Endpoint.PLATFORM_TYPE.Linux.name(), "not an arch"),
+          Arguments.of(Endpoint.PLATFORM_TYPE.Windows.name(), "not an arch"));
+    }
+
+    @ParameterizedTest(name = "GET implant for platform \"{0}\" arch \"{1}\" should fail")
+    @MethodSource("platformArchCombinationsImplantFailure")
+    public void given_platformAndArch_then_downloadExecutableFails(String platform, String arch) {
+      InjectComposer.Composer injectWrapper =
+          injectComposer.forInject(InjectFixture.getDefaultInject()).persist();
+      AgentComposer.Composer agentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+      endpointComposer
+          .forEndpoint(EndpointFixture.createEndpoint())
+          .withAgent(agentWrapper)
+          .persist();
+      assertThatThrownBy(
+              () ->
+                  mvc.perform(
+                      get("/api/implant/openaev/%s/%s".formatted(platform, arch))
+                          .contentType(MediaType.APPLICATION_OCTET_STREAM_VALUE)
+                          .accept(MediaType.APPLICATION_OCTET_STREAM_VALUE)
+                          .queryParam("injectId", injectWrapper.get().getId())
+                          .queryParam("agentId", agentWrapper.get().getId())))
+          .hasCauseInstanceOf(IllegalArgumentException.class);
     }
   }
 }

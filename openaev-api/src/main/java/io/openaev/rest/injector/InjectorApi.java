@@ -20,6 +20,7 @@ import io.openaev.rest.injector.form.InjectorOutput;
 import io.openaev.rest.injector.form.InjectorUpdateInput;
 import io.openaev.rest.injector.response.InjectorRegistration;
 import io.openaev.service.InjectorService;
+import io.openaev.utils.AgentUtils;
 import io.openaev.utils.FilterUtilsJpa;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -158,45 +159,6 @@ public class InjectorApi extends RestBehavior {
     return injectorService.registerExternalInjector(input, file);
   }
 
-  @GetMapping(
-      value = "/api/implant/caldera/{platform}/{arch}",
-      produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
-  @AccessControl(skipRBAC = true)
-  public @ResponseBody byte[] getCalderaImplant(
-      @PathVariable String platform, @PathVariable String arch) throws IOException {
-    return getCalderaFile(platform, arch, null);
-  }
-
-  @GetMapping(
-      value = "/api/implant/caldera/{platform}/{arch}/{extension}",
-      produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
-  @AccessControl(skipRBAC = true)
-  public @ResponseBody byte[] getCalderaScript(
-      @PathVariable String platform, @PathVariable String arch, @PathVariable String extension)
-      throws IOException {
-    return getCalderaFile(platform, arch, extension);
-  }
-
-  private byte[] getCalderaFile(String platform, String arch, String extension) throws IOException {
-    if (!AVAILABLE_PLATFORMS.contains(platform)) {
-      throw new IllegalArgumentException("Platform invalid : " + platform);
-    }
-    if (!AVAILABLE_ARCHITECTURES.contains(arch)) {
-      throw new IllegalArgumentException("Architecture invalid : " + arch);
-    }
-
-    String resource =
-        "/implants/caldera/" + platform + "/" + arch + "/oaev-implant-caldera-" + platform;
-    if (extension != null) {
-      resource += "." + extension;
-    }
-    InputStream in = getClass().getResourceAsStream(resource);
-    if (in != null) {
-      return IOUtils.toByteArray(in);
-    }
-    return null;
-  }
-
   // Public API
   @GetMapping(
       value = "/api/implant/openaev/{platform}/{architecture}",
@@ -208,6 +170,10 @@ public class InjectorApi extends RestBehavior {
       @RequestParam(required = false) final String injectId,
       @RequestParam(required = false) final String agentId)
       throws IOException {
+    platform = Optional.ofNullable(platform).map(String::toLowerCase).orElse("");
+    architecture =
+        AgentUtils.getCanonicalArchitectureString(
+            Optional.ofNullable(architecture).map(String::toLowerCase).orElse(""));
     if (!AVAILABLE_PLATFORMS.contains(platform)) {
       this.injectStatusService.setImplantErrorTrace(
           injectId, agentId, "Unable to download the implant. Platform invalid: " + platform);

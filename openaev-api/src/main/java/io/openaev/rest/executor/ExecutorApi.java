@@ -20,6 +20,7 @@ import io.openaev.rest.executor.form.ExecutorUpdateInput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
+import io.openaev.utils.AgentUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -211,7 +212,10 @@ public class ExecutorApi extends RestBehavior {
           String architecture)
       throws IOException {
     platform = Optional.ofNullable(platform).map(String::toLowerCase).orElse("");
-    architecture = Optional.ofNullable(architecture).map(String::toLowerCase).orElse("");
+    architecture =
+        Optional.ofNullable(AgentUtils.getCanonicalArchitectureString(architecture))
+            .map(String::toLowerCase)
+            .orElse("");
 
     if (!AVAILABLE_PLATFORMS.contains(platform)) {
       throw new IllegalArgumentException("Platform invalid : " + platform);
@@ -284,7 +288,10 @@ public class ExecutorApi extends RestBehavior {
           String installationMode)
       throws IOException {
     platform = Optional.ofNullable(platform).map(String::toLowerCase).orElse("");
-    architecture = Optional.ofNullable(architecture).map(String::toLowerCase).orElse("");
+    architecture =
+        AgentUtils.getCanonicalArchitectureString(
+            Optional.ofNullable(architecture).map(String::toLowerCase).orElse(""));
+    installationMode = installationMode.toLowerCase();
 
     if (!AVAILABLE_PLATFORMS.contains(platform)) {
       throw new IllegalArgumentException("Platform invalid : " + platform);
