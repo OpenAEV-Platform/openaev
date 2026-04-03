@@ -50,18 +50,18 @@ jobs:
             poetry install
             
             poetry run python -m connector_manifest_writer \
-              ../collectors/crowdstrike/ ../collectors/microsoft-entra \
-              ../collectors/microsoft-intune ../collectors/microsoft-defender \
-              ../collectors/microsoft-azure ../collectors/microsoft-sentinel \
-              ../collectors/atomic-red-team ../collectors/tanium-threat-response \
-              ../collectors/nvd-nist-cve ../collectors/mitre-attack \
-              ../collectors/openaev ../collectors/google-workspace \
-              ../injectors/nmap ../injectors/nuclei \
-              ../injectors/http-query ../injectors/aws \
-              ../collectors/sentinelone ../collectors/splunk-es \
-              ../collectors/aws-resources \
-              ../injectors/shodan \
-              ../injectors/teams > manifest.json
+              ../../collectors/crowdstrike/ ../../collectors/microsoft-entra \
+              ../../collectors/microsoft-intune ../../collectors/microsoft-defender \
+              ../../collectors/microsoft-azure ../../collectors/microsoft-sentinel \
+              ../../collectors/atomic-red-team ../../collectors/tanium-threat-response \
+              ../../collectors/nvd-nist-cve ../../collectors/mitre-attack \
+              ../../collectors/openaev ../../collectors/google-workspace \
+              ../../injectors/nmap ../../injectors/nuclei \
+              ../../injectors/http-query ../../injectors/aws \
+              ../../collectors/sentinelone ../../collectors/splunk-es \
+              ../../collectors/aws-resources \
+              ../../injectors/shodan \
+              ../../injectors/teams > manifest.json
       - persist_to_workspace:
           root: ~/
           paths:
