@@ -30,5 +30,8 @@ public enum TargetType {
   TEAMS,
 
   /** Endpoint devices in the infrastructure. */
-  ENDPOINTS
+  ENDPOINTS,
+
+  /** Injector contracts that define the rules and parameters for inject execution. */
+  INJECTOR_CONTRACTS
 }

@@ -31,6 +31,7 @@ import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.rest.asset.endpoint.form.EndpointExportImport;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.injector_contract.form.InjectorContractExport;
 import io.openaev.rest.mapper.export.MapperExportMixins;
 import io.openaev.rest.mapper.form.*;
 import io.openaev.rest.tag.TagService;
@@ -74,6 +75,9 @@ public class MapperService {
 
   private final TagService tagService;
   private final ObjectMapper objectMapper;
+
+  private static final String CSV_EMPTY_VALUE = "-";
+  private static final String CSV_LIST_SEPARATOR = ", ";
 
   /**
    * Create and save an ImportMapper object from a MapperAddInput one
@@ -349,10 +353,45 @@ public class MapperService {
           throw new RuntimeException("Error during export CSV", e);
         }
         break;
+      case INJECTOR_CONTRACTS:
+        try {
+          List<InjectorContractExport> injectorContractsToExport =
+              getInjectorContractsToExport(input);
+          String dateNow = DateTimeFormatter.ofPattern("yyyyMMddHHmm").format(LocalDateTime.now());
+          exportCsv(
+              response,
+              "InjectorContracts" + dateNow + ".csv",
+              injectorContractsToExport,
+              InjectorContractExport.class);
+        } catch (Exception e) {
+          throw new RuntimeException("Error during export CSV", e);
+        }
+        break;
       default:
         throw new BadRequestException(
             "Target type " + targetType + " for CSV export is not supported");
     }
+  }
+
+  private static <T> void exportCsv(
+      HttpServletResponse response, String filename, List<T> exports, Class<T> exportClass)
+      throws IOException, CsvDataTypeMismatchException, CsvRequiredFieldEmptyException {
+
+    response.setContentType("text/csv");
+    response.setHeader("Content-Disposition", "attachment; filename=" + filename);
+    response.setStatus(HttpServletResponse.SC_OK);
+
+    CustomColumnPositionStrategy<T> columns = new CustomColumnPositionStrategy<>();
+    columns.setType(exportClass);
+
+    StatefulBeanToCsv<T> writer =
+        new StatefulBeanToCsvBuilder<T>(response.getWriter())
+            .withQuotechar(DEFAULT_QUOTE_CHARACTER)
+            .withSeparator(DEFAULT_SEPARATOR)
+            .withMappingStrategy(columns)
+            .build();
+
+    writer.write(exports);
   }
 
   private List<EndpointExportImport> getEndpointsToExport(SearchPaginationInput input)
@@ -382,21 +421,103 @@ public class MapperService {
     return exports;
   }
 
-  private static <T> void exportCsv(
-      HttpServletResponse response, String filename, List<T> exports, Class<T> exportClass)
-      throws IOException, CsvDataTypeMismatchException, CsvRequiredFieldEmptyException {
-    response.setContentType("text/csv");
-    response.setHeader("Content-Disposition", "attachment; filename=" + filename);
-    response.setStatus(HttpServletResponse.SC_OK);
-    CustomColumnPositionStrategy<T> columns = new CustomColumnPositionStrategy();
-    columns.setType(exportClass);
-    StatefulBeanToCsv<T> writer =
-        new StatefulBeanToCsvBuilder<T>(response.getWriter())
-            .withQuotechar(DEFAULT_QUOTE_CHARACTER)
-            .withSeparator(DEFAULT_SEPARATOR)
-            .withMappingStrategy(columns)
-            .build();
-    writer.write(exports);
+  private List<InjectorContractExport> getInjectorContractsToExport(SearchPaginationInput input) {
+    Specification<InjectorContract> filterSpecifications =
+        computeFilterGroupJpa(input.getFilterGroup());
+    filterSpecifications = filterSpecifications.and(computeSearchJpa(input.getTextSearch()));
+
+    return injectorContractRepository.findAll(filterSpecifications).stream()
+        .map(this::toInjectorContractExport)
+        .toList();
+  }
+
+  private InjectorContractExport toInjectorContractExport(InjectorContract injectorContract) {
+    Payload payload = injectorContract.getPayload();
+
+    InjectorContractExport injectorContractExport = new InjectorContractExport();
+    injectorContractExport.setType(resolveContractType(injectorContract, payload));
+    injectorContractExport.setName(resolveContractName(injectorContract));
+    injectorContractExport.setDomains(
+        joinValues(injectorContract.getDomains().stream().map(Domain::getName).sorted().toList()));
+    injectorContractExport.setPlatforms(
+        joinValues(
+            Arrays.stream(injectorContract.getPlatforms()).map(Enum::name).sorted().toList()));
+    injectorContractExport.setStatus(
+        payload != null ? toCsvValue(payload.getStatus()) : CSV_EMPTY_VALUE);
+    injectorContractExport.setTags(
+        joinValues(injectorContract.getTags().stream().map(Tag::getName).sorted().toList()));
+    injectorContractExport.setDescription(
+        payload != null ? toCsvValue(payload.getDescription()) : CSV_EMPTY_VALUE);
+    injectorContractExport.setSource(
+        payload != null ? toCsvValue(payload.getSource()) : CSV_EMPTY_VALUE);
+    injectorContractExport.setAttackPattern(
+        joinValues(
+            injectorContract.getAttackPatterns().stream()
+                .map(AttackPattern::getName)
+                .sorted()
+                .toList()));
+    injectorContractExport.setOrigin(payload == null ? "injector" : "payload");
+    injectorContractExport.setUpdatedAt(toCsvValue(injectorContract.getUpdatedAt()));
+    injectorContractExport.setCreatedAt(
+        payload != null
+            ? toCsvValue(payload.getCreatedAt())
+            : toCsvValue(injectorContract.getCreatedAt()));
+
+    return injectorContractExport;
+  }
+
+  private String resolveContractType(InjectorContract injectorContract, Payload payload) {
+    if (payload != null) {
+      if (payload.getCollectorTypeValue() != null && !payload.getCollectorTypeValue().isBlank()) {
+        return payload.getCollectorTypeValue();
+      }
+      if (payload.getType() != null && !payload.getType().isBlank()) {
+        return payload.getType();
+      }
+    }
+
+    return injectorContract.getInjector() != null
+        ? toCsvValue(injectorContract.getInjector().getType())
+        : CSV_EMPTY_VALUE;
+  }
+
+  private String resolveContractName(InjectorContract injectorContract) {
+    Map<String, String> labels = injectorContract.getLabels();
+    if (labels == null || labels.isEmpty()) {
+      return CSV_EMPTY_VALUE;
+    }
+
+    String englishLabel = labels.get("en");
+    if (englishLabel != null && !englishLabel.isBlank()) {
+      return englishLabel;
+    }
+
+    return labels.entrySet().stream()
+        .sorted(Map.Entry.comparingByKey())
+        .map(Map.Entry::getValue)
+        .filter(value -> value != null && !value.isBlank())
+        .findFirst()
+        .orElse(CSV_EMPTY_VALUE);
+  }
+
+  private String joinValues(List<String> values) {
+    String joinedValues =
+        values.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .collect(Collectors.joining(CSV_LIST_SEPARATOR));
+    return joinedValues.isBlank() ? CSV_EMPTY_VALUE : joinedValues;
+  }
+
+  private String toCsvValue(Enum<?> value) {
+    return value == null ? CSV_EMPTY_VALUE : value.name();
+  }
+
+  private String toCsvValue(Instant value) {
+    return value == null ? CSV_EMPTY_VALUE : value.toString();
+  }
+
+  private String toCsvValue(String value) {
+    return value == null || value.isBlank() ? CSV_EMPTY_VALUE : value;
   }
 
   /**

@@ -6,7 +6,7 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Stack,
+  Stack, ToggleButtonGroup,
   Tooltip,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -16,6 +16,7 @@ import { makeStyles } from 'tss-react/mui';
 import type { DomainHelper } from '../../../actions/domains/domain-helper';
 import { searchThreatArsenalActions } from '../../../actions/threat_arsenals/ThreatArsenal-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
+import ExportButton from '../../../components/common/ExportButton';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
 import SortHeadersComponentV2 from '../../../components/common/queryable/sort/SortHeadersComponentV2';
@@ -171,7 +172,9 @@ const ThreatArsenal = () => {
   ], []);
 
   // Sort threat arsenal by domains
-  const domainOptions: Domain[] = useHelper((helper: DomainHelper) => helper.getDomains());
+  const { domainOptions } = useHelper(
+    (helper: DomainHelper) => ({ domainOptions: helper.getDomains() }),
+  );
   const { iconBarOrderedDomains } = useDomainIconFilter({
     domainOptions,
     searchPaginationInput,
@@ -188,6 +191,13 @@ const ThreatArsenal = () => {
     'action_payload_status',
     'action_updated_at',
   ];
+
+  const exportProps = {
+    exportType: 'INJECTOR_CONTRACTS',
+    exportKeys: [],
+    exportData: injectorContracts,
+    searchPaginationInput,
+  };
 
   return (
     <Stack flexDirection="column">
@@ -207,6 +217,14 @@ const ThreatArsenal = () => {
         entityPrefix="threat_arsenal"
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
+        topBarButtons={(
+          <ToggleButtonGroup value="fake" exclusive>
+            <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
+            {/* <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}> */}
+
+            {/* </Can> */}
+          </ToggleButtonGroup>
+        )}
       />
       <List>
         <ListItem
