@@ -4096,7 +4096,6 @@ export interface InjectorContract {
   injector_contract_id: string;
   injector_contract_import_available?: boolean;
   injector_contract_injector_type?: string;
-  injector_contract_injector_type_name?: string;
   injector_contract_injectors?: string[];
   injector_contract_labels?: Record<string, string>;
   injector_contract_manual?: boolean;
