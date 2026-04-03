@@ -51,6 +51,9 @@ jobs:
             
             pwd
             ls
+            ls ../../
+            ls ../../collectors
+            ls ../../injectors
             
             poetry run python -m connector_manifest_writer \
               ../../collectors/crowdstrike/ ../../collectors/microsoft-entra \
