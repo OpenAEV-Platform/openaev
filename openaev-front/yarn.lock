@@ -7613,9 +7613,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"html-to-image@patch:html-to-image@npm%3A1.11.13#~/.yarn/patches/html-to-image-npm-1.11.13-86e990604f.patch":
+"html-to-image@patch:html-to-image@1.11.13#./patches/html-to-image.patch::locator=openaev-front%40workspace%3A.":
   version: 1.11.13
-  resolution: "html-to-image@patch:html-to-image@npm%3A1.11.13#~/.yarn/patches/html-to-image-npm-1.11.13-86e990604f.patch::version=1.11.13&hash=76d05f"
+  resolution: "html-to-image@patch:html-to-image@npm%3A1.11.13#./patches/html-to-image.patch::version=1.11.13&hash=76d05f&locator=openaev-front%40workspace%3A."
   checksum: 10c0/fb9d1e16a7630f74500d2194270849aa73629dde61fbb6b30b62a5da44c5e5b1a96fd1df3c8a151313e7f557489b3d1b82018d8d25465b03a0a6505919784e17
   languageName: node
   linkType: hard
@@ -10287,7 +10287,7 @@ __metadata:
     fs-extra: "npm:11.3.4"
     globals: "npm:17.4.0"
     html-react-parser: "npm:5.2.17"
-    html-to-image: "patch:html-to-image@npm%3A1.11.13#~/.yarn/patches/html-to-image-npm-1.11.13-86e990604f.patch"
+    html-to-image: "npm:1.11.13"
     http-proxy-middleware: "npm:3.0.5"
     i18n-auto-translation: "npm:2.2.3"
     immutable: "npm:5.1.4"
@@ -10304,7 +10304,7 @@ __metadata:
     qs: "npm:6.15.0"
     ramda: "npm:0.32.0"
     react: "npm:19.2.4"
-    react-apexcharts: "patch:react-apexcharts@npm%3A1.7.0#~/.yarn/patches/react-apexcharts-npm-1.7.0-334ef0640d.patch"
+    react-apexcharts: "npm:1.7.0"
     react-color: "npm:2.19.3"
     react-csv: "npm:2.2.2"
     react-dom: "npm:19.2.4"
@@ -10870,9 +10870,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-apexcharts@patch:react-apexcharts@npm%3A1.7.0#~/.yarn/patches/react-apexcharts-npm-1.7.0-334ef0640d.patch":
+"react-apexcharts@patch:react-apexcharts@1.7.0#./patches/react-apexcharts.patch::locator=openaev-front%40workspace%3A.":
   version: 1.7.0
-  resolution: "react-apexcharts@patch:react-apexcharts@npm%3A1.7.0#~/.yarn/patches/react-apexcharts-npm-1.7.0-334ef0640d.patch::version=1.7.0&hash=fc1890"
+  resolution: "react-apexcharts@patch:react-apexcharts@npm%3A1.7.0#./patches/react-apexcharts.patch::version=1.7.0&hash=fc1890&locator=openaev-front%40workspace%3A."
   dependencies:
     prop-types: "npm:^15.8.1"
   peerDependencies:
