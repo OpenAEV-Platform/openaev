@@ -46,6 +46,7 @@ import ThreatArsenalRunTestDrawer from './bulk/ThreatArsenalRunTestDrawer';
 import CreateThreatArsenalAction from './CreateThreatArsenalAction';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import ThreatArsenalInformationDrawer from './ThreatArsenalInformationDrawer';
+import ImportUploaderThreatArsenal from "./ImportUploaderThreatArsenal";
 
 const useStyles = makeStyles()(theme => ({
   itemHead: { textTransform: 'uppercase' },
@@ -220,9 +221,11 @@ const ThreatArsenal = () => {
         topBarButtons={(
           <ToggleButtonGroup value="fake" exclusive>
             <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
-            {/* <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}> */}
-
-            {/* </Can> */}
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.PAYLOADS}>
+              <ImportUploaderThreatArsenal
+                onImport={(results) => setInjectorContracts(prev => [...results, ...prev])}
+              />
+            </Can>
           </ToggleButtonGroup>
         )}
       />
