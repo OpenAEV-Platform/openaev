@@ -30,6 +30,7 @@ steps:
   - name: frontend-tests
     image: node:22.22.2-alpine
     commands:
+      - npm install -g corepack
       - cd openaev-front
       - yarn install
       - yarn build
@@ -61,7 +62,7 @@ steps:
       - apt update && apt install -y gnupg git npm
       - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
       - apt update && apt install -y nodejs
-      - npm install --global yarn
+      - npm install -g corepack
       - cd openaev-front
       - yarn install
       - yarn build
@@ -78,6 +79,7 @@ steps:
       - apt update
       - apt -y install netcat-traditional
       - while ! nc -z app-e2e 8080 ; do sleep 1 ; done
+      - npm install -g corepack
       - cd openaev-front
       - yarn install
       - yarn playwright install --with-deps chromium
@@ -94,6 +96,7 @@ steps:
       - apt update
       - apt -y install netcat-traditional
       - while ! nc -z app-e2e 8080 ; do sleep 1 ; done
+      - npm install -g corepack
       - cd openaev-front
       - yarn install
       - API_URL=http://app-e2e:8080 yarn generate-types-from-api
