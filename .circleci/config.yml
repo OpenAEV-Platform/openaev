@@ -530,17 +530,19 @@ workflows:
     jobs:
       - build_frontend:
           filters:
-            tags:
-              only: /.*/
+            branches:
+              only:
+                - ci/manifest_generator
       - generate_manifest:
           filters:
-            tags:
-              only: /.*/
+            branches:
+              only:
+                - ci/manifest_generator
       - build_platform:
           filters:
             branches:
               only:
-                - master
+                - ci/manifest_generator
           requires:
             - build_frontend
             - generate_manifest
@@ -548,7 +550,7 @@ workflows:
           filters:
             branches:
               only:
-                - master
+                - ci/manifest_generator
           requires:
             - build_frontend
             - generate_manifest
@@ -558,14 +560,14 @@ workflows:
           filters:
             branches:
               only:
-                - master
+                - ci/manifest_generator
       - package_rolling_musl:
           requires:
             - build_platform_musl
           filters:
             branches:
               only:
-                - master
+                - ci/manifest_generator
       - docker_build_platform_rolling:
           requires:
             - build_frontend
