@@ -44,8 +44,13 @@ import io.openaev.rest.exercise.exports.VariableWithValueMixin;
 import io.openaev.rest.exercise.form.ExerciseSimple;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
+import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.rest.kill_chain_phase.response.KillChainPhaseOutput;
 import io.openaev.rest.scenario.export.ScenarioFileExport;
+import io.openaev.rest.scenario.form.ScenarioAndInjectorContractsInputs;
+import io.openaev.rest.scenario.form.ScenarioInput;
 import io.openaev.rest.scenario.form.ScenarioSimple;
 import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.scenario.response.ScenarioTeamUserOutput;
@@ -134,7 +139,6 @@ public class ScenarioService {
   private final HealthCheckUtils healthCheckUtils;
 
   private final ScenarioMapper scenarioMapper;
-  private final WorkflowService workflowService;
   private final ObjectMapper objectMapper;
 
   @Transactional
@@ -144,17 +148,74 @@ public class ScenarioService {
     return this.scenarioRepository.save(scenario);
   }
 
+  public Scenario prepareScenarioFromScenarioInput(@NotNull final ScenarioInput input) {
+      Scenario scenario = new Scenario();
+      scenario.setUpdateAttributes(input);
+      scenario.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+      if (hasText(input.getCustomDashboard())) {
+          scenario.setCustomDashboard(
+                  this.customDashboardService.customDashboard(input.getCustomDashboard()));
+      } else {
+          scenario.setCustomDashboard(
+                  this.platformSettingsService
+                          .setting(SettingKeys.DEFAULT_SCENARIO_DASHBOARD.key())
+                          .map(Setting::getValue)
+                          .filter(v -> !v.isEmpty())
+                          .map(this.customDashboardService::customDashboard)
+                          .orElse(null));
+      }
+      return scenario;
+  }
+
   @Transactional
-  public Scenario createScenarioChaining(@NotNull final Scenario scenario)
-      throws ChainingException {
-    workflowService.isPreviewFeatureChainingEnable();
+  public Scenario createScenarioWithInjectorContracts(@NotNull final ScenarioAndInjectorContractsInputs inputs) {
+      Scenario preparedScenario = prepareScenarioFromScenarioInput(inputs.getScenarioInput());
+      Scenario scenario = createScenario(preparedScenario);
 
-    computeEmails(scenario);
-    this.actionMetricCollector.addScenarioCreatedCount();
-    Scenario savedScenario = this.scenarioRepository.save(scenario);
-    workflowService.creationWorkflow(savedScenario);
+      int pageNumber = 0;
+      int totalPages = 0;
+      inputs.getInjectorContractSearchPaginationInput().setSize(100);
+      do {
+          inputs.getInjectorContractSearchPaginationInput().setPage(pageNumber);
 
-    return savedScenario;
+          Page<? extends InjectorContractBaseOutput> page = buildPaginationCriteriaBuilder(
+                  (spec, specCount, pageable) ->
+                          this.injectorContractService.getSinglePage(
+                                  spec, specCount, pageable, inputs.getInjectorContractSearchPaginationInput()),
+                  handleArchitectureFilter(inputs.getInjectorContractSearchPaginationInput()),
+                  InjectorContract.class);
+          totalPages = page.getTotalPages();
+
+          List<InjectInput> injectInputs = page.getContent().stream()
+              .map(injectorContractBaseOutput -> {
+                  final InjectorContractFullOutput injectorContractFullOutput = (InjectorContractFullOutput) injectorContractBaseOutput;
+                  InjectInput injectInput = new InjectInput();
+                  injectInput.setTitle(injectorContractFullOutput.getLabels().get("en"));
+                  injectInput.setDependsDuration(0l);
+                  injectInput.setInjectorContract(injectorContractFullOutput.getId());
+                  try {
+                      injectInput.setContent((ObjectNode) objectMapper.readTree(injectorContractFullOutput.getContent()));
+                  } catch (JsonProcessingException e) {
+                      throw new RuntimeException(e);
+                  }
+                  return injectInput;
+              })
+              .toList();
+          this.injectService.createAndSaveInjectList(null, scenario, injectInputs);
+      } while(++pageNumber < totalPages);
+
+      return scenario;
+  }
+
+  @Transactional
+  public List<Scenario> updateScenariosWithInjectorContracts(
+      @NotNull final List<String> scenarioIds,
+      @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
+      @NotBlank final String locale) {
+    List<Scenario> scenarios = this.scenarioRepository.findAllById(scenarioIds);
+    this.injectService.createInjectsFromInjectorContractInput(
+        null, scenarios, injectorContractSearchPaginationInput, locale);
+    return scenarios;
   }
 
   public void computeEmails(@NotNull Scenario scenario) {
@@ -1083,5 +1144,11 @@ public class ScenarioService {
     }
 
     return healthChecks;
+  }
+
+  private Scenario computeAndCreateScenario(Scenario scenario) {
+    computeEmails(scenario);
+    this.actionMetricCollector.addScenarioCreatedCount();
+    return this.scenarioRepository.save(scenario);
   }
 }

@@ -6,7 +6,7 @@ import {
   postReferential,
   putReferential,
   simpleCall,
-  simplePostCall,
+  simplePostCall, simplePutCall,
 } from '../../utils/Action';
 import {
   type GetScenariosInput,
@@ -17,7 +17,7 @@ import {
   type LessonsInput,
   type LessonsQuestionCreateInput,
   type LessonsQuestionUpdateInput, type Pagination,
-  type Scenario, ScenarioAndInjectorContractsInputs,
+  type Scenario, type ScenarioAndInjectorContractsInputs, type ScenarioIdsAndInjectorContractsInputs,
   type ScenarioInput,
   type ScenarioRecurrenceInput,
   type ScenarioTeamPlayersEnableInput,
@@ -39,6 +39,11 @@ export const addScenario = (data: ScenarioInput) => (dispatch: Dispatch) => {
 export const addScenarioWithInjectorContracts = (data: ScenarioAndInjectorContractsInputs) => {
   const uri = `${SCENARIO_URI}/with-injector-contracts`;
   return simplePostCall(uri, data);
+};
+
+export const updateScenariosWithInjectorContracts = (data: ScenarioIdsAndInjectorContractsInputs) => {
+  const uri = `${SCENARIO_URI}/with-injector-contracts`;
+  return simplePutCall(uri, data);
 };
 
 export const fetchScenarios = () => (dispatch: Dispatch) => {

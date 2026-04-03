@@ -147,8 +147,34 @@
   },
   "resolutions": {
     "@types/react": "19.2.14",
-    "form-data": "4.0.5",
-    "html-to-image": "patch:html-to-image@1.11.13#./patches/html-to-image.patch",
-    "react-apexcharts": "patch:react-apexcharts@1.7.0#./patches/react-apexcharts.patch"
-  }
+    "form-data": "4.0.5"
+  },
+  "engines": {
+    "node": ">= 22.11.0"
+  },
+  "scripts": {
+    "auto-translation:all": "npm run generate-i18n-checker-constant && node scripts/auto-translate.js && node scripts/sort-translation-files.js",
+    "extract-translation": "node scripts/extract-i18n-keyword.js",
+    "sort-translation": "node scripts/sort-translation-files.js",
+    "i18n-checker": "npm run generate-i18n-checker-constant && node scripts/i18n-checker.js",
+    "generate-i18n-checker-constant": "tsc src/constants/Lang.ts --outDir scripts/constants --skipLibCheck --module ES6 --target ES6",
+    "start": "vite",
+    "deprecated-start": "node builder/dev/dev.js",
+    "build": "vite build",
+    "deprecated-build": "node builder/prod/prod.js",
+    "lint": "cross-env DEBUG=eslint:eslint TIMING=1 eslint --max-warnings 0 --cache --rule \"{'import/namespace': 'error', 'import/no-cycle': ['error', {'ignoreExternal': true, 'disableScc': true}]}\" .",
+    "control": "yarn audit --groups dependencies --summary",
+    "check-ts": "tsc",
+    "generate-types-from-api": "swagger-typescript-api generate --no-client --path=${API_URL:-http://localhost:8080}/api-docs --output=src/utils --name=api-types.d.ts --sort-types",
+    "test": "vitest run",
+    "test:e2e": "yarn playwright test",
+    "test:e2e:ui": "yarn playwright test --ui",
+    "test:e2e:coverage": "E2E_COVERAGE=true yarn playwright test && yarn show-report-e2e",
+    "generate-test-e2e": "yarn playwright codegen http://localhost:3001/",
+    "show-report-e2e": "start \"\" test-results/report.html && start \"\" test-results/coverage/index.html"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "packageManager": "yarn@4.12.0"
 }

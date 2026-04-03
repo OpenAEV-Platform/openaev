@@ -1,4 +1,4 @@
-import {ForwardToInbox, HelpOutlineOutlined, MovieFilterOutlined} from '@mui/icons-material';
+import { ForwardToInbox, HelpOutlineOutlined, MovieFilterOutlined } from '@mui/icons-material';
 import {
   Checkbox, IconButton,
   List,
@@ -240,7 +240,7 @@ const ThreatArsenal = () => {
         </ListItem>
         {loading
           ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
-          : threatArsenalActions.map((action) => {
+          : injectorContracts.map((contract, index) => {
               return (
                 (
                   <ListItem

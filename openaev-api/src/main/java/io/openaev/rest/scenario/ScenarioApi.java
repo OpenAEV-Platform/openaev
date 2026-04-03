@@ -104,6 +104,34 @@ public class ScenarioApi extends RestBehavior {
     return this.scenarioService.createScenario(scenario);
   }
 
+  @PostMapping(SCENARIO_URI + "/with-injector-contracts", TENANT_SCENARIO_URI + "/with-injector-contracts")
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
+  public Scenario createScenarioWithInjectorContracts(
+      @Valid @RequestBody final ScenarioAndInjectorContractsInputs inputs) {
+    if (inputs == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Input cannot be null");
+    }
+
+    return this.scenarioService.createScenarioWithInjectorContracts(
+        inputs.getScenarioInput(),
+        inputs.getInjectorContractSearchPaginationInput(),
+        inputs.getLocale());
+  }
+
+  @PutMapping(SCENARIO_URI + "/with-injector-contracts")
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
+  public List<Scenario> updateScenariosWithInjectorContracts(
+      @Valid @RequestBody final ScenarioIdsAndInjectorContractsInputs inputs) {
+    if (inputs == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Input cannot be null");
+    }
+
+    return this.scenarioService.updateScenariosWithInjectorContracts(
+        inputs.getScenarioIds(),
+        inputs.getInjectorContractSearchPaginationInput(),
+        inputs.getLocale());
+  }
+
   @PostMapping({SCENARIO_URI + "/{scenarioId}", TENANT_SCENARIO_URI + "/{scenarioId}"})
   @AccessControl(
       resourceId = "#scenarioId",

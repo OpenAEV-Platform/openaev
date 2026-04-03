@@ -493,14 +493,22 @@ public class InjectorContractService implements DependenciesManager {
       Pageable pageable,
       InjectorContractSearchPaginationInput input) {
     InjectorContractSearchPaginationInput.OutputMode safeMode =
-        (input.getOutputMode() == null) ? InjectorContractSearchPaginationInput.OutputMode.FULL : input.getOutputMode();
+        (input.getOutputMode() == null)
+            ? InjectorContractSearchPaginationInput.OutputMode.FULL
+            : input.getOutputMode();
     OutputModeConfig config = CONFIGS.get(safeMode);
 
     if (!CollectionUtils.isEmpty(input.getInjectorContractIdsToIgnore())) {
-        specification = specification.and(JpaUtils.computeNotIn(InjectorContract.ID_FIELD_NAME, input.getInjectorContractIdsToIgnore()));
+      specification =
+          specification.and(
+              JpaUtils.computeNotIn(
+                  InjectorContract.ID_FIELD_NAME, input.getInjectorContractIdsToIgnore()));
     }
     if (!CollectionUtils.isEmpty(input.getInjectorContractIdsToProcess())) {
-        specification = specification.and(JpaUtils.computeIn(InjectorContract.ID_FIELD_NAME, input.getInjectorContractIdsToProcess()));
+      specification =
+          specification.and(
+              JpaUtils.computeIn(
+                  InjectorContract.ID_FIELD_NAME, input.getInjectorContractIdsToProcess()));
     }
 
     QuerySetup qs = setupQuery(specification, specificationCount, pageable, config.selector());

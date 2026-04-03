@@ -1,22 +1,18 @@
-import { AddCircleOutlined, HelpOutlined, HighlightOffOutlined, MovieFilterOutlined } from '@mui/icons-material';
-import { Avatar, IconButton, Slide, Stack } from '@mui/material';
+import { AddCircleOutlined, MovieFilterOutlined } from '@mui/icons-material';
+import { Stack } from '@mui/material';
 import { Target } from 'mdi-material-ui';
 import { type FunctionComponent, useState } from 'react';
 
 import Drawer from '../../../components/common/Drawer';
 import { useFormatter } from '../../../components/i18n';
 import {
-  type InjectorContract,
   type InjectorContractActionOutput,
   type SearchPaginationInput,
 } from '../../../utils/api-types';
-import { isNotEmptyField } from '../../../utils/utils';
-import InjectForm from '../common/injects/form/InjectForm';
-import InjectCardComponent from '../common/injects/InjectCardComponent';
-import InjectIcon from '../common/injects/InjectIcon';
 import ThreatArsenalAtomicTestCreationComponent from './ThreatArsenalAtomicTestCreationComponent';
 import ThreatArsenalExecutionModeCardComponent from './ThreatArsenalExecutionModeCardComponent';
-import ThreatArsenalScenarioCreationComponent from "./ThreatArsenalScenarioCreationComponent";
+import ThreatArsenalScenarioCreationComponent from './ThreatArsenalScenarioCreationComponent';
+import ThreatArsenalScenarioUpdateComponent from './ThreatArsenalScenarioUpdateComponent';
 
 interface Props {
   isExclusionMode: boolean;
@@ -35,7 +31,15 @@ enum ExecutionMode {
   ATOMIC_CREATE = 'ATOMIC_CREATE',
 }
 
-const ThreatArsenalRunTestDrawer: FunctionComponent<Props> = ({ isExclusionMode, isOnlyOneItemSelected, selectedElements, deSelectedElements, open, searchPaginationInput, onClose }) => {
+const ThreatArsenalRunTestDrawer: FunctionComponent<Props> = ({
+  isExclusionMode,
+  isOnlyOneItemSelected,
+  selectedElements,
+  deSelectedElements,
+  open,
+  searchPaginationInput,
+  onClose,
+}) => {
   const { t } = useFormatter();
   const [selectedExecutionMode, setSelectedExecutionMode] = useState<ExecutionMode>(ExecutionMode.EMPTY);
 
@@ -62,6 +66,7 @@ const ThreatArsenalRunTestDrawer: FunctionComponent<Props> = ({ isExclusionMode,
         setSelectedExecutionMode(ExecutionMode.ATOMIC_CREATE);
       },
       disabled: !isOnlyOneItemSelected,
+      tooltip: isOnlyOneItemSelected ? '' : t('Atomic testing validates one attack action in isolation. Select a single action to run the test'),
     },
   ];
 
@@ -92,6 +97,16 @@ const ThreatArsenalRunTestDrawer: FunctionComponent<Props> = ({ isExclusionMode,
             selectedElements={selectedElements}
             deSelectedElements={deSelectedElements}
             searchPaginationInput={searchPaginationInput}
+            handleClose={() => setSelectedExecutionMode(ExecutionMode.EMPTY)}
+          />
+        )}
+        {ExecutionMode.SCENARIO_UPDATE === selectedExecutionMode && (
+          <ThreatArsenalScenarioUpdateComponent
+            isExclusionMode={isExclusionMode}
+            selectedElements={selectedElements}
+            deSelectedElements={deSelectedElements}
+            searchPaginationInput={searchPaginationInput}
+            handleClose={() => setSelectedExecutionMode(ExecutionMode.EMPTY)}
           />
         )}
         {ExecutionMode.ATOMIC_CREATE === selectedExecutionMode && (
@@ -100,6 +115,7 @@ const ThreatArsenalRunTestDrawer: FunctionComponent<Props> = ({ isExclusionMode,
             selectedElements={selectedElements}
             deSelectedElements={deSelectedElements}
             searchPaginationInput={searchPaginationInput}
+            handleClose={() => setSelectedExecutionMode(ExecutionMode.EMPTY)}
           />
         )}
       </>
