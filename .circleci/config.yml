@@ -32,6 +32,41 @@ jobs:
             - openaev_docker
             - openaev_musl
 
+  generate_manifest:
+    working_directory: ~/
+    docker:
+      - image: python:3.13.12-trixie
+    steps:
+      - run:
+          command: |
+            mkdir manifest && cd manifest
+            git clone https://github.com/OpenAEV-Platform/injectors
+            git clone https://github.com/OpenAEV-Platform/collectors
+            git clone https://github.com/FiligranHQ/filigran-ci-tools
+            
+            apt-get update && apt-get install python3-poetry
+            
+            cd filigran-ci-tools/connector-manifest-writer
+            poetry install
+            
+            poetry run python -m connector-manifest-writer \
+              ../collectors/crowdstrike/ ../collectors/microsoft-entra \
+              ../collectors/microsoft-intune ../collectors/microsoft-defender \
+              ../collectors/microsoft-azure ../collectors/microsoft-sentinel \
+              ../collectors/atomic-red-team ../collectors/tanium-threat-response \
+              ../collectors/nvd-nist-cve ../collectors/mitre-attack \
+              ../collectors/openaev ../collectors/google-workspace \
+              ../injectors/nmap ../injectors/nuclei \
+              ../injectors/http-query ../injectors/aws \
+              ../collectors/sentinelone ../collectors/splunk-es \
+              ../collectors/aws-resources \
+              ../injectors/shodan \
+              ../injectors/teams > manifest.json
+      - persist_to_workspace:
+          root: ~/
+          paths:
+            - manifest
+
   build_platform:
     working_directory: ~/openaev
     docker:
@@ -46,6 +81,7 @@ jobs:
             LATEST_VERSION=$(git describe --tags --abbrev=0)
             
             CATALOG_FILE=openaev-api/src/main/resources/catalog/catalog-integrators.json
+            cp ../manifest/manifest.json $CATALOG_FILE
             cat $CATALOG_FILE | jq --arg ver "${CIRCLE_TAG:-$LATEST_VERSION}" '.contracts[].container_version = $ver' | jq --arg ver "${CIRCLE_TAG:-$LATEST_VERSION}" '.version = $ver'  > manifest.tmp
             mv manifest.tmp $CATALOG_FILE
 
@@ -111,6 +147,7 @@ jobs:
             LATEST_VERSION=$(git describe --tags --abbrev=0)
             
             CATALOG_FILE=openaev-api/src/main/resources/catalog/catalog-integrators.json
+            cp ../manifest/manifest.json $CATALOG_FILE
             cat $CATALOG_FILE | jq --arg ver "${CIRCLE_TAG:-$LATEST_VERSION}" '.contracts[].container_version = $ver' | jq --arg ver "${CIRCLE_TAG:-$LATEST_VERSION}" '.version = $ver'  > manifest.tmp
             mv manifest.tmp $CATALOG_FILE
 
@@ -232,6 +269,7 @@ jobs:
             sudo apt-get -y install git jq    
 
             CATALOG_FILE=openaev-api/src/main/resources/catalog/catalog-integrators.json
+            cp ../manifest/manifest.json $CATALOG_FILE
             cat $CATALOG_FILE | jq --arg ver "${CIRCLE_TAG}" '.contracts[].container_version = $ver' | jq --arg ver "${CIRCLE_TAG}" '.version = $ver' > manifest.tmp
             mv manifest.tmp $CATALOG_FILE
 
@@ -318,6 +356,7 @@ jobs:
             LATEST_VERSION=$(git describe --tags --abbrev=0)
 
             CATALOG_FILE=openaev-api/src/main/resources/catalog/catalog-integrators.json
+            cp ../manifest/manifest.json $CATALOG_FILE
             cat $CATALOG_FILE | jq --arg ver "rolling" '.contracts[].container_version = $ver' | jq --arg ver "rolling" '.version = $ver'  > manifest.tmp
             mv manifest.tmp $CATALOG_FILE
             
@@ -402,6 +441,7 @@ jobs:
             LATEST_VERSION=$(git describe --tags --abbrev=0)
             
             CATALOG_FILE=openaev-api/src/main/resources/catalog/catalog-integrators.json
+            cp ../manifest/manifest.json $CATALOG_FILE
             cat $CATALOG_FILE | jq --arg ver "prerelease" '.contracts[].container_version = $ver' | jq --arg ver "prerelease" '.version = $ver'  > manifest.tmp
             mv manifest.tmp $CATALOG_FILE
 
@@ -492,6 +532,10 @@ workflows:
           filters:
             tags:
               only: /.*/
+      - generate_manifest:
+          filters:
+            tags:
+              only: /.*/
       - build_platform:
           filters:
             branches:
@@ -499,6 +543,7 @@ workflows:
                 - master
           requires:
             - build_frontend
+            - generate_manifest
       - build_platform_musl:
           filters:
             branches:
@@ -506,6 +551,7 @@ workflows:
                 - master
           requires:
             - build_frontend
+            - generate_manifest
       - package_rolling:
           requires:
             - build_platform
@@ -523,6 +569,7 @@ workflows:
       - docker_build_platform_rolling:
           requires:
             - build_frontend
+            - generate_manifest
           filters:
             branches:
               only:
@@ -530,6 +577,7 @@ workflows:
       - docker_build_platform_prerelease:
           requires:
             - build_frontend
+            - generate_manifest
           filters:
             branches:
               only:
@@ -537,6 +585,7 @@ workflows:
       - docker_build_platform:
           requires:
             - build_frontend
+            - generate_manifest
           filters:
             tags:
               only: /[0-9]+(\.[0-9]+)+(\.[0-9]+)*/
