@@ -5,7 +5,6 @@ import io.openaev.database.model.Agent;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.Executor;
 import io.openaev.database.model.Tenant;
-
 import java.time.Instant;
 
 public class AgentFixture {
