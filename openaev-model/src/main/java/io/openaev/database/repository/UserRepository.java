@@ -23,6 +23,11 @@ public interface UserRepository
   @NotNull
   Optional<User> findById(@NotNull String id);
 
+  @Override
+  @Modifying
+  @Query(value = "DELETE FROM users WHERE user_id = :id", nativeQuery = true)
+  void deleteById(@NotNull @Param("id") String id);
+
   long countByIdIn(Set<String> ids);
 
   Optional<User> findByEmailIgnoreCase(String email);

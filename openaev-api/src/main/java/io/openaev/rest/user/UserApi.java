@@ -291,7 +291,6 @@ public class UserApi extends RestBehavior {
   @Operation(description = "Delete a user", summary = "Delete user")
   @ApiResponses(value = {@ApiResponse(responseCode = "200")})
   public void deleteUser(@PathVariable @Schema(description = "ID of the user") String userId) {
-    sessionManager.invalidateUserSession(userId);
-    userRepository.deleteById(userId);
+    userService.deleteUser(userId);
   }
 }
