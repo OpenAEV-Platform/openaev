@@ -35,6 +35,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 /**
@@ -351,5 +352,11 @@ public class UserService {
    */
   public Optional<User> findByEmailIgnoreCase(String email) {
     return userRepository.findByEmailIgnoreCase(email);
+  }
+
+  @Transactional
+  public void deleteUser(String userId) {
+    sessionManager.invalidateUserSession(userId);
+    userRepository.deleteById(userId);
   }
 }
