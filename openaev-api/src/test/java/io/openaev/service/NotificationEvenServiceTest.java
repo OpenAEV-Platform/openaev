@@ -12,12 +12,10 @@ import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.test.context.TestExecutionListeners;
 
-@SpringBootTest
 @TestExecutionListeners(
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)

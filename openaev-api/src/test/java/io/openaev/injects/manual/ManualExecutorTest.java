@@ -22,10 +22,8 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestExecutionListeners;
 
-@SpringBootTest
 @TestExecutionListeners(
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)

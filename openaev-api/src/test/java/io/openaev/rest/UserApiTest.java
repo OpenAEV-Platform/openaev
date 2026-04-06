@@ -41,7 +41,6 @@ import net.javacrumbs.jsonunit.core.Option;
 import org.junit.jupiter.api.*;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -51,7 +50,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 class UserApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;

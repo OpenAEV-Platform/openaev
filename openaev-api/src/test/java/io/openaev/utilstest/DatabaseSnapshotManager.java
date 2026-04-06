@@ -2,12 +2,15 @@ package io.openaev.utilstest;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import io.openaev.config.EngineConfig;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
@@ -72,24 +75,23 @@ public class DatabaseSnapshotManager {
 
       cleanElasticsearchIndices();
 
-      // Deactivate FK for now
+      // Deactivate FK and fsync for faster restore
       jdbcTemplate.execute("SET session_replication_role = 'replica';");
+      jdbcTemplate.execute("SET synchronous_commit = OFF;");
 
-      // Empty tables
-      List<String> reverseOrder = new ArrayList<>(tablesInOrder);
-      Collections.reverse(reverseOrder);
-      for (String table : reverseOrder) {
-        jdbcTemplate.execute("DELETE FROM " + table);
-      }
+      // Truncate all tables in one shot (much faster than row-by-row DELETE)
+      String allTables = String.join(", ", tablesInOrder);
+      jdbcTemplate.execute("TRUNCATE " + allTables + " CASCADE;");
 
-      // Restore tables in the correct order
+      // Restore tables in the correct order using batch inserts
       for (String table : tablesInOrder) {
         if (!TABLE_WITHOUT_RESTORATION.contains(table)) {
           restoreTableData(table);
         }
       }
 
-      // Activate FK back
+      // Reactivate FK and fsync
+      jdbcTemplate.execute("SET synchronous_commit = ON;");
       jdbcTemplate.execute("SET session_replication_role = 'origin';");
 
       log.info("Database restored to startup state via JDBC");
@@ -188,12 +190,27 @@ public class DatabaseSnapshotManager {
     List<Map<String, Object>> data = startupData.get(table);
     if (data == null || data.isEmpty()) return;
 
-    for (Map<String, Object> row : data) {
-      String columns = String.join(", ", row.keySet());
-      String placeholders = row.keySet().stream().map(k -> "?").collect(Collectors.joining(", "));
+    // Use column order from the first row (consistent across all rows of the same table)
+    List<String> columnNames = new ArrayList<>(data.get(0).keySet());
+    String columns = String.join(", ", columnNames);
+    String placeholders = columnNames.stream().map(k -> "?").collect(Collectors.joining(", "));
+    String sql = "INSERT INTO " + table + " (" + columns + ") VALUES (" + placeholders + ")";
 
-      String sql = "INSERT INTO " + table + " (" + columns + ") VALUES (" + placeholders + ")";
-      jdbcTemplate.update(sql, row.values().toArray());
-    }
+    jdbcTemplate.batchUpdate(
+        sql,
+        new BatchPreparedStatementSetter() {
+          @Override
+          public void setValues(PreparedStatement ps, int i) throws SQLException {
+            Map<String, Object> row = data.get(i);
+            for (int j = 0; j < columnNames.size(); j++) {
+              ps.setObject(j + 1, row.get(columnNames.get(j)));
+            }
+          }
+
+          @Override
+          public int getBatchSize() {
+            return data.size();
+          }
+        });
   }
 }

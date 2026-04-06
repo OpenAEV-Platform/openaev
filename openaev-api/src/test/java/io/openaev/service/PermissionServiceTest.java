@@ -17,11 +17,9 @@ import java.util.*;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.web.bind.annotation.RequestMethod;
 
-@SpringBootTest
 @TestExecutionListeners(
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)

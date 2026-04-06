@@ -33,13 +33,11 @@ import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.*;
 import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest
 @TestExecutionListeners(
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)

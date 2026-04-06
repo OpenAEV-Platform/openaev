@@ -13,11 +13,9 @@ import io.openaev.utilstest.RabbitMQTestListener;
 import java.time.Instant;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest
 @TestExecutionListeners(
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
