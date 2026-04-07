@@ -61,9 +61,6 @@ public class ScenarioExportTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   @DisplayName("When payloads have tags, scenario export has these tags")
   public void WhenPayloadsHaveTags_ScenarioExportHasTheseTags() throws Exception {
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-
     ObjectMapper objectMapper = mapper.copy();
     Scenario scenario =
         scenarioComposer
@@ -80,10 +77,7 @@ public class ScenarioExportTest extends IntegrationTest {
                             .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
                             .withPayload(
                                 payloadComposer
-                                    .forPayload(PayloadFixture.createDefaultCommand(domains))
-                                    .withTag(
-                                        tagComposer.forTag(
-                                            TagFixture.getTagWithText("this is a payload tag"))))))
+                                    .forPayload(PayloadFixture.createDefaultCommand()))))
             .persist()
             .get();
 

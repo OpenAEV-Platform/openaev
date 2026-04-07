@@ -148,9 +148,6 @@ public class InjectExportTest extends IntegrationTest {
   }
 
   private List<InjectComposer.Composer> createDefaultInjectWrappers() {
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-
     ArticleComposer.Composer articleToExportFromExercise =
         articleComposer
             .forArticle(ArticleFixture.getDefaultArticle())
@@ -182,7 +179,7 @@ public class InjectExportTest extends IntegrationTest {
                     .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
                     .withInjector(InjectorFixture.createDefaultPayloadInjector())
                     .withPayload(
-                        payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains))));
+                        payloadComposer.forPayload(PayloadFixture.createDefaultCommand())));
     // wrap it in a persisted exercise
     exerciseComposer
         .forExercise(ExerciseFixture.createDefaultExercise())

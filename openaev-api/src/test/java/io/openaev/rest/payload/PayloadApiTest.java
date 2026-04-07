@@ -524,7 +524,7 @@ class PayloadApiTest extends IntegrationTest {
     Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
 
     Payload payload =
-        payloadRepository.save(PayloadFixture.createDefaultCommand(new HashSet<>(Set.of(domain))));
+        payloadRepository.save(PayloadFixture.createDefaultCommand());
     payload.setExternalId("external-id");
 
     // -- Without property architecture

@@ -78,10 +78,8 @@ class DocumentApiTest extends IntegrationTest {
   }
 
   private Document getDocumentWithPayload() {
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
     PayloadComposer.Composer payload =
-        payloadComposer.forPayload(PayloadFixture.createDefaultExecutable(domains));
+        payloadComposer.forPayload(PayloadFixture.createDefaultExecutable());
 
     BinaryFile badCoffeeFileContent = FileFixture.getBadCoffeeFileContent();
     return documentComposer

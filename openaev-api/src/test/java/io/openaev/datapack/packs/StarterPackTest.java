@@ -334,13 +334,10 @@ public class StarterPackTest extends IntegrationTest {
   @DisplayName("Should init StarterPack with honey.scan.me asset")
   public void shouldInitStarterPackWithDefaultAssets() throws JsonProcessingException {
     // PREPARE
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-
     ContractAsset contractAsset = new ContractAsset(ContractCardinality.Multiple);
     contractAsset.setLinkedFields(InjectorContractFixture.buildMandatoryOnConditionValue("assets"));
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
-    Payload payload = PayloadFixture.createDefaultCommand(domains);
+    Payload payload = PayloadFixture.createDefaultCommand();
     InjectorContract injectorContract =
         InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
             injector, payload, List.of(contractAsset));
@@ -395,14 +392,11 @@ public class StarterPackTest extends IntegrationTest {
   @DisplayName("Should init StarterPack with All endpoints asset group")
   public void shouldInitStarterPackWithDefaultAssetGroups() throws JsonProcessingException {
     // PREPARE
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-
     ContractAssetGroup contractAssetGroup = new ContractAssetGroup(ContractCardinality.Multiple);
     contractAssetGroup.setLinkedFields(
         InjectorContractFixture.buildMandatoryOnConditionValue("asset_groups"));
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
-    Payload payload = PayloadFixture.createDefaultCommand(domains);
+    Payload payload = PayloadFixture.createDefaultCommand();
     InjectorContract injectorContract =
         InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
             injector, payload, List.of(contractAssetGroup));

@@ -103,7 +103,7 @@ public class SentinelOneExecutorServiceTest {
     when(config.getWindowsScriptId()).thenReturn("1234567890");
     Command payloadCommand =
         PayloadFixture.createCommand(
-            "cmd", "whoami", List.of(), "whoami", Set.of(PresetDomain.getToClassify()));
+            "cmd", "whoami", List.of(), "whoami");
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Map<String, String> executorCommands = new HashMap<>();
     executorCommands.put(

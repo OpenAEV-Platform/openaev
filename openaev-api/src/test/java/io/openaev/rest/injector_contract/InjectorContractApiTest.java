@@ -1254,7 +1254,7 @@ public class InjectorContractApiTest extends IntegrationTest {
               "injector_contract_injector",
               injectorFixture.getWellKnownOaevImplantInjector().getId(),
               Filters.FilterOperator.eq);
-      input.setIncludeFullDetails(false);
+      input.setOutputMode(InjectorContractSearchPaginationInput.OutputMode.BASE);
 
       String response =
           mvc.perform(
@@ -1351,16 +1351,13 @@ public class InjectorContractApiTest extends IntegrationTest {
     private int preExistingContractsCount;
 
     private void createStaticInjectorContract(boolean addPayload) {
-      Set<Domain> domains =
-          domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-
       InjectorContractComposer.Composer icComposer =
           injectorContractComposer
               .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
               .withInjector(injectorFixture.getWellKnownOaevImplantInjector());
       if (addPayload) {
         icComposer.withPayload(
-            payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains)));
+            payloadComposer.forPayload(PayloadFixture.createDefaultCommand()));
       }
       InjectorContract ic = icComposer.persist().get();
       if (addPayload) {
@@ -1467,7 +1464,7 @@ public class InjectorContractApiTest extends IntegrationTest {
 
       // Create search input
       InjectorContractSearchPaginationInput searchPaginationInput = PaginationFixture.getOptioned();
-      searchPaginationInput.setIncludeFullDetails(false);
+      searchPaginationInput.setOutputMode(InjectorContractSearchPaginationInput.OutputMode.BASE);
 
       ResultActions result =
           mvc.perform(
@@ -1508,7 +1505,7 @@ public class InjectorContractApiTest extends IntegrationTest {
 
       // Create search input
       InjectorContractSearchPaginationInput searchPaginationInput = PaginationFixture.getOptioned();
-      searchPaginationInput.setIncludeFullDetails(true);
+      searchPaginationInput.setOutputMode(InjectorContractSearchPaginationInput.OutputMode.FULL);
 
       ResultActions result =
           mvc.perform(

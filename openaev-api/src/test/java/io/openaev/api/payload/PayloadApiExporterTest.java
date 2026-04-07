@@ -35,15 +35,10 @@ class PayloadApiExporterTest extends IntegrationTest {
 
   @Autowired private MockMvc mockMvc;
   @Autowired private PayloadComposer payloadComposer;
-  @Autowired private DomainComposer domainComposer;
-  @Autowired private TagComposer tagComposer;
 
   PayloadComposer.Composer createPayloadComposer() {
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
     return this.payloadComposer
-        .forPayload(createDefaultCommand(domains))
-        .withTag(tagComposer.forTag(getTagWithText("malware")))
+        .forPayload(createDefaultCommand())
         .persist();
   }
 

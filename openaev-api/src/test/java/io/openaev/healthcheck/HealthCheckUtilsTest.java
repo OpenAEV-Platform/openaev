@@ -35,11 +35,8 @@ public class HealthCheckUtilsTest {
   @Autowired private DomainComposer domainComposer;
 
   private InjectorContract prepareInjectorContract() throws JsonProcessingException {
-
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
     Injector injector = createDefaultPayloadInjector();
-    Command payloadCommand = createCommand("cmd", "whoami", List.of(), "whoami", domains);
+    Command payloadCommand = createCommand("cmd", "whoami", List.of(), "whoami");
     return createPayloadInjectorContract(injector, payloadCommand);
   }
 

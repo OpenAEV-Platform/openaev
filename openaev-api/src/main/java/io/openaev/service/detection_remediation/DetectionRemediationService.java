@@ -25,12 +25,8 @@ public class DetectionRemediationService {
   private final CollectorTypeRepository collectorTypeRepository;
 
   public String getRulesDetectionRemediationAI(PayloadInput input, String collector) {
-
-    List<AttackPattern> attackPatterns =
-        attackPatternService.getAttackPattern(input.getAttackPatternsIds());
-
     // GET rules from webservice
-    DetectionRemediationRequest request = new DetectionRemediationRequest(input, attackPatterns);
+    DetectionRemediationRequest request = new DetectionRemediationRequest(input);
     DetectionRemediationAIResponse rules =
         detectionRemediationAIService.callRemediationDetectionAIWebservice(request, collector);
 
@@ -61,15 +57,14 @@ public class DetectionRemediationService {
   public DetectionRemediation getOrCreateDetectionRemediationWithAIRulesByCollector(
       List<DetectionRemediation> detectionRemediations,
       Payload payload,
-      String collectorType,
-      List<AttackPattern> attackPatterns) {
+      String collectorType) {
     // GET or Create Detection remediation linked to selected payload and EDR/SIEM
     DetectionRemediation detectionRemediation =
         this.getOrCreateDetectionRemediationByCollector(
             collectorType, detectionRemediations, payload);
 
     // GET AI rules from webservice
-    DetectionRemediationRequest request = new DetectionRemediationRequest(payload, attackPatterns);
+    DetectionRemediationRequest request = new DetectionRemediationRequest(payload);
     DetectionRemediationAIResponse rules =
         detectionRemediationAIService.callRemediationDetectionAIWebservice(request, collectorType);
 

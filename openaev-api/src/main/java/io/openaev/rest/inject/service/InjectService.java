@@ -123,7 +123,6 @@ public class InjectService {
 
   private final LicenseCacheManager licenseCacheManager;
   @Resource protected ObjectMapper mapper;
-  private final ObjectMapper objectMapper;
 
   private static final int INJECTOR_CONTRACT_PAGE_SIZE = 100;
 
@@ -178,13 +177,18 @@ public class InjectService {
   private Inject buildInject(
       @Nullable final Exercise exercise,
       @Nullable final Scenario scenario,
-      @NotNull final InjectInput input) {
+      @NotNull final InjectInput input)  {
     if (exercise == null && scenario == null || exercise != null && scenario != null) {
       throw new IllegalArgumentException("Exactly one of exercise or scenario should be present");
     }
 
     InjectorContract injectorContract =
         this.injectorContractService.injectorContract(input.getInjectorContract());
+
+    if (injectorContract.getConvertedContent() == null) {
+      injectorContract.setConvertedContent(convertContent(injectorContract.getContent()));
+    }
+
     // Get common attributes
     Inject inject = input.toInject(injectorContract);
     inject.setInjector(resolveInjector(input.getInjectorId(), injectorContract));
@@ -1467,18 +1471,22 @@ public class InjectService {
   private InjectInput createDefaultInjectInput(
       InjectorContractFullOutput injectorContractFullOutput, String locale) {
     InjectInput injectInput = new InjectInput();
-    try {
-      injectInput.setTitle(
-          injectorContractFullOutput.getLabels().containsKey(locale)
-              ? injectorContractFullOutput.getLabels().get(locale)
-              : injectorContractFullOutput.getLabels().get("en"));
-      injectInput.setDependsDuration(0L);
-      injectInput.setInjectorContract(injectorContractFullOutput.getId());
-      injectInput.setContent(
-          (ObjectNode) objectMapper.readTree(injectorContractFullOutput.getContent()));
-    } catch (JsonProcessingException e) {
-      log.warn("Invalid JSON in inject content", e);
-    }
+    injectInput.setTitle(
+        injectorContractFullOutput.getLabels().containsKey(locale)
+            ? injectorContractFullOutput.getLabels().get(locale)
+            : injectorContractFullOutput.getLabels().get("en"));
+    injectInput.setDependsDuration(0L);
+    injectInput.setInjectorContract(injectorContractFullOutput.getId());
+    injectInput.setContent(convertContent(injectorContractFullOutput.getContent()));
     return injectInput;
+  }
+
+  private ObjectNode convertContent(String content) {
+      try {
+          return (ObjectNode) mapper.readTree(content);
+      } catch (JsonProcessingException e) {
+          log.warn("Invalid JSON in inject content", e);
+      }
+      return null;
   }
 }

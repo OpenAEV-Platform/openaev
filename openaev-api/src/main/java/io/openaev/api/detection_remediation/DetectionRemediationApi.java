@@ -152,15 +152,11 @@ public class DetectionRemediationApi {
       throw new IllegalStateException("Illegal value: Inject has not payload");
 
     Payload payload = payloadOptional.get();
-    List<AttackPattern> attackPatterns =
-        inject.getInjectorContract().isPresent()
-            ? inject.getInjectorContract().get().getAttackPatterns()
-            : List.of();
 
     List<DetectionRemediation> detectionRemediations = payload.getDetectionRemediations();
     DetectionRemediation detectionRemediation =
         detectionRemediationService.getOrCreateDetectionRemediationWithAIRulesByCollector(
-            detectionRemediations, payload, collectorType, attackPatterns);
+            detectionRemediations, payload, collectorType);
 
     DetectionRemediationOutput detectionRemediationOutput =
         PayloadMapper.toDetectionRemediationOutput(detectionRemediation);

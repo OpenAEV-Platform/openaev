@@ -43,6 +43,7 @@ import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.mapper.InjectExpectationMapper;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.InjectStatusMapper;
+import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.*;
 import java.util.ArrayList;
@@ -73,14 +74,7 @@ class InjectServiceTest {
 
   @Mock private AssetService assetService;
 
-  @Mock private AssetGroupService assetGroupService;
-
   @Mock private TeamRepository teamRepository;
-
-  @Mock(extraInterfaces = {MethodSecurityExpressionHandler.class})
-  private SecurityExpressionHandler methodSecurityExpressionHandler;
-
-  @Mock private InjectDocumentRepository injectDocumentRepository;
 
   @Mock private InjectStatusRepository injectStatusRepository;
 
@@ -94,8 +88,6 @@ class InjectServiceTest {
 
   @Mock private UserService userService;
 
-  @Mock private TagService tagService;
-
   @Mock private SmtpService smtpService;
 
   @Mock private ImapService imapService;
@@ -105,6 +97,8 @@ class InjectServiceTest {
   @Mock private InjectorService injectorService;
 
   @Mock private InjectorRepository injectorRepository;
+
+  @Mock private PayloadMapper payloadMapper;
 
   @Spy private InjectorContractContentUtils injectorContractContentUtils;
 
@@ -124,6 +118,7 @@ class InjectServiceTest {
         "injectMapper",
         new InjectMapper(
             injectStatusMapper,
+            payloadMapper,
             injectExpectationMapper,
             injectUtils,
             new HealthCheckUtils(new ExecutorUtils())));

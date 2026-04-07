@@ -16,7 +16,10 @@ import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
 import io.openaev.rest.inject.form.InjectInput;
+import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.scenario.form.CheckScenarioRulesInput;
+import io.openaev.rest.scenario.form.ScenarioAndInjectorContractsInputs;
+import io.openaev.rest.scenario.form.ScenarioIdsAndInjectorContractsInputs;
 import io.openaev.rest.scenario.form.ScenarioInput;
 import io.openaev.rest.scenario.form.ScenarioRecurrenceInput;
 import io.openaev.rest.scenario.form.ScenarioUpdateTeamsInput;
@@ -46,10 +49,12 @@ public class ScenarioApiTest extends IntegrationTest {
   @Autowired private InjectStatusComposer injectStatusComposer;
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private ExecutorFixture executorFixture;
+  @Autowired private InjectorContractFixture injectorContractFixture;
 
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper objectMapper;
   @Autowired private ScenarioRepository scenarioRepository;
+  @Autowired private InjectRepository injectRepository;
   @Autowired private TagRepository tagRepository;
   @Autowired private TagRuleRepository tagRuleRepository;
   @Autowired private AssetGroupRepository assetGroupRepository;
@@ -494,5 +499,92 @@ public class ScenarioApiTest extends IntegrationTest {
     assertEquals(scenarioSaved.getId(), link.getScenario().getId());
     assertEquals(teamB.getId(), link.getTeam().getId());
     assertEquals(userBen.getId(), link.getUser().getId());
+  }
+
+  @DisplayName("Create scenario with injector contracts")
+  @Test
+  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+  void given_validInput_should_createScenarioWithInjectorContracts() throws Exception {
+    // -- PREPARE --
+    ScenarioInput scenarioInput = new ScenarioInput();
+    scenarioInput.setName("Scenario with injector contracts");
+    scenarioInput.setFrom("no-reply@openaev.io");
+
+    InjectorContractSearchPaginationInput paginationInput =
+        createInjectorContractSearchPaginationInput();
+
+    ScenarioAndInjectorContractsInputs input = new ScenarioAndInjectorContractsInputs();
+    input.setLocale("en");
+    input.setScenarioInput(scenarioInput);
+    input.setInjectorContractSearchPaginationInput(paginationInput);
+
+    // -- EXECUTE --
+    String response =
+        this.mvc
+            .perform(
+                post(SCENARIO_URI + "/with-injector-contracts")
+                    .content(asJsonString(input))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().is2xxSuccessful())
+            .andExpect(jsonPath("$.scenario_name").value("Scenario with injector contracts"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // -- ASSERT --
+    String scenarioId = JsonPath.read(response, "$.scenario_id");
+    assertFalse(scenarioId.isEmpty());
+    assertFalse(injectRepository.findByScenarioId(scenarioId).isEmpty());
+  }
+
+  @DisplayName("Update scenarios with injector contracts")
+  @Test
+  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+  void given_existingScenarios_should_updateScenariosWithInjectorContracts() throws Exception {
+    // -- PREPARE --
+    Scenario scenarioA =
+        scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario()).persist().get();
+    Scenario scenarioB =
+        scenarioComposer
+            .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+            .persist()
+            .get();
+
+    InjectorContractSearchPaginationInput paginationInput =
+        createInjectorContractSearchPaginationInput();
+
+    ScenarioIdsAndInjectorContractsInputs input = new ScenarioIdsAndInjectorContractsInputs();
+    input.setLocale("en");
+    input.setScenarioIds(List.of(scenarioA.getId(), scenarioB.getId()));
+    input.setInjectorContractSearchPaginationInput(paginationInput);
+
+    // -- EXECUTE --
+    String response =
+        this.mvc
+            .perform(
+                put(SCENARIO_URI + "/with-injector-contracts")
+                    .content(asJsonString(input))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // -- ASSERT --
+    List<String> returnedScenarioIds = JsonPath.read(response, "$..scenario_id");
+    assertTrue(returnedScenarioIds.contains(scenarioA.getId()));
+    assertTrue(returnedScenarioIds.contains(scenarioB.getId()));
+    assertFalse(injectRepository.findByScenarioId(scenarioA.getId()).isEmpty());
+    assertFalse(injectRepository.findByScenarioId(scenarioB.getId()).isEmpty());
+  }
+
+  private InjectorContractSearchPaginationInput createInjectorContractSearchPaginationInput() {
+    InjectorContractSearchPaginationInput paginationInput = new InjectorContractSearchPaginationInput();
+    paginationInput.setOutputMode(InjectorContractSearchPaginationInput.OutputMode.FULL);
+    paginationInput.setInjectorContractIdsToProcess(
+        List.of(injectorContractFixture.getWellKnownSingleEmailContract().getId()));
+    return paginationInput;
   }
 }

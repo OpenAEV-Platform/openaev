@@ -25,13 +25,10 @@ public class DetectionRemediationRequestTest extends IntegrationTest {
   @Test
   public void getPayloadValueForWebserviceFromPayloadInput_Command() {
     Command payload = new Command();
-    List<AttackPattern> attackPatterns = getAttackPatterns();
 
-    List<String> attackPatternsIds =
-        payload.getAttackPatterns().stream().map(AttackPattern::getId).toList();
-    PayloadInput payloadInput = getPayloadInput(payload, attackPatternsIds);
+    PayloadInput payloadInput = getPayloadInput(payload);
     DetectionRemediationRequest detectionRemediationRequest =
-        new DetectionRemediationRequest(payloadInput, attackPatterns);
+        new DetectionRemediationRequest(payloadInput);
     String payloadValue = detectionRemediationRequest.getPayload();
     assertThat(payloadValue)
         .isEqualTo(
@@ -59,13 +56,9 @@ public class DetectionRemediationRequestTest extends IntegrationTest {
   public void getPayloadValueForWebserviceFromPayloadInput_DnsResolution() {
     DnsResolution payload = new DnsResolution();
 
-    List<AttackPattern> attackPatterns = getAttackPatterns();
-
-    List<String> attackPatternsIds =
-        payload.getAttackPatterns().stream().map(AttackPattern::getId).toList();
-    PayloadInput payloadInput = getPayloadInput(payload, attackPatternsIds);
+    PayloadInput payloadInput = getPayloadInput(payload);
     DetectionRemediationRequest detectionRemediationRequest =
-        new DetectionRemediationRequest(payloadInput, attackPatterns);
+        new DetectionRemediationRequest(payloadInput);
     String payloadValue = detectionRemediationRequest.getPayload();
     assertThat(payloadValue)
         .isEqualTo(
@@ -149,7 +142,7 @@ public class DetectionRemediationRequestTest extends IntegrationTest {
                         """);
   }
 
-  private PayloadInput getPayloadInput(Payload payload, List<String> attackPatternsIds) {
+  private PayloadInput getPayloadInput(Payload payload) {
 
     PayloadInput input = new PayloadInput();
     // USED FOR DetectionRemediationRequest.payload value construction
@@ -166,7 +159,6 @@ public class DetectionRemediationRequestTest extends IntegrationTest {
                 """);
     input.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
     input.setArguments(getPayloadArguments());
-    input.setAttackPatternsIds(attackPatternsIds);
     switch (payload) {
       case Command ignored -> {
         input.setExecutor("cmd");
@@ -207,7 +199,6 @@ public class DetectionRemediationRequestTest extends IntegrationTest {
                 """);
     payload.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
     payload.setArguments(getPayloadArguments());
-    payload.setAttackPatterns(attackPatterns);
     switch (payload) {
       case Command command -> {
         command.setExecutor("cmd");
@@ -228,7 +219,6 @@ public class DetectionRemediationRequestTest extends IntegrationTest {
     payload.setCleanupExecutor("sh");
     payload.setCleanupCommand("rm /tmp/encoded.dat \n" + "rm /tmp/art.sh");
 
-    payload.setTags(Set.of(TagFixture.getTag()));
     payload.setOutputParsers(Set.of(OutputParserFixture.getDefaultOutputParser()));
   }
 
