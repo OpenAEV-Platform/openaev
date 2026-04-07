@@ -10,7 +10,7 @@ const ToolsPanel = ({ settings }: ToolsPanelProps) => {
   const { t } = useFormatter();
 
   return (
-    <div>
+    <>
       <Typography variant="h4">{t('Tools')}</Typography>
       <Paper
         variant="outlined"
@@ -49,7 +49,7 @@ const ToolsPanel = ({ settings }: ToolsPanelProps) => {
           </ListItem>
         </List>
       </Paper>
-    </div>
+    </>
   );
 };
 
