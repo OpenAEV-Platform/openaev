@@ -2,12 +2,12 @@ package io.openaev.service;
 
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
+import io.openaev.api.exception.ElementNotFoundException;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.RoleRepository;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

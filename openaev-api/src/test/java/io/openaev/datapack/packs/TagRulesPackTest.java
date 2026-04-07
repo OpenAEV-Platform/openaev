@@ -3,10 +3,10 @@ package io.openaev.datapack.packs;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.api.tag.TagService;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.TagRepository;
-import io.openaev.rest.tag.TagService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.DataPackService;
 import io.openaev.service.TagRuleService;

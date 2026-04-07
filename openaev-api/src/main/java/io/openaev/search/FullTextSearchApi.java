@@ -1,8 +1,8 @@
 package io.openaev.search;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.api.helper.RestBehavior;
 import io.openaev.database.model.Base;
-import io.openaev.rest.helper.RestBehavior;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;

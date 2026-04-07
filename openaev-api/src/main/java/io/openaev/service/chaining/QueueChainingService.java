@@ -1,13 +1,13 @@
 package io.openaev.service.chaining;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.api.helper.queue.BatchQueueService;
+import io.openaev.api.helper.queue.QueueExecution;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.RabbitMQSslConfiguration;
 import io.openaev.config.RabbitmqConfig;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
-import io.openaev.rest.helper.queue.BatchQueueService;
-import io.openaev.rest.helper.queue.QueueExecution;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.io.IOException;

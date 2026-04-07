@@ -14,10 +14,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.api.kill_chain_phase.KillChainPhaseApi;
 import io.openaev.database.model.KillChainPhase;
 import io.openaev.database.repository.KillChainPhaseRepository;
 import io.openaev.database.specification.KillChainPhaseSpecification;
-import io.openaev.rest.kill_chain_phase.KillChainPhaseApi;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockUser.WithMockUser;

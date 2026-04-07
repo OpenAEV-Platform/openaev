@@ -1,6 +1,6 @@
 package io.openaev.api.custom_dashboard;
 
-import static io.openaev.rest.custom_dashboard.CustomDashboardApi.CUSTOM_DASHBOARDS_URI;
+import static io.openaev.api.custom_dashboard.CustomDashboardApi.CUSTOM_DASHBOARDS_URI;
 import static io.openaev.utils.constants.Constants.IMPORTED_OBJECT_NAME_SUFFIX;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;

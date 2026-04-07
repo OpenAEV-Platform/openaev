@@ -4,11 +4,11 @@ import static io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE.SIMULATION;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.api.custom_dashboard.CustomDashboardService;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.injectors.channel.ChannelContract;
 import io.openaev.injectors.channel.model.ChannelContent;
-import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.utils.CopyObjectListUtils;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;

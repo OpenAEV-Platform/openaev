@@ -1,6 +1,6 @@
 package io.openaev.utils;
 
-import io.openaev.rest.exception.BadRequestException;
+import io.openaev.api.exception.BadRequestException;
 import jakarta.validation.constraints.NotBlank;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;

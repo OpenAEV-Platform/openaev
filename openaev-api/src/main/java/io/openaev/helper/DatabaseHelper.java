@@ -3,8 +3,8 @@ package io.openaev.helper;
 import static java.util.Optional.ofNullable;
 import static org.springframework.util.StringUtils.hasLength;
 
+import io.openaev.api.exception.ElementNotFoundException;
 import io.openaev.database.model.Base;
-import io.openaev.rest.exception.ElementNotFoundException;
 import java.util.Optional;
 import org.springframework.data.repository.CrudRepository;
 

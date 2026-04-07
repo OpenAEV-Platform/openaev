@@ -3,10 +3,10 @@ package io.openaev.service;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static java.time.Instant.now;
 
+import io.openaev.api.exception.ElementNotFoundException;
 import io.openaev.database.model.Variable;
 import io.openaev.database.repository.VariableRepository;
 import io.openaev.database.specification.VariableSpecification;
-import io.openaev.rest.exception.ElementNotFoundException;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;

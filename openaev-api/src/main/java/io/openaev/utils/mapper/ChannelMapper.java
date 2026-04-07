@@ -1,7 +1,7 @@
 package io.openaev.utils.mapper;
 
+import io.openaev.api.document.form.RelatedEntityOutput;
 import io.openaev.database.model.Channel;
-import io.openaev.rest.document.form.RelatedEntityOutput;
 import java.util.Set;
 import java.util.stream.Collectors;
 

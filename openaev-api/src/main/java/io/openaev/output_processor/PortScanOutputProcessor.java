@@ -3,10 +3,10 @@ package io.openaev.output_processor;
 import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.openaev.api.finding.FindingService;
 import io.openaev.database.model.ContractOutputField;
 import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
-import io.openaev.rest.finding.FindingService;
 import java.util.Collections;
 import java.util.List;
 import org.springframework.stereotype.Component;

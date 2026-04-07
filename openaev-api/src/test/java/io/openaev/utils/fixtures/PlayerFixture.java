@@ -1,6 +1,6 @@
 package io.openaev.utils.fixtures;
 
-import io.openaev.rest.user.form.player.PlayerInput;
+import io.openaev.api.user.form.player.PlayerInput;
 
 public class PlayerFixture {
 

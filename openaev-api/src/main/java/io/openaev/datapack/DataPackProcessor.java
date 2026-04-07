@@ -1,12 +1,12 @@
 package io.openaev.datapack;
 
+import io.openaev.api.domain.DomainService;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.helper.StreamHelper;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
-import io.openaev.rest.domain.DomainService;
 import jakarta.annotation.PostConstruct;
 import java.util.Comparator;
 import java.util.List;

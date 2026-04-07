@@ -1,8 +1,8 @@
 package io.openaev.collectors.expectations_expiration_manager;
 
+import io.openaev.api.collector.service.CollectorService;
 import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
 import io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService;
-import io.openaev.rest.collector.service.CollectorService;
 import jakarta.annotation.PostConstruct;
 import java.time.Duration;
 import lombok.RequiredArgsConstructor;

@@ -8,6 +8,7 @@ import static io.openaev.injector_contract.ContractDef.contractBuilder;
 import static io.openaev.injector_contract.fields.ContractExpectations.expectationsField;
 import static io.openaev.injector_contract.fields.ContractTeam.teamField;
 
+import io.openaev.api.domain.enums.PresetDomain;
 import io.openaev.database.model.Endpoint;
 import io.openaev.helper.SupportedLanguage;
 import io.openaev.injector_contract.Contract;
@@ -15,7 +16,6 @@ import io.openaev.injector_contract.ContractConfig;
 import io.openaev.injector_contract.Contractor;
 import io.openaev.injector_contract.ContractorIcon;
 import io.openaev.injector_contract.fields.ContractElement;
-import io.openaev.rest.domain.enums.PresetDomain;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;

@@ -9,13 +9,13 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.api.mapper.form.*;
+import io.openaev.api.tag.TagService;
 import io.openaev.database.model.ImportMapper;
 import io.openaev.database.model.InjectImporter;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.database.repository.InjectorContractRepository;
-import io.openaev.rest.mapper.form.*;
-import io.openaev.rest.tag.TagService;
 import io.openaev.utils.mockMapper.MockMapperUtils;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.Optional;

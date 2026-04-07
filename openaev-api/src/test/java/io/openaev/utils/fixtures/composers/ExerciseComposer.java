@@ -1,9 +1,9 @@
 package io.openaev.utils.fixtures.composers;
 
+import io.openaev.api.exercise.service.ExerciseService;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectorContractRepository;
-import io.openaev.rest.exercise.service.ExerciseService;
 import jakarta.persistence.EntityManager;
 import java.util.ArrayList;
 import java.util.List;

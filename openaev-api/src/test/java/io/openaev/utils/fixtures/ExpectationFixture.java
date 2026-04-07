@@ -6,12 +6,12 @@ import static io.openaev.model.expectation.PreventionExpectation.preventionExpec
 import static io.openaev.model.expectation.PreventionExpectation.preventionExpectationForAsset;
 import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpectationForAgent;
 
+import io.openaev.api.exercise.form.ExpectationUpdateInput;
 import io.openaev.database.model.*;
 import io.openaev.model.expectation.DetectionExpectation;
 import io.openaev.model.expectation.PreventionExpectation;
 import io.openaev.model.expectation.VulnerabilityExpectation;
 import io.openaev.model.inject.form.Expectation;
-import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;

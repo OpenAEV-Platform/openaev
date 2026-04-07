@@ -1,9 +1,9 @@
 package io.openaev.api.stix_process;
 
+import static io.openaev.api.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.api.stix_process.StixApi.STIX_URI;
 import static io.openaev.injector_contract.InjectorContractContentUtilsTest.createContentWithFieldAsset;
 import static io.openaev.injector_contract.InjectorContractContentUtilsTest.createContentWithFieldAssetGroup;
-import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.utils.constants.StixConstants.STIX_PLATFORMS_AFFINITY;
 import static io.openaev.utils.constants.StixConstants.STIX_TYPE_AFFINITY;
 import static io.openaev.utils.fixtures.VulnerabilityFixture.CVE_2023_48788;

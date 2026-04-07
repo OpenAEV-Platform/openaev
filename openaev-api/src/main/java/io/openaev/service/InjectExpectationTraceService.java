@@ -2,6 +2,8 @@ package io.openaev.service;
 
 import static io.openaev.service.InjectExpectationService.COLLECTOR;
 
+import io.openaev.api.exception.ElementNotFoundException;
+import io.openaev.api.inject_expectation_trace.form.InjectExpectationTraceInput;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.InjectExpectationTrace;
@@ -10,8 +12,6 @@ import io.openaev.database.raw.impl.SimpleRawExpectationTrace;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.InjectExpectationTraceRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
-import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.inject_expectation_trace.form.InjectExpectationTraceInput;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import lombok.RequiredArgsConstructor;

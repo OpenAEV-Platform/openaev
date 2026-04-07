@@ -2,9 +2,9 @@ package io.openaev.utils.mapper;
 
 import static java.util.Collections.emptyList;
 
+import io.openaev.api.asset.endpoint.form.AgentExecutorOutput;
+import io.openaev.api.asset.endpoint.form.AgentOutput;
 import io.openaev.database.model.Agent;
-import io.openaev.rest.asset.endpoint.form.AgentExecutorOutput;
-import io.openaev.rest.asset.endpoint.form.AgentOutput;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
  * executor information when available.
  *
  * @see io.openaev.database.model.Agent
- * @see io.openaev.rest.asset.endpoint.form.AgentOutput
+ * @see io.openaev.api.asset.endpoint.form.AgentOutput
  */
 @Component
 @RequiredArgsConstructor

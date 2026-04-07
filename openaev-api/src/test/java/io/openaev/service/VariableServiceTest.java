@@ -4,11 +4,11 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import io.openaev.IntegrationTest;
+import io.openaev.api.exception.ElementNotFoundException;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Variable;
 import io.openaev.database.model.Variable.VariableType;
 import io.openaev.database.repository.ExerciseRepository;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.List;
 import org.junit.jupiter.api.*;

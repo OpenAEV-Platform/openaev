@@ -11,10 +11,10 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import io.openaev.api.settings.response.PlatformSettings;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.ee.License;
 import io.openaev.ee.LicenseTypeEnum;
-import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.UserService;
 import io.openaev.xtmhub.config.XtmHubConfig;

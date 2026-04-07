@@ -1,10 +1,10 @@
 package io.openaev.xtmhub;
 
+import io.openaev.api.settings.response.PlatformSettings;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.helper.TemplateHelper;
-import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.MailingService;
 import io.openaev.service.PlatformSettingsService;
 import java.io.IOException;

@@ -7,12 +7,12 @@ import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.api.asset.endpoint.form.EndpointInput;
+import io.openaev.api.inject.service.ContractOutputContext;
+import io.openaev.api.inject.service.ExecutionProcessingContext;
+import io.openaev.api.tag.TagService;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Inject;
-import io.openaev.rest.asset.endpoint.form.EndpointInput;
-import io.openaev.rest.inject.service.ContractOutputContext;
-import io.openaev.rest.inject.service.ExecutionProcessingContext;
-import io.openaev.rest.tag.TagService;
 import io.openaev.service.EndpointService;
 import java.util.Optional;
 import java.util.Set;

@@ -1,7 +1,7 @@
 package io.openaev.scheduler.jobs;
 
+import io.openaev.api.exception.ChainingException;
 import io.openaev.database.model.StepDelayQueue;
-import io.openaev.rest.exception.ChainingException;
 import io.openaev.service.chaining.StepDelayQueueService;
 import io.openaev.service.chaining.StepService;
 import java.util.List;

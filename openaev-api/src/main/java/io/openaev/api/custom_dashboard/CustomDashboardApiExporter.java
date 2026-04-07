@@ -1,13 +1,11 @@
 package io.openaev.api.custom_dashboard;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.api.helper.RestBehavior;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.ResourceType;
 import io.openaev.jsonapi.ZipJsonApi;
-import io.openaev.rest.custom_dashboard.CustomDashboardApi;
-import io.openaev.rest.custom_dashboard.CustomDashboardService;
-import io.openaev.rest.helper.RestBehavior;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.NotBlank;
 import java.io.IOException;

@@ -11,8 +11,8 @@ import static io.openaev.utils.mapper.ScenarioMapper.toScenarioArticles;
 import static io.openaev.utils.mapper.ScenarioMapper.toScenarioInjects;
 import static io.openaev.utils.mapper.SecurityPlatformMapper.toRelatedEntityOutputs;
 
+import io.openaev.api.document.form.DocumentRelationsOutput;
 import io.openaev.database.model.*;
-import io.openaev.rest.document.form.DocumentRelationsOutput;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;

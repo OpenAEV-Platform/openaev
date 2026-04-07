@@ -2,10 +2,10 @@ package io.openaev.utils.fixtures;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.api.connector_instance.dto.CreateConnectorInstanceInput;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.CatalogConnectorConfiguration;
 import io.openaev.database.model.ConnectorType;
-import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import jakarta.annotation.Nullable;
 import java.util.Set;
 

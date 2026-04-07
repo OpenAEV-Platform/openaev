@@ -1,7 +1,7 @@
 package io.openaev.utils.fixtures.payload_fixture;
 
+import io.openaev.api.payload.output_parser.OutputParserInput;
 import io.openaev.database.model.*;
-import io.openaev.rest.payload.output_parser.OutputParserInput;
 
 public class OutputParserInputFixture {
 

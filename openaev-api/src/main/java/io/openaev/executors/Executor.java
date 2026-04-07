@@ -4,6 +4,7 @@ import static io.openaev.database.model.ExecutionStatus.EXECUTING;
 import static io.openaev.utils.InjectionUtils.isInInjectableRange;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.api.inject.service.InjectStatusService;
 import io.openaev.asset.QueueService;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Injector;
@@ -13,7 +14,6 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutableInjectDTOMapper;
 import io.openaev.execution.ExecutionExecutorService;
 import io.openaev.integration.ManagerFactory;
-import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.annotation.Resource;

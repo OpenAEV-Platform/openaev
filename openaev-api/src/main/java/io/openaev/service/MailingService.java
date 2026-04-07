@@ -4,6 +4,7 @@ import static io.openaev.config.OpenAEVAnonymous.ANONYMOUS;
 import static io.openaev.config.SessionHelper.currentUser;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.api.exception.ElementNotFoundException;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
@@ -16,7 +17,6 @@ import io.openaev.execution.ExecutionContextService;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.injectors.email.model.EmailContent;
 import io.openaev.integration.ManagerFactory;
-import io.openaev.rest.exception.ElementNotFoundException;
 import jakarta.annotation.Resource;
 import java.util.List;
 import java.util.Optional;

@@ -6,14 +6,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
+import io.openaev.api.exception.ElementNotFoundException;
+import io.openaev.api.exception.ForbiddenException;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.TagRule;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.TagRuleRepository;
-import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.TagRuleFixture;

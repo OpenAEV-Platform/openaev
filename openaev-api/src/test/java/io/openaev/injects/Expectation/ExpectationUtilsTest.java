@@ -6,10 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.IntegrationTest;
+import io.openaev.api.inject.service.AssetToExecute;
 import io.openaev.database.model.*;
 import io.openaev.model.expectation.DetectionExpectation;
 import io.openaev.model.expectation.PreventionExpectation;
-import io.openaev.rest.inject.service.AssetToExecute;
 import io.openaev.utils.fixtures.*;
 import java.util.*;
 import org.junit.jupiter.api.DisplayName;

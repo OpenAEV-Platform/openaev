@@ -5,13 +5,13 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import io.openaev.api.exception.UnencryptableElementException;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
 import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.executors.caldera.config.CalderaExecutorConfig;
 import io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegrationFactory;
-import io.openaev.rest.exception.UnencryptableElementException;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.EncryptionFactory;

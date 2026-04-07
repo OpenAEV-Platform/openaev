@@ -1,6 +1,6 @@
 package io.openaev.service;
 
-import static io.openaev.rest.payload.service.PayloadExportService.ZIP_PASSWORD;
+import static io.openaev.api.payload.service.PayloadExportService.ZIP_PASSWORD;
 import static java.io.File.createTempFile;
 import static java.time.Instant.now;
 

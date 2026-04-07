@@ -3,9 +3,9 @@ package io.openaev.utils.mapper;
 import static io.openaev.utils.mapper.AgentMapper.toAgentOutput;
 import static java.util.Optional.ofNullable;
 
+import io.openaev.api.atomic_testing.form.*;
+import io.openaev.api.inject.output.InjectTestStatusOutput;
 import io.openaev.database.model.*;
-import io.openaev.rest.atomic_testing.form.*;
-import io.openaev.rest.inject.output.InjectTestStatusOutput;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

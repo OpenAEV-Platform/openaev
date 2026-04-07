@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.api.domain.enums.PresetDomain;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
@@ -16,7 +17,6 @@ import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
 import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.executors.sentinelone.model.SentinelOneAgent;
-import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;

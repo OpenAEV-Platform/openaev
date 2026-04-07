@@ -6,15 +6,15 @@ import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilde
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.api.channel.model.VirtualArticle;
+import io.openaev.api.channel.response.ChannelReader;
+import io.openaev.api.exception.ElementNotFoundException;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ArticleRepository;
 import io.openaev.database.repository.ChannelRepository;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.injectors.channel.model.ChannelContent;
-import io.openaev.rest.channel.model.VirtualArticle;
-import io.openaev.rest.channel.response.ChannelReader;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.ExpectationUtils;
 import jakarta.annotation.Resource;

@@ -1,7 +1,7 @@
 package io.openaev.utils.fixtures;
 
+import io.openaev.api.inject.form.InjectExpectationUpdateInput;
 import io.openaev.database.model.*;
-import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import jakarta.annotation.Nullable;
 import java.util.Map;
 

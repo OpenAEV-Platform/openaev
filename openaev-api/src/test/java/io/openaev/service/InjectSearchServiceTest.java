@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import io.openaev.api.atomic_testing.form.InjectResultOutput;
 import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectStatus;
@@ -14,7 +15,6 @@ import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
-import io.openaev.rest.atomic_testing.form.InjectResultOutput;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectStatusFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;

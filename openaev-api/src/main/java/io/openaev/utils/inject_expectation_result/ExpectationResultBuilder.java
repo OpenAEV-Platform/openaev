@@ -6,11 +6,11 @@ import static io.openaev.service.InjectExpectationService.COLLECTOR;
 import static java.time.Instant.now;
 import static org.springframework.util.StringUtils.hasText;
 
+import io.openaev.api.exercise.form.ExpectationUpdateInput;
+import io.openaev.api.inject.form.InjectExpectationUpdateInput;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.InjectExpectationResult;
-import io.openaev.rest.exercise.form.ExpectationUpdateInput;
-import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.service.InjectExpectationUtils;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;

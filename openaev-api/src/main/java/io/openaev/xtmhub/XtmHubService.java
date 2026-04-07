@@ -1,7 +1,7 @@
 package io.openaev.xtmhub;
 
+import io.openaev.api.settings.response.PlatformSettings;
 import io.openaev.database.model.User;
-import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.UserService;
 import io.openaev.utils.LicenseUtils;

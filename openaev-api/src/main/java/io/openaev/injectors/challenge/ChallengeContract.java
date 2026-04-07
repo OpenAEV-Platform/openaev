@@ -13,6 +13,7 @@ import static io.openaev.injector_contract.fields.ContractTeam.teamField;
 import static io.openaev.injector_contract.fields.ContractText.textField;
 import static io.openaev.injector_contract.fields.ContractTextArea.richTextareaField;
 
+import io.openaev.api.domain.enums.PresetDomain;
 import io.openaev.database.model.Endpoint;
 import io.openaev.expectation.ExpectationBuilderService;
 import io.openaev.injector_contract.Contract;
@@ -21,7 +22,6 @@ import io.openaev.injector_contract.Contractor;
 import io.openaev.injector_contract.ContractorIcon;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractExpectations;
-import io.openaev.rest.domain.enums.PresetDomain;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;

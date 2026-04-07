@@ -15,6 +15,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.api.connector_instance.dto.ConnectorInstanceHealthInput;
+import io.openaev.api.connector_instance.dto.ConnectorInstanceLogsInput;
 import io.openaev.api.xtm_composer.dto.XtmComposerRegisterInput;
 import io.openaev.api.xtm_composer.dto.XtmComposerUpdateStatusInput;
 import io.openaev.config.OpenAEVConfig;
@@ -24,8 +26,6 @@ import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.model.Setting;
 import io.openaev.database.repository.ConnectorInstanceLogRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
-import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
-import io.openaev.rest.connector_instance.dto.ConnectorInstanceLogsInput;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import io.openaev.utils.fixtures.composers.ConnectorInstanceComposer;

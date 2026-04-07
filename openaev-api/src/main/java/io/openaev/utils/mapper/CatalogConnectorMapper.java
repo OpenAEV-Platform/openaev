@@ -1,9 +1,9 @@
 package io.openaev.utils.mapper;
 
+import io.openaev.api.catalog_connector.dto.CatalogConnectorOutput;
+import io.openaev.api.catalog_connector.dto.CatalogConnectorSimpleOutput;
+import io.openaev.api.catalog_connector.dto.ConnectorIds;
 import io.openaev.database.model.CatalogConnector;
-import io.openaev.rest.catalog_connector.dto.CatalogConnectorOutput;
-import io.openaev.rest.catalog_connector.dto.CatalogConnectorSimpleOutput;
-import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import jakarta.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

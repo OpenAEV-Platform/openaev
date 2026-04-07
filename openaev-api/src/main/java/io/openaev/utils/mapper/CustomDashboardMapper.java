@@ -1,7 +1,7 @@
 package io.openaev.utils.mapper;
 
+import io.openaev.api.custom_dashboard.form.CustomDashboardOutput;
 import io.openaev.database.raw.RawCustomDashboard;
-import io.openaev.rest.custom_dashboard.form.CustomDashboardOutput;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;

@@ -1,7 +1,7 @@
 package io.openaev.xtmone;
 
+import io.openaev.api.settings.response.PlatformSettings;
 import io.openaev.ee.EnterpriseEditionService;
-import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
 import java.util.List;
 import java.util.Map;

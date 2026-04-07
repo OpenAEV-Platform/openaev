@@ -1,6 +1,6 @@
 package io.openaev.api.payload;
 
-import static io.openaev.rest.payload.PayloadApi.PAYLOAD_URI;
+import static io.openaev.api.payload.PayloadApi.PAYLOAD_URI;
 import static io.openaev.utils.constants.Constants.IMPORTED_OBJECT_NAME_SUFFIX;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;

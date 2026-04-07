@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import io.openaev.IntegrationTest;
+import io.openaev.api.exercise.service.ExerciseService;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ComcheckRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -15,7 +16,6 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.integration.Manager;
 import io.openaev.integration.ManagerFactory;
-import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import jakarta.persistence.EntityManager;

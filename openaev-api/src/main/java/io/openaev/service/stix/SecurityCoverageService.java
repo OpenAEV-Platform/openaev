@@ -1,7 +1,7 @@
 package io.openaev.service.stix;
 
+import static io.openaev.api.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY;
 import static io.openaev.helper.CryptoHelper.md5Hex;
-import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY;
 import static io.openaev.stix.objects.constants.CommonProperties.MODIFIED;
 import static io.openaev.utils.constants.StixConstants.*;
 
@@ -10,6 +10,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
+import io.openaev.api.attack_pattern.service.AttackPatternService;
+import io.openaev.api.exercise.service.ExerciseService;
+import io.openaev.api.inject.service.InjectService;
+import io.openaev.api.settings.PreviewFeature;
+import io.openaev.api.tag.TagService;
+import io.openaev.api.vulnerability.service.VulnerabilityService;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ScenarioRepository;
@@ -17,12 +23,6 @@ import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.opencti.errors.ConnectorError;
-import io.openaev.rest.attack_pattern.service.AttackPatternService;
-import io.openaev.rest.exercise.service.ExerciseService;
-import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.settings.PreviewFeature;
-import io.openaev.rest.tag.TagService;
-import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.stix.error.BundleValidationError;

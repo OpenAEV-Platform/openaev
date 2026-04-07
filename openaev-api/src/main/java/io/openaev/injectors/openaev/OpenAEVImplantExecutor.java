@@ -8,6 +8,8 @@ import static io.openaev.utils.AgentUtils.getActiveAgents;
 import static io.openaev.utils.ExpectationUtils.*;
 import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpectationForAssetGroup;
 
+import io.openaev.api.inject.service.AssetToExecute;
+import io.openaev.api.inject.service.InjectService;
 import io.openaev.database.model.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Injector;
@@ -19,8 +21,6 @@ import io.openaev.model.expectation.DetectionExpectation;
 import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.model.expectation.PreventionExpectation;
 import io.openaev.model.expectation.VulnerabilityExpectation;
-import io.openaev.rest.inject.service.AssetToExecute;
-import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.InjectExpectationService;
 import jakarta.validation.constraints.NotNull;

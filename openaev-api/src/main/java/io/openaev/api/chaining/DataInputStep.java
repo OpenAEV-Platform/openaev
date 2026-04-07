@@ -2,7 +2,7 @@ package io.openaev.api.chaining;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import io.openaev.rest.inject.form.InjectInput;
+import io.openaev.api.inject.form.InjectInput;
 
 /**
  * Interface representing the data associated with a step.

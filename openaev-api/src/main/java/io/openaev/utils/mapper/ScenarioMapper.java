@@ -1,12 +1,12 @@
 package io.openaev.utils.mapper;
 
+import io.openaev.api.document.form.RelatedEntityOutput;
+import io.openaev.api.kill_chain_phase.response.KillChainPhaseOutput;
+import io.openaev.api.scenario.form.ScenarioSimple;
+import io.openaev.api.scenario.response.ScenarioOutput;
+import io.openaev.api.scenario.response.ScenarioTeamUserOutput;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawScenario;
-import io.openaev.rest.document.form.RelatedEntityOutput;
-import io.openaev.rest.kill_chain_phase.response.KillChainPhaseOutput;
-import io.openaev.rest.scenario.form.ScenarioSimple;
-import io.openaev.rest.scenario.response.ScenarioOutput;
-import io.openaev.rest.scenario.response.ScenarioTeamUserOutput;
 import jakarta.validation.constraints.NotNull;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -22,8 +22,8 @@ import org.springframework.stereotype.Component;
  * response objects, including simple representations and full output formats.
  *
  * @see io.openaev.database.model.Scenario
- * @see io.openaev.rest.scenario.form.ScenarioSimple
- * @see io.openaev.rest.scenario.response.ScenarioOutput
+ * @see io.openaev.api.scenario.form.ScenarioSimple
+ * @see io.openaev.api.scenario.response.ScenarioOutput
  */
 @RequiredArgsConstructor
 @Component

@@ -8,18 +8,18 @@ import static io.openaev.utils.challenge.ChallengeExpectationUtils.buildChalleng
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.api.challenge.form.ChallengeTryInput;
+import io.openaev.api.challenge.response.ChallengeInformation;
+import io.openaev.api.challenge.response.ChallengeResult;
+import io.openaev.api.challenge.response.SimulationChallengesReader;
+import io.openaev.api.exception.ElementNotFoundException;
+import io.openaev.api.exercise.form.ExpectationUpdateInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.injectors.challenge.model.ChallengeContent;
-import io.openaev.rest.challenge.form.ChallengeTryInput;
-import io.openaev.rest.challenge.response.ChallengeInformation;
-import io.openaev.rest.challenge.response.ChallengeResult;
-import io.openaev.rest.challenge.response.SimulationChallengesReader;
-import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.service.challenge.ChallengeAttemptService;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;

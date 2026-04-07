@@ -2,12 +2,12 @@ package io.openaev.service.catalog_connectors;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
 
+import io.openaev.api.catalog_connector.dto.CatalogConnectorOutput;
+import io.openaev.api.exception.ElementNotFoundException;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.CatalogConnectorConfiguration;
 import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.repository.CatalogConnectorRepository;
-import io.openaev.rest.catalog_connector.dto.CatalogConnectorOutput;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import java.util.*;

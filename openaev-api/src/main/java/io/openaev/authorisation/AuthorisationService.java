@@ -1,8 +1,8 @@
 package io.openaev.authorisation;
 
+import io.openaev.api.security.SecurityExpression;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.UserRepository;
-import io.openaev.rest.security.SecurityExpression;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;

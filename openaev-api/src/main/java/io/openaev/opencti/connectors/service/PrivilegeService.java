@@ -2,6 +2,7 @@ package io.openaev.opencti.connectors.service;
 
 import static io.openaev.opencti.connectors.Constants.*;
 
+import io.openaev.api.group.form.GroupCreateInput;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.User;

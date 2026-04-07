@@ -1,9 +1,9 @@
 package io.openaev.utils.mapper;
 
+import io.openaev.api.executor.form.ExecutorOutput;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.Executor;
-import io.openaev.rest.executor.form.ExecutorOutput;
 import jakarta.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

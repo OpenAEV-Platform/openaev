@@ -1,9 +1,9 @@
 package io.openaev.utils.mapper;
 
+import io.openaev.api.finding.form.AggregatedFindingOutput;
+import io.openaev.api.finding.form.RelatedFindingOutput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.FindingRepository;
-import io.openaev.rest.finding.form.AggregatedFindingOutput;
-import io.openaev.rest.finding.form.RelatedFindingOutput;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;

@@ -1,16 +1,16 @@
 package io.openaev.service.connectors;
 
+import io.openaev.api.collector.service.CollectorService;
+import io.openaev.api.connector_instance.dto.ConnectorInstanceHealthInput;
+import io.openaev.api.connector_instance.dto.CreateConnectorInstanceInput;
+import io.openaev.api.exception.BadRequestException;
+import io.openaev.api.exception.ElementNotFoundException;
+import io.openaev.api.exception.LicenseRestrictionException;
 import io.openaev.api.xtm_composer.dto.XtmComposerInstanceOutput;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
-import io.openaev.rest.collector.service.CollectorService;
-import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
-import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
-import io.openaev.rest.exception.BadRequestException;
-import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.exception.LicenseRestrictionException;
 import io.openaev.service.InjectorService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceLogService;

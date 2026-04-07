@@ -1,8 +1,8 @@
 package io.openaev.service.connectors;
 
+import io.openaev.api.catalog_connector.dto.ConnectorIds;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
-import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;

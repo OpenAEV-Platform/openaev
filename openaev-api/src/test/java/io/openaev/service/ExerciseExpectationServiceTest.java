@@ -5,9 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import io.openaev.IntegrationTest;
+import io.openaev.api.exercise.form.ExpectationUpdateInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
-import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.utils.fixtures.InjectExpectationFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import java.time.Instant;

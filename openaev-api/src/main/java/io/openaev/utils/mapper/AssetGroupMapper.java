@@ -1,10 +1,10 @@
 package io.openaev.utils.mapper;
 
+import io.openaev.api.asset_group.form.AssetGroupOutput;
+import io.openaev.api.asset_group.form.AssetGroupSimple;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Tag;
-import io.openaev.rest.asset_group.form.AssetGroupOutput;
-import io.openaev.rest.asset_group.form.AssetGroupSimple;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

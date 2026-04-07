@@ -1,6 +1,6 @@
 package io.openaev.utils.fixtures;
 
-import io.openaev.rest.log.form.LogDetailsInput;
+import io.openaev.api.log.form.LogDetailsInput;
 
 public class LogFixture {
 

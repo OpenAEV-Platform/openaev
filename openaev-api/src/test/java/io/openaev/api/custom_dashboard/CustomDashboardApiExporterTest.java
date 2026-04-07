@@ -1,8 +1,8 @@
 package io.openaev.api.custom_dashboard;
 
+import static io.openaev.api.custom_dashboard.CustomDashboardApi.CUSTOM_DASHBOARDS_URI;
 import static io.openaev.database.model.CustomDashboardParameters.CustomDashboardParameterType.simulation;
 import static io.openaev.engine.api.WidgetType.VERTICAL_BAR_CHART;
-import static io.openaev.rest.custom_dashboard.CustomDashboardApi.CUSTOM_DASHBOARDS_URI;
 import static io.openaev.utils.fixtures.CustomDashboardFixture.NAME;
 import static io.openaev.utils.fixtures.CustomDashboardFixture.createDefaultCustomDashboard;
 import static io.openaev.utils.fixtures.CustomDashboardParameterFixture.createSimulationCustomDashboardParameter;

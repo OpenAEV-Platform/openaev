@@ -1,6 +1,6 @@
 package io.openaev.api.payload;
 
-import static io.openaev.rest.payload.PayloadApi.PAYLOAD_URI;
+import static io.openaev.api.payload.PayloadApi.PAYLOAD_URI;
 import static io.openaev.utils.fixtures.PayloadFixture.COMMAND_PAYLOAD_NAME;
 import static io.openaev.utils.fixtures.PayloadFixture.createDefaultCommand;
 import static io.openaev.utils.fixtures.TagFixture.getTagWithText;

@@ -3,14 +3,14 @@ package io.openaev.utils.mapper;
 import static java.util.Optional.ofNullable;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.api.atomic_testing.form.*;
+import io.openaev.api.document.form.RelatedEntityOutput;
+import io.openaev.api.inject.output.InjectOutput;
+import io.openaev.api.inject.output.InjectSimple;
+import io.openaev.api.payload.output.PayloadSimple;
 import io.openaev.database.model.*;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
-import io.openaev.rest.atomic_testing.form.*;
-import io.openaev.rest.document.form.RelatedEntityOutput;
-import io.openaev.rest.inject.output.InjectOutput;
-import io.openaev.rest.inject.output.InjectSimple;
-import io.openaev.rest.payload.output.PayloadSimple;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
@@ -26,7 +26,7 @@ import org.springframework.stereotype.Component;
  * response objects, including result overviews, simple representations, and target mappings.
  *
  * @see io.openaev.database.model.Inject
- * @see io.openaev.rest.inject.output.InjectOutput
+ * @see io.openaev.api.inject.output.InjectOutput
  */
 @Component
 @RequiredArgsConstructor

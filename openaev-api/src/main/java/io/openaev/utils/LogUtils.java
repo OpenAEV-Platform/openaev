@@ -1,6 +1,6 @@
 package io.openaev.utils;
 
-import io.openaev.rest.log.form.LogDetailsInput;
+import io.openaev.api.log.form.LogDetailsInput;
 
 /**
  * Utility class for log message formatting and construction.

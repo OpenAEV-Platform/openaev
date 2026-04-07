@@ -1,10 +1,10 @@
 package io.openaev.executors;
 
+import io.openaev.api.exception.AgentException;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectStatus;
-import io.openaev.rest.exception.AgentException;
 import java.util.List;
 import java.util.Set;
 

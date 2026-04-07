@@ -1,10 +1,10 @@
 package io.openaev.service.targets.search;
 
+import io.openaev.api.asset_group.AssetGroupCriteriaBuilderService;
+import io.openaev.api.asset_group.form.AssetGroupOutput;
 import io.openaev.database.model.AssetGroupTarget;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectTarget;
-import io.openaev.rest.asset_group.AssetGroupCriteriaBuilderService;
-import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.service.AssetGroupService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;

@@ -2,10 +2,10 @@ package io.openaev.service.chaining;
 
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
+import io.openaev.api.exception.ElementNotFoundException;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.IpAddressUtils;
 import jakarta.validation.constraints.NotBlank;
 import java.util.HashSet;

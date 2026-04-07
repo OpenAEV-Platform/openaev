@@ -5,10 +5,10 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static java.time.Instant.now;
 
+import io.openaev.api.asset_group.form.AssetGroupOutput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.specification.EndpointSpecification;
-import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.mapper.AssetGroupMapper;
 import jakarta.validation.constraints.NotBlank;

@@ -1,15 +1,14 @@
 package io.openaev.api.payload;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.api.exception.ElementNotFoundException;
+import io.openaev.api.helper.RestBehavior;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.jsonapi.IncludeOptions;
 import io.openaev.jsonapi.ZipJsonApi;
-import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.helper.RestBehavior;
-import io.openaev.rest.payload.PayloadApi;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.NotBlank;
 import java.io.IOException;

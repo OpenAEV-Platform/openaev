@@ -1,11 +1,11 @@
 package io.openaev.service.chaining;
 
+import io.openaev.api.exception.ChainingException;
 import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.ConditionRepository;
-import io.openaev.rest.exception.ChainingException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;

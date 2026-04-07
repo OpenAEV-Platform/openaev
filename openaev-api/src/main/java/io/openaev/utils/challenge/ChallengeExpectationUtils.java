@@ -1,7 +1,7 @@
 package io.openaev.utils.challenge;
 
+import io.openaev.api.exercise.form.ExpectationUpdateInput;
 import io.openaev.database.model.InjectExpectationResult;
-import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import java.time.Instant;
 
 public class ChallengeExpectationUtils {

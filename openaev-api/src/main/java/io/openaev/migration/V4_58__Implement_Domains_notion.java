@@ -1,6 +1,6 @@
 package io.openaev.migration;
 
-import io.openaev.rest.domain.enums.PresetDomain;
+import io.openaev.api.domain.enums.PresetDomain;
 import java.sql.Statement;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;

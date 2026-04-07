@@ -4,11 +4,11 @@ import static io.openaev.utils.fixtures.import_mapper.RuleAttributeFixture.creat
 import static org.junit.jupiter.api.Assertions.*;
 
 import io.openaev.IntegrationTest;
+import io.openaev.api.scenario.response.ImportTestSummary;
 import io.openaev.database.model.ImportMapper;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectImporter;
 import io.openaev.database.model.Scenario;
-import io.openaev.rest.scenario.response.ImportTestSummary;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.XlsFixture;
 import io.openaev.utils.fixtures.import_mapper.ImportMapperFixture;

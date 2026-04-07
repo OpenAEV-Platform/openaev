@@ -1,11 +1,11 @@
 package io.openaev.executors.caldera.service;
 
+import io.openaev.api.exception.AgentException;
 import io.openaev.database.model.*;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.caldera.client.CalderaExecutorClient;
 import io.openaev.executors.caldera.client.model.Ability;
 import io.openaev.executors.caldera.config.CalderaExecutorConfig;
-import io.openaev.rest.exception.AgentException;
 import io.openaev.service.InjectorService;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;

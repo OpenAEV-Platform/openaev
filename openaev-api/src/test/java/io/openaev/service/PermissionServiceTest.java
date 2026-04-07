@@ -7,10 +7,10 @@ import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
 import io.openaev.aop.AccessControlAspect;
+import io.openaev.api.inject.service.InjectService;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.EvaluationRepository;
 import io.openaev.database.repository.ObjectiveRepository;
-import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.*;

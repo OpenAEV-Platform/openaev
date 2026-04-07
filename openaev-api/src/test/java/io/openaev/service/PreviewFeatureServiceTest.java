@@ -1,6 +1,6 @@
 package io.openaev.service;
 
-import static io.openaev.rest.settings.PreviewFeature.*;
+import static io.openaev.api.settings.PreviewFeature.*;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 

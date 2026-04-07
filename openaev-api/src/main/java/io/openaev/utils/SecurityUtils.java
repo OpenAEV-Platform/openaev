@@ -1,6 +1,6 @@
 package io.openaev.utils;
 
-import io.openaev.rest.exception.BadRequestException;
+import io.openaev.api.exception.BadRequestException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;

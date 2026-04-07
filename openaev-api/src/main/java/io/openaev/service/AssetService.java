@@ -2,11 +2,11 @@ package io.openaev.service;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
 
+import io.openaev.api.exception.ElementNotFoundException;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
-import io.openaev.rest.exception.ElementNotFoundException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.validation.constraints.NotBlank;

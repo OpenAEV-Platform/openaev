@@ -13,14 +13,14 @@ import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpect
 import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpectationForAsset;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildForMediaPressure;
 
+import io.openaev.api.exception.ElementNotFoundException;
+import io.openaev.api.inject.service.AssetToExecute;
 import io.openaev.database.model.*;
 import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
 import io.openaev.model.expectation.DetectionExpectation;
 import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.model.expectation.PreventionExpectation;
 import io.openaev.model.expectation.VulnerabilityExpectation;
-import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.inject.service.AssetToExecute;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;

@@ -2,6 +2,9 @@ package io.openaev.utils.mapper;
 
 import static java.util.Collections.emptyList;
 
+import io.openaev.api.atomic_testing.form.TargetSimple;
+import io.openaev.api.document.form.RelatedEntityOutput;
+import io.openaev.api.exercise.form.ExerciseSimple;
 import io.openaev.database.model.Article;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ExerciseStatus;
@@ -12,9 +15,6 @@ import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.TeamRepository;
-import io.openaev.rest.atomic_testing.form.TargetSimple;
-import io.openaev.rest.document.form.RelatedEntityOutput;
-import io.openaev.rest.exercise.form.ExerciseSimple;
 import io.openaev.utils.ResultUtils;
 import io.openaev.utils.TargetType;
 import java.util.ArrayList;
@@ -33,7 +33,7 @@ import org.springframework.stereotype.Component;
  * response objects, including target resolution and expectation result aggregation.
  *
  * @see io.openaev.database.model.Exercise
- * @see io.openaev.rest.exercise.form.ExerciseSimple
+ * @see io.openaev.api.exercise.form.ExerciseSimple
  */
 @RequiredArgsConstructor
 @Component

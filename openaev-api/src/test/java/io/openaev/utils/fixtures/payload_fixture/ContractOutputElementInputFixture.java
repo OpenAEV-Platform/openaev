@@ -1,7 +1,7 @@
 package io.openaev.utils.fixtures.payload_fixture;
 
+import io.openaev.api.payload.contract_output_element.ContractOutputElementInput;
 import io.openaev.database.model.ContractOutputType;
-import io.openaev.rest.payload.contract_output_element.ContractOutputElementInput;
 
 public class ContractOutputElementInputFixture {
 

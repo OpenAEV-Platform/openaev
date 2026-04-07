@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.api.domain.enums.PresetDomain;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
@@ -17,7 +18,6 @@ import io.openaev.executors.crowdstrike.model.CrowdStrikeDevice;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeHostGroup;
 import io.openaev.executors.crowdstrike.model.ResourcesGroups;
 import io.openaev.executors.model.AgentRegisterInput;
-import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;

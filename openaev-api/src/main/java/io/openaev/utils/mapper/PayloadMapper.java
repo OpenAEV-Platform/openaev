@@ -7,16 +7,16 @@ import static io.openaev.database.model.FileDrop.FILE_DROP_TYPE;
 import static java.util.Collections.emptyList;
 import static java.util.Optional.ofNullable;
 
+import io.openaev.api.atomic_testing.form.AttackPatternSimple;
+import io.openaev.api.atomic_testing.form.StatusPayloadOutput;
+import io.openaev.api.document.form.RelatedEntityOutput;
+import io.openaev.api.payload.contract_output_element.ContractOutputElementSimple;
+import io.openaev.api.payload.form.DetectionRemediationOutput;
+import io.openaev.api.payload.output_parser.OutputParserSimple;
+import io.openaev.api.payload.regex_group.RegexGroupSimple;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
-import io.openaev.rest.atomic_testing.form.AttackPatternSimple;
-import io.openaev.rest.atomic_testing.form.StatusPayloadOutput;
-import io.openaev.rest.document.form.RelatedEntityOutput;
-import io.openaev.rest.payload.contract_output_element.ContractOutputElementSimple;
-import io.openaev.rest.payload.form.DetectionRemediationOutput;
-import io.openaev.rest.payload.output_parser.OutputParserSimple;
-import io.openaev.rest.payload.regex_group.RegexGroupSimple;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +33,7 @@ import org.springframework.stereotype.Component;
  * features are gated by Enterprise Edition licensing.
  *
  * @see io.openaev.database.model.Payload
- * @see io.openaev.rest.atomic_testing.form.StatusPayloadOutput
+ * @see io.openaev.api.atomic_testing.form.StatusPayloadOutput
  */
 @RequiredArgsConstructor
 @Component

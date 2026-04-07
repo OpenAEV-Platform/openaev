@@ -3,7 +3,7 @@ package io.openaev.utils.fixtures.payload_fixture;
 import static io.openaev.utils.fixtures.payload_fixture.ContractOutputElementInputFixture.CREDENTIALS_USERNAME;
 import static io.openaev.utils.fixtures.payload_fixture.ContractOutputElementInputFixture.IPV_6;
 
-import io.openaev.rest.payload.regex_group.RegexGroupInput;
+import io.openaev.api.payload.regex_group.RegexGroupInput;
 
 public class RegexGroupInputFixture {
 

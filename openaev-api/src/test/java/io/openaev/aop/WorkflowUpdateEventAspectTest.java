@@ -4,8 +4,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.api.exception.ElementNotFoundException;
+import io.openaev.api.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.chaining.QueueChainingService;
 import io.openaev.service.chaining.StepService;

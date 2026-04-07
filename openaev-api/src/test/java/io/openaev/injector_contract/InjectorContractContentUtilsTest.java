@@ -1,5 +1,7 @@
 package io.openaev.injector_contract;
 
+import static io.openaev.api.injector_contract.InjectorContractContentUtils.FIELDS;
+import static io.openaev.api.injector_contract.InjectorContractContentUtils.MULTIPLE;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_CARDINALITY;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ASSETS;
@@ -11,8 +13,6 @@ import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTEN
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_EXPECTATION;
 import static io.openaev.database.model.InjectorContract.PREDEFINED_EXPECTATIONS;
-import static io.openaev.rest.injector_contract.InjectorContractContentUtils.FIELDS;
-import static io.openaev.rest.injector_contract.InjectorContractContentUtils.MULTIPLE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -23,10 +23,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.api.injector_contract.InjectorContractContentUtils;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
-import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.List;

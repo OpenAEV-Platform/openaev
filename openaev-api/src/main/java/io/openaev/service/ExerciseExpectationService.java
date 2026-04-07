@@ -1,10 +1,10 @@
 package io.openaev.service;
 
+import io.openaev.api.exception.ElementNotFoundException;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectExpectationRepository;
-import io.openaev.rest.exception.ElementNotFoundException;
 import jakarta.validation.constraints.NotBlank;
 import java.util.*;
 import lombok.RequiredArgsConstructor;

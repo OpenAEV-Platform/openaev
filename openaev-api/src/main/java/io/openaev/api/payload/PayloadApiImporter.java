@@ -1,14 +1,13 @@
 package io.openaev.api.payload;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.api.helper.RestBehavior;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.ResourceType;
 import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.ResourceObject;
 import io.openaev.jsonapi.ZipJsonApi;
-import io.openaev.rest.helper.RestBehavior;
-import io.openaev.rest.payload.PayloadApi;
 import io.openaev.service.ImportService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.NotNull;

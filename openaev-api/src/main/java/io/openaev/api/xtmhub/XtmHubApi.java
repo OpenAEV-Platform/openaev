@@ -1,10 +1,10 @@
 package io.openaev.api.xtmhub;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.api.helper.RestBehavior;
+import io.openaev.api.settings.response.PlatformSettings;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
-import io.openaev.rest.helper.RestBehavior;
-import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.xtmhub.XtmHubService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;

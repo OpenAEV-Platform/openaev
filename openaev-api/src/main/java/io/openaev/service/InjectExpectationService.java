@@ -13,6 +13,12 @@ import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilde
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.api.atomic_testing.form.InjectExpectationAgentOutput;
+import io.openaev.api.collector.service.CollectorService;
+import io.openaev.api.exception.ElementNotFoundException;
+import io.openaev.api.exercise.form.ExpectationUpdateInput;
+import io.openaev.api.inject.form.InjectExpectationUpdateInput;
+import io.openaev.api.inject.service.ExecutionProcessingContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.specification.InjectExpectationSpecification;
@@ -20,12 +26,6 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.model.Expectation;
-import io.openaev.rest.atomic_testing.form.InjectExpectationAgentOutput;
-import io.openaev.rest.collector.service.CollectorService;
-import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.exercise.form.ExpectationUpdateInput;
-import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
-import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.utils.ExpectationUtils;
 import io.openaev.utils.TargetType;
 import jakarta.annotation.Nullable;

@@ -2,12 +2,12 @@ package io.openaev.service.connectors;
 
 import static io.openaev.database.model.SettingKeys.*;
 
+import io.openaev.api.exception.BadRequestException;
 import io.openaev.api.xtm_composer.dto.XtmComposerInstanceOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerRegisterInput;
 import io.openaev.database.model.*;
 import io.openaev.helper.ConnectorInstanceHashHelper;
-import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.PlatformSettingsService;
 import java.time.Instant;
 import java.time.LocalDateTime;

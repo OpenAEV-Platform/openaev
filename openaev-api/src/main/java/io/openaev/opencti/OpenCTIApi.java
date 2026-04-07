@@ -2,9 +2,9 @@ package io.openaev.opencti;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.api.exercise.form.ExerciseSimple;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
-import io.openaev.rest.exercise.form.ExerciseSimple;
 import io.openaev.service.scenario.ScenarioService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;

@@ -25,10 +25,10 @@ import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecu
 import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME;
 import static java.util.Optional.ofNullable;
 
+import io.openaev.api.exception.LicenseRestrictionException;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.SettingRepository;
-import io.openaev.rest.exception.LicenseRestrictionException;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotNull;
 import java.nio.charset.StandardCharsets;

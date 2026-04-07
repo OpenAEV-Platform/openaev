@@ -5,8 +5,8 @@ import static io.openaev.database.model.CatalogConnectorConfiguration.ENCRYPTED_
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.api.exception.UnencryptableElementException;
 import io.openaev.database.model.*;
-import io.openaev.rest.exception.UnencryptableElementException;
 import io.openaev.service.connector_instances.EncryptionFactory;
 import io.openaev.service.connector_instances.EncryptionService;
 import io.openaev.utils.JsonUtils;

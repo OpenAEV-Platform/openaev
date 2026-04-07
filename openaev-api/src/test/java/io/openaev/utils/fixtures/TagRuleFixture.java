@@ -1,10 +1,10 @@
 package io.openaev.utils.fixtures;
 
+import io.openaev.api.tag_rule.form.TagRuleInput;
+import io.openaev.api.tag_rule.form.TagRuleOutput;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.TagRule;
-import io.openaev.rest.tag_rule.form.TagRuleInput;
-import io.openaev.rest.tag_rule.form.TagRuleOutput;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;

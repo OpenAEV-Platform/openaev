@@ -1,13 +1,13 @@
 package io.openaev.utils.mapper;
 
+import io.openaev.api.cve.form.CveOutput;
+import io.openaev.api.cve.form.CveSimple;
+import io.openaev.api.vulnerability.form.CweOutput;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.Cve;
 import io.openaev.database.model.Cwe;
 import io.openaev.database.model.Vulnerability;
 import io.openaev.ee.EnterpriseEditionService;
-import io.openaev.rest.cve.form.CveOutput;
-import io.openaev.rest.cve.form.CveSimple;
-import io.openaev.rest.vulnerability.form.CweOutput;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;

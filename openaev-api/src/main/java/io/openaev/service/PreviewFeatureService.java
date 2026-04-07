@@ -1,8 +1,8 @@
 package io.openaev.service;
 
-import static io.openaev.rest.settings.PreviewFeature.FEATURE_FLAG_ALL;
+import static io.openaev.api.settings.PreviewFeature.FEATURE_FLAG_ALL;
 
-import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.api.settings.PreviewFeature;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;

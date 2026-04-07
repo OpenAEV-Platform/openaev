@@ -1,6 +1,6 @@
 package io.openaev.aop;
 
-import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.api.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.chaining.QueueChainingService;
 import io.openaev.service.chaining.StepService;

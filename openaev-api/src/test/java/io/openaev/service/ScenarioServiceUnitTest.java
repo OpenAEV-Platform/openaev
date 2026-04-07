@@ -4,13 +4,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import io.openaev.api.inject.service.InjectDuplicateService;
+import io.openaev.api.inject.service.InjectService;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
-import io.openaev.rest.inject.service.InjectDuplicateService;
-import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.TargetType;
@@ -203,7 +203,7 @@ class ScenarioServiceUnitTest {
       when(scenarioRepository.findById("missing")).thenReturn(Optional.empty());
 
       assertThrows(
-          io.openaev.rest.exception.ElementNotFoundException.class,
+          io.openaev.api.exception.ElementNotFoundException.class,
           () -> scenarioService.scenario("missing"));
     }
 

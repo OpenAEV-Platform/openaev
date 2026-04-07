@@ -3,13 +3,13 @@ package io.openaev.service;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import io.openaev.api.team.output.TeamOutput;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
 import io.openaev.database.raw.RawTeamIndexing;
 import io.openaev.database.repository.TeamRepository;
-import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.utils.fixtures.OrganizationFixture;
 import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.UserFixture;

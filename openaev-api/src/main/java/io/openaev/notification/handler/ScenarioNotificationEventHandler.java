@@ -1,12 +1,12 @@
 package io.openaev.notification.handler;
 
+import io.openaev.api.exercise.service.ExerciseService;
+import io.openaev.api.scenario.service.ScenarioStatisticService;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.notification.model.NotificationEvent;
 import io.openaev.notification.model.NotificationEventType;
-import io.openaev.rest.exercise.service.ExerciseService;
-import io.openaev.rest.scenario.service.ScenarioStatisticService;
 import io.openaev.service.NotificationRuleService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;

@@ -1,7 +1,7 @@
 package io.openaev.utils.fixtures;
 
+import io.openaev.api.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.database.model.Filters;
-import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.ArrayList;
 import java.util.List;

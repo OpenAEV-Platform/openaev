@@ -4,13 +4,13 @@ import static io.openaev.database.model.Endpoint.*;
 import static io.openaev.utils.AgentUtils.getPrimaryAgents;
 import static java.util.Collections.emptySet;
 
+import io.openaev.api.asset.endpoint.form.EndpointOutput;
+import io.openaev.api.asset.endpoint.form.EndpointOverviewOutput;
+import io.openaev.api.asset.endpoint.form.EndpointSimple;
+import io.openaev.api.asset.endpoint.output.EndpointTargetOutput;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Tag;
-import io.openaev.rest.asset.endpoint.form.EndpointOutput;
-import io.openaev.rest.asset.endpoint.form.EndpointOverviewOutput;
-import io.openaev.rest.asset.endpoint.form.EndpointSimple;
-import io.openaev.rest.asset.endpoint.output.EndpointTargetOutput;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.stream.Collectors;
@@ -26,7 +26,7 @@ import org.springframework.stereotype.Component;
  * sanitizing IP and MAC address data.
  *
  * @see io.openaev.database.model.Endpoint
- * @see io.openaev.rest.asset.endpoint.form.EndpointOutput
+ * @see io.openaev.api.asset.endpoint.form.EndpointOutput
  */
 @Component
 @RequiredArgsConstructor

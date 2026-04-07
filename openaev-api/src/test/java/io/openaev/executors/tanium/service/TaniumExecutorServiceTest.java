@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.api.domain.enums.PresetDomain;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
@@ -17,7 +18,6 @@ import io.openaev.executors.tanium.model.DataComputerGroup;
 import io.openaev.executors.tanium.model.NodeEndpoint;
 import io.openaev.executors.tanium.model.TaniumComputerGroup;
 import io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration;
-import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;

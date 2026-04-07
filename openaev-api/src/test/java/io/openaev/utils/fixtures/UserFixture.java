@@ -1,10 +1,10 @@
 package io.openaev.utils.fixtures;
 
+import io.openaev.api.user.form.login.LoginUserInput;
+import io.openaev.api.user.form.login.ResetUserInput;
+import io.openaev.api.user.form.user.ChangePasswordInput;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
-import io.openaev.rest.user.form.login.LoginUserInput;
-import io.openaev.rest.user.form.login.ResetUserInput;
-import io.openaev.rest.user.form.user.ChangePasswordInput;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;

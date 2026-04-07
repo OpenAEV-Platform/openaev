@@ -5,13 +5,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.openaev.api.asset.endpoint.form.EndpointInput;
+import io.openaev.api.asset.endpoint.form.EndpointOutput;
+import io.openaev.api.exception.ElementNotFoundException;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
-import io.openaev.rest.asset.endpoint.form.EndpointInput;
-import io.openaev.rest.asset.endpoint.form.EndpointOutput;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.mapper.EndpointMapper;
 import java.util.Collections;
 import java.util.List;

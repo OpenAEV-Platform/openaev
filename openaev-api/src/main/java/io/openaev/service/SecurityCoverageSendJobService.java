@@ -1,9 +1,9 @@
 package io.openaev.service;
 
+import io.openaev.api.exercise.service.ExerciseService;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.SecurityCoverageSendJob;
 import io.openaev.database.repository.SecurityCoverageSendJobRepository;
-import io.openaev.rest.exercise.service.ExerciseService;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;

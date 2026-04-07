@@ -1,15 +1,15 @@
 package io.openaev.api.xtm_composer;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.api.connector_instance.dto.ConnectorInstanceHealthInput;
+import io.openaev.api.connector_instance.dto.ConnectorInstanceLogsInput;
+import io.openaev.api.helper.RestBehavior;
 import io.openaev.api.xtm_composer.dto.XtmComposerInstanceOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerRegisterInput;
 import io.openaev.api.xtm_composer.dto.XtmComposerUpdateStatusInput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
-import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
-import io.openaev.rest.connector_instance.dto.ConnectorInstanceLogsInput;
-import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.service.connectors.XtmComposerService;
 import io.swagger.v3.oas.annotations.Operation;

@@ -10,15 +10,15 @@ import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegra
 import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.openaev.api.exception.AgentException;
+import io.openaev.api.inject.output.AgentsAndAssetsAgentless;
+import io.openaev.api.inject.service.InjectService;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.ManagerFactory;
-import io.openaev.rest.exception.AgentException;
-import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
-import io.openaev.rest.inject.service.InjectService;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;

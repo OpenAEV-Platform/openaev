@@ -3,8 +3,8 @@ package io.openaev.schema;
 import static io.openaev.schema.SchemaUtils.isValidClassName;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.api.helper.RestBehavior;
 import io.openaev.engine.EngineContext;
-import io.openaev.rest.helper.RestBehavior;
 import io.openaev.schema.model.PropertySchemaDTO;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;

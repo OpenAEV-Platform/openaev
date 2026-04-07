@@ -1,8 +1,8 @@
 package io.openaev.utils.fixtures;
 
+import io.openaev.api.team.form.TeamCreateInput;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
-import io.openaev.rest.team.form.TeamCreateInput;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;

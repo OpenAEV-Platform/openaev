@@ -1,15 +1,13 @@
 package io.openaev.service;
 
-import static io.openaev.database.model.SettingKeys.*;
 import static io.openaev.executors.caldera.config.CalderaExecutorConfig.EXECUTOR_CALDERA_PUBLIC_URL;
 import static io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegration.CALDERA_EXECUTOR_TYPE;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.api.catalog_connector.dto.ConnectorIds;
+import io.openaev.api.settings.response.CalderaSettings;
 import io.openaev.database.model.*;
 import io.openaev.executors.ExecutorService;
-import io.openaev.rest.catalog_connector.dto.ConnectorIds;
-import io.openaev.rest.settings.form.*;
-import io.openaev.rest.settings.response.CalderaSettings;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import jakarta.annotation.Resource;
 import java.util.*;

@@ -4,15 +4,15 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import io.openaev.api.exception.BadRequestException;
+import io.openaev.api.settings.form.PolicyInput;
+import io.openaev.api.settings.form.SettingsEnterpriseEditionUpdateInput;
 import io.openaev.database.model.BannerMessage;
 import io.openaev.database.model.Setting;
 import io.openaev.database.model.SettingKeys;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.ee.License;
-import io.openaev.rest.exception.BadRequestException;
-import io.openaev.rest.settings.form.PolicyInput;
-import io.openaev.rest.settings.form.SettingsEnterpriseEditionUpdateInput;
 import java.util.*;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

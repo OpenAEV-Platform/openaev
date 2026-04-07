@@ -4,12 +4,12 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import io.openaev.api.exception.ElementNotFoundException;
+import io.openaev.api.tag.TagService;
+import io.openaev.api.tag.form.TagCreateInput;
+import io.openaev.api.tag.form.TagUpdateInput;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.TagRepository;
-import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.tag.TagService;
-import io.openaev.rest.tag.form.TagCreateInput;
-import io.openaev.rest.tag.form.TagUpdateInput;
 import java.util.*;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Nested;

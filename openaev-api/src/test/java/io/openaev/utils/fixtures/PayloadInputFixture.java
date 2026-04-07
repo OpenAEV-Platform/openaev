@@ -8,12 +8,12 @@ import static io.openaev.utils.fixtures.payload_fixture.OutputParserInputFixture
 import static io.openaev.utils.fixtures.payload_fixture.RegexGroupInputFixture.createDefaultRegexGroupInputCredentials;
 import static io.openaev.utils.fixtures.payload_fixture.RegexGroupInputFixture.createDefaultRegexGroupInputIPV6;
 
+import io.openaev.api.injector_contract.form.InjectorContractDomainDTO;
+import io.openaev.api.payload.contract_output_element.ContractOutputElementInput;
+import io.openaev.api.payload.form.*;
+import io.openaev.api.payload.output_parser.OutputParserInput;
+import io.openaev.api.payload.regex_group.RegexGroupInput;
 import io.openaev.database.model.*;
-import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
-import io.openaev.rest.payload.contract_output_element.ContractOutputElementInput;
-import io.openaev.rest.payload.form.*;
-import io.openaev.rest.payload.output_parser.OutputParserInput;
-import io.openaev.rest.payload.regex_group.RegexGroupInput;
 import jakarta.validation.constraints.NotNull;
 import java.util.Collections;
 import java.util.List;

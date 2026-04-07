@@ -1,17 +1,17 @@
 package io.openaev.service;
 
+import static io.openaev.api.team.TeamQueryHelper.execution;
+import static io.openaev.api.team.TeamQueryHelper.select;
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
-import static io.openaev.rest.team.TeamQueryHelper.execution;
-import static io.openaev.rest.team.TeamQueryHelper.select;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 
+import io.openaev.api.team.output.TeamOutput;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
 import io.openaev.database.raw.RawTeamIndexing;
 import io.openaev.database.repository.TeamRepository;
-import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.utils.CopyObjectListUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;

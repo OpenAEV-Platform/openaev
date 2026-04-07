@@ -1,7 +1,7 @@
 package io.openaev.api.detection_remediation.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.rest.payload.form.PayloadUpdateInput;
+import io.openaev.api.payload.form.PayloadUpdateInput;
 import lombok.Getter;
 import lombok.Setter;
 

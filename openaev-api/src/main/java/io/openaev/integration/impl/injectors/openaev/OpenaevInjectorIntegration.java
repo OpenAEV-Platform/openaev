@@ -2,6 +2,7 @@ package io.openaev.integration.impl.injectors.openaev;
 
 import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_NAME;
 
+import io.openaev.api.inject.service.InjectService;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.Endpoint;
@@ -11,7 +12,6 @@ import io.openaev.injectors.openaev.OpenAEVImplantExecutor;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.IntegrationInMemory;
 import io.openaev.integration.QualifiedComponent;
-import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;

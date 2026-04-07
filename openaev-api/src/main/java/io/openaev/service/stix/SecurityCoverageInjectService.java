@@ -1,22 +1,22 @@
 package io.openaev.service.stix;
 
+import static io.openaev.api.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY;
+import static io.openaev.api.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE;
 import static io.openaev.database.model.Tag.OPENCTI_TAG_NAME;
-import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY;
-import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE;
 import static io.openaev.utils.AssetUtils.extractPlatformArchPairs;
 
+import io.openaev.api.attack_pattern.service.AttackPatternService;
+import io.openaev.api.document.DocumentService;
+import io.openaev.api.inject.service.InjectAssistantService;
+import io.openaev.api.inject.service.InjectService;
+import io.openaev.api.injector_contract.InjectorContractService;
+import io.openaev.api.payload.service.PayloadService;
+import io.openaev.api.tag.TagService;
+import io.openaev.api.vulnerability.service.VulnerabilityService;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.injectors.manual.ManualContract;
-import io.openaev.rest.attack_pattern.service.AttackPatternService;
-import io.openaev.rest.document.DocumentService;
-import io.openaev.rest.inject.service.InjectAssistantService;
-import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.injector_contract.InjectorContractService;
-import io.openaev.rest.payload.service.PayloadService;
-import io.openaev.rest.tag.TagService;
-import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.SecurityCoverageUtils;

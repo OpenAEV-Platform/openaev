@@ -1,9 +1,9 @@
 package io.openaev.utils.fixtures;
 
+import io.openaev.api.asset_group.form.AssetGroupInput;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Filters;
-import io.openaev.rest.asset_group.form.AssetGroupInput;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 

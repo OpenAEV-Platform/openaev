@@ -1,6 +1,7 @@
 package io.openaev.integration.impl.injectors.openaev;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.api.inject.service.InjectService;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.ConnectorInstance;
@@ -10,7 +11,6 @@ import io.openaev.injectors.openaev.OpenAEVImplantContract;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
-import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;

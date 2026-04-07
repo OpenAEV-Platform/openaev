@@ -5,12 +5,12 @@ import static io.openaev.service.InjectExpectationUtils.FAILED_SCORE_VALUE;
 import static io.openaev.utils.ExpectationUtils.HUMAN_EXPECTATION;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.expireEmptyResults;
 
+import io.openaev.api.collector.service.CollectorService;
+import io.openaev.api.inject.form.InjectExpectationUpdateInput;
 import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.InjectExpectation;
 import io.openaev.expectation.ExpectationType;
-import io.openaev.rest.collector.service.CollectorService;
-import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.utils.ExpectationUtils;
 import jakarta.validation.constraints.NotNull;

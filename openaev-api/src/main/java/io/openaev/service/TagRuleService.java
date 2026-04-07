@@ -3,15 +3,15 @@ package io.openaev.service;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import com.cronutils.utils.VisibleForTesting;
+import io.openaev.api.exception.ElementNotFoundException;
+import io.openaev.api.exception.ForbiddenException;
+import io.openaev.api.tag.TagService;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.TagRule;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.TagRuleRepository;
-import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.exception.ForbiddenException;
-import io.openaev.rest.tag.TagService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

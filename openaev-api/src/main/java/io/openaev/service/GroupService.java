@@ -2,12 +2,12 @@ package io.openaev.service;
 
 import static java.util.stream.Collectors.toList;
 
+import io.openaev.api.exception.ElementNotFoundException;
+import io.openaev.api.group.form.GroupCreateInput;
+import io.openaev.api.group.form.GroupUpdateRolesInput;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.repository.GroupRepository;
-import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.group.form.GroupCreateInput;
-import io.openaev.rest.group.form.GroupUpdateRolesInput;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import java.util.Optional;

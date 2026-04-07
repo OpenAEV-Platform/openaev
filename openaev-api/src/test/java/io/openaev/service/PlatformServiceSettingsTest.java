@@ -5,10 +5,10 @@ import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import io.openaev.IntegrationTest;
+import io.openaev.api.settings.PreviewFeature;
+import io.openaev.api.settings.response.PlatformSettings;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.RabbitmqConfig;
-import io.openaev.rest.settings.PreviewFeature;
-import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.annotation.Resource;

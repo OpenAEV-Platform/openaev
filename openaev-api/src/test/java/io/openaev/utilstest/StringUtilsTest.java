@@ -2,7 +2,7 @@ package io.openaev.utilstest;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import io.openaev.rest.exception.BadRequestException;
+import io.openaev.api.exception.BadRequestException;
 import io.openaev.utils.StringUtils;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;

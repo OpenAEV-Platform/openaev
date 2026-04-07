@@ -1,9 +1,9 @@
 package io.openaev.utils;
 
+import io.openaev.api.inject.form.InjectExecutionAction;
 import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.ExecutionTraceAction;
 import io.openaev.database.model.ExecutionTraceStatus;
-import io.openaev.rest.inject.form.InjectExecutionAction;
 
 /**
  * Utility class for execution trace conversions.
