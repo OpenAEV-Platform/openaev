@@ -11,6 +11,8 @@ import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.CollectorTypeRepository;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
+import io.openaev.multitenancy.DependenciesManager;
+import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.collector.form.CollectorOutput;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -32,7 +34,8 @@ import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
-public class CollectorService extends AbstractConnectorService<Collector, CollectorOutput> {
+public class CollectorService extends AbstractConnectorService<Collector, CollectorOutput>
+    implements DependenciesManager {
 
   @Resource protected ObjectMapper mapper;
 
@@ -237,5 +240,65 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   public List<Collector> collectorsForAtomicTesting(String injectId) {
     return collectorRepository.findByInjectId(injectId);
+  }
+
+  // -- TENANT DEPENDENCIES --
+
+  /**
+   * Copies all collector types and built-in (non-external) collectors from the default tenant to
+   * the newly created tenant. Each entity gets a new UUID.
+   */
+  @Override
+  public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
+    try {
+      // Copy collector images from the default tenant's MinIO path to the new tenant
+      fileService.copyCollectorImagesForTenant(Tenant.DEFAULT_TENANT_UUID, tenant.getId());
+
+      // 1. Copy collector types — TenantContext is default → findAll returns default-tenant types
+      Map<String, CollectorType> typeMapping = new HashMap<>();
+      for (CollectorType source : collectorTypeRepository.findAll()) {
+        CollectorType copy = new CollectorType(source.getName());
+        copy.setTenant(tenant);
+        CollectorType saved = collectorTypeRepository.save(copy);
+        typeMapping.put(source.getId(), saved);
+      }
+
+      // 2. Copy built-in collectors
+      for (Collector source : fromIterable(collectorRepository.findAll())) {
+        if (source.isExternal()) {
+          continue;
+        }
+        Collector copy = new Collector();
+        copy.setId(UUID.randomUUID().toString());
+        copy.setName(source.getName());
+        copy.setType(source.getType());
+        copy.setExternal(false);
+        copy.setPeriod(source.getPeriod());
+        copy.setTenant(tenant);
+
+        // Map the collector type to the new tenant's copy
+        if (source.getCollectorType() != null) {
+          CollectorType newType = typeMapping.get(source.getCollectorType().getId());
+          copy.setCollectorType(newType);
+        }
+
+        collectorRepository.save(copy);
+      }
+    } catch (Exception e) {
+      throw new DependenciesManagerException(
+          "Failed to create collectors for tenant " + tenant.getName(), e);
+    }
+  }
+
+  /** Deletes all collectors and collector types associated with the given tenant during purge. */
+  @Override
+  public void deleteDependencyForTenant(String tenantId) throws DependenciesManagerException {
+    try {
+      collectorRepository.deleteAllByTenantIdNative(tenantId);
+      collectorTypeRepository.deleteAllByTenantIdNative(tenantId);
+    } catch (Exception e) {
+      throw new DependenciesManagerException(
+          "Failed to delete collectors for tenant " + tenantId, e);
+    }
   }
 }

@@ -10,6 +10,8 @@ import io.openaev.database.model.Executor;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.database.repository.ExecutorRepository;
+import io.openaev.multitenancy.DependenciesManager;
+import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.executor.form.ExecutorOutput;
@@ -24,11 +26,15 @@ import jakarta.transaction.Transactional;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
-public class ExecutorService extends AbstractConnectorService<Executor, ExecutorOutput> {
+public class ExecutorService extends AbstractConnectorService<Executor, ExecutorOutput>
+    implements DependenciesManager {
 
   public static final String EXT_PNG = ".png";
   @Resource protected ObjectMapper mapper;
@@ -222,5 +228,50 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
               .toList());
     }
     return agents;
+  }
+
+  // -- TENANT DEPENDENCIES --
+
+  /**
+   * Copies all built-in executors from the default tenant to the newly created tenant. Each
+   * executor gets a new UUID so it can coexist alongside the original. Also copies executor images
+   * (icons/banners) and catalog connector logos from MinIO so the new tenant can serve them.
+   */
+  @Override
+  public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
+    try {
+      // Copy executor images and catalog connector logos for the new tenant
+      fileService.copyExecutorImagesForTenant(Tenant.DEFAULT_TENANT_UUID, tenant.getId());
+      fileService.copyCatalogConnectorLogosForTenant(Tenant.DEFAULT_TENANT_UUID, tenant.getId());
+
+      // TenantContext is still the default tenant here, so findAll returns default-tenant executors
+      List<Executor> defaultExecutors = fromIterable(executorRepository.findAll());
+      for (Executor source : defaultExecutors) {
+        Executor copy = new Executor();
+        copy.setId(UUID.randomUUID().toString());
+        copy.setName(source.getName());
+        copy.setType(source.getType());
+        copy.setPlatforms(
+            source.getPlatforms() != null ? source.getPlatforms().clone() : new String[0]);
+        copy.setDoc(source.getDoc());
+        copy.setBackgroundColor(source.getBackgroundColor());
+        copy.setTenant(tenant);
+        executorRepository.save(copy);
+      }
+    } catch (Exception e) {
+      throw new DependenciesManagerException(
+          "Failed to create executors for tenant " + tenant.getName(), e);
+    }
+  }
+
+  /** Deletes all executors associated with the given tenant during purge. */
+  @Override
+  public void deleteDependencyForTenant(String tenantId) throws DependenciesManagerException {
+    try {
+      executorRepository.deleteAllByTenantIdNative(tenantId);
+    } catch (Exception e) {
+      throw new DependenciesManagerException(
+          "Failed to delete executors for tenant " + tenantId, e);
+    }
   }
 }

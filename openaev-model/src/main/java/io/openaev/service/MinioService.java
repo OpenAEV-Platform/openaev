@@ -243,6 +243,43 @@ public class MinioService implements DependenciesManager {
     return minioConfig.getBucket();
   }
 
+  /**
+   * Copies all objects under a directory from one tenant path to another. Used to duplicate shared
+   * resources (e.g. connector icons) when creating a new tenant.
+   *
+   * @param directory the directory prefix (e.g. "/executors/images/icons/")
+   * @param sourceTenantId the source tenant UUID
+   * @param targetTenantId the target tenant UUID
+   */
+  public void copyDirectoryBetweenTenants(
+      String directory, String sourceTenantId, String targetTenantId) {
+    String sourcePrefix =
+        sourceTenantId + (directory.startsWith("/") ? directory : "/" + directory);
+    String targetPrefix =
+        targetTenantId + (directory.startsWith("/") ? directory : "/" + directory);
+    try {
+      for (Result<Item> result : listObjects(sourcePrefix, false)) {
+        Item item = result.get();
+        String sourceObject = item.objectName();
+        String relativePath = sourceObject.substring(sourcePrefix.length());
+        String targetObject = targetPrefix + relativePath;
+        minioClient.copyObject(
+            CopyObjectArgs.builder()
+                .bucket(bucket())
+                .object(targetObject)
+                .source(CopySource.builder().bucket(bucket()).object(sourceObject).build())
+                .build());
+      }
+    } catch (Exception e) {
+      log.error(
+          "Error copying directory {} from tenant {} to tenant {}",
+          directory,
+          sourceTenantId,
+          targetTenantId,
+          e);
+    }
+  }
+
   /** Returns the tenant-prefixed path for the given object name. */
   private String getTenantPath(String objectName) {
     String tenantId = TenantContext.getCurrentTenant();

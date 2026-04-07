@@ -181,6 +181,51 @@ public class FileService {
   }
 
   /**
+   * Copies injector images from one tenant's MinIO path to another.
+   *
+   * @param sourceTenantId the source tenant (typically the default tenant)
+   * @param targetTenantId the target tenant
+   */
+  public void copyInjectorImagesForTenant(String sourceTenantId, String targetTenantId) {
+    minioService.copyDirectoryBetweenTenants(
+        INJECTORS_IMAGES_BASE_PATH, sourceTenantId, targetTenantId);
+  }
+
+  /**
+   * Copies collector images from one tenant's MinIO path to another.
+   *
+   * @param sourceTenantId the source tenant (typically the default tenant)
+   * @param targetTenantId the target tenant
+   */
+  public void copyCollectorImagesForTenant(String sourceTenantId, String targetTenantId) {
+    minioService.copyDirectoryBetweenTenants(
+        COLLECTORS_IMAGES_BASE_PATH, sourceTenantId, targetTenantId);
+  }
+
+  /**
+   * Copies executor images (icons and banners) from one tenant's MinIO path to another.
+   *
+   * @param sourceTenantId the source tenant (typically the default tenant)
+   * @param targetTenantId the target tenant
+   */
+  public void copyExecutorImagesForTenant(String sourceTenantId, String targetTenantId) {
+    minioService.copyDirectoryBetweenTenants(
+        EXECUTORS_IMAGES_ICONS_BASE_PATH, sourceTenantId, targetTenantId);
+    minioService.copyDirectoryBetweenTenants(
+        EXECUTORS_IMAGES_BANNERS_BASE_PATH, sourceTenantId, targetTenantId);
+  }
+
+  /**
+   * Copies catalog connector logo images from one tenant's MinIO path to another.
+   *
+   * @param sourceTenantId the source tenant (typically the default tenant)
+   * @param targetTenantId the target tenant
+   */
+  public void copyCatalogConnectorLogosForTenant(String sourceTenantId, String targetTenantId) {
+    minioService.copyDirectoryBetweenTenants(CONNECTORS_LOGO_PATH, sourceTenantId, targetTenantId);
+  }
+
+  /**
    * Retrieves a file with its metadata as a FileContainer.
    *
    * @param fileTarget the target file path

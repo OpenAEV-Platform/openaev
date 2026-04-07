@@ -12,6 +12,8 @@ import io.openaev.database.repository.InjectorRepository;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.injector_contract.Contract;
 import io.openaev.injector_contract.Contractor;
+import io.openaev.multitenancy.DependenciesManager;
+import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -26,6 +28,9 @@ import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.service.exception.InjectorRegistrationException;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.InjectorMapper;
+import jakarta.annotation.Resource;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
 import java.io.InputStream;
@@ -42,9 +47,12 @@ import org.springframework.web.multipart.MultipartFile;
 @Slf4j
 @Service("coreInjectorService")
 // TODO needs to be merged with integrations/InjectorService
-public class InjectorService extends AbstractConnectorService<Injector, InjectorOutput> {
+public class InjectorService extends AbstractConnectorService<Injector, InjectorOutput>
+    implements DependenciesManager {
   public static final String DUMMY_SUFFIX = "_dummy";
 
+  @Resource private RabbitmqConfig rabbitmqConfig;
+  @PersistenceContext private EntityManager entityManager;
   private final InjectorRepository injectorRepository;
   private final InjectorContractRepository injectorContractRepository;
   private final AttackPatternRepository attackPatternRepository;
@@ -601,5 +609,78 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     injector.setPayloads(isPayloads);
     injector.setUpdatedAt(Instant.now());
     injector.setDependencies(dependencies.toArray(new ExternalServiceDependency[0]));
+  }
+
+  // -- TENANT DEPENDENCIES --
+
+  /**
+   * Copies all built-in (non-external) injectors from the default tenant to the newly created
+   * tenant. Each injector gets a new UUID. Contracts that have already been copied by {@link
+   * InjectorContractService} are linked to the new injectors.
+   */
+  @Override
+  public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
+    try {
+      // Copy injector images from the default tenant's MinIO path to the new tenant
+      fileService.copyInjectorImagesForTenant(Tenant.DEFAULT_TENANT_UUID, tenant.getId());
+
+      // TenantContext is the default tenant → findAll returns default-tenant injectors
+      List<Injector> defaultInjectors =
+          fromIterable(injectorRepository.findAll()).stream().filter(i -> !i.isExternal()).toList();
+
+      for (Injector source : defaultInjectors) {
+        Injector copy = new Injector();
+        copy.setId(UUID.randomUUID().toString());
+        copy.setName(source.getName());
+        copy.setType(source.getType());
+        copy.setCategory(source.getCategory());
+        copy.setExternal(false);
+        copy.setCustomContracts(source.isCustomContracts());
+        copy.setExecutorCommands(
+            source.getExecutorCommands() != null
+                ? new HashMap<>(source.getExecutorCommands())
+                : new HashMap<>());
+        copy.setExecutorClearCommands(
+            source.getExecutorClearCommands() != null
+                ? new HashMap<>(source.getExecutorClearCommands())
+                : new HashMap<>());
+        copy.setPayloads(source.isPayloads());
+        copy.setDependencies(source.getDependencies());
+        copy.setTenant(tenant);
+
+        Injector saved = injectorRepository.save(copy);
+
+        // Link contracts already copied by InjectorContractService for this new tenant
+        for (InjectorContract sourceContract : source.getContracts()) {
+          InjectorContractId newContractId =
+              new InjectorContractId(sourceContract.getId(), tenant.getId());
+          InjectorContract newContract = entityManager.find(InjectorContract.class, newContractId);
+          if (newContract != null) {
+            saved.linkContract(newContract);
+          }
+        }
+        injectorRepository.save(saved);
+      }
+    } catch (Exception e) {
+      throw new DependenciesManagerException(
+          "Failed to create injectors for tenant " + tenant.getName(), e);
+    }
+  }
+
+  /** Deletes all injectors associated with the given tenant during purge. */
+  @Override
+  public void deleteDependencyForTenant(String tenantId) throws DependenciesManagerException {
+    try {
+      injectorRepository.deleteAllByTenantIdNative(tenantId);
+    } catch (Exception e) {
+      throw new DependenciesManagerException(
+          "Failed to delete injectors for tenant " + tenantId, e);
+    }
+  }
+
+  /** Injectors must be created after contracts so they can be linked in the join table. */
+  @Override
+  public List<Class<? extends DependenciesManager>> getPrerequisite() {
+    return List.of(InjectorContractService.class);
   }
 }
