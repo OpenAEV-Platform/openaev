@@ -4,6 +4,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import io.jsonwebtoken.Jwts;
 import io.openaev.IntegrationTest;
 import io.openaev.utils.fixtures.JwtFixture;
 import io.openaev.utils.fixtures.TokenFixture;
@@ -147,6 +148,26 @@ public class TokenAuthenticationFilterTest extends IntegrationTest {
                         .accept(MediaType.APPLICATION_JSON)
                         .header("Authorization", headerValueMask.formatted(bundle.jwtToken())))
                 .andExpect(status().isOk());
+          }
+
+          @Test
+          @DisplayName(
+              "Given existing user and valid issuer and bad algorithm, fail authentication")
+          public void given_existingUserAndValidIssuerAndBadAlgorithm_then_failAuthentication()
+              throws Exception {
+            UserComposer.Composer userWrapper =
+                userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist();
+            JwtFixture.Bundle bundle =
+                JwtFixture.generatePlatformJwtBundleWithSigAlgo(
+                    userWrapper.get().getEmail(), Jwts.SIG.ES256, false);
+            when(xtmOneConfig.getToken())
+                .thenReturn(JwtFixture.b64(bundle.keyPair().getPublic().getEncoded()));
+
+            mvc.perform(
+                    get("/api/me/tokens")
+                        .accept(MediaType.APPLICATION_JSON)
+                        .header("Authorization", headerValueMask.formatted(bundle.jwtToken())))
+                .andExpect(status().isUnauthorized());
           }
 
           @Test

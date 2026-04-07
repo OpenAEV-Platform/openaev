@@ -1,19 +1,12 @@
 package io.openaev.security.token;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jws;
-import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.*;
 import io.openaev.database.model.User;
 import io.openaev.security.error.AuthenticationError;
+import io.openaev.security.jwt.KeyFromAlgHeader;
 import io.openaev.service.UserService;
+import io.openaev.utils.StringUtils;
 import io.openaev.xtmone.XtmOneConfig;
-import java.security.KeyFactory;
-import java.security.NoSuchAlgorithmException;
-import java.security.PublicKey;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.X509EncodedKeySpec;
-import java.util.Base64;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -30,8 +23,7 @@ public class PlatformJwtExtractor implements ExtractorBase {
   private final UserService userService;
 
   @Override
-  public Optional<User> authUser(String value)
-      throws JwtException, AuthenticationError, NoSuchAlgorithmException, InvalidKeySpecException {
+  public Optional<User> authUser(String value) throws JwtException, AuthenticationError {
     if (value == null) {
       String message = "No raw bearer token found";
       log.debug(message);
@@ -43,17 +35,11 @@ public class PlatformJwtExtractor implements ExtractorBase {
       throw new AuthenticationError(message);
     }
 
-    /*
-     JWT is assumed signed with the EdDSA algorithm as per Filigran standard.
-     The configured key material retrieved with `XtmOneConfig.getToken()` must
-     be an ASN.1/DER encoded public key, itself Base64-encoded.
-    */
-    X509EncodedKeySpec keySpec =
-        new X509EncodedKeySpec(Base64.getDecoder().decode(xtmOneConfig.getToken()));
-    KeyFactory keyFactory = KeyFactory.getInstance("EdDSA");
-    PublicKey pubkey = keyFactory.generatePublic(keySpec);
-
-    Jws<Claims> jws = Jwts.parser().verifyWith(pubkey).build().parseSignedClaims(value);
+    Jws<Claims> jws =
+        Jwts.parser()
+            .keyLocator(new KeyFromAlgHeader(xtmOneConfig.getToken()))
+            .build()
+            .parseSignedClaims(value);
 
     Claims claims = jws.getPayload();
 
@@ -62,6 +48,12 @@ public class PlatformJwtExtractor implements ExtractorBase {
     }
 
     String emailClaim = claims.get("email", String.class);
+
+    if (StringUtils.isBlank(emailClaim)) {
+      String message = "The JWT does not contain the required 'email' claim.";
+      log.debug(message);
+      throw new AuthenticationError(message);
+    }
 
     return userService.findByEmailIgnoreCase(emailClaim);
   }

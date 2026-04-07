@@ -4,8 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Curve;
 import io.jsonwebtoken.security.Jwks;
+import io.jsonwebtoken.security.SignatureAlgorithm;
 import java.security.KeyPair;
 import java.util.Base64;
 import java.util.Date;
@@ -14,21 +14,26 @@ public class JwtFixture {
   public record Bundle(String jwtToken, String jwks, KeyPair keyPair) {}
 
   public static Bundle generateConnectorJwtBundle(boolean expired) throws Exception {
-    return generateBundle("opencti", "connector", expired);
+    return generateBundle("opencti", "connector", Jwts.SIG.EdDSA, expired);
   }
 
   public static Bundle generatePlatformJwtBundle(String subject, boolean expired) throws Exception {
-    return generateBundle("filigran-copilot", subject, expired);
+    return generatePlatformJwtBundleWithSigAlgo(subject, Jwts.SIG.EdDSA, expired);
+  }
+
+  public static Bundle generatePlatformJwtBundleWithSigAlgo(
+      String subject, SignatureAlgorithm signatureAlgorithm, boolean expired) throws Exception {
+    return generateBundle("filigran-copilot", subject, signatureAlgorithm, expired);
   }
 
   public static Bundle generateForeignJwtBundle(String subject, boolean expired) throws Exception {
-    return generateBundle("rejected issuer", subject, expired);
+    return generateBundle("rejected issuer", subject, Jwts.SIG.EdDSA, expired);
   }
 
-  private static Bundle generateBundle(String issuer, String subject, boolean expired)
+  private static Bundle generateBundle(
+      String issuer, String subject, SignatureAlgorithm signatureAlgorithm, boolean expired)
       throws Exception {
-    Curve curve = Jwks.CRV.Ed25519;
-    KeyPair pair = curve.keyPair().build();
+    KeyPair pair = getKeyPairForSigAlgo(signatureAlgorithm);
 
     long offset = expired ? -60 * 1000L : 60 * 1000L;
 
@@ -41,7 +46,7 @@ public class JwtFixture {
             .keyId("test-123")
             .and()
             .expiration(new Date(new Date().getTime() + offset))
-            .signWith(pair.getPrivate(), Jwts.SIG.EdDSA)
+            .signWith(pair.getPrivate(), signatureAlgorithm)
             .compact();
 
     JWK jwk =
@@ -54,5 +59,13 @@ public class JwtFixture {
 
   public static String b64(byte[] data) {
     return Base64.getEncoder().encodeToString(data);
+  }
+
+  private static KeyPair getKeyPairForSigAlgo(SignatureAlgorithm signatureAlgorithm) {
+    return switch (signatureAlgorithm.getId()) {
+      case "EdDSA" -> Jwks.CRV.Ed25519.keyPair().build();
+      case "ES256" -> Jwks.CRV.P256.keyPair().build();
+      default -> null;
+    };
   }
 }
