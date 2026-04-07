@@ -10,6 +10,7 @@ import {
   GeneralTabFields,
   PayloadCommandTypes, type PayloadFormFields,
 } from '../../utils/payload.constants';
+import { tenantUrl } from '../../utils/url';
 
 test.describe('Payload form', () => {
   let leftMenu: LeftMenuComponent;
@@ -23,7 +24,7 @@ test.describe('Payload form', () => {
     payloadForm = new PayloadFormComponent(page);
 
     // Navigate to application
-    await page.goto('/');
+    await page.goto(tenantUrl('/'));
 
     // Navigate to payloads section
     await leftMenu.goToPayloads();

@@ -107,8 +107,9 @@ public interface InjectRepository
 
   @Query(
       value =
-          "select i.* from injects i where i.inject_injector_contract = '49229430-b5b5-431f-ba5b-f36f599b0233'"
-              + " and i.inject_content like :challengeId",
+          "select i.*, i.tenant_id as tenantId from injects i where i.inject_injector_contract = '49229430-b5b5-431f-ba5b-f36f599b0233'"
+              + " and i.inject_content like :challengeId"
+              + " and i.tenant_id = :#{#tenantContext.currentTenant}",
       nativeQuery = true)
   List<Inject> findAllForChallengeId(@Param("challengeId") String challengeId);
 
@@ -457,4 +458,7 @@ public interface InjectRepository
   @Modifying
   @Query(value = "DELETE FROM injects WHERE inject_id IN :ids", nativeQuery = true)
   void deleteByAllIdsNative(@Param("ids") List<String> ids);
+
+  @Query("SELECT i FROM Inject i WHERE i.exercise.id = :simulationId")
+  List<Inject> findAllInjectBySimulationId(@Param("simulationId") String simulationId);
 }

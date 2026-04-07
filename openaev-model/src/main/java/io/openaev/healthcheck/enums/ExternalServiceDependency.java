@@ -16,6 +16,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  *   <li>{@code IMAP} - Email receiving service for response tracking
  *   <li>{@code NUCLEI} - Nuclei vulnerability scanner integration
  *   <li>{@code NMAP} - Nmap network scanner integration
+ *   <li>{@code NETEXEC} - NetExec network execution and credential testing integration
  * </ul>
  */
 public enum ExternalServiceDependency {
@@ -34,6 +35,10 @@ public enum ExternalServiceDependency {
   /** Nmap network scanner service. */
   @JsonProperty("NMAP")
   NMAP("openaev_nmap"),
+
+  /** NetExec network execution and credential testing service. */
+  @JsonProperty("NETEXEC")
+  NETEXEC("openaev_netexec"),
 
   /** OpenAEV Implant service. */
   @JsonProperty("OpenAEV Email")

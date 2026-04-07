@@ -42,6 +42,7 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -73,7 +74,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       FileService fileService,
       ConnectorInstanceService connectorInstanceService,
       CatalogConnectorService catalogConnectorService,
-      InjectorContractService injectorContractService,
+      @Lazy InjectorContractService injectorContractService,
       DomainService domainService,
       InjectorMapper injectorMapper,
       CatalogConnectorMapper catalogConnectorMapper,
@@ -119,28 +120,33 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   }
 
   /**
-   * Create or get a dummmy injector, that is used when importing the starter pack before the real
-   * injectors are registered
+   * Create or get a dummy injector, that is used when importing the starter pack before the real
+   * injectors are registered.
    *
-   * @param injectorType
-   * @param injectorName
-   * @return
+   * <p>The dummy ID includes the tenant to avoid cross-tenant collisions when {@code
+   * injectorRepository.save()} would otherwise call {@code merge()} on an existing row belonging to
+   * a different tenant (the primary key is {@code injector_id} alone, not a composite with
+   * tenant_id).
+   *
+   * @param injectorType type identifier of the injector
+   * @param injectorName human-readable name
+   * @return the dummy injector for the current tenant
    */
   public Injector createOrGetDummyInjector(
       @NotBlank final String injectorType, @NotBlank final String injectorName) {
-    Injector injector =
-        injectorRepository
-            .findByTypeAndTenantId(injectorType + DUMMY_SUFFIX, TenantContext.getCurrentTenant())
-            .orElse(new Injector());
-    if (injector.getName() == null) {
-      injector.setName("Dummy " + injectorName);
-      injector.setType(injectorType + DUMMY_SUFFIX);
-      injector.setId(injectorType + DUMMY_SUFFIX);
-      injector.setDependencies(ExternalServiceDependency.fromInjectorType(injectorType));
-      return injectorRepository.save(injector);
-    } else {
-      return injector;
-    }
+    String currentTenant = TenantContext.getCurrentTenant();
+    return injectorRepository
+        .findByTypeAndTenantId(injectorType + DUMMY_SUFFIX, currentTenant)
+        .orElseGet(
+            () -> {
+              Injector injector = new Injector();
+              injector.setName("Dummy " + injectorName);
+              injector.setType(injectorType + DUMMY_SUFFIX);
+              // Include tenant in the ID so each tenant gets its own dummy row.
+              injector.setId(injectorType + DUMMY_SUFFIX + "_" + currentTenant);
+              injector.setDependencies(ExternalServiceDependency.fromInjectorType(injectorType));
+              return injectorRepository.save(injector);
+            });
   }
 
   public Injector injector(String id) {
@@ -156,21 +162,6 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
    */
   public void deleteDummyInjectorIfItExists(@NotBlank final String injectorType) {
     deleteDummyInjectorIfItExists(injectorType, null);
-  }
-
-  /**
-   * This method will check if the injector type is a dummy if yes it will remove the dummy suffix
-   * if no it will return the parameter It is used to send the execution to the correct injector
-   * even if the current one is just a dummy injector
-   *
-   * @param injectorType
-   * @return
-   */
-  public String getOriginInjectorType(@NotBlank final String injectorType) {
-    if (injectorType.endsWith(DUMMY_SUFFIX)) {
-      return injectorType.substring(0, injectorType.length() - DUMMY_SUFFIX.length());
-    }
-    return injectorType;
   }
 
   public List<Injector> findAll() {
@@ -220,8 +211,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
             FileService.INJECTORS_IMAGES_BASE_PATH + input.getType() + ".png", file.get());
       }
       connection = factory.newConnection();
-      this.queueService.createChannel(connection, "_injector_" + input.getType(), input.getType());
-      String queueName = rabbitmqConfig.getPrefix() + "_injector_" + input.getType();
+      this.queueService.createChannel(connection, "_injector_" + input.getId(), input.getId());
+      String queueName = rabbitmqConfig.getPrefix() + "_injector_" + input.getId();
       // We need to support upsert for registration
       Injector injector = injectorRepository.findById(input.getId()).orElse(null);
       if (injector == null) {
@@ -260,6 +251,10 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
                 .map(in -> injectorContractService.convertInjectorFromInput(in, savedInjector))
                 .toList();
         injectorContractRepository.saveAll(injectorContracts);
+        // Link contracts on the owning side now that they are persisted
+        savedInjector.getContracts().addAll(injectorContracts);
+        // Persist the owning side to save join table entries
+        injectorRepository.save(savedInjector);
 
         // delete the dummy injector if it was created when importing the starter pack
         deleteDummyInjectorIfItExists(input.getType(), savedInjector);
@@ -354,7 +349,11 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
             .map(in -> injectorContractService.convertInjectorFromInput(in, injector))
             .toList();
     injectorContractRepository.deleteAllById(toDeletes);
+    // Remove deleted contracts from the owning-side collection to keep it in sync
+    injector.getContracts().removeIf(c -> toDeletes.contains(c.getId()));
     injectorContractRepository.saveAll(toCreates);
+    // Link new contracts on the owning side now that they are persisted
+    injector.getContracts().addAll(toCreates);
     return injectorRepository.save(injector);
   }
 
@@ -459,14 +458,17 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   private void deleteDummyInjectorIfItExists(
       @NotBlank final String injectorType, final Injector newInjector) {
     injectorRepository
-        .findById(injectorType + DUMMY_SUFFIX)
+        .findByTypeAndTenantId(injectorType + DUMMY_SUFFIX, TenantContext.getCurrentTenant())
         .ifPresent(
             dummyInjector -> {
               if (newInjector != null) {
                 List<InjectorContract> injectorContracts =
-                    injectorContractRepository.findInjectorContractsByInjector(dummyInjector);
+                    injectorContractRepository.findByInjectorsContaining(dummyInjector);
                 injectorContracts.forEach(
-                    injectorContract -> injectorContract.setInjector(newInjector));
+                    injectorContract -> {
+                      injectorContract.getInjectors().remove(dummyInjector);
+                      injectorContract.getInjectors().add(newInjector);
+                    });
                 injectorContractRepository.saveAll(injectorContracts);
               }
               injectorRepository.delete(dummyInjector);
@@ -541,7 +543,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
       if (matchingContract.isPresent()) {
         this.injectorContractService.updateBuiltInInjectorContract(
-            contractDB, matchingContract.get(), isPayloads);
+            contractDB, matchingContract.get(), isPayloads, injector);
         existingIds.add(contractDB.getId());
         toUpdate.add(contractDB);
       } else if (shouldDeleteContract(contractDB, injector)) {
@@ -561,8 +563,12 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
     // Persist changes
     injectorContractRepository.deleteAllById(toDelete);
+    // Remove deleted contracts from the owning-side collection to keep it in sync
+    injector.getContracts().removeIf(c -> toDelete.contains(c.getId()));
     injectorContractRepository.saveAll(toCreate);
     injectorContractRepository.saveAll(toUpdate);
+    // Link new contracts on the owning side now that they are persisted
+    injector.getContracts().addAll(toCreate);
     injectorRepository.save(injector);
   }
 
@@ -605,6 +611,10 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
                         contract, savedInjector, isPayloads))
             .toList();
     injectorContractRepository.saveAll(injectorContracts);
+    // Now that contracts are persisted, link them on the owning side (Injector.contracts)
+    savedInjector.getContracts().addAll(injectorContracts);
+    // Persist the owning side to save join table entries
+    injectorRepository.save(savedInjector);
     return savedInjector;
   }
 

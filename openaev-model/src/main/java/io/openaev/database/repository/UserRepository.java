@@ -186,4 +186,10 @@ public interface UserRepository
 
   @Query("SELECT u FROM User u JOIN Token t ON u.id = t.user.id WHERE t.value = :token")
   Optional<User> findByToken(@Param("token") String token);
+
+  // -- DELETE --
+
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query(value = "DELETE FROM users u WHERE u.user_id = :userId", nativeQuery = true)
+  int deleteByIdNative(@Param("userId") String userId);
 }

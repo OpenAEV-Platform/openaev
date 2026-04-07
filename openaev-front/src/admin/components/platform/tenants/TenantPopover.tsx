@@ -1,23 +1,24 @@
 import { type FunctionComponent, useCallback, useContext, useMemo, useState } from 'react';
 
-import { deleteTenant } from '../../../../actions/platform/tenants/tenant-action';
+import { reactivateTenant, softDeleteTenant } from '../../../../actions/platform/tenants/tenant-action';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
+import DialogConfirmation from '../../../../components/common/DialogConfirmation';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import { useFormatter } from '../../../../components/i18n';
 import type { TenantOutput } from '../../../../utils/api-types';
-import { useAppDispatch } from '../../../../utils/hooks';
 import useAuth from '../../../../utils/hooks/useAuth';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import TenantUpdate from './tenant/TenantUpdate';
 
-type ActionType = 'Update' | 'Delete';
+type ActionType = 'Update' | 'Delete' | 'Reactivate';
 
 interface Props {
   tenant: TenantOutput;
   actions: ActionType[];
   onUpdate?: (result: TenantOutput) => void;
-  onDelete?: (result: string) => void;
+  onDelete?: (result: TenantOutput) => void;
+  onReactivate?: (result: TenantOutput) => void;
   inList?: boolean;
 }
 
@@ -26,11 +27,11 @@ const TenantPopover: FunctionComponent<Props> = ({
   actions = [],
   onUpdate,
   onDelete,
+  onReactivate,
   inList = false,
 }) => {
   // Standard hooks
   const { t } = useFormatter();
-  const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
   const { reloadUserTenants } = useAuth();
 
@@ -43,7 +44,7 @@ const TenantPopover: FunctionComponent<Props> = ({
     setIsEditOpen(false);
   }, []);
 
-  // Deletion
+  // Soft deletion
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const handleOpenDelete = useCallback(() => {
     setIsDeleteOpen(true);
@@ -52,11 +53,26 @@ const TenantPopover: FunctionComponent<Props> = ({
     setIsDeleteOpen(false);
   }, []);
   const handleDelete = useCallback(async () => {
-    await dispatch(deleteTenant(tenant.tenant_id));
+    const result = await softDeleteTenant(tenant.tenant_id);
     handleCloseDelete();
-    onDelete?.(tenant.tenant_id);
+    onDelete?.(result.data as TenantOutput);
     await reloadUserTenants();
-  }, [dispatch, tenant.tenant_id, onDelete, handleCloseDelete, reloadUserTenants]);
+  }, [tenant.tenant_id, onDelete, handleCloseDelete, reloadUserTenants]);
+
+  // Reactivation
+  const [isReactivateOpen, setIsReactivateOpen] = useState(false);
+  const handleOpenReactivate = useCallback(() => {
+    setIsReactivateOpen(true);
+  }, []);
+  const handleCloseReactivate = useCallback(() => {
+    setIsReactivateOpen(false);
+  }, []);
+  const handleReactivate = useCallback(async () => {
+    const result = await reactivateTenant(tenant.tenant_id);
+    handleCloseReactivate();
+    onReactivate?.(result.data as TenantOutput);
+    await reloadUserTenants();
+  }, [tenant.tenant_id, onReactivate, handleCloseReactivate, reloadUserTenants]);
 
   // Button Popover
   const entries = useMemo(() => {
@@ -82,8 +98,18 @@ const TenantPopover: FunctionComponent<Props> = ({
       });
     }
 
+    if (
+      actions.includes('Reactivate')
+    ) {
+      result.push({
+        label: t('Reactivate'),
+        action: handleOpenReactivate,
+        userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.TENANTS),
+      });
+    }
+
     return result;
-  }, [actions, ability, handleOpenEdit, handleOpenDelete]);
+  }, [actions, ability, handleOpenEdit, handleOpenDelete, handleOpenReactivate]);
 
   return (
     <>
@@ -103,7 +129,17 @@ const TenantPopover: FunctionComponent<Props> = ({
             open={isDeleteOpen}
             handleClose={handleCloseDelete}
             handleSubmit={handleDelete}
-            text={`${t('Do you want to delete this tenant?')}`}
+            text={`${t('Do you want to soft-delete this tenant? Data will be preserved for 30 days, during which an admin can reactivate it.')}`}
+          />
+        )}
+      {actions.includes('Reactivate')
+        && (
+          <DialogConfirmation
+            open={isReactivateOpen}
+            handleClose={handleCloseReactivate}
+            handleSubmit={handleReactivate}
+            text={`${t('Do you want to reactivate this tenant?')}`}
+            submitLabel={t('Reactivate')}
           />
         )}
     </>

@@ -3,11 +3,29 @@ package io.openaev.rest.exercise.service;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.database.model.*;
 import io.openaev.database.model.Exercise;
+import io.openaev.database.repository.*;
+import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.inject.service.InjectDuplicateService;
+import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.*;
+import io.openaev.service.FileService;
+import io.openaev.service.LessonsService;
+import io.openaev.service.chaining.WorkflowService;
+import io.openaev.service.scenario.ScenarioRecurrenceService;
+import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
+import io.openaev.utils.ResultUtils;
+import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
+import io.openaev.utils.mapper.ExerciseMapper;
+import io.openaev.utils.mapper.InjectExpectationMapper;
+import io.openaev.utils.mapper.InjectMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
@@ -16,6 +34,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 
 @Transactional
@@ -26,8 +46,90 @@ class ExerciseServiceTest extends IntegrationTest {
   @Autowired private EntityManager entityManager;
   @Autowired private ExerciseService actualExerciseService;
 
+  @Autowired private LessonsService lessonsService;
+  @Autowired private FileService fileService;
+  @Autowired private PauseExerciseService pauseExerciseService;
+  @Autowired private ScenarioRecurrenceService scenarioRecurrenceService;
+
+  @Mock private EnterpriseEditionService enterpriseEditionService;
+  @Mock private InjectDuplicateService injectDuplicateService;
+  @Mock private TeamService teamService;
+  @Mock private VariableService variableService;
+  @Mock private TagRuleService tagRuleService;
+  @Mock private DocumentService documentService;
+  @Mock private InjectService injectService;
+  @Mock private UserService userService;
+
+  @Mock private ExerciseMapper exerciseMapper;
+  @Mock private InjectMapper injectMapper;
+  @Mock private ResultUtils resultUtils;
+  @Mock private ActionMetricCollector actionMetricCollector;
+  @Mock private LicenseCacheManager licenseCacheManager;
+
+  @Mock private AssetRepository assetRepository;
+  @Mock private AssetGroupRepository assetGroupRepository;
+  @Mock private InjectExpectationRepository injectExpectationRepository;
+  @Mock private ArticleRepository articleRepository;
+  @Mock private ExerciseRepository exerciseRepository;
+  @Mock private PauseRepository pauseRepository;
+  @Mock private TeamRepository teamRepository;
+  @Mock private UserRepository userRepository;
+  @Mock private LessonsQuestionRepository lessonsQuestionRepository;
+  @Mock private LessonsAnswerRepository lessonsAnswerRepository;
+  @Mock private ExerciseTeamUserRepository exerciseTeamUserRepository;
+  @Mock private InjectRepository injectRepository;
+  @Mock private LessonsCategoryRepository lessonsCategoryRepository;
+  @Mock private PreviewFeatureService previewFeatureService;
+  @Mock private WorkflowService workflowService;
+  @Mock private GrantService grantService;
+  @Mock private ExerciseTeamUserService exerciseTeamUserService;
+
+  @Mock private InjectExpectationMapper injectExpectationMapper;
+
+  @InjectMocks private ExerciseService mockedExerciseService;
+  @Autowired private InjectStatusRepository injectStatusRepository;
+
   @BeforeEach
   void setUp() {
+    mockedExerciseService =
+        new ExerciseService(
+            enterpriseEditionService,
+            injectDuplicateService,
+            teamService,
+            variableService,
+            tagRuleService,
+            documentService,
+            injectService,
+            userService,
+            grantService,
+            exerciseTeamUserService,
+            exerciseMapper,
+            injectMapper,
+            resultUtils,
+            actionMetricCollector,
+            licenseCacheManager,
+            assetRepository,
+            assetGroupRepository,
+            injectExpectationRepository,
+            articleRepository,
+            exerciseRepository,
+            injectStatusRepository,
+            pauseRepository,
+            lessonsQuestionRepository,
+            teamRepository,
+            userRepository,
+            exerciseTeamUserRepository,
+            injectRepository,
+            lessonsAnswerRepository,
+            lessonsCategoryRepository,
+            lessonsService,
+            injectExpectationMapper,
+            scenarioRecurrenceService,
+            workflowService,
+            previewFeatureService,
+            pauseExerciseService,
+            fileService);
+
     scenarioComposer.reset();
     exerciseComposer.reset();
   }

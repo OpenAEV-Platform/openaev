@@ -1,11 +1,8 @@
-import { Dialog as DialogMUI, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import type React from 'react';
-import { useState } from 'react';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../i18n';
-import Button from './button/Button';
-import Transition from './Transition';
+import DialogConfirmation from './DialogConfirmation';
 
 interface DialogDeleteProps {
   open: boolean;
@@ -15,47 +12,9 @@ interface DialogDeleteProps {
   richContent?: React.ReactNode;
 }
 
-const DialogDelete: FunctionComponent<DialogDeleteProps> = ({
-  open = false,
-  handleClose,
-  handleSubmit = undefined,
-  text,
-  richContent,
-}) => {
+const DialogDelete: FunctionComponent<DialogDeleteProps> = (props) => {
   const { t } = useFormatter();
-
-  const [loading, setLoading] = useState<boolean>(false);
-
-  const handleLoadingAndSubmit = () => {
-    setLoading(true);
-    if (handleSubmit)
-      handleSubmit();
-  };
-
-  return (
-    <DialogMUI
-      open={open}
-      onClose={handleClose}
-      slotProps={{ paper: { elevation: 1 } }}
-      slots={{ transition: Transition }}
-    >
-      <DialogContent>
-        {richContent || (
-          <DialogContentText>
-            {text}
-          </DialogContentText>
-        )}
-      </DialogContent>
-      <DialogActions>
-        <Button variant="secondary" onClick={handleClose}>{t('Cancel')}</Button>
-        {handleSubmit && (
-          <Button variant="primary" loading={loading} onClick={handleLoadingAndSubmit}>
-            {t('Delete')}
-          </Button>
-        )}
-      </DialogActions>
-    </DialogMUI>
-  );
+  return <DialogConfirmation {...props} submitLabel={t('Delete')} />;
 };
 
 export default DialogDelete;

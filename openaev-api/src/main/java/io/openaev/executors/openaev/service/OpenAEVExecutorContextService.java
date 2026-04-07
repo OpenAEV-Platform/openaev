@@ -26,7 +26,10 @@ public class OpenAEVExecutorContextService extends ExecutorContextService {
     Injector injector =
         inject
             .getInjectorContract()
-            .map(InjectorContract::getInjector)
+
+            // TODO move away from using the first injector - will be done later in the multi
+            // connector epic
+            .map(InjectorContract::getFirstInjector)
             .orElseThrow(
                 () -> new UnsupportedOperationException("Inject does not have a contract"));
 

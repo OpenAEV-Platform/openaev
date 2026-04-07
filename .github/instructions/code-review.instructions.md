@@ -2,45 +2,42 @@
 applyTo: "**/*"
 ---
 
-When reviewing code, focus on:
+When reviewing code, check for issues in these categories.
+Rules are defined in dedicated instruction files — refer to them for the full checklist.
 
-## Security Critical Issues
-- Check for hardcoded secrets, API keys, or credentials
-- Look for SQL injection and XSS vulnerabilities
-- Verify proper input validation and sanitization
-- Review authentication and authorization logic
+## Security
 
-## Performance Red Flags
-- Identify N+1 database query problems
-- Spot inefficient loops and algorithmic issues
-- Check for memory leaks and resource cleanup
-- Review caching opportunities for expensive operations
+> Full rules: [security.instructions.md](security.instructions.md)
 
-## Code Quality Essentials
-- Functions should be focused and appropriately sized
-- Use clear, descriptive naming conventions
-- Ensure proper error handling throughout
+Key checks: `@AccessControl` on every endpoint, native `@Query` with `WHERE tenant_id`, no `tenant_id` in responses, no hardcoded secrets, no raw error messages to clients.
+
+## Performance
+
+> Full rules: [performance.instructions.md](performance.instructions.md)
+
+Key checks: N+1 queries, `@Fetch(FetchMode.SUBSELECT)` on collections, `FetchType.LAZY` default, `Page<T>` not unbounded `List<T>`, `ReferenceResolver` instead of `findById()` loops, `@Transactional(readOnly = true)` on reads.
+
+## Architecture
+
+> Full rules: [backend.instructions.md](backend.instructions.md)
+
+Key checks: layering (Controller → Service → Repository, never skip), JPA entities never returned from controllers (use DTOs), `@Transactional` self-call (Spring proxy bypass), no new code in `openaev-framework` (deprecated).
+
+## Test Quality
+
+> Full rules: [testing.instructions.md](testing.instructions.md)
+
+Key checks: `@Nested` + `@DisplayName` grouping, `given_X_should_Y` naming, AAA comments, OpenAEV's `@WithMockUser` (not Spring's), Fixture + Composer (no inline data).
+
+## Frontend
+
+> Full rules: [frontend.instructions.md](frontend.instructions.md)
+
+Key checks: no MUI for layout (native HTML), `sx` prop only (no `makeStyles`), `t()` called early, auto-generated `api-types.d.ts` (no manual types).
 
 ## Review Style
-- Be specific and actionable in feedback
-- Explain the "why" behind recommendations
-- Acknowledge good patterns when you see them
-- Ask clarifying questions when code intent is unclear
 
-Always prioritize security vulnerabilities and performance issues that could impact users.
-
-Always suggest changes to improve readability. For example, this suggestion seeks to make the code more readable and also makes the validation logic reusable and testable.
-
-// Instead of:
-if (user.email && user.email.includes('@') && user.email.length > 5) {
-  submitButton.enabled = true;
-} else {
-  submitButton.enabled = false;
-}
-
-// Consider:
-function isValidEmail(email) {
-  return email && email.includes('@') && email.length > 5;
-}
-
-submitButton.enabled = isValidEmail(user.email);
+- Use **conventional comments**: `suggestion:`, `issue:`, `todo:`, `nitpick:`, `praise:`
+- Add `(blocking)` or `(non-blocking)` decoration
+- Be specific, actionable, explain the "why"
+- When flagging a rule violation, mention which instruction file defines the rule

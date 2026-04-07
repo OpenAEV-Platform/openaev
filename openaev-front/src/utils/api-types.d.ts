@@ -142,7 +142,19 @@ export interface AggregatedFindingOutput {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
   /**
    * Finding Value
    * @minLength 1
@@ -378,6 +390,7 @@ export interface AtomicTestingInput {
   inject_content?: object;
   inject_description?: string;
   inject_documents?: InjectDocumentInput[];
+  inject_injector?: string;
   inject_injector_contract?: string;
   inject_tags?: string[];
   inject_teams?: string[];
@@ -1306,7 +1319,19 @@ export interface ContractOutputElement {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
   /** @format date-time */
   contract_output_element_updated_at: string;
   listened?: boolean;
@@ -1347,7 +1372,19 @@ export interface ContractOutputElementInput {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
 }
 
 /** Represents the rules for parsing the output of an execution. */
@@ -1384,7 +1421,19 @@ export interface ContractOutputElementSimple {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
 }
 
 export interface CreateConnectorInstanceInput {
@@ -1422,27 +1471,6 @@ export interface CreateNotificationRuleInput {
   subject: string;
   trigger: string;
   type: string;
-}
-
-export interface CreateUserInput {
-  /** True if the user is admin */
-  user_admin?: boolean;
-  /**
-   * The email of the user
-   * @format email
-   * @minLength 1
-   */
-  user_email: string;
-  /** First name of the user */
-  user_firstname?: string;
-  /** Last name of the user */
-  user_lastname?: string;
-  /** Organization of the user */
-  user_organization?: string;
-  /** Password of the user as plain text */
-  user_plain_password?: string;
-  /** Tags of the user */
-  user_tags?: string[];
 }
 
 export interface CustomDashboard {
@@ -1736,6 +1764,7 @@ export interface DirectInjectInput {
   inject_content?: object;
   inject_description?: string;
   inject_documents?: InjectDocumentInput[];
+  inject_injector?: string;
   inject_injector_contract?: string;
   inject_title?: string;
   inject_users?: string[];
@@ -3102,7 +3131,19 @@ export interface Finding {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
   /** @format date-time */
   finding_updated_at: string;
   finding_users?: string[];
@@ -3124,7 +3165,19 @@ export interface FindingInput {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
   /** @minLength 1 */
   finding_value: string;
 }
@@ -3570,6 +3623,7 @@ export interface InjectExpectationResult {
   result: string;
   /** @format double */
   score?: number;
+  sourceAssetId?: string;
   sourceId?: string;
   sourceName?: string;
   sourcePlatform?: string;
@@ -3977,6 +4031,7 @@ export interface Injector {
     | "IMAP"
     | "NUCLEI"
     | "NMAP"
+    | "NETEXEC"
     | "OpenAEV Email"
     | "OpenAEV Implant"
   )[];
@@ -4021,9 +4076,9 @@ export interface InjectorContract {
   /** @minLength 1 */
   injector_contract_id: string;
   injector_contract_import_available?: boolean;
-  injector_contract_injector: string;
   injector_contract_injector_type?: string;
   injector_contract_injector_type_name?: string;
+  injector_contract_injectors?: string[];
   injector_contract_labels?: Record<string, string>;
   injector_contract_manual?: boolean;
   injector_contract_needs_executor?: boolean;
@@ -6065,7 +6120,7 @@ export interface PlatformSettings {
 }
 
 export interface PlayerInput {
-  /** @pattern ^\+[\d\s\-.()]+$ */
+  /** @pattern ^$|^\+[\d\s\-.()]+$ */
   user_phone2?: string;
   user_country?: string;
   /**
@@ -6077,7 +6132,7 @@ export interface PlayerInput {
   user_lastname?: string;
   user_organization?: string;
   user_pgp_key?: string;
-  /** @pattern ^\+[\d\s\-.()]+$ */
+  /** @pattern ^$|^\+[\d\s\-.()]+$ */
   user_phone?: string;
   user_tags?: string[];
   user_teams?: string[];
@@ -6373,7 +6428,19 @@ export interface RelatedFindingOutput {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
   /**
    * Finding Value
    * @minLength 1
@@ -7477,36 +7544,6 @@ export interface UpdateUserInfoInput {
   user_phone?: string;
 }
 
-export interface UpdateUserInput {
-  /**
-   * Secondary phone of the user
-   * @pattern ^\+[\d\s\-.()]+$
-   */
-  user_phone2?: string;
-  /** True if the user is admin */
-  user_admin?: boolean;
-  /**
-   * The email of the user
-   * @format email
-   */
-  user_email?: string;
-  /** First name of the user */
-  user_firstname?: string;
-  /** Last name of the user */
-  user_lastname?: string;
-  /** Organization of the user */
-  user_organization?: string;
-  /** PGP key of the user */
-  user_pgp_key?: string;
-  /**
-   * Phone of the user
-   * @pattern ^\+[\d\s\-.()]+$
-   */
-  user_phone?: string;
-  /** Tags of the user */
-  user_tags?: string[];
-}
-
 export interface UpdateUsersTeamInput {
   /** The list of users the team contains */
   team_users?: string[];
@@ -7633,31 +7670,42 @@ export interface User {
   user_updated_at: string;
 }
 
-export interface UserOutput {
-  /** True if the user is admin */
+export interface UserInput {
+  /** @pattern ^$|^\+[\d\s\-.()]+$ */
+  user_phone2?: string;
   user_admin?: boolean;
   /**
-   * Email of the user
+   * @format email
    * @minLength 1
    */
   user_email: string;
-  /** First name of the user */
   user_firstname?: string;
+  user_lastname?: string;
+  user_organization?: string;
+  user_pgp_key?: string;
+  /** @pattern ^$|^\+[\d\s\-.()]+$ */
+  user_phone?: string;
+  user_plain_password?: string;
+  user_tags?: string[];
+}
+
+export interface UserOutput {
+  user_phone2?: string;
+  user_admin?: boolean;
   /**
-   * User ID
+   * @format email
    * @minLength 1
    */
+  user_email: string;
+  user_firstname?: string;
+  /** @minLength 1 */
   user_id: string;
-  /** Last name of the user */
   user_lastname?: string;
-  /** Organization of the user */
   user_organization_id?: string;
-  /** Organization of the user */
   user_organization_name?: string;
-  /**
-   * Tags of the user
-   * @uniqueItems true
-   */
+  user_pgp_key?: string;
+  user_phone?: string;
+  /** @uniqueItems true */
   user_tags?: string[];
 }
 
@@ -7711,15 +7759,6 @@ export interface VariableInput {
    */
   variable_key: string;
   variable_value?: string;
-}
-
-export interface ViolationErrorBag {
-  /** The error */
-  error?: string;
-  /** The message of the error */
-  message?: string;
-  /** The type of error */
-  type?: string;
 }
 
 export interface VulnerabilityBulkInsertInput {

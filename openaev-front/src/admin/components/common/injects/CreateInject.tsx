@@ -220,7 +220,7 @@ const CreateInject: FunctionComponent<Props> = ({
 
   const availableFilterNames = [
     'injector_contract_attack_patterns',
-    'injector_contract_injector',
+    'injector_contract_injectors',
     'injector_contract_kill_chain_phases',
     'injector_contract_labels',
     'injector_contract_platforms',

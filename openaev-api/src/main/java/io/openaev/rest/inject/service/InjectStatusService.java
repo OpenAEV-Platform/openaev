@@ -347,10 +347,11 @@ public class InjectStatusService {
    * @param injects the list of injects
    */
   public void deleteAllInjectStatusByInjects(List<Inject> injects) {
-    injectStatusRepository.deleteAllById(
+    List<String> injectStatusIds =
         injects.stream()
             .map(Inject::getStatus)
-            .map(i -> i.map(InjectStatus::getId).orElse(""))
-            .toList());
+            .flatMap(i -> i.map(InjectStatus::getId).stream())
+            .toList();
+    injectStatusRepository.deleteAllByIds(injectStatusIds);
   }
 }
