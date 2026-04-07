@@ -25,7 +25,10 @@ public class ScenarioStatisticApi extends RestBehavior {
 
   private final ScenarioStatisticService scenarioStatisticService;
 
-  @GetMapping({SCENARIO_URI + "/{scenarioId}/statistics", TENANT_SCENARIO_URI + "/{scenarioId}/statistics"})
+  @GetMapping({
+    SCENARIO_URI + "/{scenarioId}/statistics",
+    TENANT_SCENARIO_URI + "/{scenarioId}/statistics"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,

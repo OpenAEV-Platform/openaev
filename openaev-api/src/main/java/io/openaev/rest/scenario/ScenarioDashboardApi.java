@@ -37,7 +37,10 @@ public class ScenarioDashboardApi {
         @ApiResponse(responseCode = "200", description = "The dashboard"),
         @ApiResponse(responseCode = "404", description = "The Scenario doesn't exist")
       })
-  @GetMapping({SCENARIO_URI + "/{scenarioId}/dashboard", TENANT_SCENARIO_URI + "/{scenarioId}/dashboard"})
+  @GetMapping({
+    SCENARIO_URI + "/{scenarioId}/dashboard",
+    TENANT_SCENARIO_URI + "/{scenarioId}/dashboard"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -47,7 +50,10 @@ public class ScenarioDashboardApi {
         this.customDashboardService.findCustomDashboardByResourceId(scenarioId));
   }
 
-  @PostMapping({SCENARIO_URI + "/{scenarioId}/dashboard/count/{widgetId}", TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/count/{widgetId}"})
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/dashboard/count/{widgetId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/count/{widgetId}"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -59,7 +65,10 @@ public class ScenarioDashboardApi {
     return this.customDashboardService.dashboardCountOnResourceId(scenarioId, widgetId, parameters);
   }
 
-  @PostMapping({SCENARIO_URI + "/{scenarioId}/dashboard/average/{widgetId}", TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/average/{widgetId}"})
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/dashboard/average/{widgetId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/average/{widgetId}"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -72,7 +81,10 @@ public class ScenarioDashboardApi {
         scenarioId, widgetId, parameters);
   }
 
-  @PostMapping({SCENARIO_URI + "/{scenarioId}/dashboard/series/{widgetId}", TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/series/{widgetId}"})
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/dashboard/series/{widgetId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/series/{widgetId}"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -85,7 +97,10 @@ public class ScenarioDashboardApi {
         scenarioId, widgetId, parameters);
   }
 
-  @PostMapping({SCENARIO_URI + "/{scenarioId}/dashboard/entities/{widgetId}", TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/entities/{widgetId}"})
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/dashboard/entities/{widgetId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/entities/{widgetId}"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -97,7 +112,10 @@ public class ScenarioDashboardApi {
     return this.customDashboardService.dashboardEntitiesOnResourceId(scenarioId, widgetId, input);
   }
 
-  @PostMapping({SCENARIO_URI + "/{scenarioId}/dashboard/entities-runtime/{widgetId}", TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/entities-runtime/{widgetId}"})
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/dashboard/entities-runtime/{widgetId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/entities-runtime/{widgetId}"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -110,7 +128,10 @@ public class ScenarioDashboardApi {
         scenarioId, widgetId, input);
   }
 
-  @PostMapping({SCENARIO_URI + "/{scenarioId}/dashboard/attack-paths/{widgetId}", TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/attack-paths/{widgetId}"})
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/dashboard/attack-paths/{widgetId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/attack-paths/{widgetId}"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,

@@ -32,7 +32,10 @@ public class ScenarioChallengeApi extends RestBehavior {
   private final InjectRepository injectRepository;
   private final ChallengeRepository challengeRepository;
 
-  @GetMapping({SCENARIO_URI + "/{scenarioId}/challenges", TENANT_SCENARIO_URI + "/{scenarioId}/challenges"})
+  @GetMapping({
+    SCENARIO_URI + "/{scenarioId}/challenges",
+    TENANT_SCENARIO_URI + "/{scenarioId}/challenges"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,

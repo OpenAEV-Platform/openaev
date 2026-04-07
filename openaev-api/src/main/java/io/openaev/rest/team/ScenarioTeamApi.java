@@ -29,7 +29,10 @@ public class ScenarioTeamApi extends RestBehavior {
 
   private final TeamService teamService;
 
-  @PostMapping({SCENARIO_URI + "/{scenarioId}/teams/search", TENANT_SCENARIO_URI + "/{scenarioId}/teams/search"})
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/teams/search",
+    TENANT_SCENARIO_URI + "/{scenarioId}/teams/search"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,

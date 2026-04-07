@@ -32,7 +32,10 @@ public class ExerciseTeamApi extends RestBehavior {
   private final TeamService teamService;
 
   @LogExecutionTime
-  @PostMapping({EXERCISE_URI + "/{exerciseId}/teams/search", TENANT_EXERCISE_URI + "/{exerciseId}/teams/search"})
+  @PostMapping({
+    EXERCISE_URI + "/{exerciseId}/teams/search",
+    TENANT_EXERCISE_URI + "/{exerciseId}/teams/search"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,

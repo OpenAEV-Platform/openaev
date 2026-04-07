@@ -136,7 +136,10 @@ public class ExerciseApi extends RestBehavior {
     return exerciseLogRepository.save(log);
   }
 
-  @PutMapping({EXERCISE_URI + "/{exerciseId}/logs/{logId}", TENANT_EXERCISE_URI + "/{exerciseId}/logs/{logId}"})
+  @PutMapping({
+    EXERCISE_URI + "/{exerciseId}/logs/{logId}",
+    TENANT_EXERCISE_URI + "/{exerciseId}/logs/{logId}"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -152,7 +155,10 @@ public class ExerciseApi extends RestBehavior {
     return logRepository.save(log);
   }
 
-  @DeleteMapping({EXERCISE_URI + "/{exerciseId}/logs/{logId}", TENANT_EXERCISE_URI + "/{exerciseId}/logs/{logId}"})
+  @DeleteMapping({
+    EXERCISE_URI + "/{exerciseId}/logs/{logId}",
+    TENANT_EXERCISE_URI + "/{exerciseId}/logs/{logId}"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.DELETE,
@@ -165,7 +171,10 @@ public class ExerciseApi extends RestBehavior {
   // endregion
 
   // region comchecks
-  @GetMapping({EXERCISE_URI + "/{exercise}/comchecks", TENANT_EXERCISE_URI + "/{exercise}/comchecks"})
+  @GetMapping({
+    EXERCISE_URI + "/{exercise}/comchecks",
+    TENANT_EXERCISE_URI + "/{exercise}/comchecks"
+  })
   @AccessControl(
       resourceId = "#exercise",
       actionPerformed = Action.READ,
@@ -174,7 +183,10 @@ public class ExerciseApi extends RestBehavior {
     return comcheckRepository.findAll(ComcheckSpecification.fromExercise(exercise));
   }
 
-  @GetMapping({EXERCISE_URI + "/{exercise}/comchecks/{comcheck}", TENANT_EXERCISE_URI + "/{exercise}/comchecks/{comcheck}"})
+  @GetMapping({
+    EXERCISE_URI + "/{exercise}/comchecks/{comcheck}",
+    TENANT_EXERCISE_URI + "/{exercise}/comchecks/{comcheck}"
+  })
   @AccessControl(
       resourceId = "#exercise",
       actionPerformed = Action.READ,
@@ -185,7 +197,10 @@ public class ExerciseApi extends RestBehavior {
     return comcheckRepository.findOne(filters).orElseThrow(ElementNotFoundException::new);
   }
 
-  @GetMapping({EXERCISE_URI + "/{exercise}/comchecks/{comcheck}/statuses", TENANT_EXERCISE_URI + "/{exercise}/comchecks/{comcheck}/statuses"})
+  @GetMapping({
+    EXERCISE_URI + "/{exercise}/comchecks/{comcheck}/statuses",
+    TENANT_EXERCISE_URI + "/{exercise}/comchecks/{comcheck}/statuses"
+  })
   @AccessControl(
       resourceId = "#exercise",
       actionPerformed = Action.READ,
@@ -209,7 +224,10 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @Transactional(rollbackFor = Exception.class)
-  @PutMapping({EXERCISE_URI + "/{exerciseId}/teams/remove", TENANT_EXERCISE_URI + "/{exerciseId}/teams/remove"})
+  @PutMapping({
+    EXERCISE_URI + "/{exerciseId}/teams/remove",
+    TENANT_EXERCISE_URI + "/{exerciseId}/teams/remove"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -220,7 +238,10 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @Transactional(rollbackFor = Exception.class)
-  @PutMapping({EXERCISE_URI + "/{exerciseId}/teams/replace", TENANT_EXERCISE_URI + "/{exerciseId}/teams/replace"})
+  @PutMapping({
+    EXERCISE_URI + "/{exerciseId}/teams/replace",
+    TENANT_EXERCISE_URI + "/{exerciseId}/teams/replace"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -230,7 +251,10 @@ public class ExerciseApi extends RestBehavior {
     return this.exerciseService.replaceTeams(exerciseId, input.getTeamIds());
   }
 
-  @GetMapping({EXERCISE_URI + "/{exerciseId}/players", TENANT_EXERCISE_URI + "/{exerciseId}/players"})
+  @GetMapping({
+    EXERCISE_URI + "/{exerciseId}/players",
+    TENANT_EXERCISE_URI + "/{exerciseId}/players"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -240,7 +264,10 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @Transactional(rollbackFor = Exception.class)
-  @PutMapping({EXERCISE_URI + "/{exerciseId}/teams/{teamId}/players/enable", TENANT_EXERCISE_URI + "/{exerciseId}/teams/{teamId}/players/enable"})
+  @PutMapping({
+    EXERCISE_URI + "/{exerciseId}/teams/{teamId}/players/enable",
+    TENANT_EXERCISE_URI + "/{exerciseId}/teams/{teamId}/players/enable"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -254,7 +281,10 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @Transactional(rollbackFor = Exception.class)
-  @PutMapping({EXERCISE_URI + "/{exerciseId}/teams/{teamId}/players/disable", TENANT_EXERCISE_URI + "/{exerciseId}/teams/{teamId}/players/disable"})
+  @PutMapping({
+    EXERCISE_URI + "/{exerciseId}/teams/{teamId}/players/disable",
+    TENANT_EXERCISE_URI + "/{exerciseId}/teams/{teamId}/players/disable"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -277,7 +307,10 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @Transactional(rollbackFor = Exception.class)
-  @PutMapping({EXERCISE_URI + "/{exerciseId}/teams/{teamId}/players/add", TENANT_EXERCISE_URI + "/{exerciseId}/teams/{teamId}/players/add"})
+  @PutMapping({
+    EXERCISE_URI + "/{exerciseId}/teams/{teamId}/players/add",
+    TENANT_EXERCISE_URI + "/{exerciseId}/teams/{teamId}/players/add"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -293,7 +326,10 @@ public class ExerciseApi extends RestBehavior {
     return exerciseService.enablePlayers(exerciseId, team, input.getPlayersIds());
   }
 
-  @PutMapping({EXERCISE_URI + "/{exerciseId}/teams/{teamId}/players/remove", TENANT_EXERCISE_URI + "/{exerciseId}/teams/{teamId}/players/remove"})
+  @PutMapping({
+    EXERCISE_URI + "/{exerciseId}/teams/{teamId}/players/remove",
+    TENANT_EXERCISE_URI + "/{exerciseId}/teams/{teamId}/players/remove"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -379,7 +415,10 @@ public class ExerciseApi extends RestBehavior {
     return exerciseService.updateExercice(exercise, currentTagList, input.isApplyTagRule());
   }
 
-  @PutMapping({EXERCISE_URI + "/{exerciseId}/start_date", TENANT_EXERCISE_URI + "/{exerciseId}/start_date"})
+  @PutMapping({
+    EXERCISE_URI + "/{exerciseId}/start_date",
+    TENANT_EXERCISE_URI + "/{exerciseId}/start_date"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -392,7 +431,10 @@ public class ExerciseApi extends RestBehavior {
     return this.updateExerciseStart(exerciseId, input);
   }
 
-  @PutMapping({EXERCISE_URI + "/{exerciseId}/start-date", TENANT_EXERCISE_URI + "/{exerciseId}/start-date"})
+  @PutMapping({
+    EXERCISE_URI + "/{exerciseId}/start-date",
+    TENANT_EXERCISE_URI + "/{exerciseId}/start-date"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -462,7 +504,10 @@ public class ExerciseApi extends RestBehavior {
         .toList();
   }
 
-  @PutMapping({EXERCISE_URI + "/{exerciseId}/lessons", TENANT_EXERCISE_URI + "/{exerciseId}/lessons"})
+  @PutMapping({
+    EXERCISE_URI + "/{exerciseId}/lessons",
+    TENANT_EXERCISE_URI + "/{exerciseId}/lessons"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -579,7 +624,10 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @LogExecutionTime
-  @GetMapping({EXERCISE_URI + "/{exerciseId}/results", TENANT_EXERCISE_URI + "/{exerciseId}/results"})
+  @GetMapping({
+    EXERCISE_URI + "/{exerciseId}/results",
+    TENANT_EXERCISE_URI + "/{exerciseId}/results"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -597,7 +645,10 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @LogExecutionTime
-  @GetMapping({EXERCISE_URI + "/{exerciseId}/injects/results-by-attack-patterns", TENANT_EXERCISE_URI + "/{exerciseId}/injects/results-by-attack-patterns"})
+  @GetMapping({
+    EXERCISE_URI + "/{exerciseId}/injects/results-by-attack-patterns",
+    TENANT_EXERCISE_URI + "/{exerciseId}/injects/results-by-attack-patterns"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -607,7 +658,10 @@ public class ExerciseApi extends RestBehavior {
     return exerciseService.extractExpectationResultsByAttackPattern(exerciseId);
   }
 
-  @DeleteMapping({EXERCISE_URI + "/{exerciseId}/{documentId}", TENANT_EXERCISE_URI + "/{exerciseId}/{documentId}"})
+  @DeleteMapping({
+    EXERCISE_URI + "/{exerciseId}/{documentId}",
+    TENANT_EXERCISE_URI + "/{exerciseId}/{documentId}"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.DELETE,
@@ -703,7 +757,10 @@ public class ExerciseApi extends RestBehavior {
   // endregion
 
   // region communication
-  @GetMapping({EXERCISE_URI + "/{exerciseId}/communications", TENANT_EXERCISE_URI + "/{exerciseId}/communications"})
+  @GetMapping({
+    EXERCISE_URI + "/{exerciseId}/communications",
+    TENANT_EXERCISE_URI + "/{exerciseId}/communications"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -768,7 +825,10 @@ public class ExerciseApi extends RestBehavior {
     importService.handleFileImport(file, null, null);
   }
 
-  @PostMapping({EXERCISE_URI + "/{exerciseId}/check-rules", TENANT_EXERCISE_URI + "/{exerciseId}/check-rules"})
+  @PostMapping({
+    EXERCISE_URI + "/{exerciseId}/check-rules",
+    TENANT_EXERCISE_URI + "/{exerciseId}/check-rules"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -792,7 +852,10 @@ public class ExerciseApi extends RestBehavior {
   // endregion
 
   // region asset groups, endpoints, documents and channels
-  @GetMapping({EXERCISE_URI + "/{exerciseId}/asset-groups", TENANT_EXERCISE_URI + "/{exerciseId}/asset-groups"})
+  @GetMapping({
+    EXERCISE_URI + "/{exerciseId}/asset-groups",
+    TENANT_EXERCISE_URI + "/{exerciseId}/asset-groups"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -805,7 +868,10 @@ public class ExerciseApi extends RestBehavior {
     return this.assetGroupService.assetGroupsForSimulation(exerciseId);
   }
 
-  @PostMapping({EXERCISE_URI + "/{exerciseId}/asset-groups/find", TENANT_EXERCISE_URI + "/{exerciseId}/asset-groups/find"})
+  @PostMapping({
+    EXERCISE_URI + "/{exerciseId}/asset-groups/find",
+    TENANT_EXERCISE_URI + "/{exerciseId}/asset-groups/find"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -820,7 +886,10 @@ public class ExerciseApi extends RestBehavior {
     return this.assetGroupService.assetGroupsByIdsForSimulation(exerciseId, assetGroupIds);
   }
 
-  @GetMapping({EXERCISE_URI + "/{exerciseId}/channels", TENANT_EXERCISE_URI + "/{exerciseId}/channels"})
+  @GetMapping({
+    EXERCISE_URI + "/{exerciseId}/channels",
+    TENANT_EXERCISE_URI + "/{exerciseId}/channels"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -832,7 +901,10 @@ public class ExerciseApi extends RestBehavior {
     return this.channelService.channelsForSimulation(exerciseId);
   }
 
-  @GetMapping({EXERCISE_URI + "/{exerciseId}/endpoints", TENANT_EXERCISE_URI + "/{exerciseId}/endpoints"})
+  @GetMapping({
+    EXERCISE_URI + "/{exerciseId}/endpoints",
+    TENANT_EXERCISE_URI + "/{exerciseId}/endpoints"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -844,7 +916,10 @@ public class ExerciseApi extends RestBehavior {
     return this.endpointService.endpointsForSimulation(exerciseId);
   }
 
-  @PostMapping({EXERCISE_URI + "/{exerciseId}/endpoints/find", TENANT_EXERCISE_URI + "/{exerciseId}/endpoints/find"})
+  @PostMapping({
+    EXERCISE_URI + "/{exerciseId}/endpoints/find",
+    TENANT_EXERCISE_URI + "/{exerciseId}/endpoints/find"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -859,7 +934,10 @@ public class ExerciseApi extends RestBehavior {
     return this.endpointService.endpointsByIdsForSimulation(exerciseId, endpointIds);
   }
 
-  @GetMapping({EXERCISE_URI + "/{exerciseId}/documents", TENANT_EXERCISE_URI + "/{exerciseId}/documents"})
+  @GetMapping({
+    EXERCISE_URI + "/{exerciseId}/documents",
+    TENANT_EXERCISE_URI + "/{exerciseId}/documents"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -871,7 +949,10 @@ public class ExerciseApi extends RestBehavior {
     return this.documentService.documentsForSimulation(exerciseId);
   }
 
-  @GetMapping({EXERCISE_URI + "/{simulationId}/scenario", TENANT_EXERCISE_URI + "/{simulationId}/scenario"})
+  @GetMapping({
+    EXERCISE_URI + "/{simulationId}/scenario",
+    TENANT_EXERCISE_URI + "/{simulationId}/scenario"
+  })
   @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,

@@ -1,9 +1,9 @@
 package io.openaev.rest.inject;
 
 import static io.openaev.config.SessionHelper.currentUser;
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.CommunicationSpecification.fromInject;
 import static io.openaev.database.specification.InjectSpecification.fromSimulation;
-import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
@@ -88,7 +88,10 @@ public class SimulationInjectApi extends RestBehavior {
                   schema = @Schema(implementation = InjectOutput.class))
             }),
       })
-  @GetMapping({EXERCISE_URI + "/{exerciseId}/injects/simple", TENANT_EXERCISE_URI + "/{exerciseId}/injects/simple"})
+  @GetMapping({
+    EXERCISE_URI + "/{exerciseId}/injects/simple",
+    TENANT_EXERCISE_URI + "/{exerciseId}/injects/simple"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -99,7 +102,10 @@ public class SimulationInjectApi extends RestBehavior {
     return injectSearchService.injects(fromSimulation(exerciseId));
   }
 
-  @PostMapping({EXERCISE_URI + "/{exerciseId}/injects/simple", TENANT_EXERCISE_URI + "/{exerciseId}/injects/simple"})
+  @PostMapping({
+    EXERCISE_URI + "/{exerciseId}/injects/simple",
+    TENANT_EXERCISE_URI + "/{exerciseId}/injects/simple"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -124,7 +130,10 @@ public class SimulationInjectApi extends RestBehavior {
   }
 
   @LogExecutionTime
-  @GetMapping({EXERCISE_URI + "/{exerciseId}/injects", TENANT_EXERCISE_URI + "/{exerciseId}/injects"})
+  @GetMapping({
+    EXERCISE_URI + "/{exerciseId}/injects",
+    TENANT_EXERCISE_URI + "/{exerciseId}/injects"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -136,7 +145,10 @@ public class SimulationInjectApi extends RestBehavior {
   }
 
   @LogExecutionTime
-  @PostMapping({EXERCISE_URI + "/{exerciseId}/injects/search", TENANT_EXERCISE_URI + "/{exerciseId}/injects/search"})
+  @PostMapping({
+    EXERCISE_URI + "/{exerciseId}/injects/search",
+    TENANT_EXERCISE_URI + "/{exerciseId}/injects/search"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -149,7 +161,10 @@ public class SimulationInjectApi extends RestBehavior {
   }
 
   @LogExecutionTime
-  @GetMapping({EXERCISE_URI + "/{exerciseId}/injects/results", TENANT_EXERCISE_URI + "/{exerciseId}/injects/results"})
+  @GetMapping({
+    EXERCISE_URI + "/{exerciseId}/injects/results",
+    TENANT_EXERCISE_URI + "/{exerciseId}/injects/results"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -159,7 +174,10 @@ public class SimulationInjectApi extends RestBehavior {
     return injectSearchService.getListOfInjectResults(exerciseId);
   }
 
-  @GetMapping({EXERCISE_URI + "/{exerciseId}/injects/{injectId}", TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}"})
+  @GetMapping({
+    EXERCISE_URI + "/{exerciseId}/injects/{injectId}",
+    TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -170,7 +188,10 @@ public class SimulationInjectApi extends RestBehavior {
     return injectMapper.toInjectOutput(inject, injectService.runChecks(inject));
   }
 
-  @GetMapping({EXERCISE_URI + "/{exerciseId}/injects/{injectId}/teams", TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}/teams"})
+  @GetMapping({
+    EXERCISE_URI + "/{exerciseId}/injects/{injectId}/teams",
+    TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}/teams"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -183,7 +204,10 @@ public class SimulationInjectApi extends RestBehavior {
         .getTeams();
   }
 
-  @GetMapping({EXERCISE_URI + "/{exerciseId}/injects/{injectId}/communications", TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}/communications"})
+  @GetMapping({
+    EXERCISE_URI + "/{exerciseId}/injects/{injectId}/communications",
+    TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}/communications"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -197,7 +221,10 @@ public class SimulationInjectApi extends RestBehavior {
     return communicationRepository.saveAll(ackComs);
   }
 
-  @PostMapping({EXERCISE_URI + "/{exerciseId}/injects", TENANT_EXERCISE_URI + "/{exerciseId}/injects"})
+  @PostMapping({
+    EXERCISE_URI + "/{exerciseId}/injects",
+    TENANT_EXERCISE_URI + "/{exerciseId}/injects"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -211,7 +238,10 @@ public class SimulationInjectApi extends RestBehavior {
     return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
 
-  @PostMapping({EXERCISE_URI + "/{exerciseId}/injects/bulk", TENANT_EXERCISE_URI + "/{exerciseId}/injects/bulk"})
+  @PostMapping({
+    EXERCISE_URI + "/{exerciseId}/injects/bulk",
+    TENANT_EXERCISE_URI + "/{exerciseId}/injects/bulk"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -224,7 +254,10 @@ public class SimulationInjectApi extends RestBehavior {
     return this.injectService.createAndSaveInjectList(exercise, null, inputs);
   }
 
-  @PostMapping({EXERCISE_URI + "/{exerciseId}/injects/{injectId}", TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}"})
+  @PostMapping({
+    EXERCISE_URI + "/{exerciseId}/injects/{injectId}",
+    TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -239,7 +272,8 @@ public class SimulationInjectApi extends RestBehavior {
   }
 
   @Transactional(rollbackFor = Exception.class)
-  @PostMapping(value = {EXERCISE_URI + "/{exerciseId}/inject", TENANT_EXERCISE_URI + "/{exerciseId}/inject"})
+  @PostMapping(
+      value = {EXERCISE_URI + "/{exerciseId}/inject", TENANT_EXERCISE_URI + "/{exerciseId}/inject"})
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.LAUNCH,
@@ -291,7 +325,10 @@ public class SimulationInjectApi extends RestBehavior {
   }
 
   @Transactional(rollbackFor = Exception.class)
-  @DeleteMapping({EXERCISE_URI + "/{exerciseId}/injects/{injectId}", TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}"})
+  @DeleteMapping({
+    EXERCISE_URI + "/{exerciseId}/injects/{injectId}",
+    TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -300,7 +337,10 @@ public class SimulationInjectApi extends RestBehavior {
     this.simulationInjectService.deleteInject(exerciseId, injectId);
   }
 
-  @PutMapping({EXERCISE_URI + "/{exerciseId}/injects/{injectId}/activation", TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}/activation"})
+  @PutMapping({
+    EXERCISE_URI + "/{exerciseId}/injects/{injectId}/activation",
+    TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}/activation"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -312,7 +352,10 @@ public class SimulationInjectApi extends RestBehavior {
     return injectService.updateInjectActivation(injectId, input);
   }
 
-  @PutMapping({EXERCISE_URI + "/{exerciseId}/injects/{injectId}/trigger", TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}/trigger"})
+  @PutMapping({
+    EXERCISE_URI + "/{exerciseId}/injects/{injectId}/trigger",
+    TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}/trigger"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -326,7 +369,10 @@ public class SimulationInjectApi extends RestBehavior {
   }
 
   @Transactional(rollbackFor = Exception.class)
-  @PostMapping({EXERCISE_URI + "/{exerciseId}/injects/{injectId}/status", TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}/status"})
+  @PostMapping({
+    EXERCISE_URI + "/{exerciseId}/injects/{injectId}/status",
+    TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}/status"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -338,7 +384,10 @@ public class SimulationInjectApi extends RestBehavior {
     return injectStatusService.updateInjectStatus(injectId, input);
   }
 
-  @PutMapping({EXERCISE_URI + "/{exerciseId}/injects/{injectId}/teams", TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}/teams"})
+  @PutMapping({
+    EXERCISE_URI + "/{exerciseId}/injects/{injectId}/teams",
+    TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}/teams"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,

@@ -33,7 +33,10 @@ public class ExerciseArticleApi extends RestBehavior {
   private final InjectRepository injectRepository;
   private final ArticleRepository articleRepository;
 
-  @GetMapping({EXERCISE_URI + "/{exerciseId}/articles", TENANT_EXERCISE_URI + "/{exerciseId}/articles"})
+  @GetMapping({
+    EXERCISE_URI + "/{exerciseId}/articles",
+    TENANT_EXERCISE_URI + "/{exerciseId}/articles"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,

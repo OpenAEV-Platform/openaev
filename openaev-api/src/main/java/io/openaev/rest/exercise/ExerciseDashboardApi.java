@@ -31,7 +31,10 @@ public class ExerciseDashboardApi {
 
   private final CustomDashboardService customDashboardService;
 
-  @GetMapping({EXERCISE_URI + "/{simulationId}/dashboard", TENANT_EXERCISE_URI + "/{simulationId}/dashboard"})
+  @GetMapping({
+    EXERCISE_URI + "/{simulationId}/dashboard",
+    TENANT_EXERCISE_URI + "/{simulationId}/dashboard"
+  })
   @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
@@ -47,7 +50,10 @@ public class ExerciseDashboardApi {
         this.customDashboardService.findCustomDashboardByResourceId(simulationId));
   }
 
-  @PostMapping({EXERCISE_URI + "/{simulationId}/dashboard/count/{widgetId}", TENANT_EXERCISE_URI + "/{simulationId}/dashboard/count/{widgetId}"})
+  @PostMapping({
+    EXERCISE_URI + "/{simulationId}/dashboard/count/{widgetId}",
+    TENANT_EXERCISE_URI + "/{simulationId}/dashboard/count/{widgetId}"
+  })
   @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
@@ -60,7 +66,10 @@ public class ExerciseDashboardApi {
         simulationId, widgetId, parameters);
   }
 
-  @PostMapping({EXERCISE_URI + "/{simulationId}/dashboard/average/{widgetId}", TENANT_EXERCISE_URI + "/{simulationId}/dashboard/average/{widgetId}"})
+  @PostMapping({
+    EXERCISE_URI + "/{simulationId}/dashboard/average/{widgetId}",
+    TENANT_EXERCISE_URI + "/{simulationId}/dashboard/average/{widgetId}"
+  })
   @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
@@ -73,7 +82,10 @@ public class ExerciseDashboardApi {
         simulationId, widgetId, parameters);
   }
 
-  @PostMapping({EXERCISE_URI + "/{simulationId}/dashboard/series/{widgetId}", TENANT_EXERCISE_URI + "/{simulationId}/dashboard/series/{widgetId}"})
+  @PostMapping({
+    EXERCISE_URI + "/{simulationId}/dashboard/series/{widgetId}",
+    TENANT_EXERCISE_URI + "/{simulationId}/dashboard/series/{widgetId}"
+  })
   @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
@@ -86,7 +98,10 @@ public class ExerciseDashboardApi {
         simulationId, widgetId, parameters);
   }
 
-  @PostMapping({EXERCISE_URI + "/{simulationId}/dashboard/entities/{widgetId}", TENANT_EXERCISE_URI + "/{simulationId}/dashboard/entities/{widgetId}"})
+  @PostMapping({
+    EXERCISE_URI + "/{simulationId}/dashboard/entities/{widgetId}",
+    TENANT_EXERCISE_URI + "/{simulationId}/dashboard/entities/{widgetId}"
+  })
   @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
@@ -98,7 +113,10 @@ public class ExerciseDashboardApi {
     return this.customDashboardService.dashboardEntitiesOnResourceId(simulationId, widgetId, input);
   }
 
-  @PostMapping({EXERCISE_URI + "/{simulationId}/dashboard/entities-runtime/{widgetId}", TENANT_EXERCISE_URI + "/{simulationId}/dashboard/entities-runtime/{widgetId}"})
+  @PostMapping({
+    EXERCISE_URI + "/{simulationId}/dashboard/entities-runtime/{widgetId}",
+    TENANT_EXERCISE_URI + "/{simulationId}/dashboard/entities-runtime/{widgetId}"
+  })
   @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
@@ -111,7 +129,10 @@ public class ExerciseDashboardApi {
         simulationId, widgetId, input);
   }
 
-  @PostMapping({EXERCISE_URI + "/{simulationId}/dashboard/attack-paths/{widgetId}", TENANT_EXERCISE_URI + "/{simulationId}/dashboard/attack-paths/{widgetId}"})
+  @PostMapping({
+    EXERCISE_URI + "/{simulationId}/dashboard/attack-paths/{widgetId}",
+    TENANT_EXERCISE_URI + "/{simulationId}/dashboard/attack-paths/{widgetId}"
+  })
   @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,

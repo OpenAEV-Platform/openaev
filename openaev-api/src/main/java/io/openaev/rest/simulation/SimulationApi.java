@@ -1,5 +1,7 @@
 package io.openaev.rest.simulation;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -8,8 +10,6 @@ import io.openaev.utils.FilterUtilsJpa.Option;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
-import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 @RequestMapping(SimulationApi.SIMULATION_URI)
 @RestController
