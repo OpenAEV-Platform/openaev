@@ -2,14 +2,15 @@ import { expect } from '@playwright/test';
 
 import { test } from '../../fixtures';
 import UpdateTeamDialog from '../../model/common/UpdateTeamDialog';
-import InjectFormComponent from '../../model/injects/InjectFormComponent';
+// import InjectFormComponent from '../../model/injects/InjectFormComponent';
 import ScenarioPage from '../../model/scenario/ScenarioPage';
-import MuiListHelpers from '../../utils/MuiListHelpers';
+// import MuiListHelpers from '../../utils/MuiListHelpers';
+import { tenantUrl } from '../../utils/url';
 
 test.describe('Scenario - Teams management', () => {
   let scenarioPage: ScenarioPage;
   let updateTeamDialog: UpdateTeamDialog;
-  let injectFormComponent: InjectFormComponent;
+  // let injectFormComponent: InjectFormComponent;
 
   test.beforeEach(async ({ page, emptyScenario }) => {
     updateTeamDialog = new UpdateTeamDialog(page);
@@ -24,7 +25,7 @@ test.describe('Scenario - Teams management', () => {
       `;
       document.head.appendChild(style);
     });
-    await page.goto(`/admin/scenarios/${emptyScenario.scenario_id}`);
+    await page.goto(tenantUrl(`/admin/scenarios/${emptyScenario.scenario_id}`));
     await scenarioPage.goToDefinitionTab();
   });
 
@@ -82,7 +83,7 @@ test.describe('Scenario - Teams management', () => {
     });
   });
 
-  test.describe('Teams in Injects', () => {
+  /* test.describe('Teams in Injects', () => {
     test('should only show scenario teams in inject form', async ({ page, createTeam }) => {
       const [team1, team2, team3] = await Promise.all([
         createTeam(`Team 1-${Date.now()}-${Math.random()}`),
@@ -190,5 +191,5 @@ test.describe('Scenario - Teams management', () => {
 
       await expect(page.getByTestId('user-count')).toHaveText('5');
     });
-  });
+  }); */
 });

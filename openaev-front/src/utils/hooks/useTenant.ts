@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useLocation } from 'react-router';
 import { useLocalStorage } from 'usehooks-ts';
 
 import { fetchUserTenants } from '../../actions/user/user-tenant-actions';
 import { TENANT_SWITCH_SUCCESS } from '../../constants/ActionTypes';
 import { type TenantOutput, type User } from '../api-types';
 import { useAppDispatch } from '../hooks';
-import { TENANT_STORAGE_KEY } from '../tenant-url-helper';
+import { buildTenantUrl, TENANT_STORAGE_KEY } from '../tenant-url-helper';
 
 /**
  * Internal hook that encapsulates the current-tenant state and
@@ -43,6 +44,7 @@ const useTenant = (me: User | undefined, logged: unknown) => {
   const [userTenants, setUserTenants] = useState<TenantOutput[]>([]);
   const [currentTenantStorage, setCurrentTenantStorage] = useLocalStorage<TenantOutput | null>(TENANT_STORAGE_KEY, null);
   const { currentUserTenant, setTenant } = useTenantState();
+  const location = useLocation();
 
   const loadUserTenants = useCallback(async (newCurrentTenantId?: string) => {
     if (!me) return;
@@ -83,8 +85,10 @@ const useTenant = (me: User | undefined, logged: unknown) => {
     }
   }, [me, logged, loadUserTenants]);
 
-  // TODO multi-tenancy: Multi executors dev
-  // When switching tenants we need to navigate to the new tenant URL prefix and reload tenant-scoped data
+  // When switching tenants, navigate to the new tenant URL prefix.
+  // location.pathname is tenant-free (basename strips it), so we rebuild
+  // the full URL with the new tenant segment. The full page navigation
+  // triggers a reload where BrowserRouter picks up the new basename.
   const switchUserTenant = useCallback(async (tenantId: string) => {
     if (tenantId === currentUserTenant?.tenant_id) {
       return;
@@ -94,9 +98,9 @@ const useTenant = (me: User | undefined, logged: unknown) => {
     if (current) {
       setTenant(current);
       setCurrentTenantStorage(current);
-      window.location.reload();
+      window.location.href = buildTenantUrl(tenantId, location.pathname, location.search, location.hash);
     }
-  }, [currentUserTenant, userTenants, setCurrentTenantStorage, setTenant]);
+  }, [currentUserTenant, userTenants, setCurrentTenantStorage, setTenant, location]);
 
   return {
     userTenants,
