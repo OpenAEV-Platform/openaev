@@ -6118,7 +6118,7 @@ export interface PlatformSettings {
 }
 
 export interface PlayerInput {
-  /** @pattern ^\+[\d\s\-.()]+$ */
+  /** @pattern ^$|^\+[\d\s\-.()]+$ */
   user_phone2?: string;
   user_country?: string;
   /**
@@ -6130,7 +6130,7 @@ export interface PlayerInput {
   user_lastname?: string;
   user_organization?: string;
   user_pgp_key?: string;
-  /** @pattern ^\+[\d\s\-.()]+$ */
+  /** @pattern ^$|^\+[\d\s\-.()]+$ */
   user_phone?: string;
   user_tags?: string[];
   user_teams?: string[];
@@ -7669,7 +7669,7 @@ export interface User {
 }
 
 export interface UserInput {
-  /** @pattern ^\+[\d\s\-.()]+$ */
+  /** @pattern ^$|^\+[\d\s\-.()]+$ */
   user_phone2?: string;
   /**
    * @format email
@@ -7680,7 +7680,7 @@ export interface UserInput {
   user_lastname?: string;
   user_organization?: string;
   user_pgp_key?: string;
-  /** @pattern ^\+[\d\s\-.()]+$ */
+  /** @pattern ^$|^\+[\d\s\-.()]+$ */
   user_phone?: string;
   user_plain_password?: string;
   user_tags?: string[];
