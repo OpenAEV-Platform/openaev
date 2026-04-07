@@ -1,4 +1,4 @@
-import { List, ListItem, ListItemText, Paper, Switch, TextField, Typography } from '@mui/material';
+import { ListItem, ListItemText, Paper, Switch, TextField, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useContext } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -13,7 +13,6 @@ import {
 import { type LoggedHelper } from '../../../actions/helper';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import { useFormatter } from '../../../components/i18n';
-import ItemBoolean from '../../../components/ItemBoolean';
 import { useHelper } from '../../../store';
 import {
   type PlatformSettings,
@@ -28,6 +27,7 @@ import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import ParametersForm from './ParametersForm';
 import PlatformInfoPanel from './PlatformInfoPanel';
 import ThemeForm from './ThemeForm';
+import ToolsPanel from './ToolsPanel';
 
 const useStyles = makeStyles()(theme => ({
   paper: {
@@ -166,42 +166,7 @@ const Parameters = () => {
           gridTemplateRows: 'auto 1fr auto 1fr',
         }}
         >
-          <Typography variant="h4">{t('Tools')}</Typography>
-          <Paper variant="outlined" classes={{ root: classes.paperList }}>
-            <List style={{ paddingTop: 0 }}>
-              <ListItem divider>
-                <ListItemText primary={t('JAVA Virtual Machine')} />
-                <ItemBoolean status={null} variant="large" neutralLabel={settings?.java_version} />
-              </ListItem>
-              <ListItem divider>
-                <ListItemText primary={t('PostgreSQL')} />
-                <ItemBoolean status={null} variant="large" neutralLabel={settings?.postgre_version} />
-              </ListItem>
-              <ListItem divider>
-                <ListItemText primary={t('RabbitMQ')} />
-                <ItemBoolean status={null} variant="large" neutralLabel={settings?.rabbitmq_version} />
-              </ListItem>
-              {settings.analytics_engine_type
-                && (
-                  <ListItem divider>
-                    <ListItemText primary={t(settings.analytics_engine_type)} />
-                    <ItemBoolean status={null} variant="large" neutralLabel={settings?.analytics_engine_version} />
-                  </ListItem>
-                )}
-              <ListItem divider>
-                <ListItemText primary={t('Telemetry manager')} />
-                <ItemBoolean status={settings?.telemetry_manager_enable} variant="large" label={settings?.telemetry_manager_enable ? t('Enable') : t('Disabled')} />
-              </ListItem>
-              <ListItem divider>
-                <ListItemText primary={t('SMTP')} />
-                <ItemBoolean status={settings?.smtp_service_available === 'true'} variant="large" label={settings?.smtp_service_available === 'true' ? t('Enable') : t('Disabled')} />
-              </ListItem>
-              <ListItem divider>
-                <ListItemText primary={t('IMAP')} />
-                <ItemBoolean status={settings?.imap_service_available === 'true'} variant="large" label={settings?.imap_service_available === 'true' ? t('Enable') : t('Disabled')} />
-              </ListItem>
-            </List>
-          </Paper>
+          <ToolsPanel settings={settings} />
         </div>
       </div>
     </>
