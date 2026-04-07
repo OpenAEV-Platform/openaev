@@ -2,6 +2,7 @@ package io.openaev.rest.challenge;
 
 import static io.openaev.config.OpenAEVAnonymous.ANONYMOUS;
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH;
 import static io.openaev.rest.challenge.ChallengeHelper.resolveChallengeIds;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
@@ -34,6 +35,8 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class SimulationChallengeApi extends RestBehavior {
 
+  private static final String TENANT_EXERCISE_URI = TENANT_PREFIX + "/exercises";
+
   private final InjectRepository injectRepository;
   private final ChallengeRepository challengeRepository;
   private final UserRepository userRepository;
@@ -42,7 +45,7 @@ public class SimulationChallengeApi extends RestBehavior {
   private final ChallengeService challengeService;
   private final ExerciseService exerciseService;
 
-  @GetMapping(EXERCISE_URI + "/{exerciseId}/challenges")
+  @GetMapping({EXERCISE_URI + "/{exerciseId}/challenges", TENANT_EXERCISE_URI + "/{exerciseId}/challenges"})
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -61,7 +64,7 @@ public class SimulationChallengeApi extends RestBehavior {
         .toList();
   }
 
-  @PostMapping("/api/player/challenges/{exerciseId}/{challengeId}/validate")
+  @PostMapping({"/api/player/challenges/{exerciseId}/{challengeId}/validate",TENANT_PREFIX + "/player/challenges/{exerciseId}/{challengeId}/validate"})
   @AccessControl(skipRBAC = true)
   @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   public SimulationChallengesReader validateChallenge(
@@ -80,7 +83,7 @@ public class SimulationChallengeApi extends RestBehavior {
     return challengeService.validateChallenge(exerciseId, challengeId, input, user);
   }
 
-  @GetMapping("/api/player/simulations/{simulationId}/documents")
+  @GetMapping({"/api/player/simulations/{simulationId}/documents", TENANT_PREFIX + "/player/simulations/{simulationId}/documents"})
   @AccessControl(skipRBAC = true)
   public List<Document> playerDocuments(
       @PathVariable String simulationId, @RequestParam Optional<String> userId) {
@@ -100,7 +103,7 @@ public class SimulationChallengeApi extends RestBehavior {
     }
   }
 
-  @GetMapping("/api/observer/simulations/{simulationId}/challenges")
+  @GetMapping({"/api/observer/simulations/{simulationId}/challenges", TENANT_PREFIX + "/observer/simulations/{simulationId}/challenges"})
   @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
@@ -118,7 +121,7 @@ public class SimulationChallengeApi extends RestBehavior {
     return simulationChallengesReader;
   }
 
-  @GetMapping("/api/player/simulations/{simulationId}/challenges")
+  @GetMapping({"/api/player/simulations/{simulationId}/challenges", TENANT_PREFIX + "/player/simulations/{simulationId}/challenges"})
   @AccessControl(skipRBAC = true)
   public SimulationChallengesReader playerChallenges(
       @PathVariable String simulationId, @RequestParam Optional<String> userId) {

@@ -1,5 +1,6 @@
 package io.openaev.rest.inject_test_status;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.InjectSpecification.testable;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 
@@ -31,10 +32,12 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ScenarioInjectTestApi extends RestBehavior {
 
+  private static final String TENANT_SCENARIO_URI = TENANT_PREFIX + "/scenarios";
+
   private final InjectTestStatusService injectTestStatusService;
   private final InjectService injectService;
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/injects/test/search")
+  @PostMapping({SCENARIO_URI + "/{scenarioId}/injects/test/search", TENANT_SCENARIO_URI + "/{scenarioId}/injects/test/search"})
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -47,14 +50,14 @@ public class ScenarioInjectTestApi extends RestBehavior {
   }
 
   @Transactional(rollbackFor = Exception.class)
-  @GetMapping(SCENARIO_URI + "/injects/test/{testId}")
+  @GetMapping({SCENARIO_URI + "/injects/test/{testId}", TENANT_SCENARIO_URI + "/injects/test/{testId}"})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SCENARIO)
   public InjectTestStatusOutput findInjectTestStatus(@PathVariable @NotBlank String testId) {
     return injectTestStatusService.findInjectTestStatusById(testId);
   }
 
   @Transactional(rollbackFor = Exception.class)
-  @GetMapping(SCENARIO_URI + "/{scenarioId}/injects/{injectId}/test")
+  @GetMapping({SCENARIO_URI + "/{scenarioId}/injects/{injectId}/test", TENANT_SCENARIO_URI + "/{scenarioId}/injects/{injectId}/test"})
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.LAUNCH,
@@ -66,7 +69,7 @@ public class ScenarioInjectTestApi extends RestBehavior {
   }
 
   @Transactional(rollbackFor = Exception.class)
-  @DeleteMapping(SCENARIO_URI + "/{scenarioId}/injects/test/{testId}")
+  @DeleteMapping({SCENARIO_URI + "/{scenarioId}/injects/test/{testId}", TENANT_SCENARIO_URI + "/{scenarioId}/injects/test/{testId}"})
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -80,7 +83,7 @@ public class ScenarioInjectTestApi extends RestBehavior {
       description = "Bulk tests of injects",
       tags = {"Injects", "Tests"})
   @Transactional(rollbackFor = Exception.class)
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/injects/test")
+  @PostMapping({SCENARIO_URI + "/{scenarioId}/injects/test", TENANT_SCENARIO_URI + "/{scenarioId}/injects/test"})
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,

@@ -1,5 +1,6 @@
 package io.openaev.rest.channel;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.injectors.channel.ChannelContract.CHANNEL_PUBLISH;
 import static io.openaev.rest.channel.ChannelHelper.enrichArticleWithVirtualPublication;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
@@ -27,10 +28,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class ScenarioArticleApi extends RestBehavior {
 
+  private static final String TENANT_SCENARIO_URI = TENANT_PREFIX + "/scenarios";
+
   private final InjectRepository injectRepository;
   private final ArticleRepository articleRepository;
 
-  @GetMapping(SCENARIO_URI + "/{scenarioId}/articles")
+  @GetMapping({SCENARIO_URI + "/{scenarioId}/articles", TENANT_SCENARIO_URI + "/{scenarioId}/articles"})
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,

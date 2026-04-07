@@ -1,5 +1,6 @@
 package io.openaev.rest.team;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.TeamSpecification.*;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 
@@ -24,9 +25,11 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 public class ScenarioTeamApi extends RestBehavior {
 
+  private static final String TENANT_SCENARIO_URI = TENANT_PREFIX + "/scenarios";
+
   private final TeamService teamService;
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/teams/search")
+  @PostMapping({SCENARIO_URI + "/{scenarioId}/teams/search", TENANT_SCENARIO_URI + "/{scenarioId}/teams/search"})
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,

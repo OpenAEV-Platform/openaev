@@ -1,5 +1,6 @@
 package io.openaev.rest.variable;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 
@@ -21,6 +22,8 @@ import org.springframework.web.bind.annotation.*;
 public class VariableApi extends RestBehavior {
 
   public static final String VARIABLE_URI = "/api/variables";
+  private static final String TENANT_EXERCISE_URI = TENANT_PREFIX + "/exercises";
+  private static final String TENANT_SCENARIO_URI = TENANT_PREFIX + "/scenarios";
 
   private final VariableService variableService;
   private final ScenarioService scenarioService;
@@ -28,7 +31,7 @@ public class VariableApi extends RestBehavior {
 
   // -- EXERCISES --
 
-  @PostMapping(EXERCISE_URI + "/{exerciseId}/variables")
+  @PostMapping({EXERCISE_URI + "/{exerciseId}/variables", TENANT_EXERCISE_URI + "/{exerciseId}/variables"})
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -44,7 +47,7 @@ public class VariableApi extends RestBehavior {
     return this.variableService.createVariable(variable);
   }
 
-  @GetMapping(EXERCISE_URI + "/{exerciseId}/variables")
+  @GetMapping({EXERCISE_URI + "/{exerciseId}/variables", TENANT_EXERCISE_URI + "/{exerciseId}/variables"})
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -53,7 +56,7 @@ public class VariableApi extends RestBehavior {
     return this.variableService.variablesFromExercise(exerciseId);
   }
 
-  @PutMapping(EXERCISE_URI + "/{exerciseId}/variables/{variableId}")
+  @PutMapping({EXERCISE_URI + "/{exerciseId}/variables/{variableId}", TENANT_EXERCISE_URI + "/{exerciseId}/variables/{variableId}"})
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -68,7 +71,7 @@ public class VariableApi extends RestBehavior {
     return this.variableService.updateVariable(variable);
   }
 
-  @DeleteMapping(EXERCISE_URI + "/{exerciseId}/variables/{variableId}")
+  @DeleteMapping({EXERCISE_URI + "/{exerciseId}/variables/{variableId}", TENANT_EXERCISE_URI + "/{exerciseId}/variables/{variableId}"})
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -83,7 +86,7 @@ public class VariableApi extends RestBehavior {
 
   // -- SCENARIOS --
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/variables")
+  @PostMapping({SCENARIO_URI + "/{scenarioId}/variables", TENANT_SCENARIO_URI + "/{scenarioId}/variables"})
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -98,7 +101,7 @@ public class VariableApi extends RestBehavior {
     return this.variableService.createVariable(variable);
   }
 
-  @GetMapping(SCENARIO_URI + "/{scenarioId}/variables")
+  @GetMapping({SCENARIO_URI + "/{scenarioId}/variables", TENANT_SCENARIO_URI + "/{scenarioId}/variables"})
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -107,7 +110,7 @@ public class VariableApi extends RestBehavior {
     return this.variableService.variablesFromScenario(scenarioId);
   }
 
-  @PutMapping(SCENARIO_URI + "/{scenarioId}/variables/{variableId}")
+  @PutMapping({SCENARIO_URI + "/{scenarioId}/variables/{variableId}", TENANT_SCENARIO_URI + "/{scenarioId}/variables/{variableId}"})
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -122,7 +125,7 @@ public class VariableApi extends RestBehavior {
     return this.variableService.updateVariable(variable);
   }
 
-  @DeleteMapping(SCENARIO_URI + "/{scenarioId}/variables/{variableId}")
+  @DeleteMapping({SCENARIO_URI + "/{scenarioId}/variables/{variableId}", TENANT_SCENARIO_URI + "/{scenarioId}/variables/{variableId}"})
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,

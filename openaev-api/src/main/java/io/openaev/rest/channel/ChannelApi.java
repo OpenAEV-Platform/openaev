@@ -1,6 +1,7 @@
 package io.openaev.rest.channel;
 
 import static io.openaev.config.OpenAEVAnonymous.ANONYMOUS;
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.rest.channel.ChannelHelper.enrichArticleWithVirtualPublication;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 
@@ -31,6 +32,8 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequiredArgsConstructor
 public class ChannelApi extends RestBehavior {
+
+  private static final String TENANT_SCENARIO_URI = TENANT_PREFIX + "/scenarios";
 
   private final ExerciseRepository exerciseRepository;
   private final ScenarioService scenarioService;
@@ -258,7 +261,7 @@ public class ChannelApi extends RestBehavior {
 
   // -- SCENARIOS --
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/articles")
+  @PostMapping({SCENARIO_URI + "/{scenarioId}/articles", TENANT_SCENARIO_URI + "/{scenarioId}/articles"})
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -295,7 +298,7 @@ public class ChannelApi extends RestBehavior {
     return enrichArticleWithVirtualPublication(scenario.getInjects(), savedArticle, this.mapper);
   }
 
-  @PutMapping(SCENARIO_URI + "/{scenarioId}/articles/{articleId}")
+  @PutMapping({SCENARIO_URI + "/{scenarioId}/articles/{articleId}", TENANT_SCENARIO_URI + "/{scenarioId}/articles/{articleId}"})
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -343,7 +346,7 @@ public class ChannelApi extends RestBehavior {
     return enrichArticleWithVirtualPublication(scenario.getInjects(), savedArticle, this.mapper);
   }
 
-  @DeleteMapping(SCENARIO_URI + "/{scenarioId}/articles/{articleId}")
+  @DeleteMapping({SCENARIO_URI + "/{scenarioId}/articles/{articleId}", TENANT_SCENARIO_URI + "/{scenarioId}/articles/{articleId}"})
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,

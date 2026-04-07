@@ -1,5 +1,6 @@
 package io.openaev.rest.scenario;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.ExerciseSpecification.fromScenario;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
@@ -29,10 +30,12 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ScenarioSimulationApi {
 
+  private static final String TENANT_SCENARIO_URI = TENANT_PREFIX + "/scenarios";
+
   private final ExerciseService exerciseService;
 
   @LogExecutionTime
-  @GetMapping(SCENARIO_URI + "/{scenarioId}/exercises")
+  @GetMapping({SCENARIO_URI + "/{scenarioId}/exercises", TENANT_SCENARIO_URI + "/{scenarioId}/exercises"})
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -43,7 +46,7 @@ public class ScenarioSimulationApi {
   }
 
   @LogExecutionTime
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/exercises/search")
+  @PostMapping({SCENARIO_URI + "/{scenarioId}/exercises/search", TENANT_SCENARIO_URI + "/{scenarioId}/exercises/search"})
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -68,7 +71,7 @@ public class ScenarioSimulationApi {
 
   // -- OPTION --
 
-  @GetMapping(SCENARIO_URI + "/{scenarioId}/simulations/options")
+  @GetMapping({SCENARIO_URI + "/{scenarioId}/simulations/options", TENANT_SCENARIO_URI + "/{scenarioId}/simulations/options"})
   public List<FilterUtilsJpa.Option> optionsByName(
       @PathVariable @NotBlank final String scenarioId,
       @RequestParam(required = false) final String searchText) {
