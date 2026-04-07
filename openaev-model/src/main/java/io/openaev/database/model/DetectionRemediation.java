@@ -1,11 +1,12 @@
 package io.openaev.database.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.CollectorTypeSerializer;
-import io.openaev.helper.MonoIdSerializer;
+import io.openaev.jsonapi.InnerRelationship;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -27,6 +28,7 @@ import org.hibernate.type.SqlTypes;
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
+@InnerRelationship
 public class DetectionRemediation implements Base {
   public enum AUTHOR_RULE {
     HUMAN,
@@ -45,9 +47,7 @@ public class DetectionRemediation implements Base {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "detection_remediation_payload_id")
-  @JsonSerialize(using = MonoIdSerializer.class)
-  @JsonProperty("detection_remediation_payload_id")
-  @Schema(type = "string")
+  @JsonIgnore
   @NotNull
   private Payload payload;
 
