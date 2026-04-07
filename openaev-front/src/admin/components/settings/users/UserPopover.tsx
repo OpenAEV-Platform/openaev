@@ -79,13 +79,13 @@ const UserPopover = ({ user, onUpdate, onDelete }: UserPopoverProps) => {
     handleCloseDelete();
   };
 
-  const initialValues = {
-    user_email: user.user_email,
-    user_firstname: user.user_firstname,
-    user_lastname: user.user_lastname,
-    user_pgp_key: user.user_pgp_key,
-    user_phone: user.user_phone,
-    user_phone2: user.user_phone2,
+  const initialValues: UserInputForm = {
+    user_email: user.user_email ?? '',
+    user_firstname: user.user_firstname ?? '',
+    user_lastname: user.user_lastname ?? '',
+    user_pgp_key: user.user_pgp_key ?? '',
+    user_phone: user.user_phone ?? '',
+    user_phone2: user.user_phone2 ?? '',
     user_organization: organizationOption(user.user_organization_id, organizationsMap),
     user_tags: tagOptions(user.user_tags, tagsMap),
   };
