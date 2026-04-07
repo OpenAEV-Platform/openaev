@@ -5,7 +5,6 @@ import static org.springframework.util.StringUtils.hasLength;
 
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
-import io.openaev.rest.user.form.user.CreateUserInput;
 import io.openaev.service.UserMappingService;
 import io.openaev.service.UserService;
 import io.openaev.service.user_events.UserEventService;
@@ -13,6 +12,7 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
@@ -49,14 +49,9 @@ public class SecurityService {
       Optional<User> optionalUser = userRepository.findByEmailIgnoreCase(email);
       // If user not exists, create it
       if (optionalUser.isEmpty()) {
-        CreateUserInput createUserInput = new CreateUserInput();
-        createUserInput.setEmail(email);
-        createUserInput.setFirstname(firstName);
-        createUserInput.setLastname(lastName);
-        if (allAdmin || !adminRoles.isEmpty()) {
-          createUserInput.setAdmin(isAdmin);
-        }
-        User user = this.userService.createUser(createUserInput, 0);
+        User user =
+            this.userService.createInternalUser(
+                email, firstName, lastName, isAdmin, UUID.randomUUID().toString());
         this.userEventService.createUserCreatedEvent(user, registrationId);
         userEventService.createLoginSuccessEvent(user);
         String groupsManagementObject =
@@ -65,7 +60,7 @@ public class SecurityService {
                 String.class,
                 "");
         userMappingService.mapCurrentUserWithGroup(groupsManagementObject, user, groups);
-        return this.userService.updateUser(user);
+        return this.userService.saveUser(user);
       } else {
         // If user exists, update it
         User currentUser = optionalUser.get();
@@ -81,7 +76,7 @@ public class SecurityService {
                 String.class,
                 "");
         userMappingService.mapCurrentUserWithGroup(groupsManagementObject, currentUser, groups);
-        return this.userService.updateUser(currentUser);
+        return this.userService.saveUser(currentUser);
       }
     }
     return null;
