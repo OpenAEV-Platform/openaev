@@ -71,7 +71,13 @@ public class ExecutionExecutorServiceTest {
   void test_launchExecutorContext_noAssetException() throws Exception {
 
     // Init datas
-    Command payloadCommand = PayloadFixture.createCommand("cmd", "whoami", List.of(), "whoami");
+    Command payloadCommand =
+        PayloadFixture.createCommand(
+            "cmd",
+            "whoami",
+            List.of(),
+            "whoami",
+            new HashSet<>(Set.of(PresetDomain.getToClassify())));
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Map<String, String> executorCommands = new HashMap<>();
     executorCommands.put(

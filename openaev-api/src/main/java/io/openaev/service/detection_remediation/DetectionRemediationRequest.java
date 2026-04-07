@@ -32,8 +32,7 @@ public class DetectionRemediationRequest {
   @JsonProperty("session_id")
   private String sessionId;
 
-  public DetectionRemediationRequest(
-      PayloadInput payloadInput, List<AttackPattern> attackPatterns) {
+  public DetectionRemediationRequest(PayloadInput payloadInput) {
     if (payloadInput.getType().equals(Executable.EXECUTABLE_TYPE)
         || payloadInput.getType().equals(FileDrop.FILE_DROP_TYPE)) {
       throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, TYPE_NOT_IMPLEMENTED_ERROR);
@@ -47,12 +46,11 @@ public class DetectionRemediationRequest {
         payloadInput.getHostname(),
         payloadInput.getDescription(),
         payloadInput.getPlatforms(),
-        attackPatterns,
         payloadInput.getExecutionArch(),
         payloadInput.getArguments());
   }
 
-  public DetectionRemediationRequest(Payload payloadInput, List<AttackPattern> attackPatterns) {
+  public DetectionRemediationRequest(Payload payloadInput) {
     if (Arrays.stream(TYPE_NOT_IMPLEMENTED).anyMatch(type -> type.equals(payloadInput.getType()))) {
       throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, TYPE_NOT_IMPLEMENTED_ERROR);
     }
@@ -76,7 +74,6 @@ public class DetectionRemediationRequest {
         hostname,
         payloadInput.getDescription(),
         payloadInput.getPlatforms(),
-        attackPatterns,
         payloadInput.getExecutionArch(),
         payloadInput.getArguments());
   }
@@ -89,7 +86,6 @@ public class DetectionRemediationRequest {
       String hostname,
       String description,
       Endpoint.PLATFORM_TYPE[] platform,
-      List<AttackPattern> attackPatterns,
       @NotNull Payload.PAYLOAD_EXECUTION_ARCH executionArch,
       List<PayloadArgument> arguments) {
 
@@ -118,15 +114,6 @@ public class DetectionRemediationRequest {
       payloadDetectionRemediation
           .append("Platform : ")
           .append(Arrays.stream(platform).map(Enum::name).collect(Collectors.joining(", ")))
-          .append("\n");
-
-    if (attackPatterns != null && !attackPatterns.isEmpty())
-      payloadDetectionRemediation
-          .append("Attack patterns: ")
-          .append(
-              attackPatterns.stream()
-                  .map(a -> "[" + a.getExternalId() + "]" + a.getName())
-                  .collect(Collectors.joining(",\n ")))
           .append("\n");
 
     payloadDetectionRemediation.append("Architecture: ").append(executionArch).append("\n");

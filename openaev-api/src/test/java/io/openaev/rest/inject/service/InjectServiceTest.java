@@ -74,14 +74,7 @@ class InjectServiceTest {
 
   @Mock private AssetService assetService;
 
-  @Mock private AssetGroupService assetGroupService;
-
   @Mock private TeamRepository teamRepository;
-
-  @Mock(extraInterfaces = {MethodSecurityExpressionHandler.class})
-  private SecurityExpressionHandler methodSecurityExpressionHandler;
-
-  @Mock private InjectDocumentRepository injectDocumentRepository;
 
   @Mock private InjectStatusRepository injectStatusRepository;
 
@@ -96,8 +89,6 @@ class InjectServiceTest {
 
   @Mock private UserService userService;
 
-  @Mock private TagService tagService;
-
   @Mock private SmtpService smtpService;
 
   @Mock private ImapService imapService;
@@ -107,6 +98,8 @@ class InjectServiceTest {
   @Mock private InjectorService injectorService;
 
   @Mock private InjectorRepository injectorRepository;
+
+  @Mock private PayloadMapper payloadMapper;
 
   @Spy private InjectorContractContentUtils injectorContractContentUtils;
 
