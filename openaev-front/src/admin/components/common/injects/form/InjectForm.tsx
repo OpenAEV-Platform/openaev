@@ -5,15 +5,12 @@ import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 import { z, type ZodObject } from 'zod/v4';
 
-import { fetchInjectors } from '../../../../../actions/injectors/injector-action';
-import { type InjectorHelper } from '../../../../../actions/injectors/injector-helper';
 import Button from '../../../../../components/common/button/Button';
 import SelectFieldController from '../../../../../components/fields/SelectFieldController';
 import TagFieldController from '../../../../../components/fields/TagFieldController';
 import TextFieldController from '../../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
-import { useHelper } from '../../../../../store';
 import {
   type Article,
   type AttackPattern,
@@ -22,8 +19,6 @@ import {
   type Variable,
 } from '../../../../../utils/api-types';
 import { type ContractElement, type EnhancedContractElement, type InjectorContractConverted } from '../../../../../utils/api-types-custom';
-import { useAppDispatch } from '../../../../../utils/hooks';
-import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { splitDuration } from '../../../../../utils/Time';
 import { isFeatureEnabled } from '../../../../../utils/utils';
 import { PermissionsContext } from '../../Context';
@@ -93,7 +88,8 @@ interface Props {
   articlesFromExerciseOrScenario: Article[];
   uriVariable: string;
   variablesFromExerciseOrScenario: Variable[];
-  injectorIds?: string[];
+  injectorNames?: Record<string, string>;
+  onInjectorChange?: (injectorId: string, injectorName: string) => void;
 }
 
 const initialZodSchema = z.object({ inject_content: z.object({}) });
@@ -109,7 +105,8 @@ const InjectForm = ({
   articlesFromExerciseOrScenario,
   uriVariable,
   variablesFromExerciseOrScenario,
-  injectorIds = [],
+  injectorNames = {},
+  onInjectorChange,
 }: Props) => {
   const { classes } = useStyles();
   const { t } = useFormatter();
@@ -118,22 +115,16 @@ const InjectForm = ({
 
   // Multi-connector: injector selector
   const multiConnectorEnabled = isFeatureEnabled('MULTI_CONNECTOR');
-  const dispatch = useAppDispatch();
-  const { injectorsMap } = useHelper((helper: InjectorHelper) => ({ injectorsMap: helper.getInjectorsMap() }));
+  const injectorIds = Object.keys(injectorNames);
   const showInjectorSelector = multiConnectorEnabled && injectorIds.length > 1;
-  useDataLoader(() => {
-    if (showInjectorSelector) {
-      dispatch(fetchInjectors());
-    }
-  });
   const injectorItems = useMemo(() => {
     if (!showInjectorSelector) return [];
     return injectorIds
       .map(id => ({
         value: id,
-        label: injectorsMap[id]?.injector_name ?? id,
+        label: injectorNames[id] ?? id,
       }));
-  }, [showInjectorSelector, injectorIds, injectorsMap]);
+  }, [showInjectorSelector, injectorIds, injectorNames]);
   const [fieldsMapByKey, setFieldsMapByKey] = useState<Record<ContractElement['key'], ContractElement>>({});
   const [enhancedFields, setEnhancedFields] = useState<EnhancedContractElement[]>([]);
   const [enhancedFieldsMapByType, setEnhancedFieldsMapByType] = useState<Map<ContractElement['type'], EnhancedContractElement>>(new Map());
@@ -280,7 +271,16 @@ const InjectForm = ({
     });
   };
 
-  const { handleSubmit, reset, subscribe, getValues, setError, clearErrors, trigger, formState: { isSubmitting } } = methods;
+  const { handleSubmit, reset, subscribe, getValues, setError, clearErrors, trigger, watch, formState: { isSubmitting } } = methods;
+
+  // Notify parent when the selected injector changes
+  const selectedInjectorId = watch('inject_injector');
+  useEffect(() => {
+    if (onInjectorChange && selectedInjectorId) {
+      onInjectorChange(selectedInjectorId, injectorNames[selectedInjectorId] ?? '');
+    }
+  }, [selectedInjectorId]);
+
   const onSubmit: SubmitHandler<InjectInputForm> = async (data) => {
     // we cannot save, even in draft, without title
     if (!data.inject_title?.length) {

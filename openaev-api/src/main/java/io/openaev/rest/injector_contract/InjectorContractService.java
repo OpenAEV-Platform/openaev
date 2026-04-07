@@ -524,6 +524,13 @@ public class InjectorContractService implements DependenciesManager {
     Expression<String[]> injectorIdsExpression =
         arrayAggOnId((HibernateCriteriaBuilder) cb, injectorContractInjectorJoin);
 
+    HibernateCriteriaBuilder hcb = (HibernateCriteriaBuilder) cb;
+    Expression<String> injectorNameNull = hcb.nullLiteral(String.class);
+    Expression<String[]> injectorNamesRaw =
+        hcb.arrayAgg(null, injectorContractInjectorJoin.get("name"));
+    Expression<String[]> injectorNamesExpression =
+        hcb.<String>arrayRemove(injectorNamesRaw, (Expression<String>) injectorNameNull);
+
     // SELECT
     cq.multiselect(
         injectorContractRoot.get("compositeId").get("id").alias("injector_contract_id"),
@@ -535,14 +542,13 @@ public class InjectorContractService implements DependenciesManager {
         payloadCollectorTypeJoin.get("name").alias("collector_type"),
         cb.least(injectorContractInjectorJoin.<String>get("type"))
             .alias("injector_contract_injector_type"),
-        cb.least(injectorContractInjectorJoin.<String>get("name"))
-            .alias("injector_contract_injector_name"),
         attackPatternIdsExpression.alias("injector_contract_attack_patterns"),
         payloadDomainsIdsExpression.alias("payload_domains"),
         domainsIdsExpression.alias("injector_contract_domains"),
         injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"),
         injectorContractPayloadJoin.get("executionArch").alias("payload_execution_arch"),
-        injectorIdsExpression.alias("injector_contract_injector_ids"));
+        injectorIdsExpression.alias("injector_contract_injector_ids"),
+        injectorNamesExpression.alias("injector_contract_injector_names"));
 
     // GROUP BY — compositeId expands to both PK columns (injector_contract_id + tenant_id)
     cq.groupBy(
@@ -558,10 +564,10 @@ public class InjectorContractService implements DependenciesManager {
             tuple -> {
               String[] injectorIdsArray =
                   tuple.get("injector_contract_injector_ids", String[].class);
-              List<String> injectorIds =
-                  injectorIdsArray != null
-                      ? Arrays.stream(injectorIdsArray).filter(Objects::nonNull).distinct().toList()
-                      : List.of();
+              String[] injectorNamesArray =
+                  tuple.get("injector_contract_injector_names", String[].class);
+              Map<String, String> injectorNames =
+                  buildInjectorNamesMap(injectorIdsArray, injectorNamesArray);
               return new InjectorContractFullOutput(
                   tuple.get("injector_contract_id", String.class),
                   tuple.get("injector_contract_external_id", String.class),
@@ -569,7 +575,6 @@ public class InjectorContractService implements DependenciesManager {
                   tuple.get("injector_contract_content", String.class),
                   tuple.get("injector_contract_platforms", Endpoint.PLATFORM_TYPE[].class),
                   tuple.get("payload_type", String.class),
-                  tuple.get("injector_contract_injector_name", String.class),
                   tuple.get("collector_type", String.class),
                   tuple.get("injector_contract_injector_type", String.class),
                   tuple.get("injector_contract_attack_patterns", String[].class),
@@ -578,9 +583,28 @@ public class InjectorContractService implements DependenciesManager {
                       tuple.get("payload_domains", String[].class)),
                   tuple.get("injector_contract_updated_at", Instant.class),
                   tuple.get("payload_execution_arch", Payload.PAYLOAD_EXECUTION_ARCH.class),
-                  injectorIds);
+                  injectorNames);
             })
         .toList();
+  }
+
+  /**
+   * Builds a map of injector ID → injector name from parallel arrays returned by array_agg. Both
+   * arrays are in the same order because they come from the same GROUP BY aggregation.
+   */
+  private Map<String, String> buildInjectorNamesMap(
+      String[] injectorIdsArray, String[] injectorNamesArray) {
+    if (injectorIdsArray == null || injectorNamesArray == null) {
+      return new LinkedHashMap<>();
+    }
+    Map<String, String> map = new LinkedHashMap<>();
+    int len = Math.min(injectorIdsArray.length, injectorNamesArray.length);
+    for (int i = 0; i < len; i++) {
+      if (injectorIdsArray[i] != null) {
+        map.put(injectorIdsArray[i], injectorNamesArray[i]);
+      }
+    }
+    return map;
   }
 
   private List<String> resolveEffectiveDomains(String[] injectorDomains, String[] payloadDomains) {

@@ -4074,6 +4074,7 @@ export interface InjectorContract {
   /** @minLength 1 */
   injector_contract_id: string;
   injector_contract_import_available?: boolean;
+  injector_contract_injector_names?: Record<string, string>;
   injector_contract_injector_type?: string;
   injector_contract_injectors?: string[];
   injector_contract_labels?: Record<string, string>;
@@ -4174,8 +4175,8 @@ export interface InjectorContractFullOutput {
    * @minLength 1
    */
   injector_contract_id: string;
-  /** Injector name */
-  injector_contract_injector_name?: string;
+  /** Map of injector ID to injector name for all injectors linked to this contract */
+  injector_contract_injector_names?: Record<string, string>;
   /** Injector type */
   injector_contract_injector_type?: string;
   /** Injector IDs linked to this contract */
