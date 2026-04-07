@@ -1,4 +1,4 @@
-import { PersonOutlined } from '@mui/icons-material';
+import { CheckCircleOutlined, PersonOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
@@ -48,11 +48,12 @@ const useStyles = makeStyles()(() => ({
 }));
 
 const inlineStyles = {
-  user_email: { width: '25%' },
-  user_firstname: { width: '15%' },
-  user_lastname: { width: '15%' },
-  user_organization_name: { width: '20%' },
-  user_tags: { width: '25%' },
+  user_email: { width: '20%' },
+  user_firstname: { width: '12%' },
+  user_lastname: { width: '12%' },
+  user_admin: { width: '10%' },
+  user_organization_name: { width: '18%' },
+  user_tags: { width: '20%' },
 };
 
 const Users = () => {
@@ -76,6 +77,11 @@ const Users = () => {
       field: 'user_lastname',
       label: 'Lastname',
       isSortable: true,
+    },
+    {
+      field: 'user_admin',
+      label: 'Admin',
+      isSortable: false,
     },
     {
       field: 'user_organization_name',
@@ -106,6 +112,7 @@ const Users = () => {
       'user_email',
       'user_firstname',
       'user_lastname',
+      'user_admin',
       'user_organization_name',
       'user_tags',
     ],
@@ -189,6 +196,9 @@ const Users = () => {
                     </div>
                     <div className={classes.bodyItem} style={inlineStyles.user_lastname}>
                       {user.user_lastname}
+                    </div>
+                    <div className={classes.bodyItem} style={inlineStyles.user_admin}>
+                      {user.user_admin ? (<CheckCircleOutlined fontSize="small" />) : ('-')}
                     </div>
                     <div className={classes.bodyItem} style={inlineStyles.user_organization_name}>
                       {user.user_organization_name ?? '-'}

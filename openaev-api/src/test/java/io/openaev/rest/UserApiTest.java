@@ -301,7 +301,8 @@ class UserApiTest extends IntegrationTest {
             null,
             null,
             null,
-            null);
+            null,
+            false);
 
     mvc.perform(
             MockMvcRequestBuilders.put("/api/users/" + user.getId())

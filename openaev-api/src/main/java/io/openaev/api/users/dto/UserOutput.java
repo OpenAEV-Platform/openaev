@@ -17,12 +17,14 @@ public record UserOutput(
     @JsonProperty(ALIAS_PHONE2) String phone2,
     @JsonProperty(ALIAS_ORGANIZATION_ID) String organizationId,
     @JsonProperty(ALIAS_ORGANIZATION_NAME) String organizationName,
-    @JsonProperty(ALIAS_TAGS) Set<String> tags) {
+    @JsonProperty(ALIAS_TAGS) Set<String> tags,
+    @JsonProperty(ALIAS_ADMIN) boolean admin) {
 
   public static final String ALIAS_ID = "user_id";
   public static final String ALIAS_EMAIL = "user_email";
   public static final String ALIAS_FIRSTNAME = "user_firstname";
   public static final String ALIAS_LASTNAME = "user_lastname";
+  public static final String ALIAS_ADMIN = "user_admin";
   public static final String ALIAS_PGP_KEY = "user_pgp_key";
   public static final String ALIAS_PHONE = "user_phone";
   public static final String ALIAS_PHONE2 = "user_phone2";

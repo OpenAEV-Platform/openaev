@@ -26,6 +26,7 @@ public class UserMapper {
         user.getPhone2(),
         org != null ? org.getId() : null,
         org != null ? org.getName() : null,
-        tagIds);
+        tagIds,
+        user.isAdmin());
   }
 }

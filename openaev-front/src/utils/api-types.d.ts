@@ -7671,6 +7671,7 @@ export interface User {
 export interface UserInput {
   /** @pattern ^$|^\+[\d\s\-.()]+$ */
   user_phone2?: string;
+  user_admin?: boolean;
   /**
    * @format email
    * @minLength 1
@@ -7688,6 +7689,7 @@ export interface UserInput {
 
 export interface UserOutput {
   user_phone2?: string;
+  user_admin?: boolean;
   /**
    * @format email
    * @minLength 1

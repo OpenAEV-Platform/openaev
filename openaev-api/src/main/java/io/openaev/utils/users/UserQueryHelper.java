@@ -37,7 +37,8 @@ public class UserQueryHelper {
         userRoot.get("phone2").alias(ALIAS_PHONE2),
         organizationJoin.get("id").alias(ALIAS_ORGANIZATION_ID),
         organizationJoin.get("name").alias(ALIAS_ORGANIZATION_NAME),
-        tagIdsExpression.alias(ALIAS_TAGS));
+        tagIdsExpression.alias(ALIAS_TAGS),
+        userRoot.get("admin").alias(ALIAS_ADMIN));
 
     cq.groupBy(userRoot.get("id"), organizationJoin.get("id"));
   }
@@ -61,7 +62,8 @@ public class UserQueryHelper {
                   tuple.get(ALIAS_PHONE2, String.class),
                   tuple.get(ALIAS_ORGANIZATION_ID, String.class),
                   tuple.get(ALIAS_ORGANIZATION_NAME, String.class),
-                  tagIds);
+                  tagIds,
+                  tuple.get(ALIAS_ADMIN, Boolean.class));
             })
         .toList();
   }

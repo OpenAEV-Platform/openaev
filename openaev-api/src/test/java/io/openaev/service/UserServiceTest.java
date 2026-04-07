@@ -35,7 +35,8 @@ class UserServiceTest extends IntegrationTest {
             "+33612345678",
             null,
             null,
-            null);
+            null,
+            false);
     User created = userService.createUser(input);
 
     // -- ASSERT --
@@ -83,7 +84,8 @@ class UserServiceTest extends IntegrationTest {
             null,
             null,
             null,
-            null);
+            null,
+            false);
     User updated = userService.updateUser(persisted.getId(), input);
 
     // -- ASSERT --

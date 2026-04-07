@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { type UserInputForm } from '../../../../actions/users/users-helper';
 import ActionButtons from '../../../../components/common/ActionButtons';
 import OrganizationFieldController from '../../../../components/fields/OrganizationFieldController';
+import SwitchFieldController from '../../../../components/fields/SwitchFieldController';
 import TagFieldController from '../../../../components/fields/TagFieldController';
 import TextFieldController from '../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../components/i18n';
@@ -31,6 +32,7 @@ const UserForm: FunctionComponent<UserFormProps> = ({
     user_phone: '',
     user_phone2: '',
     user_pgp_key: '',
+    user_admin: false,
   },
   editing,
   handleClose,
@@ -57,6 +59,7 @@ const UserForm: FunctionComponent<UserFormProps> = ({
     user_phone: phoneValidation as unknown as z.ZodOptional<z.ZodType<string | undefined>>,
     user_phone2: phoneValidation as unknown as z.ZodOptional<z.ZodType<string | undefined>>,
     user_pgp_key: z.string().optional(),
+    user_admin: z.boolean().optional(),
   }).refine(
     data => editing || (data.user_plain_password && data.user_plain_password.length > 0),
     {
@@ -111,6 +114,7 @@ const UserForm: FunctionComponent<UserFormProps> = ({
         <TextFieldController name="user_phone" label={t('Phone number (mobile)')} />
         <TextFieldController name="user_phone2" label={t('Phone number (landline)')} />
         <TextFieldController name="user_pgp_key" label={t('PGP public key')} multiline rows={5} />
+        <SwitchFieldController name="user_admin" label={t('Administrator')} />
         <div style={{ alignSelf: 'flex-end' }}>
           <ActionButtons
             onCancel={handleClose}

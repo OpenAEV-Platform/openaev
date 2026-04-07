@@ -88,6 +88,7 @@ const UserPopover = ({ user, onUpdate, onDelete }: UserPopoverProps) => {
     user_phone2: user.user_phone2 ?? '',
     user_organization: organizationOption(user.user_organization_id, organizationsMap),
     user_tags: tagOptions(user.user_tags, tagsMap),
+    user_admin: user.user_admin ?? false,
   };
 
   // Button Popover

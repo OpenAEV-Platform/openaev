@@ -1,5 +1,6 @@
 package io.openaev.api.users.dto;
 
+import static io.openaev.api.users.dto.UserOutput.ALIAS_ADMIN;
 import static io.openaev.api.users.dto.UserOutput.ALIAS_EMAIL;
 import static io.openaev.api.users.dto.UserOutput.ALIAS_FIRSTNAME;
 import static io.openaev.api.users.dto.UserOutput.ALIAS_LASTNAME;
@@ -29,4 +30,5 @@ public record UserInput(
     @JsonProperty(ALIAS_PHONE2) @Pattern(regexp = PHONE_REGEXP, message = PHONE_FORMAT)
         String phone2,
     @JsonProperty(ALIAS_ORGANIZATION) String organizationId,
-    @JsonProperty(ALIAS_TAGS) List<String> tagIds) {}
+    @JsonProperty(ALIAS_TAGS) List<String> tagIds,
+    @JsonProperty(ALIAS_ADMIN) boolean admin) {}
