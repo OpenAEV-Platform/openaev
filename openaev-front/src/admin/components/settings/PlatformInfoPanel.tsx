@@ -1,4 +1,4 @@
-import { List, ListItem, ListItemText, Paper, Typography } from '@mui/material';
+import { List, ListItem, ListItemText, Paper } from '@mui/material';
 import { type ReactNode } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
