@@ -33,46 +33,43 @@ const PlatformInfoPanel = ({ settings, children }: PlatformInfoPanelProps) => {
     : t('The token is missing in your platform configuration, please ask your Filigran representative to provide you with it or with on-premise deployment instructions. Your can open a support ticket to do so.');
 
   return (
-    <div>
-      <Typography variant="h4">{t('OpenAEV platform')}</Typography>
-      <Paper
-        variant="outlined"
-        sx={{ padding: theme => `${theme.spacing(1)}` }}
-      >
-        <List sx={{ padding: 0 }}>
-          <ListItem divider>
-            <ListItemText primary={t('Platform identifier')} />
-            <pre
-              style={{
-                padding: 0,
-                margin: 0,
-              }}
-              key={settings.platform_id}
-            >
-              <ItemCopy content={settings.platform_id ?? ''} variant="inLine" />
-            </pre>
-          </ListItem>
-          <ListItem divider>
-            <ListItemText primary={t('Version')} />
-            <ItemBoolean variant="large" status={null} neutralLabel={settings?.platform_version?.replace('-SNAPSHOT', '')} />
-          </ListItem>
-          <ListItem divider>
-            <ListItemText primary={t('Edition')} />
-            <ItemBoolean variant="large" neutralLabel={editionLabel} status={null} />
-          </ListItem>
-          <ListItem divider={!!children}>
-            <ListItemText primary={t('AI Powered')} />
-            <ItemBoolean
-              variant="large"
-              label={aiLabel}
-              status={(settings.platform_ai_enabled) && (settings.platform_ai_has_token)}
-              tooltip={aiTooltip}
-            />
-          </ListItem>
-          {children}
-        </List>
-      </Paper>
-    </div>
+    <Paper
+      variant="outlined"
+      sx={{ padding: theme => `${theme.spacing(1)}` }}
+    >
+      <List sx={{ padding: 0 }}>
+        <ListItem divider>
+          <ListItemText primary={t('Platform identifier')} />
+          <pre
+            style={{
+              padding: 0,
+              margin: 0,
+            }}
+            key={settings.platform_id}
+          >
+            <ItemCopy content={settings.platform_id ?? ''} variant="inLine" />
+          </pre>
+        </ListItem>
+        <ListItem divider>
+          <ListItemText primary={t('Version')} />
+          <ItemBoolean variant="large" status={null} neutralLabel={settings?.platform_version?.replace('-SNAPSHOT', '')} />
+        </ListItem>
+        <ListItem divider>
+          <ListItemText primary={t('Edition')} />
+          <ItemBoolean variant="large" neutralLabel={editionLabel} status={null} />
+        </ListItem>
+        <ListItem divider={!!children}>
+          <ListItemText primary={t('AI Powered')} />
+          <ItemBoolean
+            variant="large"
+            label={aiLabel}
+            status={(settings.platform_ai_enabled) && (settings.platform_ai_has_token)}
+            tooltip={aiTooltip}
+          />
+        </ListItem>
+        {children}
+      </List>
+    </Paper>
   );
 };
 
