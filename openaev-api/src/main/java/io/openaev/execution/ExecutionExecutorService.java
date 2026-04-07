@@ -55,7 +55,7 @@ public class ExecutionExecutorService {
 
     // Group remaining agents by their executor entity for per-instance routing.
     // Each executor entity maps to exactly one ConnectorInstance (and therefore one Integration
-    // with its own API client/config). This replaces the previous hard-coded type-based dispatch.
+    // with its own API client/config)
     Map<io.openaev.database.model.Executor, Set<Agent>> agentsByExecutor =
         agents.stream().collect(Collectors.groupingBy(Agent::getExecutor, Collectors.toSet()));
 
@@ -78,46 +78,46 @@ public class ExecutionExecutorService {
       Inject inject,
       InjectStatus injectStatus,
       AtomicBoolean atLeastOneExecution) {
-    if (agents.isEmpty()) {
-      return;
-    }
-    try {
-      Manager manager = managerFactory.getManager();
-      ExecutorContextService executorContextService;
+    if (!agents.isEmpty()) {
       try {
-        // Resolve the ConnectorInstance that owns this executor
-        ConnectorInstancePersisted instance =
-            connectorInstanceService.findByExecutorId(executor.getId());
-        executorContextService = manager.requestForInstance(instance, ExecutorContextService.class);
-      } catch (NoSuchElementException instanceNotFound) {
-        if (instanceNotFound.getMessage().startsWith("No component found")) {
-          // Fallback for builtin executors without a persisted ConnectorInstance (e.g. OpenAEV
-          // agent)
+        Manager manager = managerFactory.getManager();
+        ExecutorContextService executorContextService;
+        try {
+          // Resolve the ConnectorInstance that owns this executor
+          ConnectorInstancePersisted instance =
+              connectorInstanceService.findByExecutorId(executor.getId());
           executorContextService =
-              manager.request(
-                  new ComponentRequest(executor.getName()), ExecutorContextService.class);
-        } else {
-          throw instanceNotFound;
+              manager.requestForInstance(instance, ExecutorContextService.class);
+        } catch (NoSuchElementException instanceNotFound) {
+          if (instanceNotFound.getMessage().startsWith("No component found")) {
+            // Fallback for builtin executors without a persisted ConnectorInstance (e.g. OpenAEV
+            // agent)
+            executorContextService =
+                manager.request(
+                    new ComponentRequest(executor.getName()), ExecutorContextService.class);
+          } else {
+            throw instanceNotFound;
+          }
         }
+        List<Agent> agentsProcessed =
+            executorContextService.launchBatchExecutorSubprocess(inject, agents, injectStatus);
+        List<Agent> remainingAgents = new ArrayList<>(agents);
+        remainingAgents.removeAll(agentsProcessed);
+        // Also handle individual execution for executor context services whose batch
+        // implementation is a no-op (e.g. OpenAEV agent)
+        for (Agent agent : remainingAgents) {
+          Endpoint assetEndpoint = (Endpoint) Hibernate.unproxy(agent.getAsset());
+          executorContextService.launchExecutorSubprocess(inject, assetEndpoint, agent);
+        }
+        atLeastOneExecution.set(true);
+      } catch (Exception e) {
+        log.error(
+            "{} (id={}) launchBatchExecutorSubprocess error: {}",
+            executor.getName(),
+            executor.getId(),
+            e.getMessage());
+        saveAgentsErrorTraces(e, agents, injectStatus);
       }
-      List<Agent> agentsProcessed =
-          executorContextService.launchBatchExecutorSubprocess(inject, agents, injectStatus);
-      List<Agent> remainingAgents = new ArrayList<>(agents);
-      remainingAgents.removeAll(agentsProcessed);
-      // Also handle individual execution for executor context services whose batch
-      // implementation is a no-op (e.g. OpenAEV agent)
-      for (Agent agent : remainingAgents) {
-        Endpoint assetEndpoint = (Endpoint) Hibernate.unproxy(agent.getAsset());
-        executorContextService.launchExecutorSubprocess(inject, assetEndpoint, agent);
-      }
-      atLeastOneExecution.set(true);
-    } catch (Exception e) {
-      log.error(
-          "{} (id={}) launchBatchExecutorSubprocess error: {}",
-          executor.getName(),
-          executor.getId(),
-          e.getMessage());
-      saveAgentsErrorTraces(e, agents, injectStatus);
     }
   }
 
