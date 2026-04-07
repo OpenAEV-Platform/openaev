@@ -15,6 +15,16 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class KeyFromAlgHeader extends LocatorAdapter<Key> {
+  /*
+  Note: while this could theoretically support more algorithms, do not expand this
+  collection without assigning a specific algorithm indicator on the stored key.
+  See https://www.rfc-editor.org/rfc/rfc8725#section-3.1:
+     """
+     each key MUST be used with exactly one algorithm, and this MUST be checked
+     when the cryptographic operation is performed
+     """
+  While we only have a single algorithm defined here it is de facto the case.
+  */
   private final Set<SignatureAlgorithm> supportedAlgorithms = Set.of(Jwts.SIG.EdDSA);
   private final String rawKeyMaterial;
 
@@ -24,23 +34,24 @@ public class KeyFromAlgHeader extends LocatorAdapter<Key> {
 
   @Override
   protected Key locate(JwsHeader header) {
+    String alg = header.getAlgorithm();
+
+    // Enforce 'alg' validation as per https://www.rfc-editor.org/rfc/rfc8725#section-3.1
     if (supportedAlgorithms.stream()
-        .noneMatch(
-            signatureAlgorithm ->
-                signatureAlgorithm.getId().equalsIgnoreCase(header.getAlgorithm()))) {
-      log.debug("Header 'alg' {} is not supported.", header.getAlgorithm());
+        .noneMatch(signatureAlgorithm -> signatureAlgorithm.getId().equalsIgnoreCase(alg))) {
+      log.debug("Header 'alg' {} is not supported.", alg);
       return null;
     }
 
     try {
       X509EncodedKeySpec keySpec =
           new X509EncodedKeySpec(Base64.getDecoder().decode(this.rawKeyMaterial));
-      KeyFactory keyFactory = KeyFactory.getInstance(header.getAlgorithm());
+      KeyFactory keyFactory = KeyFactory.getInstance(alg);
       return keyFactory.generatePublic(keySpec);
     } catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
       log.debug(
           "Could not generate a public key with the specified algorithm {} and key material",
-          header.getAlgorithm(),
+          alg,
           e);
       return null;
     }
