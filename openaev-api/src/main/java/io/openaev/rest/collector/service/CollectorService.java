@@ -202,9 +202,12 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
             ? securityPlatformRepository.findById(securityPlatformId).orElseThrow()
             : null;
 
+    CollectorType collectorType = collectorTypeRepository.findByName(type).orElseThrow();
+
     if (collector != null) {
       collector.setName(name);
       collector.setType(type);
+      collector.setCollectorType(collectorType);
       collector.setExternal(external);
       if (external) {
         collector.setUpdatedAt(Instant.now());
@@ -219,6 +222,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     newCollector.setId(id);
     newCollector.setName(name);
     newCollector.setType(type);
+    newCollector.setCollectorType(collectorType);
     newCollector.setExternal(external);
     newCollector.setPeriod(period);
     if (securityPlatform != null) {
