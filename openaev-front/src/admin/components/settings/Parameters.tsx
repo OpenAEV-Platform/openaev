@@ -1,4 +1,4 @@
-import { List, ListItem, ListItemText, Paper, Switch, TextField, Typography } from '@mui/material';
+import { ListItem, ListItemText, Paper, Switch, TextField, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useContext } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -13,7 +13,6 @@ import {
 import { type LoggedHelper } from '../../../actions/helper';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import { useFormatter } from '../../../components/i18n';
-import ItemBoolean from '../../../components/ItemBoolean';
 import { useHelper } from '../../../store';
 import {
   type PlatformSettings,
