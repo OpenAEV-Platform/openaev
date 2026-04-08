@@ -3,6 +3,7 @@ package io.openaev.integration;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstance.CURRENT_STATUS_TYPE;
 import io.openaev.injectors.email.EmailContract;
+import io.openaev.integration.exception.ComponentNotFoundException;
 import java.util.*;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -96,7 +97,7 @@ public class Manager {
     }
     List<T> components = integration.requestComponentByType(requestedType);
     if (components.isEmpty()) {
-      throw new NoSuchElementException(
+      throw new ComponentNotFoundException(
           String.format(
               "No component found for requestedType=%s in instance id=%s",
               requestedType.getCanonicalName(), instance.getId()));

@@ -18,6 +18,7 @@ import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.Manager;
 import io.openaev.integration.ManagerFactory;
+import io.openaev.integration.exception.ComponentNotFoundException;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exception.AgentException;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
@@ -349,7 +350,7 @@ public class ExecutionExecutorServiceTest {
       // (e.g. the integration is started but has no matching component)
       when(manager.requestForInstance(eq(connectorInstance), eq(ExecutorContextService.class)))
           .thenThrow(
-              new NoSuchElementException(
+              new ComponentNotFoundException(
                   "No component found for requestedType=ExecutorContextService in instance id=instance-openaev"));
 
       ExecutorContextService mockContextService = mock(ExecutorContextService.class);

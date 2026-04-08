@@ -8,6 +8,7 @@ import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.Manager;
 import io.openaev.integration.ManagerFactory;
+import io.openaev.integration.exception.ComponentNotFoundException;
 import io.openaev.rest.exception.AgentException;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
@@ -88,16 +89,12 @@ public class ExecutionExecutorService {
               connectorInstanceService.findByExecutorId(executor.getId());
           executorContextService =
               manager.requestForInstance(instance, ExecutorContextService.class);
-        } catch (NoSuchElementException instanceNotFound) {
-          if (instanceNotFound.getMessage().startsWith("No component found")) {
-            // Fallback for builtin executors without a persisted ConnectorInstance (e.g. OpenAEV
-            // agent)
-            executorContextService =
-                manager.request(
-                    new ComponentRequest(executor.getName()), ExecutorContextService.class);
-          } else {
-            throw instanceNotFound;
-          }
+        } catch (ComponentNotFoundException exception) {
+          // Fallback for builtin executors without a persisted ConnectorInstance (e.g. OpenAEV
+          // agent)
+          executorContextService =
+              manager.request(
+                  new ComponentRequest(executor.getName()), ExecutorContextService.class);
         }
         List<Agent> agentsProcessed =
             executorContextService.launchBatchExecutorSubprocess(inject, agents, injectStatus);

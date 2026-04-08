@@ -516,6 +516,7 @@ const InjectForm = ({
           <SelectFieldController
             name="inject_injector"
             label={t('Injector')}
+            required={true}
             items={injectorItems}
             disabled={isSubmitting || disabled || permissions.readOnly}
           />

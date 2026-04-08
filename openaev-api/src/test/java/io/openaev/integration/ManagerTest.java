@@ -10,6 +10,7 @@ import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
+import io.openaev.integration.exception.ComponentNotFoundException;
 import io.openaev.integration.local_fixtures.factory_throws.TestIntegrationFactoryInitThrows;
 import io.openaev.integration.local_fixtures.integration_throws.TestIntegrationFactoryIntegrationThrows;
 import io.openaev.integration.local_fixtures.integration_throws.TestIntegrationStartThrows;
@@ -462,7 +463,7 @@ public class ManagerTest {
 
       // Act & Assert — request a type that does not exist in the integration
       assertThatThrownBy(() -> manager.requestForInstance(singleInstance, String.class))
-          .isInstanceOf(NoSuchElementException.class)
+          .isInstanceOf(ComponentNotFoundException.class)
           .hasMessageContaining("No component found for requestedType=");
     }
   }
