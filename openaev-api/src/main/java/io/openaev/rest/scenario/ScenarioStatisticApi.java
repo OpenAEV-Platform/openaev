@@ -1,7 +1,7 @@
 package io.openaev.rest.scenario;
 
-import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
@@ -21,7 +21,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class ScenarioStatisticApi extends RestBehavior {
 
-  private static final String TENANT_SCENARIO_URI = TENANT_PREFIX + "/scenarios";
 
   private final ScenarioStatisticService scenarioStatisticService;
 

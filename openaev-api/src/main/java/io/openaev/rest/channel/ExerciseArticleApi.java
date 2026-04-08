@@ -1,9 +1,9 @@
 package io.openaev.rest.channel;
 
-import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.injectors.channel.ChannelContract.CHANNEL_PUBLISH;
 import static io.openaev.rest.channel.ChannelHelper.enrichArticleWithVirtualPublication;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
+import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
@@ -28,7 +28,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class ExerciseArticleApi extends RestBehavior {
 
-  private static final String TENANT_EXERCISE_URI = TENANT_PREFIX + "/exercises";
 
   private final InjectRepository injectRepository;
   private final ArticleRepository articleRepository;

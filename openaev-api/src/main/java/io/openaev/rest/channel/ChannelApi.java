@@ -1,9 +1,10 @@
 package io.openaev.rest.channel;
 
 import static io.openaev.config.OpenAEVAnonymous.ANONYMOUS;
-import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.rest.channel.ChannelHelper.enrichArticleWithVirtualPublication;
+import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
@@ -33,7 +34,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ChannelApi extends RestBehavior {
 
-  private static final String TENANT_SCENARIO_URI = TENANT_PREFIX + "/scenarios";
 
   private final ExerciseRepository exerciseRepository;
   private final ScenarioService scenarioService;
@@ -162,7 +162,10 @@ public class ChannelApi extends RestBehavior {
 
   // -- EXERCISES --
 
-  @PostMapping("/api/exercises/{exerciseId}/articles")
+  @PostMapping({
+    "/api/exercises/{exerciseId}/articles",
+    TENANT_EXERCISE_URI + "/{exerciseId}/articles"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -200,7 +203,10 @@ public class ChannelApi extends RestBehavior {
     return enrichArticleWithVirtualPublication(exercise.getInjects(), savedArticle, this.mapper);
   }
 
-  @PutMapping("/api/exercises/{exerciseId}/articles/{articleId}")
+  @PutMapping({
+    "/api/exercises/{exerciseId}/articles/{articleId}",
+    TENANT_EXERCISE_URI + "/{exerciseId}/articles/{articleId}"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -248,7 +254,10 @@ public class ChannelApi extends RestBehavior {
     return enrichArticleWithVirtualPublication(exercise.getInjects(), savedArticle, this.mapper);
   }
 
-  @DeleteMapping("/api/exercises/{exerciseId}/articles/{articleId}")
+  @DeleteMapping({
+    "/api/exercises/{exerciseId}/articles/{articleId}",
+    TENANT_EXERCISE_URI + "/{exerciseId}/articles/{articleId}"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,

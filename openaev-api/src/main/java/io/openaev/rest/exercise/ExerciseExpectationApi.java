@@ -1,6 +1,6 @@
 package io.openaev.rest.exercise;
 
-import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;

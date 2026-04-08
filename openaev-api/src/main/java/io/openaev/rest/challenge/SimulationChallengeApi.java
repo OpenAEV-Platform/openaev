@@ -6,6 +6,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH;
 import static io.openaev.rest.challenge.ChallengeHelper.resolveChallengeIds;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
+import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
@@ -35,7 +36,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class SimulationChallengeApi extends RestBehavior {
 
-  private static final String TENANT_EXERCISE_URI = TENANT_PREFIX + "/exercises";
 
   private final InjectRepository injectRepository;
   private final ChallengeRepository challengeRepository;

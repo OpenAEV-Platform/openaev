@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 public class SimulationApi extends RestBehavior {
 
   public static final String SIMULATION_URI = "/api/simulations";
-  private static final String TENANT_SIMULATION_URI = TENANT_PREFIX + "/simulations";
+  public static final String TENANT_SIMULATION_URI = TENANT_PREFIX + "/simulations";
 
   private final SimulationService simulationService;
 

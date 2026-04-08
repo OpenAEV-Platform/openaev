@@ -69,7 +69,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class ExerciseApi extends RestBehavior {
 
   public static final String EXERCISE_URI = "/api/exercises";
-  private static final String TENANT_EXERCISE_URI = TENANT_PREFIX + "/exercises";
+  public static final String TENANT_EXERCISE_URI = TENANT_PREFIX + "/exercises";
 
   // region repositories
   private final LogRepository logRepository;

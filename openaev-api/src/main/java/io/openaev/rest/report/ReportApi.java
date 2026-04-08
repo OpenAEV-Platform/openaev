@@ -1,5 +1,7 @@
 package io.openaev.rest.report;
 
+import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
+
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
 import io.openaev.rest.exercise.service.ExerciseService;
@@ -22,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 public class ReportApi extends RestBehavior {
 
+
   private final ExerciseService exerciseService;
   private final ReportService reportService;
   private final InjectService injectService;
@@ -35,7 +38,10 @@ public class ReportApi extends RestBehavior {
     return this.reportService.report(UUID.fromString(reportId));
   }
 
-  @GetMapping("/api/exercises/{simulationId}/reports/{reportId}")
+  @GetMapping({
+    "/api/exercises/{simulationId}/reports/{reportId}",
+    TENANT_EXERCISE_URI + "/{simulationId}/reports/{reportId}"
+  })
   @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
@@ -53,7 +59,7 @@ public class ReportApi extends RestBehavior {
     return this.reportService.reportFromSimulation(simulationId, UUID.fromString(reportId));
   }
 
-  @GetMapping("/api/exercises/{exerciseId}/reports")
+  @GetMapping({"/api/exercises/{exerciseId}/reports", TENANT_EXERCISE_URI + "/{exerciseId}/reports"})
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -62,7 +68,10 @@ public class ReportApi extends RestBehavior {
     return this.reportService.reportsFromExercise(exerciseId);
   }
 
-  @PostMapping("/api/exercises/{exerciseId}/reports")
+  @PostMapping({
+    "/api/exercises/{exerciseId}/reports",
+    TENANT_EXERCISE_URI + "/{exerciseId}/reports"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -76,7 +85,10 @@ public class ReportApi extends RestBehavior {
     return this.reportService.updateReport(report, input);
   }
 
-  @PutMapping("/api/exercises/{exerciseId}/reports/{reportId}/inject-comments")
+  @PutMapping({
+    "/api/exercises/{exerciseId}/reports/{reportId}/inject-comments",
+    TENANT_EXERCISE_URI + "/{exerciseId}/reports/{reportId}/inject-comments"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -93,7 +105,10 @@ public class ReportApi extends RestBehavior {
     return this.reportService.updateReportInjectComment(report, inject, input);
   }
 
-  @PutMapping("/api/exercises/{exerciseId}/reports/{reportId}")
+  @PutMapping({
+    "/api/exercises/{exerciseId}/reports/{reportId}",
+    TENANT_EXERCISE_URI + "/{exerciseId}/reports/{reportId}"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -108,7 +123,10 @@ public class ReportApi extends RestBehavior {
     return this.reportService.updateReport(report, input);
   }
 
-  @DeleteMapping("/api/exercises/{exerciseId}/reports/{reportId}")
+  @DeleteMapping({
+    "/api/exercises/{exerciseId}/reports/{reportId}",
+    TENANT_EXERCISE_URI + "/{exerciseId}/reports/{reportId}"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,

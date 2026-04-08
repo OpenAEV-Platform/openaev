@@ -1,8 +1,8 @@
 package io.openaev.rest.inject_test_status;
 
-import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.InjectSpecification.testable;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
@@ -32,7 +32,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ScenarioInjectTestApi extends RestBehavior {
 
-  private static final String TENANT_SCENARIO_URI = TENANT_PREFIX + "/scenarios";
 
   private final InjectTestStatusService injectTestStatusService;
   private final InjectService injectService;

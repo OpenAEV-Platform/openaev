@@ -56,7 +56,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class ScenarioApi extends RestBehavior {
 
   public static final String SCENARIO_URI = "/api/scenarios";
-  private static final String TENANT_SCENARIO_URI = TENANT_PREFIX + "/scenarios";
+  public static final String TENANT_SCENARIO_URI = TENANT_PREFIX + "/scenarios";
 
   private final CustomDashboardService customDashboardService;
   private final TagRepository tagRepository;

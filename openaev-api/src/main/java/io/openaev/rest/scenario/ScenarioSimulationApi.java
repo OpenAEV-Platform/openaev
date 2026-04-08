@@ -1,8 +1,8 @@
 package io.openaev.rest.scenario;
 
-import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.ExerciseSpecification.fromScenario;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
 import io.openaev.aop.AccessControl;
@@ -30,7 +30,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ScenarioSimulationApi {
 
-  private static final String TENANT_SCENARIO_URI = TENANT_PREFIX + "/scenarios";
 
   private final ExerciseService exerciseService;
 

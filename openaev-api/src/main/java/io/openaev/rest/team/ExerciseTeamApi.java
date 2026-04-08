@@ -1,9 +1,9 @@
 package io.openaev.rest.team;
 
-import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.TeamSpecification.contextual;
 import static io.openaev.database.specification.TeamSpecification.fromExercise;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
+import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
@@ -27,7 +27,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 public class ExerciseTeamApi extends RestBehavior {
 
-  private static final String TENANT_EXERCISE_URI = TENANT_PREFIX + "/exercises";
 
   private final TeamService teamService;
 

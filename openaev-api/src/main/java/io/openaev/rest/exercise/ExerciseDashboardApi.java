@@ -1,7 +1,7 @@
 package io.openaev.rest.exercise;
 
-import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
+import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
@@ -27,7 +27,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ExerciseDashboardApi {
 
-  private static final String TENANT_EXERCISE_URI = TENANT_PREFIX + "/exercises";
 
   private final CustomDashboardService customDashboardService;
 

@@ -3,6 +3,7 @@ package io.openaev.rest.inject_test_status;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.InjectSpecification.testable;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
+import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
@@ -32,8 +33,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class SimulationInjectTestApi extends RestBehavior {
 
-  private static final String TENANT_EXERCISE_URI = TENANT_PREFIX + "/exercises";
-
   private final InjectTestStatusService injectTestStatusService;
   private final InjectService injectService;
 
@@ -43,7 +42,7 @@ public class SimulationInjectTestApi extends RestBehavior {
    */
   @PostMapping({
     "/api/exercise/{simulationId}/injects/test",
-    TENANT_EXERCISE_URI + "/{simulationId}/injects/test"
+    TENANT_PREFIX + "/exercise/{simulationId}/injects/test"
   })
   @AccessControl(
       actionPerformed = Action.READ,

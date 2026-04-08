@@ -3,6 +3,8 @@ package io.openaev.rest.objective;
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.helper.DatabaseHelper.resolveRelation;
+import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
@@ -26,8 +28,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ScenarioObjectiveApi extends RestBehavior {
 
-  public static final String SCENARIO_URI = "/api/scenarios/";
-  private static final String TENANT_SCENARIO_URI = TENANT_PREFIX + "/scenarios/";
 
   private final ScenarioRepository scenarioRepository;
   private final ObjectiveRepository objectiveRepository;
@@ -36,8 +36,8 @@ public class ScenarioObjectiveApi extends RestBehavior {
 
   // region objectives
   @GetMapping({
-    SCENARIO_URI + "{scenarioId}/objectives",
-    TENANT_SCENARIO_URI + "{scenarioId}/objectives"
+    SCENARIO_URI + "/{scenarioId}/objectives",
+    TENANT_SCENARIO_URI + "/{scenarioId}/objectives"
   })
   @AccessControl(
       resourceId = "#scenarioId",
@@ -48,8 +48,8 @@ public class ScenarioObjectiveApi extends RestBehavior {
   }
 
   @PostMapping({
-    SCENARIO_URI + "{scenarioId}/objectives",
-    TENANT_SCENARIO_URI + "{scenarioId}/objectives"
+    SCENARIO_URI + "/{scenarioId}/objectives",
+    TENANT_SCENARIO_URI + "/{scenarioId}/objectives"
   })
   @AccessControl(
       resourceId = "#scenarioId",
@@ -67,8 +67,8 @@ public class ScenarioObjectiveApi extends RestBehavior {
   }
 
   @PutMapping({
-    SCENARIO_URI + "{scenarioId}/objectives/{objectiveId}",
-    TENANT_SCENARIO_URI + "{scenarioId}/objectives/{objectiveId}"
+    SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}"
   })
   @AccessControl(
       resourceId = "#scenarioId",
@@ -85,8 +85,8 @@ public class ScenarioObjectiveApi extends RestBehavior {
   }
 
   @DeleteMapping({
-    SCENARIO_URI + "{scenarioId}/objectives/{objectiveId}",
-    TENANT_SCENARIO_URI + "{scenarioId}/objectives/{objectiveId}"
+    SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}"
   })
   @AccessControl(
       resourceId = "#scenarioId",
@@ -100,8 +100,8 @@ public class ScenarioObjectiveApi extends RestBehavior {
 
   // region evaluations
   @GetMapping({
-    SCENARIO_URI + "{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}",
-    TENANT_SCENARIO_URI + "{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}"
+    SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}"
   })
   @AccessControl(
       resourceId = "#scenarioId",
@@ -113,8 +113,8 @@ public class ScenarioObjectiveApi extends RestBehavior {
   }
 
   @GetMapping({
-    SCENARIO_URI + "{scenarioId}/objectives/{objectiveId}/evaluations",
-    TENANT_SCENARIO_URI + "{scenarioId}/objectives/{objectiveId}/evaluations"
+    SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations",
+    TENANT_SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations"
   })
   @AccessControl(
       resourceId = "#scenarioId",
@@ -126,8 +126,8 @@ public class ScenarioObjectiveApi extends RestBehavior {
   }
 
   @PostMapping({
-    SCENARIO_URI + "{scenarioId}/objectives/{objectiveId}/evaluations",
-    TENANT_SCENARIO_URI + "{scenarioId}/objectives/{objectiveId}/evaluations"
+    SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations",
+    TENANT_SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations"
   })
   @AccessControl(
       resourceId = "#scenarioId",
@@ -157,8 +157,8 @@ public class ScenarioObjectiveApi extends RestBehavior {
   }
 
   @PutMapping({
-    SCENARIO_URI + "{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}",
-    TENANT_SCENARIO_URI + "{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}"
+    SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}"
   })
   @AccessControl(
       resourceId = "#scenarioId",
@@ -185,8 +185,8 @@ public class ScenarioObjectiveApi extends RestBehavior {
   }
 
   @DeleteMapping({
-    SCENARIO_URI + "{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}",
-    TENANT_SCENARIO_URI + "{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}"
+    SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}"
   })
   @AccessControl(
       resourceId = "#scenarioId",

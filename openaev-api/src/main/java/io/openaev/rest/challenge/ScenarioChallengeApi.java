@@ -1,10 +1,10 @@
 package io.openaev.rest.challenge;
 
-import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH;
 import static io.openaev.rest.challenge.ChallengeHelper.resolveChallengeIds;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
@@ -27,7 +27,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class ScenarioChallengeApi extends RestBehavior {
 
-  private static final String TENANT_SCENARIO_URI = TENANT_PREFIX + "/scenarios";
 
   private final InjectRepository injectRepository;
   private final ChallengeRepository challengeRepository;

@@ -1,8 +1,9 @@
 package io.openaev.rest.variable;
 
-import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
+import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
@@ -22,8 +23,6 @@ import org.springframework.web.bind.annotation.*;
 public class VariableApi extends RestBehavior {
 
   public static final String VARIABLE_URI = "/api/variables";
-  private static final String TENANT_EXERCISE_URI = TENANT_PREFIX + "/exercises";
-  private static final String TENANT_SCENARIO_URI = TENANT_PREFIX + "/scenarios";
 
   private final VariableService variableService;
   private final ScenarioService scenarioService;

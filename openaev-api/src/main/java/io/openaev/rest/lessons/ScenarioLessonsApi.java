@@ -1,7 +1,8 @@
 package io.openaev.rest.lessons;
 
-import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
@@ -22,8 +23,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ScenarioLessonsApi extends RestBehavior {
 
-  public static final String SCENARIO_URI = "/api/scenarios/";
-  private static final String TENANT_SCENARIO_URI = TENANT_PREFIX + "/scenarios/";
 
   private final ScenarioRepository scenarioRepository;
   private final TeamRepository teamRepository;
@@ -34,8 +33,8 @@ public class ScenarioLessonsApi extends RestBehavior {
   private final UserRepository userRepository;
 
   @GetMapping({
-    SCENARIO_URI + "{scenarioId}/lessons_categories",
-    TENANT_SCENARIO_URI + "{scenarioId}/lessons_categories"
+    SCENARIO_URI + "/{scenarioId}/lessons_categories",
+    TENANT_SCENARIO_URI + "/{scenarioId}/lessons_categories"
   })
   @AccessControl(
       resourceId = "#scenarioId",
@@ -46,8 +45,8 @@ public class ScenarioLessonsApi extends RestBehavior {
   }
 
   @PostMapping({
-    SCENARIO_URI + "{scenarioId}/lessons_apply_template/{lessonsTemplateId}",
-    TENANT_SCENARIO_URI + "{scenarioId}/lessons_apply_template/{lessonsTemplateId}"
+    SCENARIO_URI + "/{scenarioId}/lessons_apply_template/{lessonsTemplateId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/lessons_apply_template/{lessonsTemplateId}"
   })
   @AccessControl(
       resourceId = "#scenarioId",
@@ -89,8 +88,8 @@ public class ScenarioLessonsApi extends RestBehavior {
   }
 
   @PostMapping({
-    SCENARIO_URI + "{scenarioId}/lessons_categories",
-    TENANT_SCENARIO_URI + "{scenarioId}/lessons_categories"
+    SCENARIO_URI + "/{scenarioId}/lessons_categories",
+    TENANT_SCENARIO_URI + "/{scenarioId}/lessons_categories"
   })
   @AccessControl(
       resourceId = "#scenarioId",
@@ -108,8 +107,8 @@ public class ScenarioLessonsApi extends RestBehavior {
   }
 
   @PostMapping({
-    SCENARIO_URI + "{scenarioId}/lessons_empty",
-    TENANT_SCENARIO_URI + "{scenarioId}/lessons_empty"
+    SCENARIO_URI + "/{scenarioId}/lessons_empty",
+    TENANT_SCENARIO_URI + "/{scenarioId}/lessons_empty"
   })
   @AccessControl(
       resourceId = "#scenarioId",
@@ -132,8 +131,8 @@ public class ScenarioLessonsApi extends RestBehavior {
   }
 
   @PutMapping({
-    SCENARIO_URI + "{scenarioId}/lessons_categories/{lessonsCategoryId}",
-    TENANT_SCENARIO_URI + "{scenarioId}/lessons_categories/{lessonsCategoryId}"
+    SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}"
   })
   @AccessControl(
       resourceId = "#scenarioId",
@@ -154,8 +153,8 @@ public class ScenarioLessonsApi extends RestBehavior {
   }
 
   @DeleteMapping({
-    SCENARIO_URI + "{scenarioId}/lessons_categories/{lessonsCategoryId}",
-    TENANT_SCENARIO_URI + "{scenarioId}/lessons_categories/{lessonsCategoryId}"
+    SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}"
   })
   @AccessControl(
       resourceId = "#scenarioId",
@@ -168,8 +167,8 @@ public class ScenarioLessonsApi extends RestBehavior {
   }
 
   @PutMapping({
-    SCENARIO_URI + "{scenarioId}/lessons_categories/{lessonsCategoryId}/teams",
-    TENANT_SCENARIO_URI + "{scenarioId}/lessons_categories/{lessonsCategoryId}/teams"
+    SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/teams",
+    TENANT_SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/teams"
   })
   @AccessControl(
       resourceId = "#scenarioId",
@@ -190,8 +189,8 @@ public class ScenarioLessonsApi extends RestBehavior {
   }
 
   @GetMapping({
-    SCENARIO_URI + "{scenarioId}/lessons_questions",
-    TENANT_SCENARIO_URI + "{scenarioId}/lessons_questions"
+    SCENARIO_URI + "/{scenarioId}/lessons_questions",
+    TENANT_SCENARIO_URI + "/{scenarioId}/lessons_questions"
   })
   @AccessControl(
       resourceId = "#scenarioId",
@@ -210,8 +209,8 @@ public class ScenarioLessonsApi extends RestBehavior {
   }
 
   @GetMapping({
-    SCENARIO_URI + "{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions",
-    TENANT_SCENARIO_URI + "{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions"
+    SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions",
+    TENANT_SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions"
   })
   @AccessControl(
       resourceId = "#scenarioId",
@@ -224,8 +223,8 @@ public class ScenarioLessonsApi extends RestBehavior {
   }
 
   @PostMapping({
-    SCENARIO_URI + "{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions",
-    TENANT_SCENARIO_URI + "{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions"
+    SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions",
+    TENANT_SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions"
   })
   @AccessControl(
       resourceId = "#scenarioId",
@@ -247,9 +246,9 @@ public class ScenarioLessonsApi extends RestBehavior {
 
   @PutMapping({
     SCENARIO_URI
-        + "{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}",
+        + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}",
     TENANT_SCENARIO_URI
-        + "{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}"
+        + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}"
   })
   @AccessControl(
       resourceId = "#scenarioId",
@@ -270,9 +269,9 @@ public class ScenarioLessonsApi extends RestBehavior {
 
   @DeleteMapping({
     SCENARIO_URI
-        + "{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}",
+        + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}",
     TENANT_SCENARIO_URI
-        + "{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}"
+        + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}"
   })
   @AccessControl(
       resourceId = "#scenarioId",

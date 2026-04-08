@@ -1,11 +1,11 @@
 package io.openaev.rest.inject;
 
 import static io.openaev.config.SessionHelper.currentUser;
-import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.CommunicationSpecification.fromInject;
 import static io.openaev.database.specification.InjectSpecification.fromSimulation;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
+import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 import static java.time.Instant.now;
 
@@ -58,7 +58,6 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class SimulationInjectApi extends RestBehavior {
 
-  private static final String TENANT_EXERCISE_URI = TENANT_PREFIX + "/exercises";
 
   private final InjectSearchService injectSearchService;
   private final Executor executor;
