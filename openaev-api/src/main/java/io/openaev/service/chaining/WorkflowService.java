@@ -11,12 +11,11 @@ import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.utils.IpAddressUtils;
 import jakarta.validation.constraints.NotBlank;
-
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.hibernate.Hibernate;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -88,6 +87,7 @@ public class WorkflowService {
             .build();
     workflowRepository.save(workflow);
   }
+
   /**
    * Creates a new workflow template for a scenario.
    *
@@ -105,8 +105,6 @@ public class WorkflowService {
             .build();
     workflowRepository.save(workflow);
   }
-
-
 
   /**
    * Loads the TEMPLATE workflow, applies the configuration input and persists it only when at least
@@ -153,7 +151,7 @@ public class WorkflowService {
    * @return the created workflow run
    */
   public Workflow launchWorkflowSimulation(Workflow workflowTemplate) {
-    workflowTemplate =  updateEditedWorkflow(workflowTemplate);
+    workflowTemplate = updateEditedWorkflow(workflowTemplate);
 
     Workflow run = copyWorkflowTemplateToRun(workflowTemplate);
 
@@ -162,7 +160,8 @@ public class WorkflowService {
 
   public Workflow launchWorkflowScenario(Workflow workflowTemplateScenario, Exercise simulation) {
     // Copy workflow TEMPLATE (scenario) to a new workflow TEMPLATE (simulation)
-    Workflow workflowTemplateSimulation = copyWorkflowTemplateToSimulation(workflowTemplateScenario, simulation);
+    Workflow workflowTemplateSimulation =
+        copyWorkflowTemplateToSimulation(workflowTemplateScenario, simulation);
     workflowTemplateSimulation = saveWorkflowRun(workflowTemplateSimulation);
 
     // Copy workflow TEMPLATE (simulation) to a new workflow execution RUN (simulation)
@@ -180,60 +179,65 @@ public class WorkflowService {
     return workflowTemplate;
   }
 
-  private Workflow copyWorkflowTemplateToRun(Workflow workflowTemplateFrom){
+  private Workflow copyWorkflowTemplateToRun(Workflow workflowTemplateFrom) {
     // Copy workflow TEMPLATE to Workflow RUN (execution)
-    Workflow workflowRunTo =  Workflow.builder()
-        .isEdited(false)
-        .status(WorkflowStatus.RUN)
-        .simulation(workflowTemplateFrom.getSimulation())
-        .version(workflowTemplateFrom.getVersion())
-        .workflowTemplate(workflowTemplateFrom)
-        .rateLimitEnabled(workflowTemplateFrom.isRateLimitEnabled())
-        .maxAttempts(workflowTemplateFrom.getMaxAttempts())
-        .maxTemporalRateSeconds(workflowTemplateFrom.getMaxTemporalRateSeconds())
-        .timeoutEnabled(workflowTemplateFrom.isTimeoutEnabled())
-        .timeoutSeconds(workflowTemplateFrom.getTimeoutSeconds())
-        .safeModeEnabled(workflowTemplateFrom.isSafeModeEnabled())
-        .build();
-        copyScopeRules(workflowTemplateFrom, workflowRunTo);
-        return workflowRunTo;
+    Workflow workflowRunTo =
+        Workflow.builder()
+            .isEdited(false)
+            .status(WorkflowStatus.RUN)
+            .simulation(workflowTemplateFrom.getSimulation())
+            .version(workflowTemplateFrom.getVersion())
+            .workflowTemplate(workflowTemplateFrom)
+            .rateLimitEnabled(workflowTemplateFrom.isRateLimitEnabled())
+            .maxAttempts(workflowTemplateFrom.getMaxAttempts())
+            .maxTemporalRateSeconds(workflowTemplateFrom.getMaxTemporalRateSeconds())
+            .timeoutEnabled(workflowTemplateFrom.isTimeoutEnabled())
+            .timeoutSeconds(workflowTemplateFrom.getTimeoutSeconds())
+            .safeModeEnabled(workflowTemplateFrom.isSafeModeEnabled())
+            .build();
+    copyScopeRules(workflowTemplateFrom, workflowRunTo);
+    return workflowRunTo;
   }
 
-  private Workflow copyWorkflowTemplateToScenario(Workflow workflowTemplateScenarioFrom, Scenario scenarioTo) {
+  private Workflow copyWorkflowTemplateToScenario(
+      Workflow workflowTemplateScenarioFrom, Scenario scenarioTo) {
     // Copy WORKFLOW TEMPLATE to a new Workflow TEMPLATE for a scenario
-    Workflow template = Workflow.builder()
-        .isEdited(false)
-        .status(WorkflowStatus.TEMPLATE)
-        .version(0)
-        .scenario(scenarioTo)
-        .rateLimitEnabled(workflowTemplateScenarioFrom.isRateLimitEnabled())
-        .maxAttempts(workflowTemplateScenarioFrom.getMaxAttempts())
-        .maxTemporalRateSeconds(workflowTemplateScenarioFrom.getMaxTemporalRateSeconds())
-        .timeoutEnabled(workflowTemplateScenarioFrom.isTimeoutEnabled())
-        .timeoutSeconds(workflowTemplateScenarioFrom.getTimeoutSeconds())
-        .safeModeEnabled(workflowTemplateScenarioFrom.isSafeModeEnabled())
-        .build();
+    Workflow template =
+        Workflow.builder()
+            .isEdited(false)
+            .status(WorkflowStatus.TEMPLATE)
+            .version(0)
+            .scenario(scenarioTo)
+            .rateLimitEnabled(workflowTemplateScenarioFrom.isRateLimitEnabled())
+            .maxAttempts(workflowTemplateScenarioFrom.getMaxAttempts())
+            .maxTemporalRateSeconds(workflowTemplateScenarioFrom.getMaxTemporalRateSeconds())
+            .timeoutEnabled(workflowTemplateScenarioFrom.isTimeoutEnabled())
+            .timeoutSeconds(workflowTemplateScenarioFrom.getTimeoutSeconds())
+            .safeModeEnabled(workflowTemplateScenarioFrom.isSafeModeEnabled())
+            .build();
     copyScopeRules(workflowTemplateScenarioFrom, template);
 
     return template;
   }
 
-  private Workflow copyWorkflowTemplateToSimulation(Workflow workflowTemplateFrom, Exercise simulationTo){
+  private Workflow copyWorkflowTemplateToSimulation(
+      Workflow workflowTemplateFrom, Exercise simulationTo) {
     // COPY WORKFLOW TEMPLATE to a new Workflow TEMPLATE for a simulation
-    Workflow template = Workflow.builder()
-        .isEdited(false)
-        .status(WorkflowStatus.TEMPLATE)
-        .version(0)
-        .simulation(simulationTo)
-        .rateLimitEnabled(workflowTemplateFrom.isRateLimitEnabled())
-        .maxAttempts(workflowTemplateFrom.getMaxAttempts())
-        .maxTemporalRateSeconds(workflowTemplateFrom.getMaxTemporalRateSeconds())
-        .timeoutEnabled(workflowTemplateFrom.isTimeoutEnabled())
-        .timeoutSeconds(workflowTemplateFrom.getTimeoutSeconds())
-        .safeModeEnabled(workflowTemplateFrom.isSafeModeEnabled())
-        .build();
-        copyScopeRules(workflowTemplateFrom, template);
-        return template;
+    Workflow template =
+        Workflow.builder()
+            .isEdited(false)
+            .status(WorkflowStatus.TEMPLATE)
+            .version(0)
+            .simulation(simulationTo)
+            .rateLimitEnabled(workflowTemplateFrom.isRateLimitEnabled())
+            .maxAttempts(workflowTemplateFrom.getMaxAttempts())
+            .maxTemporalRateSeconds(workflowTemplateFrom.getMaxTemporalRateSeconds())
+            .timeoutEnabled(workflowTemplateFrom.isTimeoutEnabled())
+            .timeoutSeconds(workflowTemplateFrom.getTimeoutSeconds())
+            .safeModeEnabled(workflowTemplateFrom.isSafeModeEnabled())
+            .build();
+    copyScopeRules(workflowTemplateFrom, template);
+    return template;
   }
 
   /**
@@ -271,7 +275,8 @@ public class WorkflowService {
    * @return true if the scenario has one workflow, false otherwise
    */
   public boolean isScenarioChaining(String scenarioId) {
-    List<Workflow> workflows = this.workflowRepository.findByScenario_IdAndStatus(scenarioId, WorkflowStatus.TEMPLATE);
+    List<Workflow> workflows =
+        this.workflowRepository.findByScenario_IdAndStatus(scenarioId, WorkflowStatus.TEMPLATE);
     return !workflows.isEmpty();
   }
 
@@ -286,6 +291,7 @@ public class WorkflowService {
         this.workflowRepository.findBySimulation_IdAndStatus(
             simulationId, WorkflowStatus.TEMPLATE));
   }
+
   /**
    * Finds workflows executed for a simulation.
    *
@@ -294,7 +300,7 @@ public class WorkflowService {
    */
   public List<Workflow> findWorkflowRunBySimulationId(String simulationId) {
     return this.workflowRepository.findAllBySimulation_IdAndStatus(
-            simulationId, WorkflowStatus.RUN);
+        simulationId, WorkflowStatus.RUN);
   }
 
   /**
@@ -303,15 +309,15 @@ public class WorkflowService {
    * @param scenarioId the ID of the scenario
    * @return the workflow template, or null if not found
    */
-  public Optional<Workflow> findWorkflowTemplateByScenarioId(String scenarioId) throws ChainingException {
-      List<Workflow> workflows = this.workflowRepository.findByScenario_IdAndStatus(
-              scenarioId, WorkflowStatus.TEMPLATE);
-      if(workflows.size() > 1)
-          throw new ChainingException("Error Model DB - Many Workflow TEMPLATE for the same scenario ID : " + scenarioId);
-      if(workflows.isEmpty())
-        return Optional.empty();
-    return Optional.ofNullable(
-            workflows.get(0));
+  public Optional<Workflow> findWorkflowTemplateByScenarioId(String scenarioId)
+      throws ChainingException {
+    List<Workflow> workflows =
+        this.workflowRepository.findByScenario_IdAndStatus(scenarioId, WorkflowStatus.TEMPLATE);
+    if (workflows.size() > 1)
+      throw new ChainingException(
+          "Error Model DB - Many Workflow TEMPLATE for the same scenario ID : " + scenarioId);
+    if (workflows.isEmpty()) return Optional.empty();
+    return Optional.ofNullable(workflows.get(0));
   }
 
   /**
@@ -478,29 +484,32 @@ public class WorkflowService {
     workflowRepository.saveAll(workflows);
   }
 
-  public Workflow duplicateScenario(@NotBlank String scenarioIdFrom, @NotBlank Scenario scenarioTo) throws ChainingException {
+  public Workflow duplicateScenario(@NotBlank String scenarioIdFrom, @NotBlank Scenario scenarioTo)
+      throws ChainingException {
 
     Optional<Workflow> oldWorkflowOpt = findWorkflowTemplateByScenarioId(scenarioIdFrom);
-    if(oldWorkflowOpt.isEmpty()) return null;
+    if (oldWorkflowOpt.isEmpty()) return null;
     Workflow oldWorkflowTemplateScenario = oldWorkflowOpt.get();
 
-      Workflow newWorkflowTemplateScenario = copyWorkflowTemplateToScenario(oldWorkflowTemplateScenario, scenarioTo);
-      return workflowRepository.save(newWorkflowTemplateScenario);
+    Workflow newWorkflowTemplateScenario =
+        copyWorkflowTemplateToScenario(oldWorkflowTemplateScenario, scenarioTo);
+    return workflowRepository.save(newWorkflowTemplateScenario);
   }
 
-  public Workflow duplicateSimulation(@NotBlank String simulationIdFrom, @NotBlank Exercise simulationTo) {
+  public Workflow duplicateSimulation(
+      @NotBlank String simulationIdFrom, @NotBlank Exercise simulationTo) {
 
     Optional<Workflow> oldWorkflowOpt = findWorkflowTemplateBySimulationId(simulationIdFrom);
-    if(oldWorkflowOpt.isEmpty()) return null;
+    if (oldWorkflowOpt.isEmpty()) return null;
     Workflow oldWorkflowTemplateSimulation = oldWorkflowOpt.get();
 
-      Workflow newWorkflowTemplateScenario = copyWorkflowTemplateToSimulation(oldWorkflowTemplateSimulation, simulationTo);
-      return workflowRepository.save(newWorkflowTemplateScenario);
+    Workflow newWorkflowTemplateScenario =
+        copyWorkflowTemplateToSimulation(oldWorkflowTemplateSimulation, simulationTo);
+    return workflowRepository.save(newWorkflowTemplateScenario);
   }
 
   public void isPreviewFeatureChainingEnable() throws ChainingException {
-    if(!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
       throw new ChainingException("Feature chaining is not enabled");
   }
-
 }

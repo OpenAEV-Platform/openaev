@@ -26,9 +26,7 @@ public class V4_90__Add_scenario_to_workflow extends BaseJavaMigration {
                       WHERE workflow_status = 'TEMPLATE';
               """);
 
-      select.execute(
-          "ALTER TABLE workflows ALTER COLUMN workflow_simulation_id DROP NOT NULL"
-      );
+      select.execute("ALTER TABLE workflows ALTER COLUMN workflow_simulation_id DROP NOT NULL");
 
       select.execute(
           """

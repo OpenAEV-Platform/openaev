@@ -1,5 +1,9 @@
 package io.openaev.api.chaining;
 
+import static io.openaev.database.model.Command.COMMAND_TYPE;
+import static io.openaev.database.model.DnsResolution.DNS_RESOLUTION_TYPE;
+import static io.openaev.database.model.Executable.EXECUTABLE_TYPE;
+import static io.openaev.database.model.FileDrop.FILE_DROP_TYPE;
 import static io.openaev.service.chaining.StepService.setField;
 import static java.util.Optional.ofNullable;
 
@@ -29,19 +33,11 @@ import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.Hibernate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.*;
-
-import static io.openaev.database.model.Command.COMMAND_TYPE;
-import static io.openaev.database.model.DnsResolution.DNS_RESOLUTION_TYPE;
-import static io.openaev.database.model.Executable.EXECUTABLE_TYPE;
-import static io.openaev.database.model.FileDrop.FILE_DROP_TYPE;
-import static io.openaev.service.chaining.StepService.setField;
 
 /**
  * Implementation of {@link ActionStep} for executing Inject steps.
@@ -96,10 +92,10 @@ public class InjectExecutionStep implements ActionStep {
 
     } else if (workflow.getSimulation() != null) {
       data = stepData(newStep, workflow.getSimulation(), null);
-
     }
     if (data == null)
-      throw new ChainingException("New step (TEMPLATE): Error processing Inject. Workflow has no simulation or scenario");
+      throw new ChainingException(
+          "New step (TEMPLATE): Error processing Inject. Workflow has no simulation or scenario");
 
     String input = stepInputFromConditionMapper(newStep.getConditions());
     // TODO: get outputParser
@@ -185,7 +181,8 @@ public class InjectExecutionStep implements ActionStep {
       executor.directExecute(executableInject);
       return Optional.of(readyStep);
     } catch (Exception e) {
-      throw new ChainingException("Inject execution failed. Inject ID: " + injectId + " (transaction rolled back)", e);
+      throw new ChainingException(
+          "Inject execution failed. Inject ID: " + injectId + " (transaction rolled back)", e);
     }
   }
 
@@ -207,6 +204,7 @@ public class InjectExecutionStep implements ActionStep {
       injectorContract.setPayload(em.find(DnsResolution.class, payload.getId()));
     }
   }
+
   /**
    * Updates a step after execution.
    *
@@ -289,7 +287,8 @@ public class InjectExecutionStep implements ActionStep {
    * @return a JSON string representing the serialized inject, or {@code null} if the injector
    *     contract is missing
    */
-  private String stepData(StepsCreateInput.StepCreateInput step, Exercise simulation, Scenario scenario)
+  private String stepData(
+      StepsCreateInput.StepCreateInput step, Exercise simulation, Scenario scenario)
       throws ChainingException {
 
     InjectInput data = (InjectInput) step.getDataStep();
@@ -341,7 +340,7 @@ public class InjectExecutionStep implements ActionStep {
     // SCENARIO
     if (scenario != null) {
       tags = scenario.getTags();
-      //todo to brainstorm did we need Document on scenario ? why ?
+      // todo to brainstorm did we need Document on scenario ? why ?
       // Linked documents directly to the scenario
       inject
           .getDocuments()

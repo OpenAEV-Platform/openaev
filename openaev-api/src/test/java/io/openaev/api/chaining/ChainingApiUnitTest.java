@@ -1,5 +1,10 @@
 package io.openaev.api.chaining;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
+
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Workflow;
@@ -12,6 +17,7 @@ import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -19,13 +25,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ChainingApi unit tests")
@@ -58,7 +57,8 @@ class ChainingApiUnitTest {
       when(exerciseService.getDuplicateExercise(simulationId)).thenReturn(simulation);
       when(workflowService.findWorkflowTemplateBySimulationId(simulation.getId()))
           .thenReturn(Optional.of(sourceWorkflow));
-      when(workflowService.duplicateSimulation(simulationId, simulation)).thenReturn(duplicatedWorkflow);
+      when(workflowService.duplicateSimulation(simulationId, simulation))
+          .thenReturn(duplicatedWorkflow);
 
       chainingApi.duplicateExercise(simulationId);
 
@@ -126,13 +126,14 @@ class ChainingApiUnitTest {
       Scenario scenario = new Scenario();
       doNothing().when(workflowService).isPreviewFeatureChainingEnable();
       when(scenarioService.getDuplicateScenario(scenarioId)).thenReturn(scenario);
-      when(workflowService.findWorkflowTemplateByScenarioId(scenarioId)).thenReturn(Optional.empty());
+      when(workflowService.findWorkflowTemplateByScenarioId(scenarioId))
+          .thenReturn(Optional.empty());
 
-      assertThrows(ChainingException.class, () -> chainingApi.duplicateScenarioChaining(scenarioId));
+      assertThrows(
+          ChainingException.class, () -> chainingApi.duplicateScenarioChaining(scenarioId));
 
       verify(workflowService, never()).duplicateScenario(anyString(), any(Scenario.class));
       verify(stepService, never()).copyStepTemplate(any(Workflow.class), any(Workflow.class));
     }
   }
 }
-

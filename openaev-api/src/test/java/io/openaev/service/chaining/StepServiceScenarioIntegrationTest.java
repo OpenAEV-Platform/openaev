@@ -1,5 +1,10 @@
 package io.openaev.service.chaining;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioRepository;
@@ -18,6 +23,9 @@ import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,58 +33,33 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doReturn;
-
 @SpringBootTest
 @Transactional
 class StepServiceScenarioIntegrationTest {
 
-  @Autowired
-  private StepService stepService;
-  @Autowired
-  private WorkflowRepository workflowRepository;
-  @Autowired
-  private ScenarioRepository scenarioRepository;
-  @Autowired
-  private WorkflowComposer workflowComposer;
-  @Autowired
-  private ExerciseComposer simulationComposer;
-  @Autowired
-  private ScenarioComposer scenarioComposer;
-  @Autowired
-  private InjectRepository injectRepository;
+  @Autowired private StepService stepService;
+  @Autowired private WorkflowRepository workflowRepository;
+  @Autowired private ScenarioRepository scenarioRepository;
+  @Autowired private WorkflowComposer workflowComposer;
+  @Autowired private ExerciseComposer simulationComposer;
+  @Autowired private ScenarioComposer scenarioComposer;
+  @Autowired private InjectRepository injectRepository;
 
-  @MockBean
-  private UserService userService;
-  @MockBean
-  private TeamService teamService;
-  @MockBean
-  private AssetService assetService;
-  @MockBean
-  private TagService tagService;
-  @MockBean
-  private DocumentService documentService;
-  @MockBean
-  private InjectService injectService;
-  @MockBean
-  private io.openaev.executors.Executor executor;
+  @MockBean private UserService userService;
+  @MockBean private TeamService teamService;
+  @MockBean private AssetService assetService;
+  @MockBean private TagService tagService;
+  @MockBean private DocumentService documentService;
+  @MockBean private InjectService injectService;
+  @MockBean private io.openaev.executors.Executor executor;
 
   private Exercise savedSimulation;
 
   @BeforeEach
   void beforeEach() throws Exception {
     // PREPARE
-    savedSimulation = simulationComposer
-        .forExercise(ExerciseFixture.createDefaultExercise())
-        .persist()
-        .get();
+    savedSimulation =
+        simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()).persist().get();
 
     // MOCKS
     doReturn(new User()).when(userService).currentUser();
@@ -87,10 +70,11 @@ class StepServiceScenarioIntegrationTest {
     doReturn(false).when(injectService).canApplyTargetType(any(), any());
     doReturn(new InjectStatus()).when(executor).directExecute(any());
 
-    doAnswer(invocation -> {
-      Inject inject = invocation.getArgument(0);
-      return injectRepository.save(inject);
-    })
+    doAnswer(
+            invocation -> {
+              Inject inject = invocation.getArgument(0);
+              return injectRepository.save(inject);
+            })
         .when(injectService)
         .createInject(any(Inject.class));
   }
@@ -99,8 +83,7 @@ class StepServiceScenarioIntegrationTest {
   // Workflow starts correctly from a scenario
   // -------------------------------------------------------------------------
   @Test
-  void should_start_workflow_from_scenario_successfully()
-      throws ChainingException {
+  void should_start_workflow_from_scenario_successfully() throws ChainingException {
     // PREPARE
     Workflow workflowTemplate =
         workflowComposer
@@ -112,22 +95,35 @@ class StepServiceScenarioIntegrationTest {
     long workflowCountBefore = workflowRepository.count();
 
     // ACT & ASSERT
-    stepService.startWorkflowByScenarioIdAndSimulation(workflowTemplate.getScenario().getId(), savedSimulation);
+    stepService.startWorkflowByScenarioIdAndSimulation(
+        workflowTemplate.getScenario().getId(), savedSimulation);
 
     long workflowCountAfter = workflowRepository.count();
 
     assertEquals(workflowCountBefore + 2, workflowCountAfter);
     List<Workflow> workflows = workflowRepository.findAll();
-    Workflow newWorkflowTemplate = workflows.stream().filter(workflow -> workflow.getStatus().equals(WorkflowStatus.TEMPLATE) && !workflow.getId().equals(workflowTemplate.getId()))
-        .findFirst().orElseThrow(()->new AssertionError("New Workflow TEMPLATE not find"));
+    Workflow newWorkflowTemplate =
+        workflows.stream()
+            .filter(
+                workflow ->
+                    workflow.getStatus().equals(WorkflowStatus.TEMPLATE)
+                        && !workflow.getId().equals(workflowTemplate.getId()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("New Workflow TEMPLATE not find"));
 
-    Workflow workflowRun = workflows
-        .stream()
-        .filter(w -> WorkflowStatus.END.equals(w.getStatus()))
-        .filter(w -> newWorkflowTemplate.getId().equals(
-            w.getWorkflowTemplate() != null ? w.getWorkflowTemplate().getId() : null))
-        .findFirst()
-        .orElseThrow(() -> new AssertionError("Workflow END not find"));
+    Workflow workflowRun =
+        workflows.stream()
+            .filter(w -> WorkflowStatus.END.equals(w.getStatus()))
+            .filter(
+                w ->
+                    newWorkflowTemplate
+                        .getId()
+                        .equals(
+                            w.getWorkflowTemplate() != null
+                                ? w.getWorkflowTemplate().getId()
+                                : null))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("Workflow END not find"));
 
     assertEquals(savedSimulation.getId(), workflowRun.getSimulation().getId());
     assertEquals(WorkflowStatus.END, workflowRun.getStatus());
@@ -141,10 +137,12 @@ class StepServiceScenarioIntegrationTest {
     // PREPARE
     String unknownScenarioId = "scenario-id-inexistant";
     // ACT & ASSERT
-    ElementNotFoundException exception = assertThrows(
-        ElementNotFoundException.class,
-        () -> stepService.startWorkflowByScenarioIdAndSimulation(
-            unknownScenarioId, savedSimulation));
+    ElementNotFoundException exception =
+        assertThrows(
+            ElementNotFoundException.class,
+            () ->
+                stepService.startWorkflowByScenarioIdAndSimulation(
+                    unknownScenarioId, savedSimulation));
 
     assertTrue(exception.getMessage().contains(unknownScenarioId));
   }
@@ -153,8 +151,7 @@ class StepServiceScenarioIntegrationTest {
   // No step template → the RUN workflow immediately transitions to END
   // -------------------------------------------------------------------------
   @Test
-  void should_set_workflow_run_to_end_when_no_step_template()
-      throws ChainingException {
+  void should_set_workflow_run_to_end_when_no_step_template() throws ChainingException {
     // PREPARE
     Workflow workflowTemplate =
         workflowComposer
@@ -164,21 +161,33 @@ class StepServiceScenarioIntegrationTest {
             .get();
 
     // ACT & ASSERT
-    stepService.startWorkflowByScenarioIdAndSimulation(workflowTemplate.getScenario().getId(), savedSimulation);
+    stepService.startWorkflowByScenarioIdAndSimulation(
+        workflowTemplate.getScenario().getId(), savedSimulation);
 
     List<Workflow> workflows = workflowRepository.findAll();
 
-    Workflow newWorkflowTemplate = workflows.stream().filter(workflow -> workflow.getStatus().equals(WorkflowStatus.TEMPLATE) && !workflow.getId().equals(workflowTemplate.getId()))
-        .findFirst().orElseThrow(()->new AssertionError("New Workflow TEMPLATE not find"));
+    Workflow newWorkflowTemplate =
+        workflows.stream()
+            .filter(
+                workflow ->
+                    workflow.getStatus().equals(WorkflowStatus.TEMPLATE)
+                        && !workflow.getId().equals(workflowTemplate.getId()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("New Workflow TEMPLATE not find"));
 
-    Workflow workflowRun = workflowRepository
-        .findAll()
-        .stream()
-        .filter(w -> WorkflowStatus.END.equals(w.getStatus()))
-        .filter(w -> newWorkflowTemplate.getId().equals(
-            w.getWorkflowTemplate() != null ? w.getWorkflowTemplate().getId() : null))
-        .findFirst()
-        .orElseThrow(() -> new AssertionError("Workflow END not find"));
+    Workflow workflowRun =
+        workflowRepository.findAll().stream()
+            .filter(w -> WorkflowStatus.END.equals(w.getStatus()))
+            .filter(
+                w ->
+                    newWorkflowTemplate
+                        .getId()
+                        .equals(
+                            w.getWorkflowTemplate() != null
+                                ? w.getWorkflowTemplate().getId()
+                                : null))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("Workflow END not find"));
 
     assertEquals(WorkflowStatus.END, workflowRun.getStatus());
   }
@@ -194,9 +203,10 @@ class StepServiceScenarioIntegrationTest {
     String scenarioId = scenarioWithoutWorkflow.getId();
 
     // ACT & ASSERT
-    ElementNotFoundException exception = assertThrows(
-        ElementNotFoundException.class,
-        () -> stepService.startWorkflowByScenarioIdAndSimulation(scenarioId, savedSimulation));
+    ElementNotFoundException exception =
+        assertThrows(
+            ElementNotFoundException.class,
+            () -> stepService.startWorkflowByScenarioIdAndSimulation(scenarioId, savedSimulation));
 
     assertTrue(exception.getMessage().contains("Workflow (TEMPLATE) not found"));
     assertTrue(exception.getMessage().contains(scenarioId));

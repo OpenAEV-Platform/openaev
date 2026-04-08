@@ -1,5 +1,9 @@
 package io.openaev.api.chaining;
 
+import static io.openaev.api.chaining.ChainingApi.CHAINING_URI;
+import static io.openaev.helper.StreamHelper.iterableToSet;
+import static org.springframework.util.StringUtils.hasText;
+
 import io.openaev.aop.AccessControl;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
@@ -19,19 +23,13 @@ import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
-
-import java.util.List;
-import java.util.Optional;
-
-import static io.openaev.api.chaining.ChainingApi.CHAINING_URI;
-import static io.openaev.helper.StreamHelper.iterableToSet;
-import static org.springframework.util.StringUtils.hasText;
-
 
 @RestController
 @RequiredArgsConstructor
@@ -50,10 +48,11 @@ public class ChainingApi extends RestBehavior {
   private final StepService stepService;
   private final TagRepository tagRepository;
 
-  //CREATE SIMULATION
+  // CREATE SIMULATION
   @PostMapping(SIMULATION_URI)
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SIMULATION)
-  public Exercise createSimulation(@Valid @RequestBody CreateExerciseInput input) throws ChainingException {
+  public Exercise createSimulation(@Valid @RequestBody CreateExerciseInput input)
+      throws ChainingException {
 
     workflowService.isPreviewFeatureChainingEnable();
 
@@ -62,7 +61,8 @@ public class ChainingApi extends RestBehavior {
 
     Exercise simulation = new Exercise();
     simulation.setUpdateAttributes(input);
-    simulation.setTags(StreamHelper.iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    simulation.setTags(
+        StreamHelper.iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
 
     if (hasText(input.getCustomDashboard())) {
       simulation.setCustomDashboard(
@@ -86,23 +86,30 @@ public class ChainingApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public void createInjectForSimulationChaining(
-      @PathVariable String simulationId, @Valid @RequestBody InjectInput input) throws ChainingException {
+      @PathVariable String simulationId, @Valid @RequestBody InjectInput input)
+      throws ChainingException {
 
     workflowService.isPreviewFeatureChainingEnable();
 
     if (workflowService.isSimulationChaining(simulationId)) {
       exerciseService.findById(simulationId);
 
-      StepsCreateInput.StepCreateInput step = InjectExecutionStep.getInjectAsStepsCreateInput(input);
+      StepsCreateInput.StepCreateInput step =
+          InjectExecutionStep.getInjectAsStepsCreateInput(input);
 
-      Workflow workflow = workflowService.findWorkflowTemplateBySimulationId(simulationId).orElseThrow(
-          () -> new ChainingException("Simulation is configured for chaining but no workflow TEMPLATE found. Simulation ID: " + simulationId));
+      Workflow workflow =
+          workflowService
+              .findWorkflowTemplateBySimulationId(simulationId)
+              .orElseThrow(
+                  () ->
+                      new ChainingException(
+                          "Simulation is configured for chaining but no workflow TEMPLATE found. Simulation ID: "
+                              + simulationId));
 
       stepService.createStepTemplates(workflow.getId(), List.of(step));
 
-      //Todo return Action, Event and Link
+      // Todo return Action, Event and Link
     }
-
   }
 
   @PostMapping(SIMULATION_URI + "/{simulationId}")
@@ -111,11 +118,13 @@ public class ChainingApi extends RestBehavior {
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
-  public Exercise duplicateExercise(@PathVariable @NotBlank final String simulationId) throws ChainingException {
+  public Exercise duplicateExercise(@PathVariable @NotBlank final String simulationId)
+      throws ChainingException {
     workflowService.isPreviewFeatureChainingEnable();
 
     Exercise simulation = exerciseService.getDuplicateExercise(simulationId);
-    Optional<Workflow> workflowOpt = workflowService.findWorkflowTemplateBySimulationId(simulationId);
+    Optional<Workflow> workflowOpt =
+        workflowService.findWorkflowTemplateBySimulationId(simulationId);
     if (workflowOpt.isEmpty())
       throw new ChainingException("No workflow TEMPLATE found. Simulation ID: " + simulationId);
 
@@ -126,10 +135,11 @@ public class ChainingApi extends RestBehavior {
     return simulation;
   }
 
-  //CREATE SCENARIO
+  // CREATE SCENARIO
   @PostMapping(SCENARIO_URI)
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
-  public Scenario createScenarioChaining(@Valid @RequestBody final ScenarioInput input) throws ChainingException {
+  public Scenario createScenarioChaining(@Valid @RequestBody final ScenarioInput input)
+      throws ChainingException {
 
     workflowService.isPreviewFeatureChainingEnable();
 
@@ -161,22 +171,28 @@ public class ChainingApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
   public void createInjectForScenarioChaining(
-      @PathVariable @NotBlank final String scenarioId, @Valid @RequestBody InjectInput input) throws ChainingException {
+      @PathVariable @NotBlank final String scenarioId, @Valid @RequestBody InjectInput input)
+      throws ChainingException {
     workflowService.isPreviewFeatureChainingEnable();
 
     if (workflowService.isScenarioChaining(scenarioId)) {
       this.scenarioService.scenario(scenarioId);
 
-      StepsCreateInput.StepCreateInput step = InjectExecutionStep.getInjectAsStepsCreateInput(input);
+      StepsCreateInput.StepCreateInput step =
+          InjectExecutionStep.getInjectAsStepsCreateInput(input);
 
-      Workflow workflow = workflowService.findWorkflowTemplateByScenarioId(scenarioId).orElseThrow(
-          () -> new ChainingException("Scenario is configured for chaining but no workflow TEMPLATE found. Scenario ID: " + scenarioId)
-      );
+      Workflow workflow =
+          workflowService
+              .findWorkflowTemplateByScenarioId(scenarioId)
+              .orElseThrow(
+                  () ->
+                      new ChainingException(
+                          "Scenario is configured for chaining but no workflow TEMPLATE found. Scenario ID: "
+                              + scenarioId));
 
       stepService.createStepTemplates(workflow.getId(), List.of(step));
-      //Todo return Action, Event and Link
+      // Todo return Action, Event and Link
     }
-
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}")
@@ -184,7 +200,8 @@ public class ChainingApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.SCENARIO)
-  public Scenario duplicateScenarioChaining(@PathVariable @NotBlank final String scenarioId) throws ChainingException {
+  public Scenario duplicateScenarioChaining(@PathVariable @NotBlank final String scenarioId)
+      throws ChainingException {
 
     workflowService.isPreviewFeatureChainingEnable();
 
@@ -199,5 +216,4 @@ public class ChainingApi extends RestBehavior {
 
     return scenario;
   }
-
 }

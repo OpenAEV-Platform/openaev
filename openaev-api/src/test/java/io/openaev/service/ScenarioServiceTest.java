@@ -79,8 +79,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Autowired private ScenarioMapper scenarioMapper;
 
   @Mock private WorkflowService workflowService;
-  @Autowired
-  private PreviewFeatureService previewFeatureService;
+  @Autowired private PreviewFeatureService previewFeatureService;
 
   @Mock private LicenseCacheManager licenseCacheManager;
   @Autowired private ExerciseMapper exerciseMapper;
@@ -117,8 +116,7 @@ class ScenarioServiceTest extends IntegrationTest {
             lessonsCategoryRepository,
             healthCheckUtils,
             scenarioMapper,
-            workflowService
-            );
+            workflowService);
   }
 
   @AfterAll

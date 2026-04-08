@@ -379,8 +379,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
     workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
     // PERSIST STEP TEMPLATE
-    Optional<Step> stepTemplateOpt =
-        injectExecutionStep.create(step, workflowTemplate);
+    Optional<Step> stepTemplateOpt = injectExecutionStep.create(step, workflowTemplate);
     assertTrue(stepTemplateOpt.isPresent());
     Step stepTemplate = stepTemplateOpt.get();
 
@@ -499,8 +498,9 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     // ASSERT
     Assertions.assertTrue(ex.getMessage().contains("Inject execution failed. Inject ID: "));
-    String idInject = ex.getMessage().replace("Inject execution failed. Inject ID: ","" );
-    Assertions.assertFalse(injectRepository.findById(idInject).isPresent(), idInject + " should not be persisted");
+    String idInject = ex.getMessage().replace("Inject execution failed. Inject ID: ", "");
+    Assertions.assertFalse(
+        injectRepository.findById(idInject).isPresent(), idInject + " should not be persisted");
   }
 
   /**

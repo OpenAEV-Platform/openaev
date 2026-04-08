@@ -1,5 +1,15 @@
 package io.openaev.service.chaining;
 
+import static io.openaev.api.chaining.ChainingApi.CHAINING_URI;
+import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
@@ -22,6 +32,9 @@ import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.helpers.InjectTestHelper;
 import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -33,71 +46,36 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-
-import static io.openaev.api.chaining.ChainingApi.CHAINING_URI;
-import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doReturn;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 @Transactional
 @WithMockUser(isAdmin = true)
 class ChainingIntegrationTest extends IntegrationTest {
 
   // -- Repositories
-  @Autowired
-  private ScenarioRepository scenarioRepository;
-  @Autowired
-  private WorkflowRepository workflowRepository;
-  @Autowired
-  private ExerciseRepository exerciseRepository;
-  @Autowired
-  private StepRepository stepRepository;
+  @Autowired private ScenarioRepository scenarioRepository;
+  @Autowired private WorkflowRepository workflowRepository;
+  @Autowired private ExerciseRepository exerciseRepository;
+  @Autowired private StepRepository stepRepository;
 
   // -- Setup inject
-  @Autowired
-  private StepService stepService;
-  @Autowired
-  private WorkflowService workflowService;
-  @Autowired
-  private InjectorContractRepository injectorContractRepository;
-  @Autowired
-  private InjectorRepository injectorRepository;
-  @Autowired
-  private InjectRepository injectRepository;
-  @Autowired
-  private InjectTestHelper injectTestHelper;
+  @Autowired private StepService stepService;
+  @Autowired private WorkflowService workflowService;
+  @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private InjectorRepository injectorRepository;
+  @Autowired private InjectRepository injectRepository;
+  @Autowired private InjectTestHelper injectTestHelper;
 
   // -- Mocks
-  @MockBean
-  private InjectorContractService injectorContractService;
-  @MockBean
-  private TeamService teamService;
-  @MockBean
-  private AssetService assetService;
-  @MockBean
-  private TagService tagService;
-  @MockBean
-  private DocumentService documentService;
-  @MockBean
-  private InjectService injectService;
-  @MockBean
-  private io.openaev.executors.Executor executor;
-  @Autowired
-  private MockMvc mvc;
-  @Autowired
-  private ObjectMapper mapper;
-  @SpyBean
-  UserService userService;
-  @Autowired
-  private TestUserHolder testUserHolder;
+  @MockBean private InjectorContractService injectorContractService;
+  @MockBean private TeamService teamService;
+  @MockBean private AssetService assetService;
+  @MockBean private TagService tagService;
+  @MockBean private DocumentService documentService;
+  @MockBean private InjectService injectService;
+  @MockBean private io.openaev.executors.Executor executor;
+  @Autowired private MockMvc mvc;
+  @Autowired private ObjectMapper mapper;
+  @SpyBean UserService userService;
+  @Autowired private TestUserHolder testUserHolder;
   String injectInputJson;
   InjectorContract injectorContractSaved;
 
@@ -119,10 +97,11 @@ class ChainingIntegrationTest extends IntegrationTest {
     doReturn(new InjectStatus()).when(executor).directExecute(any());
     doAnswer(invocation -> testUserHolder.get()).when(userService).currentUser();
 
-    doAnswer(invocation -> {
-      Inject inject = invocation.getArgument(0);
-      return injectRepository.save(inject);
-    })
+    doAnswer(
+            invocation -> {
+              Inject inject = invocation.getArgument(0);
+              return injectRepository.save(inject);
+            })
         .when(injectService)
         .createInject(any(Inject.class));
 
@@ -151,8 +130,10 @@ class ChainingIntegrationTest extends IntegrationTest {
                 "inject_tags": [],
                 "inject_enabled": true
             }
-            """.formatted(injectorContractSaved.getId(), asset.getId());
+            """
+            .formatted(injectorContractSaved.getId(), asset.getId());
   }
+
   @Nested
   @DisplayName("Scenario chaining integration tests")
   public class ScenarioChainingIntegrationTests {
@@ -188,14 +169,15 @@ class ChainingIntegrationTest extends IntegrationTest {
           workflowRepository.findAll().stream()
               .filter(w -> WorkflowStatus.TEMPLATE.equals(w.getStatus()))
               .filter(
-                  w -> w.getScenario() != null
-                       && createdScenario.getId().equals(w.getScenario().getId()))
+                  w ->
+                      w.getScenario() != null
+                          && createdScenario.getId().equals(w.getScenario().getId()))
               .findFirst()
               .orElseThrow(() -> new AssertionError("Workflow TEMPLATE not find for scenario"));
 
       assertEquals(WorkflowStatus.TEMPLATE, workflowTemplate.getStatus());
-      assertNull(workflowTemplate.getSimulation(),
-          "The Workflow TEMPLATE must not have a simulation");
+      assertNull(
+          workflowTemplate.getSimulation(), "The Workflow TEMPLATE must not have a simulation");
     }
 
     // -------------------------------------------------------------------------
@@ -218,8 +200,9 @@ class ChainingIntegrationTest extends IntegrationTest {
           workflowRepository.findAll().stream()
               .filter(w -> WorkflowStatus.TEMPLATE.equals(w.getStatus()))
               .filter(
-                  w -> w.getScenario() != null
-                       && createdScenario.getId().equals(w.getScenario().getId()))
+                  w ->
+                      w.getScenario() != null
+                          && createdScenario.getId().equals(w.getScenario().getId()))
               .findFirst()
               .orElseThrow();
 
@@ -236,14 +219,16 @@ class ChainingIntegrationTest extends IntegrationTest {
       assertEquals(stepCountBefore + 2, stepRepository.count());
 
       // All steps must be linked to the Workflow TEMPLATE
-      List<Step> stepsCreated = stepRepository.findAll().stream()
-          .filter(s -> s.getWorkflow() != null
-                       && workflowTemplate.getId().equals(s.getWorkflow().getId()))
-          .toList();
+      List<Step> stepsCreated =
+          stepRepository.findAll().stream()
+              .filter(
+                  s ->
+                      s.getWorkflow() != null
+                          && workflowTemplate.getId().equals(s.getWorkflow().getId()))
+              .toList();
 
       assertEquals(2, stepsCreated.size());
-      stepsCreated.forEach(s ->
-          assertEquals(StepStatus.TEMPLATE, s.getStatus()));
+      stepsCreated.forEach(s -> assertEquals(StepStatus.TEMPLATE, s.getStatus()));
     }
 
     // -------------------------------------------------------------------------
@@ -291,23 +276,36 @@ class ChainingIntegrationTest extends IntegrationTest {
 
       // Workflow RUN created with the simulation attache
       List<Workflow> workflows = workflowRepository.findAll();
-      Workflow newWorkflowTemplate = workflows.stream().filter(workflow -> workflow.getStatus().equals(WorkflowStatus.TEMPLATE) && !workflow.getId().equals(workflowTemplate.getId()))
-          .findFirst().orElseThrow(() -> new AssertionError("New Workflow TEMPLATE not find"));
+      Workflow newWorkflowTemplate =
+          workflows.stream()
+              .filter(
+                  workflow ->
+                      workflow.getStatus().equals(WorkflowStatus.TEMPLATE)
+                          && !workflow.getId().equals(workflowTemplate.getId()))
+              .findFirst()
+              .orElseThrow(() -> new AssertionError("New Workflow TEMPLATE not find"));
 
-      Workflow workflowRun = workflows
-          .stream()
-          .filter(w -> WorkflowStatus.END.equals(w.getStatus()))
-          .filter(w -> newWorkflowTemplate.getId().equals(
-              w.getWorkflowTemplate() != null ? w.getWorkflowTemplate().getId() : null))
-          .findFirst()
-          .orElseThrow(() -> new AssertionError("Workflow END not find"));
+      Workflow workflowRun =
+          workflows.stream()
+              .filter(w -> WorkflowStatus.END.equals(w.getStatus()))
+              .filter(
+                  w ->
+                      newWorkflowTemplate
+                          .getId()
+                          .equals(
+                              w.getWorkflowTemplate() != null
+                                  ? w.getWorkflowTemplate().getId()
+                                  : null))
+              .findFirst()
+              .orElseThrow(() -> new AssertionError("Workflow END not find"));
 
       assertEquals(simulation.getId(), workflowRun.getSimulation().getId());
 
       // The TEMPLATE must not be modified
-      Workflow templateAfterLaunch = workflowRepository.findById(workflowTemplate.getId())
-          .orElseThrow();
-      assertNull(templateAfterLaunch.getSimulation(),
+      Workflow templateAfterLaunch =
+          workflowRepository.findById(workflowTemplate.getId()).orElseThrow();
+      assertNull(
+          templateAfterLaunch.getSimulation(),
           "The Workflow TEMPLATE must not have a simulation after launch");
       assertEquals(WorkflowStatus.TEMPLATE, templateAfterLaunch.getStatus());
     }
@@ -317,8 +315,7 @@ class ChainingIntegrationTest extends IntegrationTest {
     // -------------------------------------------------------------------------
     @Test
     @WithMockUser(isAdmin = true)
-    void should_delete_scenario_and_cascade_to_simulation_steps_and_workflows()
-        throws Exception {
+    void should_delete_scenario_and_cascade_to_simulation_steps_and_workflows() throws Exception {
       String response =
           mvc.perform(
                   post(CHAINING_URI + "/scenarios")
@@ -355,40 +352,44 @@ class ChainingIntegrationTest extends IntegrationTest {
 
       // Snapshots before deletion
       String workflowTemplateId = workflowTemplate.getId();
-      List<String> stepIds = stepRepository.findAll().stream()
-          .filter(s -> s.getWorkflow() != null
-                       && workflowTemplateId.equals(s.getWorkflow().getId()))
-          .map(Step::getId)
-          .toList();
+      List<String> stepIds =
+          stepRepository.findAll().stream()
+              .filter(
+                  s ->
+                      s.getWorkflow() != null && workflowTemplateId.equals(s.getWorkflow().getId()))
+              .map(Step::getId)
+              .toList();
 
       assertFalse(stepIds.isEmpty(), "Steps must exist before deletion");
 
       entityManager.clear();
       // DELETE
-      mvc.perform(delete("/api/scenarios/" + scenarioId))
-          .andExpect(status().is2xxSuccessful());
+      mvc.perform(delete("/api/scenarios/" + scenarioId)).andExpect(status().is2xxSuccessful());
       entityManager.flush();
       entityManager.clear();
       // Scenario deleted
       assertFalse(scenarioRepository.existsById(scenarioId));
 
       // Workflows deleted (TEMPLATE + RUN)
-      assertFalse(workflowRepository.existsById(workflowTemplateId),
+      assertFalse(
+          workflowRepository.existsById(workflowTemplateId),
           "The Workflow TEMPLATE must be deleted");
       assertTrue(
           workflowRepository.findAll().stream()
-              .noneMatch(w -> w.getWorkflowTemplate() != null
-                              && workflowTemplateId.equals(w.getWorkflowTemplate().getId())),
+              .noneMatch(
+                  w ->
+                      w.getWorkflowTemplate() != null
+                          && workflowTemplateId.equals(w.getWorkflowTemplate().getId())),
           "The Workflow RUN must be deleted");
 
       // Steps deleted
-      stepIds.forEach(stepId ->
-          assertFalse(stepRepository.existsById(stepId),
-              "Step " + stepId + " must be deleted"));
+      stepIds.forEach(
+          stepId ->
+              assertFalse(
+                  stepRepository.existsById(stepId), "Step " + stepId + " must be deleted"));
 
       // Simulation deleted
-      assertTrue(exerciseRepository.existsById(simulationId),
-          "Simulation must not be deleted");
+      assertTrue(exerciseRepository.existsById(simulationId), "Simulation must not be deleted");
     }
 
     // -------------------------------------------------------------------------
@@ -414,8 +415,10 @@ class ChainingIntegrationTest extends IntegrationTest {
       Workflow workflowTemplate =
           workflowRepository.findAll().stream()
               .filter(w -> WorkflowStatus.TEMPLATE.equals(w.getStatus()))
-              .filter(w -> w.getScenario() != null
-                           && createdScenario.getId().equals(w.getScenario().getId()))
+              .filter(
+                  w ->
+                      w.getScenario() != null
+                          && createdScenario.getId().equals(w.getScenario().getId()))
               .findFirst()
               .orElseThrow();
 
@@ -439,27 +442,33 @@ class ChainingIntegrationTest extends IntegrationTest {
       assertTrue((workflowsRun.size() == 1), "The Workflow RUN must be unique");
       Workflow workflowRun = workflowsRun.get(0);
       // Retrieve the inject created from the step
-      Step createdStep = stepService.findAllStepExecutedByWorkflowRunId(workflowRun.getId())
-          .stream()
-          .findFirst()
-          .orElseThrow(() -> new AssertionError("Step not found"));
+      Step createdStep =
+          stepService.findAllStepExecutedByWorkflowRunId(workflowRun.getId()).stream()
+              .findFirst()
+              .orElseThrow(() -> new AssertionError("Step not found"));
       if (createdStep.getStatus() == StepStatus.READY) {
         stepService.run(createdStep);
       }
 
-      assertNotNull(StepService.getField(createdStep.getData(), "inject_id"), "Step must have an inject");
+      assertNotNull(
+          StepService.getField(createdStep.getData(), "inject_id"), "Step must have an inject");
       String injectId = StepService.getField(createdStep.getData(), "inject_id");
-      //assertFalse(Boolean.getBoolean(StepService.getField(createdStep.getData(), "is_atomic_testing")));
+      // assertFalse(Boolean.getBoolean(StepService.getField(createdStep.getData(),
+      // "is_atomic_testing")));
 
       // The inject must NOT be accessible via the atomic testing API
-      String result = mvc.perform(post("/api/atomic-testings/search")
-              .contentType(MediaType.APPLICATION_JSON)
-              .content("{\"page\":0,\"size\":20,\"sorts\":[{\"direction\":\"DESC\",\"property\":\"inject_updated_at\"}],\"textSearch\":\"\"}"))
-          .andExpect(status().is2xxSuccessful())
-          .andReturn()
-          .getResponse()
-          .getContentAsString();
-      assertFalse(result.contains(injectId),
+      String result =
+          mvc.perform(
+                  post("/api/atomic-testings/search")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(
+                          "{\"page\":0,\"size\":20,\"sorts\":[{\"direction\":\"DESC\",\"property\":\"inject_updated_at\"}],\"textSearch\":\"\"}"))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertFalse(
+          result.contains(injectId),
           "Workflow chaining inject must not be exposed as atomic testing");
     }
 
@@ -469,7 +478,8 @@ class ChainingIntegrationTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
-    void should_duplicate_scenario_workflow_template_and_step_template_when_chaining_enabled() throws Exception {
+    void should_duplicate_scenario_workflow_template_and_step_template_when_chaining_enabled()
+        throws Exception {
       // Create scenario with chaining enabled
       String scenarioResponse =
           mvc.perform(
@@ -486,8 +496,10 @@ class ChainingIntegrationTest extends IntegrationTest {
       Workflow workflowTemplate =
           workflowRepository.findAll().stream()
               .filter(w -> WorkflowStatus.TEMPLATE.equals(w.getStatus()))
-              .filter(w -> w.getScenario() != null
-                           && createdScenario.getId().equals(w.getScenario().getId()))
+              .filter(
+                  w ->
+                      w.getScenario() != null
+                          && createdScenario.getId().equals(w.getScenario().getId()))
               .findFirst()
               .orElseThrow();
 
@@ -510,8 +522,10 @@ class ChainingIntegrationTest extends IntegrationTest {
       Workflow workflowTemplateDuplicated =
           workflowRepository.findAll().stream()
               .filter(w -> WorkflowStatus.TEMPLATE.equals(w.getStatus()))
-              .filter(w -> w.getScenario() != null
-                           && scenarioDuplicated.getId().equals(w.getScenario().getId()))
+              .filter(
+                  w ->
+                      w.getScenario() != null
+                          && scenarioDuplicated.getId().equals(w.getScenario().getId()))
               .findFirst()
               .orElseThrow();
 
@@ -519,14 +533,17 @@ class ChainingIntegrationTest extends IntegrationTest {
 
       List<Step> originalSteps =
           stepRepository.findAll().stream()
-              .filter(s -> s.getWorkflow() != null && workflowTemplate.getId().equals(s.getWorkflow().getId()))
+              .filter(
+                  s ->
+                      s.getWorkflow() != null
+                          && workflowTemplate.getId().equals(s.getWorkflow().getId()))
               .toList();
       List<Step> duplicatedSteps =
           stepRepository.findAll().stream()
               .filter(
                   s ->
                       s.getWorkflow() != null
-                      && workflowTemplateDuplicated.getId().equals(s.getWorkflow().getId()))
+                          && workflowTemplateDuplicated.getId().equals(s.getWorkflow().getId()))
               .toList();
 
       assertEquals(originalSteps.size(), duplicatedSteps.size(), "Step TEMPLATE count must match");
@@ -537,6 +554,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       assertStepEqualsExceptId(originalStep, duplicatedStep);
     }
   }
+
   @Nested
   @DisplayName("Simulation chaining integration tests")
   public class SimulationChainingIntegrationTests {
@@ -557,7 +575,6 @@ class ChainingIntegrationTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
 
-
       String simulationId = JsonPath.read(response, "$.exercise_id");
       Exercise createdSimulation = exerciseRepository.findById(simulationId).orElseThrow();
 
@@ -567,7 +584,9 @@ class ChainingIntegrationTest extends IntegrationTest {
 
       Workflow workflowTemplate = findTemplateWorkflowBySimulationId(createdSimulation.getId());
       assertEquals(WorkflowStatus.TEMPLATE, workflowTemplate.getStatus());
-      assertNull(workflowTemplate.getScenario(), "Template workflow for simulation must not link scenario");
+      assertNull(
+          workflowTemplate.getScenario(),
+          "Template workflow for simulation must not link scenario");
     }
 
     @Test
@@ -599,7 +618,10 @@ class ChainingIntegrationTest extends IntegrationTest {
 
       List<Step> stepsCreated =
           stepRepository.findAll().stream()
-              .filter(s -> s.getWorkflow() != null && workflowTemplate.getId().equals(s.getWorkflow().getId()))
+              .filter(
+                  s ->
+                      s.getWorkflow() != null
+                          && workflowTemplate.getId().equals(s.getWorkflow().getId()))
               .toList();
       assertEquals(1, stepsCreated.size());
       assertEquals(StepStatus.TEMPLATE, stepsCreated.getFirst().getStatus());
@@ -640,7 +662,8 @@ class ChainingIntegrationTest extends IntegrationTest {
               .getContentAsString();
 
       String duplicatedSimulationId = JsonPath.read(duplicatedResponse, "$.exercise_id");
-      Exercise duplicatedSimulation = exerciseRepository.findById(duplicatedSimulationId).orElseThrow();
+      Exercise duplicatedSimulation =
+          exerciseRepository.findById(duplicatedSimulationId).orElseThrow();
       Workflow duplicatedWorkflowTemplate =
           findTemplateWorkflowBySimulationId(duplicatedSimulation.getId());
 
@@ -648,22 +671,27 @@ class ChainingIntegrationTest extends IntegrationTest {
 
       List<Step> originalSteps =
           stepRepository.findAll().stream()
-              .filter(s -> s.getWorkflow() != null && workflowTemplate.getId().equals(s.getWorkflow().getId()))
+              .filter(
+                  s ->
+                      s.getWorkflow() != null
+                          && workflowTemplate.getId().equals(s.getWorkflow().getId()))
               .toList();
       List<Step> duplicatedSteps =
           stepRepository.findAll().stream()
               .filter(
                   s ->
                       s.getWorkflow() != null
-                      && duplicatedWorkflowTemplate.getId().equals(s.getWorkflow().getId()))
+                          && duplicatedWorkflowTemplate.getId().equals(s.getWorkflow().getId()))
               .toList();
 
       assertEquals(originalSteps.size(), duplicatedSteps.size(), "Step TEMPLATE count must match");
-      assertFalse(duplicatedSteps.isEmpty(), "Duplicated simulation workflow must contain step templates");
+      assertFalse(
+          duplicatedSteps.isEmpty(), "Duplicated simulation workflow must contain step templates");
 
       assertStepEqualsExceptId(originalSteps.getFirst(), duplicatedSteps.getFirst());
     }
   }
+
   private Workflow findTemplateWorkflowBySimulationId(String simulationId) {
     return workflowRepository.findAll().stream()
         .filter(w -> WorkflowStatus.TEMPLATE.equals(w.getStatus()))
@@ -705,15 +733,15 @@ class ChainingIntegrationTest extends IntegrationTest {
     assertEquals(expected.getStatus(), actual.getStatus());
     assertEquals(expected.getStepAction(), actual.getStepAction());
     assertEquals(expected.getInput(), actual.getInput());
-    assertEquals(StepService.setField(expected.getData(),"inject_exercise", ""),
-        StepService.setField(actual.getData(),"inject_exercise", ""),
-        "Step data must be the same expected for simulation id (inject_exercise)" );
+    assertEquals(
+        StepService.setField(expected.getData(), "inject_exercise", ""),
+        StepService.setField(actual.getData(), "inject_exercise", ""),
+        "Step data must be the same expected for simulation id (inject_exercise)");
     assertEquals(expected.getOutput(), actual.getOutput());
     assertEquals(expected.getOutput_parser(), actual.getOutput_parser());
     assertEquals(expected.getConditionExecuted(), actual.getConditionExecuted());
     assertEquals(expected.getLimitExecution(), actual.getLimitExecution());
   }
-
 
   private ScenarioInput buildScenarioInput() {
     ScenarioInput input = new ScenarioInput();

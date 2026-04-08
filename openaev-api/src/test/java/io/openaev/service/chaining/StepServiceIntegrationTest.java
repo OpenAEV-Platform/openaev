@@ -1,5 +1,9 @@
 package io.openaev.service.chaining;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
@@ -20,6 +24,7 @@ import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.helpers.InjectTestHelper;
+import java.util.*;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,13 +32,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.mock.mockito.SpyBean;
-
-import java.util.*;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
-
 
 @SpringBootTest
 class StepServiceIntegrationTest extends IntegrationTest {
@@ -59,8 +57,7 @@ class StepServiceIntegrationTest extends IntegrationTest {
   String injectInputJson;
   InjectorContract injectorContractSaved;
   @SpyBean private StepService spyStepService;
-  @Autowired
-  private WorkflowRepository workflowRepository;
+  @Autowired private WorkflowRepository workflowRepository;
 
   @BeforeEach
   void beforeEach() throws Exception {
@@ -159,7 +156,7 @@ class StepServiceIntegrationTest extends IntegrationTest {
   }
 
   @AfterEach
-  void afterEach(){
+  void afterEach() {
     workflowRepository.deleteAll();
   }
 

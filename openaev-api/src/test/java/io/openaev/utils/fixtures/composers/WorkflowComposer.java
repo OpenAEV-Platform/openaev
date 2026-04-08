@@ -3,12 +3,11 @@ package io.openaev.utils.fixtures.composers;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.WorkflowRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 @Component
 public class WorkflowComposer extends ComposerBase<Workflow> {

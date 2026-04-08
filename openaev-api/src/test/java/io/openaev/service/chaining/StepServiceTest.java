@@ -1334,7 +1334,9 @@ public class StepServiceTest {
 
     when(actionStep.create(any(), eq(workflow))).thenReturn(Optional.of(step));
 
-    doThrow(new IllegalArgumentException()).when(stepService).stepConditionTemplate(any(StepsCreateInput.StepCreateInput.class),any());
+    doThrow(new IllegalArgumentException())
+        .when(stepService)
+        .stepConditionTemplate(any(StepsCreateInput.StepCreateInput.class), any());
 
     assertThrows(
         IllegalArgumentException.class,

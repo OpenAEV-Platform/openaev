@@ -432,25 +432,26 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SCENARIO)
-  public Exercise createRunningExerciseFromScenario(
-      @PathVariable @NotBlank final String scenarioId) throws ChainingException {
+  public Exercise createRunningExerciseFromScenario(@PathVariable @NotBlank final String scenarioId)
+      throws ChainingException {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
     Exercise simulation;
 
     if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
         && workflowService.isScenarioChaining(scenarioId)) {
-      simulation = scenarioToExerciseService.toExercise(
-          scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
+      simulation =
+          scenarioToExerciseService.toExercise(
+              scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
       stepService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation);
 
     } else {
       this.scenarioService.throwIfScenarioNotLaunchable(scenario);
-      simulation = scenarioToExerciseService.toExercise(
-          scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
+      simulation =
+          scenarioToExerciseService.toExercise(
+              scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
     }
 
     return simulation;
-
   }
 
   @PostMapping({

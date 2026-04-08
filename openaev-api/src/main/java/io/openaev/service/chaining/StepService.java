@@ -66,15 +66,15 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
    */
   @Transactional(rollbackFor = Exception.class)
   public void startWorkflowBySimulationId(String simulationId) throws ChainingException {
-      Workflow workflowTemplate =
-              workflowService
-                      .findWorkflowTemplateBySimulationId(simulationId)
-                      .orElseThrow(
-                              () ->
-                                      new ElementNotFoundException(
-                                              "Workflow (TEMPLATE) not found. Simulation ID: " + simulationId));
-      Workflow workflowRun = workflowService.launchWorkflowSimulation(workflowTemplate);
-      startWorkflow(workflowRun, workflowTemplate);
+    Workflow workflowTemplate =
+        workflowService
+            .findWorkflowTemplateBySimulationId(simulationId)
+            .orElseThrow(
+                () ->
+                    new ElementNotFoundException(
+                        "Workflow (TEMPLATE) not found. Simulation ID: " + simulationId));
+    Workflow workflowRun = workflowService.launchWorkflowSimulation(workflowTemplate);
+    startWorkflow(workflowRun, workflowTemplate);
   }
 
   /**
@@ -83,7 +83,8 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
    * @param scenarioId id of the scenario to start
    */
   @Transactional(rollbackFor = Exception.class)
-  public void startWorkflowByScenarioIdAndSimulation(String scenarioId, Exercise simulation) throws ChainingException {
+  public void startWorkflowByScenarioIdAndSimulation(String scenarioId, Exercise simulation)
+      throws ChainingException {
     Workflow workflowTemplateScenario =
         workflowService
             .findWorkflowTemplateByScenarioId(scenarioId)
@@ -91,51 +92,53 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
                 () ->
                     new ElementNotFoundException(
                         "Workflow (TEMPLATE) not found. Scenario ID: " + scenarioId));
-    Workflow workflowRun = workflowService.launchWorkflowScenario(workflowTemplateScenario, simulation);
+    Workflow workflowRun =
+        workflowService.launchWorkflowScenario(workflowTemplateScenario, simulation);
 
     Workflow workflowTemplateSimulation = workflowRun.getWorkflowTemplate();
     copyStepTemplate(workflowTemplateScenario, workflowTemplateSimulation);
 
     startWorkflow(workflowRun, workflowTemplateSimulation);
-
   }
 
   @Transactional(rollbackFor = Exception.class)
   public void copyStepTemplate(Workflow workflowTemplateFrom, Workflow workflowTemplateTo) {
     List<Step> stepsTemplate = findAllStepTemplateByWorkflow(workflowTemplateFrom.getId());
 
-    //Copy steps template & Conditions
-    //Todo add condition not linked to a step
+    // Copy steps template & Conditions
+    // Todo add condition not linked to a step
     List<Step> stepsTemplateCopy = copyStepsTemplate(stepsTemplate, workflowTemplateTo);
     saveSteps(stepsTemplateCopy);
   }
 
-  private void startWorkflow(Workflow workflowRun, Workflow workflowTemplate) throws ChainingException {
-      // Get all step template
-      List<Step> stepsTemplate = findAllStepTemplateByWorkflow(workflowTemplate.getId());
+  private void startWorkflow(Workflow workflowRun, Workflow workflowTemplate)
+      throws ChainingException {
+    // Get all step template
+    List<Step> stepsTemplate = findAllStepTemplateByWorkflow(workflowTemplate.getId());
 
-      if (stepsTemplate.isEmpty()) {
-          log.info(
-                  "No step template for workflow template {}. End running {}",
-                  workflowTemplate.getId(),
-                  workflowRun.getId());
-          workflowRun.setStatus(WorkflowStatus.END);
-          workflowService.saveWorkflowRun(workflowRun);
-          return;
-      }
+    if (stepsTemplate.isEmpty()) {
+      log.info(
+          "No step template for workflow template {}. End running {}",
+          workflowTemplate.getId(),
+          workflowRun.getId());
+      workflowRun.setStatus(WorkflowStatus.END);
+      workflowService.saveWorkflowRun(workflowRun);
+      return;
+    }
 
-      // Step template with valid conditions
-      List<Step> stepWithValidCondition = new ArrayList<>();
+    // Step template with valid conditions
+    List<Step> stepWithValidCondition = new ArrayList<>();
 
-      for (Step step : stepsTemplate) {
-          Optional<Step> stepReadyOpt = ready(step, workflowRun, null);
-          stepReadyOpt.ifPresent(stepWithValidCondition::add);
-      }
+    for (Step step : stepsTemplate) {
+      Optional<Step> stepReadyOpt = ready(step, workflowRun, null);
+      stepReadyOpt.ifPresent(stepWithValidCondition::add);
+    }
 
-    // If none step TEMPLATE with valid conditions && no step template delayed update workflow with status END
+    // If none step TEMPLATE with valid conditions && no step template delayed update workflow with
+    // status END
     if (stepWithValidCondition.isEmpty()
         && stepDelayQueueRepository.findAllByWorkflowRun(workflowRun).isEmpty()) {
-        workflowRun.setStatus(WorkflowStatus.END);
+      workflowRun.setStatus(WorkflowStatus.END);
     }
   }
 
@@ -361,19 +364,20 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     List<Step> stepsCopied = new ArrayList<>();
     for (Step step : stepsFrom) {
       String data = step.getData();
-      if(workflowTo.getSimulation() != null)
+      if (workflowTo.getSimulation() != null)
         data = StepService.setField(data, "inject_exercise", workflowTo.getSimulation().getId());
 
-      Step copy = Step.builder()
-          .stepAction(step.getStepAction())
-          .output(step.getOutput())
-          .output_parser(step.getOutput_parser())
-          .input(step.getInput())
-          .data(data)
-          .limitExecution(step.getLimitExecution())
-          .status(StepStatus.TEMPLATE)
-          .workflow(workflowTo)
-          .build();
+      Step copy =
+          Step.builder()
+              .stepAction(step.getStepAction())
+              .output(step.getOutput())
+              .output_parser(step.getOutput_parser())
+              .input(step.getInput())
+              .data(data)
+              .limitExecution(step.getLimitExecution())
+              .status(StepStatus.TEMPLATE)
+              .workflow(workflowTo)
+              .build();
 
       copy = saveStep(copy);
       copyStepConditionTemplate(step, copy);
@@ -390,9 +394,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     }
     Condition firstCondition =
         conditions.stream()
-            .filter(
-                condition ->
-                    condition.getConditionParent() == null)
+            .filter(condition -> condition.getConditionParent() == null)
             .reduce(
                 (a, b) -> {
                   throw new IllegalArgumentException(
@@ -403,7 +405,10 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
                     new IllegalArgumentException(
                         "New step (TEMPLATE): Only 1 condition can be first parent"));
 
-    Step stepFrom = firstCondition.getStepFrom() ==null ? null : findStepFromCondition(firstCondition.getStepFrom().getId());
+    Step stepFrom =
+        firstCondition.getStepFrom() == null
+            ? null
+            : findStepFromCondition(firstCondition.getStepFrom().getId());
 
     Condition first =
         Condition.builder()
@@ -421,10 +426,8 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
 
     Map<String, List<Condition>> temporaryConditions =
         conditions.stream()
-            .filter(
-                condition ->
-                    condition.getConditionParent() != null)
-            .collect(Collectors.groupingBy(condition ->  condition.getConditionParent().getId()));
+            .filter(condition -> condition.getConditionParent() != null)
+            .collect(Collectors.groupingBy(condition -> condition.getConditionParent().getId()));
 
     Queue<String> currentId = new LinkedList<>();
     currentId.add(firstCondition.getId());
@@ -436,15 +439,17 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
           temporaryConditions.getOrDefault(currentTemporaryId, new ArrayList<>());
 
       for (Condition condition : conditionsTemplate) {
-        Step stepFromCondition = condition.getStepFrom() == null ? null : findStepFromCondition(condition.getStepFrom().getId());
+        Step stepFromCondition =
+            condition.getStepFrom() == null
+                ? null
+                : findStepFromCondition(condition.getStepFrom().getId());
 
         Condition current =
             Condition.builder()
                 .type(condition.getType())
                 .key(condition.getKey())
                 .value(condition.getValue())
-                .conditionParent(
-                    temporaryIdAndSaveId.get(condition.getConditionParent().getId()))
+                .conditionParent(temporaryIdAndSaveId.get(condition.getConditionParent().getId()))
                 .step(stepCopied)
                 .stepFrom(stepFromCondition)
                 .build();
@@ -566,7 +571,8 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
   }
 
   public List<Step> findAllStepExecutedByWorkflowRunId(String id) {
-    return stepRepository.findAllStepByWorkflow_IdAndStatusIn(id, List.of(StepStatus.RUN, StepStatus.READY));
+    return stepRepository.findAllStepByWorkflow_IdAndStatusIn(
+        id, List.of(StepStatus.RUN, StepStatus.READY));
   }
 
   private Step findStepFromCondition(String stepFromId) {
@@ -577,7 +583,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
               () ->
                   new ElementNotFoundException(
                       "Condition references a non-existing step (field: stepFrom). Step ID: "
-                      + stepFromId));
+                          + stepFromId));
     }
     return null;
   }
@@ -842,8 +848,8 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
       StringBuilder path) {
     switch (actionJson) {
       case REPLACE -> {
-        JsonPrimitive newValue = fieldsAndValue.get(field) == null ?
-            null : toJsonPrimitive(fieldsAndValue.get(field));
+        JsonPrimitive newValue =
+            fieldsAndValue.get(field) == null ? null : toJsonPrimitive(fieldsAndValue.get(field));
         switch (typeJson) {
           case OBJECT -> {
             JsonObject object = jsonElement.getAsJsonObject();

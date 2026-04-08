@@ -496,7 +496,8 @@ class WorkflowServiceTest {
 
       // Service now owns the apply logic — no manual mapper call needed
       WorkflowService service =
-          new WorkflowService(workflowRepository, workflowScopeRuleRepository, previewFeatureService);
+          new WorkflowService(
+              workflowRepository, workflowScopeRuleRepository, previewFeatureService);
 
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
@@ -589,7 +590,8 @@ class WorkflowServiceTest {
           WorkflowConfigurationInput.builder().workflowScopeRules(List.of(ruleInput)).build();
 
       WorkflowService service =
-          new WorkflowService(workflowRepository, workflowScopeRuleRepository, previewFeatureService);
+          new WorkflowService(
+              workflowRepository, workflowScopeRuleRepository, previewFeatureService);
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
       when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
