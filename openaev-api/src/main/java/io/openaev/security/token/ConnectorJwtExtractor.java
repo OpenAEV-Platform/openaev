@@ -3,9 +3,11 @@ package io.openaev.security.token;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Jwks;
+import io.openaev.database.model.User;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.opencti.errors.ConnectorError;
+import io.openaev.service.UserService;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,11 +16,12 @@ import org.springframework.stereotype.Component;
 @Component
 @Slf4j
 @RequiredArgsConstructor
-public class JwtExtractor implements ExtractorBase {
+public class ConnectorJwtExtractor implements ExtractorBase {
   private final OpenCTIConnectorService openCTIConnectorService;
+  private final UserService userService;
 
   @Override
-  public String extractToken(String value) throws ConnectorError, JwtException {
+  public Optional<User> authUser(String value) throws ConnectorError, JwtException {
     Optional<ConnectorBase> openCTIConnector = openCTIConnectorService.getConnectorBase();
     if (openCTIConnector.isEmpty()) {
       throw new ConnectorError("Connector not found");
@@ -43,6 +46,6 @@ public class JwtExtractor implements ExtractorBase {
         .build()
         .parseSignedClaims(value);
 
-    return openCTIConnector.get().getToken();
+    return userService.findByToken(openCTIConnector.get().getToken());
   }
 }

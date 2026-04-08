@@ -1,5 +1,6 @@
 package io.openaev.xtmone;
 
+import io.openaev.utils.StringUtils;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -22,13 +23,13 @@ public class XtmOneConfig {
   private volatile String platformVersion;
 
   public String getEffectiveWebToken() {
-    if (webToken != null && !webToken.isBlank()) {
-      return webToken;
+    if (!StringUtils.isBlank(getWebToken())) {
+      return getWebToken();
     }
-    return discoveredWebToken;
+    return getDiscoveredWebToken();
   }
 
   public boolean isConfigured() {
-    return url != null && !url.isBlank() && token != null && !token.isBlank();
+    return !StringUtils.isBlank(getUrl()) && !StringUtils.isBlank(getToken());
   }
 }
