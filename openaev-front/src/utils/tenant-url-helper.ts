@@ -54,23 +54,41 @@ export const computeTenantBasename = (): string => {
 };
 
 /**
- * Builds a full browser URL for a given tenant and in-app pathname.
- * Used when switching tenants or hard-redirecting to a tenant-prefixed URL.
+ * Builds a full browser URL for a given tenant.
+ *
+ * When called without pathname / search / hash, the current
+ * window.location values are used — this preserves deep links
+ * during the initial tenant redirect (root.tsx).
+ *
+ * When called with explicit values (e.g. from useTenant during
+ * a tenant switch), those values are used instead.
  *
  * @param tenantId  - target tenant UUID
- * @param pathname  - app-relative path (e.g. "/admin/scenarios"), should start with "/"
- * @param search    - optional query string (e.g. "?foo=bar")
- * @param hash      - optional hash fragment (e.g. "#section")
+ * @param pathname  - app-relative path (e.g. "/admin/scenarios"); defaults to current URL path
+ * @param search    - query string (e.g. "?foo=bar"); defaults to current URL search
+ * @param hash      - hash fragment (e.g. "#section"); defaults to current URL hash
  */
 export const buildTenantUrl = (
   tenantId: string,
-  pathname: string,
-  search: string = '',
-  hash: string = '',
+  pathname?: string,
+  search?: string,
+  hash?: string,
 ): string => {
   const base = APP_BASE_PATH || '';
-  const normalizedPath = pathname.startsWith('/') ? pathname : `/${pathname}`;
-  return `${base}/${tenantId}${normalizedPath}${search}${hash}`;
+
+  let resolvedPath: string;
+  if (pathname !== undefined) {
+    resolvedPath = pathname;
+  } else {
+    // Read the current deep link, stripping APP_BASE_PATH
+    const raw = window.location.pathname;
+    resolvedPath = raw.startsWith(base) ? raw.slice(base.length) : raw;
+  }
+
+  const normalizedPath = resolvedPath.startsWith('/') ? resolvedPath : `/${resolvedPath}`;
+  const resolvedSearch = search ?? window.location.search;
+  const resolvedHash = hash ?? window.location.hash;
+  return `${base}/${tenantId}${normalizedPath}${resolvedSearch}${resolvedHash}`;
 };
 
 // ---------------------------------------------------------------------------
