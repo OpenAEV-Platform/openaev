@@ -1,6 +1,7 @@
 package io.openaev.rest.inject;
 
 import static io.openaev.config.SessionHelper.currentUser;
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
 import co.elastic.clients.util.VisibleForTesting;
@@ -80,6 +81,7 @@ import org.springframework.web.bind.annotation.*;
 public class InjectApi extends RestBehavior {
 
   public static final String INJECT_URI = "/api/injects";
+  private static final String TENANT_INJECT_URI = TENANT_PREFIX + "/injects";
 
   private static final int MAX_NEXT_INJECTS = 6;
 
@@ -128,7 +130,7 @@ public class InjectApi extends RestBehavior {
 
   // -- INJECTS --
 
-  @GetMapping(INJECT_URI + "/{injectId}")
+  @GetMapping({INJECT_URI + "/{injectId}", TENANT_INJECT_URI + "/{injectId}"})
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.READ,
@@ -138,7 +140,7 @@ public class InjectApi extends RestBehavior {
   }
 
   @LogExecutionTime
-  @PostMapping(INJECT_URI + "/search/export")
+  @PostMapping({INJECT_URI + "/search/export", TENANT_INJECT_URI + "/search/export"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
   public void injectsExportFromSearch(
       @RequestBody @Valid InjectExportFromSearchRequestInput input, HttpServletResponse response)
@@ -161,7 +163,7 @@ public class InjectApi extends RestBehavior {
         response);
   }
 
-  @PostMapping(INJECT_URI + "/export")
+  @PostMapping({INJECT_URI + "/export", TENANT_INJECT_URI + "/export"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
   public void injectsExport(
       @RequestBody @Valid final InjectExportRequestInput injectExportRequestInput,
@@ -201,7 +203,10 @@ public class InjectApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "Inject exported successfully"),
         @ApiResponse(responseCode = "404", description = "The inject was not found")
       })
-  @PostMapping(INJECT_URI + "/{injectId}/inject_export")
+  @PostMapping({
+    INJECT_URI + "/{injectId}/inject_export",
+    TENANT_INJECT_URI + "/{injectId}/inject_export"
+  })
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.READ,
@@ -253,7 +258,11 @@ public class InjectApi extends RestBehavior {
         @ApiResponse(responseCode = "400", description = "An invalid target type was specified")
       })
   @LogExecutionTime
-  @PostMapping(path = INJECT_URI + "/{injectId}/targets/{targetType}/search")
+  @PostMapping(
+      path = {
+        INJECT_URI + "/{injectId}/targets/{targetType}/search",
+        TENANT_INJECT_URI + "/{injectId}/targets/{targetType}/search"
+      })
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.READ,
@@ -292,7 +301,11 @@ public class InjectApi extends RestBehavior {
         @ApiResponse(responseCode = "400", description = "An invalid target type was specified")
       })
   @LogExecutionTime
-  @GetMapping(path = INJECT_URI + "/{injectId}/targets/{targetType}/options")
+  @GetMapping(
+      path = {
+        INJECT_URI + "/{injectId}/targets/{targetType}/options",
+        TENANT_INJECT_URI + "/{injectId}/targets/{targetType}/options"
+      })
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.READ,
@@ -330,7 +343,11 @@ public class InjectApi extends RestBehavior {
         @ApiResponse(responseCode = "400", description = "An invalid target type was specified")
       })
   @LogExecutionTime
-  @PostMapping(path = INJECT_URI + "/targets/{targetType}/options")
+  @PostMapping(
+      path = {
+        INJECT_URI + "/targets/{targetType}/options",
+        TENANT_INJECT_URI + "/targets/{targetType}/options"
+      })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public List<FilterUtilsJpa.Option> targetOptionsById(
       @PathVariable String targetType, @RequestBody final List<String> ids) {
@@ -344,7 +361,10 @@ public class InjectApi extends RestBehavior {
     return targetService.getTargetOptionsByIds(injectTargetTypeEnum, ids);
   }
 
-  @PostMapping(INJECT_URI + "/execution/reception/{injectId}")
+  @PostMapping({
+    INJECT_URI + "/execution/reception/{injectId}",
+    TENANT_INJECT_URI + "/execution/reception/{injectId}"
+  })
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
@@ -357,7 +377,10 @@ public class InjectApi extends RestBehavior {
     return injectRepository.save(inject);
   }
 
-  @PostMapping(INJECT_URI + "/execution/callback/{injectId}")
+  @PostMapping({
+    INJECT_URI + "/execution/callback/{injectId}",
+    TENANT_INJECT_URI + "/execution/callback/{injectId}"
+  })
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
@@ -368,7 +391,10 @@ public class InjectApi extends RestBehavior {
     injectExecutionCallback(null, injectId, input);
   }
 
-  @PostMapping(INJECT_URI + "/execution/{agentId}/callback/{injectId}")
+  @PostMapping({
+    INJECT_URI + "/execution/{agentId}/callback/{injectId}",
+    TENANT_INJECT_URI + "/execution/{agentId}/callback/{injectId}"
+  })
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
@@ -412,7 +438,10 @@ public class InjectApi extends RestBehavior {
     }
   }
 
-  @GetMapping(INJECT_URI + "/{injectId}/{agentId}/executable-payload")
+  @GetMapping({
+    INJECT_URI + "/{injectId}/{agentId}/executable-payload",
+    TENANT_INJECT_URI + "/{injectId}/{agentId}/executable-payload"
+  })
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.READ,
@@ -430,7 +459,10 @@ public class InjectApi extends RestBehavior {
   // -- EXERCISES --
 
   @Transactional(rollbackFor = Exception.class)
-  @PutMapping(INJECT_URI + "/{exerciseId}/{injectId}")
+  @PutMapping({
+    INJECT_URI + "/{exerciseId}/{injectId}",
+    TENANT_INJECT_URI + "/{exerciseId}/{injectId}"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -470,7 +502,7 @@ public class InjectApi extends RestBehavior {
     return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
 
-  @GetMapping(INJECT_URI + "/next")
+  @GetMapping({INJECT_URI + "/next", TENANT_INJECT_URI + "/next"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
   public List<Inject> nextInjectsToExecute(@RequestParam Optional<Integer> size) {
     return injectRepository.findAll(InjectSpecification.next()).stream()
@@ -497,7 +529,7 @@ public class InjectApi extends RestBehavior {
       description = "Bulk update of injects",
       tags = {"Injects"})
   @Transactional(rollbackFor = Exception.class)
-  @PutMapping(INJECT_URI)
+  @PutMapping({INJECT_URI, TENANT_INJECT_URI})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.INJECT)
   @LogExecutionTime
   public List<Inject> bulkUpdateInject(@RequestBody @Valid final InjectBulkUpdateInputs input) {
@@ -514,7 +546,7 @@ public class InjectApi extends RestBehavior {
       description = "Bulk delete of injects",
       tags = {"injects-api"})
   @Transactional(rollbackFor = Exception.class)
-  @DeleteMapping(INJECT_URI)
+  @DeleteMapping({INJECT_URI, TENANT_INJECT_URI})
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.INJECT)
   @LogExecutionTime
   public List<Inject> bulkDelete(@RequestBody @Valid final InjectBulkProcessingInput input) {
@@ -530,7 +562,7 @@ public class InjectApi extends RestBehavior {
 
   // -- OPTION --
 
-  @GetMapping(INJECT_URI + "/findings/options")
+  @GetMapping({INJECT_URI + "/findings/options", TENANT_INJECT_URI + "/findings/options"})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public List<FilterUtilsJpa.Option> optionsByTitleLinkedToFindings(
       @RequestParam(required = false) final String searchText,
@@ -539,7 +571,7 @@ public class InjectApi extends RestBehavior {
         searchText, sourceId, PageRequest.of(0, 50));
   }
 
-  @PostMapping(INJECT_URI + "/options")
+  @PostMapping({INJECT_URI + "/options", TENANT_INJECT_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.injectRepository.findAllById(ids)).stream()
@@ -575,7 +607,7 @@ public class InjectApi extends RestBehavior {
   @Operation(
       description =
           "Get ExecutionTraces from a specific inject and target (asset, agent, team, player)")
-  @GetMapping(INJECT_URI + "/execution-traces")
+  @GetMapping({INJECT_URI + "/execution-traces", TENANT_INJECT_URI + "/execution-traces"})
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.READ,
@@ -590,7 +622,7 @@ public class InjectApi extends RestBehavior {
   }
 
   @Operation(description = "Get InjectStatus with global execution traces")
-  @GetMapping(INJECT_URI + "/status")
+  @GetMapping({INJECT_URI + "/status", TENANT_INJECT_URI + "/status"})
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.READ,
@@ -602,7 +634,10 @@ public class InjectApi extends RestBehavior {
   }
 
   @Operation(description = "Get detection remediation by inject based on the payload definition")
-  @GetMapping(INJECT_URI + "/detection-remediations/{injectId}")
+  @GetMapping({
+    INJECT_URI + "/detection-remediations/{injectId}",
+    TENANT_INJECT_URI + "/detection-remediations/{injectId}"
+  })
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.READ,
@@ -614,7 +649,10 @@ public class InjectApi extends RestBehavior {
   }
 
   @Operation(description = "Get documents by inject and payload id")
-  @GetMapping(INJECT_URI + "/{injectId}/payload/{payloadId}/documents")
+  @GetMapping({
+    INJECT_URI + "/{injectId}/payload/{payloadId}/documents",
+    TENANT_INJECT_URI + "/{injectId}/payload/{payloadId}/documents"
+  })
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.READ,

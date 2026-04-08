@@ -18,6 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.AssetGroupRepository;
@@ -148,7 +149,12 @@ class EndpointApiTest extends IntegrationTest {
 
     Mockito.doReturn("command")
         .when(endpointService)
-        .generateUpgradeCommand(String.valueOf(Endpoint.PLATFORM_TYPE.Windows), null, null, null);
+        .generateUpgradeCommand(
+            String.valueOf(Endpoint.PLATFORM_TYPE.Windows),
+            null,
+            null,
+            null,
+            TenantContext.getCurrentTenant());
 
     // --EXECUTE--
     String response =
@@ -187,7 +193,12 @@ class EndpointApiTest extends IntegrationTest {
 
     Mockito.doReturn("command")
         .when(endpointService)
-        .generateUpgradeCommand(String.valueOf(Endpoint.PLATFORM_TYPE.Windows), null, null, null);
+        .generateUpgradeCommand(
+            String.valueOf(Endpoint.PLATFORM_TYPE.Windows),
+            null,
+            null,
+            null,
+            TenantContext.getCurrentTenant());
 
     // --EXECUTE--
     String response =

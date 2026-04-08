@@ -81,7 +81,8 @@ public class CalderaExecutorContextService extends ExecutorContextService {
                 List<Map<String, String>> additionalFields =
                     List.of(
                         Map.of("trait", "inject", "value", inject.getId()),
-                        Map.of("trait", "agent", "value", agent.getId()));
+                        Map.of("trait", "agent", "value", agent.getId()),
+                        Map.of("trait", "tenant", "value", inject.getTenant().getId()));
                 calderaExecutorClient.exploit(
                     "base64",
                     agent.getExternalReference(),
