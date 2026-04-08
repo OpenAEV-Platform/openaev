@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
  *   <li>Application identity (name, version, instance ID)
  *   <li>URLs (base URL, frontend URL, agent URL)
  *   <li>Authentication settings (local, OpenID, SAML2, Kerberos)
- *   <li>Security settings (cookies, certificates)
+ *   <li>Security settings (cookie name, certificates)
  *   <li>Map tile server configuration
  *   <li>Queue configuration for background processing
  * </ul>
@@ -111,14 +111,6 @@ public class OpenAEVConfig {
   @JsonIgnore
   @Value("${openbas.cookie-name:${openaev.cookie-name:openaev_token}}")
   private String cookieName;
-
-  @JsonIgnore
-  @Value("${openbas.cookie-duration:${openaev.cookie-duration:P1D}}")
-  private String cookieDuration;
-
-  @JsonIgnore
-  @Value("${openbas.cookie-secure:${openaev.cookie-secure:false}}")
-  private boolean cookieSecure;
 
   @JsonProperty("application_agent_url")
   @Value("${openbas.agent-url:${openaev.agent-url:#{null}}}")
