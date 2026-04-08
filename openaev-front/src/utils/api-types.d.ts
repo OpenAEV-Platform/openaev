@@ -1206,6 +1206,8 @@ export interface Condition {
 
 /** Condition used to execute a step. Can be a Template or an Execution depending on the status of stepFrom. */
 export interface ConditionCreateInput {
+  /** Value to be compared */
+  condition_key?: string;
   /** Condition key subtype */
   condition_key_subtype?: "port" | "ipv4" | "ipv6" | "username" | "password";
   /** Path to the value in the output of the step from */
@@ -1230,7 +1232,6 @@ export interface ConditionCreateInput {
     | "delegation"
     | "sid"
     | "vulnerability"
-    | "account_with_password_not_required"
     | "asset";
   /** ID of the step linked to the key */
   condition_step_from?: string;
@@ -1284,7 +1285,6 @@ export interface ConditionOutput {
     | "delegation"
     | "sid"
     | "vulnerability"
-    | "account_with_password_not_required"
     | "asset";
   condition_parent_id?: string;
   condition_type?: string;
@@ -1779,6 +1779,10 @@ export interface CweOutput {
   cwe_external_id: string;
   /** Source of the CWE */
   cwe_source?: string;
+}
+
+export interface DataInputStep {
+  type: string;
 }
 
 export type DateHistogramWidget = UtilRequiredKeys<
@@ -2724,7 +2728,6 @@ export interface EventInput {
   event_description?: string;
   /** @minLength 1 */
   event_name: string;
-  event_step_from?: string;
   event_step_ids?: string[];
   /** @minLength 1 */
   event_workflow_id: string;
@@ -2739,7 +2742,6 @@ export interface EventOutput {
   event_id: string;
   /** @minLength 1 */
   event_name: string;
-  event_step_from?: string;
   /** @format date-time */
   event_updated_at?: string;
   /** @minLength 1 */
@@ -3871,7 +3873,7 @@ export interface InjectIndividualExportRequestInput {
   options?: ExportOptionsInput;
 }
 
-export interface InjectInput {
+export type InjectInput = DataInputStep & {
   inject_all_teams?: boolean;
   inject_asset_groups?: string[];
   inject_assets?: string[];
@@ -3890,7 +3892,7 @@ export interface InjectInput {
   inject_teams?: string[];
   /** @minLength 1 */
   inject_title: string;
-}
+};
 
 export interface InjectOutput {
   /** Footer of the inject */
@@ -7231,20 +7233,39 @@ export interface StepInput {
   step_condition_ids?: string[];
   step_conditions?: ConditionCreateInput[];
   step_data_step?: InjectInput;
-  /** @format int32 */
-  step_limit_execution?: number;
   /** @minLength 1 */
   step_workflow_id: string;
 }
 
 export interface StepOutput {
+  step_condition_key_types?: (
+    | "execution_time"
+    | "step_template_id"
+    | "text"
+    | "status"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "asset"
+  )[];
   /** @format date-time */
   step_created_at?: string;
-  step_data?: string;
+  step_data?: JsonNode;
   step_id?: string;
-  /** @format int32 */
-  step_limit_execution?: number;
-  step_status?: string;
+  step_status?: "TEMPLATE" | "READY" | "RUN" | "END";
   /** @format date-time */
   step_updated_at?: string;
 }
