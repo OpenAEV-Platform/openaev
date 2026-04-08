@@ -1,13 +1,12 @@
 package io.openaev.migration;
 
 import java.sql.Statement;
-
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_83__Add_scenario_to_workflow extends BaseJavaMigration {
+public class V4_90__Add_scenario_to_workflow extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

@@ -41,6 +41,7 @@ import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.service.ScenarioStatisticService;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.chaining.StepService;
@@ -541,7 +542,8 @@ public class ExerciseService {
   }
 
   @Transactional(rollbackFor = Exception.class)
-  public Exercise changeExerciseStatus(ExerciseStatus status, String exerciseId) {
+  public Exercise changeExerciseStatus(ExerciseStatus status, String exerciseId)
+      throws ChainingException {
     Exercise exercise =
         this.exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
     // Check if next status is possible
