@@ -65,8 +65,10 @@ public class InjectExecutionStepTest {
     Injector injectorSaved = injectorRepository.save(injector);
 
     InjectorContract injectorContract = InjectorContractFixture.createImplantInjectorContract();
-    injectorContract.setInjector(injectorSaved);
+    injectorContract.addInjector(injectorSaved);
     injectorContractSaved = injectorContractRepository.save(injectorContract);
+    injectorSaved.getContracts().add(injectorContractSaved);
+    injectorRepository.save(injectorSaved);
 
     doReturn(injectorContractSaved).when(injectorContractService).injectorContract(any());
     doReturn(new User()).when(userService).currentUser();
@@ -152,7 +154,7 @@ public class InjectExecutionStepTest {
                         """
             .formatted(
                 injectorContractSaved.getId(),
-                injectorContractSaved.getInjector().getId(),
+                injectorContractSaved.getFirstInjector().getId(),
                 asset.getId());
   }
 
@@ -383,11 +385,14 @@ public class InjectExecutionStepTest {
     assertTrue(stepReadyOpt.isPresent());
     Step stepReady = stepReadyOpt.get();
 
-    String injectorId =
+    String injectorIdsJson =
         StepService.getField(
-            stepReady.getData(), "inject_injector_contract.injector_contract_injector");
-    assertNotNull(injectorId);
-    injectorRepository.deleteById(injectorId);
+            stepReady.getData(), "inject_injector_contract.injector_contract_injectors");
+    assertNotNull(injectorIdsJson);
+    String[] injectorIds = mapper.readValue(injectorIdsJson, String[].class);
+    for (String id : injectorIds) {
+      injectorRepository.deleteById(id);
+    }
 
     // ACT
     ChainingException ex =
@@ -427,20 +432,16 @@ public class InjectExecutionStepTest {
     assertTrue(stepReadyOpt.isPresent());
     Step stepReady = stepReadyOpt.get();
 
-    String injectorId =
-        StepService.getField(
-            stepReady.getData(), "inject_injector_contract.injector_contract_injector");
+    String injectorId = StepService.getField(stepReady.getData(), "inject_injector");
     assertNotNull(injectorId);
-    stepReady.setData(
-        StepService.setField(
-            stepReady.getData(), "inject_injector_contract.injector_contract_injector", ""));
+    stepReady.setData(StepService.setField(stepReady.getData(), "inject_injector", ""));
 
     ChainingException ex =
         Assertions.assertThrows(ChainingException.class, () -> injectExecutionStep.run(stepReady));
 
     // ASSERT
     Assertions.assertEquals(
-        "Injector not found for injectorId  and step (READY) ID null", ex.getMessage());
+        "Injector not found for inject null and step (READY) ID null", ex.getMessage());
   }
 
   @Test

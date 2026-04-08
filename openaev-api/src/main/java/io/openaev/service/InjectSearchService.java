@@ -145,7 +145,7 @@ public class InjectSearchService {
     Join<Base, Base> payloadJoin = injectorContractJoin.join("payload", JoinType.LEFT);
     joinMap.put("payload", payloadJoin);
 
-    Join<Base, Base> injectorJoin = injectorContractJoin.join("injector", JoinType.LEFT);
+    Join<Base, Base> injectorJoin = injectorContractJoin.join("injectors", JoinType.LEFT);
     joinMap.put("injector", injectorJoin);
 
     Join<Base, Base> injectDependency = injectRoot.join("dependsOn", JoinType.LEFT);
@@ -494,7 +494,7 @@ public class InjectSearchService {
     Join<Base, Base> injectorContractJoin = injectRoot.join("injectorContract", JoinType.LEFT);
     joinMap.put("injectorContract", injectorContractJoin);
 
-    Join<Base, Base> injectorJoin = injectorContractJoin.join("injector", JoinType.LEFT);
+    Join<Base, Base> injectorJoin = injectorContractJoin.join("injectors", JoinType.LEFT);
     joinMap.put("injector", injectorJoin);
 
     Join<Base, Base> payloadJoin = injectorContractJoin.join("payload", JoinType.LEFT);

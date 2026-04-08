@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { type ReactElement, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { addExercise } from '../../../../actions/Exercise';
@@ -9,16 +9,30 @@ import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import { type CreateExerciseInput, type Exercise, type PlatformSettings } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
+import { isFeatureEnabled } from '../../../../utils/utils';
+import EngineTypeSelection, { type EngineType } from '../../common/EngineTypeSelection';
 import ExerciseForm from './ExerciseForm';
+import ExerciseFormChaining from './ExerciseFormChaining';
 
 const ExerciseCreation = () => {
   // Standard hooks
+  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const [open, setOpen] = useState(false);
+  const [engineType, setEngineType] = useState<EngineType>(isChainingFeatureEnabled ? null : 'time-based');
   const { t } = useFormatter();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+
+  const handleTypeSelected = useCallback((type: EngineType) => {
+    setEngineType(type);
+  }, []);
+
   const onSubmit = (data: CreateExerciseInput) => {
-    dispatch(addExercise(data)).then((result: {
+    const payload: CreateExerciseInput = {
+      ...data,
+      exercise_is_chaining: engineType === 'chaining',
+    };
+    dispatch(addExercise(payload)).then((result: {
       result: string;
       entities: { scenarios: Record<string, Exercise> };
     }) => {
@@ -45,6 +59,39 @@ const ExerciseCreation = () => {
     exercise_message_footer: t('SIMULATION FOOTER'),
   };
 
+  const renderDrawerContent = (): ReactElement => {
+    // if feature flag is disabled we just display the old form
+    if (!isChainingFeatureEnabled) {
+      return (
+        <ExerciseForm
+          onSubmit={onSubmit}
+          handleClose={() => setOpen(false)}
+          initialValues={initialValues}
+          edit={false}
+        />
+      );
+    }
+
+    return (
+      <>
+        <EngineTypeSelection
+          selected={engineType}
+          onSelect={handleTypeSelected}
+        />
+        {/* if scenario type is selected (standard or chaining), then display the form */}
+        {engineType !== null && (
+          <ExerciseFormChaining
+            onSubmit={onSubmit}
+            handleClose={() => setOpen(false)}
+            initialValues={initialValues}
+            edit={false}
+            isChaining={engineType === 'chaining'}
+          />
+        )}
+      </>
+    );
+  };
+
   return (
     <>
       <ButtonCreate onClick={() => setOpen(true)} />
@@ -53,12 +100,7 @@ const ExerciseCreation = () => {
         handleClose={() => setOpen(false)}
         title={t('Create a new simulation')}
       >
-        <ExerciseForm
-          onSubmit={onSubmit}
-          handleClose={() => setOpen(false)}
-          initialValues={initialValues}
-          edit={false}
-        />
+        {renderDrawerContent}
       </Drawer>
     </>
   );

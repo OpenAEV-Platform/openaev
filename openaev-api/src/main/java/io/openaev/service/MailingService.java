@@ -48,7 +48,7 @@ public class MailingService {
             .findById(EmailContract.EMAIL_DEFAULT)
             .orElseThrow(ElementNotFoundException::new);
     inject.setInjectorContract(emailContract);
-    inject.setInjector(emailContract.getInjector());
+    inject.setInjector(emailContract.getFirstInjector());
 
     inject
         .getInjectorContract()
@@ -77,10 +77,13 @@ public class MailingService {
                       .toList();
               ExecutableInject injection =
                   new ExecutableInject(false, true, inject, userInjectContexts);
+              // TODO we will need to do multiple execution in our next PR. For now, we can use the
+              // first
+              // injector we find.
               io.openaev.executors.Injector executor =
                   managerFactory
                       .getManager()
-                      .requestInjectorExecutorByType(injectorContract.getInjector().getType());
+                      .requestInjectorExecutorByType(injectorContract.getFirstInjector().getType());
               executor.executeInjection(injection);
             });
   }

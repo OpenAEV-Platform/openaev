@@ -1,5 +1,7 @@
 package io.openaev.utils.mapper;
 
+import static java.util.Optional.ofNullable;
+
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.healthcheck.dto.HealthCheck;
@@ -59,7 +61,7 @@ public class InjectMapper {
         .title(inject.getTitle())
         .description(inject.getDescription())
         .content(inject.getContent())
-        .type(injectorContract.map(contract -> contract.getInjector().getType()).orElse(null))
+        .type(inject.getType())
         .tagIds(inject.getTags().stream().map(Tag::getId).toList())
         .documentIds(documentIds)
         .injectorContract(toInjectorContractOutput(injectorContract))
@@ -126,7 +128,7 @@ public class InjectMapper {
                     .content(contract.getContent())
                     .convertedContent(contract.getConvertedContent())
                     .platforms(contract.getPlatforms())
-                    .payload(toPayloadSimple(Optional.ofNullable(contract.getPayload())))
+                    .payload(toPayloadSimple(ofNullable(contract.getPayload())))
                     .labels(contract.getLabels())
                     .build())
         .orElse(null);
@@ -280,7 +282,7 @@ public class InjectMapper {
 
   public InjectOutput toInjectOutput(Inject inject, List<HealthCheck> healthchecks) {
     InjectorContract injectorContract = inject.getInjectorContract().orElse(null);
-    String type = injectorContract != null ? injectorContract.getInjector().getType() : null;
+    String type = inject.getType();
     return toInjectOutput(
         inject.getId(),
         inject.getTitle(),

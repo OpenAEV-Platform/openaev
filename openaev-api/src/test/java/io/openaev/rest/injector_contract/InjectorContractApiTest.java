@@ -4,7 +4,8 @@ import static io.openaev.rest.injector_contract.InjectorContractApi.INJECTOR_CON
 import static io.openaev.service.UserService.buildAuthenticationToken;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
@@ -18,6 +19,11 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.DomainRepository;
 import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.helper.SupportedLanguage;
+import io.openaev.injector_contract.Contract;
+import io.openaev.injector_contract.ContractConfig;
+import io.openaev.injector_contract.ContractDef;
+import io.openaev.injector_contract.fields.ContractText;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.injector_contract.form.InjectorContractAddInput;
 import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
@@ -36,6 +42,7 @@ import jakarta.transaction.Transactional;
 import java.sql.BatchUpdateException;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -67,6 +74,7 @@ public class InjectorContractApiTest extends IntegrationTest {
   @Autowired private AttackPatternComposer attackPatternComposer;
   @Autowired private VulnerabilityComposer vulnerabilityComposer;
   @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private InjectorContractService injectorContractService;
   @Autowired private DomainComposer domainComposer;
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private DomainRepository domainRepository;
@@ -420,7 +428,7 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_content":"{\\"fields\\":[]}",
                           "injector_contract_custom":true,"injector_contract_needs_executor":false,
                           "injector_contract_platforms":[],"injector_contract_payload":null,
-                          "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
+                          "injector_contract_injectors":["49229430-b5b5-431f-ba5b-f36f599b0144"],
                           "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[],
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
@@ -522,7 +530,7 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_content":"{\\"fields\\":[]}",
                           "injector_contract_custom":true,"injector_contract_needs_executor":false,
                           "injector_contract_platforms":[],"injector_contract_payload":null,
-                          "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
+                          "injector_contract_injectors":["49229430-b5b5-431f-ba5b-f36f599b0144"],
                           "injector_contract_attack_patterns":[%s],"injector_contract_vulnerabilities":[],
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
@@ -587,7 +595,7 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_content":"{\\"fields\\":[]}",
                           "injector_contract_custom":true,"injector_contract_needs_executor":false,
                           "injector_contract_platforms":[],"injector_contract_payload":null,
-                          "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
+                          "injector_contract_injectors":["49229430-b5b5-431f-ba5b-f36f599b0144"],
                           "injector_contract_attack_patterns":[%s],"injector_contract_vulnerabilities":[],
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
@@ -653,7 +661,7 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_content":"{\\"fields\\":[]}",
                           "injector_contract_custom":true,"injector_contract_needs_executor":false,
                           "injector_contract_platforms":[],"injector_contract_payload":null,
-                          "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
+                          "injector_contract_injectors":["49229430-b5b5-431f-ba5b-f36f599b0144"],
                           "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[%s],
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
@@ -722,7 +730,7 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_content":"{\\"fields\\":[]}",
                           "injector_contract_custom":true,"injector_contract_needs_executor":false,
                           "injector_contract_platforms":[],"injector_contract_payload":null,
-                          "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
+                          "injector_contract_injectors":["49229430-b5b5-431f-ba5b-f36f599b0144"],
                           "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[%s],
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
@@ -1068,12 +1076,12 @@ public class InjectorContractApiTest extends IntegrationTest {
                                     "injector_contract_content":"{\\"fields\\":[]}",
                                     "injector_contract_custom":true,"injector_contract_needs_executor":false,
                                     "injector_contract_platforms":[],"injector_contract_payload":null,
-                                    "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
+                                    "injector_contract_injectors":["49229430-b5b5-431f-ba5b-f36f599b0144"],
                                     "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[],
                                     "injector_contract_atomic_testing":true,
                                     "injector_contract_import_available":false,"injector_contract_arch":null,
                                     "injector_contract_injector_type":"openaev_implant",
-                                    "injector_contract_injector_type_name":"OpenAEV Implant",
+                          "injector_contract_injector_type_name":"OpenAEV Implant",
                                     "injector_contract_domains":[]
                                   }""",
                     newId));
@@ -1123,7 +1131,7 @@ public class InjectorContractApiTest extends IntegrationTest {
                                       "injector_contract_content":"{\\"fields\\":[]}",
                                       "injector_contract_custom":true,"injector_contract_needs_executor":false,
                                       "injector_contract_platforms":[],"injector_contract_payload":null,
-                                      "injector_contract_injector":"41b4dd55-5bd1-4614-98cd-9e3770753306",
+                                      "injector_contract_injectors":["41b4dd55-5bd1-4614-98cd-9e3770753306"],
                                       "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[],
                                       "injector_contract_atomic_testing":true,
                                       "injector_contract_import_available":false,"injector_contract_arch":null,
@@ -1220,9 +1228,9 @@ public class InjectorContractApiTest extends IntegrationTest {
     void WithClassicSearchPaginationInput() throws Exception {
       SearchPaginationInput input =
           PaginationFixture.simpleSearchWithAndOperator(
-              "injector_contract_injector",
+              "injector_contract_injectors",
               injectorFixture.getWellKnownOaevImplantInjector().getId(),
-              Filters.FilterOperator.eq);
+              Filters.FilterOperator.contains);
 
       String response =
           mvc.perform(
@@ -1251,9 +1259,9 @@ public class InjectorContractApiTest extends IntegrationTest {
     void WithSearchPaginationWithSerialisationOptionsInput() throws Exception {
       InjectorContractSearchPaginationInput input =
           PaginationFixture.optionedSearchWithAndOperator(
-              "injector_contract_injector",
+              "injector_contract_injectors",
               injectorFixture.getWellKnownOaevImplantInjector().getId(),
-              Filters.FilterOperator.eq);
+              Filters.FilterOperator.contains);
       input.setIncludeFullDetails(false);
 
       String response =
@@ -1604,6 +1612,105 @@ public class InjectorContractApiTest extends IntegrationTest {
             ]
             """,
                   endpointDomain.iterator().next().getId(), cloudDomain.iterator().next().getId()));
+    }
+  }
+
+  @Nested
+  @DisplayName("Builtin contract registration (applyBuiltinContractData)")
+  class BuiltinContractRegistration {
+
+    private Contract buildSourceContract(String id, List<String> attackPatternExternalIds) {
+      ContractConfig config =
+          new ContractConfig(
+              "test-type",
+              Map.of(SupportedLanguage.en, "Test Injector"),
+              "#000000",
+              "#FFFFFF",
+              null);
+      Contract contract =
+          Contract.executableContract(
+              config,
+              id,
+              Map.of(SupportedLanguage.en, "Test Contract"),
+              ContractDef.contractBuilder()
+                  .mandatory(ContractText.textField("field1", "Field 1"))
+                  .build(),
+              List.of(Endpoint.PLATFORM_TYPE.Generic),
+              false,
+              Set.of());
+      attackPatternExternalIds.forEach(contract::addAttackPattern);
+      return contract;
+    }
+
+    @Test
+    @DisplayName(
+        "given source contract with attack pattern external IDs — should resolve and set attack patterns from DB")
+    void givenSourceWithAttackPatterns_shouldResolveAndSetAttackPatterns() {
+      // -- ARRANGE --
+      Injector injector = injectorFixture.getWellKnownOaevImplantInjector();
+
+      AttackPattern ap1 =
+          attackPatternComposer
+              .forAttackPattern(
+                  AttackPatternFixture.createAttackPatternsWithExternalId("T1566.001"))
+              .persist()
+              .get();
+      AttackPattern ap2 =
+          attackPatternComposer
+              .forAttackPattern(
+                  AttackPatternFixture.createAttackPatternsWithExternalId("T1059.001"))
+              .persist()
+              .get();
+      em.flush();
+
+      String contractId = UUID.randomUUID().toString();
+      Contract source = buildSourceContract(contractId, List.of("T1566.001", "T1059.001"));
+
+      // -- ACT --
+      InjectorContract result =
+          injectorContractService.createBuiltinInjectorContract(source, injector, true);
+
+      // -- ASSERT --
+      assertThat(result.getAttackPatterns())
+          .extracting(AttackPattern::getExternalId)
+          .containsExactlyInAnyOrder("T1566.001", "T1059.001");
+    }
+
+    @Test
+    @DisplayName(
+        "given ObjectMapper that fails to serialize — should throw IllegalStateException wrapping cause")
+    void givenSerializationFailure_shouldThrowIllegalStateException() throws Exception {
+      // -- ARRANGE --
+      Injector injector = injectorFixture.getWellKnownOaevImplantInjector();
+
+      String contractId = UUID.randomUUID().toString();
+      Contract source = buildSourceContract(contractId, List.of());
+
+      // Temporarily replace the mapper in the service with a spy that throws
+      ObjectMapper originalMapper =
+          (ObjectMapper)
+              org.springframework.test.util.ReflectionTestUtils.getField(
+                  injectorContractService, "mapper");
+      ObjectMapper spyMapper = org.mockito.Mockito.spy(originalMapper);
+      org.mockito.Mockito.doThrow(
+              new com.fasterxml.jackson.core.JsonProcessingException("Simulated failure") {})
+          .when(spyMapper)
+          .writeValueAsString(source);
+      org.springframework.test.util.ReflectionTestUtils.setField(
+          injectorContractService, "mapper", spyMapper);
+
+      try {
+        // -- ACT & ASSERT --
+        assertThatThrownBy(
+                () -> injectorContractService.createBuiltinInjectorContract(source, injector, true))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("Failed to serialize contract content for: " + contractId)
+            .hasCauseInstanceOf(com.fasterxml.jackson.core.JsonProcessingException.class);
+      } finally {
+        // Restore the original mapper
+        org.springframework.test.util.ReflectionTestUtils.setField(
+            injectorContractService, "mapper", originalMapper);
+      }
     }
   }
 }

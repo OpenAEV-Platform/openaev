@@ -9,6 +9,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 /** Resolves a list of entity IDs into JPA proxy references with a single COUNT validation query. */
 @Component
@@ -21,15 +22,12 @@ public class ReferenceResolver {
   public <T> Set<T> resolve(
       List<String> ids, Class<T> entityClass, Function<Set<String>, Long> countByIdIn) {
     if (ids == null || ids.isEmpty()) return new HashSet<>();
-    Set<String> uniqueIds = new HashSet<>(ids);
+    Set<String> uniqueIds = ids.stream().filter(StringUtils::hasText).collect(Collectors.toSet());
+    if (uniqueIds.isEmpty()) return new HashSet<>();
     long found = countByIdIn.apply(uniqueIds);
     if (found != uniqueIds.size()) {
       throw new EntityNotFoundException(
-          "One or more "
-              + entityClass.getSimpleName()
-              + " not found among "
-              + uniqueIds.size()
-              + " requested IDs");
+          "One or more " + entityClass.getSimpleName() + " not found in: " + uniqueIds);
     }
     return uniqueIds.stream()
         .map(id -> entityManager.getReference(entityClass, id))

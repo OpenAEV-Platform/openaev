@@ -72,7 +72,9 @@ public class CalderaExecutorContextService extends ExecutorContextService {
 
     inject
         .getInjectorContract()
-        .map(InjectorContract::getInjector)
+        // TODO move away from using the first injector - will be done later in the multi connector
+        // epic
+        .map(InjectorContract::getFirstInjector)
         .ifPresent(
             injector -> {
               if (this.injectorExecutorAbilities.containsKey(injector.getId())) {

@@ -21,6 +21,7 @@ import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
+import io.openaev.utils.InjectUtils;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -61,6 +62,7 @@ public class AtomicTestingService {
   private final InjectService injectService;
   private final GrantService grantService;
   private final InjectDocumentRepository injectDocumentRepository;
+  private final InjectUtils injectUtils;
 
   // -- CRUD --
 
@@ -104,7 +106,7 @@ public class AtomicTestingService {
     injectToSave.setTitle(input.getTitle());
     injectToSave.setContent(finalContent);
     injectToSave.setInjectorContract(injectorContract);
-    injectToSave.setInjector(injectorContract.getInjector());
+    injectToSave.setInjector(injectUtils.resolveInjector(input.getInjectorId(), injectorContract));
     injectToSave.setAllTeams(input.isAllTeams());
     injectToSave.setDescription(input.getDescription());
     injectToSave.setDependsDuration(0L);

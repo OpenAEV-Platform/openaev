@@ -192,7 +192,7 @@ class V1_DataImporterTest extends IntegrationTest {
             .findByTypeAndTenantId(NMAP_DUMMY_INJECTOR_TYPE, TenantContext.getCurrentTenant())
             .orElseThrow();
     List<InjectorContract> injectorContracts =
-        injectorContractRepository.findInjectorContractsByInjector(dummyInjector);
+        injectorContractRepository.findByInjectorsContaining(dummyInjector);
     assertEquals(1, injectorContracts.size());
   }
 

@@ -115,7 +115,7 @@ public class InjectorContractFixture {
       throws JsonProcessingException {
     InjectorContract injectorContract =
         createPayloadInjectorContractWithFieldsContent(customFieldsContent);
-    injectorContract.setInjector(injector);
+    injectorContract.addInjector(injector);
     injectorContract.setPayload(payloadCommand);
     return injectorContract;
   }
@@ -123,7 +123,7 @@ public class InjectorContractFixture {
   @SneakyThrows
   private static InjectorContract createDefaultInjectorContractInternal() {
     InjectorContract injectorContract = new InjectorContract();
-    injectorContract.setInjector(createDefaultPayloadInjector());
+    injectorContract.addInjector(createDefaultPayloadInjector());
     injectorContract.setId(UUID.randomUUID().toString());
     setDefaultTenant(injectorContract);
 

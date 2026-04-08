@@ -123,6 +123,11 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
     expectation.setScore(100.0);
     expectation.setExpectationGroup(false);
 
+    Manager manager = new Manager(List.of(openaevInjectorIntegrationFactory));
+    manager.monitorIntegrations();
+    io.openaev.executors.Injector openAEVImplantExecutor =
+        manager.requestInjectorExecutorByType(OpenAEVImplantContract.TYPE);
+
     Inject inject = createTechnicalInjectHelper(List.of(expectation));
     Injection injection = mock(Injection.class);
     when(injection.getInject()).thenReturn(inject);
@@ -138,10 +143,6 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
     Execution execution = new Execution(executableInject.isRuntime());
 
     // -- EXECUTE --
-    Manager manager = new Manager(List.of(openaevInjectorIntegrationFactory));
-    manager.monitorIntegrations();
-    io.openaev.executors.Injector openAEVImplantExecutor =
-        manager.requestInjectorExecutorByType(OpenAEVImplantContract.TYPE);
     openAEVImplantExecutor.process(execution, executableInject);
 
     // -- ASSERT --
