@@ -1,7 +1,7 @@
 package io.openaev.api.chaining.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.api.chaining.DataOutputStep;
+import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.ConditionKeyType;
 import io.openaev.database.model.StepStatus;
 import java.time.Instant;
@@ -26,7 +26,7 @@ public class StepOutput {
   private List<ConditionKeyType> conditionKeyTypes;
 
   @JsonProperty("step_data")
-  private DataOutputStep data;
+  private JsonNode data;
 
   @JsonProperty("step_created_at")
   private Instant createdAt;

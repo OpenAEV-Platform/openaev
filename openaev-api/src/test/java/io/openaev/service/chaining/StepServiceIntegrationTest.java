@@ -262,7 +262,6 @@ class StepServiceIntegrationTest extends IntegrationTest {
     root1.setType(ConditionType.EQ);
     root1.setKeyType(ConditionKeyType.STATUS);
     root1.setValue("A");
-    root1.setStepFrom(null);
 
     ConditionCreateInput root2 = new ConditionCreateInput();
     root2.setTemporaryId("tmp-2");
@@ -270,7 +269,6 @@ class StepServiceIntegrationTest extends IntegrationTest {
     root2.setType(ConditionType.EQ);
     root2.setKeyType(ConditionKeyType.STATUS);
     root2.setValue("B");
-    root2.setStepFrom(null);
 
     stepInput.setConditions(List.of(root1, root2));
     return stepInput;
@@ -287,7 +285,6 @@ class StepServiceIntegrationTest extends IntegrationTest {
     root1.setType(ConditionType.EQ);
     root1.setKeyType(ConditionKeyType.STATUS);
     root1.setValue("A");
-    root1.setStepFrom(null);
 
     ConditionCreateInput root2 = new ConditionCreateInput();
     root2.setTemporaryId("tmp-2");
@@ -295,7 +292,6 @@ class StepServiceIntegrationTest extends IntegrationTest {
     root2.setType(ConditionType.EQ);
     root2.setKeyType(ConditionKeyType.STATUS);
     root2.setValue("B");
-    root2.setStepFrom(null);
 
     stepInput.setConditions(List.of(root1, root2));
     return stepInput;

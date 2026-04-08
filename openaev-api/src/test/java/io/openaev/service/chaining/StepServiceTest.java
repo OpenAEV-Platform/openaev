@@ -110,18 +110,12 @@ public class StepServiceTest {
     void shouldBuildConditionTreeCorrectly(
         String description,
         List<ConditionCreateInput> inputs,
-        Map<ConditionKeyType, Optional<ConditionKeyType>> expectedParentMap,
-        boolean withStepFrom)
+        Map<ConditionKeyType, Optional<ConditionKeyType>> expectedParentMap)
         throws ChainingException {
 
       StepInput stepInput = mockStep(StepActionClass.INJECT_EXECUTION, inputs);
 
       setupCreateStepTemplates(stepInput, false);
-
-      if (withStepFrom) {
-        Step stepFrom = mock(Step.class);
-        when(stepRepository.findById("FROM")).thenReturn(Optional.of(stepFrom));
-      }
 
       // Capture the arguments passed to createConditionTree and invoke the real BFS logic
       // by delegating to ConditionService#findRootConditionInput so we can assert parent linkage.
@@ -203,10 +197,6 @@ public class StepServiceTest {
                   "Wrong parent for: " + childKey);
             }
           });
-
-      if (withStepFrom) {
-        assertNotNull(byKey.get(ConditionKeyType.TEXT).getStepFrom(), "Expected stepFrom on ROOT");
-      }
     }
 
     static Stream<Arguments> conditionTreeTestInputs() {
@@ -214,34 +204,26 @@ public class StepServiceTest {
       return Stream.of(
           Arguments.of(
               "Single root condition",
-              List.of(mockCondition("ROOT", ConditionKeyType.TEXT, null, null)),
-              Map.of(ConditionKeyType.TEXT, Optional.empty()),
-              false),
+              List.of(mockCondition("ROOT", ConditionKeyType.TEXT, null)),
+              Map.of(ConditionKeyType.TEXT, Optional.empty())),
           Arguments.of(
               "Root with one child",
               List.of(
-                  mockCondition("ROOT", ConditionKeyType.TEXT, null, null),
-                  mockCondition("CHILD", ConditionKeyType.NUMBER, "ROOT", null)),
+                  mockCondition("ROOT", ConditionKeyType.TEXT, null),
+                  mockCondition("CHILD", ConditionKeyType.NUMBER, "ROOT")),
               Map.of(
                   ConditionKeyType.TEXT, Optional.empty(),
-                  ConditionKeyType.NUMBER, Optional.of(ConditionKeyType.TEXT)),
-              false),
+                  ConditionKeyType.NUMBER, Optional.of(ConditionKeyType.TEXT))),
           Arguments.of(
               "Root with two-level tree",
               List.of(
-                  mockCondition("ROOT", ConditionKeyType.TEXT, null, null),
-                  mockCondition("A", ConditionKeyType.PORT, "ROOT", null),
-                  mockCondition("B", ConditionKeyType.IPV4, "A", null)),
+                  mockCondition("ROOT", ConditionKeyType.TEXT, null),
+                  mockCondition("A", ConditionKeyType.PORT, "ROOT"),
+                  mockCondition("B", ConditionKeyType.IPV4, "A")),
               Map.of(
                   ConditionKeyType.TEXT, Optional.empty(),
                   ConditionKeyType.PORT, Optional.of(ConditionKeyType.TEXT),
-                  ConditionKeyType.IPV4, Optional.of(ConditionKeyType.PORT)),
-              false),
-          Arguments.of(
-              "Root with stepFrom",
-              List.of(mockCondition("ROOT", ConditionKeyType.TEXT, null, "FROM")),
-              Map.of(ConditionKeyType.TEXT, Optional.empty()),
-              true));
+                  ConditionKeyType.IPV4, Optional.of(ConditionKeyType.PORT))));
     }
   }
 
@@ -261,12 +243,10 @@ public class StepServiceTest {
                   ConditionCreateInput.builder()
                       .keyType(ConditionKeyType.TEXT)
                       .temporaryIdConditionParent(null)
-                      .stepFrom(null)
                       .build(),
                   ConditionCreateInput.builder()
                       .keyType(ConditionKeyType.NUMBER)
                       .temporaryIdConditionParent(null)
-                      .stepFrom(null)
                       .build()));
 
       setupCreateStepTemplates(stepInput, false);
@@ -1517,14 +1497,13 @@ public class StepServiceTest {
   }
 
   private static ConditionCreateInput mockCondition(
-      String temporaryId, ConditionKeyType keyType, String parentTempId, String stepFrom) {
+      String temporaryId, ConditionKeyType keyType, String parentTempId) {
 
     ConditionCreateInput c = mock(ConditionCreateInput.class);
 
     when(c.getKeyType()).thenReturn(keyType);
     when(c.getTemporaryId()).thenReturn(temporaryId);
     when(c.getTemporaryIdConditionParent()).thenReturn(parentTempId);
-    when(c.getStepFrom()).thenReturn(stepFrom);
 
     return c;
   }

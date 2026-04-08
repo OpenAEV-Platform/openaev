@@ -399,7 +399,6 @@ public class InjectExecutionStep implements ActionStep {
    * <ul>
    *   <li>{@code key} – the target input key
    *   <li>{@code path} – the JSON path to extract the value
-   *   <li>{@code id_step_from} – the source step ID
    * </ul>
    *
    * @param conditions the list of conditions to process

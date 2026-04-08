@@ -3,7 +3,6 @@ package io.openaev.service.chaining;
 import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionKeyType;
 import io.openaev.database.model.ConditionType;
-import java.util.Objects;
 
 public class ConditionFactory {
   private static Condition build(
@@ -12,8 +11,9 @@ public class ConditionFactory {
   }
 
   public static Condition executionOf(Condition source, Object goal) {
-    Objects.requireNonNull(source, "source condition must not be null");
-    Objects.requireNonNull(source.getType(), "source condition type must not be null");
+    if (source == null || source.getType() == null) {
+      throw new IllegalArgumentException("Source conditions must not be null and must have a type");
+    }
 
     return build(
         source.getKey(),

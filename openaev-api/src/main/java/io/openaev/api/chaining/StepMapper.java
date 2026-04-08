@@ -11,22 +11,19 @@ public final class StepMapper {
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private StepMapper() {}
-  
+
   public static StepOutput toOutput(Step step) {
     try {
       return StepOutput.builder()
           .id(step.getId())
           .status(step.getStatus())
           .conditionKeyTypes(step.getConditionKeyTypes())
-          .data(
-              step.getData() == null
-                  ? null
-                  : OBJECT_MAPPER.readValue(step.getData(), DataOutputStep.class))
+          .data(step.getData() == null ? null : OBJECT_MAPPER.readTree(step.getData()))
           .createdAt(step.getCreatedAt())
           .updatedAt(step.getUpdatedAt())
           .build();
     } catch (JsonProcessingException e) {
-      throw new IllegalArgumentException("Unable to deserialize step data", e);
+      throw new IllegalArgumentException("Unable to parse step data as JSON", e);
     }
   }
 }

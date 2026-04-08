@@ -9,7 +9,6 @@ import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionKeyType;
 import io.openaev.database.model.ConditionType;
-import io.openaev.database.model.Step;
 import io.openaev.service.chaining.ConditionService;
 import java.time.Instant;
 import java.util.List;
@@ -39,7 +38,6 @@ class ConditionApiTest {
     assertEquals("cond-root", result.getId());
     assertEquals("event-1", result.getName());
     assertEquals("wf-1", result.getWorkflowId());
-    assertEquals("step-from-1", result.getStepFrom());
     assertEquals(2, result.getConditions().size());
     verify(conditionService).createConditionTree(input);
   }
@@ -115,7 +113,6 @@ class ConditionApiTest {
         .name("event-1")
         .description("desc-1")
         .workflowId("wf-1")
-        .stepFrom("step-from-1")
         .conditions(List.of(root))
         .build();
   }
@@ -131,15 +128,11 @@ class ConditionApiTest {
     root.setCreationDate(Instant.parse("2026-03-01T10:00:00Z"));
     root.setUpdateDate(Instant.parse("2026-03-01T10:01:00Z"));
 
-    Step stepFrom = new Step();
-    stepFrom.setId("step-from-1");
-    root.setStepFrom(stepFrom);
-
     Condition child = new Condition();
     child.setId(rootId + "-child");
     child.setWorkflowId(workflowId);
     child.setType(ConditionType.EQ);
-    child.setKeyType(ConditionKeyType.PortsScan);
+    child.setKeyType(ConditionKeyType.PORTSCAN);
     child.setValue("445");
     child.setConditionParent(root);
 

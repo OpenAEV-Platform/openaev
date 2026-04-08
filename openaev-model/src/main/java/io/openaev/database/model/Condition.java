@@ -80,6 +80,7 @@ public class Condition implements Base {
       orphanRemoval = true)
   @JsonIgnore
   @Schema(description = "Step links attached to this condition")
+  @Builder.Default
   private List<ConditionStep> conditionSteps = new ArrayList<>();
 
   @ManyToOne(fetch = FetchType.LAZY)
@@ -94,6 +95,7 @@ public class Condition implements Base {
       orphanRemoval = true)
   @JsonIgnore
   @Schema(description = "Child conditions of this condition")
+  @Builder.Default
   private List<Condition> conditionChildren = new ArrayList<>();
 
   @ManyToOne(fetch = FetchType.LAZY)

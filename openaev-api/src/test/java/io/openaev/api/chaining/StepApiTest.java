@@ -37,9 +37,8 @@ class StepApiTest {
 
     assertNotNull(result);
     assertEquals("step-1", result.getId());
-    assertEquals(2, result.getLimitExecution());
-    assertEquals("TEMPLATE", result.getStatus());
-    assertEquals("{\"a\":1}", result.getData());
+    assertEquals(StepStatus.TEMPLATE, result.getStatus());
+    assertEquals("{\"a\":1}", result.getData().toString());
     verify(stepService).createStepTemplate("wf-1", input);
   }
 
@@ -96,7 +95,6 @@ class StepApiTest {
 
     assertNotNull(result);
     assertEquals("s-1", result.getId());
-    assertEquals(9, result.getLimitExecution());
     verify(stepService).updateStepTemplate("s-1", input);
   }
 

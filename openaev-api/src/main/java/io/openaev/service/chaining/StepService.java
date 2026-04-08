@@ -4,6 +4,7 @@ import com.google.gson.*;
 import io.openaev.api.chaining.ActionStep;
 import io.openaev.api.chaining.ConditionMapper;
 import io.openaev.api.chaining.InjectExecutionStep;
+import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.StepDelayQueueRepository;
@@ -296,29 +297,31 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
   /**
    * Creates the condition tree for a step template from the given input.
    *
-   * <p>For each condition in the input, resolves the {@code stepFrom} reference — this is
-   * specifically used for {@link ConditionType#DEPEND_ON DEPEND_ON} conditions, where {@code
-   * stepFrom} identifies the <em>source</em> step whose output must be available before the current
-   * step can execute. The resolved {@link Step} is stored as a direct FK ({@code step_from_id}) on
-   * the {@link Condition} entity, while the <em>target</em> step (the one guarded by the condition)
-   * is linked via the {@code conditions_steps} join table.
+   * <p>Conditions are linked to the target step via the {@code conditions_steps} join table. The
+   * {@code stepFrom} FK on the {@link Condition} entity is <strong>not</strong> set here — it is
+   * only used at runtime for time-based chaining (DEPEND_ON conditions).
    *
    * @param stepInput input that is going to be used for the step
    * @param step step to check
    */
   void stepConditionTemplate(StepInput stepInput, Step step) {
-    if (stepInput.getConditions() == null || stepInput.getConditions().isEmpty()) {
+    List<ConditionCreateInput> conditionInputs = stepInput.getConditions();
+
+    if (conditionInputs == null || conditionInputs.isEmpty()) {
       return;
     }
+
     conditionService.createConditionTree(
-        stepInput.getConditions(),
+        conditionInputs,
         rootInput -> {
-          Step stepFrom = getStepFromCondition(rootInput.getStepFrom());
-          return ConditionMapper.toCondition(rootInput, stepFrom);
+          Condition c = ConditionMapper.toCondition(rootInput);
+          c.setWorkflowId(stepInput.getWorkflowId());
+          return c;
         },
         (childInput, parent) -> {
-          Step stepFrom = getStepFromCondition(childInput.getStepFrom());
-          return ConditionMapper.toCondition(childInput, stepFrom, parent);
+          Condition c = ConditionMapper.toCondition(childInput, parent);
+          c.setWorkflowId(stepInput.getWorkflowId());
+          return c;
         },
         (condition, isRoot) -> conditionService.linkToStep(condition, step, isRoot),
         null);
@@ -941,23 +944,6 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     return new JsonPrimitive(primitiveObject.toString());
   }
 
-  /**
-   * Retrieves a {@link Step} associated with a condition from its identifier.
-   *
-   * <p>If the provided {@code stepFromId} is not {@code null}, this method attempts to load the
-   * corresponding {@link Step} from the repository.
-   *
-   * <ul>
-   *   <li>If the step is found, it is returned.
-   *   <li>If the step is not found, a {@link ChainingException} is thrown, wrapping an {@link
-   *       ElementNotFoundException}.
-   *   <li>If {@code stepFromId} is {@code null}, this method returns {@code null}.
-   * </ul>
-   *
-   * @param stepFromId the identifier of the step referenced by a condition; may be {@code null}
-   * @return the persisted {@link Step} corresponding to the given identifier, or {@code null} if
-   *     the identifier is {@code null} {@link Step} is found
-   */
 
   /**
    * Consume ready event from queue

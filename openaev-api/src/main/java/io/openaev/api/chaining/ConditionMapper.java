@@ -4,7 +4,6 @@ import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.ConditionOutput;
 import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.database.model.Condition;
-import io.openaev.database.model.Step;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -88,12 +87,11 @@ public class ConditionMapper {
         .build();
   }
 
-  public static Condition toCondition(ConditionCreateInput input, Step stepFrom) {
-    return toCondition(input, stepFrom, null);
+  public static Condition toCondition(ConditionCreateInput input) {
+    return toCondition(input, null);
   }
 
-  public static Condition toCondition(
-      ConditionCreateInput input, Step stepFrom, Condition conditionParent) {
+  public static Condition toCondition(ConditionCreateInput input, Condition conditionParent) {
     Objects.requireNonNull(input, "condition create input must not be null");
 
     return Condition.builder()
@@ -101,7 +99,6 @@ public class ConditionMapper {
         .keySubtype(input.getKeySubtype())
         .type(input.getType())
         .value(input.getValue())
-        .stepFrom(stepFrom)
         .conditionParent(conditionParent)
         .build();
   }
