@@ -2,6 +2,7 @@ package io.openaev.service.chaining;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
@@ -35,7 +36,7 @@ import static org.mockito.Mockito.*;
 
 
 @SpringBootTest
-class StepServiceIntegrationTest {
+class StepServiceIntegrationTest extends IntegrationTest {
 
   @Autowired private StepService stepService;
 

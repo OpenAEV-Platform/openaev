@@ -43,7 +43,7 @@ class ChainingApiUnitTest {
   @InjectMocks private ChainingApi chainingApi;
 
   @Nested
-  @DisplayName("duplicateSimulationChaining")
+  @DisplayName("Duplicate simulation chaining")
   class DuplicateExercise {
 
     @Test

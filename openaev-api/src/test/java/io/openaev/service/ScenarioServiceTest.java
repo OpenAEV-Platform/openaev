@@ -117,8 +117,7 @@ class ScenarioServiceTest extends IntegrationTest {
             lessonsCategoryRepository,
             healthCheckUtils,
             scenarioMapper,
-            workflowService,
-            previewFeatureService
+            workflowService
             );
   }
 

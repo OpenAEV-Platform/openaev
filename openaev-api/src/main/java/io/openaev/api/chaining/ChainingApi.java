@@ -58,7 +58,7 @@ public class ChainingApi extends RestBehavior {
     workflowService.isPreviewFeatureChainingEnable();
 
     if (input == null)
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Exercise input cannot be null");
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Simulation input cannot be null");
 
     Exercise simulation = new Exercise();
     simulation.setUpdateAttributes(input);
