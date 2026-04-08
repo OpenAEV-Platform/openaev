@@ -18,11 +18,13 @@ import useAuth from './useAuth';
 const useAI = (): {
   configured?: boolean | null;
   enabled?: boolean | null;
+  xtmOneConfigured?: boolean | null;
 } => {
   const { settings } = useAuth();
   return {
     enabled: settings.platform_ai_enabled,
     configured: settings.platform_ai_has_token,
+    xtmOneConfigured: settings.platform_xtm_one_configured,
   };
 };
 

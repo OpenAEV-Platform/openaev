@@ -5356,6 +5356,8 @@ export interface PlatformSettings {
   platform_ai_model?: string;
   /** Type of AI (mistralai or openai) */
   platform_ai_type?: string;
+  /** True if XTM One (filigran-copilot) is configured with URL and token */
+  platform_xtm_one_configured?: boolean;
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
   /** Base URL of the platform */

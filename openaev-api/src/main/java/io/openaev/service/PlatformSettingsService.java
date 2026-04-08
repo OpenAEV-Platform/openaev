@@ -29,6 +29,7 @@ import io.openaev.xtmhub.XtmHubConnectivityService;
 import io.openaev.xtmhub.XtmHubRegistererRecord;
 import io.openaev.xtmhub.XtmHubRegistrationStatus;
 import io.openaev.xtmhub.config.XtmHubConfig;
+import io.openaev.xtmone.XtmOneConfig;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -65,6 +66,7 @@ public class PlatformSettingsService {
   private final Ee eeService;
   private final EngineService engineService;
   private final XtmHubConnectivityService xtmHubConnectivityService;
+  private final XtmOneConfig xtmOneConfig;
 
   @Autowired private TransactionTemplate transactionTemplate;
 
@@ -240,6 +242,7 @@ public class PlatformSettingsService {
       platformSettings.setAiHasToken(StringUtils.hasText(aiConfig.getToken()));
       platformSettings.setAiType(aiConfig.getType());
       platformSettings.setAiModel(aiConfig.getModel());
+      platformSettings.setXtmOneConfigured(xtmOneConfig.isConfigured());
       platformSettings.setExecutorTaniumEnable(false);
       platformSettings.setTelemetryManagerEnable(true);
 
