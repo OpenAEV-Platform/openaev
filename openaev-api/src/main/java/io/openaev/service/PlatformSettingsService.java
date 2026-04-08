@@ -9,7 +9,6 @@ import static java.util.Optional.ofNullable;
 import io.openaev.config.EngineConfig;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.OpenAEVPrincipal;
-import io.openaev.config.RabbitmqConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.BannerMessage;
 import io.openaev.database.model.Setting;
@@ -20,7 +19,6 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.ee.License;
 import io.openaev.engine.EngineService;
 import io.openaev.expectation.ExpectationPropertiesConfig;
-import io.openaev.helper.RabbitMQHelper;
 import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.settings.PreviewFeature;
@@ -82,7 +80,7 @@ public class PlatformSettingsService {
 
   @Resource private OpenAEVConfig openAEVConfig;
   @Resource private ExpectationPropertiesConfig expectationPropertiesConfig;
-  @Resource private RabbitmqConfig rabbitmqConfig;
+  @Resource private RabbitmqService rabbitmqService;
   @Resource private EngineConfig engineConfig;
   @Autowired private LicenseCacheManager licenseCacheManager;
 
@@ -354,7 +352,7 @@ public class PlatformSettingsService {
         platformSettings.setPlatformVersion(openAEVConfig.getVersion());
         platformSettings.setPostgreVersion(settingRepository.getServerVersion());
         platformSettings.setJavaVersion(Runtime.version().toString());
-        platformSettings.setRabbitMQVersion(RabbitMQHelper.getRabbitMQVersion(rabbitmqConfig));
+        platformSettings.setRabbitMQVersion(rabbitmqService.getVersion());
         platformSettings.setAnalyticsEngineType(engineConfig.getEngineSelector());
         platformSettings.setAnalyticsEngineVersion(engineService.getEngineVersion());
       }

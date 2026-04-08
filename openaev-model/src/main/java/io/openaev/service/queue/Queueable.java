@@ -1,4 +1,4 @@
-package io.openaev.rest.helper.queue;
+package io.openaev.service.queue;
 
 public interface Queueable {
   String getUniqueElementKey();

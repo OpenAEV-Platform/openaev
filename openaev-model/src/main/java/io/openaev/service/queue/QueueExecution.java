@@ -1,4 +1,4 @@
-package io.openaev.rest.helper.queue;
+package io.openaev.service.queue;
 
 import java.util.List;
 

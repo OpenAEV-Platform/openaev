@@ -3,10 +3,6 @@ package io.openaev.service;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.FileService.INJECTORS_IMAGES_BASE_PATH;
 
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
-import io.openaev.asset.QueueService;
-import io.openaev.config.RabbitmqConfig;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
@@ -21,7 +17,6 @@ import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector.form.InjectorCreateInput;
 import io.openaev.rest.injector.form.InjectorOutput;
-import io.openaev.rest.injector.response.InjectorConnection;
 import io.openaev.rest.injector.response.InjectorRegistration;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.form.InjectorContractInput;
@@ -31,10 +26,8 @@ import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.service.exception.InjectorRegistrationException;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.InjectorMapper;
-import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
-import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.*;
@@ -52,7 +45,6 @@ import org.springframework.web.multipart.MultipartFile;
 public class InjectorService extends AbstractConnectorService<Injector, InjectorOutput> {
   public static final String DUMMY_SUFFIX = "_dummy";
 
-  @Resource private RabbitmqConfig rabbitmqConfig;
   private final InjectorRepository injectorRepository;
   private final InjectorContractRepository injectorContractRepository;
   private final AttackPatternRepository attackPatternRepository;
@@ -63,7 +55,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
   private final InjectorMapper injectorMapper;
 
-  private final QueueService queueService;
+  private final RabbitmqService rabbitmqService;
 
   @Autowired
   public InjectorService(
@@ -78,7 +70,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       DomainService domainService,
       InjectorMapper injectorMapper,
       CatalogConnectorMapper catalogConnectorMapper,
-      QueueService queueService) {
+      RabbitmqService rabbitmqService) {
     super(
         ConnectorType.INJECTOR,
         connectorInstanceConfigurationRepository,
@@ -92,7 +84,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     this.injectorContractService = injectorContractService;
     this.domainService = domainService;
     this.injectorMapper = injectorMapper;
-    this.queueService = queueService;
+    this.rabbitmqService = rabbitmqService;
   }
 
   @Override
@@ -201,18 +193,13 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
   public InjectorRegistration registerExternalInjector(
       InjectorCreateInput input, Optional<MultipartFile> file) {
-    ConnectionFactory factory = this.queueService.createConnectionFactory();
-    // Declare queueing
-    Connection connection = null;
     try {
       // Upload icon
       if (file.isPresent() && "image/png".equals(file.get().getContentType())) {
         fileService.uploadFile(
             FileService.INJECTORS_IMAGES_BASE_PATH + input.getType() + ".png", file.get());
       }
-      connection = factory.newConnection();
-      this.queueService.createChannel(connection, "_injector_" + input.getId(), input.getId());
-      String queueName = rabbitmqConfig.getPrefix() + "_injector_" + input.getId();
+      String queueName = this.rabbitmqService.registerQueue(input.getId());
       // We need to support upsert for registration
       Injector injector = injectorRepository.findById(input.getId()).orElse(null);
       if (injector == null) {
@@ -259,27 +246,9 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         // delete the dummy injector if it was created when importing the starter pack
         deleteDummyInjectorIfItExists(input.getType(), savedInjector);
       }
-      InjectorConnection conn =
-          new InjectorConnection(
-              rabbitmqConfig.getHostname(),
-              rabbitmqConfig.getVhost(),
-              rabbitmqConfig.isSsl(),
-              rabbitmqConfig.getPort(),
-              rabbitmqConfig.getUser(),
-              rabbitmqConfig.getPass());
-      return new InjectorRegistration(conn, queueName);
+      return new InjectorRegistration(rabbitmqService.getConnectionInfo(), queueName);
     } catch (Exception e) {
       throw new RuntimeException(e);
-    } finally {
-      if (connection != null) {
-        try {
-          connection.close();
-        } catch (IOException e) {
-          log.error(
-              "Unable to close RabbitMQ connection. You should worry as this could impact performance",
-              e);
-        }
-      }
     }
   }
 

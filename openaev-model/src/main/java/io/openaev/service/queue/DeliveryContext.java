@@ -1,4 +1,4 @@
-package io.openaev.rest.helper.queue;
+package io.openaev.service.queue;
 
 import com.rabbitmq.client.Channel;
 import lombok.Builder;

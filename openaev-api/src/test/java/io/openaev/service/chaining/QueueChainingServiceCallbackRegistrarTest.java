@@ -3,7 +3,7 @@ package io.openaev.service.chaining;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import io.openaev.rest.helper.queue.QueueExecution;
+import io.openaev.service.queue.QueueExecution;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
