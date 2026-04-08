@@ -1,5 +1,6 @@
 package io.openaev.rest.asset.security_platforms;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
@@ -33,6 +34,7 @@ import org.springframework.web.bind.annotation.*;
 public class SecurityPlatformApi {
 
   public static final String SECURITY_PLATFORM_URI = "/api/security_platforms";
+  private static final String TENANT_SECURITY_PLATFORM_URI = TENANT_PREFIX + "/security_platforms";
 
   @Value("${info.app.version:unknown}")
   String version;
@@ -42,13 +44,13 @@ public class SecurityPlatformApi {
   private final TagRepository tagRepository;
   private final DocumentService documentService;
 
-  @GetMapping(SECURITY_PLATFORM_URI)
+  @GetMapping({SECURITY_PLATFORM_URI, TENANT_SECURITY_PLATFORM_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SECURITY_PLATFORM)
   public Iterable<SecurityPlatform> securityPlatforms() {
     return securityPlatformRepository.findAll();
   }
 
-  @PostMapping(SECURITY_PLATFORM_URI)
+  @PostMapping({SECURITY_PLATFORM_URI, TENANT_SECURITY_PLATFORM_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SECURITY_PLATFORM)
   @Transactional(rollbackFor = Exception.class)
   public SecurityPlatform createSecurityPlatform(
@@ -70,7 +72,7 @@ public class SecurityPlatformApi {
     return this.securityPlatformRepository.save(securityPlatform);
   }
 
-  @PostMapping(SECURITY_PLATFORM_URI + "/upsert")
+  @PostMapping({SECURITY_PLATFORM_URI + "/upsert", TENANT_SECURITY_PLATFORM_URI + "/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SECURITY_PLATFORM)
   @Transactional(rollbackFor = Exception.class)
   public SecurityPlatform upsertSecurityPlatform(
@@ -117,7 +119,10 @@ public class SecurityPlatformApi {
     }
   }
 
-  @GetMapping(SECURITY_PLATFORM_URI + "/{securityPlatformId}")
+  @GetMapping({
+    SECURITY_PLATFORM_URI + "/{securityPlatformId}",
+    TENANT_SECURITY_PLATFORM_URI + "/{securityPlatformId}"
+  })
   @AccessControl(
       resourceId = "#securityPlatformId",
       actionPerformed = Action.READ,
@@ -129,7 +134,7 @@ public class SecurityPlatformApi {
         .orElseThrow(ElementNotFoundException::new);
   }
 
-  @PostMapping(SECURITY_PLATFORM_URI + "/search")
+  @PostMapping({SECURITY_PLATFORM_URI + "/search", TENANT_SECURITY_PLATFORM_URI + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SECURITY_PLATFORM)
   public Page<SecurityPlatform> securityPlatforms(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
@@ -137,7 +142,10 @@ public class SecurityPlatformApi {
         this.securityPlatformRepository::findAll, searchPaginationInput, SecurityPlatform.class);
   }
 
-  @PutMapping(SECURITY_PLATFORM_URI + "/{securityPlatformId}")
+  @PutMapping({
+    SECURITY_PLATFORM_URI + "/{securityPlatformId}",
+    TENANT_SECURITY_PLATFORM_URI + "/{securityPlatformId}"
+  })
   @AccessControl(
       resourceId = "#securityPlatformId",
       actionPerformed = Action.WRITE,
@@ -163,7 +171,10 @@ public class SecurityPlatformApi {
     return this.securityPlatformRepository.save(securityPlatform);
   }
 
-  @DeleteMapping(SECURITY_PLATFORM_URI + "/{securityPlatformId}")
+  @DeleteMapping({
+    SECURITY_PLATFORM_URI + "/{securityPlatformId}",
+    TENANT_SECURITY_PLATFORM_URI + "/{securityPlatformId}"
+  })
   @AccessControl(
       resourceId = "#securityPlatformId",
       actionPerformed = Action.DELETE,
@@ -173,7 +184,10 @@ public class SecurityPlatformApi {
     this.securityPlatformRepository.deleteById(securityPlatformId);
   }
 
-  @GetMapping(SECURITY_PLATFORM_URI + "/{securityPlatformId}/documents")
+  @GetMapping({
+    SECURITY_PLATFORM_URI + "/{securityPlatformId}/documents",
+    TENANT_SECURITY_PLATFORM_URI + "/{securityPlatformId}/documents"
+  })
   @AccessControl(
       resourceId = "#securityPlatformId",
       actionPerformed = Action.READ,
@@ -189,7 +203,7 @@ public class SecurityPlatformApi {
     return documentService.documentsForSecurityPlatform(securityPlatformId);
   }
 
-  @GetMapping(SECURITY_PLATFORM_URI + "/options")
+  @GetMapping({SECURITY_PLATFORM_URI + "/options", TENANT_SECURITY_PLATFORM_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SECURITY_PLATFORM)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText) {
@@ -198,7 +212,7 @@ public class SecurityPlatformApi {
         .toList();
   }
 
-  @PostMapping(SECURITY_PLATFORM_URI + "/options")
+  @PostMapping({SECURITY_PLATFORM_URI + "/options", TENANT_SECURITY_PLATFORM_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SECURITY_PLATFORM)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.securityPlatformRepository.findAllById(ids)).stream()

@@ -24,9 +24,6 @@ const TENANT_MIGRATION_TODO: string[] = [
   '/api/teams',
   '/api/players',
   '/api/organizations',
-  // PR5 — Assets
-  '/api/asset_groups',
-  '/api/security_platforms',
   // PR6 — Components
   '/api/channels',
   '/api/challenges',
