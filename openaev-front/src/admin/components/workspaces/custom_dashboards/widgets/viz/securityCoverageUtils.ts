@@ -79,8 +79,8 @@ export const filterByKillChainPhase = (data: ResolvedTTPData[], killChainPhase: 
 };
 
 export const SUCCESS_100_COLOR = '#103822';
-export const SUCCESS_75_COLOR = '#2f5e3d';
-export const SUCCESS_50_COLOR = '#644100';
+export const SUCCESS_75_COLOR = '#ffd900';
+export const SUCCESS_50_COLOR = '#f5a523';
 export const SUCCESS_25_COLOR = '#5C1717';
 
 export const getBackgroundColor = (successRate: number | null): string | undefined => {
