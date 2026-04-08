@@ -3,7 +3,6 @@ package io.openaev.utils.fixtures.composers;
 import io.openaev.api.detection_remediation.dto.PayloadInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.PayloadRepository;
-import io.openaev.utils.fixtures.composers.payload_composers.OutputParserComposer;
 import java.util.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;

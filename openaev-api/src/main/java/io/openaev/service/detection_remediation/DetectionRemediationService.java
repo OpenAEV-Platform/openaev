@@ -1,7 +1,6 @@
 package io.openaev.service.detection_remediation;
 
 import io.openaev.api.detection_remediation.dto.PayloadInput;
-import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.CollectorType;
 import io.openaev.database.model.DetectionRemediation;
 import io.openaev.database.model.Payload;
@@ -55,9 +54,7 @@ public class DetectionRemediationService {
   }
 
   public DetectionRemediation getOrCreateDetectionRemediationWithAIRulesByCollector(
-      List<DetectionRemediation> detectionRemediations,
-      Payload payload,
-      String collectorType) {
+      List<DetectionRemediation> detectionRemediations, Payload payload, String collectorType) {
     // GET or Create Detection remediation linked to selected payload and EDR/SIEM
     DetectionRemediation detectionRemediation =
         this.getOrCreateDetectionRemediationByCollector(

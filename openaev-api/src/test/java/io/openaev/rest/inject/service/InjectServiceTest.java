@@ -11,7 +11,6 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawInject;
-import io.openaev.database.repository.InjectDocumentRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.database.repository.InjectorRepository;
@@ -28,9 +27,6 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
-import io.openaev.rest.security.SecurityExpressionHandler;
-import io.openaev.rest.tag.TagService;
-import io.openaev.service.AssetGroupService;
 import io.openaev.service.AssetService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.UserService;
@@ -62,7 +58,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)

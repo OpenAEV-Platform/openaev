@@ -1,5 +1,4 @@
-import { HelpOutlined } from '@mui/icons-material';
-import { Avatar, Slide } from '@mui/material';
+import { Slide } from '@mui/material';
 import type { AxiosResponse } from 'axios';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -35,7 +34,7 @@ interface Props {
 type InjectorContractFullOutputWithContractContent = InjectorContractFullOutput & { injector_contract_content: InjectorContractConverted['convertedContent'] };
 
 const ThreatArsenalAtomicTestCreationComponent = ({ isExclusionMode, selectedElements, deSelectedElements, searchPaginationInput, handleClose }: Props) => {
-  const { t, tPick } = useFormatter();
+  const { tPick } = useFormatter();
   const navigate = useNavigate();
 
   const [selectedContract, setSelectedContract] = useState<InjectorContractFullOutputWithContractContent | null>(null);
@@ -71,12 +70,12 @@ const ThreatArsenalAtomicTestCreationComponent = ({ isExclusionMode, selectedEle
         {selectedContract && (
           <>
             <InjectCardComponent
-              avatar={
+              avatar={(
                 <InjectIcon
                   type={selectedContract.injector_contract_payload_type ?? selectedContract.injector_contract_injector_type}
                   isPayload={isNotEmptyField(selectedContract.injector_contract_payload_type)}
                 />
-              }
+              )}
               title={selectedContract.injector_contract_injector_name || ''}
               content={tPick(selectedContract.injector_contract_labels)}
               action={<></>}

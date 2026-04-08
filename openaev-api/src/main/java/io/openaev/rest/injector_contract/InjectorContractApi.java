@@ -2,7 +2,6 @@ package io.openaev.rest.injector_contract;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
-import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;

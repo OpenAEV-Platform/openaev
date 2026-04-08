@@ -9,12 +9,10 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.service.InjectExpectationUtils.extractAssetIdsFromInjectExpectationsResults;
 import static io.openaev.utils.AgentUtils.isPrimaryAgent;
-import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.InjectUtils.extractInjectExpectationsFromInjects;
 import static io.openaev.utils.StringUtils.duplicateString;
 import static io.openaev.utils.mapper.InjectStatusMapper.toExecutionTracesOutput;
-import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static java.time.Instant.now;
 
@@ -154,7 +152,7 @@ public class InjectService {
   private Inject buildInject(
       @Nullable final Exercise exercise,
       @Nullable final Scenario scenario,
-      @NotNull final InjectInput input)  {
+      @NotNull final InjectInput input) {
     if (exercise == null && scenario == null || exercise != null && scenario != null) {
       throw new IllegalArgumentException("Exactly one of exercise or scenario should be present");
     }
@@ -1476,11 +1474,11 @@ public class InjectService {
   }
 
   private ObjectNode convertContent(String content) {
-      try {
-          return (ObjectNode) mapper.readTree(content);
-      } catch (JsonProcessingException e) {
-          log.warn("Invalid JSON in inject content", e);
-      }
-      return null;
+    try {
+      return (ObjectNode) mapper.readTree(content);
+    } catch (JsonProcessingException e) {
+      log.warn("Invalid JSON in inject content", e);
+    }
+    return null;
   }
 }

@@ -604,7 +604,8 @@ public class ScenarioApiTest extends IntegrationTest {
   }
 
   private InjectorContractSearchPaginationInput createInjectorContractSearchPaginationInput() {
-    InjectorContractSearchPaginationInput paginationInput = new InjectorContractSearchPaginationInput();
+    InjectorContractSearchPaginationInput paginationInput =
+        new InjectorContractSearchPaginationInput();
     paginationInput.setOutputMode(InjectorContractSearchPaginationInput.OutputMode.FULL);
     paginationInput.setInjectorContractIdsToProcess(
         List.of(injectorContractFixture.getWellKnownSingleEmailContract().getId()));
