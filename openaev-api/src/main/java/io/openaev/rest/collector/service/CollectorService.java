@@ -6,6 +6,7 @@ import static io.openaev.service.FileService.COLLECTORS_IMAGES_BASE_PATH;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.CollectorTypeRepository;
@@ -251,12 +252,17 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
   @Override
   public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
     try {
-      // Copy collector images from the default tenant's MinIO path to the new tenant
-      fileService.copyCollectorImagesForTenant(Tenant.DEFAULT_TENANT_UUID, tenant.getId());
+      String currentTenantId = TenantContext.getCurrentTenant();
 
-      // 1. Copy collector types — TenantContext is default → findAll returns default-tenant types
+      // Copy collector images from the current tenant's MinIO path to the new tenant
+      fileService.copyCollectorImagesForTenant(currentTenantId, tenant.getId());
+
+      // 1. Copy collector types — filter by current tenant to avoid L1 cache pollution
       Map<String, CollectorType> typeMapping = new HashMap<>();
       for (CollectorType source : collectorTypeRepository.findAll()) {
+        if (!currentTenantId.equals(source.getTenant().getId())) {
+          continue;
+        }
         CollectorType copy = new CollectorType(source.getName());
         copy.setTenant(tenant);
         CollectorType saved = collectorTypeRepository.save(copy);
@@ -265,7 +271,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
       // 2. Copy built-in collectors
       for (Collector source : fromIterable(collectorRepository.findAll())) {
-        if (source.isExternal()) {
+        if (source.isExternal() || !currentTenantId.equals(source.getTenant().getId())) {
           continue;
         }
         Collector copy = new Collector();

@@ -621,14 +621,18 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   @Override
   public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
     try {
-      // Copy injector images from the default tenant's MinIO path to the new tenant
-      fileService.copyInjectorImagesForTenant(Tenant.DEFAULT_TENANT_UUID, tenant.getId());
+      String currentTenantId = TenantContext.getCurrentTenant();
 
-      // TenantContext is the default tenant → findAll returns default-tenant injectors
-      List<Injector> defaultInjectors =
-          fromIterable(injectorRepository.findAll()).stream().filter(i -> !i.isExternal()).toList();
+      // Copy injector images from the current tenant's MinIO path to the new tenant
+      fileService.copyInjectorImagesForTenant(currentTenantId, tenant.getId());
 
-      for (Injector source : defaultInjectors) {
+      // Filter by current tenant to avoid L1 cache pollution from prior creates
+      List<Injector> currentTenantInjectors =
+          fromIterable(injectorRepository.findAll()).stream()
+              .filter(i -> !i.isExternal() && currentTenantId.equals(i.getTenant().getId()))
+              .toList();
+
+      for (Injector source : currentTenantInjectors) {
         Injector copy = new Injector();
         copy.setId(UUID.randomUUID().toString());
         copy.setName(source.getName());

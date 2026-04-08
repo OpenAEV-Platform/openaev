@@ -240,13 +240,18 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
   @Override
   public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
     try {
-      // Copy executor images and catalog connector logos for the new tenant
-      fileService.copyExecutorImagesForTenant(Tenant.DEFAULT_TENANT_UUID, tenant.getId());
-      fileService.copyCatalogConnectorLogosForTenant(Tenant.DEFAULT_TENANT_UUID, tenant.getId());
+      String currentTenantId = TenantContext.getCurrentTenant();
 
-      // TenantContext is still the default tenant here, so findAll returns default-tenant executors
-      List<Executor> defaultExecutors = fromIterable(executorRepository.findAll());
-      for (Executor source : defaultExecutors) {
+      // Copy executor images and catalog connector logos for the new tenant
+      fileService.copyExecutorImagesForTenant(currentTenantId, tenant.getId());
+      fileService.copyCatalogConnectorLogosForTenant(currentTenantId, tenant.getId());
+
+      // Filter by current tenant to avoid L1 cache pollution from prior creates
+      List<Executor> currentTenantExecutors =
+          fromIterable(executorRepository.findAll()).stream()
+              .filter(e -> currentTenantId.equals(e.getTenant().getId()))
+              .toList();
+      for (Executor source : currentTenantExecutors) {
         Executor copy = new Executor();
         copy.setId(UUID.randomUUID().toString());
         copy.setName(source.getName());
