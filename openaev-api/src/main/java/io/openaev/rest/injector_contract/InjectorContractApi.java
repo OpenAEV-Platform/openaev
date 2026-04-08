@@ -1,5 +1,6 @@
 package io.openaev.rest.injector_contract;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
@@ -27,10 +28,11 @@ import org.springframework.web.bind.annotation.*;
 public class InjectorContractApi extends RestBehavior {
 
   public static final String INJECTOR_CONTRACT_URL = "/api/injector_contracts";
+  private static final String TENANT_INJECTOR_CONTRACT_URL = TENANT_PREFIX + "/injector_contracts";
 
   private final InjectorContractService injectorContractService;
 
-  @GetMapping(INJECTOR_CONTRACT_URL)
+  @GetMapping({INJECTOR_CONTRACT_URL, TENANT_INJECTOR_CONTRACT_URL})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   public Iterable<RawInjectorsContracts> injectContracts() {
     return injectorContractService.getAllRawInjectContracts();
@@ -44,7 +46,7 @@ public class InjectorContractApi extends RestBehavior {
    * @param input the search and pagination parameters
    * @return a page of injector contract outputs
    */
-  @PostMapping(INJECTOR_CONTRACT_URL + "/search")
+  @PostMapping({INJECTOR_CONTRACT_URL + "/search", TENANT_INJECTOR_CONTRACT_URL + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   public Page<? extends InjectorContractBaseOutput> injectorContracts(
       @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
@@ -61,7 +63,10 @@ public class InjectorContractApi extends RestBehavior {
     }
   }
 
-  @PostMapping(INJECTOR_CONTRACT_URL + "/domain-counts")
+  @PostMapping({
+    INJECTOR_CONTRACT_URL + "/domain-counts",
+    TENANT_INJECTOR_CONTRACT_URL + "/domain-counts"
+  })
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   public List<InjectorContractDomainCountOutput> getDomainCounts(
       @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
@@ -75,7 +80,10 @@ public class InjectorContractApi extends RestBehavior {
    * @param injectorContractId the contract ID or external ID
    * @return the injector contract
    */
-  @GetMapping(INJECTOR_CONTRACT_URL + "/{injectorContractId}")
+  @GetMapping({
+    INJECTOR_CONTRACT_URL + "/{injectorContractId}",
+    TENANT_INJECTOR_CONTRACT_URL + "/{injectorContractId}"
+  })
   @AccessControl(
       resourceId = "#injectorContractId",
       actionPerformed = Action.READ,
@@ -90,7 +98,7 @@ public class InjectorContractApi extends RestBehavior {
    * @param input the creation input with contract details
    * @return the created injector contract
    */
-  @PostMapping(INJECTOR_CONTRACT_URL)
+  @PostMapping({INJECTOR_CONTRACT_URL, TENANT_INJECTOR_CONTRACT_URL})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.INJECTOR_CONTRACT)
   public InjectorContract createInjectorContract(
       @Valid @RequestBody InjectorContractAddInput input) {
@@ -104,7 +112,10 @@ public class InjectorContractApi extends RestBehavior {
    * @param input the update data
    * @return the updated injector contract
    */
-  @PutMapping(INJECTOR_CONTRACT_URL + "/{injectorContractId}")
+  @PutMapping({
+    INJECTOR_CONTRACT_URL + "/{injectorContractId}",
+    TENANT_INJECTOR_CONTRACT_URL + "/{injectorContractId}"
+  })
   @AccessControl(
       resourceId = "#injectorContractId",
       actionPerformed = Action.WRITE,
@@ -122,7 +133,10 @@ public class InjectorContractApi extends RestBehavior {
    * @param input the mapping update data
    * @return the updated injector contract
    */
-  @PutMapping(INJECTOR_CONTRACT_URL + "/{injectorContractId}/mapping")
+  @PutMapping({
+    INJECTOR_CONTRACT_URL + "/{injectorContractId}/mapping",
+    TENANT_INJECTOR_CONTRACT_URL + "/{injectorContractId}/mapping"
+  })
   @AccessControl(
       resourceId = "#injectorContractId",
       actionPerformed = Action.WRITE,
@@ -140,7 +154,10 @@ public class InjectorContractApi extends RestBehavior {
    *
    * @param injectorContractId the contract ID to delete
    */
-  @DeleteMapping(INJECTOR_CONTRACT_URL + "/{injectorContractId}")
+  @DeleteMapping({
+    INJECTOR_CONTRACT_URL + "/{injectorContractId}",
+    TENANT_INJECTOR_CONTRACT_URL + "/{injectorContractId}"
+  })
   @AccessControl(
       resourceId = "#injectorContractId",
       actionPerformed = Action.DELETE,

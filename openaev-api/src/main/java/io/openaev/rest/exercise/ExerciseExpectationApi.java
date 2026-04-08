@@ -1,5 +1,7 @@
 package io.openaev.rest.exercise;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.database.model.Action;
@@ -21,7 +23,10 @@ public class ExerciseExpectationApi extends RestBehavior {
   private final ExerciseExpectationService exerciseExpectationService;
 
   @LogExecutionTime
-  @GetMapping(value = "/api/exercises/{exerciseId}/expectations")
+  @GetMapping({
+    "/api/exercises/{exerciseId}/expectations",
+    TENANT_PREFIX + "/exercises/{exerciseId}/expectations"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
