@@ -1,5 +1,6 @@
 package io.openaev.rest.asset_group;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.AssetGroupSpecification.fromIds;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
@@ -45,6 +46,7 @@ import org.springframework.web.bind.annotation.*;
 public class AssetGroupApi extends RestBehavior {
 
   public static final String ASSET_GROUP_URI = "/api/asset_groups";
+  private static final String TENANT_ASSET_GROUP_URI = TENANT_PREFIX + "/asset_groups";
   private final EndpointService endpointService;
   private final EndpointMapper endpointMapper;
 
@@ -53,7 +55,7 @@ public class AssetGroupApi extends RestBehavior {
   private final TagRepository tagRepository;
   private final AssetGroupRepository assetGroupRepository;
 
-  @PostMapping(ASSET_GROUP_URI)
+  @PostMapping({ASSET_GROUP_URI, TENANT_ASSET_GROUP_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET_GROUP)
   @Transactional(rollbackFor = Exception.class)
   public AssetGroup createAssetGroup(@Valid @RequestBody final AssetGroupInput input) {
@@ -63,21 +65,24 @@ public class AssetGroupApi extends RestBehavior {
     return this.assetGroupService.createAssetGroup(assetGroup);
   }
 
-  @GetMapping(ASSET_GROUP_URI)
+  @GetMapping({ASSET_GROUP_URI, TENANT_ASSET_GROUP_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET_GROUP)
   public List<AssetGroup> assetGroups() {
     return this.assetGroupService.assetGroups();
   }
 
   @LogExecutionTime
-  @PostMapping(ASSET_GROUP_URI + "/search")
+  @PostMapping({ASSET_GROUP_URI + "/search", TENANT_ASSET_GROUP_URI + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
   public Page<AssetGroupOutput> assetGroups(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return this.assetGroupCriteriaBuilderService.assetGroupPagination(searchPaginationInput);
   }
 
-  @PostMapping(ASSET_GROUP_URI + "/{assetGroupId}/assets/search")
+  @PostMapping({
+    ASSET_GROUP_URI + "/{assetGroupId}/assets/search",
+    TENANT_ASSET_GROUP_URI + "/{assetGroupId}/assets/search"
+  })
   @AccessControl(
       resourceId = "#assetGroupId",
       actionPerformed = Action.READ,
@@ -106,7 +111,7 @@ public class AssetGroupApi extends RestBehavior {
         endpointOutputs, endpointPage.getPageable(), endpointPage.getTotalElements());
   }
 
-  @PostMapping(ASSET_GROUP_URI + "/find")
+  @PostMapping({ASSET_GROUP_URI + "/find", TENANT_ASSET_GROUP_URI + "/find"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
   @Transactional(readOnly = true)
   public List<AssetGroupOutput> findAssetGroups(
@@ -114,7 +119,7 @@ public class AssetGroupApi extends RestBehavior {
     return this.assetGroupCriteriaBuilderService.find(fromIds(assetGroupIds));
   }
 
-  @GetMapping(ASSET_GROUP_URI + "/{assetGroupId}")
+  @GetMapping({ASSET_GROUP_URI + "/{assetGroupId}", TENANT_ASSET_GROUP_URI + "/{assetGroupId}"})
   @AccessControl(
       resourceId = "#assetGroupId",
       actionPerformed = Action.READ,
@@ -123,7 +128,7 @@ public class AssetGroupApi extends RestBehavior {
     return this.assetGroupService.assetGroup(assetGroupId);
   }
 
-  @PutMapping(ASSET_GROUP_URI + "/{assetGroupId}")
+  @PutMapping({ASSET_GROUP_URI + "/{assetGroupId}", TENANT_ASSET_GROUP_URI + "/{assetGroupId}"})
   @AccessControl(
       resourceId = "#assetGroupId",
       actionPerformed = Action.WRITE,
@@ -138,7 +143,10 @@ public class AssetGroupApi extends RestBehavior {
     return this.assetGroupService.updateAssetGroup(assetGroup);
   }
 
-  @PutMapping(ASSET_GROUP_URI + "/{assetGroupId}/assets")
+  @PutMapping({
+    ASSET_GROUP_URI + "/{assetGroupId}/assets",
+    TENANT_ASSET_GROUP_URI + "/{assetGroupId}/assets"
+  })
   @AccessControl(
       resourceId = "#assetGroupId",
       actionPerformed = Action.WRITE,
@@ -151,7 +159,7 @@ public class AssetGroupApi extends RestBehavior {
     return this.assetGroupService.updateAssetsOnAssetGroup(assetGroup, input.getAssetIds());
   }
 
-  @DeleteMapping(ASSET_GROUP_URI + "/{assetGroupId}")
+  @DeleteMapping({ASSET_GROUP_URI + "/{assetGroupId}", TENANT_ASSET_GROUP_URI + "/{assetGroupId}"})
   @AccessControl(
       resourceId = "#assetGroupId",
       actionPerformed = Action.DELETE,
@@ -168,7 +176,7 @@ public class AssetGroupApi extends RestBehavior {
 
   // -- OPTION --
 
-  @GetMapping(ASSET_GROUP_URI + "/options")
+  @GetMapping({ASSET_GROUP_URI + "/options", TENANT_ASSET_GROUP_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText,
@@ -226,7 +234,7 @@ public class AssetGroupApi extends RestBehavior {
   }
 
   @LogExecutionTime
-  @GetMapping(ASSET_GROUP_URI + "/findings/options")
+  @GetMapping({ASSET_GROUP_URI + "/findings/options", TENANT_ASSET_GROUP_URI + "/findings/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
   public List<FilterUtilsJpa.Option> optionsByNameLinkedToFindings(
       @RequestParam(required = false) final String searchText,
@@ -236,7 +244,7 @@ public class AssetGroupApi extends RestBehavior {
   }
 
   @LogExecutionTime
-  @PostMapping(ASSET_GROUP_URI + "/options")
+  @PostMapping({ASSET_GROUP_URI + "/options", TENANT_ASSET_GROUP_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.assetGroupRepository.findAllById(ids)).stream()
