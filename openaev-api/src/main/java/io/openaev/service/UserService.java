@@ -19,7 +19,6 @@ import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.database.specification.GroupSpecification;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.ReferenceResolver;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.users.UserQueryHelper;

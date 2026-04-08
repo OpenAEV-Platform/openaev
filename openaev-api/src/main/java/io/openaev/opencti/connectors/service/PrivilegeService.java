@@ -7,7 +7,6 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
 import io.openaev.opencti.connectors.ConnectorBase;
-import io.openaev.rest.group.form.GroupCreateInput;
 import io.openaev.service.GroupService;
 import io.openaev.service.RoleService;
 import io.openaev.service.UserService;
