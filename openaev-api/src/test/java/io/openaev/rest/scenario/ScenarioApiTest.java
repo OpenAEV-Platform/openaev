@@ -504,6 +504,34 @@ public class ScenarioApiTest extends IntegrationTest {
   @DisplayName("Create scenario with injector contracts")
   @Test
   @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+  void given_nullInput_should_returnBadRequest_onCreateScenarioWithInjectorContracts()
+      throws Exception {
+    // -- EXECUTE & ASSERT --
+    this.mvc
+        .perform(
+            post(SCENARIO_URI + "/with-injector-contracts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isBadRequest());
+  }
+
+  @DisplayName("Update scenarios with injector contracts returns bad request on null input")
+  @Test
+  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+  void given_nullInput_should_returnBadRequest_onUpdateScenariosWithInjectorContracts()
+      throws Exception {
+    // -- EXECUTE & ASSERT --
+    this.mvc
+        .perform(
+            put(SCENARIO_URI + "/with-injector-contracts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isBadRequest());
+  }
+
+  @DisplayName("Create scenario with injector contracts")
+  @Test
+  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
   void given_validInput_should_createScenarioWithInjectorContracts() throws Exception {
     // -- PREPARE --
     ScenarioInput scenarioInput = new ScenarioInput();

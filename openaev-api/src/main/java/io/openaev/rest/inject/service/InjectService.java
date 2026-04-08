@@ -1444,11 +1444,7 @@ public class InjectService {
   private Page<? extends InjectorContractBaseOutput> fetchInjectorContractsPage(
       InjectorContractSearchPaginationInput input, int pageNumber) {
     input.setPage(pageNumber);
-    return buildPaginationCriteriaBuilder(
-        (spec, specCount, pageable) ->
-            injectorContractService.getSinglePage(spec, specCount, pageable, input),
-        handleArchitectureFilter(input),
-        InjectorContract.class);
+    return injectorContractService.searchInjectorContracts(input);
   }
 
   private List<InjectInput> toInjectInputs(

@@ -5,8 +5,10 @@ import static io.openaev.database.model.InjectorContract.*;
 import static io.openaev.helper.DatabaseHelper.updateRelation;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
+import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.JpaUtils.*;
+import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 
@@ -59,6 +61,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -705,5 +708,19 @@ public class InjectorContractService {
     qDirect.groupBy(domainsJoin.get("id"));
 
     return entityManager.createQuery(qDirect).getResultList();
+  }
+
+    /**
+     * Search for Injector Contracts, depending on pagination input and filter
+     *
+     * @param input to filter
+     * @return the injector contracts search results
+     */
+  public Page<? extends InjectorContractBaseOutput> searchInjectorContracts(InjectorContractSearchPaginationInput input) {
+      return buildPaginationCriteriaBuilder(
+              (spec, specCount, pageable) ->
+                      getSinglePage(spec, specCount, pageable, input),
+              handleArchitectureFilter(input),
+              InjectorContract.class);
   }
 }

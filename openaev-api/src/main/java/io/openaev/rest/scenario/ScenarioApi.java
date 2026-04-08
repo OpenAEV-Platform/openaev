@@ -84,10 +84,6 @@ public class ScenarioApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
   public Scenario createScenarioWithInjectorContracts(
       @Valid @RequestBody final ScenarioAndInjectorContractsInputs inputs) {
-    if (inputs == null) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Input cannot be null");
-    }
-
     return this.scenarioService.createScenarioWithInjectorContracts(
         inputs.getScenarioInput(),
         inputs.getInjectorContractSearchPaginationInput(),
@@ -98,10 +94,6 @@ public class ScenarioApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
   public List<Scenario> updateScenariosWithInjectorContracts(
       @Valid @RequestBody final ScenarioIdsAndInjectorContractsInputs inputs) {
-    if (inputs == null) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Input cannot be null");
-    }
-
     return this.scenarioService.updateScenariosWithInjectorContracts(
         inputs.getScenarioIds(),
         inputs.getInjectorContractSearchPaginationInput(),

@@ -67,11 +67,7 @@ public class InjectorContractApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   public Page<? extends InjectorContractBaseOutput> injectorContracts(
       @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
-    return buildPaginationCriteriaBuilder(
-        (spec, specCount, pageable) ->
-            this.injectorContractService.getSinglePage(spec, specCount, pageable, input),
-        handleArchitectureFilter(input),
-        InjectorContract.class);
+    return this.injectorContractService.searchInjectorContracts(input);
   }
 
   @PostMapping(INJECTOR_CONTRACT_URL + "/domain-counts")
