@@ -1,5 +1,7 @@
 package io.openaev.rest.expectation;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.InjectExpectation;
@@ -26,13 +28,16 @@ import org.springframework.web.bind.annotation.*;
 public class ExpectationApi extends RestBehavior {
 
   public static final String EXPECTATIONS_URI = "/api/expectations";
+  public static final String TENANT_EXPECTATIONS_URI = TENANT_PREFIX + "/expectations";
   public static final String INJECTS_EXPECTATIONS_URI = "/api/injects/expectations";
+  public static final String TENANT_INJECTS_EXPECTATIONS_URI =
+      TENANT_PREFIX + "/injects/expectations";
 
   private final InjectExpectationService injectExpectationService;
   private final ExpectationService expectationService;
 
   @Transactional(rollbackOn = Exception.class)
-  @PutMapping(EXPECTATIONS_URI + "/{expectationId}")
+  @PutMapping({EXPECTATIONS_URI + "/{expectationId}", TENANT_EXPECTATIONS_URI + "/{expectationId}"})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   public InjectExpectation updateInjectExpectation(
       @PathVariable @NotBlank final String expectationId,
@@ -41,7 +46,10 @@ public class ExpectationApi extends RestBehavior {
   }
 
   @Transactional(rollbackOn = Exception.class)
-  @PutMapping(EXPECTATIONS_URI + "/{expectationId}/{sourceId}/delete")
+  @PutMapping({
+    EXPECTATIONS_URI + "/{expectationId}/{sourceId}/delete",
+    TENANT_EXPECTATIONS_URI + "/{expectationId}/{sourceId}/delete"
+  })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   public InjectExpectation deleteInjectExpectationResult(
       @PathVariable @NotBlank final String expectationId,
@@ -53,7 +61,7 @@ public class ExpectationApi extends RestBehavior {
       summary = "Get Inject Expectations",
       description =
           "Retrieves inject expectations of agents installed on an asset. If an expiration time is provided, it will return all expectations not expired within this timeframe independently of their results. Otherwise, it will return all expectations without any result.")
-  @GetMapping(INJECTS_EXPECTATIONS_URI)
+  @GetMapping({INJECTS_EXPECTATIONS_URI, TENANT_INJECTS_EXPECTATIONS_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   public List<InjectExpectation> getInjectExpectationsNotFilledAndNotExpired(
       @RequestParam(required = false, name = "expiration_time") final Integer expirationTime) {
@@ -78,7 +86,10 @@ public class ExpectationApi extends RestBehavior {
       summary = "Get Inject Expectations for a Specific Source",
       description =
           "Retrieves inject expectations that have not seen any result yet of agents installed on an asset for a given source ID.")
-  @GetMapping(INJECTS_EXPECTATIONS_URI + "/{sourceId}")
+  @GetMapping({
+    INJECTS_EXPECTATIONS_URI + "/{sourceId}",
+    TENANT_INJECTS_EXPECTATIONS_URI + "/{sourceId}"
+  })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   public List<InjectExpectation> getInjectExpectationsNotFilledForSource(
       @PathVariable String sourceId) {
@@ -94,7 +105,10 @@ public class ExpectationApi extends RestBehavior {
       summary = "Get Inject Expectations for a Specific Source",
       description =
           "Retrieves inject expectations of agents installed on an asset for a given source ID.")
-  @GetMapping(INJECTS_EXPECTATIONS_URI + "/assets/{sourceId}")
+  @GetMapping({
+    INJECTS_EXPECTATIONS_URI + "/assets/{sourceId}",
+    TENANT_INJECTS_EXPECTATIONS_URI + "/assets/{sourceId}"
+  })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   public List<InjectExpectation> getInjectExpectationsAssetsNotFilledAndNotExpiredForSource(
       @PathVariable String sourceId,
@@ -115,7 +129,10 @@ public class ExpectationApi extends RestBehavior {
         .toList();
   }
 
-  @GetMapping(INJECTS_EXPECTATIONS_URI + "/prevention")
+  @GetMapping({
+    INJECTS_EXPECTATIONS_URI + "/prevention",
+    TENANT_INJECTS_EXPECTATIONS_URI + "/prevention"
+  })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   public List<InjectExpectation> getInjectPreventionExpectationsNotFilled() {
     return injectExpectationService.preventionExpectationsNotFill().stream().toList();
@@ -125,14 +142,20 @@ public class ExpectationApi extends RestBehavior {
       summary = "Get Inject Expectations for a Specific Source and type Prevention",
       description =
           "Retrieves inject expectations of agents installed on an asset for a given source ID and type Prevention.")
-  @GetMapping(INJECTS_EXPECTATIONS_URI + "/prevention/{sourceId}")
+  @GetMapping({
+    INJECTS_EXPECTATIONS_URI + "/prevention/{sourceId}",
+    TENANT_INJECTS_EXPECTATIONS_URI + "/prevention/{sourceId}"
+  })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   public List<InjectExpectation> getInjectPreventionExpectationsNotFilledForSource(
       @PathVariable String sourceId) {
     return injectExpectationService.preventionExpectationsNotFill(sourceId).stream().toList();
   }
 
-  @GetMapping(INJECTS_EXPECTATIONS_URI + "/detection")
+  @GetMapping({
+    INJECTS_EXPECTATIONS_URI + "/detection",
+    TENANT_INJECTS_EXPECTATIONS_URI + "/detection"
+  })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   public List<InjectExpectation> getInjectDetectionExpectationsNotFilled() {
     return injectExpectationService.detectionExpectationsNotFill().stream().toList();
@@ -142,7 +165,10 @@ public class ExpectationApi extends RestBehavior {
       summary = "Get Inject Expectations for a Specific Source and type Detection",
       description =
           "Retrieves inject expectations of agents installed on an asset for a given source ID and type detection.")
-  @GetMapping(INJECTS_EXPECTATIONS_URI + "/detection/{sourceId}")
+  @GetMapping({
+    INJECTS_EXPECTATIONS_URI + "/detection/{sourceId}",
+    TENANT_INJECTS_EXPECTATIONS_URI + "/detection/{sourceId}"
+  })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   public List<InjectExpectation> getInjectDetectionExpectationsNotFilledForSource(
       @PathVariable String sourceId) {
@@ -152,7 +178,10 @@ public class ExpectationApi extends RestBehavior {
   @Operation(
       summary = "Update Inject Expectation",
       description = "Update Inject expectation from an external source, e.g., EDR collector.")
-  @PutMapping(INJECTS_EXPECTATIONS_URI + "/{expectationId}")
+  @PutMapping({
+    INJECTS_EXPECTATIONS_URI + "/{expectationId}",
+    TENANT_INJECTS_EXPECTATIONS_URI + "/{expectationId}"
+  })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackOn = Exception.class)
   public InjectExpectation updateInjectExpectation(
@@ -164,7 +193,7 @@ public class ExpectationApi extends RestBehavior {
   @Operation(
       summary = "Bulk Update Inject Expectation",
       description = "Bulk Update Inject expectation from an external source, e.g., EDR collector.")
-  @PutMapping(INJECTS_EXPECTATIONS_URI + "/bulk")
+  @PutMapping({INJECTS_EXPECTATIONS_URI + "/bulk", TENANT_INJECTS_EXPECTATIONS_URI + "/bulk"})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackOn = Exception.class)
   public void updateInjectExpectation(
@@ -173,7 +202,10 @@ public class ExpectationApi extends RestBehavior {
   }
 
   @Operation(summary = "Get available expectations for an inject by injector contract id")
-  @GetMapping(INJECTS_EXPECTATIONS_URI + "/available")
+  @GetMapping({
+    INJECTS_EXPECTATIONS_URI + "/available",
+    TENANT_INJECTS_EXPECTATIONS_URI + "/available"
+  })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public List<Expectation> getAvailableExpectationsForInject(
       @RequestParam @NotBlank String injectorContractId) {

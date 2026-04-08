@@ -20,10 +20,6 @@ const TENANT_MIGRATION_TODO: string[] = [
   '/api/scenarios',
   '/api/exercises',
   '/api/simulations',
-  // PR3 — Injects & Inject lifecycle
-  '/api/injector_contracts',
-  '/api/atomic-testings',
-  '/api/inject-expectations-traces',
   // PR4 — Teams & Players
   '/api/teams',
   '/api/players',
