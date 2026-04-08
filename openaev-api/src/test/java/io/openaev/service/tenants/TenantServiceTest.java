@@ -16,12 +16,18 @@ import io.openaev.api.tenants.TenantInput;
 import io.openaev.api.tenants.TenantOutput;
 import io.openaev.config.MinioConfig;
 import io.openaev.context.TenantContext;
-import io.openaev.database.model.Group;
-import io.openaev.database.model.Tenant;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.datapack.packs.V20260330_Default_tenant_data;
+import io.openaev.executors.ExecutorService;
 import io.openaev.helper.StreamHelper;
+import io.openaev.multitenancy.DependenciesManagerException;
+import io.openaev.rest.collector.service.CollectorService;
+import io.openaev.service.InjectorService;
 import io.openaev.service.RoleService;
+import io.openaev.utils.fixtures.ExecutorFixture;
+import io.openaev.utils.fixtures.InjectorFixture;
+import io.openaev.utils.fixtures.composers.ExecutorComposer;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -35,6 +41,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import org.hibernate.Session;
 import org.hibernate.exception.ConstraintViolationException;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,12 +66,29 @@ class TenantServiceTest extends IntegrationTest {
   @Autowired private CweRepository cweRepository;
   @Autowired private RoleService roleService;
   @Autowired private GroupRepository groupRepository;
+  @Autowired private CollectorTypeRepository collectorTypeRepository;
+  @Autowired private CollectorRepository collectorRepository;
+  @Autowired private ExecutorRepository executorRepository;
+  @Autowired private InjectorRepository injectorRepository;
+  @Autowired private ExecutorComposer executorComposer;
+  @Autowired private ExecutorFixture executorFixture;
+  @Autowired private CollectorService collectorService;
+  @Autowired private ExecutorService executorService;
+  @Autowired private InjectorService injectorService;
   @Autowired private V20260330_Default_tenant_data datapack;
 
   @Test
   void should_create_and_find_tenant() throws Exception {
     // -- ARRANGE --
     Tenant tenant = getTenant();
+
+    // Seed fake executor and injector in the default tenant so create() copies them
+    Executor fakeExecutor = executorFixture.createDefaultExecutor("Fake Executor");
+    executorComposer.forExecutor(fakeExecutor).persist();
+
+    Injector fakeInjector =
+        InjectorFixture.createInjector("fake-injector-id", "Fake Injector", "fake_type");
+    injectorRepository.save(fakeInjector);
 
     // -- ACT --
     Tenant created = tenantService.create(tenant);
@@ -113,6 +138,24 @@ class TenantServiceTest extends IntegrationTest {
                 .get()
                 .getUsers())
         .hasSize(1);
+
+    // Verify collector types were copied from the default tenant
+    List<CollectorType> collectorTypes =
+        StreamHelper.fromIterable(collectorTypeRepository.findAll());
+    assertThat(collectorTypes).isNotEmpty();
+    assertThat(collectorTypes)
+        .extracting(CollectorType::getName)
+        .contains("openaev_fake_detector", "openaev_expectations_vulnerability_manager");
+    // Verify built-in (non-external) collectors were copied
+    List<Collector> collectors = StreamHelper.fromIterable(collectorRepository.findAll());
+    assertThat(collectors).isNotEmpty();
+    assertThat(collectors).allMatch(c -> !c.isExternal());
+    // Verify executor was copied from the default tenant
+    List<Executor> executors = StreamHelper.fromIterable(executorRepository.findAll());
+    assertThat(executors).extracting(Executor::getName).contains("Fake Executor");
+    // Verify built-in injector was copied from the default tenant
+    List<Injector> injectors = StreamHelper.fromIterable(injectorRepository.findAll());
+    assertThat(injectors).extracting(Injector::getName).contains("Fake Injector");
 
     Tenant exists = tenantService.findById(created.getId());
     assertThat(exists.getName()).isEqualTo(TENANT_NAME);
@@ -236,6 +279,12 @@ class TenantServiceTest extends IntegrationTest {
     assertThat(cweRepository.findAll()).isEmpty();
     assertThat(roleService.findAll()).isEmpty();
     assertThat(groupRepository.findAll()).isEmpty();
+    // Verify collectors and collector types were cleaned up
+    assertThat(collectorRepository.findAll()).isEmpty();
+    assertThat(collectorTypeRepository.findAll()).isEmpty();
+    // Verify executors and injectors were cleaned up
+    assertThat(executorRepository.findAll()).isEmpty();
+    assertThat(injectorRepository.findAll()).isEmpty();
   }
 
   @Test
@@ -270,5 +319,224 @@ class TenantServiceTest extends IntegrationTest {
 
     // -- ASSERT --
     assertThat(tenants).isEmpty();
+  }
+
+  // -- TENANT DEPENDENCY LIFECYCLE --
+
+  @Nested
+  @DisplayName("createDependencyForTenant")
+  class CreateDependencyForTenant {
+
+    @Test
+    @DisplayName("should copy executors to the new tenant")
+    void should_copy_executors_to_new_tenant() throws DependenciesManagerException {
+      // -- ARRANGE --
+      Executor source = executorFixture.createDefaultExecutor("Test Executor");
+      executorComposer.forExecutor(source).persist();
+
+      Tenant newTenant = getTenant("New Tenant");
+      tenantComposer.forTenant(newTenant).persist();
+
+      // -- ACT --
+      executorService.createDependencyForTenant(newTenant);
+      entityManager.flush();
+
+      // -- ASSERT --
+      Session session = entityManager.unwrap(Session.class);
+      session.enableFilter("tenantFilter").setParameter("tenantId", newTenant.getId());
+      List<Executor> copiedExecutors = StreamHelper.fromIterable(executorRepository.findAll());
+      assertThat(copiedExecutors).hasSize(1);
+      assertThat(copiedExecutors).extracting(Executor::getName).containsExactly("Test Executor");
+      // Verify the copy has a different ID than the source
+      assertThat(copiedExecutors.getFirst().getId()).isNotEqualTo(source.getId());
+    }
+
+    @Test
+    @DisplayName("should copy built-in injectors to the new tenant")
+    void should_copy_builtin_injectors_to_new_tenant() throws DependenciesManagerException {
+      // -- ARRANGE --
+      Injector source =
+          InjectorFixture.createInjector("test-injector-id", "Test Injector", "test_type");
+      injectorRepository.save(source);
+
+      Tenant newTenant = getTenant("New Tenant");
+      tenantComposer.forTenant(newTenant).persist();
+
+      // -- ACT --
+      injectorService.createDependencyForTenant(newTenant);
+      entityManager.flush();
+
+      // -- ASSERT --
+      Session session = entityManager.unwrap(Session.class);
+      session.enableFilter("tenantFilter").setParameter("tenantId", newTenant.getId());
+      List<Injector> copiedInjectors = StreamHelper.fromIterable(injectorRepository.findAll());
+      assertThat(copiedInjectors).hasSize(1);
+      assertThat(copiedInjectors).extracting(Injector::getName).containsExactly("Test Injector");
+      assertThat(copiedInjectors).extracting(Injector::getType).containsExactly("test_type");
+      assertThat(copiedInjectors.getFirst().getId()).isNotEqualTo(source.getId());
+    }
+
+    @Test
+    @DisplayName("should not copy external injectors to the new tenant")
+    void should_not_copy_external_injectors_to_new_tenant() throws DependenciesManagerException {
+      // -- ARRANGE --
+      Injector externalInjector =
+          InjectorFixture.createInjector("ext-injector-id", "External Injector", "ext_type");
+      externalInjector.setExternal(true);
+      injectorRepository.save(externalInjector);
+
+      Tenant newTenant = getTenant("New Tenant");
+      tenantComposer.forTenant(newTenant).persist();
+
+      // -- ACT --
+      injectorService.createDependencyForTenant(newTenant);
+      entityManager.flush();
+
+      // -- ASSERT --
+      Session session = entityManager.unwrap(Session.class);
+      session.enableFilter("tenantFilter").setParameter("tenantId", newTenant.getId());
+      List<Injector> copiedInjectors = StreamHelper.fromIterable(injectorRepository.findAll());
+      assertThat(copiedInjectors).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should copy collector types and collectors to the new tenant")
+    void should_copy_collector_types_and_collectors_to_new_tenant()
+        throws DependenciesManagerException {
+      // -- ARRANGE --
+      Tenant newTenant = getTenant("New Tenant");
+      tenantComposer.forTenant(newTenant).persist();
+
+      // Built-in collectors exist in the default tenant (registered at startup)
+
+      // -- ACT --
+      collectorService.createDependencyForTenant(newTenant);
+      entityManager.flush();
+
+      // -- ASSERT --
+      Session session = entityManager.unwrap(Session.class);
+      session.enableFilter("tenantFilter").setParameter("tenantId", newTenant.getId());
+
+      List<CollectorType> copiedTypes =
+          StreamHelper.fromIterable(collectorTypeRepository.findAll());
+      assertThat(copiedTypes).isNotEmpty();
+
+      List<Collector> copiedCollectors = StreamHelper.fromIterable(collectorRepository.findAll());
+      assertThat(copiedCollectors).isNotEmpty();
+      assertThat(copiedCollectors).allMatch(c -> !c.isExternal());
+    }
+
+    @Test
+    @DisplayName("should throw DependenciesManagerException when collector copy fails")
+    void should_throw_when_collector_copy_fails() {
+      // -- ARRANGE --
+      // Tenant not persisted → FK violation when saving collector type copies
+      Tenant unsavedTenant = new Tenant();
+      unsavedTenant.setName("Ghost Tenant");
+
+      // -- ACT & ASSERT --
+      assertThatThrownBy(() -> collectorService.createDependencyForTenant(unsavedTenant))
+          .isInstanceOf(DependenciesManagerException.class)
+          .hasMessageContaining("Failed to create collectors");
+    }
+
+    @Test
+    @DisplayName("should throw DependenciesManagerException when executor copy fails")
+    void should_throw_when_executor_copy_fails() {
+      // -- ARRANGE --
+      Executor source = executorFixture.createDefaultExecutor("Executor");
+      executorComposer.forExecutor(source).persist();
+
+      Tenant unsavedTenant = new Tenant();
+      unsavedTenant.setName("Ghost Tenant");
+
+      // -- ACT & ASSERT --
+      assertThatThrownBy(() -> executorService.createDependencyForTenant(unsavedTenant))
+          .isInstanceOf(DependenciesManagerException.class)
+          .hasMessageContaining("Failed to create executors");
+    }
+
+    @Test
+    @DisplayName("should throw DependenciesManagerException when injector copy fails")
+    void should_throw_when_injector_copy_fails() {
+      // -- ARRANGE --
+      Injector source =
+          InjectorFixture.createInjector("fail-injector-id", "Fail Injector", "fail_type");
+      injectorRepository.save(source);
+
+      Tenant unsavedTenant = new Tenant();
+      unsavedTenant.setName("Ghost Tenant");
+
+      // -- ACT & ASSERT --
+      assertThatThrownBy(() -> injectorService.createDependencyForTenant(unsavedTenant))
+          .isInstanceOf(DependenciesManagerException.class)
+          .hasMessageContaining("Failed to create injectors");
+    }
+  }
+
+  @Nested
+  @DisplayName("deleteDependencyForTenant")
+  class DeleteDependencyForTenant {
+
+    @Test
+    @DisplayName("should delete all collectors and collector types for the tenant")
+    void should_delete_collectors_for_tenant() throws DependenciesManagerException {
+      // -- ARRANGE --
+      Tenant tenant = getTenant("Tenant to clean");
+      tenantComposer.forTenant(tenant).persist();
+      collectorService.createDependencyForTenant(tenant);
+      entityManager.flush();
+
+      // -- ACT --
+      collectorService.deleteDependencyForTenant(tenant.getId());
+      entityManager.flush();
+      entityManager.clear();
+
+      // -- ASSERT --
+      Session session = entityManager.unwrap(Session.class);
+      session.enableFilter("tenantFilter").setParameter("tenantId", tenant.getId());
+      assertThat(collectorRepository.findAll()).isEmpty();
+      assertThat(collectorTypeRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should delete all executors for the tenant")
+    void should_delete_executors_for_tenant() throws DependenciesManagerException {
+      // -- ARRANGE --
+      Tenant tenant = getTenant("Tenant to clean");
+      tenantComposer.forTenant(tenant).persist();
+      executorService.createDependencyForTenant(tenant);
+      entityManager.flush();
+
+      // -- ACT --
+      executorService.deleteDependencyForTenant(tenant.getId());
+      entityManager.flush();
+      entityManager.clear();
+
+      // -- ASSERT --
+      Session session = entityManager.unwrap(Session.class);
+      session.enableFilter("tenantFilter").setParameter("tenantId", tenant.getId());
+      assertThat(executorRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should delete all injectors for the tenant")
+    void should_delete_injectors_for_tenant() throws DependenciesManagerException {
+      // -- ARRANGE --
+      Tenant tenant = getTenant("Tenant to clean");
+      tenantComposer.forTenant(tenant).persist();
+      injectorService.createDependencyForTenant(tenant);
+      entityManager.flush();
+
+      // -- ACT --
+      injectorService.deleteDependencyForTenant(tenant.getId());
+      entityManager.flush();
+      entityManager.clear();
+
+      // -- ASSERT --
+      Session session = entityManager.unwrap(Session.class);
+      session.enableFilter("tenantFilter").setParameter("tenantId", tenant.getId());
+      assertThat(injectorRepository.findAll()).isEmpty();
+    }
   }
 }
