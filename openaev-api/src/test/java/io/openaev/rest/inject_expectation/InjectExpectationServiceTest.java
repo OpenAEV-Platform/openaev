@@ -62,9 +62,11 @@ class InjectExpectationServiceTest extends IntegrationTest {
         injectorRepository.save(
             InjectorFixture.createInjector(
                 OPENAEV_INJECTOR_ID, OPENAEV_INJECTOR_NAME, INJECTOR_TYPE));
-    injectorContract.setInjector(savedInjector);
+    injectorContract.addInjector(savedInjector);
 
     savedInjectorContract = injectorContractRepository.save(injectorContract);
+    savedInjector.getContracts().add(savedInjectorContract);
+    injectorRepository.save(savedInjector);
     savedAsset = assetRepository.save(AssetFixture.createDefaultAsset("asset name"));
     collectorComposer.forCollector(CollectorFixture.createDefaultCollector("FAKE")).persist();
   }

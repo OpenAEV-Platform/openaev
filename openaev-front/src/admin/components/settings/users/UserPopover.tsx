@@ -1,6 +1,7 @@
 import { useContext, useState } from 'react';
 
-import { type OrganizationHelper, type TagHelper } from '../../../../actions/helper';
+import { type OrganizationHelper } from '../../../../actions/helper';
+import { type TagHelper } from '../../../../actions/tags/tag-helper';
 import { deleteUser, updateUser, updateUserPassword } from '../../../../actions/users/User';
 import { type UserInputForm, type UserResult } from '../../../../actions/users/users-helper';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
@@ -8,7 +9,7 @@ import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
-import { type ChangePasswordInput, type UpdateUserInput, type User, type UserOutput } from '../../../../utils/api-types';
+import { type ChangePasswordInput, type User, type UserOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { type Option, organizationOption, tagOptions } from '../../../../utils/Option';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
@@ -32,14 +33,10 @@ const UserPopover = ({ user, onUpdate, onDelete }: UserPopoverProps) => {
   const { t } = useFormatter();
 
   const { organizationsMap, tagsMap } = useHelper(
-    (
-      helper: OrganizationHelper & TagHelper,
-    ) => {
-      return {
-        organizationsMap: helper.getOrganizationsMap(),
-        tagsMap: helper.getTagsMap(),
-      };
-    },
+    (helper: OrganizationHelper & TagHelper) => ({
+      organizationsMap: helper.getOrganizationsMap(),
+      tagsMap: helper.getTagsMap(),
+    }),
   );
 
   const handleOpenEdit = () => setOpenEdit(true);
@@ -47,26 +44,15 @@ const UserPopover = ({ user, onUpdate, onDelete }: UserPopoverProps) => {
   const handleCloseEdit = () => setOpenEdit(false);
 
   const onSubmitEdit = (data: UserInputForm) => {
-    const inputValues: UpdateUserInput = {
+    const inputValues = {
       ...data,
       user_organization: data.user_organization?.id,
       user_tags: data.user_tags?.map((tag: Option) => tag.id),
     };
-
     return dispatch(updateUser(user.user_id, inputValues)).then((result: UserResult) => {
       if (result?.entities?.users && onUpdate) {
         const userUpdated = result.entities.users[result.result];
-
-        const orgId = userUpdated.user_organization;
-        const org = orgId ? organizationsMap[orgId] : undefined;
-
-        const userToUpdate = {
-          ...userUpdated,
-          user_organization_name: org ? org.organization_name : '',
-          user_organization_id: org ? org.organization_id : '',
-        };
-
-        onUpdate(userToUpdate);
+        onUpdate(userUpdated);
       }
       return result.result ? handleCloseEdit() : result;
     });
@@ -94,12 +80,15 @@ const UserPopover = ({ user, onUpdate, onDelete }: UserPopoverProps) => {
   };
 
   const initialValues: UserInputForm = {
-    ...user,
-    user_organization: organizationOption(
-      user.user_organization_id,
-      organizationsMap,
-    ),
+    user_email: user.user_email ?? '',
+    user_firstname: user.user_firstname ?? '',
+    user_lastname: user.user_lastname ?? '',
+    user_pgp_key: user.user_pgp_key ?? '',
+    user_phone: user.user_phone ?? '',
+    user_phone2: user.user_phone2 ?? '',
+    user_organization: organizationOption(user.user_organization_id, organizationsMap),
     user_tags: tagOptions(user.user_tags, tagsMap),
+    user_admin: user.user_admin ?? false,
   };
 
   // Button Popover

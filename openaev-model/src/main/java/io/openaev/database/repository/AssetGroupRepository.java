@@ -145,7 +145,7 @@ public interface AssetGroupRepository
 
   @Query(
       value =
-          "SELECT ag.asset_group_id, ag.asset_group_name, ag.asset_group_updated_at, ag.asset_group_created_at "
+          "SELECT ag.asset_group_id, ag.asset_group_name, ag.asset_group_updated_at, ag.asset_group_created_at, ag.tenant_id "
               + "FROM asset_groups ag "
               + "WHERE ag.asset_group_updated_at > :from ORDER BY ag.asset_group_updated_at LIMIT "
               + Constants.INDEXING_RECORD_SET_SIZE

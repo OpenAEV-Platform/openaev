@@ -128,7 +128,7 @@ public class InjectStatusServiceTest {
 
       // Assert
       ArgumentCaptor<List<String>> captor = ArgumentCaptor.forClass(List.class);
-      verify(injectStatusRepository).deleteAllById(captor.capture());
+      verify(injectStatusRepository).deleteAllByIds(captor.capture());
 
       List<String> capturedIds = captor.getValue();
       assertEquals(
@@ -145,11 +145,11 @@ public class InjectStatusServiceTest {
           Arguments.of(
               "Some injects missing status",
               List.of(injectWithId("1"), injectWithEmptyStatus()),
-              List.of("1", "")),
+              List.of("1")),
           Arguments.of(
               "All injects missing status",
               List.of(injectWithEmptyStatus(), injectWithEmptyStatus()),
-              List.of("", "")),
+              List.of()),
           Arguments.of("Empty list of injects", List.of(), List.of()));
     }
 

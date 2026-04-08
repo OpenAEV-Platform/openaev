@@ -9,6 +9,7 @@ export interface UserContextType {
   userTenants: TenantOutput[];
   currentUserTenant: TenantOutput | null;
   switchUserTenant: (tenantId: string) => Promise<void>;
+  reloadUserTenants: (newCurrentTenantId?: string) => Promise<void>;
 }
 
 const defaultContext: UserContextType = {
@@ -18,11 +19,12 @@ const defaultContext: UserContextType = {
   userTenants: [],
   currentUserTenant: null,
   switchUserTenant: async (_tenantId: string) => {},
+  reloadUserTenants: async (_newCurrentTenantId?: string) => {},
 };
 export const UserContext = createContext<UserContextType>(defaultContext);
 
 const useAuth = () => {
-  const { me, settings, isXTMHubAccessible, userTenants, currentUserTenant, switchUserTenant } = useContext(UserContext);
+  const { me, settings, isXTMHubAccessible, userTenants, currentUserTenant, switchUserTenant, reloadUserTenants } = useContext(UserContext);
   if (!me || !settings) {
     throw new Error('Invalid user context !');
   }
@@ -33,6 +35,7 @@ const useAuth = () => {
     userTenants,
     currentUserTenant,
     switchUserTenant,
+    reloadUserTenants,
   };
 };
 

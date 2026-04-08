@@ -9,8 +9,6 @@ import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.service.tenants.TenantService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.*;
-import io.swagger.v3.oas.annotations.responses.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -67,7 +65,7 @@ public class TenantApi {
   @PostMapping("/search")
   public Page<TenantOutput> search(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return tenantService.search(searchPaginationInput).map(TenantMapper::toOutput);
+    return tenantService.search(searchPaginationInput);
   }
 
   // -- UPDATE --
@@ -81,20 +79,39 @@ public class TenantApi {
   @PutMapping("/{tenantId}")
   public TenantOutput update(@PathVariable String tenantId, @Valid @RequestBody TenantInput input) {
 
-    return toOutput(tenantService.update(tenantId, TenantMapper.fromInput(tenantId, input)));
+    return toOutput(tenantService.update(tenantId, input));
+  }
+
+  @Operation(
+      summary = "Reactivate a soft-deleted tenant",
+      description =
+          "Reactivates a previously soft-deleted tenant within the 30-day grace period."
+              + " Fails if the grace period has expired.")
+  @AccessControl(
+      resourceId = "#tenantId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.TENANT,
+      isEnterpriseEdition = true)
+  @PostMapping("/{tenantId}/reactivate")
+  public TenantOutput reactivate(@PathVariable String tenantId) {
+    return toOutput(tenantService.reactivate(tenantId));
   }
 
   // -- DELETE --
 
-  @Operation(summary = "Delete a tenant", description = "Deletes a tenant by its ID")
+  @Operation(
+      summary = "Soft-delete a tenant",
+      description =
+          "Marks a tenant as deleted. Data is preserved for 30 days."
+              + " An admin can reactivate the tenant within this grace period."
+              + " After 30 days, the tenant and all associated data are permanently removed.")
   @AccessControl(
       resourceId = "#tenantId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.TENANT,
       isEnterpriseEdition = true)
   @DeleteMapping("/{tenantId}")
-  @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void delete(@PathVariable String tenantId) throws DependenciesManagerException {
-    tenantService.delete(tenantId);
+  public TenantOutput softDelete(@PathVariable String tenantId) {
+    return toOutput(tenantService.softDelete(tenantId));
   }
 }

@@ -5,8 +5,8 @@ import io.openaev.stix.types.enums.HashingAlgorithms;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Hashes extends BaseType<Map<HashingAlgorithms, java.lang.String>> {
-  public Hashes(Map<HashingAlgorithms, java.lang.String> value) {
+public class Hashes extends BaseType<Map<HashingAlgorithms, String>> {
+  public Hashes(Map<HashingAlgorithms, String> value) {
     super(value);
   }
 
@@ -16,5 +16,9 @@ public class Hashes extends BaseType<Map<HashingAlgorithms, java.lang.String>> {
       hashes.put(HashingAlgorithms.fromValue(entry.getKey()), entry.getValue().asText());
     }
     return new Hashes(hashes);
+  }
+
+  public String get(HashingAlgorithms algo) {
+    return this.getValue().get(algo);
   }
 }

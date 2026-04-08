@@ -3,11 +3,13 @@ package io.openaev.database.repository;
 import io.openaev.database.model.AssetType;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.SecurityPlatform;
-import io.openaev.database.raw.RawAsset;
+import io.openaev.database.raw.RawAssetIndexing;
 import io.openaev.utils.Constants;
+import jakarta.validation.constraints.NotEmpty;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -45,7 +47,7 @@ public interface SecurityPlatformRepository
 
   @Query(
       value =
-          "SELECT a.asset_id, a.asset_name, a.asset_created_at, a.asset_updated_at "
+          "SELECT a.asset_id, a.asset_name, a.asset_created_at, a.asset_updated_at, a.tenant_id "
               + "FROM assets a "
               + "WHERE a.asset_updated_at > :from AND a.asset_type = '"
               + AssetType.Values.SECURITY_PLATFORM_TYPE
@@ -55,7 +57,7 @@ public interface SecurityPlatformRepository
               + Constants.INDEXING_RECORD_SET_SIZE
               + ";",
       nativeQuery = true)
-  List<RawAsset> findForIndexing(@Param("from") Instant from);
+  List<RawAssetIndexing> findForIndexing(@Param("from") Instant from);
 
   @Query(
       "SELECT DISTINCT a FROM Asset a "
@@ -64,4 +66,12 @@ public interface SecurityPlatformRepository
           + "' AND "
           + "(:name IS NULL OR lower(a.name) LIKE lower(concat('%', cast(coalesce(:name, '') as string), '%')))")
   List<SecurityPlatform> findAllByName(String name);
+
+  @Query(
+      "SELECT DISTINCT a FROM Asset a "
+          + "WHERE a.type = '"
+          + AssetType.Values.SECURITY_PLATFORM_TYPE
+          + "' AND "
+          + "a.id IN :ids")
+  List<SecurityPlatform> findAllByIds(@NotEmpty @Param("ids") Set<String> ids);
 }

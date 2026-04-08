@@ -24,14 +24,10 @@ yarn-debug.log*
 yarn-error.log*
 
 # Yarn
-.yarn/*
-!.yarn/patches
-!.yarn/releases
-!.yarn/plugins
-!.yarn/sdks
-!.yarn/versions
-.pnp.*
+.yarn/
+
 /test-results/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+tests_e2e/.auth/

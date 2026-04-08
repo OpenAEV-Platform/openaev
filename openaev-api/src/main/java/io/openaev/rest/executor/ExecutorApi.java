@@ -1,5 +1,6 @@
 package io.openaev.rest.executor;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.service.EndpointService.SERVICE;
 import static io.openaev.utils.AgentUtils.AVAILABLE_ARCHITECTURES;
 import static io.openaev.utils.AgentUtils.AVAILABLE_PLATFORMS;
@@ -20,6 +21,7 @@ import io.openaev.rest.executor.form.ExecutorUpdateInput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
+import io.openaev.utils.AgentUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -49,6 +51,9 @@ import org.springframework.web.multipart.MultipartFile;
 public class ExecutorApi extends RestBehavior {
 
   public static final String EXECUTOR_URI = "/api/executors";
+  private static final String AGENT_URI = "/api/agent";
+  private static final String TENANT_EXECUTOR_URI = TENANT_PREFIX + "/executors";
+  private static final String TENANT_AGENT_URI = TENANT_PREFIX + "/agent";
 
   @Value("${info.app.version:unknown}")
   String version;
@@ -67,7 +72,7 @@ public class ExecutorApi extends RestBehavior {
 
   @Resource protected ObjectMapper mapper;
 
-  @GetMapping(EXECUTOR_URI)
+  @GetMapping({EXECUTOR_URI, TENANT_EXECUTOR_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
   @Operation(
       summary = "Retrieve executors",
@@ -88,7 +93,7 @@ public class ExecutorApi extends RestBehavior {
     return executorService.executorsOutput(includeNext);
   }
 
-  @GetMapping(EXECUTOR_URI + "/{executorId}")
+  @GetMapping({EXECUTOR_URI + "/{executorId}", TENANT_EXECUTOR_URI + "/{executorId}"})
   @AccessControl(
       resourceId = "#collectorId",
       actionPerformed = Action.READ,
@@ -97,7 +102,10 @@ public class ExecutorApi extends RestBehavior {
     return executorService.executor(executorId);
   }
 
-  @GetMapping(EXECUTOR_URI + "/{executorId}/related-ids")
+  @GetMapping({
+    EXECUTOR_URI + "/{executorId}/related-ids",
+    TENANT_EXECUTOR_URI + "/{executorId}/related-ids"
+  })
   @AccessControl(
       resourceId = "#executorId",
       actionPerformed = Action.READ,
@@ -115,7 +123,7 @@ public class ExecutorApi extends RestBehavior {
     return executorRepository.save(executor);
   }
 
-  @PutMapping(EXECUTOR_URI + "/{executorId}")
+  @PutMapping({EXECUTOR_URI + "/{executorId}", TENANT_EXECUTOR_URI + "/{executorId}"})
   @AccessControl(
       resourceId = "#executorId",
       actionPerformed = Action.WRITE,
@@ -129,7 +137,7 @@ public class ExecutorApi extends RestBehavior {
   }
 
   @PostMapping(
-      value = EXECUTOR_URI,
+      value = {EXECUTOR_URI, TENANT_EXECUTOR_URI},
       produces = {MediaType.APPLICATION_JSON_VALUE},
       consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.MULTIPART_FORM_DATA_VALUE})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.ASSET)
@@ -193,7 +201,10 @@ public class ExecutorApi extends RestBehavior {
             description = "Invalid platform or architecture specified."),
       })
   @GetMapping(
-      value = "/api/agent/executable/openaev/{platform}/{architecture}",
+      value = {
+        AGENT_URI + "/executable/openaev/{platform}/{architecture}",
+        TENANT_AGENT_URI + "/executable/openaev/{platform}/{architecture}"
+      },
       produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
   @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getOpenAevAgentExecutable(
@@ -211,7 +222,10 @@ public class ExecutorApi extends RestBehavior {
           String architecture)
       throws IOException {
     platform = Optional.ofNullable(platform).map(String::toLowerCase).orElse("");
-    architecture = Optional.ofNullable(architecture).map(String::toLowerCase).orElse("");
+    architecture =
+        Optional.ofNullable(AgentUtils.getCanonicalArchitectureString(architecture))
+            .map(String::toLowerCase)
+            .orElse("");
 
     if (!AVAILABLE_PLATFORMS.contains(platform)) {
       throw new IllegalArgumentException("Platform invalid : " + platform);
@@ -261,7 +275,10 @@ public class ExecutorApi extends RestBehavior {
             description = "Invalid platform or architecture specified."),
       })
   @GetMapping(
-      value = "/api/agent/package/openaev/{platform}/{architecture}/{installationMode}",
+      value = {
+        AGENT_URI + "/package/openaev/{platform}/{architecture}/{installationMode}",
+        TENANT_AGENT_URI + "/package/openaev/{platform}/{architecture}/{installationMode}"
+      },
       produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
   @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getOpenAevAgentPackage(
@@ -284,7 +301,10 @@ public class ExecutorApi extends RestBehavior {
           String installationMode)
       throws IOException {
     platform = Optional.ofNullable(platform).map(String::toLowerCase).orElse("");
-    architecture = Optional.ofNullable(architecture).map(String::toLowerCase).orElse("");
+    architecture =
+        AgentUtils.getCanonicalArchitectureString(
+            Optional.ofNullable(architecture).map(String::toLowerCase).orElse(""));
+    installationMode = installationMode.toLowerCase();
 
     if (!AVAILABLE_PLATFORMS.contains(platform)) {
       throw new IllegalArgumentException("Platform invalid : " + platform);
@@ -344,7 +364,11 @@ public class ExecutorApi extends RestBehavior {
         @ApiResponse(responseCode = "400", description = "Invalid platform specified."),
         @ApiResponse(responseCode = "404", description = "Token not found."),
       })
-  @GetMapping(value = "/api/agent/installer/openaev/{platform}/{installationMode}/{token}")
+  @GetMapping(
+      value = {
+        AGENT_URI + "/installer/openaev/{platform}/{installationMode}/{token}",
+        TENANT_AGENT_URI + "/installer/openaev/{platform}/{installationMode}/{token}"
+      })
   @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<String> getOpenAevAgentInstaller(
       @Parameter(
@@ -378,7 +402,12 @@ public class ExecutorApi extends RestBehavior {
     }
     String installCommand =
         this.endpointService.generateInstallCommand(
-            platform, token, installationMode, installationDir, serviceName);
+            platform,
+            token,
+            installationMode,
+            installationDir,
+            serviceName,
+            TenantContext.getCurrentTenant());
     return ResponseEntity.ok().contentType(MediaType.TEXT_PLAIN).body(installCommand);
   }
 }

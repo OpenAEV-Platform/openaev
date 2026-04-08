@@ -6,24 +6,18 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nimbusds.jose.jwk.JWK;
-import com.nimbusds.jose.jwk.JWKSet;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.*;
 import io.openaev.IntegrationTest;
 import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
 import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
+import io.openaev.utils.fixtures.JwtFixture;
 import io.openaev.utils.fixtures.TokenFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.TokenComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockConfig.WithMockOpenCTIConfig;
-import java.security.KeyPair;
-import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -63,48 +57,21 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
     new Manager(List.of(manualInjectorIntegrationFactory)).monitorIntegrations();
   }
 
-  record JwtFixture(String jwtToken, String jwks) {}
-
-  private JwtFixture generateJwtJwk(boolean expired) throws Exception {
-    Curve curve = Jwks.CRV.Ed25519;
-    KeyPair pair = curve.keyPair().build();
-
-    long offset = expired ? -60 * 1000L : 60 * 1000L;
-
-    String jwt =
-        Jwts.builder()
-            .issuer("opencti")
-            .subject("connector")
-            .header()
-            .keyId("test-123")
-            .and()
-            .expiration(new Date(new Date().getTime() + offset))
-            .signWith(pair.getPrivate(), Jwts.SIG.EdDSA)
-            .compact();
-
-    JWK jwk =
-        JWK.parse(
-            new ObjectMapper()
-                .writeValueAsString(Jwks.builder().id("test-123").key(pair.getPublic()).build()));
-    String jwksJson = new JWKSet(jwk).toString();
-    return new JwtFixture(jwt, jwksJson);
-  }
-
   private Stream<Arguments> authorizationOpenCTI() throws Exception {
-    JwtFixture validJwtJwk = generateJwtJwk(false);
-    JwtFixture expiredJwtJwk = generateJwtJwk(true);
+    JwtFixture.Bundle validJwtJwk = JwtFixture.generateConnectorJwtBundle(false);
+    JwtFixture.Bundle expiredJwtJwk = JwtFixture.generateConnectorJwtBundle(true);
 
     return Stream.of(
         Arguments.of(null, null, false, "Given no token should get 401 Unauthorized status"),
         Arguments.of(adminToken, null, true, "Given Admin token should be authorized"),
         Arguments.of(
-            "Bearer " + validJwtJwk.jwtToken,
-            validJwtJwk.jwks,
+            "Bearer " + validJwtJwk.jwtToken(),
+            validJwtJwk.jwks(),
             true,
             "Given valid JWT should authorized"),
         Arguments.of(
-            "Bearer " + expiredJwtJwk.jwtToken,
-            expiredJwtJwk.jwks,
+            "Bearer " + expiredJwtJwk.jwtToken(),
+            expiredJwtJwk.jwks(),
             false,
             "Given expired valid JWT should not authorize"));
   }

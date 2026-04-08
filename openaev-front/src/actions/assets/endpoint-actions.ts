@@ -41,7 +41,7 @@ export const findEndpoints = (endpointIds: string[]) => {
 };
 
 export const fetchEndpoint = (endpointId: string) => (dispatch: Dispatch) => {
-  const uri = `/api/endpoints/${endpointId}`;
+  const uri = `${ENDPOINT_URI}/${endpointId}`;
   return getReferential(endpoint, uri)(dispatch);
 };
 

@@ -6,6 +6,8 @@ import static io.openaev.utils.fixtures.CatalogConnectorFixture.createDefaultCat
 import static io.openaev.utils.fixtures.ConnectorInstanceFixture.createConnectorInstanceConfiguration;
 import static io.openaev.utils.fixtures.ConnectorInstanceFixture.createDefaultConnectorInstance;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -14,6 +16,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExecutorRepository;
+import io.openaev.service.EndpointService;
+import io.openaev.utils.AgentUtils;
+import io.openaev.utils.HashUtils;
 import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import io.openaev.utils.fixtures.composers.ConnectorInstanceComposer;
@@ -26,6 +31,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -211,6 +219,293 @@ public class ExecutorApiTest extends IntegrationTest {
               .getContentAsString();
       assertThatJson(response).inPath("connector_instance_id").isEqualTo(null);
       assertThatJson(response).inPath("catalog_connector_id").isEqualTo(null);
+    }
+  }
+
+  @Nested
+  @DisplayName("Agent downloads")
+  public class AgentDownloadsTest {
+    private static Stream<Arguments> platformArchCombinationsFailure() {
+      return Stream.of(
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.MacOS.name(),
+              Endpoint.PLATFORM_ARCH.arm64.name(),
+              EndpointService.SERVICE,
+              UnsupportedOperationException.class),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.MacOS.name(),
+              Endpoint.PLATFORM_ARCH.arm64.name(),
+              EndpointService.SERVICE_USER,
+              UnsupportedOperationException.class),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.MacOS.name(),
+              Endpoint.PLATFORM_ARCH.arm64.name(),
+              EndpointService.SESSION_USER,
+              UnsupportedOperationException.class),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.MacOS.name(),
+              Endpoint.PLATFORM_ARCH.x86_64.name(),
+              EndpointService.SERVICE,
+              UnsupportedOperationException.class),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.MacOS.name(),
+              Endpoint.PLATFORM_ARCH.x86_64.name(),
+              EndpointService.SERVICE_USER,
+              UnsupportedOperationException.class),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.MacOS.name(),
+              Endpoint.PLATFORM_ARCH.x86_64.name(),
+              EndpointService.SESSION_USER,
+              UnsupportedOperationException.class),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.Linux.name(),
+              Endpoint.PLATFORM_ARCH.arm64.name(),
+              EndpointService.SERVICE,
+              UnsupportedOperationException.class),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.Linux.name(),
+              Endpoint.PLATFORM_ARCH.arm64.name(),
+              EndpointService.SERVICE_USER,
+              UnsupportedOperationException.class),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.Linux.name(),
+              Endpoint.PLATFORM_ARCH.arm64.name(),
+              EndpointService.SESSION_USER,
+              UnsupportedOperationException.class),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.Linux.name(),
+              Endpoint.PLATFORM_ARCH.x86_64.name(),
+              EndpointService.SERVICE,
+              UnsupportedOperationException.class),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.Linux.name(),
+              Endpoint.PLATFORM_ARCH.x86_64.name(),
+              EndpointService.SERVICE_USER,
+              UnsupportedOperationException.class),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.Linux.name(),
+              Endpoint.PLATFORM_ARCH.x86_64.name(),
+              EndpointService.SESSION_USER,
+              UnsupportedOperationException.class),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.MacOS.name(),
+              "Aarch64",
+              EndpointService.SERVICE,
+              UnsupportedOperationException.class),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.MacOS.name(),
+              "Aarch64",
+              EndpointService.SERVICE_USER,
+              UnsupportedOperationException.class),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.MacOS.name(),
+              "Aarch64",
+              EndpointService.SESSION_USER,
+              UnsupportedOperationException.class),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.Linux.name(),
+              "Aarch64",
+              EndpointService.SERVICE,
+              UnsupportedOperationException.class),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.Linux.name(),
+              "Aarch64",
+              EndpointService.SERVICE_USER,
+              UnsupportedOperationException.class),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.Linux.name(),
+              "Aarch64",
+              EndpointService.SESSION_USER,
+              UnsupportedOperationException.class),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.MacOS.name(),
+              "not an arch",
+              EndpointService.SERVICE,
+              IllegalArgumentException.class),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.MacOS.name(),
+              "not an arch",
+              EndpointService.SERVICE_USER,
+              IllegalArgumentException.class),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.MacOS.name(),
+              "not an arch",
+              EndpointService.SESSION_USER,
+              IllegalArgumentException.class),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.Linux.name(),
+              "not an arch",
+              EndpointService.SERVICE,
+              IllegalArgumentException.class),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.Linux.name(),
+              "not an arch",
+              EndpointService.SERVICE_USER,
+              IllegalArgumentException.class),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.Linux.name(),
+              "not an arch",
+              EndpointService.SESSION_USER,
+              IllegalArgumentException.class),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.Windows.name(),
+              "not an arch",
+              EndpointService.SERVICE,
+              IllegalArgumentException.class),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.Windows.name(),
+              "not an arch",
+              EndpointService.SERVICE_USER,
+              IllegalArgumentException.class),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.Windows.name(),
+              "not an arch",
+              EndpointService.SESSION_USER,
+              IllegalArgumentException.class));
+    }
+
+    @ParameterizedTest(
+        name = "GET package for platform \"{0}\" arch \"{1}\" install type \"{2}\" should fail ")
+    @MethodSource("platformArchCombinationsFailure")
+    public void given_platformAndArch_then_downloadOutcomeFailure(
+        String platform,
+        String arch,
+        String installType,
+        Class<? extends Exception> exceptionType) {
+      assertThatThrownBy(
+              () ->
+                  mvc.perform(
+                      get("/api/agent/package/openaev/%s/%s/%s"
+                              .formatted(platform, arch, installType))
+                          .contentType(MediaType.APPLICATION_OCTET_STREAM_VALUE)
+                          .accept(MediaType.APPLICATION_OCTET_STREAM_VALUE)))
+          .hasCauseInstanceOf(exceptionType);
+    }
+
+    private static Stream<Arguments> platformArchCombinationsSuccess() {
+      return Stream.of(
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.Windows.name(),
+              Endpoint.PLATFORM_ARCH.arm64.name(),
+              EndpointService.SERVICE),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.Windows.name(),
+              Endpoint.PLATFORM_ARCH.arm64.name(),
+              EndpointService.SERVICE_USER),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.Windows.name(),
+              Endpoint.PLATFORM_ARCH.arm64.name(),
+              EndpointService.SESSION_USER),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.Windows.name(),
+              Endpoint.PLATFORM_ARCH.x86_64.name(),
+              EndpointService.SERVICE),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.Windows.name(),
+              Endpoint.PLATFORM_ARCH.x86_64.name(),
+              EndpointService.SERVICE_USER),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.Windows.name(),
+              Endpoint.PLATFORM_ARCH.x86_64.name(),
+              EndpointService.SESSION_USER),
+          Arguments.of(Endpoint.PLATFORM_TYPE.Windows.name(), "Aarch64", EndpointService.SERVICE),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.Windows.name(), "Aarch64", EndpointService.SERVICE_USER),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.Windows.name(), "Aarch64", EndpointService.SESSION_USER));
+    }
+
+    @ParameterizedTest(
+        name = "GET package for platform \"{0}\" arch \"{1}\" install type \"{2}\" should succeed ")
+    @MethodSource("platformArchCombinationsSuccess")
+    public void given_platformAndArch_then_downloadOutcomeSuccess(
+        String platform, String arch, String installType) throws Exception {
+
+      byte[] agentBytes =
+          mvc.perform(
+                  get("/api/agent/package/openaev/%s/%s/%s".formatted(platform, arch, installType))
+                      .contentType(MediaType.APPLICATION_OCTET_STREAM_VALUE)
+                      .accept(MediaType.APPLICATION_OCTET_STREAM_VALUE))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsByteArray();
+
+      String filename =
+          switch (installType) {
+            case EndpointService.SERVICE -> "openaev-agent-installer-Testing.exe";
+            default -> "openaev-agent-installer-%s-Testing.exe".formatted(installType);
+          };
+      assertThat(HashUtils.getSha256HexDigest(agentBytes))
+          .isEqualTo(
+              HashUtils.getSha256HexDigest(
+                  "/agents/openaev-agent/%s/%s/%s"
+                      .formatted(
+                          platform.toLowerCase(),
+                          AgentUtils.getCanonicalArchitectureString(arch.toLowerCase()),
+                          filename)));
+    }
+
+    private static Stream<Arguments> platformArchCombinationsExecutableSuccess() {
+      return Stream.of(
+          Arguments.of(Endpoint.PLATFORM_TYPE.MacOS.name(), Endpoint.PLATFORM_ARCH.arm64.name()),
+          Arguments.of(Endpoint.PLATFORM_TYPE.MacOS.name(), Endpoint.PLATFORM_ARCH.x86_64.name()),
+          Arguments.of(Endpoint.PLATFORM_TYPE.Linux.name(), Endpoint.PLATFORM_ARCH.arm64.name()),
+          Arguments.of(Endpoint.PLATFORM_TYPE.Linux.name(), Endpoint.PLATFORM_ARCH.x86_64.name()),
+          Arguments.of(Endpoint.PLATFORM_TYPE.Windows.name(), Endpoint.PLATFORM_ARCH.arm64.name()),
+          Arguments.of(Endpoint.PLATFORM_TYPE.Windows.name(), Endpoint.PLATFORM_ARCH.x86_64.name()),
+          Arguments.of(Endpoint.PLATFORM_TYPE.MacOS.name(), "Aarch64"),
+          Arguments.of(Endpoint.PLATFORM_TYPE.Linux.name(), "Aarch64"),
+          Arguments.of(Endpoint.PLATFORM_TYPE.Windows.name(), "Aarch64"));
+    }
+
+    @ParameterizedTest(name = "GET executable for platform \"{0}\" arch \"{1}\" should succeed ")
+    @MethodSource("platformArchCombinationsExecutableSuccess")
+    public void given_platformAndArch_then_downloadExecutableSucceeds(String platform, String arch)
+        throws Exception {
+      byte[] agentBytes =
+          mvc.perform(
+                  get("/api/agent/executable/openaev/%s/%s".formatted(platform, arch))
+                      .contentType(MediaType.APPLICATION_OCTET_STREAM_VALUE)
+                      .accept(MediaType.APPLICATION_OCTET_STREAM_VALUE))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsByteArray();
+
+      String baseFilename = "openaev-agent-Testing";
+      String filename =
+          switch (platform) {
+            case "Windows" -> "%s.exe".formatted(baseFilename);
+            default -> baseFilename;
+          };
+      assertThat(HashUtils.getSha256HexDigest(agentBytes))
+          .isEqualTo(
+              HashUtils.getSha256HexDigest(
+                  "/agents/openaev-agent/%s/%s/%s"
+                      .formatted(
+                          platform.toLowerCase(),
+                          AgentUtils.getCanonicalArchitectureString(arch.toLowerCase()),
+                          filename)));
+    }
+
+    private static Stream<Arguments> platformArchCombinationsExecutableFailure() {
+      return Stream.of(
+          Arguments.of(Endpoint.PLATFORM_TYPE.MacOS.name(), "not an arch"),
+          Arguments.of(Endpoint.PLATFORM_TYPE.Linux.name(), "not an arch"),
+          Arguments.of(Endpoint.PLATFORM_TYPE.Windows.name(), "not an arch"));
+    }
+
+    @ParameterizedTest(name = "GET executable for platform \"{0}\" arch \"{1}\" should fail ")
+    @MethodSource("platformArchCombinationsExecutableFailure")
+    public void given_platformAndArch_then_downloadExecutableFails(String platform, String arch) {
+      assertThatThrownBy(
+              () ->
+                  mvc.perform(
+                      get("/api/agent/executable/openaev/%s/%s".formatted(platform, arch))
+                          .contentType(MediaType.APPLICATION_OCTET_STREAM_VALUE)
+                          .accept(MediaType.APPLICATION_OCTET_STREAM_VALUE)))
+          .hasCauseInstanceOf(IllegalArgumentException.class);
     }
   }
 }

@@ -799,18 +799,6 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
   }
 
   /**
-   * Consume delay event from queue
-   *
-   * @param events list of events
-   * @return consumed list of events
-   */
-  // todo remove
-  public List<StepEvent> handleDelayEvent(List<StepEvent> events) {
-    events.forEach(this::handleDelayStepEvent);
-    return events;
-  }
-
-  /**
    * Consume update event from queue
    *
    * @param events list of events
@@ -838,33 +826,6 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
             () ->
                 log.error(
                     "Ready consume: Step not found for StepEvent ID: {}", stepEvent.getStepId()));
-  }
-
-  /**
-   * Handle delay event and pause the corresponding step
-   *
-   * @param stepEvent event to handle
-   */
-  // TODO remove
-  @Override
-  public void handleDelayStepEvent(StepEvent stepEvent) {
-    stepRepository
-        .findByIdAndStatus(stepEvent.getStepId(), StepStatus.TEMPLATE)
-        .ifPresentOrElse(
-            step -> {
-              Workflow workflowRun =
-                  workflowService.getWorkflowByIdAndStatus(
-                      stepEvent.getWorkflowId(), WorkflowStatus.RUN);
-              try {
-                ready(step, workflowRun, null);
-              } catch (ChainingException e) {
-                log.error("Delay consume failed : {}", e.getMessage(), e);
-              }
-            },
-            () ->
-                log.error(
-                    "Delay consume: Step not found for StepEvent. Step ID: {}",
-                    stepEvent.getStepId()));
   }
 
   /**

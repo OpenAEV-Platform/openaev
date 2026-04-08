@@ -6,7 +6,7 @@ import { connect } from 'react-redux';
 import { withStyles } from 'tss-react/mui';
 
 import { storeHelper } from '../actions/Schema';
-import { addTag } from '../actions/Tag';
+import { addTag } from '../actions/tags/tag-action';
 import TagForm from '../admin/components/settings/tags/TagForm';
 import { Can } from '../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../utils/permissions/types';

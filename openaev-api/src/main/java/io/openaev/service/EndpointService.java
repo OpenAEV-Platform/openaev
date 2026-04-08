@@ -471,7 +471,8 @@ public class EndpointService {
               endpoint.getPlatform().name(),
               input.getInstallationMode(),
               input.getInstallationDirectory(),
-              input.getServiceName()));
+              input.getServiceName(),
+              agent.getTenant().getId()));
       assetAgentJob.setAgent(agent);
       assetAgentJob.setTenant(agent.getTenant());
       assetAgentJobRepository.save(assetAgentJob);
@@ -629,7 +630,8 @@ public class EndpointService {
       String file,
       String adminToken,
       String installationDir,
-      String serviceNameOrPrefix)
+      String serviceNameOrPrefix,
+      String tenantId)
       throws IOException {
     String extension =
         switch (platform.toLowerCase()) {
@@ -666,7 +668,8 @@ public class EndpointService {
             String.valueOf(openAEVConfig.isUnsecuredCertificate()))
         .replace("${OPENAEV_WITH_PROXY}", String.valueOf(openAEVConfig.isWithProxy()))
         .replace("${OPENAEV_SERVICE_NAME}", serviceNameOrPrefix)
-        .replace("${OPENAEV_INSTALL_DIR}", installationDir);
+        .replace("${OPENAEV_INSTALL_DIR}", installationDir)
+        .replace("${OPENAEV_TENANT_ID}", tenantId);
   }
 
   public String generateServiceNameOrPrefix(
@@ -734,7 +737,8 @@ public class EndpointService {
       String token,
       String installationMode,
       String installationDir,
-      String serviceNameOrPrefix)
+      String serviceNameOrPrefix,
+      String tenantId)
       throws IOException {
     if (token == null || token.isEmpty()) {
       throw new IllegalArgumentException("Token must not be null or empty.");
@@ -747,11 +751,15 @@ public class EndpointService {
     serviceNameOrPrefix =
         generateServiceNameOrPrefix(platform, installationMode, serviceNameOrPrefix);
     return getFileOrDownloadFromJfrog(
-        platform, installerName, token, installationDir, serviceNameOrPrefix);
+        platform, installerName, token, installationDir, serviceNameOrPrefix, tenantId);
   }
 
   public String generateUpgradeCommand(
-      String platform, String installationMode, String installationDir, String serviceNameOrPrefix)
+      String platform,
+      String installationMode,
+      String installationDir,
+      String serviceNameOrPrefix,
+      String tenantId)
       throws IOException {
     String upgradeName = OPENAEV_AGENT_UPGRADE;
     if (installationMode != null && !installationMode.equals(SERVICE)) {
@@ -761,7 +769,7 @@ public class EndpointService {
     serviceNameOrPrefix =
         generateServiceNameOrPrefix(platform, installationMode, serviceNameOrPrefix);
     return getFileOrDownloadFromJfrog(
-        platform, upgradeName, adminToken, installationDir, serviceNameOrPrefix);
+        platform, upgradeName, adminToken, installationDir, serviceNameOrPrefix, tenantId);
   }
 
   public List<Endpoint> endpointsForScenario(String scenarioId) {

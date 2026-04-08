@@ -7,7 +7,7 @@ import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
-import io.openaev.database.raw.RawTeam;
+import io.openaev.database.raw.RawTeamIndexing;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.utils.fixtures.OrganizationFixture;
@@ -88,10 +88,10 @@ class TeamServiceTest {
               Collections.emptyList()));
     }
 
-    private static List<RawTeam> createRawTeams(String... idNamePairs) {
-      List<RawTeam> rawTeams = new ArrayList<>();
+    private static List<RawTeamIndexing> createRawTeams(String... idNamePairs) {
+      List<RawTeamIndexing> rawTeams = new ArrayList<>();
       for (int i = 0; i < idNamePairs.length; i += 2) {
-        RawTeam rawTeam = mock(RawTeam.class);
+        RawTeamIndexing rawTeam = mock(RawTeamIndexing.class);
         when(rawTeam.getTeam_id()).thenReturn(idNamePairs[i]);
         when(rawTeam.getTeam_name()).thenReturn(idNamePairs[i + 1]);
         rawTeams.add(rawTeam);
@@ -104,7 +104,7 @@ class TeamServiceTest {
     void shouldReturnTeamOutputs(
         String testName,
         List<String> inputIds,
-        List<RawTeam> rawTeams,
+        List<RawTeamIndexing> rawTeams,
         List<String> expectedNames) {
       // Prepare
       when(teamRepository.rawTeamByIds(inputIds)).thenReturn(rawTeams);

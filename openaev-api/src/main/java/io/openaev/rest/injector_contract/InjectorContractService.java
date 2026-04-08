@@ -2,7 +2,6 @@ package io.openaev.rest.injector_contract;
 
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.model.InjectorContract.*;
-import static io.openaev.helper.DatabaseHelper.updateRelation;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
@@ -21,8 +20,14 @@ import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.specification.InjectorContractSpecification;
 import io.openaev.injector_contract.Contract;
+import io.openaev.injectors.challenge.ChallengeContract;
+import io.openaev.injectors.channel.ChannelContract;
 import io.openaev.injectors.email.EmailContract;
+import io.openaev.injectors.manual.ManualContract;
+import io.openaev.injectors.opencti.OpenCTIContract;
 import io.openaev.injectors.ovh.OvhSmsContract;
+import io.openaev.multitenancy.DependenciesManager;
+import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -31,6 +36,7 @@ import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
+import io.openaev.service.InjectorService;
 import io.openaev.service.UserService;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -71,7 +77,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Service
 @Slf4j
-public class InjectorContractService {
+public class InjectorContractService implements DependenciesManager {
 
   @PersistenceContext private EntityManager entityManager;
   @Resource private ObjectMapper mapper;
@@ -83,6 +89,18 @@ public class InjectorContractService {
   private final InjectorRepository injectorRepository;
   private final UserService userService;
   private final AttackPatternRepository attackPatternRepository;
+  private final InjectorService injectorService;
+
+  private final List<String> listDefaultInjectorContract =
+      List.of(
+          EmailContract.EMAIL_GLOBAL,
+          EmailContract.EMAIL_DEFAULT,
+          ChallengeContract.CHALLENGE_PUBLISH,
+          OvhSmsContract.OVH_DEFAULT,
+          ManualContract.MANUAL_DEFAULT,
+          ChannelContract.CHANNEL_PUBLISH,
+          OpenCTIContract.OPENCTI_CREATE_CASE,
+          OpenCTIContract.OPENCTI_CREATE_REPORT);
 
   /** Configuration flag for enabling email import from XLS files. */
   @Value("${openaev.xls.import.mail.enable}")
@@ -216,6 +234,7 @@ public class InjectorContractService {
 
   public Iterable<RawInjectorsContracts> getAllRawInjectContracts() {
     User currentUser = userService.currentUser();
+    String tenantId = TenantContext.getCurrentTenant();
     if (currentUser.isAdminOrBypass()
         || currentUser.getCapabilities().contains(Capability.ACCESS_PAYLOADS)) {
       return injectorContractRepository.getAllRawInjectorsContracts();
@@ -265,32 +284,50 @@ public class InjectorContractService {
     setVulnerabilitiesFromExternalOrInternalIds(
         input.getVulnerabilityExternalIds(), input.getVulnerabilityIds(), injectorContract);
 
-    injectorContract.setInjector(
-        updateRelation(input.getInjectorId(), injectorContract.getInjector(), injectorRepository));
+    // Resolve the injector specified in the input
+    Injector injector = injectorService.injector(input.getInjectorId());
+
+    // Link the contract to the specified injector only.
+    // Custom contracts are user-defined for a specific instance —
+    // sharing across instances of the same type is only done for builtin contracts
+    // during registration (InjectorService.registerBuiltinInjector).
+    injectorContract.addInjector(injector);
+
     injectorContract.setDomains(
-        !injectorContract.getInjector().isPayloads()
+        injector != null && !injector.isPayloads()
             ? this.domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant())
             : new HashSet<>());
-    return injectorContractRepository.save(injectorContract);
+    InjectorContract saved = injectorContractRepository.save(injectorContract);
+    // Link on the owning side now that the contract is persisted
+    injector.getContracts().add(saved);
+    injectorRepository.save(injector);
+    return saved;
   }
 
   public InjectorContract createBuiltinInjectorContract(
       Contract source, Injector injector, boolean isPayloads) {
     InjectorContract target = new InjectorContract();
     target.setId(source.getId());
-    target.setInjector(injector);
+    // Populate the inverse (non-owning) side only so getInjector() works
+    // for tenant resolution in applyBuiltinContractData.
+    // Do NOT call addInjector() here — it modifies the owning side (Injector.contracts)
+    // and causes auto-flush issues since this contract is still transient.
+    if (injector != null) {
+      target.getInjectors().add(injector);
+    }
+    target.setTenant(injector.getTenant());
 
-    applyBuiltinContractData(target, source, isPayloads);
+    applyBuiltinContractData(target, source, isPayloads, injector);
     return target;
   }
 
   public void updateBuiltInInjectorContract(
-      InjectorContract target, Contract source, boolean isPayloads) {
-    applyBuiltinContractData(target, source, isPayloads);
+      InjectorContract target, Contract source, boolean isPayloads, Injector injector) {
+    applyBuiltinContractData(target, source, isPayloads, injector);
   }
 
   private void applyBuiltinContractData(
-      InjectorContract target, Contract source, boolean isPayloads) {
+      InjectorContract target, Contract source, boolean isPayloads, Injector injector) {
     target.setManual(source.isManual());
     target.setAtomicTesting(source.isAtomicTesting());
     target.setPlatforms(source.getPlatforms().toArray(new Endpoint.PLATFORM_TYPE[0]));
@@ -306,7 +343,7 @@ public class InjectorContractService {
       List<AttackPattern> attackPatterns =
           fromIterable(
               attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
-                  source.getAttackPatternsExternalIds(), target.getInjector().getTenant().getId()));
+                  source.getAttackPatternsExternalIds(), injector.getTenant().getId()));
       target.setAttackPatterns(attackPatterns);
     } else {
       target.setAttackPatterns(new ArrayList<>());
@@ -319,16 +356,15 @@ public class InjectorContractService {
           "Failed to serialize contract content for: " + target.getId(), e);
     }
 
-    if (!isPayloads) {
+    if (!isPayloads && injector != null) {
       Set<Domain> currentDomains =
           this.domainService.upsertDomainEntities(
-              target.getDomains(), target.getInjector().getTenant().getId());
+              target.getDomains(), injector.getTenant().getId());
       Set<Domain> domainsToAdd =
           this.domainService.upsertDomainEntities(
-              source.getDomains(), target.getInjector().getTenant().getId());
+              source.getDomains(), injector.getTenant().getId());
       target.setDomains(
-          this.domainService.mergeDomains(
-              currentDomains, domainsToAdd, target.getInjector().getTenant()));
+          this.domainService.mergeDomains(currentDomains, domainsToAdd, injector.getTenant()));
     }
     setupImportAvailable(target);
   }
@@ -473,7 +509,7 @@ public class InjectorContractService {
     Join<Payload, CollectorType> payloadCollectorTypeJoin =
         injectorContractPayloadJoin.join("collectorType", JoinType.LEFT);
     Join<InjectorContract, Injector> injectorContractInjectorJoin =
-        createLeftJoin(injectorContractRoot, "injector");
+        createLeftJoin(injectorContractRoot, "injectors");
     // Array aggregations
     Expression<String[]> attackPatternIdsExpression =
         createJoinArrayAggOnId(cb, injectorContractRoot, "attackPatterns");
@@ -486,26 +522,25 @@ public class InjectorContractService {
 
     // SELECT
     cq.multiselect(
-            injectorContractRoot.get("id").alias("injector_contract_id"),
-            injectorContractRoot.get("externalId").alias("injector_contract_external_id"),
-            injectorContractRoot.get("labels").alias("injector_contract_labels"),
-            injectorContractRoot.get("content").alias("injector_contract_content"),
-            injectorContractRoot.get("platforms").alias("injector_contract_platforms"),
-            injectorContractPayloadJoin.get("type").alias("payload_type"),
-            payloadCollectorTypeJoin.get("name").alias("collector_type"),
-            injectorContractInjectorJoin.get("type").alias("injector_contract_injector_type"),
-            injectorContractInjectorJoin.get("name").alias("injector_contract_injector_name"),
-            attackPatternIdsExpression.alias("injector_contract_attack_patterns"),
-            payloadDomainsIdsExpression.alias("payload_domains"),
-            domainsIdsExpression.alias("injector_contract_domains"),
-            injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"),
-            injectorContractPayloadJoin.get("executionArch").alias("payload_execution_arch"))
-        .distinct(true);
+        injectorContractRoot.get("compositeId").get("id").alias("injector_contract_id"),
+        injectorContractRoot.get("externalId").alias("injector_contract_external_id"),
+        injectorContractRoot.get("labels").alias("injector_contract_labels"),
+        injectorContractRoot.get("content").alias("injector_contract_content"),
+        injectorContractRoot.get("platforms").alias("injector_contract_platforms"),
+        injectorContractPayloadJoin.get("type").alias("payload_type"),
+        payloadCollectorTypeJoin.get("name").alias("collector_type"),
+        injectorContractInjectorJoin.get("type").alias("injector_contract_injector_type"),
+        injectorContractInjectorJoin.get("name").alias("injector_contract_injector_name"),
+        attackPatternIdsExpression.alias("injector_contract_attack_patterns"),
+        payloadDomainsIdsExpression.alias("payload_domains"),
+        domainsIdsExpression.alias("injector_contract_domains"),
+        injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"),
+        injectorContractPayloadJoin.get("executionArch").alias("payload_execution_arch"));
 
-    // GROUP BY
+    // GROUP BY — compositeId expands to both PK columns (injector_contract_id + tenant_id)
     cq.groupBy(
         Arrays.asList(
-            injectorContractRoot.get("id"),
+            injectorContractRoot.get("compositeId"),
             injectorContractPayloadJoin.get("id"),
             payloadCollectorTypeJoin.get("id"),
             injectorContractInjectorJoin.get("id")));
@@ -549,10 +584,9 @@ public class InjectorContractService {
       @NotNull final Root<InjectorContract> injectorContractRoot) {
     // SELECT
     cq.multiselect(
-            injectorContractRoot.get("id").alias("injector_contract_id"),
-            injectorContractRoot.get("externalId").alias("injector_contract_external_id"),
-            injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"))
-        .distinct(true);
+        injectorContractRoot.get("compositeId").get("id").alias("injector_contract_id"),
+        injectorContractRoot.get("externalId").alias("injector_contract_external_id"),
+        injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"));
   }
 
   private List<InjectorContractBaseOutput> execInjectorBaseContract(TypedQuery<Tuple> query) {
@@ -581,7 +615,8 @@ public class InjectorContractService {
     injectorContract.setId(in.getId());
     injectorContract.setManual(in.isManual());
     injectorContract.setLabels(in.getLabels());
-    injectorContract.setInjector(injector);
+    injectorContract.addInjector(injector);
+    injectorContract.setTenant(injector.getTenant());
     injectorContract.setContent(in.getContent());
     injectorContract.setAtomicTesting(in.isAtomicTesting());
     injectorContract.setPlatforms(in.getPlatforms());
@@ -673,5 +708,46 @@ public class InjectorContractService {
     return mergedMap.entrySet().stream()
         .map(entry -> new InjectorContractDomainCountOutput(entry.getKey(), entry.getValue()))
         .toList();
+  }
+
+  @Override
+  public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
+    try {
+      for (String injectorContractId : listDefaultInjectorContract) {
+        InjectorContractId compositeId =
+            new InjectorContractId(injectorContractId, TenantContext.getCurrentTenant());
+        InjectorContract source = entityManager.find(InjectorContract.class, compositeId);
+        if (source == null) {
+          continue; // contract does not exist for the current tenant — skip
+        }
+        entityManager.detach(source);
+        source.setTenant(tenant);
+        entityManager.persist(source);
+      }
+    } catch (Exception e) {
+      log.error(
+          "Failed to create default injector contracts for tenant {}: {}",
+          tenant.getId(),
+          e.getMessage());
+      throw new DependenciesManagerException(
+          "Failed to create default injector contracts for tenant " + tenant.getName(), e);
+    }
+  }
+
+  @Override
+  public void deleteDependencyForTenant(String tenantId) throws DependenciesManagerException {
+    try {
+      for (String injectorContractId : listDefaultInjectorContract) {
+        injectorContractRepository.deleteById(new InjectorContractId(injectorContractId, tenantId));
+      }
+
+    } catch (Exception e) {
+      log.error(
+          "Failed to create default injector contracts for tenant {}: {}",
+          tenantId,
+          e.getMessage());
+      throw new DependenciesManagerException(
+          "Failed to create default injector contracts for tenant " + tenantId, e);
+    }
   }
 }

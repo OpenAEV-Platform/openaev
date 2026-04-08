@@ -13,9 +13,9 @@ import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.basic.PostgreSQLHStoreType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.converter.ContentConverter;
 import io.openaev.helper.MonoIdDeserializerHelper;
-import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -28,6 +28,7 @@ import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -35,14 +36,37 @@ import org.hibernate.annotations.UpdateTimestamp;
 @Setter
 @Entity
 @Table(name = "injectors_contracts")
-@EntityListeners(ModelBaseListener.class)
-public class InjectorContract implements Base {
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+public class InjectorContract implements TenantBase {
 
-  @Id
-  @Column(name = "injector_contract_id")
+  @EmbeddedId @JsonIgnore private InjectorContractId compositeId = new InjectorContractId();
+
+  // -- Delegate accessors for Base / TenantBase interfaces --
+
+  @Override
   @JsonProperty("injector_contract_id")
   @NotBlank
-  private String id;
+  public String getId() {
+    return compositeId.getId();
+  }
+
+  @Override
+  public void setId(String id) {
+    compositeId.setId(id);
+  }
+
+  @Override
+  @JsonIgnore
+  public Tenant getTenant() {
+    String tenantId = compositeId.getTenantId();
+    return tenantId != null ? new Tenant(tenantId) : null;
+  }
+
+  @Override
+  public void setTenant(Tenant tenant) {
+    compositeId.setTenantId(tenant != null ? tenant.getId() : null);
+  }
 
   @Column(name = "injector_contract_external_id", unique = true)
   @JsonProperty("injector_contract_external_id")
@@ -129,21 +153,65 @@ public class InjectorContract implements Base {
   @UpdateTimestamp
   private Instant updatedAt = now();
 
-  @ManyToOne(fetch = FetchType.EAGER)
-  @JoinColumn(name = "injector_id")
-  @JsonSerialize(using = MonoIdSerializer.class)
-  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
-  @JsonProperty("injector_contract_injector")
-  @Queryable(filterable = true, dynamicValues = true)
-  @NotNull
-  @Schema(implementation = String.class)
-  private Injector injector;
+  @ManyToMany(mappedBy = "contracts", fetch = FetchType.EAGER)
+  @JsonIgnore
+  private List<Injector> injectors = new ArrayList<>();
+
+  /**
+   * Convenience method: returns the first linked injector, or null. All injectors sharing a
+   * contract have the same type, so this is safe for type/name lookups. TODO : remove this method
+   * when multi connector is ready
+   */
+  @JsonIgnore
+  @Deprecated
+  public Injector getFirstInjector() {
+    return (injectors != null && !injectors.isEmpty()) ? injectors.getFirst() : null;
+  }
+
+  /**
+   * Sets the injector reference on this contract (inverse side only). Safe to call on transient
+   * contracts — does NOT modify the owning side ({@code Injector.contracts}), so it will not cause
+   * Hibernate auto-flush issues.
+   *
+   * <p>After the contract is persisted, update the owning side directly via {@code
+   * injector.getContracts().add(contract)} for join-table persistence.
+   */
+  public void addInjector(Injector injector) {
+    if (injector != null && !this.injectors.contains(injector)) {
+      if (!this.injectors.isEmpty()
+          && !this.injectors.getFirst().getType().equals(injector.getType())) {
+        throw new IllegalArgumentException(
+            "Cannot link injector of type "
+                + injector.getType()
+                + " to contract already linked to type "
+                + this.injectors.getFirst().getType());
+      }
+      this.injectors.add(injector);
+    }
+  }
+
+  /**
+   * Sets the injector reference on this contract (inverse side only). Safe to call on transient
+   * contracts — does NOT modify the owning side ({@code Injector.contracts}), so it will not cause
+   * Hibernate auto-flush issues.
+   *
+   * <p>After the contract is persisted, update the owning side directly via {@code
+   * injector.getContracts().add(contract)} for join-table persistence.
+   */
+  public void addInjectors(List<Injector> injectors) {
+    if (injectors != null) {
+      injectors.forEach(this::addInjector);
+    }
+  }
 
   @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
       name = "injectors_contracts_attack_patterns",
-      joinColumns = @JoinColumn(name = "injector_contract_id"),
+      joinColumns = {
+        @JoinColumn(name = "injector_contract_id", referencedColumnName = "injector_contract_id"),
+        @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")
+      },
       inverseJoinColumns = @JoinColumn(name = "attack_pattern_id"))
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
@@ -160,7 +228,10 @@ public class InjectorContract implements Base {
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
       name = "injectors_contracts_domains",
-      joinColumns = @JoinColumn(name = "injector_contract_id"),
+      joinColumns = {
+        @JoinColumn(name = "injector_contract_id", referencedColumnName = "injector_contract_id"),
+        @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")
+      },
       inverseJoinColumns = @JoinColumn(name = "domain_id"))
   @Getter(NONE)
   private Set<Domain> domains = new HashSet<>();
@@ -179,7 +250,10 @@ public class InjectorContract implements Base {
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
       name = "injectors_contracts_vulnerabilities",
-      joinColumns = @JoinColumn(name = "injector_contract_id"),
+      joinColumns = {
+        @JoinColumn(name = "injector_contract_id", referencedColumnName = "injector_contract_id"),
+        @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")
+      },
       inverseJoinColumns = @JoinColumn(name = "vulnerability_id"))
   @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
@@ -223,14 +297,26 @@ public class InjectorContract implements Base {
   @Transient
   private final ResourceType resourceType = ResourceType.INJECTOR_CONTRACT;
 
+  /** Returns all linked injector IDs. */
+  @JsonProperty("injector_contract_injectors")
+  @Schema(implementation = String[].class)
+  @Queryable(filterable = true, dynamicValues = true, path = "injectors.id")
+  private List<String> getInjectorIds() {
+    return injectors != null
+        ? new ArrayList<>(injectors.stream().map(Injector::getId).toList())
+        : Collections.emptyList();
+  }
+
   @JsonProperty("injector_contract_injector_type")
-  private String getInjectorType() {
-    return this.getInjector() != null ? this.getInjector().getType() : null;
+  public String getInjectorType() {
+    Injector first = getFirstInjector();
+    return first != null ? first.getType() : null;
   }
 
   @JsonProperty("injector_contract_injector_type_name")
-  private String getInjectorName() {
-    return this.getInjector() != null ? this.getInjector().getName() : null;
+  public String getInjectorName() {
+    Injector first = getFirstInjector();
+    return first != null ? first.getName() : null;
   }
 
   @JsonIgnore
@@ -254,16 +340,16 @@ public class InjectorContract implements Base {
     if (this == o) {
       return true;
     }
-    if (o == null || !Base.class.isAssignableFrom(o.getClass())) {
+    if (o == null || !InjectorContract.class.isAssignableFrom(o.getClass())) {
       return false;
     }
-    Base base = (Base) o;
-    return id.equals(base.getId());
+    InjectorContract that = (InjectorContract) o;
+    return Objects.equals(compositeId, that.compositeId);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id);
+    return Objects.hash(compositeId);
   }
 
   // -- INJECTOR CONTRACT CONTENT --

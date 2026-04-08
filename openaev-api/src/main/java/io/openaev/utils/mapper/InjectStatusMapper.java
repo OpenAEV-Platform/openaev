@@ -1,6 +1,7 @@
 package io.openaev.utils.mapper;
 
 import static io.openaev.utils.mapper.AgentMapper.toAgentOutput;
+import static java.util.Optional.ofNullable;
 
 import io.openaev.database.model.*;
 import io.openaev.rest.atomic_testing.form.*;
@@ -30,12 +31,7 @@ public class InjectStatusMapper {
 
     output.setInjectId(injectTestStatus.getInject().getId());
     output.setInjectType(
-        injectTestStatus
-            .getInject()
-            .getInjectorContract()
-            .map(InjectorContract::getInjector)
-            .map(Injector::getType)
-            .orElse(null));
+        ofNullable(injectTestStatus.getInject().getInjector()).map(Injector::getType).orElse(null));
     output.setInjectTitle(injectTestStatus.getInject().getTitle());
 
     return output;

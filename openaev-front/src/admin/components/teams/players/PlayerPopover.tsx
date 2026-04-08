@@ -1,7 +1,8 @@
 import { Dialog as MuiDialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { type FunctionComponent, useContext, useState } from 'react';
 
-import { type OrganizationHelper, type TagHelper, type UserHelper } from '../../../../actions/helper';
+import { type OrganizationHelper, type UserHelper } from '../../../../actions/helper';
+import { type TagHelper } from '../../../../actions/tags/tag-helper';
 import { deletePlayer, updatePlayer } from '../../../../actions/users/User';
 import Button from '../../../../components/common/button/Button';
 import ButtonPopover from '../../../../components/common/ButtonPopover';

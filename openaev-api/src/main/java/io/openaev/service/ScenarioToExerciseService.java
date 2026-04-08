@@ -235,7 +235,7 @@ public class ScenarioToExerciseService {
               .getInjectorContract()
               .ifPresentOrElse(
                   injectorContract -> {
-                    if (ChannelContract.TYPE.equals(injectorContract.getInjector().getType())) {
+                    if (ChannelContract.TYPE.equals(injectorContract.getInjectorType())) {
                       try {
                         ChannelContent content =
                             mapper.treeToValue(scenarioInject.getContent(), ChannelContent.class);

@@ -23,6 +23,7 @@ import { UserContext } from './utils/hooks/useAuth';
 import useNetworkCheck from './utils/hooks/useCheckNetwork';
 import useTenant from './utils/hooks/useTenant';
 import PermissionsProvider from './utils/permissions/PermissionsProvider';
+import { buildTenantUrl, extractTenantFromUrl, getCurrentTenantId } from './utils/tenant-url-helper';
 
 const RootPublic = lazy(() => import('./public/Root'));
 const IndexPrivate = lazy(() => import('./private/Index'));
@@ -46,7 +47,7 @@ const Root = () => {
   });
   const dispatch = useAppDispatch();
 
-  const { userTenants, currentUserTenant, switchUserTenant } = useTenant(me, logged);
+  const { userTenants, currentUserTenant, switchUserTenant, reloadUserTenants } = useTenant(me, logged);
 
   useEffect(() => {
     dispatch(fetchMe());
@@ -66,6 +67,16 @@ const Root = () => {
     );
   }
 
+  // When the user is authenticated but the URL has no tenant prefix
+  // (e.g. first visit at "/", or right after login), hard-redirect to
+  // the tenant-prefixed URL so BrowserRouter picks up the correct basename.
+  // buildTenantUrl() preserves the current deep link path, search and hash.
+  if (!extractTenantFromUrl()) {
+    const tenantId = currentUserTenant?.tenant_id ?? getCurrentTenantId();
+    window.location.href = buildTenantUrl(tenantId);
+    return <Loader />;
+  }
+
   return (
     <PermissionsProvider capabilities={me.user_capabilities} grants={me.user_grants} isAdmin={me.user_admin}>
       <UserContext.Provider
@@ -76,6 +87,7 @@ const Root = () => {
           userTenants,
           currentUserTenant,
           switchUserTenant,
+          reloadUserTenants,
         }}
       >
         <StyledEngineProvider injectFirst>

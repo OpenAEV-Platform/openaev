@@ -47,11 +47,9 @@ public class HealthCheckUtils {
       HealthCheck.Type type,
       HealthCheck.Status status) {
     List<HealthCheck> result = new ArrayList<>();
-    InjectorContract injectorContract = inject.getInjectorContract().orElse(null);
-    Injector injector = injectorContract != null ? injectorContract.getInjector() : null;
 
-    if (injector != null
-        && ArrayUtils.contains(injector.getDependencies(), service)
+    if (inject.getInjector() != null
+        && ArrayUtils.contains(inject.getInjector().getDependencies(), service)
         && !isServiceAvailable) {
       result.add(new HealthCheck(type, HealthCheck.Detail.SERVICE_UNAVAILABLE, status, now()));
     }
@@ -133,11 +131,11 @@ public class HealthCheckUtils {
    * Verify whether an injector contract depends on an injector and whether that injector is
    * registered; if not, add an error to the health check.
    *
-   * @param inject
-   * @param injectors
-   * @param externalServiceDependency
-   * @param type
-   * @return
+   * @param inject the inject to verify
+   * @param injectors the list of registered injectors
+   * @param externalServiceDependency the external service dependency to check against
+   * @param type the type of health check being performed
+   * @return a list of health check errors, empty if the injector is properly registered
    */
   public List<HealthCheck> runInjectorCheck(
       @NotNull final Inject inject,
@@ -147,9 +145,9 @@ public class HealthCheckUtils {
     List<HealthCheck> result = new ArrayList<>();
     InjectorContract contract = inject.getInjectorContract().orElse(null);
     if (contract != null
-        && contract.getInjector() != null
-        && contract.getInjector().getDependencies() != null
-        && Arrays.asList(contract.getInjector().getDependencies())
+        && inject.getInjector() != null
+        && inject.getInjector().getDependencies() != null
+        && Arrays.asList(inject.getInjector().getDependencies())
             .contains(externalServiceDependency)) {
       boolean isInjectorRegistered =
           injectors.stream()
@@ -204,25 +202,7 @@ public class HealthCheckUtils {
   public List<HealthCheck> runMissingContentChecks(@NotNull final Scenario scenario) {
     List<HealthCheck> result = new ArrayList<>();
     boolean atLeastOneInjectIsNotReady =
-        scenario.getInjects().stream()
-            .anyMatch(
-                inject ->
-                    !runContentChecks(
-                            inject.getInjectorContract().orElse(null),
-                            inject.getContent(),
-                            inject.isAllTeams(),
-                            ofNullable(inject.getTeams())
-                                .map(teams -> teams.stream().map(Team::getId).toList())
-                                .orElse(new ArrayList<>()),
-                            ofNullable(inject.getAssets())
-                                .map(assets -> assets.stream().map(Asset::getId).toList())
-                                .orElse(new ArrayList<>()),
-                            ofNullable(inject.getAssetGroups())
-                                .map(
-                                    assetGroups ->
-                                        assetGroups.stream().map(AssetGroup::getId).toList())
-                                .orElse(new ArrayList<>()))
-                        .isEmpty());
+        scenario.getInjects().stream().anyMatch(inject -> !runContentChecks(inject).isEmpty());
 
     if (atLeastOneInjectIsNotReady) {
       result.add(
@@ -250,13 +230,9 @@ public class HealthCheckUtils {
                 inject ->
                     inject.getInjectorContract() != null
                         && inject.getInjectorContract().isPresent()
-                        && inject.getInjectorContract().get().getInjector() != null
-                        && inject.getInjectorContract().get().getInjector().getDependencies()
-                            != null)
-            .flatMap(
-                inject ->
-                    Arrays.stream(
-                        inject.getInjectorContract().get().getInjector().getDependencies()))
+                        && inject.getInjector() != null
+                        && inject.getInjector().getDependencies() != null)
+            .flatMap(inject -> Arrays.stream(inject.getInjector().getDependencies()))
             .anyMatch(
                 dependency ->
                     ExternalServiceDependency.SMTP.equals(dependency)

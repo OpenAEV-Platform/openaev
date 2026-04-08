@@ -1,5 +1,5 @@
 import { ListItem, ListItemButton, ListItemIcon, ListItemText, type SvgIconProps } from '@mui/material';
-import { type ComponentType, type ReactNode } from 'react';
+import { type ComponentType, type CSSProperties, type ReactNode } from 'react';
 
 import useBodyItemsStyles from '../queryable/style/style';
 import { type Header } from '../SortHeadersList';
@@ -10,28 +10,27 @@ interface Props<T> {
   headers: Header[];
   items: T[];
   rowKey: keyof T;
+  onRowClick?: (item: T) => void;
+  itemWidth?: Record<string, CSSProperties>;
 }
 
-const PaginatedList = <T, >({ Icon, secondaryAction, headers, items, rowKey }: Props<T>) => {
+const PaginatedList = <T, >({ Icon, secondaryAction, headers, items, rowKey, onRowClick, itemWidth = {} }: Props<T>) => {
   const bodyItemsStyles = useBodyItemsStyles();
-
   return (
     <>
-      {items.map((item: T) => (
-        <ListItem
-          key={String(item[rowKey])}
-          divider
-          disablePadding
-          secondaryAction={secondaryAction?.(item)}
-        >
-          <ListItemButton style={{ height: 50 }}>
+      {items.map((item: T) => {
+        const rowContent = (
+          <>
             {Icon && <ListItemIcon><Icon color="primary" /></ListItemIcon>}
             <ListItemText primary={(
               <div style={bodyItemsStyles.bodyItems}>
                 {headers.map(header => (
                   <div
                     key={header.field}
-                    style={{ ...bodyItemsStyles.bodyItem }}
+                    style={{
+                      ...bodyItemsStyles.bodyItem,
+                      ...{ width: itemWidth?.[header.field]?.width },
+                    }}
                   >
                     {header.value?.(item)}
                   </div>
@@ -39,9 +38,26 @@ const PaginatedList = <T, >({ Icon, secondaryAction, headers, items, rowKey }: P
               </div>
             )}
             />
-          </ListItemButton>
-        </ListItem>
-      ))}
+          </>
+        );
+
+        return (
+          <ListItem
+            key={String(item[rowKey])}
+            divider
+            disablePadding={!!onRowClick}
+            secondaryAction={secondaryAction?.(item)}
+          >
+            {onRowClick
+              ? (
+                  <ListItemButton style={{ height: 50 }} onClick={() => onRowClick(item)}>
+                    {rowContent}
+                  </ListItemButton>
+                )
+              : rowContent}
+          </ListItem>
+        );
+      })}
     </>
   );
 };
