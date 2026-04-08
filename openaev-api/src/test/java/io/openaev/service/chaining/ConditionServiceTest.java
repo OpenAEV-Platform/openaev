@@ -723,7 +723,6 @@ public class ConditionServiceTest {
 
       when(conditionRepository.findById(rootId)).thenReturn(Optional.of(existingRoot));
       when(stepRepository.findAllById(List.of(linkedStepId))).thenReturn(List.of(linkedStep));
-      when(conditionRepository.saveAndFlush(existingRoot)).thenReturn(existingRoot);
       when(conditionRepository.save(any(Condition.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -737,14 +736,17 @@ public class ConditionServiceTest {
       assertEquals("ok", updated.getConditionChildren().getFirst().getValue());
       assertEquals(workflowId, updated.getConditionChildren().getFirst().getWorkflowId());
 
-      verify(conditionRepository).saveAndFlush(existingRoot);
       verify(conditionRepository, atLeast(2)).save(any(Condition.class));
     }
 
     @Test
     void shouldThrowWhenRootConditionDoesNotExist() {
+      ConditionCreateInput rootInput = new ConditionCreateInput();
+      rootInput.setTemporaryId("tmp-root");
+      rootInput.setType(ConditionType.AND);
+
       EventInput input =
-          EventInput.builder().name("x").workflowId("wf").conditions(List.of()).build();
+          EventInput.builder().name("x").workflowId("wf").conditions(List.of(rootInput)).build();
       when(conditionRepository.findById("missing-root")).thenReturn(Optional.empty());
 
       assertThrows(
