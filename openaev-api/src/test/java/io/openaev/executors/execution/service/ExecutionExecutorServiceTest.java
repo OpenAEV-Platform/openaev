@@ -10,7 +10,6 @@ import io.openaev.execution.ExecutionExecutorException;
 import io.openaev.execution.ExecutionExecutorService;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.utils.ExecutorUtils;
-import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exception.AgentException;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
@@ -45,12 +44,7 @@ public class ExecutionExecutorServiceTest {
   void test_launchExecutorContext_noAssetException() throws Exception {
 
     // Init datas
-    Command payloadCommand =
-        PayloadFixture.createCommand(
-            "cmd",
-            "whoami",
-            List.of(),
-            "whoami");
+    Command payloadCommand = PayloadFixture.createCommand("cmd", "whoami", List.of(), "whoami");
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Map<String, String> executorCommands = new HashMap<>();
     executorCommands.put(

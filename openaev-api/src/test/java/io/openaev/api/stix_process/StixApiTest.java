@@ -294,9 +294,7 @@ class StixApiTest extends IntegrationTest {
               InjectorContractFixture.createInjectorContractWithPlatforms(
                   List.of(Endpoint.PLATFORM_TYPE.Windows).toArray(Endpoint.PLATFORM_TYPE[]::new)))
           .withAttackPattern(attackPatternWrapper)
-          .withPayload(
-              payloadComposer
-                  .forPayload(PayloadFixture.createDefaultCommand()))
+          .withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand()))
           .persist();
 
       entityManager.flush();

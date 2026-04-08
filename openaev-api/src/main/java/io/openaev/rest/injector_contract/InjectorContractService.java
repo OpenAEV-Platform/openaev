@@ -710,17 +710,17 @@ public class InjectorContractService {
     return entityManager.createQuery(qDirect).getResultList();
   }
 
-    /**
-     * Search for Injector Contracts, depending on pagination input and filter
-     *
-     * @param input to filter
-     * @return the injector contracts search results
-     */
-  public Page<? extends InjectorContractBaseOutput> searchInjectorContracts(InjectorContractSearchPaginationInput input) {
-      return buildPaginationCriteriaBuilder(
-              (spec, specCount, pageable) ->
-                      getSinglePage(spec, specCount, pageable, input),
-              handleArchitectureFilter(input),
-              InjectorContract.class);
+  /**
+   * Search for Injector Contracts, depending on pagination input and filter
+   *
+   * @param input to filter
+   * @return the injector contracts search results
+   */
+  public Page<? extends InjectorContractBaseOutput> searchInjectorContracts(
+      InjectorContractSearchPaginationInput input) {
+    return buildPaginationCriteriaBuilder(
+        (spec, specCount, pageable) -> getSinglePage(spec, specCount, pageable, input),
+        handleArchitectureFilter(input),
+        InjectorContract.class);
   }
 }

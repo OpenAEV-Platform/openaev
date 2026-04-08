@@ -213,7 +213,7 @@ class InjectImportTest extends IntegrationTest {
                                     .forDocument(
                                         DocumentFixture.getDocument(
                                             FileFixture.getBadCoffeeFileContent()))
-                                     .withInMemoryFile(FileFixture.getBadCoffeeFileContent()))))
+                                    .withInMemoryFile(FileFixture.getBadCoffeeFileContent()))))
             .withTag(
                 tagComposer.forTag(TagFixture.getTagWithText("filedrop inject with payload tag"))),
         injectComposer
@@ -230,7 +230,7 @@ class InjectImportTest extends IntegrationTest {
                                     .forDocument(
                                         DocumentFixture.getDocument(
                                             FileFixture.getBeadFileContent()))
-                                     .withInMemoryFile(FileFixture.getBeadFileContent()))))
+                                    .withInMemoryFile(FileFixture.getBeadFileContent()))))
             .withTag(
                 tagComposer.forTag(
                     TagFixture.getTagWithText("executable inject with payload tag"))));

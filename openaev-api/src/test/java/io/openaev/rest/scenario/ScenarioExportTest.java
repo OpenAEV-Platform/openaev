@@ -9,7 +9,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Base;
-import io.openaev.database.model.Domain;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tag;
 import io.openaev.export.Mixins;
@@ -20,7 +19,6 @@ import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.io.IOException;
-import java.util.Set;
 import net.javacrumbs.jsonunit.core.Option;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -76,8 +74,7 @@ public class ScenarioExportTest extends IntegrationTest {
                                 InjectorContractFixture.createDefaultInjectorContract())
                             .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
                             .withPayload(
-                                payloadComposer
-                                    .forPayload(PayloadFixture.createDefaultCommand()))))
+                                payloadComposer.forPayload(PayloadFixture.createDefaultCommand()))))
             .persist()
             .get();
 

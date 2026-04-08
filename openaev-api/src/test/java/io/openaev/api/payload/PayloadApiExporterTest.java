@@ -3,7 +3,6 @@ package io.openaev.api.payload;
 import static io.openaev.rest.payload.PayloadApi.PAYLOAD_URI;
 import static io.openaev.utils.fixtures.PayloadFixture.COMMAND_PAYLOAD_NAME;
 import static io.openaev.utils.fixtures.PayloadFixture.createDefaultCommand;
-import static io.openaev.utils.fixtures.TagFixture.getTagWithText;
 import static io.openaev.utilstest.ZipUtils.convertToJson;
 import static io.openaev.utilstest.ZipUtils.extractAllFilesFromZip;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -14,14 +13,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
-import io.openaev.database.model.Domain;
-import io.openaev.utils.fixtures.DomainFixture;
-import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
-import io.openaev.utils.fixtures.composers.TagComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.Map;
-import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,9 +31,7 @@ class PayloadApiExporterTest extends IntegrationTest {
   @Autowired private PayloadComposer payloadComposer;
 
   PayloadComposer.Composer createPayloadComposer() {
-    return this.payloadComposer
-        .forPayload(createDefaultCommand())
-        .persist();
+    return this.payloadComposer.forPayload(createDefaultCommand()).persist();
   }
 
   @Test

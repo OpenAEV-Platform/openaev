@@ -141,7 +141,8 @@ class V1_DataImporterTest extends IntegrationTest {
         this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     Payload payload = payloadRepository.findAll().iterator().next();
-    Optional<InjectorContract> injectorContractOpt = injectorContractRepository.findInjectorContractByPayload(payload);
+    Optional<InjectorContract> injectorContractOpt =
+        injectorContractRepository.findInjectorContractByPayload(payload);
 
     assertFalse(injectorContractOpt.isEmpty());
 
@@ -164,7 +165,8 @@ class V1_DataImporterTest extends IntegrationTest {
     this.importer.importData(
         this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
     Payload payload2 = payloadRepository.findAll().iterator().next();
-    Optional<InjectorContract> injectorContractOpt2 = injectorContractRepository.findInjectorContractByPayload(payload2);
+    Optional<InjectorContract> injectorContractOpt2 =
+        injectorContractRepository.findInjectorContractByPayload(payload2);
     assertFalse(injectorContractOpt2.isEmpty());
 
     AttackPattern attackPattern2 = injectorContractOpt2.get().getAttackPatterns().getFirst();

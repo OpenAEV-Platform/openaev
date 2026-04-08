@@ -1356,8 +1356,7 @@ public class InjectorContractApiTest extends IntegrationTest {
               .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
               .withInjector(injectorFixture.getWellKnownOaevImplantInjector());
       if (addPayload) {
-        icComposer.withPayload(
-            payloadComposer.forPayload(PayloadFixture.createDefaultCommand()));
+        icComposer.withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand()));
       }
       InjectorContract ic = icComposer.persist().get();
       if (addPayload) {

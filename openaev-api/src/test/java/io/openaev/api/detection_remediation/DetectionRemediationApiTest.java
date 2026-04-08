@@ -390,7 +390,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
         (Command)
             payloadComposer
                 .forPayload(
-                    PayloadFixture.createDefaultCommandWithAttackPatternAndArguments(payloadArguments))
+                    PayloadFixture.createDefaultCommandWithAttackPatternAndArguments(
+                        payloadArguments))
                 .get();
 
     PayloadInput input = payloadComposer.forPayloadInput(payload);
@@ -455,7 +456,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
         (Command)
             payloadComposer
                 .forPayload(
-                    PayloadFixture.createDefaultCommandWithAttackPatternAndArguments(payloadArguments))
+                    PayloadFixture.createDefaultCommandWithAttackPatternAndArguments(
+                        payloadArguments))
                 .get();
 
     PayloadInput input = payloadComposer.forPayloadInput(payload);
@@ -1305,8 +1307,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     Command payload =
         (Command)
-            PayloadFixture.createDefaultCommandWithAttackPatternAndArguments(
-                payloadArguments);
+            PayloadFixture.createDefaultCommandWithAttackPatternAndArguments(payloadArguments);
 
     return injectComposer
         .forInject(InjectFixture.getDefaultInject())
@@ -1338,8 +1339,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     Command payload =
         (Command)
-            PayloadFixture.createDefaultCommandWithAttackPatternAndArguments(
-                payloadArguments);
+            PayloadFixture.createDefaultCommandWithAttackPatternAndArguments(payloadArguments);
 
     return injectComposer
         .forInject(InjectFixture.getDefaultInject())
@@ -1463,7 +1463,6 @@ public class DetectionRemediationApiTest extends IntegrationTest {
         PayloadFixture.createPayloadArgument("guest_user", ContractFieldType.Text, "guest", null);
     return new ArrayList<>(List.of(payloadArgumentText));
   }
-
 
   private String getBadDetectionRemediationAIResponse() {
     return """

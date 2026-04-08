@@ -17,7 +17,6 @@ import io.openaev.executors.tanium.model.DataComputerGroup;
 import io.openaev.executors.tanium.model.NodeEndpoint;
 import io.openaev.executors.tanium.model.TaniumComputerGroup;
 import io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration;
-import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -102,9 +101,7 @@ public class TaniumExecutorServiceTest {
     doNothing().when(enterpriseEditionService).throwEEExecutorService(any(), any(), any());
     when(config.getApiBatchExecutionActionPagination()).thenReturn(1);
     when(config.getWindowsPackageId()).thenReturn(112200);
-    Command payloadCommand =
-        PayloadFixture.createCommand(
-            "cmd", "whoami", List.of(), "whoami");
+    Command payloadCommand = PayloadFixture.createCommand("cmd", "whoami", List.of(), "whoami");
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Map<String, String> executorCommands = new HashMap<>();
     executorCommands.put(
