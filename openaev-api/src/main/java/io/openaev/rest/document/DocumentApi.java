@@ -71,7 +71,7 @@ public class DocumentApi extends RestBehavior {
   private final ChannelService channelService;
 
   @PostMapping(DOCUMENT_API)
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.DOCUMENT)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.DOCUMENT)
   @Transactional(rollbackOn = Exception.class)
   public Document uploadDocument(
       @Valid @RequestPart("input") DocumentCreateInput input,
