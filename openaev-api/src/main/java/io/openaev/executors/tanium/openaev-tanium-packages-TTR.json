@@ -9,10 +9,17 @@
         },
         "name": "OpenAEV Subprocessor (Unix) TTR",
         "display_name": "OpenAEV Subprocessor (Unix) TTR",
-        "files": [],
+        "files": [
+          {
+            "name": "openaev-ttr.sh",
+            "source": "",
+            "download_seconds": 0,
+            "direct_download_flag": false
+          }
+        ],
         "file_templates": [],
-        "command": "/bin/sh -c \"/bin/echo $1 | sed 's#%2b#+#gi' | sed 's#%3d#=#gi' | sed 's#%2f#/#gi' | base64 -d | sh & exit 0\"",
-        "command_timeout": 60,
+        "command": "/bin/sh openaev-ttr.sh $1",
+        "command_timeout": 120,
         "expire_seconds": 660,
         "hidden_flag": 0,
         "process_group_flag": 1,
