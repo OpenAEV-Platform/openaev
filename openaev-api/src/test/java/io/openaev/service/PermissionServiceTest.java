@@ -345,6 +345,93 @@ public class PermissionServiceTest extends IntegrationTest {
             user, Optional.of(mappingInfo), null, ResourceType.INJECTOR, Action.SEARCH));
   }
 
+  @Test
+  public void test_hasPermission_read_workflow_step_WHEN_has_no_permission() {
+    User user = getUser(USER_ID, false);
+    assertFalse(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.WORKFLOW, Action.READ));
+    assertFalse(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.STEP, Action.READ));
+    assertFalse(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.CONDITION, Action.READ));
+  }
+
+  @Test
+  public void test_hasPermission_update_workflow_step_WHEN_has_no_permission() {
+    User user = getUser(USER_ID, false);
+    assertFalse(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.WORKFLOW, Action.WRITE));
+    assertFalse(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.STEP, Action.WRITE));
+    assertFalse(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.CONDITION, Action.WRITE));
+  }
+
+  @Test
+  public void test_hasPermission_delete_workflow_step_WHEN_has_no_permission() {
+    User user = getUser(USER_ID, false);
+    assertFalse(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.WORKFLOW, Action.DELETE));
+    assertFalse(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.STEP, Action.DELETE));
+    assertFalse(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.CONDITION, Action.DELETE));
+  }
+
+  @Test
+  public void test_hasPermission_read_workflow_step_WHEN_has_access_assessment() {
+    User user = getUser(USER_ID, false);
+    user.setGroups(List.of(getGroup(Capability.ACCESS_ASSESSMENT)));
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.WORKFLOW, Action.READ));
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.STEP, Action.READ));
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.CONDITION, Action.READ));
+  }
+
+  @Test
+  public void test_hasPermission_update_workflow_step_WHEN_has_manage_assessment() {
+    User user = getUser(USER_ID, false);
+    user.setGroups(List.of(getGroup(Capability.MANAGE_ASSESSMENT)));
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.WORKFLOW, Action.WRITE));
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.STEP, Action.WRITE));
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.CONDITION, Action.WRITE));
+  }
+
+  @Test
+  public void test_hasPermission_delete_workflow_step_WHEN_has_delete_assessment() {
+    User user = getUser(USER_ID, false);
+    user.setGroups(List.of(getGroup(Capability.DELETE_ASSESSMENT)));
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.WORKFLOW, Action.DELETE));
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.STEP, Action.DELETE));
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.CONDITION, Action.DELETE));
+  }
+
   private User getUser(final String id, final boolean isAdmin) {
     User user = UserFixture.getUser();
     user.setAdmin(isAdmin);
