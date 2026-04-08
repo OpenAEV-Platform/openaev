@@ -25,9 +25,16 @@ import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.RoleService;
+import io.openaev.utils.fixtures.DetectionRemediationFixture;
+import io.openaev.utils.fixtures.DomainFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
+import io.openaev.utils.fixtures.PayloadFixture;
+import io.openaev.utils.fixtures.composers.DetectionRemediationComposer;
+import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.fixtures.composers.ExecutorComposer;
+import io.openaev.utils.fixtures.composers.InjectorContractComposer;
+import io.openaev.utils.fixtures.composers.PayloadComposer;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -72,9 +79,14 @@ class TenantServiceTest extends IntegrationTest {
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private ExecutorComposer executorComposer;
   @Autowired private ExecutorFixture executorFixture;
+  @Autowired private DetectionRemediationComposer detectionRemediationComposer;
+  @Autowired private PayloadComposer payloadComposer;
+  @Autowired private InjectorContractComposer injectorContractComposer;
+  @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private CollectorService collectorService;
   @Autowired private ExecutorService executorService;
   @Autowired private InjectorService injectorService;
+  @Autowired private DomainComposer domainComposer;
   @Autowired private V20260330_Default_tenant_data datapack;
 
   @Test
@@ -472,6 +484,59 @@ class TenantServiceTest extends IntegrationTest {
           .isInstanceOf(DependenciesManagerException.class)
           .hasMessageContaining("Failed to create injectors");
     }
+
+    @Test
+    @DisplayName("should link pre-existing contracts when copying injectors to the new tenant")
+    void should_link_contracts_when_copying_injectors() throws DependenciesManagerException {
+      // -- ARRANGE --
+      // 1. Create an injector with a contract in the default tenant
+      Injector sourceInjector =
+          InjectorFixture.createInjector("link-injector-id", "Link Injector", "link_type");
+      sourceInjector = injectorRepository.save(sourceInjector);
+
+      InjectorContract sourceContract =
+          injectorContractComposer
+              .forInjectorContract(
+                  io.openaev.utils.fixtures.InjectorContractFixture.createDefaultInjectorContract())
+              .withInjector(sourceInjector)
+              .persist()
+              .get();
+
+      // 2. Create the new tenant
+      Tenant newTenant = getTenant("Linked Tenant");
+      tenantComposer.forTenant(newTenant).persist();
+      // Flush tenant first — InjectorContractId stores tenant_id as a plain @Column (not
+      // @ManyToOne), so Hibernate cannot infer the FK ordering and may try to INSERT the
+      // contract before the tenant.
+      entityManager.flush();
+
+      // 3. Simulate InjectorContractService having already copied the contract to the new tenant
+      //    (InjectorContractService is a prerequisite of InjectorService)
+      InjectorContract contractCopyForNewTenant = new InjectorContract();
+      contractCopyForNewTenant.setId(sourceContract.getId());
+      contractCopyForNewTenant.setTenant(newTenant);
+      contractCopyForNewTenant.setContent(sourceContract.getContent());
+      contractCopyForNewTenant.setConvertedContent(sourceContract.getConvertedContent());
+      injectorContractRepository.save(contractCopyForNewTenant);
+      entityManager.flush();
+
+      // -- ACT --
+      injectorService.createDependencyForTenant(newTenant);
+      entityManager.flush();
+
+      // -- ASSERT --
+      Session session = entityManager.unwrap(Session.class);
+      session.enableFilter("tenantFilter").setParameter("tenantId", newTenant.getId());
+
+      List<Injector> copiedInjectors = StreamHelper.fromIterable(injectorRepository.findAll());
+      assertThat(copiedInjectors).hasSize(1);
+      Injector copiedInjector = copiedInjectors.getFirst();
+      assertThat(copiedInjector.getName()).isEqualTo("Link Injector");
+      // Verify the contract was linked to the copied injector
+      assertThat(copiedInjector.getContracts()).hasSize(1);
+      assertThat(copiedInjector.getContracts().iterator().next().getId())
+          .isEqualTo(sourceContract.getId());
+    }
   }
 
   @Nested
@@ -537,6 +602,44 @@ class TenantServiceTest extends IntegrationTest {
       Session session = entityManager.unwrap(Session.class);
       session.enableFilter("tenantFilter").setParameter("tenantId", tenant.getId());
       assertThat(injectorRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    @DisplayName(
+        "should throw DependenciesManagerException when collector type delete fails due to FK constraint")
+    void should_throw_when_collector_type_delete_fails() throws DependenciesManagerException {
+      // -- ARRANGE --
+      // Create a tenant with its own collector types (copied from default)
+      Tenant tenant = getTenant("FK Tenant");
+      tenantComposer.forTenant(tenant).persist();
+      collectorService.createDependencyForTenant(tenant);
+      entityManager.flush();
+
+      // Pick one of the copied collector types and attach a DetectionRemediation to it.
+      // The FK from detection_remediations → collector_types has no ON DELETE CASCADE,
+      // so the native DELETE on collector_types will fail.
+      Session session = entityManager.unwrap(Session.class);
+      session.enableFilter("tenantFilter").setParameter("tenantId", tenant.getId());
+      CollectorType copiedType =
+          StreamHelper.fromIterable(collectorTypeRepository.findAll()).getFirst();
+
+      Payload payload =
+          payloadComposer
+              .forPayload(
+                  PayloadFixture.createDefaultCommand(
+                      domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet()))
+              .persist()
+              .get();
+      DetectionRemediation dr = DetectionRemediationFixture.createDefaultDetectionRemediation();
+      dr.setPayload(payload);
+      dr.setCollectorType(copiedType);
+      detectionRemediationComposer.forDetectionRemediation(dr).persist();
+      entityManager.flush();
+
+      // -- ACT & ASSERT --
+      assertThatThrownBy(() -> collectorService.deleteDependencyForTenant(tenant.getId()))
+          .isInstanceOf(DependenciesManagerException.class)
+          .hasMessageContaining("Failed to delete collectors");
     }
   }
 }
