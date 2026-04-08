@@ -46,21 +46,21 @@ const ThreatArsenalRunTestDrawer: FunctionComponent<Props> = ({
   const executionModes = [
     {
       icon: <MovieFilterOutlined fontSize="large" color="primary" />,
-      title: t('Create a new scenario').toUpperCase(),
+      title: t('Create a new scenario'),
       description: t('Build a fully customized Scenario'),
       onClick: () => setSelectedExecutionMode(ExecutionMode.SCENARIO_CREATE),
       disabled: false,
     },
     {
       icon: <AddCircleOutlined fontSize="large" color="primary" />,
-      title: t('Add to an existing scenario').toUpperCase(),
+      title: t('Add to an existing scenario'),
       description: t('Easily insert new steps into an existing Scenario'),
       onClick: () => setSelectedExecutionMode(ExecutionMode.SCENARIO_UPDATE),
       disabled: false,
     },
     {
       icon: <Target fontSize="large" color={isOnlyOneItemSelected ? 'primary' : 'disabled'} />,
-      title: t('Run atomic test').toUpperCase(),
+      title: t('Run atomic test'),
       description: t('Execute individually the selected actions immediately'),
       onClick: () => {
         setSelectedExecutionMode(ExecutionMode.ATOMIC_CREATE);
@@ -74,7 +74,7 @@ const ThreatArsenalRunTestDrawer: FunctionComponent<Props> = ({
     [ExecutionMode.EMPTY]: t('Choose Execution mode'),
     [ExecutionMode.SCENARIO_CREATE]: t('Create a new scenario'),
     [ExecutionMode.SCENARIO_UPDATE]: t('Select a scenario'),
-    [ExecutionMode.ATOMIC_CREATE]: t('Create an atomic scenario'),
+    [ExecutionMode.ATOMIC_CREATE]: t('Create an atomic test'),
   };
 
   return (
@@ -85,7 +85,7 @@ const ThreatArsenalRunTestDrawer: FunctionComponent<Props> = ({
     >
       <>
         {ExecutionMode.EMPTY === selectedExecutionMode && (
-          <Stack flexDirection="column" alignItems="center">
+          <Stack flexDirection="column">
             {executionModes.map((executionMode, index) =>
               <ThreatArsenalExecutionModeCardComponent key={`execution-mode-${index}`} executionMode={executionMode} />,
             )}
