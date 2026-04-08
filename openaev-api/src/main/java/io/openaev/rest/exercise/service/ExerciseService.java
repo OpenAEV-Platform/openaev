@@ -1,5 +1,6 @@
 package io.openaev.rest.exercise.service;
 
+<<<<<<< HEAD
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE.SIMULATION;
@@ -16,6 +17,8 @@ import static java.time.temporal.ChronoUnit.MINUTES;
 import static java.util.Collections.emptyList;
 import static java.util.Optional.ofNullable;
 
+=======
+>>>>>>> d1c31eeb4 (feat(chaining): fix review : CRUD workflow. extract previewFeat in one method)
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.openaev.config.OpenAEVConfig;
@@ -41,7 +44,6 @@ import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.service.ScenarioStatisticService;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.chaining.StepService;
@@ -64,11 +66,6 @@ import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.time.Instant;
-import java.util.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
@@ -84,6 +81,26 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
+
+import java.time.Instant;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static io.openaev.config.SessionHelper.currentUser;
+import static io.openaev.database.criteria.GenericCriteria.countQuery;
+import static io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE.SIMULATION;
+import static io.openaev.database.specification.ExerciseSpecification.*;
+import static io.openaev.database.specification.TeamSpecification.fromIds;
+import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.utils.JpaUtils.arrayAggOnId;
+import static io.openaev.utils.StringUtils.duplicateString;
+import static io.openaev.utils.constants.Constants.ARTICLES;
+import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilderWithNullHandling;
+import static java.time.Instant.now;
+import static java.util.Collections.emptyList;
+import static java.util.Optional.ofNullable;
 
 @RequiredArgsConstructor
 @Validated
@@ -178,8 +195,7 @@ public class ExerciseService {
   public Exercise createSimulationChaining(@NotNull final Exercise simulation)
       throws ChainingException {
 
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
-      throw new ChainingException("Feature chaining is not enabled");
+    workflowService.isPreviewFeatureChainingEnable();
 
     Exercise savedSimulation = createExercise(simulation);
     workflowService.creationWorkflow(savedSimulation);

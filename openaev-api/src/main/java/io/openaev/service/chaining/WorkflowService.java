@@ -7,6 +7,8 @@ import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.utils.IpAddressUtils;
 import jakarta.validation.constraints.NotBlank;
 
@@ -25,6 +27,7 @@ import org.springframework.util.CollectionUtils;
 public class WorkflowService {
   private final WorkflowRepository workflowRepository;
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
+  private final PreviewFeatureService previewFeatureService;
 
   // -- READ --
 
@@ -485,7 +488,7 @@ public class WorkflowService {
       return workflowRepository.save(newWorkflowTemplateScenario);
   }
 
-  public Workflow duplicateSimulation(@NotBlank String simulationIdFrom, @NotBlank Exercise simulationTo) throws ChainingException {
+  public Workflow duplicateSimulation(@NotBlank String simulationIdFrom, @NotBlank Exercise simulationTo) {
 
     Optional<Workflow> oldWorkflowOpt = findWorkflowTemplateBySimulationId(simulationIdFrom);
     if(oldWorkflowOpt.isEmpty()) return null;
@@ -494,4 +497,10 @@ public class WorkflowService {
       Workflow newWorkflowTemplateScenario = copyWorkflowTemplateToSimulation(oldWorkflowTemplateSimulation, simulationTo);
       return workflowRepository.save(newWorkflowTemplateScenario);
   }
+
+  public void isPreviewFeatureChainingEnable() throws ChainingException {
+    if(!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
+      throw new ChainingException("Feature chaining is not enabled");
+  }
+
 }

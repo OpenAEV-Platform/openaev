@@ -1,21 +1,5 @@
 package io.openaev.service.scenario;
 
-import static io.openaev.config.SessionHelper.currentUser;
-import static io.openaev.database.criteria.GenericCriteria.countQuery;
-import static io.openaev.database.specification.ScenarioSpecification.findGrantedFor;
-import static io.openaev.database.specification.TeamSpecification.fromIds;
-import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.rest.scenario.utils.ScenarioUtils.handleCustomFilter;
-import static io.openaev.service.ImportService.EXPORT_ENTRY_ATTACHMENT;
-import static io.openaev.service.ImportService.EXPORT_ENTRY_SCENARIO;
-import static io.openaev.utils.StringUtils.duplicateString;
-import static io.openaev.utils.constants.Constants.ARTICLES;
-import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
-import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
-import static java.time.Instant.now;
-import static java.util.Optional.ofNullable;
-import static org.springframework.util.StringUtils.hasText;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -24,7 +8,10 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
-import io.openaev.database.raw.*;
+import io.openaev.database.raw.RawExerciseSimple;
+import io.openaev.database.raw.RawPaginationScenario;
+import io.openaev.database.raw.RawScenario;
+import io.openaev.database.raw.RawScenarioSimple;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.ScenarioSpecification;
 import io.openaev.ee.EnterpriseEditionService;
@@ -45,7 +32,6 @@ import io.openaev.rest.scenario.export.ScenarioFileExport;
 import io.openaev.rest.scenario.form.ScenarioSimple;
 import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.scenario.response.ScenarioTeamUserOutput;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.chaining.WorkflowService;
@@ -63,15 +49,6 @@ import jakarta.persistence.criteria.*;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.io.IOException;
-import java.io.InputStream;
-import java.time.Instant;
-import java.util.*;
-import java.util.function.UnaryOperator;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -87,6 +64,32 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.time.Instant;
+import java.util.*;
+import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+
+import static io.openaev.config.SessionHelper.currentUser;
+import static io.openaev.database.criteria.GenericCriteria.countQuery;
+import static io.openaev.database.specification.ScenarioSpecification.findGrantedFor;
+import static io.openaev.database.specification.TeamSpecification.fromIds;
+import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.rest.scenario.utils.ScenarioUtils.handleCustomFilter;
+import static io.openaev.service.ImportService.EXPORT_ENTRY_ATTACHMENT;
+import static io.openaev.service.ImportService.EXPORT_ENTRY_SCENARIO;
+import static io.openaev.utils.StringUtils.duplicateString;
+import static io.openaev.utils.constants.Constants.ARTICLES;
+import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
+import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
+import static java.time.Instant.now;
+import static java.util.Optional.ofNullable;
+import static org.springframework.util.StringUtils.hasText;
 
 @RequiredArgsConstructor
 @Service
@@ -132,7 +135,6 @@ public class ScenarioService {
 
   private final ScenarioMapper scenarioMapper;
   private final WorkflowService workflowService;
-  private final PreviewFeatureService previewFeatureService;
 
   @Transactional
   public Scenario createScenario(@NotNull final Scenario scenario) {
@@ -143,8 +145,7 @@ public class ScenarioService {
 
   @Transactional
   public Scenario createScenarioChaining(@NotNull final Scenario scenario) throws ChainingException {
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
-      throw new ChainingException("Feature chaining is not enabled");
+    workflowService.isPreviewFeatureChainingEnable();
 
     computeEmails(scenario);
     this.actionMetricCollector.addScenarioCreatedCount();

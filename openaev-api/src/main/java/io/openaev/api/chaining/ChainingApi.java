@@ -12,7 +12,6 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.scenario.form.ScenarioInput;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.chaining.StepService;
@@ -56,8 +55,7 @@ public class ChainingApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SIMULATION)
   public Exercise createSimulation(@Valid @RequestBody CreateExerciseInput input) throws ChainingException {
 
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
-      throw new ChainingException("Feature chaining is not enabled");
+    workflowService.isPreviewFeatureChainingEnable();
 
     if (input == null)
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Exercise input cannot be null");
@@ -90,8 +88,8 @@ public class ChainingApi extends RestBehavior {
   public void createInjectForSimulationChaining(
       @PathVariable String simulationId, @Valid @RequestBody InjectInput input) throws ChainingException {
 
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
-      throw new ChainingException("Feature chaining is not enabled");
+    workflowService.isPreviewFeatureChainingEnable();
+
     if (workflowService.isSimulationChaining(simulationId)) {
       exerciseService.findById(simulationId);
 
@@ -114,8 +112,7 @@ public class ChainingApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public Exercise duplicateExercise(@PathVariable @NotBlank final String simulationId) throws ChainingException {
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
-      throw new ChainingException("Feature chaining is not enabled");
+    workflowService.isPreviewFeatureChainingEnable();
 
     Exercise simulation = exerciseService.getDuplicateExercise(simulationId);
     Optional<Workflow> workflowOpt = workflowService.findWorkflowTemplateBySimulationId(simulationId);
@@ -134,8 +131,7 @@ public class ChainingApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
   public Scenario createScenarioChaining(@Valid @RequestBody final ScenarioInput input) throws ChainingException {
 
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
-      throw new ChainingException("Feature chaining is not enabled");
+    workflowService.isPreviewFeatureChainingEnable();
 
     if (input == null)
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Scenario input cannot be null");
@@ -166,8 +162,7 @@ public class ChainingApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public void createInjectForScenarioChaining(
       @PathVariable @NotBlank final String scenarioId, @Valid @RequestBody InjectInput input) throws ChainingException {
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
-      throw new ChainingException("Feature chaining is not enabled");
+    workflowService.isPreviewFeatureChainingEnable();
 
     if (workflowService.isScenarioChaining(scenarioId)) {
       this.scenarioService.scenario(scenarioId);
@@ -191,8 +186,7 @@ public class ChainingApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   public Scenario duplicateScenarioChaining(@PathVariable @NotBlank final String scenarioId) throws ChainingException {
 
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
-      throw new ChainingException("Feature chaining is not enabled");
+    workflowService.isPreviewFeatureChainingEnable();
 
     Scenario scenario = scenarioService.getDuplicateScenario(scenarioId);
     Optional<Workflow> workflowOpt = workflowService.findWorkflowTemplateByScenarioId(scenarioId);

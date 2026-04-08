@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
@@ -40,7 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @Transactional
-public class InjectExecutionStepTest {
+public class InjectExecutionStepTest extends IntegrationTest {
   @MockBean private InjectorContractService injectorContractService;
   @MockBean private UserService userService;
   @MockBean private TeamService teamService;
@@ -442,7 +443,7 @@ public class InjectExecutionStepTest {
 
     String injectorId = StepService.getField(stepReady.getData(), "inject_injector");
     assertNotNull(injectorId);
-    stepReady.setData(StepService.setField(stepReady.getData(), "inject_injector", ""));
+    stepReady.setData(StepService.setField(stepReady.getData(), "inject_injector", "1111"));
 
     ChainingException ex =
         Assertions.assertThrows(ChainingException.class, () -> injectExecutionStep.run(stepReady));

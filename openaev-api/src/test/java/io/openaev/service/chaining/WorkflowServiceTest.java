@@ -9,6 +9,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.utils.fixtures.WorkflowFixture;
 import java.util.*;
 import java.util.stream.Stream;
@@ -31,6 +32,7 @@ class WorkflowServiceTest {
 
   @Mock private WorkflowRepository workflowRepository;
   @Mock private WorkflowScopeRuleRepository workflowScopeRuleRepository;
+  @Mock private PreviewFeatureService previewFeatureService;
 
   @InjectMocks private WorkflowService workflowService;
 
@@ -494,7 +496,7 @@ class WorkflowServiceTest {
 
       // Service now owns the apply logic — no manual mapper call needed
       WorkflowService service =
-          new WorkflowService(workflowRepository, workflowScopeRuleRepository);
+          new WorkflowService(workflowRepository, workflowScopeRuleRepository, previewFeatureService);
 
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
@@ -587,7 +589,7 @@ class WorkflowServiceTest {
           WorkflowConfigurationInput.builder().workflowScopeRules(List.of(ruleInput)).build();
 
       WorkflowService service =
-          new WorkflowService(workflowRepository, workflowScopeRuleRepository);
+          new WorkflowService(workflowRepository, workflowScopeRuleRepository, previewFeatureService);
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
       when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
