@@ -34,7 +34,6 @@ import io.openaev.injector_contract.ContractConfig;
 import io.openaev.injector_contract.ContractDef;
 import io.openaev.injector_contract.ContractTargetedProperty;
 import io.openaev.injector_contract.fields.*;
-import io.openaev.injectors.openaev.OpenAEVImplantContract;
 import io.openaev.injectors.openaev.util.OpenAEVObfuscationMap;
 import io.openaev.model.inject.form.Expectation;
 import io.openaev.rest.document.DocumentService;
