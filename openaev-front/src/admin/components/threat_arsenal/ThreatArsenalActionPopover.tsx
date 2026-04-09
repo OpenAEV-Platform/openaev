@@ -11,7 +11,7 @@ import {
 } from '@mui/material';
 import { type MouseEvent, useContext, useState } from 'react';
 
-import { deletePayload, exportPayload } from '../../../actions/payloads/payload-actions';
+import { deletePayload } from '../../../actions/payloads/payload-actions';
 import {
   duplicateThreatArsenalAction,
   fetchThreatArsenalAction,
@@ -30,7 +30,7 @@ import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-ty
 import { useAppDispatch } from '../../../utils/hooks';
 import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { download } from '../../../utils/utils';
+// import { download } from '../../../utils/utils';
 import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
