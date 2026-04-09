@@ -1711,6 +1711,7 @@
   "Send the lessons learned questionnaire": "教訓アンケートを送る",
   "Send the questionnaire": "アンケートを送る",
   "Sender email address": "送信者メールアドレス",
+  "Sender email from": "送信者表示名",
   "Sending the questionnaire will emit an email to each player with a unique link to access and fill it.": "アンケートを送信すると、各選手にアンケートにアクセスするためのリンクが貼られたメールが送信されます。",
   "Sent at": "送信先",
   "Sent date": "送信日",

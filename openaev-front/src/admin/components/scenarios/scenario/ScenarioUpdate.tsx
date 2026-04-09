@@ -47,7 +47,7 @@ const ScenarioUpdate: FunctionComponent<Props> = ({
     scenario_external_url,
     scenario_message_header,
     scenario_message_footer,
-    scenario_mail_from,
+    scenario_mail_from_name,
     scenario_mails_reply_to,
     scenario_custom_dashboard,
   }) => ({
@@ -62,7 +62,7 @@ const ScenarioUpdate: FunctionComponent<Props> = ({
     scenario_external_url: scenario_external_url ?? '',
     scenario_message_header: scenario_message_header ?? '',
     scenario_message_footer: scenario_message_footer ?? '',
-    scenario_mail_from: scenario_mail_from ?? '',
+    scenario_mail_from_name: scenario_mail_from_name ?? '',
     scenario_mails_reply_to: scenario_mails_reply_to ?? [],
     scenario_custom_dashboard: scenario_custom_dashboard ?? '',
   }))(scenario);

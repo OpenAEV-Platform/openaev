@@ -1551,6 +1551,12 @@ export interface CreateExerciseInput {
   exercise_is_chaining?: boolean;
   /** @format email */
   exercise_mail_from?: string;
+  /**
+   * @minLength 0
+   * @maxLength 100
+   * @pattern ^[^\r\n\x00]*$
+   */
+  exercise_mail_from_name?: string;
   exercise_mails_reply_to?: string[];
   exercise_main_focus?: string;
   exercise_message_footer?: string;
@@ -2967,6 +2973,7 @@ export interface Exercise {
    * @minLength 1
    */
   exercise_mail_from: string;
+  exercise_mail_from_name?: string;
   exercise_mails_reply_to?: string[];
   exercise_main_focus?: string;
   exercise_message_footer?: string;
@@ -6089,6 +6096,8 @@ export interface PlatformSettings {
   auth_openid_enable?: boolean;
   /** Sender mail to use by default for injects */
   default_mailer?: string;
+  /** Sender display name to use by default for injects */
+  default_mailer_name?: string;
   /** Reply to mail to use by default for injects */
   default_reply_to?: string;
   /** List of enabled dev features */
@@ -6786,6 +6795,7 @@ export interface Scenario {
    * @minLength 1
    */
   scenario_mail_from: string;
+  scenario_mail_from_name?: string;
   scenario_mails_reply_to?: string[];
   scenario_main_focus?: string;
   scenario_message_footer?: string;
@@ -6837,6 +6847,12 @@ export interface ScenarioInput {
   scenario_is_chaining?: boolean;
   /** @format email */
   scenario_mail_from?: string;
+  /**
+   * @minLength 0
+   * @maxLength 100
+   * @pattern ^[^\r\n\x00]*$
+   */
+  scenario_mail_from_name?: string;
   scenario_mails_reply_to?: string[];
   scenario_main_focus?: string;
   scenario_message_footer?: string;
@@ -7644,6 +7660,12 @@ export interface UpdateExerciseInput {
   exercise_is_chaining?: boolean;
   /** @format email */
   exercise_mail_from?: string;
+  /**
+   * @minLength 0
+   * @maxLength 100
+   * @pattern ^[^\r\n\x00]*$
+   */
+  exercise_mail_from_name?: string;
   exercise_mails_reply_to?: string[];
   exercise_main_focus?: string;
   exercise_message_footer?: string;
@@ -7697,6 +7719,12 @@ export interface UpdateScenarioInput {
   scenario_is_chaining?: boolean;
   /** @format email */
   scenario_mail_from?: string;
+  /**
+   * @minLength 0
+   * @maxLength 100
+   * @pattern ^[^\r\n\x00]*$
+   */
+  scenario_mail_from_name?: string;
   scenario_mails_reply_to?: string[];
   scenario_main_focus?: string;
   scenario_message_footer?: string;

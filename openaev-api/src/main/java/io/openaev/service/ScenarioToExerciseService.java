@@ -57,6 +57,7 @@ public class ScenarioToExerciseService {
     exercise.setHeader(scenario.getHeader());
     exercise.setFooter(scenario.getFooter());
     exercise.setFrom(scenario.getFrom());
+    exercise.setFromName(scenario.getFromName());
     exercise.addReplyTos(scenario.getReplyTos());
     exercise.setStart(start);
     exercise.setSecurityCoverage(scenario.getSecurityCoverage());

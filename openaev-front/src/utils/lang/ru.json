@@ -1711,6 +1711,7 @@
   "Send the lessons learned questionnaire": "Отправьте вопросник об извлеченных уроках",
   "Send the questionnaire": "Отправить анкету",
   "Sender email address": "Адрес электронной почты отправителя",
+  "Sender email from": "Отображаемое имя отправителя",
   "Sending the questionnaire will emit an email to each player with a unique link to access and fill it.": "При отправке анкеты каждому игроку будет отправлено письмо с уникальной ссылкой для доступа и заполнения.",
   "Sent at": "Отправлено по адресу",
   "Sent date": "Дата отправки",

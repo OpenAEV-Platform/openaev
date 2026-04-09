@@ -1711,6 +1711,7 @@
   "Send the lessons learned questionnaire": "Inviare il questionario sulle lezioni apprese",
   "Send the questionnaire": "Inviare il questionario",
   "Sender email address": "Indirizzo e-mail del mittente",
+  "Sender email from": "Nome visualizzato del mittente",
   "Sending the questionnaire will emit an email to each player with a unique link to access and fill it.": "L'invio del questionario emetterà un'e-mail a ciascun giocatore con un link unico per accedervi e compilarlo.",
   "Sent at": "Inviato a",
   "Sent date": "Data di invio",

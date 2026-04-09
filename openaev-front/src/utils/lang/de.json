@@ -1711,6 +1711,7 @@
   "Send the lessons learned questionnaire": "Fragebogen zu den gemachten Erfahrungen senden",
   "Send the questionnaire": "Senden Sie den Fragebogen",
   "Sender email address": "Absender-E-Mail-Adresse",
+  "Sender email from": "Absender-Anzeigename",
   "Sending the questionnaire will emit an email to each player with a unique link to access and fill it.": "Beim Versenden des Fragebogens erhält jeder Teilnehmer eine E-Mail mit einem eindeutigen Link, über den er den Fragebogen aufrufen und ausfüllen kann.",
   "Sent at": "Gesendet am",
   "Sent date": "Datum des Versands",
