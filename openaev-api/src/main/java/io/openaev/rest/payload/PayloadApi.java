@@ -81,11 +81,6 @@ public class PayloadApi extends RestBehavior {
         payloadWithRelatedEntities.tagIds());
   }
 
-  public enum PayloadResponseType {
-    PAYLOAD,
-    INJECTOR_CONTRACT
-  }
-
   @PostMapping({PAYLOAD_URI, TENANT_PAYLOAD_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackOn = Exception.class)
