@@ -6,7 +6,6 @@ import {
   type InjectorContractAddInput, type InjectorContractSearchPaginationInput,
   type InjectorContractUpdateInput,
   type InjectorContractUpdateMappingInput,
-  type SearchPaginationInput,
 } from '../utils/api-types';
 import * as schema from './Schema';
 

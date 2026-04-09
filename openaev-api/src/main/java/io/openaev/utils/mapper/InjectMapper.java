@@ -1,7 +1,5 @@
 package io.openaev.utils.mapper;
 
-import static java.util.Optional.ofNullable;
-
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.healthcheck.dto.HealthCheck;

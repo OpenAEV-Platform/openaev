@@ -7,7 +7,6 @@ import { addThreatArsenalAction } from '../../../actions/threat_arsenals/ThreatA
 import Drawer from '../../../components/common/Drawer';
 import { useFormatter } from '../../../components/i18n';
 import {
-  type Domain,
   type ThreatArsenalAction,
   type ThreatArsenalActionCreateInput as ApiThreatArsenalActionCreateInput,
 } from '../../../utils/api-types';
