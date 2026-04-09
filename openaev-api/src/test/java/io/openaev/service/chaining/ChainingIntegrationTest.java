@@ -28,6 +28,7 @@ import io.openaev.service.AssetService;
 import io.openaev.service.TeamService;
 import io.openaev.service.UserService;
 import io.openaev.utils.fixtures.AssetFixture;
+import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.helpers.InjectTestHelper;
 import io.openaev.utils.mockUser.TestUserHolder;
@@ -84,9 +85,12 @@ class ChainingIntegrationTest extends IntegrationTest {
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Injector injectorSaved = injectorRepository.save(injector);
 
-    injectorContractSaved = StepServiceIntegrationTest.getInjectorContract();
-    injectorContractSaved.setInjector(injectorSaved);
-    injectorContractSaved = injectorContractRepository.save(injectorContractSaved);
+    InjectorContract injectorContract = InjectorContractFixture.createImplantInjectorContract();
+    injectorContract.addInjector(injectorSaved);
+    injectorContractSaved = injectorContractRepository.save(injectorContract);
+    // Link on the owning side and save to persist the join table
+    injectorSaved.getContracts().add(injectorContractSaved);
+    injectorRepository.save(injectorSaved);
 
     doReturn(injectorContractSaved).when(injectorContractService).injectorContract(any());
     doReturn(new ArrayList<>()).when(teamService).getTeamsByIds(any());
@@ -398,7 +402,7 @@ class ChainingIntegrationTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
-    void should_not_expose_workflow_chaining_inject_as_atomic_testing() throws Exception {
+    void  should_not_expose_workflow_chaining_inject_as_atomic_testing() throws Exception {
       // Create scenario with chaining enabled
       String scenarioResponse =
           mvc.perform(
@@ -467,8 +471,7 @@ class ChainingIntegrationTest extends IntegrationTest {
               .andReturn()
               .getResponse()
               .getContentAsString();
-      assertFalse(
-          result.contains(injectId),
+      assertFalse(result.contains(injectId),
           "Workflow chaining inject must not be exposed as atomic testing");
     }
 

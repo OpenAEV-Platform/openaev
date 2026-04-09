@@ -16,7 +16,6 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.form.ExercisesGlobalScoresInput;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.*;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.period.CronService;
@@ -77,7 +76,6 @@ class ExerciseServiceUnitTest {
 
   @Mock private WorkflowService workflowService;
   @Mock private LessonsService lessonsService;
-  @Mock private PreviewFeatureService previewFeatureService;
 
   @Spy @InjectMocks private ExerciseService mockedExerciseService;
 
@@ -338,7 +336,7 @@ class ExerciseServiceUnitTest {
       doReturn(saved).when(mockedExerciseService).createExercise(exercise);
       Exercise result;
       if (chaining) {
-        doReturn(true).when(previewFeatureService).isFeatureEnabled(PreviewFeature.INJECT_CHAINING);
+        doNothing().when(workflowService).isPreviewFeatureChainingEnable();
         result = mockedExerciseService.createSimulationChaining(exercise);
       } else {
         result = mockedExerciseService.createExercise(exercise);

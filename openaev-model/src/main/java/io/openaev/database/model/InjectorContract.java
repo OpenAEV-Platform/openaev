@@ -6,15 +6,18 @@ import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.basic.PostgreSQLHStoreType;
 import io.openaev.annotation.Queryable;
+import io.openaev.context.TenantContext;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.converter.ContentConverter;
+import io.openaev.helper.CompositeIdResolvableI;
 import io.openaev.helper.MonoIdDeserializerHelper;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
@@ -38,7 +41,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 @Table(name = "injectors_contracts")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class InjectorContract implements TenantBase {
+public class InjectorContract implements TenantBase, CompositeIdResolvableI {
 
   @EmbeddedId @JsonIgnore private InjectorContractId compositeId = new InjectorContractId();
 
@@ -352,6 +355,14 @@ public class InjectorContract implements TenantBase {
     return Objects.hash(compositeId);
   }
 
+  @Override
+  public Object resolveCompositeId(String rawId, DeserializationContext ctxt) {
+    String tenantId = TenantContext.getCurrentTenant();
+    InjectorContractId compositeId = new InjectorContractId();
+    compositeId.setId(rawId);
+    compositeId.setTenantId(tenantId);
+    return compositeId;
+  }
   // -- INJECTOR CONTRACT CONTENT --
 
   public static final String CONTRACT_CONTENT_FIELDS = "fields";

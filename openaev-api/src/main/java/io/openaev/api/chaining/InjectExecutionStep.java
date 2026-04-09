@@ -5,7 +5,6 @@ import static io.openaev.database.model.DnsResolution.DNS_RESOLUTION_TYPE;
 import static io.openaev.database.model.Executable.EXECUTABLE_TYPE;
 import static io.openaev.database.model.FileDrop.FILE_DROP_TYPE;
 import static io.openaev.service.chaining.StepService.setField;
-import static java.util.Optional.ofNullable;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.InjectableValues;
@@ -36,6 +35,7 @@ import jakarta.persistence.PersistenceContext;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -506,28 +506,46 @@ public class InjectExecutionStep implements ActionStep {
       ObjectMapper mapper = new ObjectMapper();
       JsonNode root = mapper.readTree(step.getData());
 
-      if (inject.getInjectorContract().isEmpty())
+      //GET INJECTOR CONTRACT
+      try {
+        Hibernate.initialize(inject.getInjectorContract().get());
+      } catch (Exception e) {
         throw new ChainingException(
             "Injector contract not found for step (READY) ID: " + step.getId());
+      }
+      InjectorContract injectorContract = inject.getInjectorContract().get();
+      inject.setInjectorContract(injectorContract);
+      //GET INJECTOR
+      JsonNode injectorNode = root.path("inject_injector");
 
-      if (ofNullable(inject.getInjector()).isEmpty()) {
-        JsonNode injectorNode = root.path("inject_injector");
+      //INJECTOR ID FROM JSON NULL
+      if ((injectorNode.isMissingNode() || injectorNode.asText().isEmpty())) {
+
+        throw new ChainingException("Injector not found for injectorContractId "
+                                    + injectorContract.getId()
+                                    + " and step (READY) ID "
+                                    + step.getId());
+
+        //GET INJECTOR FROM DB
+      } else {
 
         String injectorId = injectorNode.asText();
-        inject.setInjector(
-            injectUtils.resolveInjectorReference(
-                injectorId, inject.getInjectorContract().orElse(null)));
+        Injector injector = em.find(Injector.class, injectorId);
+        inject.setInjector(injector);
 
-        if (ofNullable(inject.getInjector()).isEmpty()) {
+        try {
+          Hibernate.initialize(inject.getInjector());
+        } catch (Exception e) {
           throw new ChainingException(
-              "Injector not found for inject "
-                  + inject.getId()
-                  + " and step (READY) ID "
-                  + step.getId());
+              "Injector not found for injectorId "
+              + injectorId
+              + " and step (READY) ID "
+              + step.getId());
         }
       }
 
       return inject;
+
     } catch (JsonProcessingException e) {
       throw new ChainingException("Step (READY) : Error processing JSON to Inject ", e);
     }

@@ -848,8 +848,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
       StringBuilder path) {
     switch (actionJson) {
       case REPLACE -> {
-        JsonPrimitive newValue =
-            fieldsAndValue.get(field) == null ? null : toJsonPrimitive(fieldsAndValue.get(field));
+        JsonPrimitive newValue = toJsonPrimitive(fieldsAndValue.get(field));
         switch (typeJson) {
           case OBJECT -> {
             JsonObject object = jsonElement.getAsJsonObject();

@@ -35,8 +35,6 @@ import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
-import io.openaev.service.chaining.StepService;
-import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
@@ -106,11 +104,6 @@ public class ExerciseApi extends RestBehavior {
   private final ScenarioService scenarioService;
   private final UserService userService;
   private final PlatformSettingsService platformSettingsService;
-
-  private final WorkflowService workflowService;
-  private final StepService stepService;
-  private final PreviewFeatureService previewFeatureService;
-
   // endregion
 
   // region logs
