@@ -161,7 +161,8 @@ public class InjectExpectationResultUtils {
         .filter(e -> types.contains(e.getType()))
         .map(
             injectExpectation -> {
-              if (injectExpectation.getScore() == null) {
+              if (injectExpectation.getScore() == null
+                  || injectExpectation.getExpectedScore() == null) {
                 return null;
               }
               if (injectExpectation.getTeam() != null) {
@@ -174,7 +175,7 @@ public class InjectExpectationResultUtils {
                 if (injectExpectation.getScore() >= injectExpectation.getExpectedScore()) {
                   return 1.0;
                 }
-                if (injectExpectation.getScore() == 0) {
+                if (Double.compare(injectExpectation.getScore(), 0.0) == 0) {
                   return 0.0;
                 }
                 return 0.5;
