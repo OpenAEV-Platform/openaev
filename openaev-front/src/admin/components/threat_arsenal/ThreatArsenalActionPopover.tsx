@@ -11,7 +11,7 @@ import {
 } from '@mui/material';
 import { type MouseEvent, useContext, useState } from 'react';
 
-import { deletePayload } from '../../../actions/payloads/payload-actions';
+import { deletePayload, exportPayload } from '../../../actions/payloads/payload-actions';
 import {
   duplicateThreatArsenalAction,
   fetchThreatArsenalAction,
@@ -30,6 +30,7 @@ import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-ty
 import { useAppDispatch } from '../../../utils/hooks';
 import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { download } from '../../../utils/utils';
 import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
@@ -183,6 +184,15 @@ const ThreatArsenalActionPopover = ({
     }));
   };
 
+  // -- Export --
+  const handleExportJsonSingle = async () => {
+    handlePopoverClose();
+    const response = await exportPayload(payloadId);
+    const match = (response.headers['content-disposition'] as string).match(/filename="?([^"]+)"?/);
+    const filename = match?.[1] ?? 'payload.zip';
+    download(response.data, filename, 'application/zip');
+  };
+
   const hasUpdateCapability = ability.can(ACTIONS.MANAGE, SUBJECTS.PAYLOADS) || ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, payloadId);
   const hasDeleteCapability = ability.can(ACTIONS.DELETE, SUBJECTS.PAYLOADS) || ability.can(ACTIONS.DELETE, SUBJECTS.RESOURCE, payloadId);
 
@@ -202,6 +212,8 @@ const ThreatArsenalActionPopover = ({
         {hasUpdateCapability && (
           <MenuItem onClick={handleOpenEdit} disabled={disableUpdate}>{t('Update')}</MenuItem>
         )}
+        {/* TODO next chunk */}
+        {/* <MenuItem onClick={handleExportJsonSingle}>{t('Export')}</MenuItem> */}
         {hasDeleteCapability && (
           <MenuItem onClick={handleOpenDelete} disabled={disableDelete}>{t('Delete')}</MenuItem>
         )}

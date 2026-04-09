@@ -254,8 +254,8 @@ const ThreatArsenal = () => {
                               setThreatArsenalActions(threatArsenalActions.map(a => a.injector_contract_id === action.injector_contract_id ? result : a))}
                             onDuplicate={(result: ThreatArsenalAction) => setThreatArsenalActions([result, ...threatArsenalActions])}
                             onDelete={() => setThreatArsenalActions(threatArsenalActions.filter(a => a.injector_contract_id !== action.injector_contract_id))}
-                            disableUpdate={action.action_payload?.payload_collector_type !== null}
-                            disableDelete={action.action_payload?.payload_collector_type !== null && action.action_payload?.payload_status !== 'DEPRECATED'}
+                            disableUpdate={action.action_payload.payload_collector_type !== null}
+                            disableDelete={action.action_payload.payload_collector_type !== null && action.action_payload?.payload_status !== 'DEPRECATED'}
                           />
                         )
                       : (
