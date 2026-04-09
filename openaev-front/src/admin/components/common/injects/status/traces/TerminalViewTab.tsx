@@ -28,7 +28,7 @@ const TerminalViewTab: FunctionComponent<Props> = ({ injectId, target, forceExpa
   }
 
   return (
-    <Paper variant="outlined" sx={{ p: 3 }}>
+    <Paper variant="outlined" sx={{ p: 2 }}>
       {nonEmptyTraces.map(([key, value]) => (
         <TerminalView
           key={key}

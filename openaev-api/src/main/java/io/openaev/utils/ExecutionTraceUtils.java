@@ -1,8 +1,6 @@
 package io.openaev.utils;
 
-import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.ExecutionTraceAction;
-import io.openaev.database.model.ExecutionTraceStatus;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 
 /**
@@ -19,23 +17,6 @@ import io.openaev.rest.inject.form.InjectExecutionAction;
 public class ExecutionTraceUtils {
 
   private ExecutionTraceUtils() {}
-
-  /**
-   * Converts an execution status to its corresponding trace status.
-   *
-   * @param status the execution status to convert
-   * @return the corresponding execution trace status, or {@code null} for unmapped statuses
-   */
-  public static ExecutionTraceStatus convertExecutionStatus(ExecutionStatus status) {
-    return switch (status) {
-      case SUCCESS -> ExecutionTraceStatus.SUCCESS;
-      case ERROR -> ExecutionTraceStatus.ERROR;
-      case MAYBE_PREVENTED -> ExecutionTraceStatus.MAYBE_PREVENTED;
-      case PARTIAL -> ExecutionTraceStatus.PARTIAL;
-      case MAYBE_PARTIAL_PREVENTED -> ExecutionTraceStatus.MAYBE_PARTIAL_PREVENTED;
-      default -> null;
-    };
-  }
 
   /**
    * Converts an inject execution action to its corresponding trace action.

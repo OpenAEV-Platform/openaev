@@ -52,31 +52,42 @@ export const computeStatusStyle = (status: string | undefined | null) => {
 
   const statusMap: Record<string, typeof colorStyles[keyof typeof colorStyles]> = {
     'ERROR': colorStyles.red,
+    'COMMAND_NOT_FOUND': colorStyles.red,
+    'COMMAND_CANNOT_BE_EXECUTED': colorStyles.red,
+    'INVALID_USAGE': colorStyles.red,
+    'TIMEOUT': colorStyles.red,
+    'INTERRUPTED': colorStyles.red,
+    // @deprecated — rerouted to error in backend
+    'MAYBE_PREVENTED': colorStyles.red,
+    'MAYBE_PARTIAL_PREVENTED': colorStyles.red,
+
+    // Success statuses (from ExecutionTraceStatus.SUCCESS_STATUSES)
+    'SUCCESS': colorStyles.green,
+    'WARNING': colorStyles.green,
+    'ACCESS_DENIED': colorStyles.green,
+
+    // Inject-level statuses (from ExecutionStatus)
+    'PARTIAL': colorStyles.orange,
+    'EXECUTING': colorStyles.blue,
+    'PENDING': colorStyles.blue,
+    'QUEUING': colorStyles.yellow,
+    'DRAFT': colorStyles.blueGrey,
+
+    // Expectation display labels
     'FAILED': colorStyles.red,
     'ASSET_INACTIVE': colorStyles.red,
     'NOT PREVENTED': colorStyles.red,
     'NOT DETECTED': colorStyles.red,
     'VULNERABLE': colorStyles.red,
-
-    'MAYBE_PREVENTED': colorStyles.purple,
-    'MAYBE_PARTIAL_PREVENTED': colorStyles.lightPurple,
-
-    'PARTIAL': colorStyles.orange,
-    'PAUSED': colorStyles.orange,
     'PARTIALLY PREVENTED': colorStyles.orange,
     'PARTIALLY DETECTED': colorStyles.orange,
-
-    'QUEUING': colorStyles.yellow,
-
-    'EXECUTING': colorStyles.blue,
-    'PENDING': colorStyles.blue,
-    'SCHEDULED': colorStyles.blue,
-
-    'SUCCESS': colorStyles.green,
-    'RUNNING': colorStyles.green,
     'PREVENTED': colorStyles.green,
     'DETECTED': colorStyles.green,
 
+    // Simulation statuses
+    'RUNNING': colorStyles.green,
+    'SCHEDULED': colorStyles.blue,
+    'PAUSED': colorStyles.orange,
     'CANCELED': colorStyles.canceled,
 
     'FINISHED': colorStyles.grey,

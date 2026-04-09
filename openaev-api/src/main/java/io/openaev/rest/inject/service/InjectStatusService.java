@@ -1,7 +1,6 @@
 package io.openaev.rest.inject.service;
 
 import static io.openaev.utils.ExecutionTraceUtils.convertExecutionAction;
-import static io.openaev.utils.ExecutionTraceUtils.convertExecutionStatus;
 import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -179,18 +178,60 @@ public class InjectStatusService {
       InjectStatus injectStatus, ExecutionTrace executionTrace, Agent agent) {
 
     // if the execution trace is COMPLETED with a status different than INFO -> no compute
-    if (agent != null
-        && executionTrace.getAction().equals(ExecutionTraceAction.COMPLETE)
-        && ExecutionTraceStatus.INFO.equals(executionTrace.getStatus())) {
-      ExecutionTraceStatus traceStatus =
-          convertExecutionStatus(
-              computeStatus(
-                  injectStatus.getTraces().stream()
-                      .filter(t -> t.getAgent() != null)
-                      .filter(t -> t.getAgent().getId().equals(agent.getId()))
-                      .toList()));
-      executionTrace.setStatus(traceStatus);
+    if (agent == null || !executionTrace.getAction().equals(ExecutionTraceAction.COMPLETE)) {
+      return;
     }
+
+    ExecutionTraceStatus computedStatus =
+        computeAgentTraceStatus(
+            injectStatus.getTraces().stream()
+                .filter(t -> t.getAgent() != null)
+                .filter(t -> t.getAgent().getId().equals(agent.getId()))
+                .toList());
+
+    if (computedStatus == null) {
+      return;
+    }
+
+    if (ExecutionTraceStatus.INFO.equals(executionTrace.getStatus())) {
+      // Implant sent INFO → use the computed status directly
+      executionTrace.setStatus(computedStatus);
+    } else if (computedStatus.isError() && !executionTrace.getStatus().isError()) {
+      // Executor sent a pre-computed status → override only if computed is more severe
+      executionTrace.setStatus(computedStatus);
+    }
+  }
+
+  /**
+   * Computes the execution trace status for a single agent. Unlike {@code computeStatus} which
+   * handles multi-agent inject-level status, this method gives ERROR priority: if any trace for the
+   * agent is an error, the agent status is ERROR (a single agent either succeeded or failed).
+   *
+   * <p>{@code MAYBE_PREVENTED} traces are treated as errors via {@code
+   * ExecutionTraceStatus.isError()}.
+   */
+  @VisibleForTesting
+  protected ExecutionTraceStatus computeAgentTraceStatus(List<ExecutionTrace> agentTraces) {
+    boolean hasError = false;
+    boolean hasSuccess = false;
+
+    for (ExecutionTrace trace : agentTraces) {
+      ExecutionTraceStatus status = trace.getStatus();
+      if (status.isError()) {
+        hasError = true;
+      } else if (status.isSuccess()) {
+        hasSuccess = true;
+      }
+    }
+
+    // Error takes priority at agent level
+    if (hasError) {
+      return ExecutionTraceStatus.ERROR;
+    }
+    if (hasSuccess) {
+      return ExecutionTraceStatus.SUCCESS;
+    }
+    return null;
   }
 
   public void updateInjectStatus(
@@ -223,45 +264,45 @@ public class InjectStatusService {
     log.debug("Successfully updated inject: {}", inject.getId());
   }
 
+  /**
+   * Computes the final inject status from COMPLETE traces.
+   *
+   * <p>AGENT_INACTIVE traces are excluded: an inactive agent never executed anything, so it should
+   * not influence the inject outcome. If every trace is AGENT_INACTIVE (no agent could run at all),
+   * the inject is marked as ERROR.
+   */
   public ExecutionStatus computeStatus(List<ExecutionTrace> traces) {
-    ExecutionStatus executionStatus;
-    int successCount = 0, errorCount = 0, partialCount = 0, maybePreventedCount = 0;
+    // Filter out AGENT_INACTIVE — those agents never ran
+    List<ExecutionTrace> activeTraces =
+        traces.stream()
+            .filter(t -> !ExecutionTraceStatus.AGENT_INACTIVE.equals(t.getStatus()))
+            .toList();
 
-    for (ExecutionTrace trace : traces) {
-      switch (trace.getStatus()) {
-        case SUCCESS, WARNING, ASSET_AGENTLESS -> successCount++;
-        case PARTIAL -> partialCount++;
-        case ERROR, COMMAND_NOT_FOUND, AGENT_INACTIVE -> errorCount++;
-        case MAYBE_PREVENTED, MAYBE_PARTIAL_PREVENTED, COMMAND_CANNOT_BE_EXECUTED ->
-            maybePreventedCount++;
-        case INFO -> {
-          // This is an expected status, but we don't need to count anything so do nothing
-        }
-        default ->
-            throw new IllegalArgumentException(
-                "Invalid execution trace status: " + trace.getStatus());
+    // If no active agent executed, it is an error
+    if (activeTraces.isEmpty()) {
+      return ExecutionStatus.ERROR;
+    }
+
+    boolean hasError = false;
+    boolean hasSuccess = false;
+
+    for (ExecutionTrace trace : activeTraces) {
+      ExecutionTraceStatus status = trace.getStatus();
+      if (status.isError()) {
+        hasError = true;
+      } else if (status.isSuccess()) {
+        hasSuccess = true;
       }
+      // INFO, AGENT_INACTIVE — not counted
     }
 
-    if (successCount > 0 && errorCount == 0 && maybePreventedCount == 0 && partialCount == 0) {
-      executionStatus = ExecutionStatus.SUCCESS;
-    } else if (errorCount > 0
-        && successCount == 0
-        && maybePreventedCount == 0
-        && partialCount == 0) {
-      executionStatus = ExecutionStatus.ERROR;
-    } else if (maybePreventedCount > 0
-        && successCount == 0
-        && errorCount == 0
-        && partialCount == 0) {
-      executionStatus = ExecutionStatus.MAYBE_PREVENTED;
-    } else if (partialCount > 0 && errorCount == 0 && maybePreventedCount == 0
-        || successCount > 0) {
-      executionStatus = ExecutionStatus.PARTIAL;
-    } else {
-      executionStatus = ExecutionStatus.MAYBE_PARTIAL_PREVENTED;
+    if (hasError && !hasSuccess) {
+      return ExecutionStatus.ERROR;
     }
-    return executionStatus;
+    if (hasSuccess && !hasError) {
+      return ExecutionStatus.SUCCESS;
+    }
+    return ExecutionStatus.PARTIAL;
   }
 
   public InjectStatus fromExecution(Execution execution, InjectStatus injectStatus) {

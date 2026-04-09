@@ -1316,16 +1316,15 @@ class InjectApiTest extends IntegrationTest {
       }
 
       @Test
-      @DisplayName("Should compute agent status as PARTIAL")
-      void shouldComputeAgentStatusAsPartial() throws Exception {
-        testAgentStatusFunction("SUCCESS", "COMMAND_NOT_FOUND", ExecutionTraceStatus.PARTIAL);
+      @DisplayName("Should compute agent status as ERROR when mixed SUCCESS and COMMAND_NOT_FOUND")
+      void shouldComputeAgentStatusAsErrorForMixedSuccessAndError() throws Exception {
+        testAgentStatusFunction("SUCCESS", "COMMAND_NOT_FOUND", ExecutionTraceStatus.ERROR);
       }
 
       @Test
-      @DisplayName("Should compute agent status as MAYBE_PREVENTED")
-      void shouldComputeAgentStatusAsMayBePrevented() throws Exception {
-        testAgentStatusFunction(
-            "COMMAND_CANNOT_BE_EXECUTED", "MAYBE_PREVENTED", ExecutionTraceStatus.MAYBE_PREVENTED);
+      @DisplayName("Should compute agent status as SUCCESS for ACCESS_DENIED")
+      void shouldComputeAgentStatusAsSuccessForAccessDenied() throws Exception {
+        testAgentStatusFunction("SUCCESS", "ACCESS_DENIED", ExecutionTraceStatus.SUCCESS);
       }
     }
 

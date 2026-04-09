@@ -50,7 +50,7 @@ const vulnerableEndpointColumnsRenderers: RendererMap = {
 };
 
 const injectColumnsRenderers: RendererMap = {
-  ['inject_status']: status => <ItemStatus isInject status={status as string} label={status as string} variant="inList" />,
+  ['inject_status']: status => <ItemStatus status={status as string} label={status as string} variant="inList" />,
   ['base_platforms_side_denormalized']: platform => <AssetPlatformFragment platform={platform as string} />,
   ['execution_date']: value => <DateFragment value={value as string} />,
 

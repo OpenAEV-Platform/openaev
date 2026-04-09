@@ -147,6 +147,14 @@ public class InjectsExecutionJob implements Job {
                     delayForSimulationCompletedEvent));
   }
 
+  /**
+   * Handles injects stuck in PENDING beyond the configured threshold.
+   *
+   * <p>For each timed-out inject: adds a COMPLETE/TIMEOUT trace for every agent that never sent a
+   * COMPLETE callback, then recomputes the inject global status via {@code updateFinalInjectStatus}
+   * so that the final status is derived from all COMPLETE traces (SUCCESS, ERROR, TIMEOUT, etc.)
+   * rather than being force-set.
+   */
   public void handlePendingInject() {
     List<Inject> pendingInjects =
         injectHelper.getAllPendingInjectsWithThresholdMinutes(this.injectExecutionThreshold);
@@ -155,29 +163,54 @@ public class InjectsExecutionJob implements Job {
       return;
     }
 
-    List<InjectStatus> updatedStatuses =
-        pendingInjects.stream()
-            .map(
-                inject -> {
-                  InjectStatus status =
-                      inject.getStatus().orElseThrow(ElementNotFoundException::new);
-                  if (status.getTraces() == null
-                      || status.getTraces().isEmpty()
-                      || !injectStatusService.isAllInjectAgentsExecuted(inject)) {
-                    status.setName(ExecutionStatus.MAYBE_PREVENTED);
-                    status.addWarningTrace(
-                        "Execution delay detected: Inject exceeded the "
+    for (Inject inject : pendingInjects) {
+      InjectStatus status = inject.getStatus().orElseThrow(ElementNotFoundException::new);
+
+        if (status.getTraces() == null
+                || status.getTraces().isEmpty()
+                || !injectStatusService.isAllInjectAgentsExecuted(inject)) {
+            status.setName(ExecutionStatus.ERROR);
+            status.addWarningTrace(
+                    "Execution delay detected: Inject exceeded the "
                             + this.injectExecutionThreshold
                             + " minutes threshold.",
-                        ExecutionTraceAction.EXECUTION);
-                  } else {
-                    injectStatusService.updateFinalInjectStatus(status);
-                  }
-                  return status;
-                })
-            .collect(Collectors.toList());
+                    ExecutionTraceAction.EXECUTION);
+            injectStatusService.saveAll(List.of(status));
+        } else {
+            // Find agents that already have a COMPLETE trace
+            java.util.Set<String> completedAgentIds =
+                    status.getTraces().stream()
+                            .filter(t -> ExecutionTraceAction.COMPLETE.equals(t.getAction()))
+                            .filter(t -> t.getAgent() != null)
+                            .map(t -> t.getAgent().getId())
+                            .collect(Collectors.toSet());
 
-    injectStatusService.saveAll(updatedStatuses);
+            // Get all agents expected to execute this inject
+            List<Agent> allAgents = injectService.getAgentsByInject(inject);
+
+            // Add a COMPLETE/TIMEOUT trace for each agent that never responded
+            for (Agent agent : allAgents) {
+                if (!completedAgentIds.contains(agent.getId())) {
+                    status.addTrace(
+                            ExecutionTraceStatus.TIMEOUT,
+                            "Agent "
+                                    + agent.getExecutedByUser()
+                                    + " did not respond within the "
+                                    + this.injectExecutionThreshold
+                                    + " minutes threshold.",
+                            ExecutionTraceAction.COMPLETE,
+                            agent);
+                }
+            }
+            // Recompute the inject global status from all COMPLETE traces
+            injectStatusService.updateFinalInjectStatus(status);
+        }
+    }
+
+    injectStatusService.saveAll(
+        pendingInjects.stream()
+            .map(inject -> inject.getStatus().orElseThrow(ElementNotFoundException::new))
+            .collect(Collectors.toList()));
   }
 
   private void executeInject(ExecutableInject executableInject) throws Exception {
