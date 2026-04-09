@@ -1,6 +1,7 @@
 package io.openaev.rest.comcheck;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
@@ -70,7 +71,10 @@ public class ComcheckApi extends RestBehavior {
     return status;
   }
 
-  @DeleteMapping("/api/exercises/{exerciseId}/comchecks/{comcheckId}")
+  @DeleteMapping({
+    "/api/exercises/{exerciseId}/comchecks/{comcheckId}",
+    TENANT_EXERCISE_URI + "/{exerciseId}/comchecks/{comcheckId}"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -80,7 +84,10 @@ public class ComcheckApi extends RestBehavior {
     comcheckRepository.deleteById(comcheckId);
   }
 
-  @PostMapping("/api/exercises/{exerciseId}/comchecks")
+  @PostMapping({
+    "/api/exercises/{exerciseId}/comchecks",
+    TENANT_EXERCISE_URI + "/{exerciseId}/comchecks"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,

@@ -1,5 +1,7 @@
 package io.openaev.rest.simulation;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -15,18 +17,19 @@ import org.springframework.web.bind.annotation.*;
 public class SimulationApi extends RestBehavior {
 
   public static final String SIMULATION_URI = "/api/simulations";
+  public static final String TENANT_SIMULATION_URI = TENANT_PREFIX + "/simulations";
 
   private final SimulationService simulationService;
 
   // -- OPTION --
 
-  @GetMapping("/options")
+  @GetMapping({"/options", TENANT_SIMULATION_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
   public List<Option> optionsByName(@RequestParam(required = false) final String searchText) {
     return this.simulationService.findAllAsOptions(searchText);
   }
 
-  @PostMapping("/options")
+  @PostMapping({"/options", TENANT_SIMULATION_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
   public List<Option> optionsById(@RequestBody final List<String> ids) {
     return this.simulationService.findAllByIdsAsOptions(ids);

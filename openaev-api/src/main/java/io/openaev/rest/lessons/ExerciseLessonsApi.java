@@ -1,5 +1,6 @@
 package io.openaev.rest.lessons;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static java.time.Instant.now;
 
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 public class ExerciseLessonsApi extends RestBehavior {
 
   public static final String EXERCISE_URL = "/api/exercises/";
+  private static final String TENANT_EXERCISE_URL = TENANT_PREFIX + "/exercises/";
 
   private final ExerciseRepository exerciseRepository;
   private final TeamRepository teamRepository;
@@ -35,7 +37,10 @@ public class ExerciseLessonsApi extends RestBehavior {
   private final UserRepository userRepository;
   private final MailingService mailingService;
 
-  @GetMapping(EXERCISE_URL + "{exerciseId}/lessons_categories")
+  @GetMapping({
+    EXERCISE_URL + "{exerciseId}/lessons_categories",
+    TENANT_EXERCISE_URL + "{exerciseId}/lessons_categories"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -44,7 +49,10 @@ public class ExerciseLessonsApi extends RestBehavior {
     return lessonsCategoryRepository.findAll(LessonsCategorySpecification.fromExercise(exerciseId));
   }
 
-  @PostMapping(EXERCISE_URL + "{exerciseId}/lessons_apply_template/{lessonsTemplateId}")
+  @PostMapping({
+    EXERCISE_URL + "{exerciseId}/lessons_apply_template/{lessonsTemplateId}",
+    TENANT_EXERCISE_URL + "{exerciseId}/lessons_apply_template/{lessonsTemplateId}"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -84,7 +92,10 @@ public class ExerciseLessonsApi extends RestBehavior {
     return lessonsCategoryRepository.findAll(LessonsCategorySpecification.fromExercise(exerciseId));
   }
 
-  @PostMapping(EXERCISE_URL + "{exerciseId}/lessons_categories")
+  @PostMapping({
+    EXERCISE_URL + "{exerciseId}/lessons_categories",
+    TENANT_EXERCISE_URL + "{exerciseId}/lessons_categories"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -100,7 +111,10 @@ public class ExerciseLessonsApi extends RestBehavior {
     return lessonsCategoryRepository.save(lessonsCategory);
   }
 
-  @PostMapping(EXERCISE_URL + "{exerciseId}/lessons_answers_reset")
+  @PostMapping({
+    EXERCISE_URL + "{exerciseId}/lessons_answers_reset",
+    TENANT_EXERCISE_URL + "{exerciseId}/lessons_answers_reset"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -131,7 +145,10 @@ public class ExerciseLessonsApi extends RestBehavior {
         .toList();
   }
 
-  @PostMapping(EXERCISE_URL + "{exerciseId}/lessons_empty")
+  @PostMapping({
+    EXERCISE_URL + "{exerciseId}/lessons_empty",
+    TENANT_EXERCISE_URL + "{exerciseId}/lessons_empty"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -152,7 +169,10 @@ public class ExerciseLessonsApi extends RestBehavior {
     return lessonsCategories;
   }
 
-  @PutMapping(EXERCISE_URL + "{exerciseId}/lessons_categories/{lessonsCategoryId}")
+  @PutMapping({
+    EXERCISE_URL + "{exerciseId}/lessons_categories/{lessonsCategoryId}",
+    TENANT_EXERCISE_URL + "{exerciseId}/lessons_categories/{lessonsCategoryId}"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -171,7 +191,10 @@ public class ExerciseLessonsApi extends RestBehavior {
     return lessonsCategoryRepository.save(lessonsTemplateCategory);
   }
 
-  @DeleteMapping(EXERCISE_URL + "{exerciseId}/lessons_categories/{lessonsCategoryId}")
+  @DeleteMapping({
+    EXERCISE_URL + "{exerciseId}/lessons_categories/{lessonsCategoryId}",
+    TENANT_EXERCISE_URL + "{exerciseId}/lessons_categories/{lessonsCategoryId}"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -182,7 +205,10 @@ public class ExerciseLessonsApi extends RestBehavior {
     lessonsCategoryRepository.deleteById(lessonsCategoryId);
   }
 
-  @PutMapping(EXERCISE_URL + "{exerciseId}/lessons_categories/{lessonsCategoryId}/teams")
+  @PutMapping({
+    EXERCISE_URL + "{exerciseId}/lessons_categories/{lessonsCategoryId}/teams",
+    TENANT_EXERCISE_URL + "{exerciseId}/lessons_categories/{lessonsCategoryId}/teams"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -201,7 +227,10 @@ public class ExerciseLessonsApi extends RestBehavior {
     return lessonsCategoryRepository.save(lessonsCategory);
   }
 
-  @GetMapping(EXERCISE_URL + "{exerciseId}/lessons_questions")
+  @GetMapping({
+    EXERCISE_URL + "{exerciseId}/lessons_questions",
+    TENANT_EXERCISE_URL + "{exerciseId}/lessons_questions"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -218,8 +247,10 @@ public class ExerciseLessonsApi extends RestBehavior {
         .toList();
   }
 
-  @GetMapping(
-      EXERCISE_URL + "{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions")
+  @GetMapping({
+    EXERCISE_URL + "{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions",
+    TENANT_EXERCISE_URL + "{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -230,8 +261,10 @@ public class ExerciseLessonsApi extends RestBehavior {
         LessonsQuestionSpecification.fromCategory(lessonsCategoryId));
   }
 
-  @PostMapping(
-      EXERCISE_URL + "{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions")
+  @PostMapping({
+    EXERCISE_URL + "{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions",
+    TENANT_EXERCISE_URL + "{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -250,9 +283,12 @@ public class ExerciseLessonsApi extends RestBehavior {
     return lessonsQuestionRepository.save(lessonsQuestion);
   }
 
-  @PutMapping(
-      EXERCISE_URL
-          + "{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}")
+  @PutMapping({
+    EXERCISE_URL
+        + "{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}",
+    TENANT_EXERCISE_URL
+        + "{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -270,9 +306,12 @@ public class ExerciseLessonsApi extends RestBehavior {
     return lessonsQuestionRepository.save(lessonsQuestion);
   }
 
-  @DeleteMapping(
-      EXERCISE_URL
-          + "{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}")
+  @DeleteMapping({
+    EXERCISE_URL
+        + "{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}",
+    TENANT_EXERCISE_URL
+        + "{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -283,7 +322,10 @@ public class ExerciseLessonsApi extends RestBehavior {
     lessonsQuestionRepository.deleteById(lessonsQuestionId);
   }
 
-  @PostMapping(EXERCISE_URL + "{exerciseId}/lessons_send")
+  @PostMapping({
+    EXERCISE_URL + "{exerciseId}/lessons_send",
+    TENANT_EXERCISE_URL + "{exerciseId}/lessons_send"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -308,7 +350,10 @@ public class ExerciseLessonsApi extends RestBehavior {
     mailingService.sendEmail(input.getSubject(), input.getBody(), users, Optional.of(exercise));
   }
 
-  @GetMapping(EXERCISE_URL + "{exerciseId}/lessons_answers")
+  @GetMapping({
+    EXERCISE_URL + "{exerciseId}/lessons_answers",
+    TENANT_EXERCISE_URL + "{exerciseId}/lessons_answers"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -333,7 +378,10 @@ public class ExerciseLessonsApi extends RestBehavior {
         .toList();
   }
 
-  @GetMapping("/api/player/lessons/exercise/{exerciseId}/lessons_categories")
+  @GetMapping({
+    "/api/player/lessons/exercise/{exerciseId}/lessons_categories",
+    TENANT_PREFIX + "/player/lessons/exercise/{exerciseId}/lessons_categories"
+  })
   @AccessControl(skipRBAC = true)
   public List<LessonsCategory> playerLessonsCategories(
       @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
@@ -341,7 +389,10 @@ public class ExerciseLessonsApi extends RestBehavior {
     return lessonsCategoryRepository.findAll(LessonsCategorySpecification.fromExercise(exerciseId));
   }
 
-  @GetMapping("/api/player/lessons/exercise/{exerciseId}/lessons_questions")
+  @GetMapping({
+    "/api/player/lessons/exercise/{exerciseId}/lessons_questions",
+    TENANT_PREFIX + "/player/lessons/exercise/{exerciseId}/lessons_questions"
+  })
   @AccessControl(skipRBAC = true)
   public List<LessonsQuestion> playerLessonsQuestions(
       @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
@@ -357,7 +408,10 @@ public class ExerciseLessonsApi extends RestBehavior {
         .toList();
   }
 
-  @GetMapping("/api/player/lessons/exercise/{exerciseId}/lessons_answers")
+  @GetMapping({
+    "/api/player/lessons/exercise/{exerciseId}/lessons_answers",
+    TENANT_PREFIX + "/player/lessons/exercise/{exerciseId}/lessons_answers"
+  })
   @AccessControl(skipRBAC = true)
   public List<LessonsAnswer> playerLessonsAnswers(
       @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
@@ -380,8 +434,11 @@ public class ExerciseLessonsApi extends RestBehavior {
         .toList();
   }
 
-  @PostMapping(
-      "/api/player/lessons/exercise/{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}/lessons_answers")
+  @PostMapping({
+    "/api/player/lessons/exercise/{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}/lessons_answers",
+    TENANT_PREFIX
+        + "/player/lessons/exercise/{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}/lessons_answers"
+  })
   @AccessControl(skipRBAC = true)
   public LessonsAnswer createExerciseLessonsQuestion(
       @PathVariable String exerciseId,

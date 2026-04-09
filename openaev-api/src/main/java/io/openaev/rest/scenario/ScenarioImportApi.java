@@ -1,6 +1,7 @@
 package io.openaev.rest.scenario;
 
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
@@ -36,7 +37,10 @@ public class ScenarioImportApi extends RestBehavior {
   private final ImportMapperRepository importMapperRepository;
   private final ScenarioService scenarioService;
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/xls/{importId}/dry")
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/xls/{importId}/dry",
+    TENANT_SCENARIO_URI + "/{scenarioId}/xls/{importId}/dry"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -63,7 +67,10 @@ public class ScenarioImportApi extends RestBehavior {
         scenario, importMapper, importId, input.getName(), input.getTimezoneOffset(), false);
   }
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/xls/{importId}/import")
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/xls/{importId}/import",
+    TENANT_SCENARIO_URI + "/{scenarioId}/xls/{importId}/import"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -98,7 +105,10 @@ public class ScenarioImportApi extends RestBehavior {
   }
 
   @PostMapping(
-      path = SCENARIO_URI + "/{scenarioId}/injects/import",
+      path = {
+        SCENARIO_URI + "/{scenarioId}/injects/import",
+        TENANT_SCENARIO_URI + "/{scenarioId}/injects/import"
+      },
       consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
   @AccessControl(
       resourceId = "#scenarioId",
