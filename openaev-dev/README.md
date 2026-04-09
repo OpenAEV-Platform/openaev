@@ -79,6 +79,30 @@ To use them, copy the `*.run.xml` files to your `.idea/runConfigurations/` folde
 | `otlp-config.yaml` | OpenTelemetry Collector configuration (for telemetry) |
 | `Project.xml` | IntelliJ code style settings |
 
+## Setup Scripts
+
+| Script | Platform | Description |
+|--------|----------|-------------|
+| `setup-hooks.sh` | Linux / macOS / Git Bash | Installs Git hooks (Spotless pre-commit, immutable collection warnings) |
+| `setup-hooks.ps1` | Windows PowerShell | Same as above |
+
+### Git Hooks (`setup-hooks`)
+
+```bash
+# Linux / macOS / Git Bash
+./setup-hooks.sh
+```
+
+```powershell
+# Windows PowerShell
+.\setup-hooks.ps1
+```
+
+Installs a `pre-commit` hook (Spotless + ESLint auto-fix) and a
+`prepare-commit-msg` hook (immutable collection warnings).
+The hooks themselves are bash scripts — Git on Windows runs them through
+Git Bash automatically.
+
 ## Notes
 
 ### Elasticsearch vs OpenSearch
