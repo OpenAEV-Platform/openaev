@@ -89,7 +89,8 @@ public class PayloadComposer extends ComposerBase<Payload> {
     return new Composer(payload);
   }
 
-  public PayloadInput forPayloadInput(Payload payload, List<String> attackPatternsIds, List<String> domainIds) {
+  public PayloadInput forPayloadInput(
+      Payload payload, List<String> attackPatternsIds, List<String> domainIds) {
 
     PayloadInput input = new PayloadInput();
     input.setType(payload.getType());

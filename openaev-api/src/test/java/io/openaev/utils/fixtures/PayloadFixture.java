@@ -106,8 +106,7 @@ public class PayloadFixture {
     return executable;
   }
 
-  public static Payload createDefaultExecutableWithArguments(
-      List<PayloadArgument> arguments) {
+  public static Payload createDefaultExecutableWithArguments(List<PayloadArgument> arguments) {
     final Executable executable =
         new Executable("executable-id", Executable.EXECUTABLE_TYPE, "executable payload");
     executable.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);
@@ -124,8 +123,7 @@ public class PayloadFixture {
     return filedrop;
   }
 
-  public static Payload createDefaultFileDropWithArguments(
-      List<PayloadArgument> arguments) {
+  public static Payload createDefaultFileDropWithArguments(List<PayloadArgument> arguments) {
     final FileDrop filedrop =
         new FileDrop("filedrop-id", Executable.EXECUTABLE_TYPE, "filedrop payload");
     filedrop.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);

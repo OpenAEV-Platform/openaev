@@ -376,11 +376,12 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     Command payload =
         (Command)
             payloadComposer
-                .forPayload(
-                    PayloadFixture.createDefaultCommandWithArguments( payloadArguments))
+                .forPayload(PayloadFixture.createDefaultCommandWithArguments(payloadArguments))
                 .get();
 
-    PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds, domains.stream().map(Domain::getId).toList());
+    PayloadInput input =
+        payloadComposer.forPayloadInput(
+            payload, attackPatternsIds, domains.stream().map(Domain::getId).toList());
     when(enterpriseEdition.getEncodedCertificate()).thenReturn("certificate");
 
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
@@ -446,8 +447,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     Command payload =
         (Command)
             payloadComposer
-                .forPayload(
-                    PayloadFixture.createDefaultCommandWithArguments(payloadArguments))
+                .forPayload(PayloadFixture.createDefaultCommandWithArguments(payloadArguments))
                 .get();
 
     PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds, domainIds);
@@ -566,10 +566,12 @@ public class DetectionRemediationApiTest extends IntegrationTest {
         (DnsResolution)
             payloadComposer
                 .forPayload(
-                    PayloadFixture.createDefaultDnsResolutionWithArguments( payloadArguments))
+                    PayloadFixture.createDefaultDnsResolutionWithArguments(payloadArguments))
                 .get();
 
-    PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds, domains.stream().map(Domain::getId).toList());
+    PayloadInput input =
+        payloadComposer.forPayloadInput(
+            payload, attackPatternsIds, domains.stream().map(Domain::getId).toList());
     when(enterpriseEdition.getEncodedCertificate()).thenReturn("certificate");
 
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
@@ -613,8 +615,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     FileDrop payload =
         (FileDrop)
             payloadComposer
-                .forPayload(
-                    PayloadFixture.createDefaultFileDropWithArguments(payloadArguments))
+                .forPayload(PayloadFixture.createDefaultFileDropWithArguments(payloadArguments))
                 .withFileDrop(
                     documentComposer.forDocument(
                         DocumentFixture.getDocument(FileFixture.getPlainTextFileContent())))
@@ -647,8 +648,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     FileDrop payload =
         (FileDrop)
             payloadComposer
-                .forPayload(
-                    PayloadFixture.createDefaultFileDropWithArguments(payloadArguments))
+                .forPayload(PayloadFixture.createDefaultFileDropWithArguments(payloadArguments))
                 .withFileDrop(
                     documentComposer.forDocument(
                         DocumentFixture.getDocument(FileFixture.getPlainTextFileContent())))
@@ -681,8 +681,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     Executable payload =
         (Executable)
             payloadComposer
-                .forPayload(
-                    PayloadFixture.createDefaultExecutableWithArguments(payloadArguments))
+                .forPayload(PayloadFixture.createDefaultExecutableWithArguments(payloadArguments))
                 .withExecutable(
                     documentComposer.forDocument(
                         DocumentFixture.getDocument(FileFixture.getPngGridFileContent())))
@@ -715,8 +714,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     Executable payload =
         (Executable)
             payloadComposer
-                .forPayload(
-                    PayloadFixture.createDefaultExecutableWithArguments(payloadArguments))
+                .forPayload(PayloadFixture.createDefaultExecutableWithArguments(payloadArguments))
                 .withExecutable(
                     documentComposer.forDocument(
                         DocumentFixture.getDocument(FileFixture.getPngGridFileContent())))
@@ -1252,26 +1250,22 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     List<PayloadArgument> payloadArguments = getPayloadArguments();
 
-    Domain domain =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+    Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
 
     Command payloadCommand =
         (Command)
             payloadComposer
-                .forPayload(
-                    PayloadFixture.createDefaultCommandWithArguments(payloadArguments))
+                .forPayload(PayloadFixture.createDefaultCommandWithArguments(payloadArguments))
                 .persist()
                 .get();
 
     InjectorContractComposer.Composer contractComposer =
-        injectorContractComposer
-            .forInjectorContract(
-                InjectorContractFixture.createPayloadInjectorContract(
-                    injectorFixture.getWellKnownOaevImplantInjector(), payloadCommand, Set.of(domain)));
+        injectorContractComposer.forInjectorContract(
+            InjectorContractFixture.createPayloadInjectorContract(
+                injectorFixture.getWellKnownOaevImplantInjector(), payloadCommand, Set.of(domain)));
 
     for (AttackPattern attackPattern : attackPatterns) {
-      contractComposer.withAttackPattern(
-              attackPatternComposer.forAttackPattern(attackPattern));
+      contractComposer.withAttackPattern(attackPatternComposer.forAttackPattern(attackPattern));
     }
 
     Map<String, Object> payloadArgumentMap =
@@ -1279,7 +1273,9 @@ public class DetectionRemediationApiTest extends IntegrationTest {
             .collect(Collectors.toMap(PayloadArgument::getKey, PayloadArgument::getDefaultValue));
 
     return injectComposer
-        .forInject(InjectFixture.createInjectWithPayloadArg(contractComposer.persist().get(), payloadArgumentMap))
+        .forInject(
+            InjectFixture.createInjectWithPayloadArg(
+                contractComposer.persist().get(), payloadArgumentMap))
         .persist()
         .get();
   }
@@ -1295,8 +1291,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     detectionRemediation.setValues("I have a rule");
     detectionRemediation.setAuthorRule(DetectionRemediation.AUTHOR_RULE.HUMAN);
 
-    Command payload =
-        (Command) PayloadFixture.createDefaultCommandWithArguments(payloadArguments);
+    Command payload = (Command) PayloadFixture.createDefaultCommandWithArguments(payloadArguments);
 
     InjectorContractComposer.Composer contractComposer =
         injectorContractComposer
@@ -1314,8 +1309,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                                         collector.getType())))));
 
     for (AttackPattern attackPattern : attackPatterns) {
-      contractComposer.withAttackPattern(
-          attackPatternComposer.forAttackPattern(attackPattern));
+      contractComposer.withAttackPattern(attackPatternComposer.forAttackPattern(attackPattern));
     }
 
     return injectComposer
@@ -1336,8 +1330,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     detectionRemediation.setValues("");
     detectionRemediation.setAuthorRule(DetectionRemediation.AUTHOR_RULE.HUMAN);
 
-    Command payload =
-        (Command) PayloadFixture.createDefaultCommandWithArguments(payloadArguments);
+    Command payload = (Command) PayloadFixture.createDefaultCommandWithArguments(payloadArguments);
 
     InjectorContractComposer.Composer contractComposer =
         injectorContractComposer
@@ -1355,8 +1348,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                                         collector.getType())))));
 
     for (AttackPattern attackPattern : attackPatterns) {
-      contractComposer.withAttackPattern(
-          attackPatternComposer.forAttackPattern(attackPattern));
+      contractComposer.withAttackPattern(attackPatternComposer.forAttackPattern(attackPattern));
     }
 
     return injectComposer
@@ -1385,8 +1377,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
             .forInjectorContract(
                 InjectorContractFixture.createPayloadInjectorContract(
                     injectorFixture.getWellKnownOaevImplantInjector(), payload))
-                .withAttackPattern(attackPatternComposer.forAttackPattern(attackPatterns.get(0)))
-                .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
+            .withAttackPattern(attackPatternComposer.forAttackPattern(attackPatterns.get(0)))
+            .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
             .persist()
             .get();
 
@@ -1407,8 +1399,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     FileDrop payload =
         (FileDrop)
             payloadComposer
-                .forPayload(
-                    PayloadFixture.createDefaultFileDropWithArguments(payloadArguments))
+                .forPayload(PayloadFixture.createDefaultFileDropWithArguments(payloadArguments))
                 .withFileDrop(
                     documentComposer.forDocument(
                         DocumentFixture.getDocument(FileFixture.getPlainTextFileContent())))
@@ -1439,9 +1430,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     Executable payload =
         (Executable)
             payloadComposer
-                .forPayload(
-                    PayloadFixture.createDefaultExecutableWithArguments(
-                        payloadArguments))
+                .forPayload(PayloadFixture.createDefaultExecutableWithArguments(payloadArguments))
                 .withExecutable(
                     documentComposer.forDocument(
                         DocumentFixture.getDocument(FileFixture.getPngGridFileContent())))
