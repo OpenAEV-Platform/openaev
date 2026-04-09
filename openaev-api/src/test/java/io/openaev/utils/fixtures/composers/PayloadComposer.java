@@ -89,7 +89,7 @@ public class PayloadComposer extends ComposerBase<Payload> {
     return new Composer(payload);
   }
 
-  public PayloadInput forPayloadInput(Payload payload, List<String> attackPatternsIds) {
+  public PayloadInput forPayloadInput(Payload payload, List<String> attackPatternsIds, List<String> domainIds) {
 
     PayloadInput input = new PayloadInput();
     input.setType(payload.getType());
@@ -104,6 +104,7 @@ public class PayloadComposer extends ComposerBase<Payload> {
     input.setTagIds(new ArrayList<>());
     input.setDetectionRemediations(new ArrayList<>());
     input.setOutputParsers(new HashSet<>());
+    input.setDomainIds(domainIds);
     input.setAttackPatternsIds(attackPatternsIds);
     switch (payload) {
       case Command command -> {

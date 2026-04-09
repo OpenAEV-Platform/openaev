@@ -1365,11 +1365,10 @@ public class InjectorContractApiTest extends IntegrationTest {
       InjectorContractComposer.Composer icComposer =
           injectorContractComposer
               .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
-                  .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
+              .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
               .withInjector(injectorFixture.getWellKnownOaevImplantInjector());
       if (addPayload) {
-        icComposer.withPayload(
-            payloadComposer.forPayload(PayloadFixture.createDefaultCommand()));
+        icComposer.withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand()));
       }
       InjectorContract ic = icComposer.persist().get();
       if (addPayload) {

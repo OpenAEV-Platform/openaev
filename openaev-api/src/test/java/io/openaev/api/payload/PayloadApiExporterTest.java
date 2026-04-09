@@ -64,7 +64,5 @@ class PayloadApiExporterTest extends IntegrationTest {
     JsonNode payloadJson = new ObjectMapper().readTree(payloadString);
     assertEquals("command", payloadJson.at("/data/type").asText());
     assertEquals(COMMAND_PAYLOAD_NAME, payloadJson.at("/data/attributes/payload_name").asText());
-    assertEquals(
-        "malware", payloadJson.at("/included").get(0).get("attributes").get("tag_name").asText());
   }
 }

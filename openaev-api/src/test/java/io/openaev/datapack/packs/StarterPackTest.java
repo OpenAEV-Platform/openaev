@@ -28,7 +28,6 @@ import io.openaev.utilstest.RabbitMQTestListener;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.*;
 import org.mockito.Mock;
@@ -349,7 +348,7 @@ public class StarterPackTest extends IntegrationTest {
     injectorContract.setId("2e7fc079-4444-4531-4444-928fe4a1fc0b");
     injectorContractComposer
         .forInjectorContract(injectorContract)
-            .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+        .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
         .withInjector(injector)
         .withPayload(payloadComposer.forPayload(payload))
         .persist();
@@ -410,7 +409,7 @@ public class StarterPackTest extends IntegrationTest {
     injectorContractComposer
         .forInjectorContract(injectorContract)
         .withInjector(injector)
-            .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
+        .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
         .withPayload(payloadComposer.forPayload(payload))
         .persist();
 

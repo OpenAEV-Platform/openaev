@@ -245,7 +245,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
           injectorContractComposer
               .forInjectorContract(
                   InjectorContractFixture.createInjectorContractWithPlatforms(platforms))
-                  .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
+              .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
               .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
               .withAttackPattern(attackPatternComposer.forAttackPattern(attackPattern))
               .withPayload(

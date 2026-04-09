@@ -162,16 +162,20 @@ public class InjectorContractFixture {
   }
 
   public static InjectorContract createPayloadInjectorContract(
-          Injector injector, Payload payloadCommand) throws JsonProcessingException {
-    return createPayloadInjectorContract(injector, payloadCommand, new HashSet<>(Set.of(PresetDomain.getToClassify())));
+      Injector injector, Payload payloadCommand) throws JsonProcessingException {
+    return createPayloadInjectorContract(
+        injector, payloadCommand, new HashSet<>(Set.of(PresetDomain.getToClassify())));
   }
 
   public static InjectorContract createPayloadInjectorContract(
-          Injector injector, Payload payloadCommand, Set<Domain> domains) throws JsonProcessingException {
-    InjectorContract contract =  createPayloadInjectorContractWithFieldsContent(injector, payloadCommand, List.of());
+      Injector injector, Payload payloadCommand, Set<Domain> domains)
+      throws JsonProcessingException {
+    InjectorContract contract =
+        createPayloadInjectorContractWithFieldsContent(injector, payloadCommand, List.of());
     contract.setDomains(domains);
     return contract;
   }
+
   public static InjectorContract createPayloadInjectorContractWithObfuscator(String executor)
       throws JsonProcessingException {
     ContractSelect obfuscatorSelect =

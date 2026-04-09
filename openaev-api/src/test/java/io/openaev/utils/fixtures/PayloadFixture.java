@@ -54,16 +54,14 @@ public class PayloadFixture {
   }
 
   public static Payload createDefaultCommandWithPlatformsAndArchitecture(
-      Endpoint.PLATFORM_TYPE[] platforms,
-      Payload.PAYLOAD_EXECUTION_ARCH architecture) {
+      Endpoint.PLATFORM_TYPE[] platforms, Payload.PAYLOAD_EXECUTION_ARCH architecture) {
     Payload command = createDefaultCommand();
     command.setPlatforms(platforms);
     command.setExecutionArch(architecture);
     return command;
   }
 
-  public static Payload createDefaultCommandWithAttackPatternAndArguments(
-      List<AttackPattern> attackPatterns, List<PayloadArgument> arguments, Set<Domain> domains) {
+  public static Payload createDefaultCommandWithArguments(List<PayloadArgument> arguments) {
     Payload command = createDefaultCommand();
     command.setPlatforms(LINUX_PLATFORM);
     command.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
@@ -79,8 +77,7 @@ public class PayloadFixture {
     return dnsResolution;
   }
 
-  public static Payload createDefaultDnsResolutionWithAttackPatternAndArguments(
-      List<AttackPattern> attackPatterns, List<PayloadArgument> arguments) {
+  public static Payload createDefaultDnsResolutionWithArguments(List<PayloadArgument> arguments) {
 
     final DnsResolution dnsResolution =
         new DnsResolution("dns-resolution-id", DNS_RESOLUTION_TYPE, "dns resolution payload");
@@ -109,7 +106,8 @@ public class PayloadFixture {
     return executable;
   }
 
-  public static Payload createDefaultExecutableWithAttackPatternAndArguments( List<PayloadArgument> arguments) {
+  public static Payload createDefaultExecutableWithArguments(
+      List<PayloadArgument> arguments) {
     final Executable executable =
         new Executable("executable-id", Executable.EXECUTABLE_TYPE, "executable payload");
     executable.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);
@@ -126,7 +124,8 @@ public class PayloadFixture {
     return filedrop;
   }
 
-  public static Payload createDefaultFileDropWithAttackPatternAndArguments( List<PayloadArgument> arguments) {
+  public static Payload createDefaultFileDropWithArguments(
+      List<PayloadArgument> arguments) {
     final FileDrop filedrop =
         new FileDrop("filedrop-id", Executable.EXECUTABLE_TYPE, "filedrop payload");
     filedrop.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);

@@ -1031,9 +1031,7 @@ class InjectApiTest extends IntegrationTest {
      */
     private Object[] buildInjectWithOutputParser(OutputParser outputParser) throws Exception {
       Domain domain = injectTestHelper.forceSaveDomain(DomainFixture.getRandomDomain());
-      Command command =
-          PayloadFixture.createCommand(
-              "bash", "echo test", null, null);
+      Command command = PayloadFixture.createCommand("bash", "echo test", null, null);
       command.setOutputParsers(Set.of(outputParser));
       Payload payloadSaved = injectTestHelper.forceSavePayload(command);
 

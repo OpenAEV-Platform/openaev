@@ -126,7 +126,7 @@ class InjectServiceTest {
         "injectMapper",
         new InjectMapper(
             injectStatusMapper,
-                payloadMapper,
+            payloadMapper,
             injectExpectationMapper,
             injectUtils,
             new HealthCheckUtils(new ExecutorUtils())));

@@ -17,7 +17,6 @@ import io.openaev.executors.crowdstrike.model.CrowdStrikeDevice;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeHostGroup;
 import io.openaev.executors.crowdstrike.model.ResourcesGroups;
 import io.openaev.executors.model.AgentRegisterInput;
-import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -101,12 +100,7 @@ public class CrowdstrikeExecutorServiceTest {
     doNothing().when(enterpriseEditionService).throwEEExecutorService(any(), any(), any());
     when(config.getApiBatchExecutionActionPagination()).thenReturn(1);
     when(config.getWindowsScriptName()).thenReturn("MyScript");
-    Command payloadCommand =
-        PayloadFixture.createCommand(
-            "cmd",
-            "whoami",
-            List.of(),
-            "whoami");
+    Command payloadCommand = PayloadFixture.createCommand("cmd", "whoami", List.of(), "whoami");
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Map<String, String> executorCommands = new HashMap<>();
     executorCommands.put(

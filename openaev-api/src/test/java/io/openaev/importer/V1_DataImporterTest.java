@@ -141,7 +141,8 @@ class V1_DataImporterTest extends IntegrationTest {
         this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     Payload payload = payloadRepository.findAll().iterator().next();
-    InjectorContract injectorContract = injectorContractRepository.findInjectorContractByPayload(payload).orElseThrow();
+    InjectorContract injectorContract =
+        injectorContractRepository.findInjectorContractByPayload(payload).orElseThrow();
 
     // the scenario should have one inject with one attack pattern with one killchain
     AttackPattern attackPattern = injectorContract.getAttackPatterns().getFirst();
@@ -162,7 +163,8 @@ class V1_DataImporterTest extends IntegrationTest {
     this.importer.importData(
         this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
     payload = payloadRepository.findAll().iterator().next();
-    InjectorContract injectorContract2 = injectorContractRepository.findInjectorContractByPayload(payload).orElseThrow();
+    InjectorContract injectorContract2 =
+        injectorContractRepository.findInjectorContractByPayload(payload).orElseThrow();
     AttackPattern attackPattern2 = injectorContract2.getAttackPatterns().getFirst();
     KillChainPhase killChainPhase2 = attackPattern.getKillChainPhases().getFirst();
 

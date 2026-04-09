@@ -68,9 +68,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
         .withInjectorContract(
             injectContractComposer
                 .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
-                    .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
-                .withPayload(
-                    payloadComposer.forPayload(PayloadFixture.createDefaultCommand())));
+                .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                .withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand())));
   }
 
   private AssetGroupComposer.Composer getAssetGroupWrapperWithFilter(Filters.Filter dynamicFilter) {
@@ -88,9 +87,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
         .withInjectorContract(
             injectContractComposer
                 .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
-                    .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
-                .withPayload(
-                    payloadComposer.forPayload(PayloadFixture.createDefaultCommand())));
+                .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                .withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand())));
   }
 
   private ExerciseComposer.Composer getExerciseComposerWithName() {

@@ -178,7 +178,7 @@ public class InjectExportTest extends IntegrationTest {
                 injectorContractComposer
                     .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
                     .withInjector(InjectorFixture.createDefaultPayloadInjector())
-                        .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                    .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                     .withPayload(
                         payloadComposer.forPayload(PayloadFixture.createDefaultCommand())));
     // wrap it in a persisted exercise
