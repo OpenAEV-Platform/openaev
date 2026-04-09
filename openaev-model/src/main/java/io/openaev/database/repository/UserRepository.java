@@ -24,7 +24,7 @@ public interface UserRepository
   Optional<User> findById(@NotNull String id);
 
   @Override
-  @Modifying
+  @Modifying(clearAutomatically = true)
   @Query(value = "DELETE FROM users WHERE user_id = :id", nativeQuery = true)
   void deleteById(@NotNull @Param("id") String id);
 
