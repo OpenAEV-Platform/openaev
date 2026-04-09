@@ -161,12 +161,18 @@ public class InjectsExecutionJob implements Job {
                 inject -> {
                   InjectStatus status =
                       inject.getStatus().orElseThrow(ElementNotFoundException::new);
-                  status.setName(ExecutionStatus.MAYBE_PREVENTED);
-                  status.addWarningTrace(
-                      "Execution delay detected: Inject exceeded the "
-                          + this.injectExecutionThreshold
-                          + " minutes threshold.",
-                      ExecutionTraceAction.EXECUTION);
+                  if (status.getTraces() == null
+                      || status.getTraces().isEmpty()
+                      || !injectStatusService.isAllInjectAgentsExecuted(inject)) {
+                    status.setName(ExecutionStatus.MAYBE_PREVENTED);
+                    status.addWarningTrace(
+                        "Execution delay detected: Inject exceeded the "
+                            + this.injectExecutionThreshold
+                            + " minutes threshold.",
+                        ExecutionTraceAction.EXECUTION);
+                  } else {
+                    injectStatusService.updateFinalInjectStatus(status);
+                  }
                   return status;
                 })
             .collect(Collectors.toList());
