@@ -1567,6 +1567,10 @@ public class V1_DataImporter implements Importer {
     }
     PayloadCreateInput payloadCreateInput = buildPayloadCreateInput(baseIds, payloadNode, null);
 
+    List<String> attackPatternIds = importAttackPattern(payloadNode, "payload_", baseIds);
+
+    payloadCreateInput.setAttackPatternsIds(attackPatternIds);
+    payloadCreateInput.setDetectionRemediations(buildDetectionRemediationsJsonNode(payloadNode));
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadCreationService.createPayload(payloadCreateInput);
     if (result.injectorContract() != null) {
