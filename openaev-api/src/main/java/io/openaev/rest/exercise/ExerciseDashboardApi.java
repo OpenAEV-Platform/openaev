@@ -27,7 +27,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ExerciseDashboardApi {
 
-
   private final CustomDashboardService customDashboardService;
 
   @GetMapping({

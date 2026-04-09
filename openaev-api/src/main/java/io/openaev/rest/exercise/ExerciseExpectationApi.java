@@ -25,7 +25,7 @@ public class ExerciseExpectationApi extends RestBehavior {
   @LogExecutionTime
   @GetMapping({
     "/api/exercises/{exerciseId}/expectations",
-    TENANT_EXERCISE_URI+"/{exerciseId}/expectations"
+    TENANT_EXERCISE_URI + "/{exerciseId}/expectations"
   })
   @AccessControl(
       resourceId = "#exerciseId",

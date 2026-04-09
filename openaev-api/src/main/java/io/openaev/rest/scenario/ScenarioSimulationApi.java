@@ -30,7 +30,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ScenarioSimulationApi {
 
-
   private final ExerciseService exerciseService;
 
   @LogExecutionTime

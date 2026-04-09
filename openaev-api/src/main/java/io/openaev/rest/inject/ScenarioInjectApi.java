@@ -38,7 +38,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ScenarioInjectApi extends RestBehavior {
 
-
   private final InjectAssistantService injectAssistantService;
   private final InjectSearchService injectSearchService;
   private final InjectRepository injectRepository;

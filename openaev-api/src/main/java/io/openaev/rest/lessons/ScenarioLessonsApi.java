@@ -23,7 +23,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ScenarioLessonsApi extends RestBehavior {
 
-
   private final ScenarioRepository scenarioRepository;
   private final TeamRepository teamRepository;
   private final LessonsTemplateRepository lessonsTemplateRepository;

@@ -58,7 +58,6 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class SimulationInjectApi extends RestBehavior {
 
-
   private final InjectSearchService injectSearchService;
   private final Executor executor;
   private final InjectorContractRepository injectorContractRepository;

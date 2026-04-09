@@ -36,7 +36,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class SimulationChallengeApi extends RestBehavior {
 
-
   private final InjectRepository injectRepository;
   private final ChallengeRepository challengeRepository;
   private final UserRepository userRepository;

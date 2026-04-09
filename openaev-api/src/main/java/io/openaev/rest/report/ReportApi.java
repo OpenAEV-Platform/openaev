@@ -24,7 +24,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 public class ReportApi extends RestBehavior {
 
-
   private final ExerciseService exerciseService;
   private final ReportService reportService;
   private final InjectService injectService;
@@ -59,7 +58,10 @@ public class ReportApi extends RestBehavior {
     return this.reportService.reportFromSimulation(simulationId, UUID.fromString(reportId));
   }
 
-  @GetMapping({"/api/exercises/{exerciseId}/reports", TENANT_EXERCISE_URI + "/{exerciseId}/reports"})
+  @GetMapping({
+    "/api/exercises/{exerciseId}/reports",
+    TENANT_EXERCISE_URI + "/{exerciseId}/reports"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,

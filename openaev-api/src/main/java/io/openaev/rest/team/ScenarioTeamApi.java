@@ -25,7 +25,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 public class ScenarioTeamApi extends RestBehavior {
 
-
   private final TeamService teamService;
 
   @PostMapping({

@@ -1,7 +1,6 @@
 package io.openaev.rest.objective;
 
 import static io.openaev.config.SessionHelper.currentUser;
-import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.helper.DatabaseHelper.resolveRelation;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
@@ -27,7 +26,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequiredArgsConstructor
 public class ScenarioObjectiveApi extends RestBehavior {
-
 
   private final ScenarioRepository scenarioRepository;
   private final ObjectiveRepository objectiveRepository;

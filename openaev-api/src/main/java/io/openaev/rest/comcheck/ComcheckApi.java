@@ -22,7 +22,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 public class ComcheckApi extends RestBehavior {
 
-
   private ComcheckRepository comcheckRepository;
   private TeamRepository teamRepository;
   private ExerciseRepository exerciseRepository;

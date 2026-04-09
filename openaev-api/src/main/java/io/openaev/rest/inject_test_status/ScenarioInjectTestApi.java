@@ -32,7 +32,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ScenarioInjectTestApi extends RestBehavior {
 
-
   private final InjectTestStatusService injectTestStatusService;
   private final InjectService injectService;
 

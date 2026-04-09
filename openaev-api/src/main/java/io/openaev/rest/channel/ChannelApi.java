@@ -34,7 +34,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ChannelApi extends RestBehavior {
 
-
   private final ExerciseRepository exerciseRepository;
   private final ScenarioService scenarioService;
   private final ArticleRepository articleRepository;

@@ -33,7 +33,6 @@ import org.springframework.web.multipart.MultipartFile;
 @Slf4j
 public class ScenarioImportApi extends RestBehavior {
 
-
   private final InjectImportService injectImportService;
   private final ImportMapperRepository importMapperRepository;
   private final ScenarioService scenarioService;

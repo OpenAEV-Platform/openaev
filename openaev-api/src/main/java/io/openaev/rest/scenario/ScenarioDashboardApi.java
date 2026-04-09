@@ -27,7 +27,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ScenarioDashboardApi {
 
-
   private final CustomDashboardService customDashboardService;
 
   @Operation(summary = "Find the dashboard linked to a Scenario")

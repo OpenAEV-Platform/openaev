@@ -27,7 +27,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 public class ExerciseTeamApi extends RestBehavior {
 
-
   private final TeamService teamService;
 
   @LogExecutionTime
