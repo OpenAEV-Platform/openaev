@@ -2,6 +2,7 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.ConnectorInstanceConfiguration;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -14,6 +15,18 @@ public interface ConnectorInstanceConfigurationRepository
         JpaSpecificationExecutor<ConnectorInstanceConfiguration> {
 
   List<ConnectorInstanceConfiguration> findByConnectorInstanceId(String connectorInstanceId);
+
+  @Query(
+      value =
+          "SELECT instance.current_status AS currentStatus "
+              + "FROM connector_instance_configurations conf "
+              + "JOIN connector_instances instance ON conf.connector_instance_id = instance.connector_instance_id "
+              + "WHERE conf.connector_instance_configuration_key = :key "
+              + "AND conf.connector_instance_configuration_value ?? :value "
+              + "LIMIT 1",
+      nativeQuery = true)
+  Optional<String> findCurrentStatusByKeyValue(
+      @Param("key") String key, @Param("value") String value);
 
   interface ConnectorIdsFomDatabase {
     String getConnectorInstanceId();

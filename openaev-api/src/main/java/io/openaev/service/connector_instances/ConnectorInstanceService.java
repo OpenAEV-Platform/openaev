@@ -108,24 +108,26 @@ public class ConnectorInstanceService {
 
   @Transactional(readOnly = true)
   public boolean hasStartedConnectorInstanceForInjector(final String injectorId) {
-    ConnectorInstanceConfigurationRepository.ConnectorIdsFomDatabase persistedId =
-        this.connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue(
-            ConnectorType.INJECTOR.getIdKeyName(), injectorId);
-    if (persistedId != null) {
-      ConnectorInstance ci =
-          this.connectorInstanceRepository
-              .findById(persistedId.getConnectorInstanceId())
-              .orElseThrow(); // clear error
-      return ci.getCurrentStatus().equals(ConnectorInstance.CURRENT_STATUS_TYPE.started);
-    } else {
-      try {
-        managerFactory
-            .getManager()
-            .request(new ComponentRequest(injectorId), io.openaev.executors.Injector.class);
-        return true;
-      } catch (Exception e) {
-        return true; // Fallback to catalog-unsupported handling
-      }
+
+    Optional<String> currentStatus =
+        this.connectorInstanceConfigurationRepository
+            .findCurrentStatusByKeyValue(
+                ConnectorType.INJECTOR.getIdKeyName(), injectorId);
+
+    if (currentStatus.isPresent()) {
+      return ConnectorInstance.CURRENT_STATUS_TYPE.started
+          .name()
+          .equals(currentStatus.get());
+    }
+
+    // No persisted connector instance found — check via manager
+    try {
+      managerFactory
+          .getManager()
+          .request(new ComponentRequest(injectorId), io.openaev.executors.Injector.class);
+      return true;
+    } catch (Exception e) {
+      return true; // Fallback to catalog-unsupported handling
     }
   }
 
