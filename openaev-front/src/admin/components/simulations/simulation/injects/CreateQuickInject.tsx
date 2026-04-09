@@ -9,6 +9,7 @@ import { fetchInjectorContract } from '../../../../../actions/InjectorContracts'
 import { useHelper } from '../../../../../store';
 import { type Exercise, type InjectorContract } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
+import useAuth from '../../../../../utils/hooks/useAuth';
 import { PermissionsContext } from '../../../common/Context';
 import QuickInject, { EMAIL_CONTRACT } from './QuickInject';
 
@@ -32,6 +33,7 @@ const CreateQuickInject: FunctionComponent<Props> = ({ exercise }) => {
   const { classes } = useStyles();
   const theme = useTheme();
   const { permissions } = useContext(PermissionsContext);
+  const { currentUserTenant } = useAuth();
 
   const [open, setOpen] = useState(false);
   const { injectorContract }: { injectorContract: InjectorContract }
@@ -69,6 +71,7 @@ const CreateQuickInject: FunctionComponent<Props> = ({ exercise }) => {
               handleClose={() => setOpen(false)}
               theme={theme}
               isDisabled={permissions.readOnly}
+              currentUserTenant={currentUserTenant}
             />
           </Drawer>
         )}

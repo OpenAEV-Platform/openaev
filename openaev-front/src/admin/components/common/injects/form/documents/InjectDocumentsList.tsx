@@ -11,8 +11,10 @@ import ItemBoolean from '../../../../../../components/ItemBoolean';
 import ItemTags from '../../../../../../components/ItemTags';
 import { useHelper } from '../../../../../../store';
 import { type Document } from '../../../../../../utils/api-types';
+import useAuth from '../../../../../../utils/hooks/useAuth';
 import { Can } from '../../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
+import { DEFAULT_TENANT_UUID } from '../../../../../../utils/tenant-url-helper';
 import DocumentPopover from '../../../../components/documents/DocumentPopover';
 import DocumentType from '../../../../components/documents/DocumentType';
 
@@ -39,6 +41,7 @@ const InjectDocumentsList = ({ readOnly, hasAttachments }: Props) => {
   const { t } = useFormatter();
   const { control } = useFormContext();
   const { classes } = useStyles();
+  const { currentUserTenant } = useAuth();
 
   const [sortedDocuments, setSortedDocuments] = useState<(Document & { document_attached: boolean })[]>([]);
   const { documentsMap } = useHelper((helper: DocumentHelper) => ({ documentsMap: helper.getDocumentsMap() }));
@@ -139,7 +142,7 @@ const InjectDocumentsList = ({ readOnly, hasAttachments }: Props) => {
             )}
           >
             <ListItemButton
-              href={`/api/documents/${document.document_id}/file`}
+              href={`/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/documents/${document.document_id}/file`}
             >
               <ListItemIcon>
                 <AttachmentOutlined />

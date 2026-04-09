@@ -17,8 +17,10 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { useHelper } from '../../../../store';
+import useAuth from '../../../../utils/hooks/useAuth.ts';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { DEFAULT_TENANT_UUID } from '../../../../utils/tenant-url-helper.ts';
 import CreateDocument from './CreateDocument';
 import DocumentPopover from './DocumentPopover';
 import DocumentType from './DocumentType';
@@ -70,6 +72,7 @@ const Documents = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { t } = useFormatter();
+  const { currentUserTenant } = useAuth();
   const { exercisesMap, scenariosMap } = useHelper(helper => ({
     exercisesMap: helper.getExercisesMap(),
     scenariosMap: helper.getScenariosMap(),
@@ -241,7 +244,7 @@ const Documents = () => {
                   <ListItemButton
                     classes={{ root: classes.item }}
                     component="a"
-                    href={`/api/documents/${document.document_id}/file`}
+                    href={`/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/documents/${document.document_id}/file`}
                   >
                     <ListItemIcon>
                       <DescriptionOutlined color="primary" />

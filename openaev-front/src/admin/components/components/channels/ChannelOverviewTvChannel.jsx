@@ -2,6 +2,9 @@ import { Card, CardHeader, GridLegacy, Skeleton, Typography } from '@mui/materia
 import { useTheme } from '@mui/material/styles';
 import { makeStyles } from 'tss-react/mui';
 
+import useAuth from '../../../../utils/hooks/useAuth.ts';
+import {DEFAULT_TENANT_UUID} from "../../../../utils/tenant-url-helper.ts";
+
 const useStyles = makeStyles()(() => ({
   root: {
     flexGrow: 1,
@@ -18,6 +21,7 @@ const ChannelOverviewTvChannel = ({ channel }) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
   const logo = isDark ? channel.logoDark : channel.logoLight;
+  const { currentUserTenant } = useAuth();
   return (
     <div className={classes.root}>
       {logo && channel.channel_mode !== 'title' && (
@@ -29,7 +33,7 @@ const ChannelOverviewTvChannel = ({ channel }) => {
           }}
         >
           <img
-            src={`/api/documents/${logo.document_id}/file`}
+            src={`/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/documents/${logo.document_id}/file`}
             className={classes.logo}
           />
         </div>

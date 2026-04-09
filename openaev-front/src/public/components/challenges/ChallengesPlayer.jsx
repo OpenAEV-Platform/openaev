@@ -40,7 +40,9 @@ import ItemTags from '../../../components/ItemTags';
 import Loader from '../../../components/Loader';
 import { useHelper } from '../../../store';
 import { useQueryParameter } from '../../../utils/Environment';
+import useAuth from '../../../utils/hooks/useAuth.ts';
 import useSimulationPermissions from '../../../utils/permissions/useSimulationPermissions';
+import { DEFAULT_TENANT_UUID } from '../../../utils/tenant-url-helper.ts';
 
 const useStyles = makeStyles()(() => ({
   root: {
@@ -128,6 +130,7 @@ const ChallengesPlayer = () => {
   const theme = useTheme();
   const { classes } = useStyles();
   const dispatch = useDispatch();
+  const { currentUserTenant } = useAuth();
   const { t } = useFormatter();
   const [currentChallengeEntry, setCurrentChallengeEntry] = useState(null);
   const [currentResult, setCurrentResult] = useState(null);
@@ -385,7 +388,7 @@ const ChallengesPlayer = () => {
                           divider={true}
                           button={true}
                           component="a"
-                          href={`/api/documents/${document.document_id}/file`}
+                          href={`/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/documents/${document.document_id}/file`}
                         >
                           <ListItemIcon>
                             <AttachmentOutlined />
