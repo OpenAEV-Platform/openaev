@@ -3,7 +3,6 @@ package io.openaev.api.payload;
 import static io.openaev.rest.payload.PayloadApi.PAYLOAD_URI;
 import static io.openaev.utils.fixtures.PayloadFixture.COMMAND_PAYLOAD_NAME;
 import static io.openaev.utils.fixtures.PayloadFixture.createDefaultCommand;
-import static io.openaev.utils.fixtures.TagFixture.getTagWithText;
 import static io.openaev.utilstest.ZipUtils.convertToJson;
 import static io.openaev.utilstest.ZipUtils.extractAllFilesFromZip;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -18,7 +17,6 @@ import io.openaev.database.model.Domain;
 import io.openaev.utils.fixtures.DomainFixture;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
-import io.openaev.utils.fixtures.composers.TagComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.Map;
 import java.util.Set;
@@ -36,15 +34,11 @@ class PayloadApiExporterTest extends IntegrationTest {
   @Autowired private MockMvc mockMvc;
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private DomainComposer domainComposer;
-  @Autowired private TagComposer tagComposer;
 
   PayloadComposer.Composer createPayloadComposer() {
     Set<Domain> domains =
         domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-    return this.payloadComposer
-        .forPayload(createDefaultCommand(domains))
-        .withTag(tagComposer.forTag(getTagWithText("malware")))
-        .persist();
+    return this.payloadComposer.forPayload(createDefaultCommand(domains)).persist();
   }
 
   @Test

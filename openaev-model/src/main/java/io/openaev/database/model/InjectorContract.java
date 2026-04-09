@@ -156,7 +156,10 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "injector_contract_tags",
-      joinColumns = @JoinColumn(name = "injector_contract_id"),
+      joinColumns = {
+        @JoinColumn(name = "injector_contract_id", referencedColumnName = "injector_contract_id"),
+        @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")
+      },
       inverseJoinColumns = @JoinColumn(name = "tag_id"))
   @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)

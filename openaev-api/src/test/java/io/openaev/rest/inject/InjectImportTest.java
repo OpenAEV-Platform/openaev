@@ -190,10 +190,10 @@ class InjectImportTest extends IntegrationTest {
                 injectorContractComposer
                     .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
                     .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+                    .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                     .withPayload(
                         payloadComposer
                             .forPayload(PayloadFixture.createDefaultCommand())
-                            .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                             .withTag(
                                 tagComposer.forTag(TagFixture.getTagWithText("secret payload tag")))
                             .withDetectionRemediation(
@@ -209,11 +209,11 @@ class InjectImportTest extends IntegrationTest {
             .withInjectorContract(
                 injectorContractComposer
                     .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                    .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                     .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
                     .withPayload(
                         payloadComposer
                             .forPayload(PayloadFixture.createDefaultFileDrop())
-                            .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                             .withFileDrop(
                                 documentComposer
                                     .forDocument(
@@ -231,10 +231,10 @@ class InjectImportTest extends IntegrationTest {
                 injectorContractComposer
                     .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
                     .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+                    .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                     .withPayload(
                         payloadComposer
                             .forPayload(PayloadFixture.createDefaultExecutable())
-                            .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                             .withExecutable(
                                 documentComposer
                                     .forDocument(

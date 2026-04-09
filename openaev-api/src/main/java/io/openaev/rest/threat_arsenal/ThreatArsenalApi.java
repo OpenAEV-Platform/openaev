@@ -1,5 +1,6 @@
 package io.openaev.rest.threat_arsenal;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
@@ -30,10 +31,12 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 public class ThreatArsenalApi {
   public static final String THREAT_ARSENAL_URL = "/api/threat_arsenals";
+  private static final String TENANT_THREAT_ARSENAL_URL = TENANT_PREFIX + "/threat_arsenals";
+
   private final InjectorContractService injectorContractService;
   private final ThreatArsenalService threatArsenalService;
 
-  @GetMapping(THREAT_ARSENAL_URL + "/{actionId}")
+  @GetMapping({THREAT_ARSENAL_URL + "/{actionId}", TENANT_THREAT_ARSENAL_URL + "/{actionId}"})
   @AccessControl(
       resourceId = "#actionId",
       actionPerformed = Action.READ,
@@ -43,7 +46,7 @@ public class ThreatArsenalApi {
   }
 
   @Operation(summary = "Get filterable property schemas for threat arsenal")
-  @PostMapping(THREAT_ARSENAL_URL + "/schemas")
+  @PostMapping({THREAT_ARSENAL_URL + "/schemas", TENANT_THREAT_ARSENAL_URL + "/schemas"})
   @AccessControl(skipRBAC = true)
   public List<PropertySchemaDTO> schemas(
       @RequestParam final boolean filterableOnly,
@@ -52,7 +55,10 @@ public class ThreatArsenalApi {
     return threatArsenalService.getSchemas(filterableOnly, filterNames);
   }
 
-  @PostMapping(THREAT_ARSENAL_URL + "/domain-counts")
+  @PostMapping({
+    THREAT_ARSENAL_URL + "/domain-counts",
+    TENANT_THREAT_ARSENAL_URL + "/domain-counts"
+  })
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   public List<InjectorContractDomainCountOutput> getDomainCounts(
       @RequestBody @Valid final SearchPaginationInput input) {
@@ -60,7 +66,7 @@ public class ThreatArsenalApi {
   }
 
   @Operation(summary = "Search threat arsenal")
-  @PostMapping(THREAT_ARSENAL_URL + "/search")
+  @PostMapping({THREAT_ARSENAL_URL + "/search", TENANT_THREAT_ARSENAL_URL + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   public Page<? extends InjectorContractBaseOutput> injectorContracts(
       @RequestBody @Valid final SearchPaginationInput input) {
@@ -72,7 +78,7 @@ public class ThreatArsenalApi {
         InjectorContract.class);
   }
 
-  @PostMapping(THREAT_ARSENAL_URL)
+  @PostMapping({THREAT_ARSENAL_URL, TENANT_THREAT_ARSENAL_URL})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackOn = Exception.class)
   public ThreatArsenalAction createAction(
@@ -80,7 +86,7 @@ public class ThreatArsenalApi {
     return threatArsenalService.create(input);
   }
 
-  @PutMapping(THREAT_ARSENAL_URL + "/{actionId}")
+  @PutMapping({THREAT_ARSENAL_URL + "/{actionId}", TENANT_THREAT_ARSENAL_URL + "/{actionId}"})
   @AccessControl(
       resourceId = "#actionId",
       actionPerformed = Action.WRITE,
@@ -92,7 +98,10 @@ public class ThreatArsenalApi {
     return threatArsenalService.update(actionId, input);
   }
 
-  @PostMapping(THREAT_ARSENAL_URL + "/{actionId}/duplicate")
+  @PostMapping({
+    THREAT_ARSENAL_URL + "/{actionId}/duplicate",
+    TENANT_THREAT_ARSENAL_URL + "/{actionId}/duplicate"
+  })
   @AccessControl(
       resourceId = "#actionId",
       actionPerformed = Action.DUPLICATE,

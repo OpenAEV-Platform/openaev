@@ -78,12 +78,12 @@ public class ScenarioExportTest extends IntegrationTest {
                             .forInjectorContract(
                                 InjectorContractFixture.createDefaultInjectorContract())
                             .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+                            .withTag(
+                                tagComposer.forTag(
+                                    TagFixture.getTagWithText("this is a payload tag")))
                             .withPayload(
-                                payloadComposer
-                                    .forPayload(PayloadFixture.createDefaultCommand(domains))
-                                    .withTag(
-                                        tagComposer.forTag(
-                                            TagFixture.getTagWithText("this is a payload tag"))))))
+                                payloadComposer.forPayload(
+                                    PayloadFixture.createDefaultCommand(domains)))))
             .persist()
             .get();
 

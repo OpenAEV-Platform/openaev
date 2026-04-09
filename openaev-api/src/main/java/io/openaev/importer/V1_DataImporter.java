@@ -1428,16 +1428,13 @@ public class V1_DataImporter implements Importer {
 
     payloadCreateInput.setAttackPatternsIds(attackPatternIds);
     payloadCreateInput.setDetectionRemediations(buildDetectionRemediationsJsonNode(payloadNode));
+    payloadCreateInput.setTagIds(
+        resolveJsonIds(payloadNode, "payload_tags").stream()
+            .map(baseIds::get)
+            .map(Base::getId)
+            .collect(Collectors.toList()));
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadCreationService.createPayload(payloadCreateInput);
-    // TODO : Next chunk 4458
-    //    payload.setTags(
-    //        resolveJsonIds(payloadNode, "payload_tags").stream()
-    //            .map(baseIds::get)
-    //            .map(Tag.class::cast)
-    //            .collect(Collectors.toSet()));
-    //    Optional<InjectorContract> injectorContractFromPayload =
-    //        this.injectorContractRepository.findOne(byPayloadId(payload.getId()));
     if (result.injectorContract() != null) {
       return result.injectorContract().getId();
     } else {
@@ -1470,18 +1467,13 @@ public class V1_DataImporter implements Importer {
     List<String> attackPatternIds = importAttackPattern(payloadNode, "payload_", baseIds);
     payloadCreateInput.setAttackPatternsIds(attackPatternIds);
     payloadCreateInput.setDetectionRemediations(buildDetectionRemediationsJsonNode(payloadNode));
+    payloadCreateInput.setTagIds(
+        resolveJsonIds(payloadNode, "payload_tags").stream()
+            .map(baseIds::get)
+            .map(Base::getId)
+            .collect(Collectors.toList()));
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadCreationService.createPayload(payloadCreateInput);
-    // TODO next chunk 4458
-    //    payload.setTags(
-    //        resolveJsonIds(payloadNode, "payload_tags").stream()
-    //            .map(baseIds::get)
-    //            .map(Tag.class::cast)
-    //            .collect(Collectors.toSet()));
-
-    //    Optional<InjectorContract> injectorContractFromPayload =
-    //        this.injectorContractRepository.findOne(byPayloadId(payload.getId()));
-
     if (result.injectorContract() != null) {
       return result.injectorContract();
     } else {

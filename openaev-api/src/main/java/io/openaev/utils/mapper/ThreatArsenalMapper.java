@@ -32,7 +32,7 @@ public class ThreatArsenalMapper {
     return ThreatArsenalAction.builder()
         .id(injectorContract.getId())
         .labels(injectorContract.getLabels())
-        .injectorType(injectorContract.getInjector().getType())
+        .injectorType(injectorContract.getInjectorType())
         .domains(
             injectorContract.getDomains().stream().map(d -> d.getId()).collect(Collectors.toSet()))
         .platforms(injectorContract.getPlatforms())

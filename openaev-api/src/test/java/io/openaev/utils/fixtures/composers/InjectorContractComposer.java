@@ -7,10 +7,7 @@ import static io.openaev.injectors.email.EmailContract.EMAIL_GLOBAL;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.database.model.AttackPattern;
-import io.openaev.database.model.Injector;
-import io.openaev.database.model.InjectorContract;
-import io.openaev.database.model.Vulnerability;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.injectors.challenge.model.ChallengeContent;
@@ -41,6 +38,8 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
     private Optional<PayloadComposer.Composer> payloadComposer = Optional.empty();
     private final List<ChallengeComposer.Composer> challengeComposers = new ArrayList<>();
     private final List<ArticleComposer.Composer> articleComposers = new ArrayList<>();
+    private final List<DomainComposer.Composer> domainComposers = new ArrayList<>();
+    private final List<TagComposer.Composer> tagComposers = new ArrayList<>();
 
     public Composer(InjectorContract injectorContract) {
       this.injectorContract = injectorContract;
@@ -52,6 +51,22 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
       }
       this.payloadComposer = Optional.of(payloadComposer);
       this.injectorContract.setPayload(payloadComposer.get());
+      return this;
+    }
+
+    public Composer withTag(TagComposer.Composer tagComposer) {
+      tagComposers.add(tagComposer);
+      Set<Tag> tempTags = injectorContract.getTags();
+      tempTags.add(tagComposer.get());
+      injectorContract.setTags(tempTags);
+      return this;
+    }
+
+    public Composer withDomain(DomainComposer.Composer domainWrapper) {
+      this.domainComposers.add(domainWrapper);
+      Set<Domain> tempDomains = injectorContract.getDomains();
+      tempDomains.add(domainWrapper.get());
+      injectorContract.setDomains(tempDomains);
       return this;
     }
 
@@ -141,6 +156,8 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
 
     @Override
     public Composer persist() {
+      domainComposers.forEach(DomainComposer.Composer::persist);
+      tagComposers.forEach(TagComposer.Composer::persist);
       payloadComposer.ifPresent(PayloadComposer.Composer::persist);
       challengeComposers.forEach(ChallengeComposer.Composer::persist);
       articleComposers.forEach(ArticleComposer.Composer::persist);
@@ -165,6 +182,8 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
 
     @Override
     public Composer delete() {
+      tagComposers.forEach(TagComposer.Composer::delete);
+      domainComposers.forEach(DomainComposer.Composer::delete);
       payloadComposer.ifPresent(PayloadComposer.Composer::delete);
       challengeComposers.forEach(ChallengeComposer.Composer::delete);
       articleComposers.forEach(ArticleComposer.Composer::delete);

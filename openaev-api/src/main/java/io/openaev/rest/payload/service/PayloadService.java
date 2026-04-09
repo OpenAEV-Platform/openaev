@@ -34,7 +34,6 @@ import io.openaev.injector_contract.ContractConfig;
 import io.openaev.injector_contract.ContractDef;
 import io.openaev.injector_contract.ContractTargetedProperty;
 import io.openaev.injector_contract.fields.*;
-import io.openaev.injectors.openaev.OpenAEVImplantContract;
 import io.openaev.injectors.openaev.util.OpenAEVObfuscationMap;
 import io.openaev.model.inject.form.Expectation;
 import io.openaev.rest.document.DocumentService;
@@ -86,8 +85,12 @@ public class PayloadService {
   public InjectorContract synchroniseInjectorContractBasedOnPayload(
       Payload payload, List<AttackPattern> attackPatterns, Set<Domain> domains, Set<Tag> tags) {
     List<Injector> injectors =
-            this.injectorRepository.findAllByPayloadsAndTenantId(true, payload.getTenant().getId());
+        this.injectorRepository.findAllByPayloadsAndTenantId(true, payload.getTenant().getId());
 
+    Injector referenceInjector = injectors.isEmpty() ? null : injectors.getFirst();
+    if (referenceInjector == null) {
+      return null;
+    }
 
     InjectorContract injectorContractToUpdate =
         injectorContractRepository
@@ -101,22 +104,19 @@ public class PayloadService {
                 });
 
     setInjectorContractPropertyBasedOnPayload(
-        injectorContractToUpdate, payload, attackPatterns, domains, tags, injectors.isEmpty() ? null : injectors.getFirst());
-    return injectorContractRepository.save(injectorContractToUpdate);
+        injectorContractToUpdate, payload, attackPatterns, domains, tags, referenceInjector);
+    InjectorContract injectorContractSaved =
+        injectorContractRepository.save(injectorContractToUpdate);
 
-//    Injector referenceInjector = injectors.isEmpty() ? null : injectors.getFirst();
-//    if (referenceInjector != null) {
-//      setInjectorContractPropertyBasedOnPayload(injectorContractToUpdate, attackPatterns, domains, tags, referenceInjector);
-//      contract = injectorContractRepository.save(contract);
-//
-//      // Link contract to all payload-supporting injectors via the owning side
-//      for (Injector injector : injectors) {
-//        if (!injector.getContracts().contains(contract)) {
-//          injector.getContracts().add(contract);
-//          injectorRepository.save(injector);
-//        }
-//      }
-//    }
+    // Link contract to all payload-supporting injectors via the owning side
+    for (Injector injector : injectors) {
+      if (!injector.getContracts().contains(injectorContractSaved)) {
+        injector.getContracts().add(injectorContractSaved);
+        injectorRepository.save(injector);
+      }
+    }
+
+    return injectorContractSaved;
   }
 
   private void setInjectorContractPropertyBasedOnPayload(
