@@ -43,13 +43,6 @@ export const addInjectorContract = (data: InjectorContractAddInput) => (dispatch
   return postReferential(schema.injectorContract, `${INJECTOR_CONTRACT_URI}`, data)(dispatch);
 };
 
-// This action must use InjectorContractSearchPaginationInput to stay
-// synchronized with the search route filters
-export const fetchDomainCounts = (data: SearchPaginationInput) => {
-  const uri = `${INJECTOR_CONTRACT_URI}/domain-counts`;
-  return simplePostCall(uri, data);
-};
-
 export const deleteInjectorContract = (injectorContractId: InjectorContract['injector_contract_id']) => (dispatch: Dispatch) => {
   return delReferential(`${INJECTOR_CONTRACT_URI}/${injectorContractId}`, 'injectorcontracts', injectorContractId)(dispatch);
 };

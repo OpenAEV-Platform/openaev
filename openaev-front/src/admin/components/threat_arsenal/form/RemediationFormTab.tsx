@@ -11,9 +11,9 @@ import {
   hasSpecificDirtyFieldAI,
   payloadFormToPayloadInputForAI,
   trackedFields,
-} from '../utils/payloadFormToPayloadInput';
+} from '../../payloads/utils/payloadFormToPayloadInput';
+import typeChar from '../../payloads/utils/typeChar';
 import { type SnapshotEditionRemediationType } from '../utils/SnapshotRemediationContext';
-import typeChar from '../utils/typeChar';
 import { useSnapshotRemediation } from '../utils/useSnapshotRemediation';
 import DetectionRemediationInfo from './DetectionRemediationInfo';
 import DetectionRemediationUseAriane from './DetectionRemediationUseAriane';

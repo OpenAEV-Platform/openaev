@@ -13,7 +13,7 @@ import { type CSSProperties, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import type { DomainHelper } from '../../../actions/domains/domain-helper';
-import { searchInjectorContracts } from '../../../actions/InjectorContracts';
+import { searchThreatArsenalActions } from '../../../actions/threat_arsenals/ThreatArsenal-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
@@ -28,8 +28,8 @@ import PlatformIcon from '../../../components/PlatformIcon';
 import { useHelper } from '../../../store';
 import {
   type Domain,
-  type InjectorContractActionOutput,
   type SearchPaginationInput,
+  type ThreatArsenalAction,
 } from '../../../utils/api-types';
 import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
@@ -37,9 +37,9 @@ import IconBar from '../common/domains/IconBar';
 import useDomainIconFilter from '../common/domains/useDomainIconFilter';
 import InjectIcon from '../common/injects/InjectIcon';
 import InjectorContractPopover from '../integrations/injectors/injector_contracts/InjectorContractPopover';
-import CreatePayload from '../payloads/CreatePayload';
-import PayloadPopover from '../payloads/PayloadPopover';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
+import CreateThreatArsenalAction from './CreateThreatArsenalAction';
+import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import ThreatArsenalInformationDrawer from './ThreatArsenalInformationDrawer';
 
 const useStyles = makeStyles()(theme => ({
@@ -54,12 +54,12 @@ const useStyles = makeStyles()(theme => ({
 }));
 
 const inlineStyles: Record<string, CSSProperties> = {
-  injector_contract_labels: { width: '30%' },
-  injector_contract_domains: { width: '15%' },
-  injector_contract_platforms: { width: '10%' },
-  injector_contract_tags: { width: '15%' },
-  injector_contract_payload_status: { width: '10%' },
-  injector_contract_updated_at: { width: '20%' },
+  action_labels: { width: '30%' },
+  action_domains: { width: '15%' },
+  action_platforms: { width: '10%' },
+  action_tags: { width: '15%' },
+  action_payload_status: { width: '10%' },
+  action_updated_at: { width: '20%' },
 };
 
 const ThreatArsenal = () => {
@@ -67,9 +67,9 @@ const ThreatArsenal = () => {
   const theme = useTheme();
   const { classes } = useStyles();
 
-  const [selectedInjectorContract, setSelectedInjectorContract] = useState<InjectorContractActionOutput | null>(null);
+  const [selectedThreatArsenalAction, setSelectedThreatArsenalAction] = useState<ThreatArsenalAction | null>(null);
 
-  const [injectorContracts, setInjectorContracts] = useState<InjectorContractActionOutput[]>([]);
+  const [threatArsenalActions, setThreatArsenalActions] = useState<ThreatArsenalAction[]>([]);
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(
     'threat-arsenal',
     buildSearchPagination({}),
@@ -77,34 +77,31 @@ const ThreatArsenal = () => {
 
   // Headers
   const [loading, setLoading] = useState<boolean>(false);
-  const searchInjectorContractsToLoad = (input: SearchPaginationInput) => {
+  const searchThreatArsenalActionsToLoad = (input: SearchPaginationInput) => {
     setLoading(true);
-    return searchInjectorContracts({
-      ...input,
-      output_mode: 'THREAT_ARSENAL',
-    }).finally(() => setLoading(false));
+    return searchThreatArsenalActions({ ...input }).finally(() => setLoading(false));
   };
 
   const headers: Header[] = useMemo(() => [
     {
-      field: 'injector_contract_labels',
+      field: 'action_labels',
       label: 'Name',
       isSortable: true,
-      value: (contract: InjectorContractActionOutput) => (
-        <Tooltip title={tPick(contract.injector_contract_labels)}>
-          <span>{tPick(contract.injector_contract_labels)}</span>
+      value: (action: ThreatArsenalAction) => (
+        <Tooltip title={tPick(action.action_labels)}>
+          <span>{tPick(action.action_labels)}</span>
         </Tooltip>
       ),
     },
     {
-      field: 'injector_contract_domains',
+      field: 'action_domains',
       label: 'Domains',
       isSortable: false,
-      value: (contract: InjectorContractActionOutput) => {
-        return contract.injector_contract_domains && contract.injector_contract_domains.length > 0
+      value: (action: ThreatArsenalAction) => {
+        return action.action_domains_ids && action.action_domains_ids.length > 0
           ? (
               <ItemDomains
-                domains={contract.injector_contract_domains}
+                domains={action.action_domains_ids}
                 variant="reduced-view"
               />
             )
@@ -112,12 +109,12 @@ const ThreatArsenal = () => {
       },
     },
     {
-      field: 'injector_contract_platforms',
+      field: 'action_platforms',
       label: 'Platforms',
       isSortable: false,
-      value: (contract: InjectorContractActionOutput) => (
+      value: (action: ThreatArsenalAction) => (
         <>
-          {(contract.injector_contract_platforms ?? []).map(
+          {(action.action_platforms ?? []).map(
             (platform: string) => (
               <PlatformIcon
                 key={platform}
@@ -131,29 +128,29 @@ const ThreatArsenal = () => {
       ),
     },
     {
-      field: 'injector_contract_tags',
+      field: 'action_tags',
       label: 'Tags',
       isSortable: false,
-      value: (contract: InjectorContractActionOutput) => (
+      value: (action: ThreatArsenalAction) => (
         <ItemTags
           variant="reduced-view"
-          tags={contract.injector_contract_tags}
+          tags={action.action_tags_ids}
         />
       ),
     },
     {
-      field: 'injector_contract_payload_status',
+      field: 'action_payload_status',
       label: 'Status',
       isSortable: false,
-      value: (contract: InjectorContractActionOutput) => (
-        <PayloadStatusComponent status={contract.injector_contract_payload?.payload_status} />
+      value: (action: ThreatArsenalAction) => (
+        <PayloadStatusComponent status={action.action_payload?.payload_status} />
       ),
     },
     {
-      field: 'injector_contract_updated_at',
+      field: 'action_updated_at',
       label: 'Updated',
       isSortable: true,
-      value: (contract: InjectorContractActionOutput) => <>{nsdt(contract.injector_contract_updated_at)}</>,
+      value: (action: ThreatArsenalAction) => <>{nsdt(action.injector_contract_updated_at)}</>,
     },
   ], []);
 
@@ -163,15 +160,17 @@ const ThreatArsenal = () => {
     domainOptions,
     searchPaginationInput,
     queryableHelpers,
+    apiPrefix: 'threat_arsenals',
+    domainFilterKey: 'action_domains',
   });
 
   const availableFilterNames = [
-    'injector_contract_injector',
-    'injector_contract_platforms',
-    'injector_contract_domains',
-    'injector_contract_tags',
-    'injector_contract_payload_status',
-    'injector_contract_updated_at',
+    'action_injector',
+    'action_platforms',
+    'action_domains',
+    'action_tags',
+    'action_payload_status',
+    'action_updated_at',
   ];
 
   return (
@@ -179,17 +178,17 @@ const ThreatArsenal = () => {
       <Breadcrumbs
         variant="list"
         elements={[{
-          label: t('Threat Arsenal'),
+          label: t('Threat Arsenals'),
           current: true,
         }]}
       />
       <IconBar elements={iconBarOrderedDomains} />
 
       <PaginationComponentV2
-        fetch={searchInjectorContractsToLoad}
+        fetch={searchThreatArsenalActionsToLoad}
         searchPaginationInput={searchPaginationInput}
-        setContent={setInjectorContracts}
-        entityPrefix="injector_contract"
+        setContent={setThreatArsenalActions}
+        entityPrefix="threat_arsenal"
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
       />
@@ -214,50 +213,50 @@ const ThreatArsenal = () => {
         </ListItem>
         {loading
           ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
-          : injectorContracts.map((contract) => {
+          : threatArsenalActions.map((action) => {
               return (
                 (
                   <ListItem
-                    key={contract.injector_contract_id}
+                    key={action.injector_contract_id}
                     divider
-                    secondaryAction={(contract.injector_contract_payload != null
+                    secondaryAction={(action.action_payload != null
                       ? (
-                          <PayloadPopover
-                            payloadId={contract.injector_contract_payload?.payload_id ?? ''}
-                            name={tPick(contract.injector_contract_labels)}
-                            onUpdate={(result: InjectorContractActionOutput) =>
-                              setInjectorContracts(injectorContracts.map(a => a.injector_contract_id === contract.injector_contract_id ? result : a))}
-                            onDuplicate={(result: InjectorContractActionOutput) => setInjectorContracts([result, ...injectorContracts])}
-                            onDelete={() => setInjectorContracts(injectorContracts.filter(a => a.injector_contract_id !== contract.injector_contract_id))}
-                            disableUpdate={contract.injector_contract_payload?.payload_collector_type !== null}
-                            disableDelete={contract.injector_contract_payload?.payload_collector_type !== null && contract.injector_contract_payload?.payload_status !== 'DEPRECATED'}
+                          <ThreatArsenalActionPopover
+                            payloadId={action.action_payload?.payload_id ?? ''}
+                            name={tPick(action.action_labels)}
+                            onUpdate={(result: ThreatArsenalAction) =>
+                              setThreatArsenalActions(threatArsenalActions.map(a => a.injector_contract_id === action.injector_contract_id ? result : a))}
+                            onDuplicate={(result: ThreatArsenalAction) => setThreatArsenalActions([result, ...threatArsenalActions])}
+                            onDelete={() => setThreatArsenalActions(threatArsenalActions.filter(a => a.injector_contract_id !== action.injector_contract_id))}
+                            disableUpdate={action.action_payload?.payload_collector_type !== null}
+                            disableDelete={action.action_payload?.payload_collector_type !== null && action.action_payload?.payload_status !== 'DEPRECATED'}
                           />
                         )
                       : (
                           <InjectorContractPopover
-                            injectorContract={contract}
+                            injectorContract={action}
                             canDelete={false}
                             canEditCustomForm={false}
-                            onUpdate={(result: InjectorContractActionOutput) =>
-                              setInjectorContracts(injectorContracts.map(ic => (ic.injector_contract_id !== result.injector_contract_id ? ic : result)))}
+                            onUpdate={(result: ThreatArsenalAction) =>
+                              setThreatArsenalActions(threatArsenalActions.map(ic => (ic.injector_contract_id !== result.injector_contract_id ? ic : result)))}
                           />
                         )
                     )}
                     disablePadding
                   >
                     <ListItemButton
-                      onClick={() => setSelectedInjectorContract(contract)}
-                      selected={selectedInjectorContract?.injector_contract_id === contract.injector_contract_id}
+                      onClick={() => setSelectedThreatArsenalAction(action)}
+                      selected={selectedThreatArsenalAction?.injector_contract_id === action.injector_contract_id}
                     >
                       <ListItemIcon style={{ minWidth: 56 }}>
                         <InjectIcon
                           variant="list"
                           type={
-                            contract.injector_contract_payload != null
-                              ? contract.injector_contract_payload.payload_collector_type ?? contract.injector_contract_payload.payload_type
-                              : contract.injector_contract_injector_type
+                            action.action_payload != null
+                              ? action.action_payload.payload_collector_type ?? action.action_payload.payload_type
+                              : action.action_injector_type
                           }
-                          isPayload={contract.injector_contract_payload != null}
+                          isPayload={action.action_payload != null}
                         />
                       </ListItemIcon>
 
@@ -269,7 +268,7 @@ const ThreatArsenal = () => {
                                 key={header.field}
                                 style={{ ...inlineStyles[header.field] }}
                               >
-                                {header.value?.(contract)}
+                                {header.value?.(action)}
                               </div>
                             ))}
                           </div>
@@ -282,17 +281,17 @@ const ThreatArsenal = () => {
             })}
       </List>
       <Can I={ACTIONS.MANAGE} a={SUBJECTS.PAYLOADS}>
-        <CreatePayload
-          onCreate={(result: InjectorContractActionOutput) => {
-            setInjectorContracts([result, ...injectorContracts]);
+        <CreateThreatArsenalAction
+          onCreate={(result: ThreatArsenalAction) => {
+            setThreatArsenalActions([result, ...threatArsenalActions]);
           }}
         />
       </Can>
-      {(selectedInjectorContract !== null) && (
+      {(selectedThreatArsenalAction !== null) && (
         <ThreatArsenalInformationDrawer
-          open={selectedInjectorContract !== null}
-          onClose={() => setSelectedInjectorContract(null)}
-          injectorContract={selectedInjectorContract}
+          open={true}
+          onClose={() => setSelectedThreatArsenalAction(null)}
+          threatArsenalAction={selectedThreatArsenalAction}
         />
       )}
     </Stack>

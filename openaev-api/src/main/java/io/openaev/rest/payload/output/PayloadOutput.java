@@ -13,7 +13,7 @@ import lombok.Data;
 
 @Data
 @Builder
-public class PayloadOutput implements PayloadResult {
+public class PayloadOutput {
 
   @Schema(description = "Payload unique identifier")
   @NotBlank

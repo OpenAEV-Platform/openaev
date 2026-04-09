@@ -1,7 +1,7 @@
 import { type AxiosResponse } from 'axios';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { fetchDomainCounts } from '../../../../actions/InjectorContracts';
+import { fetchDomainCounts } from '../../../../actions/domains/domain-actions';
 import { type QueryableHelpers } from '../../../../components/common/queryable/QueryableHelpers';
 import {
   type Domain,
@@ -20,6 +20,7 @@ interface UseDomainIconFilterParams {
   searchPaginationInput?: SearchPaginationInput;
   queryableHelpers?: QueryableHelpers;
   domainFilterKey?: string;
+  apiPrefix?: string;
 }
 
 interface UseDomainIconFilterResult {
@@ -34,6 +35,7 @@ const useDomainIconFilter = ({
   searchPaginationInput,
   queryableHelpers,
   domainFilterKey = DEFAULT_DOMAIN_FILTER_KEY,
+  apiPrefix = 'injector_contracts',
 }: UseDomainIconFilterParams): UseDomainIconFilterResult => {
   const [selectedDomains, setSelectedDomains] = useState<string[]>([]);
   const [domainCounts, setDomainCounts] = useState<Record<string, number>>({});
@@ -68,7 +70,7 @@ const useDomainIconFilter = ({
 
   useEffect(() => {
     if (searchPaginationInput) {
-      fetchDomainCounts(searchPaginationInput)
+      fetchDomainCounts(apiPrefix, searchPaginationInput)
         .then((response: AxiosResponse<InjectorContractDomainCountOutput[]>) => {
           const data = response?.data;
 

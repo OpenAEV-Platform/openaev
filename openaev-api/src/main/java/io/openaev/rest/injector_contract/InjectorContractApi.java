@@ -14,7 +14,6 @@ import io.openaev.rest.injector_contract.form.InjectorContractAddInput;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateInput;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateMappingInput;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
-import io.openaev.rest.injector_contract.output.InjectorContractActionOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
@@ -47,8 +46,8 @@ public class InjectorContractApi extends RestBehavior {
   /**
    * Searches injector contracts with pagination and filtering.
    *
-   * <p>The output depends on {@code input.output_mode}: {@code FULL}, {@code BASE}, or {@code
-   * THREAT_ARSENAL}. If omitted, {@code FULL} is used.
+   * <p>The output depends on {@code input.output_mode}: {@code FULL} or {@code BASE}. If omitted,
+   * {@code FULL} is used.
    *
    * @param input the search and pagination parameters
    * @return a paged list of injector contract outputs in the selected format
@@ -63,7 +62,6 @@ public class InjectorContractApi extends RestBehavior {
                       oneOf = {
                         InjectorContractBaseOutput.class,
                         InjectorContractFullOutput.class,
-                        InjectorContractActionOutput.class
                       })))
   @PostMapping({INJECTOR_CONTRACT_URL + "/search", TENANT_INJECTOR_CONTRACT_URL + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
@@ -72,7 +70,12 @@ public class InjectorContractApi extends RestBehavior {
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
             this.injectorContractService.getSinglePage(
-                spec, specCount, pageable, input.getOutputMode()),
+                spec,
+                specCount,
+                pageable,
+                input.isIncludeFullDetails()
+                    ? InjectorContractService.OutputMode.FULL
+                    : InjectorContractService.OutputMode.BASE),
         handleArchitectureFilter(input),
         InjectorContract.class);
   }

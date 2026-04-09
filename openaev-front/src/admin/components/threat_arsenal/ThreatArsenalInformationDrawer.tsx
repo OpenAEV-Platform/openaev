@@ -14,8 +14,7 @@ import PlatformIcon from '../../../components/PlatformIcon';
 import { useHelper } from '../../../store';
 import {
   type AttackPattern,
-  type InjectorContractActionOutput,
-  type Payload,
+  type Payload, type ThreatArsenalAction,
 } from '../../../utils/api-types';
 import InjectIcon from '../common/injects/InjectIcon';
 import PayloadComponent from '../payloads/PayloadComponent';
@@ -23,13 +22,13 @@ import PayloadComponent from '../payloads/PayloadComponent';
 interface Props {
   open: boolean;
   onClose: () => void;
-  injectorContract: InjectorContractActionOutput | null;
+  threatArsenalAction: ThreatArsenalAction | null;
 }
 
 const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
   open,
   onClose,
-  injectorContract,
+  threatArsenalAction,
 }) => {
   const theme = useTheme();
   const { t, tPick } = useFormatter();
@@ -43,28 +42,27 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
   const [selectedPayload, setSelectedPayload] = useState<Payload | null>(null);
 
   useEffect(() => {
-    if (!open || !injectorContract) {
+    if (!open || !threatArsenalAction) {
       return;
     }
 
     setSelectedPayload(null);
 
-    if (!injectorContract.injector_contract_payload) {
+    if (!threatArsenalAction.action_payload) {
       return;
     }
     setLoading(true);
-    fetchPayload(injectorContract!.injector_contract_payload!.payload_id!).then((result) => {
+    fetchPayload(threatArsenalAction!.action_payload!.payload_id!).then((result) => {
       setSelectedPayload((result.data ?? result) as Payload);
       setLoading(false);
     });
-  }, [open, injectorContract]);
+  }, [open, threatArsenalAction]);
 
   const attackPatterns = useMemo(() => {
-    const ids = injectorContract?.injector_contract_attack_patterns ?? [];
-    return ids
+    return (threatArsenalAction?.action_attack_patterns_ids ?? [])
       .map((id: string) => attackPatternsMap[id])
       .filter(Boolean) as AttackPattern[];
-  }, [attackPatternsMap, injectorContract]);
+  }, [attackPatternsMap, threatArsenalAction]);
 
   return (
     <Drawer
@@ -73,25 +71,25 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
       title={t('Threat arsenal information')}
     >
       <>
-        {(loading || injectorContract == null) && <CircularProgress size={28} />}
+        {(loading || threatArsenalAction == null) && <CircularProgress size={28} />}
 
-        {!loading && injectorContract != null && injectorContract.injector_contract_payload && (
+        {!loading && threatArsenalAction != null && threatArsenalAction.action_payload && (
           <PayloadComponent
             selectedPayload={selectedPayload}
             documentsMap={documentsMap}
-            attackPatternIds={injectorContract?.injector_contract_attack_patterns ?? []}
-            domains={injectorContract?.injector_contract_domains ?? []}
-            tagIds={injectorContract?.injector_contract_tags ?? []}
+            attackPatternIds={threatArsenalAction?.action_attack_patterns_ids ?? []}
+            domains={threatArsenalAction?.action_domains_ids ?? []}
+            tagIds={threatArsenalAction?.action_tags_ids ?? []}
           />
         )}
 
-        {!loading && injectorContract != null && injectorContract.injector_contract_payload == null && (
+        {!loading && threatArsenalAction != null && threatArsenalAction.action_payload == null && (
           <Grid container display="grid" gridTemplateColumns="1fr 1fr" gap={2}>
-            <Typography style={{ gridColumn: 'span 2' }} variant="h2" gutterBottom>{tPick(injectorContract?.injector_contract_labels) || '-'}</Typography>
+            <Typography style={{ gridColumn: 'span 2' }} variant="h2" gutterBottom>{tPick(threatArsenalAction?.action_labels) || '-'}</Typography>
 
             <div>
               <Typography variant="h3" gutterBottom>{t('Platforms')}</Typography>
-              {(injectorContract?.injector_contract_platforms ?? []).length > 0 ? injectorContract!.injector_contract_platforms!.map(platform => (
+              {(threatArsenalAction?.action_platforms ?? []).length > 0 ? threatArsenalAction!.action_platforms!.map(platform => (
                 <PlatformIcon
                   key={platform}
                   platform={platform}
@@ -118,7 +116,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
 
             <div>
               <Typography variant="h3" gutterBottom>{t('Domains')}</Typography>
-              <ItemDomains domains={injectorContract?.injector_contract_domains ?? []} variant="list" />
+              <ItemDomains domains={threatArsenalAction?.action_domains_ids ?? []} variant="list" />
             </div>
 
             <div>
@@ -130,13 +128,13 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
               </Typography>
               <ItemTags
                 variant="reduced-view"
-                tags={injectorContract?.injector_contract_tags}
+                tags={threatArsenalAction?.action_tags_ids}
               />
             </div>
 
             <div>
               <Typography variant="h3" gutterBottom>{t('Injector type')}</Typography>
-              {injectorContract?.injector_contract_injector_type ? (
+              {threatArsenalAction?.action_injector_type ? (
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -145,10 +143,10 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
                 >
                   <InjectIcon
                     variant="list"
-                    type={injectorContract?.injector_contract_injector_type}
+                    type={threatArsenalAction?.action_injector_type}
                     isPayload={false}
                   />
-                  <Typography variant="body2">{injectorContract?.injector_contract_injector_type}</Typography>
+                  <Typography variant="body2">{threatArsenalAction?.action_injector_type}</Typography>
                 </div>
               ) : (
                 <Typography variant="body2">-</Typography>

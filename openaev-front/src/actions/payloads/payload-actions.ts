@@ -4,17 +4,13 @@ import {
   delReferential,
   getReferential,
   postReferential,
-  putReferential,
   simpleCall,
   simplePostCall,
 } from '../../utils/Action';
 import {
   type Payload,
-  type PayloadCreateInput,
-  type PayloadUpdateInput,
   type SearchPaginationInput,
 } from '../../utils/api-types';
-import { payload } from '../Schema';
 import * as schema from '../Schema';
 
 export const PAYLOAD_URI = '/api/payloads';
@@ -28,21 +24,6 @@ export const searchPayloads = (paginationInput: SearchPaginationInput) => {
 export const fetchPayload = (payloadId: string) => {
   const uri = `/api/payloads/${payloadId}`;
   return simpleCall(uri);
-};
-
-export const updatePayload = (payloadId: Payload['payload_id'], data: PayloadUpdateInput, responseType = 'INJECTOR_CONTRACT') => (dispatch: Dispatch) => {
-  const uri = `/api/payloads/${payloadId}?responseType=${responseType}`;
-  return putReferential(payload, uri, data)(dispatch);
-};
-
-export const addPayload = (data: PayloadCreateInput, responseType = 'INJECTOR_CONTRACT') => {
-  const uri = `/api/payloads?responseType=${responseType}`;
-  return simplePostCall(uri, data);
-};
-
-export const duplicatePayload = (payloadId: Payload['payload_id'], responseType = 'INJECTOR_CONTRACT') => (dispatch: Dispatch) => {
-  const uri = `/api/payloads/${payloadId}/duplicate?responseType=${responseType}`;
-  return postReferential(payload, uri, {})(dispatch);
 };
 
 export const deletePayload = (payloadId: Payload['payload_id']) => (dispatch: Dispatch) => {

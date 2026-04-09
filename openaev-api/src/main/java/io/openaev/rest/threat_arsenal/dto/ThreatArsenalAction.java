@@ -1,52 +1,54 @@
-package io.openaev.rest.injector_contract.output;
+package io.openaev.rest.threat_arsenal.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.Endpoint;
-import io.openaev.rest.payload.output.PayloadResult;
+import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.payload.output.PayloadSimple;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotEmpty;
 import java.time.Instant;
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import javax.annotation.Nullable;
 import lombok.Data;
 import lombok.experimental.SuperBuilder;
 
 @SuperBuilder
 @Data
-public class InjectorContractActionOutput extends InjectorContractBaseOutput
-    implements PayloadResult {
+public class ThreatArsenalAction extends InjectorContractBaseOutput {
   @Schema(description = "Labels")
-  @JsonProperty("injector_contract_labels")
+  @JsonProperty("action_labels")
   private Map<String, String> labels;
 
   @Schema(description = "Payload attached")
-  @JsonProperty("injector_contract_payload")
+  @JsonProperty("action_payload")
   private PayloadSimple payload;
 
   @Schema(description = "Injector type")
-  @JsonProperty("injector_contract_injector_type")
+  @JsonProperty("action_injector_type")
   private String injectorType;
 
   @NotEmpty
   @Schema(description = "Domain IDs")
-  @JsonProperty("injector_contract_domains")
+  @JsonProperty("action_domains_ids")
   private Set<String> domains;
 
   @NotEmpty
   @Schema(description = "Attack Patterns IDs")
-  @JsonProperty("injector_contract_attack_patterns")
+  @JsonProperty("action_attack_patterns_ids")
   private Set<String> attackPatterns;
 
   @Schema(description = "Platforms")
-  @JsonProperty("injector_contract_platforms")
+  @JsonProperty("action_platforms")
   private Endpoint.PLATFORM_TYPE[] platforms;
 
   @Schema(description = "Tags Ids")
-  @JsonProperty("injector_contract_tags")
+  @JsonProperty("action_tags_ids")
   private Set<String> tags;
 
-  public InjectorContractActionOutput(
+  public ThreatArsenalAction(
       String id,
       String externalId,
       Instant updatedAt,
@@ -54,7 +56,7 @@ public class InjectorContractActionOutput extends InjectorContractBaseOutput
       String injectorType,
       String[] domains,
       Endpoint.PLATFORM_TYPE[] platforms,
-      List<String> tags,
+      String[] tags,
       @Nullable PayloadSimple payloadSimple,
       String[] attackPatterns) {
     super(id, externalId, updatedAt);
@@ -62,7 +64,7 @@ public class InjectorContractActionOutput extends InjectorContractBaseOutput
     this.setInjectorType(injectorType);
     this.setDomains(domains != null ? new HashSet<>(Arrays.asList(domains)) : new HashSet<>());
     this.setPlatforms(platforms);
-    this.setTags(tags != null ? new HashSet<>(tags) : new HashSet<>());
+    this.setTags(tags != null ? new HashSet<>(Arrays.asList(tags)) : new HashSet<>());
     this.setPayload(payloadSimple);
     this.setAttackPatterns(
         attackPatterns != null ? new HashSet<>(Arrays.asList(attackPatterns)) : new HashSet<>());

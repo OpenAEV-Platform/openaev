@@ -24,6 +24,7 @@ import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.raw.RawPayloadRelatedIds;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.expectation.ExpectationBuilderService;
@@ -39,13 +40,12 @@ import io.openaev.model.inject.form.Expectation;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
-import io.openaev.rest.payload.PayloadApi;
 import io.openaev.rest.payload.PayloadUtils;
-import io.openaev.rest.payload.output.PayloadResult;
+import io.openaev.rest.payload.output.PayloadOutput;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.UserService;
-import io.openaev.utils.mapper.InjectorContractMapper;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
@@ -82,7 +82,6 @@ public class PayloadService {
   private final TagService tagService;
 
   private final PayloadMapper payloadMapper;
-  private final InjectorContractMapper injectorContractMapper;
 
   public InjectorContract synchroniseInjectorContractBasedOnPayload(
       Payload payload, List<AttackPattern> attackPatterns, Set<Domain> domains, Set<Tag> tags) {
@@ -262,13 +261,8 @@ public class PayloadService {
     return expectationsField(expectations);
   }
 
-  public PayloadResult toPayloadResult(
-      PayloadCreationService.PayloadInjectorContractCreationResult result,
-      PayloadApi.PayloadResponseType resultType) {
-    if (resultType.equals(PayloadApi.PayloadResponseType.INJECTOR_CONTRACT)) {
-      return injectorContractMapper.toInjectorContractActionOutput(result.injectorContract());
-    }
-
+  public PayloadOutput convertPayloadInjectorContractCreationToPayloadOutput(
+      PayloadCreationService.PayloadInjectorContractCreationResult result) {
     return payloadMapper.toPayloadOutput(
         result.payload(),
         result.injectorContract().getAttackPatterns().stream()
@@ -278,6 +272,26 @@ public class PayloadService {
             .map(Domain::getId)
             .collect(Collectors.toList()),
         result.injectorContract().getTags().stream().map(Tag::getId).collect(Collectors.toList()));
+  }
+
+  public record PayloadWithRelatedEntities(
+      Payload payload,
+      List<String> attackPatternIds,
+      List<String> domainIds,
+      List<String> tagIds) {}
+
+  public PayloadWithRelatedEntities findPayloadWithRelatedEntities(String payloadId) {
+    Payload payload =
+        payloadRepository.findById(payloadId).orElseThrow(ElementNotFoundException::new);
+    RawPayloadRelatedIds relatedIds =
+        injectorContractRepository.findRelatedIdsByPayloadId(payloadId).orElse(null);
+
+    List<String> attackPatternIds =
+        relatedIds != null ? relatedIds.getAttack_pattern_ids() : List.of();
+    List<String> domainIds = relatedIds != null ? relatedIds.getDomain_ids() : List.of();
+    List<String> tagIds = relatedIds != null ? relatedIds.getTag_ids() : List.of();
+
+    return new PayloadWithRelatedEntities(payload, attackPatternIds, domainIds, tagIds);
   }
 
   public PayloadCreationService.PayloadInjectorContractCreationResult duplicate(

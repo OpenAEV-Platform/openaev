@@ -261,8 +261,8 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
     this.attackPatterns = attackPatterns;
   }
 
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.EAGER)
-  @JsonProperty("injector_contract_domains")
   @JoinTable(
       name = "injectors_contracts_domains",
       joinColumns = {
@@ -270,7 +270,10 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
         @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")
       },
       inverseJoinColumns = @JoinColumn(name = "domain_id"))
-  @Queryable(filterable = true, dynamicValues = true, paths = "domains.id", clazz = String[].class)
+  @JsonProperty("injector_contract_domains")
+  @Queryable(filterable = true, dynamicValues = true, paths = "domains.id")
+  @JsonSerialize(using = MultiIdSetSerializer.class)
+  @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   private Set<Domain> domains = new HashSet<>();
 
   @Schema(implementation = String[].class)

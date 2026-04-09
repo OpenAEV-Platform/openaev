@@ -2,39 +2,44 @@ import { MoreVert } from '@mui/icons-material';
 import { Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Menu, MenuItem } from '@mui/material';
 import { type MouseEvent, useContext, useState } from 'react';
 
-import { deletePayload, duplicatePayload, exportPayload, fetchPayload, updatePayload } from '../../../actions/payloads/payload-actions';
+import { deletePayload, exportPayload } from '../../../actions/payloads/payload-actions';
+import {
+  duplicateThreatArsenalAction,
+  fetchThreatArsenalAction,
+  updateThreatArsenalAction,
+} from '../../../actions/threat_arsenals/ThreatArsenal-actions';
 import Button from '../../../components/common/button/Button';
 import DialogDelete from '../../../components/common/DialogDelete';
 import Drawer from '../../../components/common/Drawer';
 import Transition from '../../../components/common/Transition';
 import { useFormatter } from '../../../components/i18n';
 import {
-  type Domain,
-  type InjectorContractActionOutput, type PayloadCreateInput as ApiPayloadCreateInput,
-  type PayloadOutput,
+  type ThreatArsenalAction,
+  type ThreatArsenalActionCreateInput,
+  type ThreatArsenalActionFullOutput,
 } from '../../../utils/api-types';
-import { type PayloadCreateInput } from '../../../utils/api-types-custom';
+import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-types-custom';
 import { useAppDispatch } from '../../../utils/hooks';
 import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { download } from '../../../utils/utils';
-import PayloadForm from './PayloadForm';
-import { type DetectionRemediationForm } from './utils/payloadFormToPayloadInput';
+import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
+import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
 
 interface PayloadPopoverNewProps {
   payloadId: string;
   name: string;
-  onUpdate?: (payload: InjectorContractActionOutput) => void;
+  onUpdate?: (action: ThreatArsenalAction) => void;
   onDelete?: () => void;
-  onDuplicate?: (payload: InjectorContractActionOutput) => void;
+  onDuplicate?: (action: ThreatArsenalAction) => void;
   disableUpdate?: boolean;
   disableDelete?: boolean;
 }
 
-const buildInitialValues = (payload: PayloadOutput): Partial<PayloadCreateInput> & { payload_id?: string } => {
+const buildInitialValues = (action: ThreatArsenalActionFullOutput): Partial<ThreatArsenalActionCreateCustomInput> & { payload_id?: string } => {
   const remediations: Record<string, DetectionRemediationForm> = {};
-  payload.payload_detection_remediations?.forEach((remediation) => {
+  action.action_detection_remediations?.forEach((remediation) => {
     remediations[remediation.detection_remediation_collector_type ?? ''] = {
       content: remediation.detection_remediation_values ?? '',
       remediationId: remediation.detection_remediation_id ?? '',
@@ -43,28 +48,28 @@ const buildInitialValues = (payload: PayloadOutput): Partial<PayloadCreateInput>
   });
 
   return {
-    payload_id: payload.payload_id,
-    payload_name: payload.payload_name,
-    payload_description: payload.payload_description,
-    payload_type: payload.payload_type as PayloadCreateInput['payload_type'],
-    command_executor: payload.command_executor as string | undefined,
-    command_content: payload.command_content as string | undefined,
-    dns_resolution_hostname: payload.dns_resolution_hostname as string | undefined,
-    payload_arguments: payload.payload_arguments,
-    payload_prerequisites: payload.payload_prerequisites,
-    file_drop_file: payload.file_drop_file as string | undefined,
-    payload_attack_patterns: payload.payload_attack_patterns,
-    payload_tags: payload.payload_tags as string[] | undefined,
-    payload_expectations: payload.payload_expectations ?? ['PREVENTION', 'DETECTION'],
-    payload_execution_arch: payload.payload_execution_arch,
-    payload_output_parsers: payload.payload_output_parsers as PayloadCreateInput['payload_output_parsers'],
-    payload_platforms: payload.payload_platforms,
-    executable_file: payload.executable_file as string | undefined,
-    payload_cleanup_executor: payload.payload_cleanup_executor ?? '',
-    payload_cleanup_command: payload.payload_cleanup_command ?? '',
-    remediations: remediations as PayloadCreateInput['remediations'],
-    payload_domains: payload.payload_domains,
-  } as Partial<PayloadCreateInput> & { payload_id?: string };
+    action_id: action.action_id,
+    action_name: action.action_name,
+    action_description: action.action_description,
+    action_type: action.action_type as ThreatArsenalActionCreateCustomInput['action_type'],
+    command_executor: action.command_executor as string | undefined,
+    command_content: action.command_content as string | undefined,
+    dns_resolution_hostname: action.dns_resolution_hostname as string | undefined,
+    action_arguments: action.action_arguments,
+    action_prerequisites: action.action_prerequisites,
+    file_drop_file: action.file_drop_file as string | undefined,
+    action_attack_patterns: action.action_attack_patterns,
+    action_tags: action.action_tags as string[] | undefined,
+    action_expectations: action.action_expectations ?? ['PREVENTION', 'DETECTION'],
+    action_execution_arch: action.action_execution_arch,
+    action_output_parsers: action.action_output_parsers as ThreatArsenalActionCreateCustomInput['action_output_parsers'],
+    action_platforms: action.action_platforms,
+    executable_file: action.executable_file as string | undefined,
+    action_cleanup_executor: action.action_cleanup_executor ?? '',
+    action_cleanup_command: action.action_cleanup_command ?? '',
+    remediations: remediations as ThreatArsenalActionCreateCustomInput['remediations'],
+    action_domains: action.action_domains,
+  } as Partial<ThreatArsenalActionCreateCustomInput> & { action_id?: string };
 };
 
 const handleCleanupCommandValue = (value: string): string | null => (value === '' ? null : value);
@@ -74,7 +79,7 @@ const handleCleanupExecutorValue = (executor: string, command: string): string |
   return null;
 };
 
-const PayloadPopover = ({
+const ThreatArsenalActionPopover = ({
   payloadId,
   name,
   onUpdate,
@@ -87,7 +92,7 @@ const PayloadPopover = ({
   const [openEdit, setOpenEdit] = useState(false);
   const [openDuplicate, setOpenDuplicate] = useState(false);
   const [deletion, setDeletion] = useState(false);
-  const [fetchedPayload, setFetchedPayload] = useState<PayloadOutput | null>(null);
+  const [fetchedAction, setFetchedAction] = useState<ThreatArsenalActionFullOutput | null>(null);
 
   const dispatch = useAppDispatch();
   const { t } = useFormatter();
@@ -103,26 +108,25 @@ const PayloadPopover = ({
   // -- Edit --
   const handleOpenEdit = async () => {
     handlePopoverClose();
-    const response = await fetchPayload(payloadId);
-    setFetchedPayload(response.data as PayloadOutput);
+    const response = await fetchThreatArsenalAction(payloadId);
+    setFetchedAction(response.data as ThreatArsenalActionFullOutput);
     setOpenEdit(true);
   };
 
   const handleCloseEdit = () => {
     setOpenEdit(false);
-    setFetchedPayload(null);
+    setFetchedAction(null);
   };
 
-  const onSubmitEdit = (data: PayloadCreateInput) => {
-    const inputValues: ApiPayloadCreateInput = {
+  const onSubmitEdit = (data: ThreatArsenalActionCreateCustomInput) => {
+    const inputValues: ThreatArsenalActionCreateInput = {
       ...data,
-      payload_domains: data.payload_domains.map((domain: Domain) => domain.domain_id),
-      payload_cleanup_executor: handleCleanupExecutorValue(
-        data.payload_cleanup_executor as string ?? '',
-        data.payload_cleanup_command as string ?? '',
+      action_cleanup_executor: handleCleanupExecutorValue(
+        data.action_cleanup_executor as string ?? '',
+        data.action_cleanup_command as string ?? '',
       ),
-      payload_cleanup_command: handleCleanupCommandValue(data.payload_cleanup_command as string ?? ''),
-      payload_detection_remediations: Object.entries(data.remediations ?? {})
+      action_cleanup_command: handleCleanupCommandValue(data.action_cleanup_command as string ?? ''),
+      action_detection_remediations: Object.entries(data.remediations ?? {})
         .filter(([, value]) => value)
         .map(([key, value]) => {
           const remediation = value as unknown as DetectionRemediationForm;
@@ -133,17 +137,14 @@ const PayloadPopover = ({
             author_rule: remediation.author_rule,
           };
         }),
-    } as ApiPayloadCreateInput;
+    } as ThreatArsenalActionCreateInput;
 
-    return dispatch(updatePayload(payloadId, inputValues)).then((result: {
-      entities: { payloads: Record<string, InjectorContractActionOutput> };
-      result: string;
-    }) => {
-      if (onUpdate) {
-        onUpdate(result.entities.payloads[result.result]);
+    return dispatch(updateThreatArsenalAction(payloadId, inputValues).then(({ data }: { data: ThreatArsenalAction }) => {
+      if (data && onUpdate) {
+        onUpdate(data);
       }
       handleCloseEdit();
-    });
+    }));
   };
 
   // -- Delete --
@@ -165,15 +166,12 @@ const PayloadPopover = ({
   const handleCloseDuplicate = () => setOpenDuplicate(false);
 
   const submitDuplicate = () => {
-    return dispatch(duplicatePayload(payloadId)).then((result: {
-      entities: { payloads: Record<string, InjectorContractActionOutput> };
-      result: string;
-    }) => {
-      if (onDuplicate) {
-        onDuplicate(result.entities.payloads[result.result]);
+    return dispatch(duplicateThreatArsenalAction(payloadId).then(({ data }: { data: ThreatArsenalAction }) => {
+      if (data && onDuplicate) {
+        onDuplicate(data);
       }
       handleCloseDuplicate();
-    });
+    }));
   };
 
   // -- Export --
@@ -204,7 +202,8 @@ const PayloadPopover = ({
         {hasUpdateCapability && (
           <MenuItem onClick={handleOpenEdit} disabled={disableUpdate}>{t('Update')}</MenuItem>
         )}
-        <MenuItem onClick={handleExportJsonSingle}>{t('Export')}</MenuItem>
+        {/* TODO next chunk */}
+        {/* <MenuItem onClick={handleExportJsonSingle}>{t('Export')}</MenuItem> */}
         {hasDeleteCapability && (
           <MenuItem onClick={handleOpenDelete} disabled={disableDelete}>{t('Delete')}</MenuItem>
         )}
@@ -239,13 +238,13 @@ const PayloadPopover = ({
         handleClose={handleCloseEdit}
         title={t('Update the payload')}
       >
-        {fetchedPayload && (
+        {fetchedAction && (
           <SnapshotRemediationProvider>
-            <PayloadForm
+            <ThreatArsenalActionForm
               onSubmit={onSubmitEdit}
               handleClose={handleCloseEdit}
               editing
-              initialValues={buildInitialValues(fetchedPayload)}
+              initialValues={buildInitialValues(fetchedAction)}
             />
           </SnapshotRemediationProvider>
         )}
@@ -254,4 +253,4 @@ const PayloadPopover = ({
   );
 };
 
-export default PayloadPopover;
+export default ThreatArsenalActionPopover;

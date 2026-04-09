@@ -3,17 +3,18 @@ import { Fab } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { addPayload } from '../../../actions/payloads/payload-actions';
+import { addThreatArsenalAction } from '../../../actions/threat_arsenals/ThreatArsenal-actions';
 import Drawer from '../../../components/common/Drawer';
 import { useFormatter } from '../../../components/i18n';
 import {
-  type Domain, type InjectorContractActionOutput,
-  type PayloadCreateInput as ApiPayloadCreateInput,
+  type Domain,
+  type ThreatArsenalAction,
+  type ThreatArsenalActionCreateInput as ApiThreatArsenalActionCreateInput,
 } from '../../../utils/api-types';
-import { type PayloadCreateInput } from '../../../utils/api-types-custom';
+import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-types-custom';
 import { useAppDispatch } from '../../../utils/hooks';
-import PayloadForm from './PayloadForm';
-import { type DetectionRemediationForm } from './utils/payloadFormToPayloadInput';
+import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
+import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 
 const useStyles = makeStyles()({
   createButton: {
@@ -23,7 +24,7 @@ const useStyles = makeStyles()({
   },
 });
 
-interface Props { onCreate?: (payloads: InjectorContractActionOutput) => void }
+interface Props { onCreate?: (action: ThreatArsenalAction) => void }
 
 function handleCleanupCommandValue(cleanupCommand: string | null | undefined): string | null {
   return cleanupCommand === '' ? null : (cleanupCommand ?? null);
@@ -39,7 +40,7 @@ function handleCleanupExecutorValue(
   return null;
 }
 
-const CreatePayload: FunctionComponent<Props> = ({ onCreate }) => {
+const CreateThreatArsenalAction: FunctionComponent<Props> = ({ onCreate }) => {
   const [open, setOpen] = useState(false);
   const { t } = useFormatter();
   const { classes } = useStyles();
@@ -48,15 +49,14 @@ const CreatePayload: FunctionComponent<Props> = ({ onCreate }) => {
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
-  const onSubmit = (data: PayloadCreateInput) => {
-    const inputValues: ApiPayloadCreateInput = {
+  const onSubmit = (data: ThreatArsenalActionCreateCustomInput) => {
+    const inputValues: ApiThreatArsenalActionCreateInput = {
       ...data,
-      payload_source: 'MANUAL',
-      payload_status: 'VERIFIED',
-      payload_domains: data.payload_domains.map((domain: Domain) => domain.domain_id),
-      payload_cleanup_executor: handleCleanupExecutorValue(data.payload_cleanup_executor, data.payload_cleanup_command),
-      payload_cleanup_command: handleCleanupCommandValue(data.payload_cleanup_command),
-      payload_detection_remediations: Object.entries(data.remediations ?? {})
+      action_source: 'MANUAL',
+      action_status: 'VERIFIED',
+      action_cleanup_executor: handleCleanupExecutorValue(data.action_cleanup_executor, data.action_cleanup_command),
+      action_cleanup_command: handleCleanupCommandValue(data.action_cleanup_command),
+      action_detection_remediations: Object.entries(data.remediations ?? {})
         .filter(([, value]) => value)
         .map(([key, value]) => {
           const remediation = value as unknown as DetectionRemediationForm;
@@ -67,9 +67,9 @@ const CreatePayload: FunctionComponent<Props> = ({ onCreate }) => {
             author_rule: remediation.author_rule,
           };
         }),
-    } as ApiPayloadCreateInput;
+    } as ApiThreatArsenalActionCreateInput;
 
-    return dispatch(addPayload(inputValues).then(({ data }: { data: InjectorContractActionOutput }) => {
+    return dispatch(addThreatArsenalAction(inputValues).then(({ data }: { data: ThreatArsenalAction }) => {
       if (data && onCreate) {
         onCreate(data);
       }
@@ -90,9 +90,9 @@ const CreatePayload: FunctionComponent<Props> = ({ onCreate }) => {
       <Drawer
         open={open}
         handleClose={handleClose}
-        title={t('Create a new payload')}
+        title={t('Create a new action')}
       >
-        <PayloadForm
+        <ThreatArsenalActionForm
           editing={false}
           onSubmit={onSubmit}
           handleClose={handleClose}
@@ -102,4 +102,4 @@ const CreatePayload: FunctionComponent<Props> = ({ onCreate }) => {
   );
 };
 
-export default CreatePayload;
+export default CreateThreatArsenalAction;

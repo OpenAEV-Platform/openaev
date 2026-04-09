@@ -34,12 +34,11 @@ import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.form.*;
-import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
-import io.openaev.rest.injector_contract.output.InjectorContractActionOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.rest.payload.output.PayloadSimple;
+import io.openaev.rest.threat_arsenal.dto.ThreatArsenalAction;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.UserService;
@@ -462,13 +461,19 @@ public class InjectorContractService implements DependenciesManager {
       Function<Tuple, ? extends InjectorContractBaseOutput> mapper) {}
 
   /** Maps each output mode to its criteria selector and tuple mapper. */
-  private final Map<InjectorContractSearchPaginationInput.OutputMode, OutputModeConfig> CONFIGS =
+  public enum OutputMode {
+    FULL,
+    THREAT_ARSENAL,
+    BASE
+  }
+
+  private final Map<OutputMode, OutputModeConfig> CONFIGS =
       Map.of(
-          InjectorContractSearchPaginationInput.OutputMode.FULL,
+          OutputMode.FULL,
           new OutputModeConfig(this::selectForInjectorContractFull, this::mapFull),
-          InjectorContractSearchPaginationInput.OutputMode.BASE,
+          OutputMode.BASE,
           new OutputModeConfig(this::selectForInjectorContractBase, this::mapBase),
-          InjectorContractSearchPaginationInput.OutputMode.THREAT_ARSENAL,
+          OutputMode.THREAT_ARSENAL,
           new OutputModeConfig(
               this::selectForInjectorContractThreatArsenal, this::mapThreatArsenal));
 
@@ -485,9 +490,8 @@ public class InjectorContractService implements DependenciesManager {
       Specification<InjectorContract> specification,
       Specification<InjectorContract> specificationCount,
       Pageable pageable,
-      InjectorContractSearchPaginationInput.OutputMode mode) {
-    InjectorContractSearchPaginationInput.OutputMode safeMode =
-        (mode == null) ? InjectorContractSearchPaginationInput.OutputMode.FULL : mode;
+      OutputMode mode) {
+    OutputMode safeMode = (mode == null) ? OutputMode.FULL : mode;
     OutputModeConfig config = CONFIGS.get(safeMode);
 
     QuerySetup qs = setupQuery(specification, specificationCount, pageable, config.selector());
@@ -660,7 +664,7 @@ public class InjectorContractService implements DependenciesManager {
     cq.groupBy(getCommonGroupBy(injectorContractRoot, ctx));
   }
 
-  private InjectorContractActionOutput mapThreatArsenal(Tuple tuple) {
+  private ThreatArsenalAction mapThreatArsenal(Tuple tuple) {
     String payloadId = tuple.get("payload_id", String.class);
     PayloadSimple payload =
         payloadId != null
@@ -671,7 +675,7 @@ public class InjectorContractService implements DependenciesManager {
                 tuple.get("payload_status", Payload.PAYLOAD_STATUS.class))
             : null;
 
-    return new InjectorContractActionOutput(
+    return new ThreatArsenalAction(
         tuple.get("injector_contract_id", String.class),
         tuple.get("injector_contract_external_id", String.class),
         tuple.get("injector_contract_updated_at", Instant.class),
@@ -679,7 +683,7 @@ public class InjectorContractService implements DependenciesManager {
         tuple.get("injector_contract_injector_type", String.class),
         tuple.get("injector_contract_domains", String[].class),
         tuple.get("injector_contract_platforms", Endpoint.PLATFORM_TYPE[].class),
-        List.of(tuple.get("injector_contract_tags", String[].class)),
+        tuple.get("injector_contract_tags", String[].class),
         payload,
         tuple.get("injector_contract_attack_patterns", String[].class));
   }
