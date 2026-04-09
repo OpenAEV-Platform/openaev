@@ -7825,13 +7825,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"immutable@npm:5.1.5":
-  version: 5.1.5
-  resolution: "immutable@npm:5.1.5"
-  checksum: 10c0/8017ece1578e3c5939ba3305176aee059def1b8a90c7fa2a347ef583ebbd38cbe77ce1bbd786a5fab57e2da00bbcb0493b92e4332cdc4e1fe5cfb09a4688df31
-  languageName: node
-  linkType: hard
-
 "immutable@npm:^4.3.4":
   version: 4.3.7
   resolution: "immutable@npm:4.3.7"
@@ -10290,7 +10283,6 @@ __metadata:
     html-to-image: "npm:1.11.13"
     http-proxy-middleware: "npm:3.0.5"
     i18n-auto-translation: "npm:2.2.3"
-    immutable: "npm:5.1.5"
     js-file-download: "npm:0.4.12"
     jsdom: "npm:29.0.1"
     mdi-material-ui: "npm:7.9.4"
