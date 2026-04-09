@@ -60,7 +60,10 @@ public class PlayerApi extends RestBehavior {
     return this.playerService.playerPagination(searchPaginationInput);
   }
 
-  @GetMapping({"/api/player/{userId}/communications", TENANT_PREFIX + "/player/{userId}/communications"})
+  @GetMapping({
+    "/api/player/{userId}/communications",
+    TENANT_PREFIX + "/player/{userId}/communications"
+  })
   @AccessControl(skipRBAC = true)
   public Iterable<Communication> playerCommunications(@PathVariable String userId) {
     return communicationRepository.findByUser(userId);

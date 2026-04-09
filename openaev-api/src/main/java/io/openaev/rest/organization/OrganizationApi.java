@@ -62,7 +62,10 @@ public class OrganizationApi extends RestBehavior {
     return organizationRepository.save(organization);
   }
 
-  @PutMapping({ORGANIZATION_URI + "/{organizationId}", TENANT_ORGANIZATION_URI + "/{organizationId}"})
+  @PutMapping({
+    ORGANIZATION_URI + "/{organizationId}",
+    TENANT_ORGANIZATION_URI + "/{organizationId}"
+  })
   @AccessControl(
       resourceId = "#organizationId",
       actionPerformed = Action.WRITE,
@@ -77,7 +80,10 @@ public class OrganizationApi extends RestBehavior {
     return organizationRepository.save(organization);
   }
 
-  @DeleteMapping({ORGANIZATION_URI + "/{organizationId}", TENANT_ORGANIZATION_URI + "/{organizationId}"})
+  @DeleteMapping({
+    ORGANIZATION_URI + "/{organizationId}",
+    TENANT_ORGANIZATION_URI + "/{organizationId}"
+  })
   @AccessControl(
       resourceId = "#organizationId",
       actionPerformed = Action.DELETE,
