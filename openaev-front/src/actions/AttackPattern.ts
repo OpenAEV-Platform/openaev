@@ -5,8 +5,10 @@ import {
   type AttackPattern,
   type AttackPatternCreateInput,
   type AttackPatternUpdateInput,
+  type PageAttackPattern,
   type SearchPaginationInput,
 } from '../utils/api-types';
+import type { Option } from '../utils/Option';
 import * as schema from './Schema';
 
 const ATTACK_PATTERN_URI = '/api/attack_patterns';
@@ -18,7 +20,7 @@ export const fetchAttackPatterns = () => (dispatch: Dispatch) => {
 export const searchAttackPatterns = (paginationInput: SearchPaginationInput) => {
   const data = paginationInput;
   const uri = `${ATTACK_PATTERN_URI}/search`;
-  return simplePostCall(uri, data);
+  return simplePostCall<PageAttackPattern>(uri, data);
 };
 
 export const searchAttackPatternsWithAIWebservice = (files: File[], text: string) => {
@@ -27,7 +29,7 @@ export const searchAttackPatternsWithAIWebservice = (files: File[], text: string
     formData.append('files', file);
   });
   formData.append('text', text);
-  return simplePostCall(`${ATTACK_PATTERN_URI}/search-with-ai`, formData);
+  return simplePostCall<AttackPattern[]>(`${ATTACK_PATTERN_URI}/search-with-ai`, formData);
 };
 
 export const updateAttackPattern = (attackPatternId: AttackPattern['attack_pattern_id'], data: AttackPatternUpdateInput) => (dispatch: Dispatch) => {
@@ -48,9 +50,9 @@ export const deleteAttackPattern = (attackPatternId: AttackPattern['attack_patte
 
 export const searchAttackPatternsByNameAsOption = (searchText: string = '') => {
   const params = { searchText };
-  return simpleCall(`${ATTACK_PATTERN_URI}/options`, { params });
+  return simpleCall<Option[]>(`${ATTACK_PATTERN_URI}/options`, { params });
 };
 
 export const searchAttackPatternsByIdAsOption = (ids: string[]) => {
-  return simplePostCall(`${ATTACK_PATTERN_URI}/options`, ids);
+  return simplePostCall<Option[]>(`${ATTACK_PATTERN_URI}/options`, ids);
 };

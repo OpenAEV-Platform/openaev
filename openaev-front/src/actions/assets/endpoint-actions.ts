@@ -1,7 +1,8 @@
 import { type Dispatch } from 'redux';
 
 import { delReferential, getReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../../utils/Action';
-import { type Endpoint, type EndpointInput, type EndpointOutput, type SearchPaginationInput } from '../../utils/api-types';
+import { type Endpoint, type EndpointInput, type EndpointOutput, type PageEndpointOutput, type SearchPaginationInput } from '../../utils/api-types';
+import type { Option } from '../../utils/Option';
 import { arrayOfEndpoints, endpoint } from './asset-schema';
 
 const ENDPOINT_URI = '/api/endpoints';
@@ -31,13 +32,13 @@ export const fetchEndpoints = () => (dispatch: Dispatch) => {
 export const searchEndpoints = (searchPaginationInput: SearchPaginationInput) => {
   const data = searchPaginationInput;
   const uri = `${ENDPOINT_URI}/search`;
-  return simplePostCall(uri, data);
+  return simplePostCall<PageEndpointOutput>(uri, data);
 };
 
 export const findEndpoints = (endpointIds: string[]) => {
   const data = endpointIds;
   const uri = `${ENDPOINT_URI}/find`;
-  return simplePostCall(uri, data);
+  return simplePostCall<EndpointOutput[]>(uri, data);
 };
 
 export const fetchEndpoint = (endpointId: string) => (dispatch: Dispatch) => {
@@ -51,11 +52,11 @@ export const searchEndpointAsOption = (searchText: string = '', sourceId: string
     sourceId,
     inputFilterOption,
   };
-  return simpleCall(`${ENDPOINT_URI}/options`, { params });
+  return simpleCall<Option[]>(`${ENDPOINT_URI}/options`, { params });
 };
 
 export const searchEndpointByIdAsOption = (ids: string[]) => {
-  return simplePostCall(`${ENDPOINT_URI}/options`, ids);
+  return simplePostCall<Option[]>(`${ENDPOINT_URI}/options`, ids);
 };
 
 export const searchEndpointLinkedToFindingsAsOption = (searchText: string = '', sourceId: string = '') => {
@@ -63,7 +64,7 @@ export const searchEndpointLinkedToFindingsAsOption = (searchText: string = '', 
     searchText,
     sourceId,
   };
-  return simpleCall(`${ENDPOINT_URI}/findings/options`, { params });
+  return simpleCall<Option[]>(`${ENDPOINT_URI}/findings/options`, { params });
 };
 
 export const importEndpoints = (file: FormData, targetType: string) => {
@@ -79,7 +80,7 @@ export const fetchSimulationEndpoints = (simulationId: string) => (dispatch: Dis
 
 export const findSimulationEndpointsByIds = (simulationId: string, endpointIds: string[]) => {
   const uri = `/api/exercises/${simulationId}/endpoints/find`;
-  return simplePostCall(uri, endpointIds);
+  return simplePostCall<EndpointOutput[]>(uri, endpointIds);
 };
 
 // -- SCENARIOS --
@@ -91,5 +92,5 @@ export const fetchScenarioEndpoints = (scenarioId: string) => (dispatch: Dispatc
 
 export const findScenarioEndpointsByIds = (simulationId: string, endpointIds: string[]) => {
   const uri = `/api/scenarios/${simulationId}/endpoints/find`;
-  return simplePostCall(uri, endpointIds);
+  return simplePostCall<EndpointOutput[]>(uri, endpointIds);
 };

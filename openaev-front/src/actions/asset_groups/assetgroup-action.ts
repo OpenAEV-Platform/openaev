@@ -8,7 +8,8 @@ import {
   simpleCall,
   simplePostCall,
 } from '../../utils/Action';
-import { type AssetGroup, type AssetGroupInput, type SearchPaginationInput, type UpdateAssetsOnAssetGroupInput } from '../../utils/api-types';
+import { type AssetGroup, type AssetGroupInput, type AssetGroupOutput, type EndpointOutput, type PageAssetGroupOutput, type PageEndpointOutput, type SearchPaginationInput, type UpdateAssetsOnAssetGroupInput } from '../../utils/api-types';
+import type { Option } from '../../utils/Option';
 import { arrayOfAssetGroups, assetGroup } from './assetgroup-schema';
 
 const ASSET_GROUP_URI = '/api/asset_groups';
@@ -44,13 +45,13 @@ export const fetchAssetGroups = () => (dispatch: Dispatch) => {
 export const searchAssetGroups = (searchPaginationInput: SearchPaginationInput) => {
   const data = searchPaginationInput;
   const uri = `${ASSET_GROUP_URI}/search`;
-  return simplePostCall(uri, data);
+  return simplePostCall<PageAssetGroupOutput>(uri, data);
 };
 
 export const findAssetGroups = (assetGroupIds: string[]) => {
   const data = assetGroupIds;
   const uri = `${ASSET_GROUP_URI}/find`;
-  return simplePostCall(uri, data);
+  return simplePostCall<AssetGroupOutput[]>(uri, data);
 };
 
 export const fetchAssetGroup = (assetGroupId: AssetGroup['asset_group_id']) => (dispatch: Dispatch) => {
@@ -61,7 +62,7 @@ export const fetchAssetGroup = (assetGroupId: AssetGroup['asset_group_id']) => (
 export const searchEndpointsFromAssetGroup = (searchPaginationInput: SearchPaginationInput, assetGroupId: string) => {
   const data = searchPaginationInput;
   const uri = `${ASSET_GROUP_URI}/${assetGroupId}/assets/search`;
-  return simplePostCall(uri, data);
+  return simplePostCall<PageEndpointOutput>(uri, data);
 };
 
 export const searchAssetGroupAsOption = (searchText: string = '', sourceId: string = '', inputFilterOption: string = '') => {
@@ -70,7 +71,7 @@ export const searchAssetGroupAsOption = (searchText: string = '', sourceId: stri
     sourceId,
     inputFilterOption,
   };
-  return simpleCall(`${ASSET_GROUP_URI}/options`, { params });
+  return simpleCall<Option[]>(`${ASSET_GROUP_URI}/options`, { params });
 };
 
 export const searchAssetGroupLinkedToFindingsAsOption = (searchText: string = '', sourceId: string = '') => {
@@ -78,11 +79,11 @@ export const searchAssetGroupLinkedToFindingsAsOption = (searchText: string = ''
     searchText,
     sourceId,
   };
-  return simpleCall(`${ASSET_GROUP_URI}/findings/options`, { params });
+  return simpleCall<Option[]>(`${ASSET_GROUP_URI}/findings/options`, { params });
 };
 
 export const searchAssetGroupByIdAsOption = (ids: string[]) => {
-  return simplePostCall(`${ASSET_GROUP_URI}/options`, ids);
+  return simplePostCall<Option[]>(`${ASSET_GROUP_URI}/options`, ids);
 };
 
 // -- SIMULATIONS --
@@ -94,7 +95,7 @@ export const fetchSimulationAssetGroups = (simulationId: string) => (dispatch: D
 
 export const findSimulationAssetGroupsByIds = (simulationId: string, assetGroupIds: string[]) => {
   const uri = `/api/exercises/${simulationId}/asset-groups/find`;
-  return simplePostCall(uri, assetGroupIds);
+  return simplePostCall<AssetGroupOutput[]>(uri, assetGroupIds);
 };
 
 // -- SCENARIOS --
@@ -106,5 +107,5 @@ export const fetchScenarioAssetGroups = (scenarioId: string) => (dispatch: Dispa
 
 export const findScenarioAssetGroupsByIds = (scenarioId: string, assetGroupIds: string[]) => {
   const uri = `/api/scenarios/${scenarioId}/asset-groups/find`;
-  return simplePostCall(uri, assetGroupIds);
+  return simplePostCall<AssetGroupOutput[]>(uri, assetGroupIds);
 };

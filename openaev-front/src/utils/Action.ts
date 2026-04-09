@@ -64,15 +64,15 @@ const checkUnauthorized = (error: AxiosError) => {
 
 const simpleApi = api();
 
-export const simpleCall = (uri: string, config?: AxiosRequestConfig, defaultErrorBehavior: boolean = true) => simpleApi.get(buildUri(uri), config).catch((error) => {
+export const simpleCall = <T = unknown>(uri: string, config?: AxiosRequestConfig, defaultErrorBehavior: boolean = true) => simpleApi.get<T>(buildUri(uri), config).catch((error) => {
   checkUnauthorized(error);
   if (defaultErrorBehavior) {
     notifyErrorHandler(error);
   }
   throw error;
 });
-export const simplePostCall = (uri: string, data?: unknown, config?: AxiosRequestConfig, defaultNotifyErrorBehavior: boolean = true, defaultSuccessBehavior: boolean = false) =>
-  simpleApi.post(buildUri(uri), data, config)
+export const simplePostCall = <T = unknown>(uri: string, data?: unknown, config?: AxiosRequestConfig, defaultNotifyErrorBehavior: boolean = true, defaultSuccessBehavior: boolean = false) =>
+  simpleApi.post<T>(buildUri(uri), data, config)
     .then((response) => {
       if (defaultSuccessBehavior) {
         notifySuccess('The element has been successfully created');
@@ -86,8 +86,8 @@ export const simplePostCall = (uri: string, data?: unknown, config?: AxiosReques
       }
       throw error;
     });
-export const simplePutCall = (uri: string, data?: unknown, config?: AxiosRequestConfig, defaultNotifyErrorBehavior: boolean = true, defaultSuccessBehavior: boolean = true) =>
-  simpleApi.put(buildUri(uri), data, config)
+export const simplePutCall = <T = unknown>(uri: string, data?: unknown, config?: AxiosRequestConfig, defaultNotifyErrorBehavior: boolean = true, defaultSuccessBehavior: boolean = true) =>
+  simpleApi.put<T>(buildUri(uri), data, config)
     .then((response) => {
       if (defaultSuccessBehavior) {
         notifySuccess('The element has been successfully updated');
@@ -101,8 +101,8 @@ export const simplePutCall = (uri: string, data?: unknown, config?: AxiosRequest
       }
       throw error;
     });
-export const simpleDelCall = (uri: string, config?: AxiosRequestConfig, defaultNotifyErrorBehavior: boolean = true, defaultSuccessBehavior: boolean = true) =>
-  simpleApi.delete(buildUri(uri), config)
+export const simpleDelCall = <T = void>(uri: string, config?: AxiosRequestConfig, defaultNotifyErrorBehavior: boolean = true, defaultSuccessBehavior: boolean = true) =>
+  simpleApi.delete<T>(buildUri(uri), config)
     .then((response) => {
       if (defaultSuccessBehavior) {
         notifySuccess('The element has been successfully deleted.');
