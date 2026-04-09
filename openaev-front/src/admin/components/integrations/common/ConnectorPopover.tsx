@@ -54,7 +54,7 @@ const ConnectorPopover = ({ connectorInstanceId, connectorName, disabled = false
     {
       label: 'Delete',
       action: handleDelete,
-      userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS),
+      userRight: ability.can(ACTIONS.DELETE, SUBJECTS.PLATFORM_SETTINGS),
     }];
 
   return (

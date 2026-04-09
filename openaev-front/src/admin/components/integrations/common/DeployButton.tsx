@@ -33,33 +33,25 @@ const DeployButton = ({ onDeployBtnClick, style = {}, deploymentCount }: Props) 
   };
 
   const button = (
-    <div style={{
-      ...style,
-      position: 'relative',
-    }}
-    >
-      <Button
-        variant={isEnterpriseEdition ? 'contained' : 'outlined'}
-        sx={{
-          color: isEnterpriseEdition ? 'primary' : 'action.disabled',
-          borderColor: isEnterpriseEdition ? 'primary' : 'action.disabledBackground',
-        }}
-        size="small"
-        onClick={onDeployClickAction}
-        disabled={isDeployDisabled}
-        endIcon={isEnterpriseEdition ? null : <span><EEChip /></span>}
-      >
-        {t('Deploy')}
-      </Button>
+    <div style={style}>
       <Badge
         badgeContent={deploymentCount}
         color="warning"
-        sx={{
-          position: 'absolute',
-          top: '0px',
-          right: 0,
-        }}
-      />
+      >
+        <Button
+          variant={isEnterpriseEdition ? 'contained' : 'outlined'}
+          sx={{
+            color: isEnterpriseEdition ? 'primary' : 'action.disabled',
+            borderColor: isEnterpriseEdition ? 'primary' : 'action.disabledBackground',
+          }}
+          size="small"
+          onClick={onDeployClickAction}
+          disabled={isDeployDisabled}
+          endIcon={isEnterpriseEdition ? null : <span><EEChip /></span>}
+        >
+          {t('Deploy')}
+        </Button>
+      </Badge>
     </div>
   );
 
