@@ -115,6 +115,7 @@ const TENANT_EXEMPT_PREFIXES = [
   '/api/logs',
   '/api/platform-groups',
   '/api/platform-roles',
+  '/api/platform-users',
   '/api/capabilities',
   '/api/xtm-composer',
   '/api/stream',

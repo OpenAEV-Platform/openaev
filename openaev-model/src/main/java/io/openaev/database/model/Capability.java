@@ -330,17 +330,22 @@ public enum Capability {
       pair(ResourceType.PLATFORM_GROUP, Action.READ),
       pair(ResourceType.PLATFORM_GROUP, Action.SEARCH),
       pair(ResourceType.PLATFORM_ROLE, Action.READ),
-      pair(ResourceType.PLATFORM_ROLE, Action.SEARCH)),
+      pair(ResourceType.PLATFORM_ROLE, Action.SEARCH),
+      pair(ResourceType.PLATFORM_USER, Action.READ),
+      pair(ResourceType.PLATFORM_USER, Action.SEARCH)),
   MANAGE_PLATFORM_GROUPS_AND_ROLES(
       ACCESS_PLATFORM_GROUPS_AND_ROLES,
       pair(ResourceType.PLATFORM_GROUP, Action.WRITE),
       pair(ResourceType.PLATFORM_GROUP, Action.CREATE),
       pair(ResourceType.PLATFORM_ROLE, Action.WRITE),
-      pair(ResourceType.PLATFORM_ROLE, Action.CREATE)),
+      pair(ResourceType.PLATFORM_ROLE, Action.CREATE),
+      pair(ResourceType.PLATFORM_USER, Action.WRITE),
+      pair(ResourceType.PLATFORM_USER, Action.CREATE)),
   DELETE_PLATFORM_GROUPS_AND_ROLES(
       MANAGE_PLATFORM_GROUPS_AND_ROLES,
       pair(ResourceType.PLATFORM_GROUP, Action.DELETE),
-      pair(ResourceType.PLATFORM_ROLE, Action.DELETE)),
+      pair(ResourceType.PLATFORM_ROLE, Action.DELETE),
+      pair(ResourceType.PLATFORM_USER, Action.DELETE)),
 
   // STIX
   MANAGE_STIX_BUNDLE(

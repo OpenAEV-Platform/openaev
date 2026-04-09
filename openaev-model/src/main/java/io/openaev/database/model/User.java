@@ -252,6 +252,14 @@ public class User implements Base {
   @JsonIgnore
   private List<Token> tokens = new ArrayList<>();
 
+  @ManyToMany(fetch = FetchType.LAZY)
+  @JoinTable(
+      name = "users_tenants",
+      joinColumns = @JoinColumn(name = "user_id"),
+      inverseJoinColumns = @JoinColumn(name = "tenant_id"))
+  @JsonIgnore
+  private List<Tenant> tenants = new ArrayList<>();
+
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
   private final ResourceType resourceType = ResourceType.USER;

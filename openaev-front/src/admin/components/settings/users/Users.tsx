@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { searchUsers } from '../../../../actions/users/User';
+import { deleteUser, searchUsers } from '../../../../actions/users/User';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import ExportButton from '../../../../components/common/ExportButton';
 import { initSorting } from '../../../../components/common/queryable/Page';
@@ -15,6 +15,7 @@ import { useQueryableWithLocalStorage } from '../../../../components/common/quer
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import { type User, type UserOutput } from '../../../../utils/api-types';
+import { useAppDispatch } from '../../../../utils/hooks';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import SecurityMenu from '../SecurityMenu';
@@ -60,6 +61,7 @@ const Users = () => {
   // Standard hooks
   const { classes } = useStyles();
   const { t } = useFormatter();
+  const dispatch = useAppDispatch();
 
   // Headers
   const headers = [
@@ -177,8 +179,18 @@ const Users = () => {
               secondaryAction={(
                 <UserPopover
                   user={user}
-                  onUpdate={(result: User) => setUsers(users.map(u => (u.user_id !== result.user_id ? u : result)))}
-                  onDelete={(result: string) => setUsers(users.filter(u => (u.user_id !== result)))}
+                  actions={['Delete']}
+                  onSubmitUpdate={() => {}}
+                  onSubmitDelete={() => {
+                    dispatch(deleteUser(user.user_id)).then(() => {
+                      setUsers(users.filter(u => u.user_id !== user.user_id));
+                    });
+                  }}
+                  permissions={{
+                    manage: [ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS],
+                    delete: [ACTIONS.DELETE, SUBJECTS.PLATFORM_SETTINGS],
+                  }}
+                  inList
                 />
               )}
             >

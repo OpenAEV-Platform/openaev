@@ -26,7 +26,10 @@ public class PlatformGroupApi {
   // -- CREATE --
 
   @Operation(summary = "Create a platform group")
-  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PLATFORM_GROUP)
+  @AccessControl(
+      actionPerformed = Action.CREATE,
+      resourceType = ResourceType.PLATFORM_GROUP,
+      isEnterpriseEdition = true)
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public PlatformGroupOutput create(@Valid @RequestBody PlatformGroupInput input) {
@@ -39,14 +42,18 @@ public class PlatformGroupApi {
   @AccessControl(
       resourceId = "#platformGroupId",
       actionPerformed = Action.READ,
-      resourceType = ResourceType.PLATFORM_GROUP)
+      resourceType = ResourceType.PLATFORM_GROUP,
+      isEnterpriseEdition = true)
   @GetMapping("/{platformGroupId}")
   public PlatformGroupOutput findById(@PathVariable String platformGroupId) {
     return toOutput(platformGroupService.findById(platformGroupId));
   }
 
   @Operation(summary = "Search platform groups")
-  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PLATFORM_GROUP)
+  @AccessControl(
+      actionPerformed = Action.SEARCH,
+      resourceType = ResourceType.PLATFORM_GROUP,
+      isEnterpriseEdition = true)
   @PostMapping("/search")
   public Page<PlatformGroupOutput> search(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
@@ -57,7 +64,8 @@ public class PlatformGroupApi {
   @AccessControl(
       resourceId = "#platformGroupId",
       actionPerformed = Action.READ,
-      resourceType = ResourceType.PLATFORM_GROUP)
+      resourceType = ResourceType.PLATFORM_GROUP,
+      isEnterpriseEdition = true)
   @GetMapping("/{platformGroupId}/users")
   public List<String> findUsers(@PathVariable String platformGroupId) {
     return platformGroupService.findUserIds(platformGroupId);
@@ -67,7 +75,8 @@ public class PlatformGroupApi {
   @AccessControl(
       resourceId = "#platformGroupId",
       actionPerformed = Action.READ,
-      resourceType = ResourceType.PLATFORM_GROUP)
+      resourceType = ResourceType.PLATFORM_GROUP,
+      isEnterpriseEdition = true)
   @GetMapping("/{platformGroupId}/platform-roles")
   public Set<String> findPlatformRoles(@PathVariable String platformGroupId) {
     return platformGroupService.findPlatformRoleIds(platformGroupId);
@@ -79,7 +88,8 @@ public class PlatformGroupApi {
   @AccessControl(
       resourceId = "#platformGroupId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.PLATFORM_GROUP)
+      resourceType = ResourceType.PLATFORM_GROUP,
+      isEnterpriseEdition = true)
   @PutMapping("/{platformGroupId}")
   public PlatformGroupOutput update(
       @PathVariable String platformGroupId, @Valid @RequestBody PlatformGroupInput input) {
@@ -92,7 +102,8 @@ public class PlatformGroupApi {
   @AccessControl(
       resourceId = "#platformGroupId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.PLATFORM_GROUP)
+      resourceType = ResourceType.PLATFORM_GROUP,
+      isEnterpriseEdition = true)
   @PutMapping("/{platformGroupId}/users")
   public List<String> updateUsers(
       @PathVariable String platformGroupId,
@@ -104,7 +115,8 @@ public class PlatformGroupApi {
   @AccessControl(
       resourceId = "#platformGroupId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.PLATFORM_GROUP)
+      resourceType = ResourceType.PLATFORM_GROUP,
+      isEnterpriseEdition = true)
   @PutMapping("/{platformGroupId}/platform-roles")
   public Set<String> updatePlatformRoles(
       @PathVariable String platformGroupId,
@@ -118,7 +130,8 @@ public class PlatformGroupApi {
   @AccessControl(
       resourceId = "#platformGroupId",
       actionPerformed = Action.DELETE,
-      resourceType = ResourceType.PLATFORM_GROUP)
+      resourceType = ResourceType.PLATFORM_GROUP,
+      isEnterpriseEdition = true)
   @DeleteMapping("/{platformGroupId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void delete(@PathVariable String platformGroupId) {

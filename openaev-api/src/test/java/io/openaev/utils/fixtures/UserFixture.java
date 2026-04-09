@@ -1,5 +1,6 @@
 package io.openaev.utils.fixtures;
 
+import io.openaev.api.users.dto.UserInput;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
 import io.openaev.rest.user.form.login.LoginUserInput;
@@ -68,6 +69,15 @@ public class UserFixture {
 
   public static User getAdminUser(String firstName, String lastName, String email) {
     return getUser(firstName, lastName, email, true);
+  }
+
+  public static UserInput getUserInput(String email, String firstName, String lastName) {
+    return new UserInput(
+        email, firstName, lastName, RAW_PASSWORD, null, null, null, null, null, false);
+  }
+
+  public static UserInput getUserInput(String email) {
+    return getUserInput(email, "Firstname", "Lastname");
   }
 
   public static User getSavedUser() {
