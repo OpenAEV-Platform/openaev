@@ -37,6 +37,7 @@ import io.openaev.injector_contract.fields.ContractTargetedAsset;
 import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
+import io.openaev.rest.domain.enums.PresetDomain;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -161,10 +162,16 @@ public class InjectorContractFixture {
   }
 
   public static InjectorContract createPayloadInjectorContract(
-      Injector injector, Payload payloadCommand) throws JsonProcessingException {
-    return createPayloadInjectorContractWithFieldsContent(injector, payloadCommand, List.of());
+          Injector injector, Payload payloadCommand) throws JsonProcessingException {
+    return createPayloadInjectorContract(injector, payloadCommand, new HashSet<>(Set.of(PresetDomain.getToClassify())));
   }
 
+  public static InjectorContract createPayloadInjectorContract(
+          Injector injector, Payload payloadCommand, Set<Domain> domains) throws JsonProcessingException {
+    InjectorContract contract =  createPayloadInjectorContractWithFieldsContent(injector, payloadCommand, List.of());
+    contract.setDomains(domains);
+    return contract;
+  }
   public static InjectorContract createPayloadInjectorContractWithObfuscator(String executor)
       throws JsonProcessingException {
     ContractSelect obfuscatorSelect =

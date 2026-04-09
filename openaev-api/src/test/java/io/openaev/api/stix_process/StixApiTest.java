@@ -298,8 +298,8 @@ class StixApiTest extends IntegrationTest {
           .withAttackPattern(attackPatternWrapper)
           .withPayload(
               payloadComposer
-                  .forPayload(PayloadFixture.createDefaultCommand(domains))
-                  .withAttackPattern(attackPatternWrapper))
+                  .forPayload(PayloadFixture.createDefaultCommand())
+                  )
           .persist();
 
       entityManager.flush();

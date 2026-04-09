@@ -1033,7 +1033,7 @@ class InjectApiTest extends IntegrationTest {
       Domain domain = injectTestHelper.forceSaveDomain(DomainFixture.getRandomDomain());
       Command command =
           PayloadFixture.createCommand(
-              "bash", "echo test", null, null, new HashSet<>(Set.of(domain)));
+              "bash", "echo test", null, null);
       command.setOutputParsers(Set.of(outputParser));
       Payload payloadSaved = injectTestHelper.forceSavePayload(command);
 
@@ -1043,6 +1043,7 @@ class InjectApiTest extends IntegrationTest {
       InjectorContract injectorContract =
           InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
               injector, payloadSaved, List.of());
+      injectorContract.setDomains(Set.of(domain));
       injectorContract.setContent(injectorContract.getConvertedContent().toString());
       InjectorContract injectorContractSaved =
           injectTestHelper.forceSaveInjectorContract(injectorContract);
@@ -1333,9 +1334,7 @@ class InjectApiTest extends IntegrationTest {
         OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(CVEOutputElement));
 
         Domain domainSaved = injectTestHelper.forceSaveDomain(DomainFixture.getRandomDomain());
-        Command payloadCommand =
-            PayloadFixture.createCommand(
-                "bash", "command", null, null, new HashSet<>(Set.of(domainSaved)));
+        Command payloadCommand = PayloadFixture.createCommand("bash", "command", null, null);
         payloadCommand.setOutputParsers(Set.of(outputParser));
         Payload payloadSaved = injectTestHelper.forceSavePayload(payloadCommand);
 
@@ -1345,6 +1344,7 @@ class InjectApiTest extends IntegrationTest {
         InjectorContract injectorContract =
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 injector, payloadSaved, List.of());
+        injectorContract.setDomains(Set.of(domainSaved));
         InjectorContractFixture.addTargetedAssetFields(
             injectorContract, "asset-key", ContractTargetedProperty.seen_ip);
         injectorContract.setContent(injectorContract.getConvertedContent().toString());

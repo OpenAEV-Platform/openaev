@@ -141,9 +141,10 @@ class V1_DataImporterTest extends IntegrationTest {
         this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     Payload payload = payloadRepository.findAll().iterator().next();
+    InjectorContract injectorContract = injectorContractRepository.findInjectorContractByPayload(payload).orElseThrow();
 
     // the scenario should have one inject with one attack pattern with one killchain
-    AttackPattern attackPattern = payload.getAttackPatterns().getFirst();
+    AttackPattern attackPattern = injectorContract.getAttackPatterns().getFirst();
 
     KillChainPhase killChainPhase = attackPattern.getKillChainPhases().getFirst();
     assertEquals(ATTACK_PATTERN_EXTERNAL_ID, attackPattern.getExternalId());
@@ -161,7 +162,8 @@ class V1_DataImporterTest extends IntegrationTest {
     this.importer.importData(
         this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
     payload = payloadRepository.findAll().iterator().next();
-    AttackPattern attackPattern2 = payload.getAttackPatterns().getFirst();
+    InjectorContract injectorContract2 = injectorContractRepository.findInjectorContractByPayload(payload).orElseThrow();
+    AttackPattern attackPattern2 = injectorContract2.getAttackPatterns().getFirst();
     KillChainPhase killChainPhase2 = attackPattern.getKillChainPhases().getFirst();
 
     // verify that the new payload use the same attack pattern / killchain phase

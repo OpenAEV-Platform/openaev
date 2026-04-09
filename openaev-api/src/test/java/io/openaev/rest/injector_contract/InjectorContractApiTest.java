@@ -1362,16 +1362,14 @@ public class InjectorContractApiTest extends IntegrationTest {
     private int preExistingContractsCount;
 
     private void createStaticInjectorContract(boolean addPayload) {
-      Set<Domain> domains =
-          domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-
       InjectorContractComposer.Composer icComposer =
           injectorContractComposer
               .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                  .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
               .withInjector(injectorFixture.getWellKnownOaevImplantInjector());
       if (addPayload) {
         icComposer.withPayload(
-            payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains)));
+            payloadComposer.forPayload(PayloadFixture.createDefaultCommand()));
       }
       InjectorContract ic = icComposer.persist().get();
       if (addPayload) {

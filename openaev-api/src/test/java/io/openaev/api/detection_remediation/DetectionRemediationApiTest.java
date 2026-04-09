@@ -86,15 +86,10 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   @DisplayName("Generate AI rules detection remediation by payload , EE not available")
   public void getDetectionRemediationRuleByPayloadWithoutLicenceEE() {
     // -- PREPARE -
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-
     Command payload =
-        (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains)).get();
+        (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand()).get();
 
-    List<String> attackPatternsIds =
-        payload.getAttackPatterns().stream().map(AttackPattern::getId).toList();
-    PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
+    PayloadInput input = payloadComposer.forPayloadInput(payload, List.of());
 
     when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
     when(enterpriseEdition.getEncodedCertificate()).thenCallRealMethod();
@@ -117,15 +112,10 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   @DisplayName("Generate AI rules detection remediation by payload for unknow collector type")
   public void getDetectionRemediationRuleByPayloadForUnknowCollectorType() {
     // -- PREPARE -
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-
     Command payload =
-        (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains)).get();
+        (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand()).get();
 
-    List<String> attackPatternsIds =
-        payload.getAttackPatterns().stream().map(AttackPattern::getId).toList();
-    PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
+    PayloadInput input = payloadComposer.forPayloadInput(payload, List.of());
 
     // -- EXECUTE --
     assertThatThrownBy(
@@ -146,15 +136,10 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   public void getDetectionRemediationRuleByPayloadWithBadDetectionRemediationAIResponse()
       throws Exception {
     // -- PREPARE -
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-
     Command payload =
-        (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains)).get();
+        (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand()).get();
 
-    List<String> attackPatternsIds =
-        payload.getAttackPatterns().stream().map(AttackPattern::getId).toList();
-    PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
+    PayloadInput input = payloadComposer.forPayloadInput(payload, List.of());
 
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse = getBadDetectionRemediationAIResponse();
@@ -181,15 +166,10 @@ public class DetectionRemediationApiTest extends IntegrationTest {
       getDetectionRemediationRuleByPayloadWithRetryDetectionRemediationAIResponseUnavailable()
           throws Exception {
     // -- PREPARE -
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-
     Command payload =
-        (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains)).get();
+        (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand()).get();
 
-    List<String> attackPatternsIds =
-        payload.getAttackPatterns().stream().map(AttackPattern::getId).toList();
-    PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
+    PayloadInput input = payloadComposer.forPayloadInput(payload, List.of());
 
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     when(enterpriseEdition.getEncodedCertificate()).thenReturn("certificate");
@@ -226,15 +206,9 @@ public class DetectionRemediationApiTest extends IntegrationTest {
       getDetectionRemediationRuleByPayloadWithRetryDetectionRemediationAIResponseBadGateway()
           throws Exception {
     // -- PREPARE -
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-
     Command payload =
-        (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains)).get();
-
-    List<String> attackPatternsIds =
-        payload.getAttackPatterns().stream().map(AttackPattern::getId).toList();
-    PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
+        (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand()).get();
+    PayloadInput input = payloadComposer.forPayloadInput(payload, List.of());
 
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIBadResponse = getBadDetectionRemediationAIResponse();
@@ -272,15 +246,10 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   public void getDetectionRemediationRuleByPayloadWithRetryDetectionRemediationAIResponse()
       throws Exception {
     // -- PREPARE -
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-
     Command payload =
-        (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains)).get();
+        (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand()).get();
 
-    List<String> attackPatternsIds =
-        payload.getAttackPatterns().stream().map(AttackPattern::getId).toList();
-    PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
+    PayloadInput input = payloadComposer.forPayloadInput(payload, List.of());
 
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIGoodResponse =
@@ -317,17 +286,11 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   @DisplayName(
       "Generate AI rules detection remediation for CrowdStrike using a payload of type command with rules")
   public void getDetectionRemediationRuleBasedPayloadCommandCrowdStrikeWithRules() {
-
     // -- PREPARE -
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-
     Command payload =
-        (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains)).get();
+        (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand()).get();
 
-    List<String> attackPatternsIds =
-        payload.getAttackPatterns().stream().map(AttackPattern::getId).toList();
-    PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
+    PayloadInput input = payloadComposer.forPayloadInput(payload, List.of());
 
     DetectionRemediationInput detectionRemediationInput = new DetectionRemediationInput();
     detectionRemediationInput.setValues("I have a rule");
@@ -358,15 +321,10 @@ public class DetectionRemediationApiTest extends IntegrationTest {
       getDetectionRemediationRuleBasedOnPayloadCommandCrowdStrikeWithoutAttackPatternAndArguments()
           throws Exception {
     // -- PREPARE -
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-
     Command payload =
-        (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains)).get();
+        (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand()).get();
 
-    List<String> attackPatternsIds =
-        payload.getAttackPatterns().stream().map(AttackPattern::getId).toList();
-    PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
+    PayloadInput input = payloadComposer.forPayloadInput(payload, List.of());
     when(enterpriseEdition.getEncodedCertificate()).thenReturn("certificate");
 
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
@@ -554,14 +512,12 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     List<PayloadArgument> payloadArguments = getPayloadArguments();
 
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
     DnsResolution payload =
         (DnsResolution)
             payloadComposer
                 .forPayload(
                     PayloadFixture.createDefaultDnsResolutionWithAttackPatternAndArguments(
-                        attackPatterns, payloadArguments, domains))
+                        attackPatterns, payloadArguments))
                 .get();
 
     PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
@@ -632,7 +588,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
             payloadComposer
                 .forPayload(
                     PayloadFixture.createDefaultDnsResolutionWithAttackPatternAndArguments(
-                        attackPatterns, payloadArguments, domains))
+                        attackPatterns, payloadArguments))
                 .get();
 
     PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
@@ -673,20 +629,14 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   public void getDetectionRemediationRuleBasedOnPayloadFileDropCrowdStrike() throws Exception {
     // -- PREPARE -
     List<AttackPattern> attackPatterns = saveAndGetAttackPatterns();
-
     List<String> attackPatternsIds = attackPatterns.stream().map(AttackPattern::getId).toList();
-
     List<PayloadArgument> payloadArguments = getPayloadArguments();
-
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
 
     FileDrop payload =
         (FileDrop)
             payloadComposer
                 .forPayload(
-                    PayloadFixture.createDefaultFileDropWithAttackPatternAndArguments(
-                        attackPatterns, payloadArguments, domains))
+                    PayloadFixture.createDefaultFileDropWithAttackPatternAndArguments(payloadArguments))
                 .withFileDrop(
                     documentComposer.forDocument(
                         DocumentFixture.getDocument(FileFixture.getPlainTextFileContent())))
@@ -713,20 +663,14 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   public void getDetectionRemediationRuleBasedOnPayloadFileDropSplunk() throws Exception {
     // -- PREPARE -
     List<AttackPattern> attackPatterns = saveAndGetAttackPatterns();
-
     List<String> attackPatternsIds = attackPatterns.stream().map(AttackPattern::getId).toList();
-
     List<PayloadArgument> payloadArguments = getPayloadArguments();
-
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
 
     FileDrop payload =
         (FileDrop)
             payloadComposer
                 .forPayload(
-                    PayloadFixture.createDefaultFileDropWithAttackPatternAndArguments(
-                        attackPatterns, payloadArguments, domains))
+                    PayloadFixture.createDefaultFileDropWithAttackPatternAndArguments(payloadArguments))
                 .withFileDrop(
                     documentComposer.forDocument(
                         DocumentFixture.getDocument(FileFixture.getPlainTextFileContent())))
@@ -753,19 +697,14 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   public void getDetectionRemediationRuleBasedOnPayloadExecutableCrowdStrike() throws Exception {
     // -- PREPARE -
     List<AttackPattern> attackPatterns = saveAndGetAttackPatterns();
-
     List<String> attackPatternsIds = attackPatterns.stream().map(AttackPattern::getId).toList();
-
     List<PayloadArgument> payloadArguments = getPayloadArguments();
 
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
     Executable payload =
         (Executable)
             payloadComposer
                 .forPayload(
-                    PayloadFixture.createDefaultExecutableWithAttackPatternAndArguments(
-                        attackPatterns, payloadArguments, domains))
+                    PayloadFixture.createDefaultExecutableWithAttackPatternAndArguments(payloadArguments))
                 .withExecutable(
                     documentComposer.forDocument(
                         DocumentFixture.getDocument(FileFixture.getPngGridFileContent())))
@@ -792,19 +731,14 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   public void getDetectionRemediationRuleBasedOnPayloadExecutableSplunk() throws Exception {
     // -- PREPARE -
     List<AttackPattern> attackPatterns = saveAndGetAttackPatterns();
-
     List<String> attackPatternsIds = attackPatterns.stream().map(AttackPattern::getId).toList();
-
     List<PayloadArgument> payloadArguments = getPayloadArguments();
 
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
     Executable payload =
         (Executable)
             payloadComposer
                 .forPayload(
-                    PayloadFixture.createDefaultExecutableWithAttackPatternAndArguments(
-                        attackPatterns, payloadArguments, domains))
+                    PayloadFixture.createDefaultExecutableWithAttackPatternAndArguments(payloadArguments))
                 .withExecutable(
                     documentComposer.forDocument(
                         DocumentFixture.getDocument(FileFixture.getPngGridFileContent())))
@@ -1452,14 +1386,12 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     List<PayloadArgument> payloadArguments = getPayloadArguments();
 
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
     DnsResolution payload =
         (DnsResolution)
             payloadComposer
                 .forPayload(
                     PayloadFixture.createDefaultDnsResolutionWithAttackPatternAndArguments(
-                        attackPatterns, payloadArguments, domains))
+                        attackPatterns, payloadArguments))
                 .persist()
                 .get();
 
@@ -1483,17 +1415,13 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
   private Inject getInjectFileDropWithPlatformsAndArchitectureAndAttackPatternAndArguments()
       throws JsonProcessingException {
-    List<AttackPattern> attackPatterns = saveAndGetAttackPatterns();
     List<PayloadArgument> payloadArguments = getPayloadArguments();
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
 
     FileDrop payload =
         (FileDrop)
             payloadComposer
                 .forPayload(
-                    PayloadFixture.createDefaultFileDropWithAttackPatternAndArguments(
-                        attackPatterns, payloadArguments, domains))
+                    PayloadFixture.createDefaultFileDropWithAttackPatternAndArguments(payloadArguments))
                 .withFileDrop(
                     documentComposer.forDocument(
                         DocumentFixture.getDocument(FileFixture.getPlainTextFileContent())))
@@ -1520,17 +1448,13 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
   private Inject getInjectExecutableWithPlatformsAndArchitectureAndAttackPatternAndArguments()
       throws JsonProcessingException {
-    List<AttackPattern> attackPatterns = saveAndGetAttackPatterns();
-
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
     List<PayloadArgument> payloadArguments = getPayloadArguments();
     Executable payload =
         (Executable)
             payloadComposer
                 .forPayload(
                     PayloadFixture.createDefaultExecutableWithAttackPatternAndArguments(
-                        attackPatterns, payloadArguments, domains))
+                        payloadArguments))
                 .withExecutable(
                     documentComposer.forDocument(
                         DocumentFixture.getDocument(FileFixture.getPngGridFileContent())))

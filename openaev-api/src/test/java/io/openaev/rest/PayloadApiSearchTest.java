@@ -45,22 +45,18 @@ public class PayloadApiSearchTest extends IntegrationTest {
 
   @BeforeAll
   void beforeAll() {
-
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-
-    Payload command = createDefaultCommand(domains);
+    Payload command = createDefaultCommand();
     Payload commandSaved = this.payloadRepository.save(command);
     PAYLOAD_COMMAND_IDS.add(commandSaved.getId());
 
-    Payload dnsResolution = createDefaultDnsResolution(domains);
+    Payload dnsResolution = createDefaultDnsResolution();
     Payload dnsResolutionSaved = this.payloadRepository.save(dnsResolution);
     PAYLOAD_COMMAND_IDS.add(dnsResolutionSaved.getId());
 
     Document document = DocumentFixture.getDocumentJpeg();
     Document documentSaved = this.documentRepository.save(document);
 
-    Payload executable = createDefaultExecutable(documentSaved, domains);
+    Payload executable = createDefaultExecutable(documentSaved);
     Payload executableSaved = this.payloadRepository.save(executable);
     PAYLOAD_COMMAND_IDS.add(executableSaved.getId());
   }

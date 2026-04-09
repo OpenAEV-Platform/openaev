@@ -77,8 +77,7 @@ public class ExecutionExecutorServiceTest {
             "cmd",
             "whoami",
             List.of(),
-            "whoami",
-            new HashSet<>(Set.of(PresetDomain.getToClassify())));
+            "whoami");
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Map<String, String> executorCommands = new HashMap<>();
     executorCommands.put(

@@ -522,9 +522,8 @@ class PayloadApiTest extends IntegrationTest {
   @WithMockUser(withCapabilities = {Capability.MANAGE_PAYLOADS})
   void upsertCommandPayloadToValidateArchitecture() throws Exception {
     Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
-
     Payload payload =
-        payloadRepository.save(PayloadFixture.createDefaultCommand(new HashSet<>(Set.of(domain))));
+        payloadRepository.save(PayloadFixture.createDefaultCommand());
     payload.setExternalId("external-id");
 
     // -- Without property architecture

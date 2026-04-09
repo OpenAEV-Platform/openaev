@@ -95,9 +95,6 @@ class ExerciseApiExportTest extends IntegrationTest {
   }
 
   private Exercise getExercise() {
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-
     return exerciseComposer
         .forExercise(ExerciseFixture.createDefaultCrisisExercise())
         .withArticle(
@@ -150,9 +147,10 @@ class ExerciseApiExportTest extends IntegrationTest {
                         .forInjectorContract(
                             InjectorContractFixture.createDefaultInjectorContract())
                         .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+                            .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
                         .withPayload(
                             payloadComposer
-                                .forPayload(PayloadFixture.createDefaultFileDrop(domains))
+                                .forPayload(PayloadFixture.createDefaultFileDrop())
                                 .withFileDrop(
                                     documentComposer
                                         .forDocument(
