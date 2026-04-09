@@ -110,17 +110,13 @@ public class ConnectorInstanceService {
   public boolean hasStartedConnectorInstanceForInjector(final String injectorId) {
 
     Optional<String> currentStatus =
-        this.connectorInstanceConfigurationRepository
-            .findCurrentStatusByKeyValue(
-                ConnectorType.INJECTOR.getIdKeyName(), injectorId);
+        this.connectorInstanceConfigurationRepository.findCurrentStatusByKeyValue(
+            ConnectorType.INJECTOR.getIdKeyName(), injectorId);
 
     if (currentStatus.isPresent()) {
-      return ConnectorInstance.CURRENT_STATUS_TYPE.started
-          .name()
-          .equals(currentStatus.get());
+      return ConnectorInstance.CURRENT_STATUS_TYPE.started.name().equals(currentStatus.get());
     }
 
-    // No persisted connector instance found — check via manager
     try {
       managerFactory
           .getManager()
