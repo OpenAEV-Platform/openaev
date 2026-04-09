@@ -6,71 +6,65 @@ import lombok.Getter;
 @Getter
 public enum ConditionKeyType {
   @JsonProperty("execution_time")
-  EXECUTION_TIME("execution_time"),
+  EXECUTION_TIME,
 
   @JsonProperty("step_template_id")
-  STEP_TEMPLATE_ID("step_template_id"),
+  STEP_TEMPLATE_ID,
 
   @JsonProperty("text")
-  TEXT("text"),
+  TEXT,
 
   @JsonProperty("status")
-  STATUS("status"),
+  STATUS,
 
   @JsonProperty("number")
-  NUMBER("number"),
+  NUMBER,
 
   @JsonProperty("port")
-  PORT("port"),
+  PORT,
 
   @JsonProperty("portscan")
-  PORTSCAN("portscan"),
+  PORTSCAN,
 
   @JsonProperty("ipv4")
-  IPV4("ipv4"),
+  IPV4,
 
   @JsonProperty("ipv6")
-  IPV6("ipv6"),
+  IPV6,
 
   @JsonProperty("credentials")
-  CREDENTIALS("credentials"),
+  CREDENTIALS,
 
   @JsonProperty("cve")
-  CVE("cve"),
+  CVE,
 
   @JsonProperty("username")
-  USERNAME("username"),
+  USERNAME,
 
   @JsonProperty("share")
-  SHARE("share"),
+  SHARE,
 
   @JsonProperty("admin_username")
-  ADMIN_USERNAME("admin_username"),
+  ADMIN_USERNAME,
 
   @JsonProperty("group")
-  GROUP("group"),
+  GROUP,
 
   @JsonProperty("computer")
-  COMPUTER("computer"),
+  COMPUTER,
 
   @JsonProperty("password_policy")
-  PASSWORD_POLICY("password_policy"),
+  PASSWORD_POLICY,
 
   @JsonProperty("delegation")
-  DELEGATION("delegation"),
+  DELEGATION,
 
   @JsonProperty("sid")
-  SID("sid"),
+  SID,
 
   @JsonProperty("vulnerability")
-  VULNERABILITY("vulnerability"),
+  VULNERABILITY,
 
   @JsonProperty("asset")
-  ASSET("asset");
-
-  private final String label;
-
-  ConditionKeyType(String label) {
-    this.label = label;
-  }
+  ASSET;
 }
