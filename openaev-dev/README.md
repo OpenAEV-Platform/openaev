@@ -105,6 +105,45 @@ To use them, copy the `*.run.xml` files to your `.idea/runConfigurations/` folde
 | `Project.xml` | IntelliJ code style settings |
 | `../openaev-api/src/main/resources/application-dev.properties.example` | Example Spring dev profile (copy to `application-dev.properties`) |
 
+## Setup Scripts
+
+| Script | Platform | Description |
+|--------|----------|-------------|
+| `setup-auto-db.sh` | Linux / macOS / Git Bash | Installs the auto-start database feature |
+| `setup-auto-db.ps1` | Windows PowerShell | Same as above |
+
+### Auto-Start Database (`setup-auto-db`)
+
+Copies `DevDatabaseEnvironmentPostProcessor.java` and `spring.factories` from
+`test-containers/` into `openaev-api/` so the backend can automatically start a
+per-branch PostgreSQL Docker container on launch.
+
+The copied files are **git-ignored** — they never pollute the API module in version control.
+
+```bash
+# Linux / macOS / Git Bash
+./setup-auto-db.sh
+```
+
+```powershell
+# Windows PowerShell
+.\setup-auto-db.ps1
+```
+
+```properties
+# Then add to your application-dev.properties:
+openaev.dev.auto-start-database=true
+
+# Optional — force a fixed port instead of per-branch auto-port:
+openaev.dev.database-port=5432
+```
+
+To uninstall, delete the two copied files:
+```bash
+rm openaev-api/src/main/java/io/openaev/config/DevDatabaseEnvironmentPostProcessor.java
+rm openaev-api/src/main/resources/META-INF/spring.factories
+```
+
 ## Notes
 
 ### Elasticsearch vs OpenSearch
