@@ -194,10 +194,7 @@ public class DocumentApi extends RestBehavior {
         .orElseThrow(() -> new ElementNotFoundException("Document not found"));
   }
 
-  @GetMapping({
-      DOCUMENT_API + "/{documentId}/tags",
-      TENANT_DOCUMENT_API + "/{documentId}/tags"
-  })
+  @GetMapping({DOCUMENT_API + "/{documentId}/tags", TENANT_DOCUMENT_API + "/{documentId}/tags"})
   @AccessControl(
       resourceId = "#documentId",
       actionPerformed = Action.READ,
@@ -210,10 +207,7 @@ public class DocumentApi extends RestBehavior {
     return document.getTags();
   }
 
-  @PutMapping({
-      DOCUMENT_API + "/{documentId}/tags",
-      TENANT_DOCUMENT_API + "/{documentId}/tags"
-  })
+  @PutMapping({DOCUMENT_API + "/{documentId}/tags", TENANT_DOCUMENT_API + "/{documentId}/tags"})
   @AccessControl(
       resourceId = "#documentId",
       actionPerformed = Action.WRITE,
@@ -509,8 +503,8 @@ public class DocumentApi extends RestBehavior {
   @LogExecutionTime
   @Operation(summary = "Fetch the entities related to this document id")
   @GetMapping({
-      DOCUMENT_API + "/{documentId}/relations",
-      TENANT_DOCUMENT_API + "/{documentId}/relations"
+    DOCUMENT_API + "/{documentId}/relations",
+    TENANT_DOCUMENT_API + "/{documentId}/relations"
   })
   @AccessControl(
       resourceId = "#documentId",
@@ -561,8 +555,8 @@ public class DocumentApi extends RestBehavior {
   }
 
   @GetMapping({
-      PLAYER_DOCUMENTS_API + "/{documentId}/file",
-      TENANT_PLAYER_DOCUMENTS_API + "/{documentId}/file"
+    PLAYER_DOCUMENTS_API + "/{documentId}/file",
+    TENANT_PLAYER_DOCUMENTS_API + "/{documentId}/file"
   })
   @AccessControl(skipRBAC = true)
   public void downloadPlayerDocument(

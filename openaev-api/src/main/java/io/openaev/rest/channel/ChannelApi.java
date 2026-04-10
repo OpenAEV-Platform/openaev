@@ -123,8 +123,8 @@ public class ChannelApi extends RestBehavior {
   }
 
   @GetMapping({
-      OBSERVER_CHANNEL_URI + "/{exerciseId}/{channelId}",
-      TENANT_OBSERVER_CHANNEL_URI + "/{exerciseId}/{channelId}"
+    OBSERVER_CHANNEL_URI + "/{exerciseId}/{channelId}",
+    TENANT_OBSERVER_CHANNEL_URI + "/{exerciseId}/{channelId}"
   })
   @AccessControl(
       resourceId = "#exerciseId",
@@ -158,8 +158,8 @@ public class ChannelApi extends RestBehavior {
   }
 
   @GetMapping({
-      PLAYER_CHANNEL_URI + "/{exerciseId}/{channelId}",
-      TENANT_PLAYER_CHANNEL_URI + "/{exerciseId}/{channelId}"
+    PLAYER_CHANNEL_URI + "/{exerciseId}/{channelId}",
+    TENANT_PLAYER_CHANNEL_URI + "/{exerciseId}/{channelId}"
   })
   @AccessControl(skipRBAC = true)
   public ChannelReader playerArticles(
@@ -390,8 +390,8 @@ public class ChannelApi extends RestBehavior {
   }
 
   @GetMapping({
-      CHANNEL_URI + "/{channelId}/documents",
-      TENANT_CHANNEL_URI + "/{channelId}/documents"
+    CHANNEL_URI + "/{channelId}/documents",
+    TENANT_CHANNEL_URI + "/{channelId}/documents"
   })
   @AccessControl(
       resourceId = "#channelId",

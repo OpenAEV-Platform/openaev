@@ -91,8 +91,8 @@ public class PayloadApi extends RestBehavior {
   }
 
   @PostMapping({
-      PAYLOAD_URI + "/{payloadId}/duplicate",
-      TENANT_PAYLOAD_URI + "/{payloadId}/duplicate"
+    PAYLOAD_URI + "/{payloadId}/duplicate",
+    TENANT_PAYLOAD_URI + "/{payloadId}/duplicate"
   })
   @AccessControl(
       resourceId = "#payloadId",
@@ -193,7 +193,10 @@ public class PayloadApi extends RestBehavior {
         input.collectorId(), input.processedPayloadExternalIds());
   }
 
-  @GetMapping({PAYLOAD_URI + "/{payloadId}/documents", TENANT_PAYLOAD_URI + "/{payloadId}/documents"})
+  @GetMapping({
+    PAYLOAD_URI + "/{payloadId}/documents",
+    TENANT_PAYLOAD_URI + "/{payloadId}/documents"
+  })
   @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.READ,
@@ -207,7 +210,10 @@ public class PayloadApi extends RestBehavior {
     return documentService.documentsForPayload(payloadId);
   }
 
-  @GetMapping({PAYLOAD_URI + "/{payloadId}/collectors", TENANT_PAYLOAD_URI + "/{payloadId}/collectors"})
+  @GetMapping({
+    PAYLOAD_URI + "/{payloadId}/collectors",
+    TENANT_PAYLOAD_URI + "/{payloadId}/collectors"
+  })
   @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.READ,

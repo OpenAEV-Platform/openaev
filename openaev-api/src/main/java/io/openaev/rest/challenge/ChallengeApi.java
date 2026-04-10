@@ -127,10 +127,7 @@ public class ChallengeApi extends RestBehavior {
     challengeRepository.deleteById(challengeId);
   }
 
-  @PostMapping({
-      CHALLENGE_URI + "/{challengeId}/try",
-      TENANT_CHALLENGE_URI + "/{challengeId}/try"
-  })
+  @PostMapping({CHALLENGE_URI + "/{challengeId}/try", TENANT_CHALLENGE_URI + "/{challengeId}/try"})
   @AccessControl(
       resourceId = "#challengeId",
       actionPerformed = Action.WRITE,
@@ -143,8 +140,8 @@ public class ChallengeApi extends RestBehavior {
   }
 
   @GetMapping({
-      CHALLENGE_URI + "/{challengeId}/documents",
-      TENANT_CHALLENGE_URI + "/{challengeId}/documents"
+    CHALLENGE_URI + "/{challengeId}/documents",
+    TENANT_CHALLENGE_URI + "/{challengeId}/documents"
   })
   @AccessControl(
       resourceId = "#challengeId",

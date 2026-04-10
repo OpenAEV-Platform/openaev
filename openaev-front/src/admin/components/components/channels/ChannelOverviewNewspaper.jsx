@@ -4,7 +4,7 @@ import { Fragment } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import useAuth from '../../../../utils/hooks/useAuth.ts';
-import {DEFAULT_TENANT_UUID} from "../../../../utils/tenant-url-helper.ts";
+import { DEFAULT_TENANT_UUID } from '../../../../utils/tenant-url-helper.ts';
 
 const useStyles = makeStyles()(() => ({
   root: {
