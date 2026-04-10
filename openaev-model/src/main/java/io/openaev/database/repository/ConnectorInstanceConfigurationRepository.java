@@ -24,7 +24,7 @@ public interface ConnectorInstanceConfigurationRepository
               FROM connector_instance_configurations conf
               JOIN connector_instances instance ON conf.connector_instance_id = instance.connector_instance_id
               WHERE conf.connector_instance_configuration_key = :key
-              AND conf.connector_instance_configuration_value ?? :value
+              AND jsonb_exists(conf.connector_instance_configuration_value, :value)
               """,
       nativeQuery = true)
   Optional<ConnectorInstance.CURRENT_STATUS_TYPE> findStatusByKeyValue(
