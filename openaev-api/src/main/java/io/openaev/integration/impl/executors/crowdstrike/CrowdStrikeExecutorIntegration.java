@@ -1,5 +1,7 @@
 package io.openaev.integration.impl.executors.crowdstrike;
 
+import static java.util.Optional.ofNullable;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
@@ -105,14 +107,20 @@ public class CrowdStrikeExecutorIntegration extends Integration {
         connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
             instanceId, ConnectorType.EXECUTOR.getIdKeyName());
     String executorName =
-        connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
-            instanceId, "EXECUTOR_NAME");
+        ofNullable(
+                connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
+                    getConnectorInstance().getId(), "EXECUTOR_NAME"))
+            .orElseThrow(
+                () ->
+                    new ExecutorException(
+                        "EXECUTOR_NAME configuration is required for the Executor",
+                        getConnectorInstance().getId()));
 
     Executor executor =
         executorService.register(
             executorId,
             CROWDSTRIKE_EXECUTOR_TYPE,
-            executorName != null ? executorName : CROWDSTRIKE_EXECUTOR_NAME,
+            executorName,
             CROWDSTRIKE_EXECUTOR_DOCUMENTATION_LINK,
             CROWDSTRIKE_EXECUTOR_BACKGROUND_COLOR,
             getClass().getResourceAsStream("/img/icon-crowdstrike.png"),

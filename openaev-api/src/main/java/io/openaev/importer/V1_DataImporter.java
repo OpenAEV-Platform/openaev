@@ -1285,11 +1285,9 @@ public class V1_DataImporter implements Importer {
    * @return the dummy injector
    */
   private Injector createOrGetDummyInjector(JsonNode importNode) {
-    String injectorType = importNode.get("injector_contract_injector_type").asText();
-    JsonNode nameNode = importNode.get("injector_contract_injector_type_name");
-    String injectorName =
-        (nameNode != null && !nameNode.isNull()) ? nameNode.asText() : injectorType;
-    return injectorService.createOrGetDummyInjector(injectorType, injectorName);
+    return injectorService.createOrGetDummyInjector(
+        importNode.get("injector_contract_injector_type").asText(),
+        importNode.get("injector_contract_injector_type_name").asText());
   }
 
   /**

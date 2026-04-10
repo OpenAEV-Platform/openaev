@@ -1,12 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTheme } from '@mui/material/styles';
-import { useContext, useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 import { z, type ZodObject } from 'zod/v4';
 
 import Button from '../../../../../components/common/button/Button';
-import SelectFieldController from '../../../../../components/fields/SelectFieldController';
 import TagFieldController from '../../../../../components/fields/TagFieldController';
 import TextFieldController from '../../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../../components/i18n';
@@ -20,10 +19,10 @@ import {
 } from '../../../../../utils/api-types';
 import { type ContractElement, type EnhancedContractElement, type InjectorContractConverted } from '../../../../../utils/api-types-custom';
 import { splitDuration } from '../../../../../utils/Time';
-import { isFeatureEnabled } from '../../../../../utils/utils';
 import { PermissionsContext } from '../../Context';
 import { getValidatingRule, isInjectContentType, isRequiredField, isVisibleField } from '../utils';
 import InjectContentForm from './InjectContentForm';
+import InjectInjectorSelector from './InjectInjectorSelector';
 
 const useStyles = makeStyles()(theme => ({
   injectFormContainer: {
@@ -113,18 +112,6 @@ const InjectForm = ({
   const theme = useTheme();
   const { permissions } = useContext(PermissionsContext);
 
-  // Multi-connector: injector selector
-  const multiConnectorEnabled = isFeatureEnabled('MULTI_CONNECTOR');
-  const injectorIds = Object.keys(injectorNames);
-  const showInjectorSelector = multiConnectorEnabled && injectorIds.length > 1;
-  const injectorItems = useMemo(() => {
-    if (!showInjectorSelector) return [];
-    return injectorIds
-      .map(id => ({
-        value: id,
-        label: injectorNames[id] ?? id,
-      }));
-  }, [showInjectorSelector, injectorIds, injectorNames]);
   const [fieldsMapByKey, setFieldsMapByKey] = useState<Record<ContractElement['key'], ContractElement>>({});
   const [enhancedFields, setEnhancedFields] = useState<EnhancedContractElement[]>([]);
   const [enhancedFieldsMapByType, setEnhancedFieldsMapByType] = useState<Map<ContractElement['type'], EnhancedContractElement>>(new Map());
@@ -152,7 +139,7 @@ const InjectForm = ({
       inject_depends_duration_minutes: duration.minutes,
       inject_all_teams: defaultInject?.inject_all_teams ?? false,
       inject_teams: defaultInject?.inject_teams ?? [],
-      inject_injector: (defaultInject as Inject)?.inject_injector ?? (injectorIds.length > 0 ? injectorIds[0] : ''),
+      inject_injector: (defaultInject as Inject)?.inject_injector ?? (Object.keys(injectorNames).length > 0 ? Object.keys(injectorNames)[0] : ''),
     };
 
     // Enrich initialValues with default contract value
@@ -512,15 +499,10 @@ const InjectForm = ({
         <TextFieldController name="inject_description" label={t('Description')} multiline rows={2} disabled={isSubmitting || disabled || permissions.readOnly} />
         <TagFieldController name="inject_tags" label={t('Tags')} disabled={isSubmitting || disabled || permissions.readOnly} />
 
-        {showInjectorSelector && (
-          <SelectFieldController
-            name="inject_injector"
-            label={t('Injector')}
-            required={true}
-            items={injectorItems}
-            disabled={isSubmitting || disabled || permissions.readOnly}
-          />
-        )}
+        <InjectInjectorSelector
+          injectorNames={injectorNames}
+          disabled={isSubmitting || disabled || permissions.readOnly}
+        />
 
         {!isAtomic && (
           <div className={`${classes.triggerBox} ${isSubmitting || disabled || permissions.readOnly ? classes.triggerBoxColorDisabled : classes.triggerBoxColor}`}>

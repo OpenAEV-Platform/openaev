@@ -1,5 +1,7 @@
 package io.openaev.integration.impl.executors.tanium;
 
+import static java.util.Optional.ofNullable;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
@@ -102,14 +104,20 @@ public class TaniumExecutorIntegration extends Integration {
         connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
             getConnectorInstance().getId(), ConnectorType.EXECUTOR.getIdKeyName());
     String executorName =
-        connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
-            getConnectorInstance().getId(), "EXECUTOR_NAME");
+        ofNullable(
+                connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
+                    getConnectorInstance().getId(), "EXECUTOR_NAME"))
+            .orElseThrow(
+                () ->
+                    new ExecutorException(
+                        "EXECUTOR_NAME configuration is required for the Executor",
+                        getConnectorInstance().getId()));
 
     Executor executor =
         executorService.register(
             executorId,
             TANIUM_EXECUTOR_TYPE,
-            executorName != null ? executorName : TANIUM_EXECUTOR_NAME,
+            executorName,
             TANIUM_EXECUTOR_DOCUMENTATION_LINK,
             TANIUM_EXECUTOR_BACKGROUND_COLOR,
             getClass().getResourceAsStream("/img/icon-tanium.png"),

@@ -1,5 +1,7 @@
 package io.openaev.integration.impl.executors.caldera;
 
+import static java.util.Optional.ofNullable;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.*;
@@ -91,14 +93,20 @@ public class CalderaExecutorIntegration extends Integration {
         connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
             getConnectorInstance().getId(), ConnectorType.EXECUTOR.getIdKeyName());
     String executorName =
-        connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
-            getConnectorInstance().getId(), "EXECUTOR_NAME");
+        ofNullable(
+                connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
+                    getConnectorInstance().getId(), "EXECUTOR_NAME"))
+            .orElseThrow(
+                () ->
+                    new ExecutorException(
+                        "EXECUTOR_NAME configuration is required for the Executor",
+                        getConnectorInstance().getId()));
 
     Executor executor =
         executorService.register(
             executorId,
             CALDERA_EXECUTOR_TYPE,
-            executorName != null ? executorName : CALDERA_EXECUTOR_NAME,
+            executorName,
             null,
             CALDERA_BACKGROUND_COLOR,
             getClass().getResourceAsStream("/img/icon-caldera.png"),
