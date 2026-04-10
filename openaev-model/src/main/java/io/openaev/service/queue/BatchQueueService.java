@@ -1,10 +1,9 @@
-package io.openaev.rest.helper.queue;
+package io.openaev.service.queue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.*;
 import io.openaev.config.QueueConfig;
-import io.openaev.config.RabbitMQSslConfiguration;
-import io.openaev.config.RabbitmqConfig;
+import io.openaev.driver.RabbitmqDriver;
 import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -13,13 +12,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class BatchQueueService<T extends Queueable> {
-  private final RabbitMQSslConfiguration rabbitMQSslConfiguration;
+  private final RabbitmqDriver rabbitmqDriver;
 
   private final Class<T> clazz;
 
@@ -35,10 +35,8 @@ public class BatchQueueService<T extends Queueable> {
 
   protected ObjectMapper mapper;
 
-  private final RabbitmqConfig rabbitmqConfig;
-
   private Connection connection;
-  private final List<Channel> publisherChannels = new ArrayList<>();
+  private final List<Channel> publisherChannels = new CopyOnWriteArrayList<>();
   private final String routingKey;
   private final String exchangeName;
   private final String queueName;
@@ -52,7 +50,7 @@ public class BatchQueueService<T extends Queueable> {
   private final ScheduledExecutorService scheduledExecutor;
   private final ShutdownListener shutdownListener;
 
-  private final List<Channel> consumerChannels = new ArrayList<>();
+  private final List<Channel> consumerChannels = new CopyOnWriteArrayList<>();
   private final Map<Integer, AtomicBoolean> insertInProgress = new HashMap<>();
   private final ExecutorService executor;
 
@@ -61,38 +59,35 @@ public class BatchQueueService<T extends Queueable> {
    *
    * @param clazz the class of element that will be processed
    * @param queueExecution the method to handle a list of the class element
-   * @param rabbitmqConfig the rabbitmq config object
+   * @param rabbitmqPrefix the rabbitmq prefix (used for queue naming)
    * @param mapper the mapper to use
    * @param queueConfig the queue config to use
+   * @param rabbitmqDriver the driver used to create a dedicated ConnectionFactory per instance
    * @throws IOException In case of issue when communicating with rabbitMQ
    * @throws TimeoutException In case of a non responding rabbitMQ
    */
   public BatchQueueService(
       Class<T> clazz,
       QueueExecution<T> queueExecution,
-      RabbitmqConfig rabbitmqConfig,
+      String rabbitmqPrefix,
       ObjectMapper mapper,
       QueueConfig queueConfig,
-      RabbitMQSslConfiguration rabbitMQSslConfiguration)
+      RabbitmqDriver rabbitmqDriver)
       throws IOException, TimeoutException {
     this.clazz = clazz;
     this.queueExecution = queueExecution;
     this.mapper = mapper;
     this.queueConfig = queueConfig;
-    this.rabbitmqConfig = rabbitmqConfig;
-    this.rabbitMQSslConfiguration = rabbitMQSslConfiguration;
+    this.rabbitmqDriver = rabbitmqDriver;
 
     executor = Executors.newFixedThreadPool(queueConfig.getWorkerNumber());
     shutdownListener = this::handleConnectionShutdown;
     exchangeName =
-        rabbitmqConfig.getPrefix()
-            + String.format(BatchQueueService.EXCHANGE_KEY, queueConfig.getQueueName());
+        rabbitmqPrefix + String.format(BatchQueueService.EXCHANGE_KEY, queueConfig.getQueueName());
     routingKey =
-        rabbitmqConfig.getPrefix()
-            + String.format(BatchQueueService.ROUTING_KEY, queueConfig.getQueueName());
+        rabbitmqPrefix + String.format(BatchQueueService.ROUTING_KEY, queueConfig.getQueueName());
     queueName =
-        rabbitmqConfig.getPrefix()
-            + String.format(BatchQueueService.QUEUE_NAME, queueConfig.getQueueName());
+        rabbitmqPrefix + String.format(BatchQueueService.QUEUE_NAME, queueConfig.getQueueName());
 
     // The queue that will contain the object we need to process
     queue = new HashMap<>();
@@ -121,31 +116,9 @@ public class BatchQueueService<T extends Queueable> {
    * @throws TimeoutException in case of issue while connecting to the server
    */
   private void establishConnection() throws IOException, TimeoutException {
-    // Init a Connection factory
-    ConnectionFactory factory = new ConnectionFactory();
-    factory.setHost(rabbitmqConfig.getHostname());
-    factory.setPort(rabbitmqConfig.getPort());
-    factory.setUsername(rabbitmqConfig.getUser());
-    factory.setPassword(rabbitmqConfig.getPass());
-    factory.setVirtualHost(rabbitmqConfig.getVhost());
-    factory.setAutomaticRecoveryEnabled(false);
-    factory.setNetworkRecoveryInterval(5000);
-    factory.setRequestedHeartbeat(30);
-    factory.setConnectionTimeout(10000);
-    factory.setSharedExecutor(
-        Executors.newFixedThreadPool(
-            queueConfig.getConsumerNumber() + queueConfig.getPublisherNumber()));
-
-    // Configure SSL if enabled
-    if (rabbitmqConfig.isSsl()) {
-      try {
-        rabbitMQSslConfiguration.configureSsl(factory, rabbitmqConfig);
-      } catch (Exception e) {
-        log.error("Failed to configure SSL for RabbitMQ connection", e);
-        throw new IllegalStateException("Failed to configure SSL for RabbitMQ", e);
-      }
-    }
-
+    ConnectionFactory factory =
+        rabbitmqDriver.createBatchConnectionFactory(
+            queueConfig.getConsumerNumber() + queueConfig.getPublisherNumber());
     connection = factory.newConnection();
 
     // Handle shutdown
@@ -367,11 +340,17 @@ public class BatchQueueService<T extends Queueable> {
               // If the list is not empty, we process it
               List<T> processedElement = new ArrayList<>();
               if (!currentBatch.isEmpty()) {
-                log.info("Processing batch of {}", currentBatch.size());
-                try {
-                  processedElement.addAll(queueExecution.perform(currentBatch));
-                } catch (Exception e) {
-                  log.error("Error processing batch - Error during ingestion", e);
+                if (queueExecution == null) {
+                  log.warn(
+                      "Batch of {} elements skipped: queueExecution not set yet",
+                      currentBatch.size());
+                } else {
+                  log.info("Processing batch of {}", currentBatch.size());
+                  try {
+                    processedElement.addAll(queueExecution.perform(currentBatch));
+                  } catch (Exception e) {
+                    log.error("Error processing batch - Error during ingestion", e);
+                  }
                 }
               }
 

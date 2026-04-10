@@ -8,8 +8,10 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import io.openaev.config.QueueConfig;
-import io.openaev.config.RabbitMQSslConfiguration;
-import io.openaev.config.RabbitmqConfig;
+import io.openaev.driver.RabbitmqDriver;
+import io.openaev.service.queue.BatchQueueService;
+import io.openaev.service.queue.DeliveryContext;
+import io.openaev.service.queue.QueueExecution;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.List;
@@ -19,34 +21,25 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.MockedConstruction;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("BatchQueueService Concurrency Tests")
 class BatchQueueServiceConcurrencyTest {
 
+  @Mock private RabbitmqDriver rabbitmqDriver;
+  @Mock private ConnectionFactory connectionFactory;
   @Mock private Connection connection;
   @Mock private Channel publisherChannel;
   @Mock private Channel consumerChannel;
 
-  private RabbitmqConfig rabbitmqConfig;
+  private static final String RABBITMQ_PREFIX = "test_";
   private QueueConfig queueConfig;
   private ObjectMapper mapper;
   private BatchQueueService<BatchQueueServiceTest.TestQueueable> service;
-  private MockedConstruction<ConnectionFactory> mockedFactory;
-  private RabbitMQSslConfiguration rabbitMQSslConfiguration;
 
   @BeforeEach
   void setUp() {
-    rabbitmqConfig = new RabbitmqConfig();
-    rabbitmqConfig.setPrefix("test_");
-    rabbitmqConfig.setHostname("localhost");
-    rabbitmqConfig.setPort(5672);
-    rabbitmqConfig.setUser("guest");
-    rabbitmqConfig.setPass("guest");
-    rabbitmqConfig.setVhost("/");
-
     queueConfig = new QueueConfig();
     queueConfig.setQueueName("test-queue");
     queueConfig.setPublisherNumber(1);
@@ -64,9 +57,6 @@ class BatchQueueServiceConcurrencyTest {
   void tearDown() throws IOException, TimeoutException {
     if (service != null) {
       service.stop();
-    }
-    if (mockedFactory != null) {
-      mockedFactory.close();
     }
   }
 
@@ -89,19 +79,17 @@ class BatchQueueServiceConcurrencyTest {
   }
 
   private void initService() throws IOException, TimeoutException {
-    mockedFactory =
-        mockConstruction(
-            ConnectionFactory.class,
-            (mock, context) -> when(mock.newConnection()).thenReturn(connection));
+    when(rabbitmqDriver.createBatchConnectionFactory(anyInt())).thenReturn(connectionFactory);
+    when(connectionFactory.newConnection()).thenReturn(connection);
     when(connection.createChannel()).thenReturn(publisherChannel, consumerChannel);
     service =
         new BatchQueueService<>(
             BatchQueueServiceTest.TestQueueable.class,
-            null, // queueExecution set later per test
-            rabbitmqConfig,
+            null,
+            RABBITMQ_PREFIX,
             mapper,
             queueConfig,
-            rabbitMQSslConfiguration);
+            rabbitmqDriver);
   }
 
   // ========================================================================
@@ -185,9 +173,6 @@ class BatchQueueServiceConcurrencyTest {
       if (service != null) {
         service.stop();
       }
-      if (mockedFactory != null) {
-        mockedFactory.close();
-      }
 
       QueueConfig multiWorkerConfig = new QueueConfig();
       multiWorkerConfig.setQueueName("test-queue");
@@ -220,23 +205,20 @@ class BatchQueueServiceConcurrencyTest {
             return elements;
           };
 
-      mockedFactory =
-          mockConstruction(
-              ConnectionFactory.class,
-              (mock, context) -> when(mock.newConnection()).thenReturn(connection));
-
       Channel pub = mock(Channel.class);
       Channel cons = mock(Channel.class);
+      when(rabbitmqDriver.createBatchConnectionFactory(anyInt())).thenReturn(connectionFactory);
+      when(connectionFactory.newConnection()).thenReturn(connection);
       when(connection.createChannel()).thenReturn(pub, cons);
 
       service =
           new BatchQueueService<>(
               BatchQueueServiceTest.TestQueueable.class,
               blockingExecution,
-              rabbitmqConfig,
+              RABBITMQ_PREFIX,
               mapper,
               multiWorkerConfig,
-              rabbitMQSslConfiguration);
+              rabbitmqDriver);
 
       Map<Integer, BlockingQueue<BatchQueueServiceTest.TestQueueable>> internalQueue =
           getInternalQueue();

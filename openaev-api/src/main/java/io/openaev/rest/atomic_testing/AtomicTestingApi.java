@@ -1,5 +1,7 @@
 package io.openaev.rest.atomic_testing;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.database.model.Action;
@@ -30,11 +32,12 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
-@RequestMapping(AtomicTestingApi.ATOMIC_TESTING_URI)
+@RequestMapping({AtomicTestingApi.ATOMIC_TESTING_URI, AtomicTestingApi.TENANT_ATOMIC_TESTING_URI})
 @RequiredArgsConstructor
 public class AtomicTestingApi extends RestBehavior {
 
   public static final String ATOMIC_TESTING_URI = "/api/atomic-testings";
+  public static final String TENANT_ATOMIC_TESTING_URI = TENANT_PREFIX + "/atomic-testings";
 
   private final AtomicTestingService atomicTestingService;
   private final InjectExpectationService injectExpectationService;

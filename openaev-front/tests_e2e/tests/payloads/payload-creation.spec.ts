@@ -24,7 +24,7 @@ test.describe('Payload form', () => {
     payloadForm = new PayloadFormComponent(page);
 
     // Navigate to application
-    await page.goto(tenantUrl('/'));
+    await page.goto(tenantUrl('/admin'));
 
     // Navigate to payloads section
     await leftMenu.goToPayloads();

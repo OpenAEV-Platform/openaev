@@ -2,6 +2,7 @@ package io.openaev.rest.inject;
 
 import static io.openaev.database.specification.InjectSpecification.fromScenario;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
 import io.openaev.aop.AccessControl;
@@ -46,7 +47,10 @@ public class ScenarioInjectApi extends RestBehavior {
   private final ScenarioInjectService scenarioInjectService;
   private final InjectMapper injectMapper;
 
-  @GetMapping(SCENARIO_URI + "/{scenarioId}/injects/simple")
+  @GetMapping({
+    SCENARIO_URI + "/{scenarioId}/injects/simple",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects/simple"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -57,7 +61,10 @@ public class ScenarioInjectApi extends RestBehavior {
     return injectSearchService.injects(fromScenario(scenarioId));
   }
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/injects/simple")
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/injects/simple",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects/simple"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -81,7 +88,10 @@ public class ScenarioInjectApi extends RestBehavior {
         joinMap);
   }
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/injects")
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/injects",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -94,7 +104,10 @@ public class ScenarioInjectApi extends RestBehavior {
     return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/injects/bulk")
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/injects/bulk",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects/bulk"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -107,7 +120,10 @@ public class ScenarioInjectApi extends RestBehavior {
     return this.injectService.createAndSaveInjectList(null, scenario, inputs);
   }
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/injects/assistant")
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/injects/assistant",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects/assistant"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -124,7 +140,10 @@ public class ScenarioInjectApi extends RestBehavior {
         this.injectAssistantService.generateInjectsForScenario(scenario, input));
   }
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/injects/{injectId}")
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/injects/{injectId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects/{injectId}"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -138,7 +157,10 @@ public class ScenarioInjectApi extends RestBehavior {
     return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
 
-  @GetMapping(SCENARIO_URI + "/{scenarioId}/injects")
+  @GetMapping({
+    SCENARIO_URI + "/{scenarioId}/injects",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -149,7 +171,10 @@ public class ScenarioInjectApi extends RestBehavior {
         .toList();
   }
 
-  @GetMapping(SCENARIO_URI + "/{scenarioId}/injects/{injectId}")
+  @GetMapping({
+    SCENARIO_URI + "/{scenarioId}/injects/{injectId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects/{injectId}"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -163,7 +188,10 @@ public class ScenarioInjectApi extends RestBehavior {
   }
 
   @Transactional(rollbackFor = Exception.class)
-  @PutMapping(SCENARIO_URI + "/{scenarioId}/injects/{injectId}")
+  @PutMapping({
+    SCENARIO_URI + "/{scenarioId}/injects/{injectId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects/{injectId}"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -195,7 +223,10 @@ public class ScenarioInjectApi extends RestBehavior {
     return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
 
-  @PutMapping(SCENARIO_URI + "/{scenarioId}/injects/{injectId}/activation")
+  @PutMapping({
+    SCENARIO_URI + "/{scenarioId}/injects/{injectId}/activation",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects/{injectId}/activation"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -208,7 +239,10 @@ public class ScenarioInjectApi extends RestBehavior {
   }
 
   @Transactional(rollbackFor = Exception.class)
-  @DeleteMapping(SCENARIO_URI + "/{scenarioId}/injects/{injectId}")
+  @DeleteMapping({
+    SCENARIO_URI + "/{scenarioId}/injects/{injectId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects/{injectId}"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,

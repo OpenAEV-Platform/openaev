@@ -50,6 +50,9 @@ import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
 @Slf4j
 public class AppSecurityConfig {
 
+  private static final String TENANT_AGENT_URI = "/api/tenants/*/agent/**";
+  private static final String TENANT_IMPLANT_URI = "/api/tenants/*/implant/**";
+
   private final OpenAEVConfig openAEVConfig;
   private final OpenSamlConfig openSamlConfig;
   private final SecurityService securityService;
@@ -78,7 +81,11 @@ public class AppSecurityConfig {
                     .permitAll()
                     .requestMatchers("/api/agent/**")
                     .permitAll()
+                    .requestMatchers(TENANT_AGENT_URI)
+                    .permitAll()
                     .requestMatchers("/api/implant/**")
+                    .permitAll()
+                    .requestMatchers(TENANT_IMPLANT_URI)
                     .permitAll()
                     .requestMatchers("/api/login")
                     .permitAll()

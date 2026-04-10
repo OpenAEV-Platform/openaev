@@ -29,10 +29,18 @@ public class ExecutorHelper {
   private ExecutorHelper() {}
 
   public static String replaceArgs(
-      PLATFORM_TYPE platformType, String command, String injectId, String agentId) {
-    if (platformType == null || command == null || injectId == null || agentId == null) {
+      PLATFORM_TYPE platformType,
+      String command,
+      String injectId,
+      String agentId,
+      String tenantId) {
+    if (platformType == null
+        || command == null
+        || injectId == null
+        || agentId == null
+        || tenantId == null) {
       throw new IllegalArgumentException(
-          "Platform type, command, injectId, and agentId must not be null.");
+          "Platform type, command, injectId, tenantId and agentId must not be null.");
     }
 
     String location =
@@ -46,6 +54,7 @@ public class ExecutorHelper {
     return command
         .replace("\"#{location}\"", location)
         .replace("#{inject}", injectId)
-        .replace("#{agent}", agentId);
+        .replace("#{agent}", agentId)
+        .replace("#{tenant}", tenantId);
   }
 }
