@@ -104,6 +104,7 @@ public class ExerciseApi extends RestBehavior {
   private final ScenarioService scenarioService;
   private final UserService userService;
   private final PlatformSettingsService platformSettingsService;
+
   // endregion
 
   // region logs
