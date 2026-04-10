@@ -14,6 +14,7 @@ import io.openaev.security.TokenAuthenticationFilter;
 import io.openaev.service.UserMappingService;
 import io.openaev.service.user_events.UserEventService;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -45,6 +47,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
 @Configuration
 @EnableWebSecurity
@@ -70,40 +73,8 @@ public class AppSecurityConfig {
                 csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                     .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
                     .ignoringRequestMatchers(
-                        "/api/health",
-                        "/api/login",
-                        "/api/comcheck/**",
-                        "/api/player/**",
-                        "/api/settings",
-                        "/api/reset/**",
-                        "/actuator/**",
-                        // Used by endpoints
-                        "/api/endpoints/**",
-                        "/api/agent/**",
-                        // Used by implants
-                        "/api/implant/**",
-                        "/api/injects/**",
-                        // Used by injectors
-                        "/api/injectors/**",
-                        "/api/injector_contracts/**",
-                        // Used by collectors,
-                        "/api/collectors/**",
-                        "/api/documents/**",
-                        "/api/cves/**",
-                        "/api/attack_patterns/**",
-                        "/api/payloads/**",
-                        "/api/tags/**",
-                        "/api/kill_chain_phases/**",
-                        "/api/security_platforms/**",
-                        "/api/inject-expectations-traces/**",
-                        // Used by connectors
-                        "/api/connector-instances/**",
-                        // XTM Hub
-                        "/api/xtmhub/**",
-                        // XTM Composer
-                        "/api/xtm-composer/**",
-                        // OpenCTI interconnection
-                        "/api/stix/**"))
+                        "/api/health", "/api/login", "/actuator/**")
+                    .ignoringRequestMatchers(bearerWithoutCookiesMatcher()))
         .formLogin(AbstractHttpConfigurer::disable)
         .securityContext(securityContext -> securityContext.requireExplicitSave(false))
         .authorizeHttpRequests(
@@ -265,6 +236,16 @@ public class AppSecurityConfig {
             .additionalParameters(params -> params.put("audience", audience))
             .build();
       }
+    };
+  }
+
+  private RequestMatcher bearerWithoutCookiesMatcher() {
+    return request -> {
+      String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
+      Cookie[] cookies = request.getCookies();
+      boolean hasBearer = authorization != null && authorization.startsWith("Bearer ");
+      boolean hasCookies = cookies != null && cookies.length > 0;
+      return hasBearer && !hasCookies;
     };
   }
 }
