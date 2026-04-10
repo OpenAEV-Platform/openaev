@@ -83,21 +83,13 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
     // Set implant script for Windows CS agents
     actions.addAll(
         getWindowsActions(
-            getAgentsFromOS(csAgents, Endpoint.PLATFORM_TYPE.Windows),
-            injector,
-            inject));
+            getAgentsFromOS(csAgents, Endpoint.PLATFORM_TYPE.Windows), injector, inject));
     // Set implant script for Linux CS agents
     actions.addAll(
-        getLinuxActions(
-            getAgentsFromOS(csAgents, Endpoint.PLATFORM_TYPE.Linux),
-            injector,
-            inject));
+        getLinuxActions(getAgentsFromOS(csAgents, Endpoint.PLATFORM_TYPE.Linux), injector, inject));
     // Set implant script for MacOS CS agents
     actions.addAll(
-        getMacOSActions(
-            getAgentsFromOS(csAgents, Endpoint.PLATFORM_TYPE.MacOS),
-            injector,
-            inject));
+        getMacOSActions(getAgentsFromOS(csAgents, Endpoint.PLATFORM_TYPE.MacOS), injector, inject));
     // Launch payloads with CS API
     executeActions(actions);
     return csAgents;
