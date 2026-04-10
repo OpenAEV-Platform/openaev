@@ -277,6 +277,9 @@ public class AuditLogAspect {
         // No meaningful changes detected — skip the audit event (no-op update)
         return result;
       }
+    } else if ("update".equals(eventScope) && inputNode != null) {
+      // No old snapshot available — log input as-is (without diff computation)
+      diffInput = stripInsignificantValues(inputNode);
     } else if ("status_change".equals(eventScope)) {
       // For status changes with a request body (exercise status, scenario recurrence):
       // reuse the diff engine to extract only the changed fields and their old values.
@@ -523,7 +526,8 @@ public class AuditLogAspect {
     // Try common name fields in order of precedence
     for (String field :
         new String[] {
-          "scenario_name", "exercise_name", "inject_title", "user_firstname", "name"
+          "scenario_name", "exercise_name", "inject_title", "user_firstname", "name",
+          "role_name", "group_name"
         }) {
       JsonNode node = snapshot.get(field);
       if (node != null && node.isTextual()) {
@@ -817,7 +821,11 @@ public class AuditLogAspect {
               Class.forName("io.openaev.database.model.KillChainPhase")),
           Map.entry(
               ResourceType.ATTACK_PATTERN,
-              Class.forName("io.openaev.database.model.AttackPattern")));
+              Class.forName("io.openaev.database.model.AttackPattern")),
+          Map.entry(
+              ResourceType.USER_GROUP, Class.forName("io.openaev.database.model.Group")),
+          Map.entry(
+              ResourceType.GROUP_ROLE, Class.forName("io.openaev.database.model.Role")));
     } catch (ClassNotFoundException e) {
       log.error("[AUDIT] Failed to build entity class map: {}", e.getMessage(), e);
       return Map.of();
