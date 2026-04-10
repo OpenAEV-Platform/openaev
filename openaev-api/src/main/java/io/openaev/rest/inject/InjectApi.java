@@ -11,8 +11,6 @@ import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.OpenAEVConfig;
-import io.openaev.config.RabbitMQSslConfiguration;
-import io.openaev.config.RabbitmqConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.ExerciseRepository;
@@ -28,7 +26,6 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.exports.ExportOptions;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.helper.ValidationErrorBag;
-import io.openaev.rest.helper.queue.BatchQueueService;
 import io.openaev.rest.helper.queue.executor.BatchExecutionTraceExecutor;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.InjectOutput;
@@ -39,7 +36,9 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.payload.form.DetectionRemediationOutput;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
+import io.openaev.service.RabbitmqService;
 import io.openaev.service.UserService;
+import io.openaev.service.queue.BatchQueueService;
 import io.openaev.service.targets.TargetService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TargetType;
@@ -100,10 +99,9 @@ public class InjectApi extends RestBehavior {
 
   private final InjectMapper injectMapper;
 
-  private final RabbitmqConfig rabbitmqConfig;
+  private final RabbitmqService rabbitmqService;
   private final OpenAEVConfig openAEVConfig;
   private final ObjectMapper objectMapper;
-  private final RabbitMQSslConfiguration rabbitMQSslConfiguration;
 
   private final PreviewFeatureService previewFeatureService;
 
@@ -115,13 +113,11 @@ public class InjectApi extends RestBehavior {
     if (openAEVConfig.getQueueConfig().get("inject-trace") != null) {
       // Initializing the queue for batching the inject execution trace
       injectTraceQueueService =
-          new BatchQueueService<>(
+          rabbitmqService.createBatchQueueService(
               InjectExecutionCallback.class,
               batchExecutionTraceExecutor::handleInjectExecutionCallbackList,
-              rabbitmqConfig,
               objectMapper,
-              openAEVConfig.getQueueConfig().get("inject-trace"),
-              rabbitMQSslConfiguration);
+              openAEVConfig.getQueueConfig().get("inject-trace"));
     }
   }
 

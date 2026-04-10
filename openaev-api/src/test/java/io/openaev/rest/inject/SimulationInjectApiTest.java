@@ -7,14 +7,15 @@ import static io.openaev.utils.fixtures.ConnectorInstanceFixture.createConnector
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
-import io.openaev.asset.QueueService;
 import io.openaev.database.model.*;
 import io.openaev.rest.inject.form.DirectInjectInput;
+import io.openaev.service.RabbitmqService;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
@@ -26,7 +27,7 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
@@ -44,7 +45,7 @@ public class SimulationInjectApiTest extends IntegrationTest {
   @Autowired private ConnectorInstanceComposer connectorInstanceComposer;
   @Autowired private ConnectorInstanceConfigurationComposer connectorInstanceConfigurationComposer;
 
-  @MockitoBean private QueueService queueService;
+  @MockitoSpyBean private RabbitmqService rabbitmqService;
 
   private Exercise exercise;
   private Injector externalInjector;
@@ -107,6 +108,8 @@ public class SimulationInjectApiTest extends IntegrationTest {
       "Given an external injector, direct execute should publish the inject to the RabbitMQ queue")
   void given_externalInjector_directExecute_should_publishToQueue() throws Exception {
     // Arrange
+    doNothing().when(rabbitmqService).publish(any(String.class), any(String.class));
+
     DirectInjectInput input = new DirectInjectInput();
     input.setTitle("Test direct inject");
     input.setDescription("A direct inject for testing external execution");
@@ -136,7 +139,7 @@ public class SimulationInjectApiTest extends IntegrationTest {
     // Assert — response contains an inject status
     assertThat(response).isNotEmpty();
 
-    // Assert — queueService.publish was called with the injector ID as routing key
-    verify(queueService).publish(eq(externalInjector.getId()), any(String.class));
+    // Assert — rabbitmqService.publish was called with the injector ID as routing key
+    verify(rabbitmqService).publish(eq(externalInjector.getId()), any(String.class));
   }
 }

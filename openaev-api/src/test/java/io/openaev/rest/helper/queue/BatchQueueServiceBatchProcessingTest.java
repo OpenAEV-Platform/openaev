@@ -8,8 +8,10 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import io.openaev.config.QueueConfig;
-import io.openaev.config.RabbitMQSslConfiguration;
-import io.openaev.config.RabbitmqConfig;
+import io.openaev.driver.RabbitmqDriver;
+import io.openaev.service.queue.BatchQueueService;
+import io.openaev.service.queue.DeliveryContext;
+import io.openaev.service.queue.QueueExecution;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -19,7 +21,6 @@ import java.util.concurrent.*;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.MockedConstruction;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -27,26 +28,18 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class BatchQueueServiceBatchProcessingTest {
 
   @Mock private QueueExecution<BatchQueueServiceTest.TestQueueable> queueExecution;
+  @Mock private RabbitmqDriver rabbitmqDriver;
+  @Mock private ConnectionFactory connectionFactory;
   @Mock private Connection connection;
   @Mock private Channel publisherChannel;
   @Mock private Channel consumerChannel;
 
-  private RabbitmqConfig rabbitmqConfig;
-  private RabbitMQSslConfiguration rabbitMQSslConfiguration;
+  private static final String RABBITMQ_PREFIX = "test_";
   private ObjectMapper mapper;
   private BatchQueueService<BatchQueueServiceTest.TestQueueable> service;
-  private MockedConstruction<ConnectionFactory> mockedFactory;
 
   @BeforeEach
   void setUp() throws IOException, TimeoutException {
-    rabbitmqConfig = new RabbitmqConfig();
-    rabbitmqConfig.setPrefix("test_");
-    rabbitmqConfig.setHostname("localhost");
-    rabbitmqConfig.setPort(5672);
-    rabbitmqConfig.setUser("guest");
-    rabbitmqConfig.setPass("guest");
-    rabbitmqConfig.setVhost("/");
-
     QueueConfig queueConfig = new QueueConfig();
     queueConfig.setQueueName("test-queue");
     queueConfig.setPublisherNumber(1);
@@ -59,27 +52,23 @@ class BatchQueueServiceBatchProcessingTest {
 
     mapper = new ObjectMapper();
 
-    mockedFactory =
-        mockConstruction(
-            ConnectionFactory.class,
-            (mock, context) -> when(mock.newConnection()).thenReturn(connection));
-
+    when(rabbitmqDriver.createBatchConnectionFactory(anyInt())).thenReturn(connectionFactory);
+    when(connectionFactory.newConnection()).thenReturn(connection);
     when(connection.createChannel()).thenReturn(publisherChannel, consumerChannel);
 
     service =
         new BatchQueueService<>(
             BatchQueueServiceTest.TestQueueable.class,
             queueExecution,
-            rabbitmqConfig,
+            RABBITMQ_PREFIX,
             mapper,
             queueConfig,
-            rabbitMQSslConfiguration);
+            rabbitmqDriver);
   }
 
   @AfterEach
   void tearDown() throws IOException, TimeoutException {
     if (service != null) service.stop();
-    if (mockedFactory != null) mockedFactory.close();
   }
 
   @SuppressWarnings("unchecked")
@@ -102,7 +91,6 @@ class BatchQueueServiceBatchProcessingTest {
 
   private void recreateServiceWithWorkers(int workerNumber) throws IOException, TimeoutException {
     service.stop();
-    mockedFactory.close();
 
     QueueConfig config = new QueueConfig();
     config.setQueueName("test-queue");
@@ -114,23 +102,20 @@ class BatchQueueServiceBatchProcessingTest {
     config.setPublisherQos(10);
     config.setConsumerQos(10);
 
-    mockedFactory =
-        mockConstruction(
-            ConnectionFactory.class,
-            (mock, context) -> when(mock.newConnection()).thenReturn(connection));
-
     Channel pub = mock(Channel.class);
     Channel cons = mock(Channel.class);
+    when(rabbitmqDriver.createBatchConnectionFactory(anyInt())).thenReturn(connectionFactory);
+    when(connectionFactory.newConnection()).thenReturn(connection);
     when(connection.createChannel()).thenReturn(pub, cons);
 
     service =
         new BatchQueueService<>(
             BatchQueueServiceTest.TestQueueable.class,
             queueExecution,
-            rabbitmqConfig,
+            RABBITMQ_PREFIX,
             mapper,
             config,
-            rabbitMQSslConfiguration);
+            rabbitmqDriver);
   }
 
   // ========================================================================
@@ -619,7 +604,6 @@ class BatchQueueServiceBatchProcessingTest {
     void shouldThrowWhenNegativeHashCodeWithMultiplePublishers() throws Exception {
       // Stop existing service to create one with 2 publishers
       service.stop();
-      mockedFactory.close();
 
       QueueConfig multiPubConfig = new QueueConfig();
       multiPubConfig.setQueueName("test-queue");
@@ -631,24 +615,21 @@ class BatchQueueServiceBatchProcessingTest {
       multiPubConfig.setPublisherQos(10);
       multiPubConfig.setConsumerQos(10);
 
-      mockedFactory =
-          mockConstruction(
-              ConnectionFactory.class,
-              (mock, context) -> when(mock.newConnection()).thenReturn(connection));
-
       Channel pub1 = mock(Channel.class);
       Channel pub2 = mock(Channel.class);
       Channel cons = mock(Channel.class);
+      when(rabbitmqDriver.createBatchConnectionFactory(anyInt())).thenReturn(connectionFactory);
+      when(connectionFactory.newConnection()).thenReturn(connection);
       when(connection.createChannel()).thenReturn(pub1, pub2, cons);
 
       service =
           new BatchQueueService<>(
               BatchQueueServiceTest.TestQueueable.class,
               queueExecution,
-              rabbitmqConfig,
+              RABBITMQ_PREFIX,
               mapper,
               multiPubConfig,
-              rabbitMQSslConfiguration);
+              rabbitmqDriver);
 
       // -3 % 2 = -1 in Java, so publisherChannels.get(-1) throws
       NegativeHashQueueable negativeHashElem = new NegativeHashQueueable("key");

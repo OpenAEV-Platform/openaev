@@ -2,7 +2,9 @@ package io.openaev.rest.channel;
 
 import static io.openaev.config.OpenAEVAnonymous.ANONYMOUS;
 import static io.openaev.rest.channel.ChannelHelper.enrichArticleWithVirtualPublication;
+import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
@@ -159,7 +161,10 @@ public class ChannelApi extends RestBehavior {
 
   // -- EXERCISES --
 
-  @PostMapping("/api/exercises/{exerciseId}/articles")
+  @PostMapping({
+    "/api/exercises/{exerciseId}/articles",
+    TENANT_EXERCISE_URI + "/{exerciseId}/articles"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -197,7 +202,10 @@ public class ChannelApi extends RestBehavior {
     return enrichArticleWithVirtualPublication(exercise.getInjects(), savedArticle, this.mapper);
   }
 
-  @PutMapping("/api/exercises/{exerciseId}/articles/{articleId}")
+  @PutMapping({
+    "/api/exercises/{exerciseId}/articles/{articleId}",
+    TENANT_EXERCISE_URI + "/{exerciseId}/articles/{articleId}"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -245,7 +253,10 @@ public class ChannelApi extends RestBehavior {
     return enrichArticleWithVirtualPublication(exercise.getInjects(), savedArticle, this.mapper);
   }
 
-  @DeleteMapping("/api/exercises/{exerciseId}/articles/{articleId}")
+  @DeleteMapping({
+    "/api/exercises/{exerciseId}/articles/{articleId}",
+    TENANT_EXERCISE_URI + "/{exerciseId}/articles/{articleId}"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -258,7 +269,10 @@ public class ChannelApi extends RestBehavior {
 
   // -- SCENARIOS --
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/articles")
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/articles",
+    TENANT_SCENARIO_URI + "/{scenarioId}/articles"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -295,7 +309,10 @@ public class ChannelApi extends RestBehavior {
     return enrichArticleWithVirtualPublication(scenario.getInjects(), savedArticle, this.mapper);
   }
 
-  @PutMapping(SCENARIO_URI + "/{scenarioId}/articles/{articleId}")
+  @PutMapping({
+    SCENARIO_URI + "/{scenarioId}/articles/{articleId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/articles/{articleId}"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -343,7 +360,10 @@ public class ChannelApi extends RestBehavior {
     return enrichArticleWithVirtualPublication(scenario.getInjects(), savedArticle, this.mapper);
   }
 
-  @DeleteMapping(SCENARIO_URI + "/{scenarioId}/articles/{articleId}")
+  @DeleteMapping({
+    SCENARIO_URI + "/{scenarioId}/articles/{articleId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/articles/{articleId}"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,

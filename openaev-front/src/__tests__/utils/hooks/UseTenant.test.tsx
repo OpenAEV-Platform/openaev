@@ -20,12 +20,15 @@ const mockBuildTenantUrl = vi.fn(
     `/fake-base/${tenantId}${pathname}${search}${hash}`,
 );
 
+const mockExtractTenantFromUrl = vi.fn<() => string | null>(() => null);
+
 vi.mock('../../../utils/tenant-url-helper', async (importOriginal) => {
   // eslint-disable-next-line @typescript-eslint/consistent-type-imports
   const original = await importOriginal<typeof import('../../../utils/tenant-url-helper')>();
   return {
     ...original,
     buildTenantUrl: (...args: [string, string, string, string]) => mockBuildTenantUrl(...args),
+    extractTenantFromUrl: () => mockExtractTenantFromUrl(),
   };
 });
 
@@ -258,6 +261,56 @@ describe('useTenant', () => {
   });
 
   // -- DISPATCH TENANT_SWITCH_SUCCESS --
+
+  describe('URL-based tenant resolution (cross-tab)', () => {
+    it('given_urlTenantDiffersFromStorage_should_selectUrlTenant', async () => {
+      // Arrange — simulate: Tab 2 switched to BETA (localStorage), but Tab 1 URL has ALPHA
+      localStorage.setItem(TENANT_STORAGE_KEY, JSON.stringify(TENANT_BETA));
+      mockExtractTenantFromUrl.mockReturnValue(TENANT_ALPHA.tenant_id);
+      mockTenantsResponse([TENANT_ALPHA, TENANT_BETA, TENANT_GAMMA]);
+      const useTenant = await importUseTenant();
+
+      // Act
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
+
+      // Assert — URL tenant (ALPHA) must win over localStorage (BETA)
+      await waitFor(() => {
+        expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
+      });
+    });
+
+    it('given_noTenantInUrl_should_fallbackToStorage', async () => {
+      // Arrange — no tenant UUID in URL, valid tenant in localStorage
+      localStorage.setItem(TENANT_STORAGE_KEY, JSON.stringify(TENANT_BETA));
+      mockExtractTenantFromUrl.mockReturnValue(null);
+      mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
+      const useTenant = await importUseTenant();
+
+      // Act
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
+
+      // Assert — should fall back to localStorage (BETA)
+      await waitFor(() => {
+        expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_BETA.tenant_id);
+      });
+    });
+
+    it('given_urlTenantNotInList_should_fallbackToStorage', async () => {
+      // Arrange — URL has a tenant UUID that is not in the user's tenant list
+      localStorage.setItem(TENANT_STORAGE_KEY, JSON.stringify(TENANT_ALPHA));
+      mockExtractTenantFromUrl.mockReturnValue('unknown-tenant-id');
+      mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
+      const useTenant = await importUseTenant();
+
+      // Act
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
+
+      // Assert — should fall back to localStorage (ALPHA)
+      await waitFor(() => {
+        expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
+      });
+    });
+  });
 
   describe('Dispatch TENANT_SWITCH_SUCCESS', () => {
     it('given_tenantLoad_should_dispatchTenantSwitchSuccess', async () => {

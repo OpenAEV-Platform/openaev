@@ -669,6 +669,16 @@ type BasePayloadPayloadTypeMapping<Key, Type> = {
   payload_type: Key;
 } & Type;
 
+export interface BrokerConnectionInfo {
+  host?: string;
+  pass?: string;
+  /** @format int32 */
+  port?: number;
+  use_ssl?: boolean;
+  user?: string;
+  vhost?: string;
+}
+
 export interface CVEBulkInsertInput {
   cves: CveCreateInput[];
   initial_dataset_completed?: boolean;
@@ -4048,16 +4058,6 @@ export interface Injector {
   listened?: boolean;
 }
 
-export interface InjectorConnection {
-  host?: string;
-  pass?: string;
-  /** @format int32 */
-  port?: number;
-  use_ssl?: boolean;
-  user?: string;
-  vhost?: string;
-}
-
 export interface InjectorContract {
   convertedContent?: object;
   injector_contract_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
@@ -4325,7 +4325,7 @@ export interface InjectorOutput {
 }
 
 export interface InjectorRegistration {
-  connection?: InjectorConnection;
+  connection?: BrokerConnectionInfo;
   listen?: string;
 }
 

@@ -16,10 +16,6 @@
  * PR9 — Reference data & Misc
  */
 const TENANT_MIGRATION_TODO: string[] = [
-  // PR2 — Scenarios & Exercises core
-  '/api/scenarios',
-  '/api/exercises',
-  '/api/simulations',
   // PR3 — Injects & Inject lifecycle
   '/api/injector_contracts',
   '/api/atomic-testings',
@@ -28,9 +24,6 @@ const TENANT_MIGRATION_TODO: string[] = [
   '/api/teams',
   '/api/players',
   '/api/organizations',
-  // PR5 — Assets
-  '/api/asset_groups',
-  '/api/security_platforms',
   // PR6 — Components
   '/api/channels',
   '/api/challenges',

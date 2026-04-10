@@ -2,6 +2,7 @@ package io.openaev.rest.team;
 
 import static io.openaev.database.specification.TeamSpecification.contextual;
 import static io.openaev.rest.atomic_testing.AtomicTestingApi.ATOMIC_TESTING_URI;
+import static io.openaev.rest.atomic_testing.AtomicTestingApi.TENANT_ATOMIC_TESTING_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
@@ -26,7 +27,7 @@ public class AtomicTestingTeamApi extends RestBehavior {
 
   private final TeamService teamService;
 
-  @PostMapping(ATOMIC_TESTING_URI + "/teams/search")
+  @PostMapping({ATOMIC_TESTING_URI + "/teams/search", TENANT_ATOMIC_TESTING_URI + "/teams/search"})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   @Transactional(readOnly = true)
   public Page<TeamOutput> searchTeams(
