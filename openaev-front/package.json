@@ -52,7 +52,7 @@
     "@uiw/react-md-editor": "4.1.0",
     "@xyflow/react": "12.10.2",
     "apexcharts": "5.3.6",
-    "axios": "1.14.0",
+    "axios": "1.15.0",
     "ckeditor5": "47.6.1",
     "classcat": "5.0.5",
     "cronstrue": "3.14.0",
