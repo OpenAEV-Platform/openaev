@@ -52,6 +52,7 @@ public class AppSecurityConfig {
 
   private static final String TENANT_AGENT_URI = "/api/tenants/*/agent/**";
   private static final String TENANT_IMPLANT_URI = "/api/tenants/*/implant/**";
+  private static final String TENANT_PLAYER_URI = "/api/tenants/*/player/**";
 
   private final OpenAEVConfig openAEVConfig;
   private final OpenSamlConfig openSamlConfig;
@@ -76,6 +77,8 @@ public class AppSecurityConfig {
                     .requestMatchers("/api/comcheck/**")
                     .permitAll()
                     .requestMatchers("/api/player/**")
+                    .permitAll()
+                    .requestMatchers(TENANT_PLAYER_URI)
                     .permitAll()
                     .requestMatchers("/api/settings")
                     .permitAll()
