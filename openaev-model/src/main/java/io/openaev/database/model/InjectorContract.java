@@ -363,6 +363,7 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
     compositeId.setTenantId(tenantId);
     return compositeId;
   }
+
   // -- INJECTOR CONTRACT CONTENT --
 
   public static final String CONTRACT_CONTENT_FIELDS = "fields";
