@@ -29,7 +29,7 @@ const AgentTraces = ({ traces, isInitialExpanded = false }: Props) => {
         {isInitialExpanded && (
           <ItemStatus
             status={agentStatus.statusName}
-            label={agentStatus.statusName}
+            label={t(agentStatus.statusName)}
           />
         )}
         <ExecutionTime

@@ -66,6 +66,11 @@ export const computeStatusStyle = (status: string | undefined | null) => {
     'WARNING': colorStyles.green,
     'ACCESS_DENIED': colorStyles.green,
 
+    // Not counted statuses (from ExecutionTraceStatus)
+    'ASSET_AGENTLESS': colorStyles.blueGrey,
+    'AGENT_INACTIVE': colorStyles.blueGrey,
+    'INFO': colorStyles.blue,
+
     // Inject-level statuses (from ExecutionStatus)
     'PARTIAL': colorStyles.orange,
     'EXECUTING': colorStyles.blue,
@@ -139,6 +144,19 @@ export const getStatusColor = (theme: Theme, status: string | undefined): string
     'replace': theme.palette.error.main,
     'canceled': colorStyles.canceled.color,
     'error': theme.palette.error.main,
+    'command_not_found': theme.palette.error.main,
+    'command_cannot_be_executed': theme.palette.error.main,
+    'invalid_usage': theme.palette.error.main,
+    'timeout': theme.palette.error.main,
+    'interrupted': theme.palette.error.main,
+
+    // Success trace statuses
+    'warning': theme.palette.success.main,
+    'access_denied': theme.palette.success.main,
+
+    // Not counted trace statuses
+    'asset_agentless': theme.palette.grey['500'],
+    'agent_inactive': theme.palette.grey['500'],
 
   };
 

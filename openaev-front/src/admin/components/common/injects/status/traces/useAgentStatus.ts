@@ -26,6 +26,7 @@ const useAgentStatus = (traces: ExecutionTraceOutput[]): AgentStatus => {
 
     const finalTrace = sorted.find(t => t.execution_action === 'COMPLETE') ?? null;
     const startTrace = sorted.find(t => t.execution_action === 'START') ?? null;
+    const lastExecutionTrace = [...sorted].reverse().find(t => t.execution_action === 'EXECUTION') ?? null;
     const agent = sorted[0]?.execution_agent;
 
     const grouped: TraceGroup[] = [];
@@ -41,11 +42,16 @@ const useAgentStatus = (traces: ExecutionTraceOutput[]): AgentStatus => {
       }
     });
 
+    // Use COMPLETE trace status, or fall back to last EXECUTION trace status
+    const statusName = finalTrace?.execution_status
+      ?? lastExecutionTrace?.execution_status
+      ?? 'Unknown';
+
     return {
       agentName: agent?.agent_executed_by_user,
       executorName: agent?.agent_executor?.executor_name,
       executorType: agent?.agent_executor?.executor_type,
-      statusName: finalTrace?.execution_status ?? 'Unknown',
+      statusName,
       trackingStart: startTrace?.execution_time ?? sorted[0]?.execution_time,
       trackingEnd: finalTrace?.execution_time ?? sorted.at(-1)?.execution_time,
       traces: sorted,

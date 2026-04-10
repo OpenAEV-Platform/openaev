@@ -2,6 +2,7 @@ import { Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
+import { useFormatter } from '../../../../../../components/i18n';
 import ItemStatus from '../../../../../../components/ItemStatus';
 
 interface Props {
@@ -10,7 +11,9 @@ interface Props {
 }
 
 const AgentStatusHeader: FunctionComponent<Props> = ({ agentName, statusName }) => {
+  const { t } = useFormatter();
   const theme = useTheme();
+  const translatedStatus = statusName ? t(statusName) : undefined;
 
   return (
     <div style={{
@@ -31,7 +34,7 @@ const AgentStatusHeader: FunctionComponent<Props> = ({ agentName, statusName }) 
         && (
           <ItemStatus
             status={statusName}
-            label={statusName}
+            label={translatedStatus ?? statusName}
           />
         )}
     </div>
