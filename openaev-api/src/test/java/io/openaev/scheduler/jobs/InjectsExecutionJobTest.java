@@ -10,7 +10,6 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectDependenciesRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.SecurityCoverageSendJobRepository;
-import io.openaev.helper.InjectHelper;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.scheduler.jobs.exception.ErrorMessagesPreExecutionException;
 import io.openaev.utils.fixtures.*;
@@ -47,11 +46,9 @@ class InjectsExecutionJobTest extends IntegrationTest {
   @Autowired private EntityManager entityManager;
   @Autowired private SecurityCoverageSendJobRepository securityCoverageSendJobRepository;
   @Autowired private SecurityCoverageComposer securityCoverageComposer;
-  @Autowired private InjectHelper injectHelper;
   @Autowired private ExecutionTraceComposer executionTraceComposer;
 
   @Mock private InjectDependenciesRepository injectDependenciesRepository;
-  @Mock private InjectHelper injectHelperMock;
 
   @BeforeAll
   public void init() {
