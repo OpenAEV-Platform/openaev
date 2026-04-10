@@ -62,9 +62,18 @@ const InjectIndexHeader = ({ injectResultOverview, exercise }: Props) => {
         <Box display="flex" flexDirection="column" justifyContent="left" alignItems="flex-start">
           <Breadcrumbs variant="object" elements={breadcrumbs} />
           <AtomicTestingTitle injectResultOverview={injectResultOverview} />
-          <InjectIndexTabs injectResultOverview={injectResultOverview} exercise={exercise} backlabel={backlabel} backuri={backuri} />
+          <InjectIndexTabs
+            injectResultOverview={injectResultOverview}
+            exercise={exercise}
+            backlabel={backlabel}
+            backuri={backuri}
+          />
         </Box>
-        <ResponsePie hasTitles={false} forceSize={112} expectationResultsByTypes={injectResultOverview.inject_expectation_results} />
+        <ResponsePie
+          hasTitles={false}
+          forceSize={112}
+          expectationResultsByTypes={injectResultOverview.inject_expectation_results}
+        />
       </div>
     </Box>
   );

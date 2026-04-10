@@ -823,9 +823,7 @@ public class InjectExpectationService {
       TargetType targetTypeEnum = TargetType.valueOf(targetType);
       return switch (targetTypeEnum) {
         case TEAMS -> injectExpectationRepository.findAllByInjectAndTeam(injectId, targetId);
-        case PLAYERS ->
-            injectExpectationRepository.findAllByInjectAndTeamAndPlayer(
-                injectId, parentTargetId, targetId);
+        case PLAYERS -> injectExpectationRepository.findAllByInjectAndPlayer(injectId, targetId);
         case AGENT -> injectExpectationRepository.findAllByInjectAndAgent(injectId, targetId);
         case ASSETS -> injectExpectationRepository.findAllByInjectAndAsset(injectId, targetId);
         case ASSETS_GROUPS ->
@@ -973,10 +971,11 @@ public class InjectExpectationService {
           electedExpectations
               .get(expectation.getType())
               .setScore(
-                  Collections.max(
-                      electedExpectations.get(expectation.getType()).getResults().stream()
-                          .map(InjectExpectationResult::getScore)
-                          .toList()));
+                  electedExpectations.get(expectation.getType()).getResults().stream()
+                      .map(InjectExpectationResult::getScore)
+                      .filter(Objects::nonNull)
+                      .max(Double::compareTo)
+                      .orElse(null));
         }
       }
     }
