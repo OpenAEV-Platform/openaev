@@ -6,7 +6,7 @@ import { fetchUserTenants } from '../../actions/user/user-tenant-actions';
 import { TENANT_SWITCH_SUCCESS } from '../../constants/ActionTypes';
 import { type TenantOutput, type User } from '../api-types';
 import { useAppDispatch } from '../hooks';
-import { buildTenantUrl, TENANT_STORAGE_KEY } from '../tenant-url-helper';
+import { buildTenantUrl, extractTenantFromUrl, TENANT_STORAGE_KEY } from '../tenant-url-helper';
 
 /**
  * Internal hook that encapsulates the current-tenant state and
@@ -81,7 +81,13 @@ const useTenant = (me: User | undefined, logged: unknown) => {
 
   useEffect(() => {
     if (me && logged) {
-      loadUserTenants();
+      // On page load / hard refresh the URL is the source of truth for
+      // which tenant the user is working in.  localStorage is shared
+      // across tabs, so another tab's tenant switch can leave a stale
+      // value there.  By reading the tenant UUID from the URL we make
+      // sure TenantSwitcher displays the tenant that matches the URL.
+      const urlTenantId = extractTenantFromUrl() ?? undefined;
+      loadUserTenants(urlTenantId);
     }
   }, [me, logged, loadUserTenants]);
 
