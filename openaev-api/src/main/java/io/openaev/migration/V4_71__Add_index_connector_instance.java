@@ -26,7 +26,7 @@ public class V4_71__Add_index_connector_instance extends BaseJavaMigration {
           USING GIN (connector_instance_configuration_value);
           """);
 
-      // FK join column speeds up the JOIN
+      // FK join column speeds up the JOINs and DELETE CASCADE operations
       statement.execute(
           """
           CREATE INDEX idx_conf_instance_id
