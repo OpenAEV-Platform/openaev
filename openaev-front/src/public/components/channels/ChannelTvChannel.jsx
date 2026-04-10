@@ -9,6 +9,8 @@ import ExpandableMarkdown from '../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
 import { useQueryParameter } from '../../../utils/Environment';
+import useAuth from '../../../utils/hooks/useAuth.ts';
+import { DEFAULT_TENANT_UUID } from '../../../utils/tenant-url-helper.ts';
 
 const useStyles = makeStyles()(() => ({
   container: {
@@ -35,13 +37,14 @@ const ChannelTvChannel = ({ channelReader }) => {
   const { t, fldt } = useFormatter();
   const [userId] = useQueryParameter(['user']);
   const isDark = theme.palette.mode === 'dark';
+  const { currentUserTenant } = useAuth();
   const {
     channel_exercise: exercise,
     channel_scenario: scenario,
     channel_articles: articles,
     channel_information: channel,
   } = channelReader;
-  const baseUri = `/api/player/${exercise?.exercise_id ?? scenario?.scenario_id}`;
+  const baseUri = `/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/player/${exercise?.exercise_id ?? scenario?.scenario_id}`;
   const { documentsMap } = useHelper(helper => ({ documentsMap: helper.getDocumentsMap() }));
   const logo = isDark ? channel.channel_logo_dark : channel.channel_logo_light;
   const firstArticle = R.head(articles) || null;

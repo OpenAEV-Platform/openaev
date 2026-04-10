@@ -11,10 +11,12 @@ import { COLLECTOR_LIST } from '../../../../constants/Entities';
 import { useHelper } from '../../../../store';
 import { type Collector } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
+import useAuth from '../../../../utils/hooks/useAuth';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import RestrictionAccess from '../../../../utils/permissions/RestrictionAccess';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { DEFAULT_TENANT_UUID } from '../../../../utils/tenant-url-helper';
 import RemediationFormTab from './RemediationFormTab';
 
 interface RemediationFormTabsProps { payloadId?: string }
@@ -27,6 +29,7 @@ const RemediationFormTabs = ({ payloadId }: RemediationFormTabsProps) => {
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
   const [loading, setLoading] = useState(false);
+  const { currentUserTenant } = useAuth();
 
   const handleActiveTabChange = (_: SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
@@ -86,7 +89,7 @@ const RemediationFormTabs = ({ payloadId }: RemediationFormTabsProps) => {
                         label={(
                           <Box display="flex" alignItems="center">
                             <img
-                              src={`/api/images/collectors/${tab.collector_type}`}
+                              src={`/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/images/collectors/${tab.collector_type}`}
                               alt={tab.collector_type}
                               style={{
                                 width: 20,

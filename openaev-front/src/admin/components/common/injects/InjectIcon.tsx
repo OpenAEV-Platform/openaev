@@ -5,6 +5,8 @@ import { type FunctionComponent } from 'react';
 
 import CustomTooltip from '../../../../components/CustomTooltip';
 import { useFormatter } from '../../../../components/i18n';
+import useAuth from '../../../../utils/hooks/useAuth';
+import { DEFAULT_TENANT_UUID } from '../../../../utils/tenant-url-helper';
 
 interface Props {
   type: string | undefined;
@@ -31,6 +33,7 @@ const InjectIcon: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const theme = useTheme();
   const fontSize = size || 'medium';
+  const { currentUserTenant } = useAuth();
 
   const iconSelector = (type: string, isPayload: boolean, variant: string, fontSize: string, done: boolean, disabled: boolean) => {
     const style = {
@@ -50,7 +53,7 @@ const InjectIcon: FunctionComponent<Props> = ({
     if (isPayload) {
       if (type.startsWith('openaev_')) {
         return (
-          <img onClick={onClick} src={`/api/images/collectors/${type}`} alt={type} style={style} />
+          <img onClick={onClick} src={`/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/images/collectors/${type}`} alt={type} style={style} />
         );
       }
       switch (type) {
@@ -70,7 +73,7 @@ const InjectIcon: FunctionComponent<Props> = ({
     }
     return (
       <img
-        src={`/api/images/injectors/${type}`}
+        src={`/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/images/injectors/${type}`}
         onClick={onClick}
         alt={type}
         style={style}

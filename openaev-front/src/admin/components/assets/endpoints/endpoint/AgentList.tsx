@@ -12,7 +12,9 @@ import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
 import { type AgentOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
+import useAuth from '../../../../../utils/hooks/useAuth';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
+import { DEFAULT_TENANT_UUID } from '../../../../../utils/tenant-url-helper';
 import EEChip from '../../../common/entreprise_edition/EEChip';
 import AssetStatus from '../../AssetStatus';
 import AgentDeploymentMode from '../AgentDeploymentMode';
@@ -50,6 +52,7 @@ const AgentList: FunctionComponent<Props> = ({ agents }) => {
   const bodyItemsStyles = useBodyItemsStyles();
   const dispatch = useAppDispatch();
   const { t } = useFormatter();
+  const { currentUserTenant } = useAuth();
   // Fetching data
   const { settings, executorsMap } = useHelper((helper: ExecutorHelper & LoggedHelper) => ({
     settings: helper.getPlatformSettings(),
@@ -85,7 +88,7 @@ const AgentList: FunctionComponent<Props> = ({ agents }) => {
         return (
           <>
             <img
-              src={`/api/images/executors/icons/${executor_type}`}
+              src={`/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/images/executors/icons/${executor_type}`}
               alt={executor_type}
               style={{
                 width: 20,

@@ -18,6 +18,8 @@ import {
   type InjectExpectationResult,
   type PayloadSimple,
 } from '../../../../../utils/api-types';
+import useAuth from '../../../../../utils/hooks/useAuth';
+import { DEFAULT_TENANT_UUID } from '../../../../../utils/tenant-url-helper';
 import { isNotEmptyField } from '../../../../../utils/utils';
 import { type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
 import InjectIcon from '../../../common/injects/InjectIcon';
@@ -42,6 +44,7 @@ const InjectExpectationResultList = ({
 }: Props) => {
   const { nsdt, t } = useFormatter();
   const theme = useTheme();
+  const { currentUserTenant } = useAuth();
 
   const { onOpenDeleteInjectExpectationResult, onOpenEditInjectExpectationResultResult, onOpenSecurityPlatform } = useContext(InjectExpectationContext);
 
@@ -50,8 +53,8 @@ const InjectExpectationResultList = ({
       return (
         <img
           src={expectationResult.sourceType === 'collector'
-            ? `/api/images/collectors/id/${expectationResult.sourceId}`
-            : `/api/images/security_platforms/id/${expectationResult.sourceId}/${theme.palette.mode}`}
+            ? `/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/images/collectors/id/${expectationResult.sourceId}`
+            : `/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/images/security_platforms/id/${expectationResult.sourceId}/${theme.palette.mode}`}
           alt={expectationResult.sourceId}
           style={{
             width: 25,

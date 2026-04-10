@@ -7,6 +7,8 @@ import { makeStyles } from 'tss-react/mui';
 import { type SecurityPlatformHelper } from '../../actions/assets/asset-helper';
 import { useHelper } from '../../store';
 import { type SecurityPlatform } from '../../utils/api-types';
+import useAuth from '../../utils/hooks/useAuth';
+import { DEFAULT_TENANT_UUID } from '../../utils/tenant-url-helper';
 
 const useStyles = makeStyles()(() => ({
   icon: {
@@ -57,6 +59,7 @@ const SecurityPlatformField: FunctionComponent<Props> = ({
   // Standard hooks
   const theme = useTheme();
   const { classes } = useStyles();
+  const { currentUserTenant } = useAuth();
 
   // Fetching data
   const { securityPlatforms }: { securityPlatforms: SecurityPlatform[] } = useHelper((helper: SecurityPlatformHelper) => ({ securityPlatforms: helper.getSecurityPlatforms() }));
@@ -86,7 +89,7 @@ const SecurityPlatformField: FunctionComponent<Props> = ({
             <Box component="li" {...props} key={option.id}>
               <div className={classes.icon}>
                 <img
-                  src={`/api/images/security_platforms/id/${option.id}/${theme.palette.mode}`}
+                  src={`/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/images/security_platforms/id/${option.id}/${theme.palette.mode}`}
                   alt={option.label}
                   style={{
                     width: 25,

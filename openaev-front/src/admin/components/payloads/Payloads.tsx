@@ -23,8 +23,10 @@ import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import PayloadIcon from '../../../components/PayloadIcon';
 import PlatformIcon from '../../../components/PlatformIcon';
 import { type Document, type Domain, type Payload, type SearchPaginationInput } from '../../../utils/api-types';
+import useAuth from '../../../utils/hooks/useAuth';
 import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { DEFAULT_TENANT_UUID } from '../../../utils/tenant-url-helper';
 import { arrayToRecord } from '../../../utils/utils';
 import CreatePayload from './CreatePayload';
 import PayloadComponent from './PayloadComponent';
@@ -95,6 +97,7 @@ const Payloads = () => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
   const theme = useTheme();
+  const { currentUserTenant } = useAuth();
 
   const [selectedPayload, setSelectedPayload] = useState<Payload | null>(null);
 
@@ -314,7 +317,7 @@ const Payloads = () => {
                       <ListItemIcon>
                         {payload.payload_collector_type ? (
                           <img
-                            src={`/api/images/collectors/${payload.payload_collector_type}`}
+                            src={`/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/images/collectors/${payload.payload_collector_type}`}
                             alt={payload.payload_collector_type}
                             style={{
                               padding: 0,

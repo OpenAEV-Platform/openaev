@@ -8,9 +8,11 @@ import { makeStyles } from 'tss-react/mui';
 import { fetchDocumentsChannels, updateChannel, updateChannelLogos } from '../../../../actions/channels/channel-action';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
+import useAuth from '../../../../utils/hooks/useAuth.ts';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { DEFAULT_TENANT_UUID } from '../../../../utils/tenant-url-helper.ts';
 import ChannelAddLogo from './ChannelAddLogo';
 import ChannelOverviewMicroblogging from './ChannelOverviewMicroblogging';
 import ChannelOverviewNewspaper from './ChannelOverviewNewspaper';
@@ -34,6 +36,7 @@ const Channel = () => {
   const dispatch = useDispatch();
   const { t } = useFormatter();
   const ability = useContext(AbilityContext);
+  const { currentUserTenant } = useAuth();
 
   const { channel, documentsMap } = useHelper(helper => ({
     channel: helper.getChannel(channelId),
@@ -96,7 +99,7 @@ const Channel = () => {
                 </Typography>
                 {logoDark ? (
                   <img
-                    src={`/api/images/channels/id/${channelId}/dark`}
+                    src={`/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/images/channels/id/${channelId}/dark`}
                     style={{
                       maxHeight: 200,
                       maxWidth: 200,
@@ -123,7 +126,7 @@ const Channel = () => {
                 </Typography>
                 {logoLight ? (
                   <img
-                    src={`/api/images/channels/id/${channelId}/light`}
+                    src={`/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/images/channels/id/${channelId}/light`}
                     style={{
                       maxHeight: 200,
                       maxWidth: 200,

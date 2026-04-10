@@ -3,8 +3,10 @@ import { useOutletContext } from 'react-router';
 
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
+import useAuth from '../../../../utils/hooks/useAuth';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { DEFAULT_TENANT_UUID } from '../../../../utils/tenant-url-helper';
 import { type CatalogContextType } from '../catalog_connectors/CatalogLayout';
 import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
 import ConnectorCatalogInfo from './ConnectorCatalogInfo';
@@ -14,6 +16,7 @@ const ConnectorDetails = () => {
   // Standard hooks
   const ability = useContext(AbilityContext);
   const { t } = useFormatter();
+  const { currentUserTenant } = useAuth();
 
   const { catalogConnector, isXtmComposerUp } = useOutletContext<CatalogContextType>();
 
@@ -33,7 +36,7 @@ const ConnectorDetails = () => {
           connectorName: catalogConnector.catalog_connector_title,
           connectorType: catalogConnector.catalog_connector_type,
           connectorLogoName: `connector-logo-${catalogConnector.catalog_connector_id}`,
-          connectorLogoUrl: `/api/images/catalog/connectors/logos/${catalogConnector.catalog_connector_logo_url}`,
+          connectorLogoUrl: `/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/images/catalog/connectors/logos/${catalogConnector.catalog_connector_logo_url}`,
           connectorDescription: catalogConnector.catalog_connector_short_description,
           isExternal: catalogConnector.catalog_connector_manager_supported,
           isVerified: true,

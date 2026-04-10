@@ -16,8 +16,10 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { type SearchPaginationInput, type SecurityPlatform } from '../../../../utils/api-types';
+import useAuth from '../../../../utils/hooks/useAuth';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { DEFAULT_TENANT_UUID } from '../../../../utils/tenant-url-helper';
 import { isNotEmptyField } from '../../../../utils/utils';
 import SecurityPlatformCreation from './SecurityPlatformCreation';
 import SecurityPlatformPopover from './SecurityPlatformPopover';
@@ -50,6 +52,7 @@ const SecurityPlatforms = () => {
   const bodyItemsStyles = useBodyItemsStyles();
   const theme = useTheme();
   const { t } = useFormatter();
+  const { currentUserTenant } = useAuth();
 
   // Query param
   const [searchParams] = useSearchParams();
@@ -160,7 +163,7 @@ const SecurityPlatforms = () => {
                 >
                   <ListItemIcon>
                     <img
-                      src={`/api/images/security_platforms/id/${securityPlatform.asset_id}/${theme.palette.mode}?${Date.now()}`}
+                      src={`/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/images/security_platforms/id/${securityPlatform.asset_id}/${theme.palette.mode}?${Date.now()}`}
                       alt={securityPlatform.asset_name}
                       style={{
                         width: 25,
