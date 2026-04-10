@@ -1,5 +1,6 @@
 package io.openaev.database.repository;
 
+import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
 import java.util.List;
 import java.util.Optional;
@@ -18,17 +19,19 @@ public interface ConnectorInstanceConfigurationRepository
 
   @Query(
       value =
-          "SELECT instance.connector_instance_current_status AS currentStatus "
-              + "FROM connector_instance_configurations conf "
-              + "JOIN connector_instances instance ON conf.connector_instance_id = instance.connector_instance_id "
-              + "WHERE conf.connector_instance_configuration_key = :key "
-              + "AND conf.connector_instance_configuration_value ?? :value "
-              + "LIMIT 1",
+          """
+              SELECT instance.connector_instance_current_status
+              FROM connector_instance_configurations conf
+              JOIN connector_instances instance ON conf.connector_instance_id = instance.connector_instance_id
+              WHERE conf.connector_instance_configuration_key = :key
+              AND conf.connector_instance_configuration_value ?? :value
+              """,
       nativeQuery = true)
-  Optional<String> findCurrentStatusByKeyValue(
+  Optional<ConnectorInstance.CURRENT_STATUS_TYPE> findStatusByKeyValue(
       @Param("key") String key, @Param("value") String value);
 
   interface ConnectorIdsFromDatabase {
+
     String getConnectorInstanceId();
 
     String getCatalogConnectorId();

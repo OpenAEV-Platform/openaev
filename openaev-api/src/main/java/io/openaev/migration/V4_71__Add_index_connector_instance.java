@@ -10,28 +10,52 @@ public class V4_71__Add_index_connector_instance extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
-    try (Statement select = context.getConnection().createStatement()) {
+    try (Statement statement = context.getConnection().createStatement()) {
 
-      select.execute(
+      statement.execute(
           """
           CREATE INDEX idx_conf_key
           ON connector_instance_configurations (connector_instance_configuration_key);
           """);
 
       // GIN index for ?? operator on the value column
-      select.execute(
+      statement.execute(
           """
           CREATE INDEX idx_conf_value_gin
           ON connector_instance_configurations
           USING GIN (connector_instance_configuration_value);
           """);
 
-      // FK join column speeds up the JOIN to connector_instances
-      select.execute(
+      // FK join column speeds up the JOIN
+      statement.execute(
           """
           CREATE INDEX idx_conf_instance_id
           ON connector_instance_configurations (connector_instance_id);
           """);
+
+      statement.execute(
+          """
+                CREATE INDEX IF NOT EXISTS idx_cil_instance_id
+                ON connector_instance_logs (connector_instance_id);
+                """);
+
+      statement.execute(
+          """
+                CREATE INDEX IF NOT EXISTS idx_injectors_instance_id
+                ON injectors (injector_connector_instance_id);
+                """);
+
+      statement.execute(
+          """
+                CREATE INDEX IF NOT EXISTS idx_collectors_instance_id
+                ON collectors (collector_connector_instance_id);
+                """);
+
+      statement.execute(
+          """
+                CREATE INDEX IF NOT EXISTS idx_executors_instance_id
+                ON executors (executor_connector_instance_id);
+                """);
     }
   }
 }

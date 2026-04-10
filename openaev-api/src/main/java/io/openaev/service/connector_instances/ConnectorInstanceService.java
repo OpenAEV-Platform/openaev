@@ -108,23 +108,22 @@ public class ConnectorInstanceService {
 
   @Transactional(readOnly = true)
   public boolean hasStartedConnectorInstanceForInjector(final String injectorId) {
-
-    Optional<String> currentStatus =
-        this.connectorInstanceConfigurationRepository.findCurrentStatusByKeyValue(
-            ConnectorType.INJECTOR.getIdKeyName(), injectorId);
-
-    if (currentStatus.isPresent()) {
-      return ConnectorInstance.CURRENT_STATUS_TYPE.started.name().equals(currentStatus.get());
-    }
-
-    try {
-      managerFactory
-          .getManager()
-          .request(new ComponentRequest(injectorId), io.openaev.executors.Injector.class);
-      return true;
-    } catch (Exception e) {
-      return true; // Fallback to catalog-unsupported handling
-    }
+    return this.connectorInstanceConfigurationRepository
+        .findStatusByKeyValue(ConnectorType.INJECTOR.getIdKeyName(), injectorId)
+        .map(
+            status -> status.equalsIgnoreCase(ConnectorInstance.CURRENT_STATUS_TYPE.started.name()))
+        .orElseGet(
+            () -> {
+              try {
+                managerFactory
+                    .getManager()
+                    .request(new ComponentRequest(injectorId), io.openaev.executors.Injector.class);
+                return true;
+              } catch (Exception e) {
+                log.warn("Failed to request injector component for id: {}", injectorId, e);
+                return true; // Fallback to catalog-unsupported handling
+              }
+            });
   }
 
   /**
