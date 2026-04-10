@@ -110,8 +110,7 @@ public class ConnectorInstanceService {
   public boolean hasStartedConnectorInstanceForInjector(final String injectorId) {
     return this.connectorInstanceConfigurationRepository
         .findStatusByKeyValue(ConnectorType.INJECTOR.getIdKeyName(), injectorId)
-        .map(
-            status -> status.equalsIgnoreCase(ConnectorInstance.CURRENT_STATUS_TYPE.started.name()))
+        .map(status -> ConnectorInstance.CURRENT_STATUS_TYPE.started.name().equals(status.name()))
         .orElseGet(
             () -> {
               try {
