@@ -108,7 +108,8 @@ public class CrowdstrikeExecutorServiceTest {
     injector.setExecutorCommands(executorCommands);
     Inject inject =
         InjectFixture.createTechnicalInject(
-            InjectorContractFixture.createPayloadInjectorContract(injector, payloadCommand),
+            InjectorContractFixture.createPayloadInjectorContractWithDefaultDomain(
+                injector, payloadCommand),
             "Inject",
             EndpointFixture.createEndpoint());
     inject.setId("1234567890");

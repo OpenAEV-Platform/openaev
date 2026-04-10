@@ -153,7 +153,7 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
 
   @Schema(implementation = String[].class)
   @Getter
-  @ManyToMany(fetch = FetchType.LAZY)
+  @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
       name = "injector_contract_tags",
       joinColumns = {

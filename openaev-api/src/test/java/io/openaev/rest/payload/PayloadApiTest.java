@@ -65,6 +65,11 @@ class PayloadApiTest extends IntegrationTest {
 
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 
+  @BeforeEach
+  void beforeEach() throws Exception {
+    new Manager(List.of(openaevInjectorIntegrationFactory)).monitorIntegrations();
+  }
+
   @BeforeAll
   void beforeAll() {
     collectorComposer.reset();
@@ -251,8 +256,6 @@ class PayloadApiTest extends IntegrationTest {
     @Test
     @DisplayName("Create Payload with targeted asset")
     void given_targetedAssetArgument_should_create_payload_with_targeted_asset() throws Exception {
-      new Manager(List.of(openaevInjectorIntegrationFactory)).monitorIntegrations();
-
       Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
       PayloadCreateInput input =
           PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(

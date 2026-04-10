@@ -81,7 +81,8 @@ public class ExecutionExecutorServiceTest {
     endpoint.setId("0123456789");
     Inject inject =
         InjectFixture.createTechnicalInject(
-            InjectorContractFixture.createPayloadInjectorContract(injector, payloadCommand),
+            InjectorContractFixture.createPayloadInjectorContractWithDefaultDomain(
+                injector, payloadCommand),
             "Inject",
             endpoint);
     inject.setStatus(InjectStatusFixture.createPendingInjectStatus());

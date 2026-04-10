@@ -40,7 +40,7 @@ public class HealthCheckUtilsTest {
         domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
     Injector injector = createDefaultPayloadInjector();
     Command payloadCommand = createCommand("cmd", "whoami", List.of(), "whoami");
-    return createPayloadInjectorContract(injector, payloadCommand, domains);
+    return createPayloadInjectorContractWithDefaultDomain(injector, payloadCommand);
   }
 
   @Nested

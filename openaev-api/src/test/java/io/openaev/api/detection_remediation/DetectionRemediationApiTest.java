@@ -1250,8 +1250,6 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     List<PayloadArgument> payloadArguments = getPayloadArguments();
 
-    Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
-
     Command payloadCommand =
         (Command)
             payloadComposer
@@ -1260,9 +1258,11 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                 .get();
 
     InjectorContractComposer.Composer contractComposer =
-        injectorContractComposer.forInjectorContract(
-            InjectorContractFixture.createPayloadInjectorContract(
-                injectorFixture.getWellKnownOaevImplantInjector(), payloadCommand, Set.of(domain)));
+        injectorContractComposer
+            .forInjectorContract(
+                InjectorContractFixture.createPayloadInjectorContract(
+                    injectorFixture.getWellKnownOaevImplantInjector(), payloadCommand))
+            .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()));
 
     for (AttackPattern attackPattern : attackPatterns) {
       contractComposer.withAttackPattern(attackPatternComposer.forAttackPattern(attackPattern));
@@ -1411,6 +1411,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
             .forInjectorContract(
                 InjectorContractFixture.createPayloadInjectorContract(
                     injectorFixture.getWellKnownOaevImplantInjector(), payload))
+            .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
             .persist()
             .get();
 
@@ -1442,6 +1443,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
             .forInjectorContract(
                 InjectorContractFixture.createPayloadInjectorContract(
                     injectorFixture.getWellKnownOaevImplantInjector(), payload))
+            .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
             .persist()
             .get();
 
