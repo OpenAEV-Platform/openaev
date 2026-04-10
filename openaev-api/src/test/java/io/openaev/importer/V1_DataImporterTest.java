@@ -9,8 +9,9 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
+import io.openaev.integration.Manager;
+import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.domain.enums.PresetDomain;
-import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.constants.Constants;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
@@ -34,34 +35,20 @@ import org.springframework.transaction.annotation.Transactional;
 class V1_DataImporterTest extends IntegrationTest {
 
   @Autowired private V1_DataImporter importer;
-
   @Autowired private ExerciseRepository exerciseRepository;
-
   @Autowired private TeamRepository teamRepository;
-
   @Autowired private UserRepository userRepository;
-
   @Autowired private OrganizationRepository organizationRepository;
-
   @Autowired private TagRepository tagRepository;
-
   @Autowired private ScenarioRepository scenarioRepository;
-
-  @Autowired private ScenarioService scenarioService;
-
   @Autowired private PayloadRepository payloadRepository;
-
   @Autowired private AttackPatternRepository attackPatternRepository;
-
   @Autowired private KillChainPhaseRepository killChainPhaseRepository;
-
   @Autowired private InjectorRepository injectorRepository;
-
   @Autowired private InjectorContractRepository injectorContractRepository;
-
   @Autowired private InjectRepository injectRepository;
-
   @Autowired private DomainRepository domainRepository;
+  @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
 
   private JsonNode importNode;
 
@@ -127,8 +114,8 @@ class V1_DataImporterTest extends IntegrationTest {
 
   @Test
   @Transactional
-  void testScenario_with_attackpattern() throws IOException {
-
+  void testScenario_with_attackpattern() throws Exception {
+    new Manager(List.of(openaevInjectorIntegrationFactory)).monitorIntegrations();
     MockitoAnnotations.openMocks(this);
     ObjectMapper mapper = new ObjectMapper();
     String jsonContent =
@@ -154,11 +141,16 @@ class V1_DataImporterTest extends IntegrationTest {
     // delete scenario and payload before reimporting to verify that the killchainphase is not
     // recreated
     // Clear the persistence context to avoid TransientObjectException from stale references
+    entityManager.flush();
     entityManager.clear();
-    // Delete injects first (they reference Scenario), then scenarios, then payloads
+    // Delete in FK order: injects → injector contracts → scenarios → payloads
     injectRepository.deleteAll();
+    injectorContractRepository.deleteAll();
     scenarioRepository.deleteAll();
     payloadRepository.deleteAll();
+    entityManager.flush();
+    entityManager.clear();
+    new Manager(List.of(openaevInjectorIntegrationFactory)).monitorIntegrations();
 
     this.importer.importData(
         this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
