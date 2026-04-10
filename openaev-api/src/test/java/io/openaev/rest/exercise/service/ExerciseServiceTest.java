@@ -89,8 +89,7 @@ class ExerciseServiceTest extends IntegrationTest {
 
   @InjectMocks private ExerciseService mockedExerciseService;
   @Autowired private InjectStatusRepository injectStatusRepository;
-  @Autowired
-  private StepService stepService;
+  @Autowired private StepService stepService;
 
   @BeforeEach
   void setUp() {

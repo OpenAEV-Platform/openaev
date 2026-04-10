@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.gson.*;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Executor;
@@ -506,7 +507,7 @@ public class InjectExecutionStep implements ActionStep {
       ObjectMapper mapper = new ObjectMapper();
       JsonNode root = mapper.readTree(step.getData());
 
-      //GET INJECTOR CONTRACT
+      // GET INJECTOR CONTRACT
       try {
         Hibernate.initialize(inject.getInjectorContract().get());
       } catch (Exception e) {
@@ -514,34 +515,39 @@ public class InjectExecutionStep implements ActionStep {
             "Injector contract not found for step (READY) ID: " + step.getId());
       }
       InjectorContract injectorContract = inject.getInjectorContract().get();
+      injectorContract.setCompositeId(
+          new InjectorContractId(injectorContract.getId(), TenantContext.getCurrentTenant()));
       inject.setInjectorContract(injectorContract);
-      //GET INJECTOR
+
+      // GET INJECTOR
       JsonNode injectorNode = root.path("inject_injector");
 
-      //INJECTOR ID FROM JSON NULL
+      // INJECTOR ID FROM JSON NULL
       if ((injectorNode.isMissingNode() || injectorNode.asText().isEmpty())) {
 
-        throw new ChainingException("Injector not found for injectorContractId "
-                                    + injectorContract.getId()
-                                    + " and step (READY) ID "
-                                    + step.getId());
+        throw new ChainingException(
+            "Injector not found for injectorContractId "
+                + injectorContract.getId()
+                + " and step (READY) ID "
+                + step.getId());
 
-        //GET INJECTOR FROM DB
+        // GET INJECTOR FROM DB
       } else {
 
         String injectorId = injectorNode.asText();
-        Injector injector = em.find(Injector.class, injectorId);
-        inject.setInjector(injector);
+        Injector injector = inject.getInjector();
 
         try {
           Hibernate.initialize(inject.getInjector());
         } catch (Exception e) {
           throw new ChainingException(
               "Injector not found for injectorId "
-              + injectorId
-              + " and step (READY) ID "
-              + step.getId());
+                  + injectorId
+                  + " and step (READY) ID "
+                  + step.getId());
         }
+        injector.setTenant(injectorContract.getTenant());
+        inject.setInjector(injector);
       }
 
       return inject;

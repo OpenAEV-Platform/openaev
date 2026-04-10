@@ -1,5 +1,9 @@
 package io.openaev.api.chaining;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -23,6 +27,7 @@ import io.openaev.service.UserService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.helpers.InjectTestHelper;
+import java.util.*;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,12 +35,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.*;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
 
 @SpringBootTest
 @Transactional
@@ -438,20 +437,19 @@ public class InjectExecutionStepTest extends IntegrationTest {
     assertTrue(stepReadyOpt.isPresent());
     Step stepReady = stepReadyOpt.get();
 
-    String injectorId =
-        StepService.getField(
-            stepReady.getData(), "inject_injector");
+    String injectorId = StepService.getField(stepReady.getData(), "inject_injector");
     assertNotNull(injectorId);
-    stepReady.setData(
-        StepService.setField(
-        stepReady.getData(), "inject_injector", ""));
+    stepReady.setData(StepService.setField(stepReady.getData(), "inject_injector", ""));
 
     ChainingException ex =
         Assertions.assertThrows(ChainingException.class, () -> injectExecutionStep.run(stepReady));
 
     // ASSERT
     Assertions.assertEquals(
-        "Injector not found for injectorContractId "+injectorContractSaved.getId()+" and step (READY) ID null", ex.getMessage());
+        "Injector not found for injectorContractId "
+            + injectorContractSaved.getId()
+            + " and step (READY) ID null",
+        ex.getMessage());
   }
 
   @Test

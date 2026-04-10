@@ -402,7 +402,7 @@ class ChainingIntegrationTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
-    void  should_not_expose_workflow_chaining_inject_as_atomic_testing() throws Exception {
+    void should_not_expose_workflow_chaining_inject_as_atomic_testing() throws Exception {
       // Create scenario with chaining enabled
       String scenarioResponse =
           mvc.perform(
@@ -459,7 +459,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       String injectId = StepService.getField(createdStep.getData(), "inject_id");
       // assertFalse(Boolean.getBoolean(StepService.getField(createdStep.getData(),
       // "is_atomic_testing")));
-
+      injectRepository.findById(injectId).orElseThrow(() -> new AssertionError("Inject not found"));
       // The inject must NOT be accessible via the atomic testing API
       String result =
           mvc.perform(
@@ -471,7 +471,8 @@ class ChainingIntegrationTest extends IntegrationTest {
               .andReturn()
               .getResponse()
               .getContentAsString();
-      assertFalse(result.contains(injectId),
+      assertFalse(
+          result.contains(injectId),
           "Workflow chaining inject must not be exposed as atomic testing");
     }
 

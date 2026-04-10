@@ -624,7 +624,8 @@ public class ExerciseService {
         && ExerciseStatus.RUNNING.equals(status)) {
       if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
           && workflowService.isSimulationChaining(exercise.getId())) {
-        throw new ChainingException("Pausing a chained simulation is not allowed yet, please contact support");
+        throw new ChainingException(
+            "Pausing a chained simulation is not allowed yet, please contact support");
       }
       Instant lastPause = exercise.getCurrentPause().orElseThrow(ElementNotFoundException::new);
       exercise.setCurrentPause(null);
@@ -639,7 +640,8 @@ public class ExerciseService {
         && ExerciseStatus.PAUSED.equals(status)) {
       if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
           && workflowService.isSimulationChaining(exercise.getId())) {
-        throw new ChainingException("Pausing a chained simulation is not allowed yet, please contact support");
+        throw new ChainingException(
+            "Pausing a chained simulation is not allowed yet, please contact support");
       }
       exercise.setCurrentPause(Instant.now());
     }
@@ -648,16 +650,17 @@ public class ExerciseService {
         && ExerciseStatus.CANCELED.equals(status)) {
       exercise.setEnd(now());
       if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)) {
-        //End WORKFLOW + STEP + delete injects
+        // End WORKFLOW + STEP + delete injects
         List<Workflow> run = workflowService.findWorkflowRunBySimulationId(exercise.getId());
         if (!run.isEmpty()) {
           List<Step> stepsToUpdate = new ArrayList<>();
-          run.forEach(workflow -> {
-            workflow.setStatus(WorkflowStatus.END);
-            List<Step> steps = stepService.findAllStepExecutedByWorkflowRunId(workflow.getId());
-            steps.forEach(step -> step.setStatus(StepStatus.END));
-            stepsToUpdate.addAll(steps);
-          });
+          run.forEach(
+              workflow -> {
+                workflow.setStatus(WorkflowStatus.END);
+                List<Step> steps = stepService.findAllStepExecutedByWorkflowRunId(workflow.getId());
+                steps.forEach(step -> step.setStatus(StepStatus.END));
+                stepsToUpdate.addAll(steps);
+              });
           stepService.saveSteps(stepsToUpdate);
           workflowService.saveAll(run);
           List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
