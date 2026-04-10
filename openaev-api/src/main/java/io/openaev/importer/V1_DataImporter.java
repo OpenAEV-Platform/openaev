@@ -1094,12 +1094,14 @@ public class V1_DataImporter implements Importer {
                 } else {
                   log.info(
                       "Inject comes from a collector not set up in your environment, a new payload has been created.");
-                  injectorContract = Optional.of(importPayload(payloadNode, baseIds));
+                  injectorContract =
+                      Optional.of(importPayload(payloadNode, injectContractNode, baseIds));
                   injectorContractId = injectorContract.map(InjectorContract::getId).orElse(null);
                 }
                 // Create new payload
               } else {
-                injectorContract = Optional.of(importPayload(payloadNode, baseIds));
+                injectorContract =
+                    Optional.of(importPayload(payloadNode, injectContractNode, baseIds));
                 injectorContractId = injectorContract.map(InjectorContract::getId).orElse(null);
               }
             }
@@ -1444,7 +1446,9 @@ public class V1_DataImporter implements Importer {
   }
 
   private InjectorContract importPayload(
-      @NotNull final JsonNode payloadNode, Map<String, Base> baseIds) {
+      @NotNull final JsonNode payloadNode,
+      @NotNull final JsonNode injectContractNode,
+      Map<String, Base> baseIds) {
     // swap executable file id or file drop file id
     if (payloadNode.has("executable_file")) {
       ((ObjectNode) payloadNode)
@@ -1467,11 +1471,21 @@ public class V1_DataImporter implements Importer {
     List<String> attackPatternIds = importAttackPattern(payloadNode, "payload_", baseIds);
     payloadCreateInput.setAttackPatternsIds(attackPatternIds);
     payloadCreateInput.setDetectionRemediations(buildDetectionRemediationsJsonNode(payloadNode));
-    payloadCreateInput.setTagIds(
-        resolveJsonIds(payloadNode, "payload_tags").stream()
-            .map(baseIds::get)
-            .map(Base::getId)
-            .collect(Collectors.toList()));
+
+    // Merge payload-level tags with injector-contract-level tags
+    Set<String> tagIds = new LinkedHashSet<>();
+    resolveJsonIds(payloadNode, "payload_tags").stream()
+        .map(baseIds::get)
+        .filter(Objects::nonNull)
+        .map(Base::getId)
+        .forEach(tagIds::add);
+    resolveJsonIds(injectContractNode, "injector_contract_tags").stream()
+        .map(baseIds::get)
+        .filter(Objects::nonNull)
+        .map(Base::getId)
+        .forEach(tagIds::add);
+    payloadCreateInput.setTagIds(new ArrayList<>(tagIds));
+
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadCreationService.createPayload(payloadCreateInput);
     if (result.injectorContract() != null) {
