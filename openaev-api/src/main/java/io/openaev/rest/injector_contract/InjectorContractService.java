@@ -36,6 +36,7 @@ import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.form.*;
+import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
@@ -487,31 +488,37 @@ public class InjectorContractService implements DependenciesManager {
    * @param specification filtering/search specification for returned items
    * @param specificationCount specification used to compute total count
    * @param pageable pagination and sorting information
-   * @param input search input (defaults to FULL when null)
+   * @param mode to build output object
+   * @param idsToIgnore ids to exclude from research
+   * @param idsToProcess ids to include on research
    * @return page of contracts mapped to the selected output format
    */
   public PageImpl<? extends InjectorContractBaseOutput> getSinglePage(
       Specification<InjectorContract> specification,
       Specification<InjectorContract> specificationCount,
       Pageable pageable,
-      InjectorContractSearchPaginationInput input) {
-    InjectorContractSearchPaginationInput.OutputMode safeMode =
-        (input.getOutputMode() == null)
-            ? InjectorContractSearchPaginationInput.OutputMode.FULL
-            : input.getOutputMode();
+      OutputMode mode,
+      List<String> idsToIgnore,
+      List<String> idsToProcess) {
+    OutputMode safeMode = (mode == null) ? OutputMode.FULL : mode;
     OutputModeConfig config = CONFIGS.get(safeMode);
 
-    if (!CollectionUtils.isEmpty(input.getInjectorContractIdsToIgnore())) {
+    if (!CollectionUtils.isEmpty(idsToIgnore)) {
       specification =
           specification.and(
-              JpaUtils.computeNotIn(
-                  InjectorContract.ID_FIELD_NAME, input.getInjectorContractIdsToIgnore()));
+              (root, query, cb) ->
+                  cb.not(
+                      root.get(InjectorContract.COMPOSITE_ID_FIELD_NAME)
+                          .<String>get(InjectorContract.ID_FIELD_NAME)
+                          .in(idsToIgnore)));
     }
-    if (!CollectionUtils.isEmpty(input.getInjectorContractIdsToProcess())) {
+    if (!CollectionUtils.isEmpty(idsToProcess)) {
       specification =
           specification.and(
-              JpaUtils.computeIn(
-                  InjectorContract.ID_FIELD_NAME, input.getInjectorContractIdsToProcess()));
+              (root, query, cb) ->
+                  root.get(InjectorContract.COMPOSITE_ID_FIELD_NAME)
+                      .<String>get(InjectorContract.ID_FIELD_NAME)
+                      .in(idsToProcess));
     }
 
     QuerySetup qs = setupQuery(specification, specificationCount, pageable, config.selector());
@@ -662,6 +669,7 @@ public class InjectorContractService implements DependenciesManager {
         injectorContractRoot.get("externalId").alias("injector_contract_external_id"),
         injectorContractRoot.get("labels").alias("injector_contract_labels"),
         injectorContractRoot.get("platforms").alias("injector_contract_platforms"),
+        injectorContractRoot.get("content").alias("injector_contract_content"),
         ctx.payloadJoin().get("type").alias("payload_type"),
         ctx.payloadCollectorTypeJoin().get("name").alias("collector_type"),
         ctx.injectorJoin().get("type").alias("injector_contract_injector_type"),
@@ -824,17 +832,24 @@ public class InjectorContractService implements DependenciesManager {
     }
   }
 
-    /**
-     * Search for Injector Contracts, depending on pagination input and filter
-     *
-     * @param input to filter
-     * @return the injector contracts search results
-     */
-  public Page<? extends InjectorContractBaseOutput> searchInjectorContracts(InjectorContractSearchPaginationInput input) {
-      return buildPaginationCriteriaBuilder(
-              (spec, specCount, pageable) ->
-                      getSinglePage(spec, specCount, pageable, input),
-              handleArchitectureFilter(input),
-              InjectorContract.class);
+  /**
+   * Search for Injector Contracts, depending on pagination input and filter
+   *
+   * @param input to filter
+   * @return the injector contracts search results
+   */
+  public Page<? extends InjectorContractBaseOutput> searchInjectorContracts(
+      OutputMode mode, InjectorContractSearchPaginationInput input) {
+    return buildPaginationCriteriaBuilder(
+        (spec, specCount, pageable) ->
+            getSinglePage(
+                spec,
+                specCount,
+                pageable,
+                mode,
+                input.getInjectorContractIdsToIgnore(),
+                input.getInjectorContractIdsToProcess()),
+        handleArchitectureFilter(input),
+        InjectorContract.class);
   }
 }

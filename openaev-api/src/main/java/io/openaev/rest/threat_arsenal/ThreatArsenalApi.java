@@ -1,14 +1,12 @@
 package io.openaev.rest.threat_arsenal;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
-import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
-import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
-import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.rest.threat_arsenal.dto.ThreatArsenalAction;
@@ -69,13 +67,9 @@ public class ThreatArsenalApi {
   @PostMapping({THREAT_ARSENAL_URL + "/search", TENANT_THREAT_ARSENAL_URL + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   public Page<? extends InjectorContractBaseOutput> injectorContracts(
-      @RequestBody @Valid final SearchPaginationInput input) {
-    return buildPaginationCriteriaBuilder(
-        (spec, specCount, pageable) ->
-            this.injectorContractService.getSinglePage(
-                spec, specCount, pageable, InjectorContractService.OutputMode.THREAT_ARSENAL),
-        handleArchitectureFilter(threatArsenalService.translateSearchInput(input)),
-        InjectorContract.class);
+      @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
+    return this.injectorContractService.searchInjectorContracts(
+        InjectorContractService.OutputMode.THREAT_ARSENAL, input);
   }
 
   @PostMapping({THREAT_ARSENAL_URL, TENANT_THREAT_ARSENAL_URL})

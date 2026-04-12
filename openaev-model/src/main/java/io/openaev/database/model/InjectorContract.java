@@ -44,10 +44,10 @@ import org.hibernate.annotations.UpdateTimestamp;
 public class InjectorContract implements TenantBase, CompositeIdResolvableI {
 
   public static final String ID_FIELD_NAME = "id";
+  public static final String COMPOSITE_ID_FIELD_NAME = "compositeId";
 
   @EmbeddedId @JsonIgnore private InjectorContractId compositeId = new InjectorContractId();
 
-  @Id
   @Column(name = "injector_contract_id")
   @JsonProperty("injector_contract_id")
   @NotBlank

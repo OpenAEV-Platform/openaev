@@ -17,7 +17,6 @@ import {
   SmartButtonOutlined,
   TerminalOutlined,
   Widgets,
-  LayersOutlined,
 } from '@mui/icons-material';
 import {
   Binoculars,

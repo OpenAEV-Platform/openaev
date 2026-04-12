@@ -8,7 +8,6 @@ import TagField from '../../../../../components/fields/TagField.tsx';
 import { useFormatter } from '../../../../../components/i18n';
 import OldAttackPatternField from '../../../../../components/OldAttackPatternField';
 import { useHelper } from '../../../../../store';
-import TagField from '../../../../../components/fields/TagField.tsx';
 
 const InjectorContractForm = (props) => {
   const { onSubmit, initialValues, editing, handleClose } = props;

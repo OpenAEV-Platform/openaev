@@ -4366,9 +4366,9 @@ export interface InjectorContractInput {
 export interface InjectorContractSearchPaginationInput {
   /** Filter object to search within filterable attributes */
   filterGroup?: FilterGroup;
+  include_full_details?: boolean;
   injector_contract_ids_to_ignore?: string[];
   injector_contract_ids_to_process?: string[];
-  include_full_details?: boolean;
   /**
    * Page number to get
    * @format int32

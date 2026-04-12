@@ -1,4 +1,4 @@
-import { ForwardToInbox, HelpOutlineOutlined, MovieFilterOutlined } from '@mui/icons-material';
+import { HelpOutlineOutlined, MovieFilterOutlined } from '@mui/icons-material';
 import {
   Checkbox, IconButton,
   List,
@@ -44,9 +44,7 @@ import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
 import CreateThreatArsenalAction from './CreateThreatArsenalAction';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import ThreatArsenalInformationDrawer from './ThreatArsenalInformationDrawer';
-import ToolBar from "../common/ToolBar";
-import useEntityToggle from "../../../utils/hooks/useEntityToggle";
-import ThreatArsenalRunTestDrawer from "./ThreatArsenalRunTestDrawer";
+import ThreatArsenalRunTestDrawer from './ThreatArsenalRunTestDrawer';
 
 const useStyles = makeStyles()(theme => ({
   itemHead: { textTransform: 'uppercase' },
@@ -75,8 +73,8 @@ const ThreatArsenal = () => {
 
   const [selectedThreatArsenalAction, setSelectedThreatArsenalAction] = useState<ThreatArsenalAction | null>(null);
   const [isRunTestDrawerOpened, setRunTestDrawerOpened] = useState<boolean>(false);
-
   const [threatArsenalActions, setThreatArsenalActions] = useState<ThreatArsenalAction[]>([]);
+
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(
     'threat-arsenal',
     buildSearchPagination({}),
@@ -98,7 +96,7 @@ const ThreatArsenal = () => {
     handleToggleSelectAll,
     onToggleEntity,
     numberOfSelectedElements,
-  } = useEntityToggle<InjectorContractActionOutput>('injector_contract', injectorContracts, queryableHelpers.paginationHelpers.getTotalElements());
+  } = useEntityToggle<ThreatArsenalAction>('injector_contract', threatArsenalActions, queryableHelpers.paginationHelpers.getTotalElements());
 
   const headers: Header[] = useMemo(() => [
     {
@@ -240,7 +238,7 @@ const ThreatArsenal = () => {
         </ListItem>
         {loading
           ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
-          : injectorContracts.map((contract, index) => {
+          : threatArsenalActions.map((action) => {
               return (
                 (
                   <ListItem
@@ -290,14 +288,14 @@ const ThreatArsenal = () => {
                     >
                       <ListItemIcon
                         style={{ minWidth: 40 }}
-                        onClick={event => onToggleEntity(contract, event)}
+                        onClick={event => onToggleEntity(action, event)}
                       >
                         <Checkbox
                           edge="start"
                           checked={
-                            (selectAll && !(contract.injector_contract_id
+                            (selectAll && !(action.injector_contract_id
                               in (deSelectedElements || {})))
-                            || contract.injector_contract_id in (selectedElements || {})
+                              || action.injector_contract_id in (selectedElements || {})
                           }
                           disableRipple
                         />
@@ -370,7 +368,7 @@ const ThreatArsenal = () => {
             selectAll={selectAll}
             handleClearSelectedElements={handleClearSelectedElements}
             teamsFromExerciseOrScenario={[]}
-            customAction={
+            customAction={(
               <Tooltip title={t('Run a test')}>
                 <span>
                   <IconButton
@@ -383,7 +381,7 @@ const ThreatArsenal = () => {
                   </IconButton>
                 </span>
               </Tooltip>
-            }
+            )}
           />
         )
       }

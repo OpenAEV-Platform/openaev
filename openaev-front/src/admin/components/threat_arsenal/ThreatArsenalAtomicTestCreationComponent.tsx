@@ -9,9 +9,8 @@ import { useFormatter } from '../../../components/i18n';
 import {
   type InjectInput,
   type InjectorContract,
-  type InjectorContractActionOutput,
   type InjectorContractFullOutput,
-  type InjectorContractSearchPaginationInput,
+  type InjectorContractSearchPaginationInput, type ThreatArsenalAction,
 } from '../../../utils/api-types';
 import type { InjectorContractConverted } from '../../../utils/api-types-custom';
 import { EndpointContext } from '../../../utils/context/endpoint/EndpointContext';
@@ -25,8 +24,8 @@ import InjectIcon from '../common/injects/InjectIcon';
 
 interface Props {
   isExclusionMode: boolean;
-  selectedElements: Record<string, InjectorContractActionOutput>;
-  deSelectedElements: Record<string, InjectorContractActionOutput>;
+  selectedElements: Record<string, ThreatArsenalAction>;
+  deSelectedElements: Record<string, ThreatArsenalAction>;
   searchPaginationInput: InjectorContractSearchPaginationInput;
   handleClose: () => void;
 }
@@ -47,6 +46,7 @@ const ThreatArsenalAtomicTestCreationComponent = ({ isExclusionMode, selectedEle
   useEffect(() => {
     searchInjectorContracts({
       ...searchPaginationInput,
+      include_full_details: true,
       injector_contract_ids_to_process: isExclusionMode ? [] : Object.keys(selectedElements),
       injector_contract_ids_to_ignore: isExclusionMode ? Object.keys(deSelectedElements) : [],
     }).then((response: AxiosResponse<{ content: InjectorContractFullOutputWithContractContent[] }>) => {
@@ -55,7 +55,7 @@ const ThreatArsenalAtomicTestCreationComponent = ({ isExclusionMode, selectedEle
         selectedContract.injector_contract_content = typeof selectedContract.injector_contract_content === 'string'
           ? JSON.parse(selectedContract.injector_contract_content)
           : selectedContract.injector_contract_content;
-        setSelectedContract(response?.data?.content[0]);
+        setSelectedContract(selectedContract);
       }
     });
   }, []);
