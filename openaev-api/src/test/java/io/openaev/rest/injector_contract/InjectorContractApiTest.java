@@ -417,6 +417,7 @@ public class InjectorContractApiTest extends IntegrationTest {
                 .getContentAsString();
 
         assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
             .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
             .isEqualTo(
                 String.format(
@@ -545,7 +546,6 @@ public class InjectorContractApiTest extends IntegrationTest {
                         ",",
                         attackPatternComposer.generatedItems.stream()
                             .map(ap -> String.format("\"" + ap.getId() + "\""))
-                            .sorted()
                             .toList())));
       }
 
@@ -586,6 +586,7 @@ public class InjectorContractApiTest extends IntegrationTest {
                 .getContentAsString();
 
         assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
             .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
             .isEqualTo(
                 String.format(
@@ -651,8 +652,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                 .getContentAsString();
 
         assertThatJson(response)
-            .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
             .when(Option.IGNORING_ARRAY_ORDER)
+            .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
             .isEqualTo(
                 String.format(
                     """
