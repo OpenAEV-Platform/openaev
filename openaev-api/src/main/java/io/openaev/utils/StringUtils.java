@@ -54,9 +54,6 @@ public class StringUtils {
    * @return {@code true} if the regex compiles successfully, {@code false} otherwise
    */
   public static boolean isValidRegex(String regex) {
-    if (regex.length() > 100) {
-      throw new IllegalArgumentException("Regex too long");
-    }
     try {
       Pattern.compile(regex);
       return true;
