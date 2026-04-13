@@ -9,12 +9,6 @@ import TENANT_MIGRATION_TODO from './tenant-api-migration';
 export const TENANT_URI = '/api/tenants';
 
 /**
- * Local-storage key used to persist the selected tenant.
- * Shared between tenant-url-helper and useTenant hook.
- */
-export const TENANT_STORAGE_KEY = 'current-tenant-storage';
-
-/**
  * Default tenant UUID used as fallback when no tenant has been selected yet.
  * Must match Tenant.DEFAULT_TENANT_UUID on the backend.
  */
@@ -92,26 +86,16 @@ export const buildTenantUrl = (
 };
 
 // ---------------------------------------------------------------------------
-// Tenant ID resolution — reading tenant from local storage
+// Tenant ID resolution — URL only (no localStorage)
 // ---------------------------------------------------------------------------
 
 /**
- * Reads the current tenant ID from local storage.
- * Falls back to DEFAULT_TENANT_UUID when nothing is stored.
+ * Returns the current tenant ID from the URL pathname.
+ * Falls back to DEFAULT_TENANT_UUID when the URL has no tenant segment
+ * (e.g. public routes, early bootstrap before redirect).
  */
 export const getCurrentTenantId = (): string => {
-  try {
-    const tenantRaw = localStorage.getItem(TENANT_STORAGE_KEY);
-    if (tenantRaw) {
-      const tenant = JSON.parse(tenantRaw);
-      if (tenant?.tenant_id) {
-        return tenant.tenant_id;
-      }
-    }
-  } catch {
-    // malformed JSON — fall back
-  }
-  return DEFAULT_TENANT_UUID;
+  return extractTenantFromUrl() ?? DEFAULT_TENANT_UUID;
 };
 
 // ---------------------------------------------------------------------------

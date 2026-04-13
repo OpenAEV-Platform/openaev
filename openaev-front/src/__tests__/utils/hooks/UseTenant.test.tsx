@@ -3,11 +3,10 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TENANT_SWITCH_SUCCESS } from '../../../constants/ActionTypes';
 import { type TenantOutput, type User } from '../../../utils/api-types';
-import { TENANT_STORAGE_KEY } from '../../../utils/tenant-url-helper';
 
 // -- MOCKS --
 
@@ -100,7 +99,7 @@ const mockTenantsResponse = (tenants: TenantOutput[]) => {
 describe('useTenant', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    localStorage.clear();
+    mockExtractTenantFromUrl.mockReturnValue(null);
     // Reset window.location.href tracking
     Object.defineProperty(window, 'location', {
       writable: true,
@@ -109,10 +108,6 @@ describe('useTenant', () => {
         href: '',
       },
     });
-  });
-
-  afterEach(() => {
-    localStorage.clear();
   });
 
   // We must lazily import to ensure mocks are applied before module init
@@ -189,83 +184,11 @@ describe('useTenant', () => {
     });
   });
 
-  // -- LOCAL STORAGE PERSISTENCE --
+  // -- URL-BASED TENANT RESOLUTION (multi-tab safe) --
 
-  describe('Local storage persistence', () => {
-    it('given_validTenantInStorage_should_selectStoredTenant', async () => {
-      // Arrange
-      localStorage.setItem(TENANT_STORAGE_KEY, JSON.stringify(TENANT_BETA));
-      mockTenantsResponse([TENANT_ALPHA, TENANT_BETA, TENANT_GAMMA]);
-      const useTenant = await importUseTenant();
-
-      // Act
-      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
-
-      // Assert
-      await waitFor(() => {
-        expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_BETA.tenant_id);
-      });
-    });
-
-    it('given_invalidTenantInStorage_should_fallbackToFirstTenant', async () => {
-      // Arrange
-      const stale: TenantOutput = {
-        tenant_id: 'stale-tenant-id',
-        tenant_name: 'Stale',
-      };
-      localStorage.setItem(TENANT_STORAGE_KEY, JSON.stringify(stale));
-      mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
-      const useTenant = await importUseTenant();
-
-      // Act
-      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
-
-      // Assert
-      await waitFor(() => {
-        expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
-      });
-    });
-
-    it('given_selectedTenant_should_persistToLocalStorage', async () => {
-      // Arrange
-      mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
-      const useTenant = await importUseTenant();
-
-      // Act
-      renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
-
-      // Assert
-      await waitFor(() => {
-        const stored = localStorage.getItem(TENANT_STORAGE_KEY);
-        expect(stored).not.toBeNull();
-        const parsed = JSON.parse(stored!);
-        expect(parsed.tenant_id).toBe(TENANT_ALPHA.tenant_id);
-      });
-    });
-
-    it('given_emptyTenants_should_clearLocalStorage', async () => {
-      // Arrange
-      localStorage.setItem(TENANT_STORAGE_KEY, JSON.stringify(TENANT_ALPHA));
-      mockTenantsResponse([]);
-      const useTenant = await importUseTenant();
-
-      // Act
-      renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
-
-      // Assert
-      await waitFor(() => {
-        const stored = localStorage.getItem(TENANT_STORAGE_KEY);
-        expect(stored === null || stored === 'null').toBe(true);
-      });
-    });
-  });
-
-  // -- DISPATCH TENANT_SWITCH_SUCCESS --
-
-  describe('URL-based tenant resolution (cross-tab)', () => {
-    it('given_urlTenantDiffersFromStorage_should_selectUrlTenant', async () => {
-      // Arrange — simulate: Tab 2 switched to BETA (localStorage), but Tab 1 URL has ALPHA
-      localStorage.setItem(TENANT_STORAGE_KEY, JSON.stringify(TENANT_BETA));
+  describe('URL-based tenant resolution', () => {
+    it('given_tenantInUrl_should_selectUrlTenant', async () => {
+      // Arrange — URL has ALPHA tenant
       mockExtractTenantFromUrl.mockReturnValue(TENANT_ALPHA.tenant_id);
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA, TENANT_GAMMA]);
       const useTenant = await importUseTenant();
@@ -273,15 +196,29 @@ describe('useTenant', () => {
       // Act
       const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
-      // Assert — URL tenant (ALPHA) must win over localStorage (BETA)
+      // Assert — should select URL tenant (ALPHA)
       await waitFor(() => {
         expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
       });
     });
 
-    it('given_noTenantInUrl_should_fallbackToStorage', async () => {
-      // Arrange — no tenant UUID in URL, valid tenant in localStorage
-      localStorage.setItem(TENANT_STORAGE_KEY, JSON.stringify(TENANT_BETA));
+    it('given_differentTenantInUrl_should_selectUrlTenant', async () => {
+      // Arrange — URL has BETA tenant
+      mockExtractTenantFromUrl.mockReturnValue(TENANT_BETA.tenant_id);
+      mockTenantsResponse([TENANT_ALPHA, TENANT_BETA, TENANT_GAMMA]);
+      const useTenant = await importUseTenant();
+
+      // Act
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
+
+      // Assert — should select URL tenant (BETA)
+      await waitFor(() => {
+        expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_BETA.tenant_id);
+      });
+    });
+
+    it('given_noTenantInUrl_should_fallbackToFirstTenant', async () => {
+      // Arrange — no tenant UUID in URL (e.g. post-login at "/")
       mockExtractTenantFromUrl.mockReturnValue(null);
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
       const useTenant = await importUseTenant();
@@ -289,15 +226,14 @@ describe('useTenant', () => {
       // Act
       const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
-      // Assert — should fall back to localStorage (BETA)
+      // Assert — should fall back to first tenant (ALPHA)
       await waitFor(() => {
-        expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_BETA.tenant_id);
+        expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
       });
     });
 
-    it('given_urlTenantNotInList_should_fallbackToStorage', async () => {
+    it('given_urlTenantNotInList_should_fallbackToFirstTenant', async () => {
       // Arrange — URL has a tenant UUID that is not in the user's tenant list
-      localStorage.setItem(TENANT_STORAGE_KEY, JSON.stringify(TENANT_ALPHA));
       mockExtractTenantFromUrl.mockReturnValue('unknown-tenant-id');
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
       const useTenant = await importUseTenant();
@@ -305,12 +241,14 @@ describe('useTenant', () => {
       // Act
       const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
-      // Assert — should fall back to localStorage (ALPHA)
+      // Assert — should fall back to first tenant (ALPHA)
       await waitFor(() => {
         expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
       });
     });
   });
+
+  // -- DISPATCH TENANT_SWITCH_SUCCESS --
 
   describe('Dispatch TENANT_SWITCH_SUCCESS', () => {
     it('given_tenantLoad_should_dispatchTenantSwitchSuccess', async () => {
@@ -455,16 +393,15 @@ describe('useTenant', () => {
       });
     });
 
-    it('given_reloadWithNonexistentPreferredId_should_keepStoredTenant', async () => {
+    it('given_reloadWithNonexistentPreferredId_should_fallbackToFirstTenant', async () => {
       // Arrange
-      localStorage.setItem(TENANT_STORAGE_KEY, JSON.stringify(TENANT_BETA));
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
       const useTenant = await importUseTenant();
 
       const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       await waitFor(() => {
-        expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_BETA.tenant_id);
+        expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
       });
 
       // Arrange — reload with a nonexistent preferred tenant
@@ -475,10 +412,10 @@ describe('useTenant', () => {
         await result.current.reloadUserTenants('nonexistent-id');
       });
 
-      // Assert
+      // Assert — should fall back to first tenant since preferred doesn't exist
+      // and URL has no tenant (mockExtractTenantFromUrl returns null)
       await waitFor(() => {
-        // Should fall back to the stored tenant (TENANT_BETA) since preferred doesn't exist
-        expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_BETA.tenant_id);
+        expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
       });
     });
   });

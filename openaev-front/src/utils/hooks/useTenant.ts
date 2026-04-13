@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation } from 'react-router';
-import { useLocalStorage } from 'usehooks-ts';
 
 import { fetchUserTenants } from '../../actions/user/user-tenant-actions';
 import { TENANT_SWITCH_SUCCESS } from '../../constants/ActionTypes';
 import { type TenantOutput, type User } from '../api-types';
 import { useAppDispatch } from '../hooks';
-import { buildTenantUrl, extractTenantFromUrl, TENANT_STORAGE_KEY } from '../tenant-url-helper';
+import { buildTenantUrl, extractTenantFromUrl } from '../tenant-url-helper';
 
 /**
  * Internal hook that encapsulates the current-tenant state and
@@ -37,12 +36,14 @@ const useTenantState = () => {
 /**
  * Hook that manages the full tenant lifecycle:
  * - Fetches the tenants accessible to the current user
- * - Persists the selected tenant in local storage
- * - Provides a switch function to change the active tenant
+ * - Resolves the current tenant from the URL (per-tab, multi-tab safe)
+ * - Provides a switch function that navigates to the new tenant URL
+ *
+ * After login (when the URL has no tenant segment yet), the hook
+ * falls back to the first tenant in the user's tenant list.
  */
 const useTenant = (me: User | undefined, logged: unknown) => {
   const [userTenants, setUserTenants] = useState<TenantOutput[]>([]);
-  const [currentTenantStorage, setCurrentTenantStorage] = useLocalStorage<TenantOutput | null>(TENANT_STORAGE_KEY, null);
   const { currentUserTenant, setTenant } = useTenantState();
   const location = useLocation();
 
@@ -60,32 +61,25 @@ const useTenant = (me: User | undefined, logged: unknown) => {
         : undefined;
       if (newCurrentTenant) {
         setTenant(newCurrentTenant);
-        setCurrentTenantStorage(newCurrentTenant);
       } else {
-        // Otherwise, if local storage tenant is still valid use it, otherwise switch to first tenant in list
-        const currentTenant = tenants.find(tenant => (tenant.tenant_id === currentTenantStorage?.tenant_id));
-        if (currentTenant) {
-          setTenant(currentTenant);
-          setCurrentTenantStorage(currentTenant);
-        } else {
-          setTenant(tenants[0]);
-          setCurrentTenantStorage(tenants[0]);
-        }
+        // Resolve tenant from URL (per-tab, multi-tab safe).
+        // Falls back to the first tenant in the list (post-login / public pages).
+        const urlTenantId = extractTenantFromUrl();
+        const currentTenant = urlTenantId
+          ? tenants.find(tenant => tenant.tenant_id === urlTenantId)
+          : undefined;
+        setTenant(currentTenant ?? tenants[0]);
       }
     } else {
       setUserTenants([]);
       setTenant(null);
-      setCurrentTenantStorage(null);
     }
   }, [me]);
 
   useEffect(() => {
     if (me && logged) {
-      // On page load / hard refresh the URL is the source of truth for
-      // which tenant the user is working in.  localStorage is shared
-      // across tabs, so another tab's tenant switch can leave a stale
-      // value there.  By reading the tenant UUID from the URL we make
-      // sure TenantSwitcher displays the tenant that matches the URL.
+      // On page load / hard refresh the URL is the source of truth.
+      // Pass the URL tenant ID so loadUserTenants selects the right one.
       const urlTenantId = extractTenantFromUrl() ?? undefined;
       loadUserTenants(urlTenantId);
     }
@@ -103,10 +97,9 @@ const useTenant = (me: User | undefined, logged: unknown) => {
     const current = userTenants.find(t => (t.tenant_id === tenantId));
     if (current) {
       setTenant(current);
-      setCurrentTenantStorage(current);
       window.location.href = buildTenantUrl(tenantId, location.pathname, location.search, location.hash);
     }
-  }, [currentUserTenant, userTenants, setCurrentTenantStorage, setTenant, location]);
+  }, [currentUserTenant, userTenants, setTenant, location]);
 
   return {
     userTenants,
