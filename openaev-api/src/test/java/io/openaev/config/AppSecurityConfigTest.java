@@ -1,6 +1,7 @@
 package io.openaev.config;
 
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -93,7 +94,8 @@ public class AppSecurityConfigTest extends IntegrationTest {
                 .cookie(authCookie, csrfCookie)
                 .header(CSRF_HEADER_NAME, "test-csrf-token")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(SEARCH_BODY))
+                .content(SEARCH_BODY)
+                .with(csrf()))
         .andExpect(status().isOk());
   }
 
@@ -128,7 +130,8 @@ public class AppSecurityConfigTest extends IntegrationTest {
                 .cookie(jsessionCookie, csrfCookie)
                 .header(CSRF_HEADER_NAME, "test-csrf-token")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(SEARCH_BODY))
+                .content(SEARCH_BODY)
+                .with(csrf()))
         .andExpect(status().isUnauthorized());
   }
 
@@ -145,7 +148,8 @@ public class AppSecurityConfigTest extends IntegrationTest {
                 .cookie(csrfCookie)
                 .header(CSRF_HEADER_NAME, "test-csrf-token")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(SEARCH_BODY))
+                .content(SEARCH_BODY)
+                .with(csrf()))
         .andExpect(status().isOk());
 
     String sessionId = Objects.requireNonNull(session.getId());
@@ -159,7 +163,8 @@ public class AppSecurityConfigTest extends IntegrationTest {
                 .cookie(new Cookie(CSRF_COOKIE_NAME, "test-csrf-token"))
                 .header(CSRF_HEADER_NAME, "test-csrf-token")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(SEARCH_BODY))
+                .content(SEARCH_BODY)
+                .with(csrf()))
         .andExpect(status().isOk());
   }
 }
