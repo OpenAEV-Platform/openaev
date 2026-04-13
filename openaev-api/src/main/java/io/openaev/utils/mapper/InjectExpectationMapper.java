@@ -122,6 +122,12 @@ public class InjectExpectationMapper {
             injects.stream()
                 .map(
                     inject -> {
+                      // Use primary expectations, fall back to all expectations when primary is
+                      // empty (e.g. only agent-level expectations exist) to compute real scores
+                      List<InjectExpectation> primary = injectUtils.getPrimaryExpectations(inject);
+                      List<InjectExpectation> expectations =
+                          primary.isEmpty() ? new ArrayList<>(inject.getExpectations()) : primary;
+
                       InjectExpectationResultsByAttackPattern.InjectExpectationResultsByType
                           result =
                               new InjectExpectationResultsByAttackPattern
@@ -131,7 +137,7 @@ public class InjectExpectationMapper {
                       result.setResults(
                           extractExpectationResults(
                               inject.getContent(),
-                              injectUtils.getPrimaryExpectations(inject),
+                              expectations,
                               InjectExpectationResultUtils::getScores));
                       return result;
                     })

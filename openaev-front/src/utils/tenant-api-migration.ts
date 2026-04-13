@@ -7,7 +7,6 @@
  *
  * PR4 — Teams & Players
  * PR7 — Findings, Expectations & Lessons
- * PR8 — Integrations (Injectors, Collectors, Executors, Connectors)
  * PR9 — Reference data & Misc
  */
 const TENANT_MIGRATION_TODO: string[] = [
@@ -21,10 +20,6 @@ const TENANT_MIGRATION_TODO: string[] = [
   '/api/notification-rules',
   '/api/vulnerabilities',
   '/api/lessons_templates',
-  // PR8 — Integrations
-  '/api/collectors',
-  '/api/connector-instances',
-  '/api/catalog-connector',
   // PR9 — Reference data & Misc
   '/api/attack_patterns',
   '/api/kill_chain_phases',
