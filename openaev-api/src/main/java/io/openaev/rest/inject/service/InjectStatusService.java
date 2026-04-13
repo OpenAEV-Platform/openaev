@@ -1,9 +1,5 @@
 package io.openaev.rest.inject.service;
 
-import static io.openaev.utils.ExecutionTraceUtils.convertExecutionAction;
-import static io.openaev.utils.ExecutionTraceUtils.convertExecutionStatus;
-import static org.springframework.util.StringUtils.hasText;
-
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.aop.lock.Lock;
@@ -23,12 +19,17 @@ import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
-import java.time.Instant;
-import java.util.Collections;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+
+import java.time.Instant;
+import java.util.Collections;
+import java.util.List;
+
+import static io.openaev.utils.ExecutionTraceUtils.convertExecutionAction;
+import static io.openaev.utils.ExecutionTraceUtils.convertExecutionStatus;
+import static org.springframework.util.StringUtils.hasText;
 
 @RequiredArgsConstructor
 @Service
@@ -193,6 +194,7 @@ public class InjectStatusService {
     }
   }
 
+  @Lock(type = LockResourceType.INJECT, key = "#injectId")
   public void updateInjectStatus(
       Inject inject, Agent agent, InjectExecutionInput input, ObjectNode structuredOutput) {
     InjectStatus injectStatus = inject.getStatus().orElseThrow(ElementNotFoundException::new);
