@@ -231,7 +231,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
               post(CONNECTOR_INSTANCE_URI)
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().is4xxClientError())
           .andExpect(
               result -> {
@@ -295,7 +296,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
               post(CONNECTOR_INSTANCE_URI)
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       List<ConnectorInstancePersisted> instanceDb =
@@ -364,7 +366,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
               post(CONNECTOR_INSTANCE_URI)
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().is4xxClientError())
           .andExpect(
               result -> {

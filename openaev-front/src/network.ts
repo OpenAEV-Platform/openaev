@@ -14,7 +14,7 @@ interface ApiErrorResponse {
 let csrfBootstrapPromise: Promise<void> | null = null;
 
 const hasCsrfCookie = (): boolean =>
-  document.cookie.split('; ').some((row) => row.startsWith('XSRF-TOKEN='));
+  document.cookie.split('; ').some(row => row.startsWith('XSRF-TOKEN='));
 
 const ensureCsrfCookie = async (instance: AxiosInstance): Promise<void> => {
   if (hasCsrfCookie()) return;
