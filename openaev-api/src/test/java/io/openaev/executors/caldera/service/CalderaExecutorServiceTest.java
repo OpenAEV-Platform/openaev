@@ -184,13 +184,7 @@ public class CalderaExecutorServiceTest {
       injector.setId("injectorId");
       InjectorContract contract =
           InjectorContractFixture.createPayloadInjectorContract(
-              injector,
-              PayloadFixture.createCommand(
-                  "cmd",
-                  "whoami",
-                  List.of(),
-                  "whoami",
-                  Set.of(io.openaev.rest.domain.enums.PresetDomain.getToClassify())));
+              injector, PayloadFixture.createCommand("cmd", "whoami", List.of(), "whoami"));
       Inject inject =
           InjectFixture.createTechnicalInject(
               contract, "Legacy Inject", EndpointFixture.createEndpoint());

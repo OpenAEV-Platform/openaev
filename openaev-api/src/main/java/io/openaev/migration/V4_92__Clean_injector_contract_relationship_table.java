@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_90__Clean_injector_contract_relationship_table extends BaseJavaMigration {
+public class V4_92__Clean_injector_contract_relationship_table extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

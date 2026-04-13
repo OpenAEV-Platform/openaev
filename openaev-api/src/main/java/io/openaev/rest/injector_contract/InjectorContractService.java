@@ -526,16 +526,16 @@ public class InjectorContractService implements DependenciesManager {
         createJoinArrayAggOnId(cb, injectorContractRoot, "attackPatterns");
 
     Expression<String[]> injectorIdsExpression =
-            arrayAggOnId((HibernateCriteriaBuilder) cb, injectorContractInjectorJoin);
+        arrayAggOnId((HibernateCriteriaBuilder) cb, injectorContractInjectorJoin);
 
     HibernateCriteriaBuilder hcb = (HibernateCriteriaBuilder) cb;
     Expression<String> injectorNameNull = hcb.nullLiteral(String.class);
 
     Expression<String[]> injectorNamesRaw =
-            hcb.arrayAgg(null, injectorContractInjectorJoin.get("name"));
+        hcb.arrayAgg(null, injectorContractInjectorJoin.get("name"));
 
     Expression<String[]> injectorNamesExpression =
-            hcb.<String>arrayRemove(injectorNamesRaw, (Expression<String>) injectorNameNull);
+        hcb.<String>arrayRemove(injectorNamesRaw, (Expression<String>) injectorNameNull);
 
     return new InjectorContractQueryContext(
         payloadJoin,
@@ -556,33 +556,29 @@ public class InjectorContractService implements DependenciesManager {
 
     // SELECT
     cq.multiselect(
-                    injectorContractRoot.get("compositeId").get("id").alias("injector_contract_id"),
-            injectorContractRoot.get("externalId").alias("injector_contract_external_id"),
-            injectorContractRoot.get("labels").alias("injector_contract_labels"),
-            injectorContractRoot.get("content").alias("injector_contract_content"),
-            injectorContractRoot.get("platforms").alias("injector_contract_platforms"),
-            ctx.payloadJoin().get("type").alias("payload_type"),
-            ctx.payloadCollectorTypeJoin().get("name").alias("collector_type"),
-            cb.least(ctx.injectorJoin().<String>get("type"))
-                    .alias("injector_contract_injector_type"),
-            ctx.attackPatternIdsExpression().alias("injector_contract_attack_patterns"),
-            ctx.injectorContractDomainsIdsExpression().alias("injector_contract_domains"),
-            injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"),
-            ctx.payloadJoin().get("executionArch").alias("payload_execution_arch"),
-            ctx.injectorIdsExpression().alias("injector_contract_injector_ids"),
-            ctx.injectorNamesExpression().alias("injector_contract_injector_names"));
+        injectorContractRoot.get("compositeId").get("id").alias("injector_contract_id"),
+        injectorContractRoot.get("externalId").alias("injector_contract_external_id"),
+        injectorContractRoot.get("labels").alias("injector_contract_labels"),
+        injectorContractRoot.get("content").alias("injector_contract_content"),
+        injectorContractRoot.get("platforms").alias("injector_contract_platforms"),
+        ctx.payloadJoin().get("type").alias("payload_type"),
+        ctx.payloadCollectorTypeJoin().get("name").alias("collector_type"),
+        cb.least(ctx.injectorJoin().<String>get("type")).alias("injector_contract_injector_type"),
+        ctx.attackPatternIdsExpression().alias("injector_contract_attack_patterns"),
+        ctx.injectorContractDomainsIdsExpression().alias("injector_contract_domains"),
+        injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"),
+        ctx.payloadJoin().get("executionArch").alias("payload_execution_arch"),
+        ctx.injectorIdsExpression().alias("injector_contract_injector_ids"),
+        ctx.injectorNamesExpression().alias("injector_contract_injector_names"));
 
     // GROUP BY
     cq.groupBy(getCommonGroupBy(injectorContractRoot, ctx));
   }
 
   private InjectorContractFullOutput mapFull(Tuple tuple) {
-    String[] injectorIdsArray =
-            tuple.get("injector_contract_injector_ids", String[].class);
-    String[] injectorNamesArray =
-            tuple.get("injector_contract_injector_names", String[].class);
-    Map<String, String> injectorNames =
-            buildInjectorNamesMap(injectorIdsArray, injectorNamesArray);
+    String[] injectorIdsArray = tuple.get("injector_contract_injector_ids", String[].class);
+    String[] injectorNamesArray = tuple.get("injector_contract_injector_names", String[].class);
+    Map<String, String> injectorNames = buildInjectorNamesMap(injectorIdsArray, injectorNamesArray);
     return new InjectorContractFullOutput(
         tuple.get("injector_contract_id", String.class),
         tuple.get("injector_contract_external_id", String.class),

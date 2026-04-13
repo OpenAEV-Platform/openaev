@@ -247,12 +247,7 @@ public class ExecutionExecutorServiceTest {
       agent.setLastSeen(Instant.now());
       endpoint.setAgents(List.of(agent));
 
-      Command payloadCommand =
-          PayloadFixture.createCommand(
-              "cmd",
-              "whoami",
-              List.of(),
-              "whoami");
+      Command payloadCommand = PayloadFixture.createCommand("cmd", "whoami", List.of(), "whoami");
       Injector injector = InjectorFixture.createDefaultPayloadInjector();
       Map<String, String> executorCommands = new HashMap<>();
       executorCommands.put(
@@ -387,12 +382,7 @@ public class ExecutionExecutorServiceTest {
       agent2.setAsset(endpoint2);
       agent2.setLastSeen(Instant.now());
 
-      Command payloadCommand =
-          PayloadFixture.createCommand(
-              "cmd",
-              "whoami",
-              List.of(),
-              "whoami");
+      Command payloadCommand = PayloadFixture.createCommand("cmd", "whoami", List.of(), "whoami");
       Injector injector = InjectorFixture.createDefaultPayloadInjector();
       Inject inject =
           InjectFixture.createTechnicalInject(

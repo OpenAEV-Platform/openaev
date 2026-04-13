@@ -146,13 +146,7 @@ public class CrowdstrikeExecutorServiceTest {
     doNothing().when(enterpriseEditionService).throwEEExecutorService(any(), any(), any());
     when(config.getApiBatchExecutionActionPagination()).thenReturn(1);
     when(config.getWindowsScriptName()).thenReturn("MyScript");
-    Command payloadCommand =
-        PayloadFixture.createCommand(
-            "cmd",
-            "whoami",
-            List.of(),
-            "whoami",
-            new HashSet<>(Set.of(PresetDomain.getToClassify())));
+    Command payloadCommand = PayloadFixture.createCommand("cmd", "whoami", List.of(), "whoami");
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Map<String, String> executorCommands = new HashMap<>();
     executorCommands.put(
