@@ -27,6 +27,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.Setter;
@@ -310,16 +311,21 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
         : Collections.emptyList();
   }
 
+  /** Returns a map of injector ID → injector name for all linked injectors. */
+  @JsonProperty("injector_contract_injector_names")
+  private Map<String, String> getInjectorNames() {
+    return injectors != null
+        ? injectors.stream()
+            .collect(
+                Collectors.toMap(
+                    Injector::getId, Injector::getName, (a, b) -> a, LinkedHashMap::new))
+        : Collections.emptyMap();
+  }
+
   @JsonProperty("injector_contract_injector_type")
   public String getInjectorType() {
     Injector first = getFirstInjector();
     return first != null ? first.getType() : null;
-  }
-
-  @JsonProperty("injector_contract_injector_type_name")
-  public String getInjectorName() {
-    Injector first = getFirstInjector();
-    return first != null ? first.getName() : null;
   }
 
   @JsonIgnore

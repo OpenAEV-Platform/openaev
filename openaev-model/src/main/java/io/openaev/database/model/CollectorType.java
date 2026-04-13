@@ -39,7 +39,7 @@ public class CollectorType implements TenantBase {
   @NotBlank
   private String id;
 
-  @Column(name = "collector_type_name", unique = true, nullable = false)
+  @Column(name = "collector_type_name", nullable = false)
   @JsonProperty("collector_type_name")
   @NotBlank
   private String name;

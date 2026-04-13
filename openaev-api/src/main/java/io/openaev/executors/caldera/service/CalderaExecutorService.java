@@ -74,7 +74,6 @@ public class CalderaExecutorService implements Runnable {
     this.executor = executor;
   }
 
-  // TODO multi-tenancy: Multi executors dev
   @Override
   public void run() {
     try {
@@ -146,12 +145,12 @@ public class CalderaExecutorService implements Runnable {
         input.isService() ? DEPLOYMENT_MODE.service : DEPLOYMENT_MODE.session;
     PRIVILEGE privilege = input.isElevated() ? PRIVILEGE.admin : PRIVILEGE.standard;
     Optional<Agent> existingAgent =
-        agentService.getAgentForAnAsset(
+        agentService.getAgentForAnAssetByExecutorId(
             endpoint.getId(),
             input.getExecutedByUser(),
             deploymentMode,
             privilege,
-            CALDERA_EXECUTOR_TYPE);
+            this.executor.getId());
     Agent agent;
     if (existingAgent.isPresent()) {
       agent = existingAgent.get();

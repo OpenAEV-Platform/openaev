@@ -1,7 +1,5 @@
 package io.openaev.executors.sentinelone.service;
 
-import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
-
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.database.model.*;
 import io.openaev.executors.model.AgentRegisterInput;
@@ -55,7 +53,6 @@ public class SentinelOneExecutorService implements Runnable {
     this.assetGroupService = assetGroupService;
   }
 
-  // TODO multi-tenancy: Multi executors dev
   @Override
   public void run() {
     log.info("Running SentinelOne executor endpoints gathering...");
@@ -87,8 +84,7 @@ public class SentinelOneExecutorService implements Runnable {
       List<Agent> agents =
           endpointService.syncAgentsEndpoints(
               toAgentEndpoint(sentinelOneAgents),
-              agentService.getAgentsByExecutorType(
-                  SENTINELONE_EXECUTOR_TYPE, executor.getTenant().getId()));
+              agentService.getAgentsByExecutorId(executor.getId()));
       // For each sentinel one account/site/group id, create/update the relevant OpenAEV asset group
       Optional<AssetGroup> existingAssetGroup;
       AssetGroup assetGroup;

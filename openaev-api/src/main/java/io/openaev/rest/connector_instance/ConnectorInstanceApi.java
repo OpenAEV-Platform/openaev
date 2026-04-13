@@ -9,6 +9,7 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.connector_instances.ConnectorInstanceLogService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
+import io.openaev.service.exception.ConnectorStatusException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -177,7 +178,8 @@ public class ConnectorInstanceApi extends RestBehavior {
       value = {
         @ApiResponse(responseCode = "200", description = "Successfully deleted connector instance")
       })
-  public void deleteConnectorInstance(@PathVariable @NotBlank final String connectorInstanceId) {
+  public void deleteConnectorInstance(@PathVariable @NotBlank final String connectorInstanceId)
+      throws ConnectorStatusException {
     connectorInstanceService.deleteById(connectorInstanceId);
   }
 }

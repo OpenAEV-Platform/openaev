@@ -15,7 +15,6 @@ import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-// TODO multi-tenancy: Multi executors dev
 @Repository
 public interface InjectExpectationRepository
     extends CrudRepository<InjectExpectation, String>, JpaSpecificationExecutor<InjectExpectation> {

@@ -2,6 +2,7 @@ package io.openaev.integration.impl;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.authorisation.HttpClientFactory;
@@ -11,6 +12,7 @@ import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorService;
+import io.openaev.executors.exception.ExecutorException;
 import io.openaev.executors.tanium.client.TaniumExecutorClient;
 import io.openaev.executors.tanium.config.TaniumExecutorConfig;
 import io.openaev.integration.ComponentRequest;
@@ -189,5 +191,97 @@ public class TaniumExecutorIntegrationTest {
     AssertionsForClassTypes.assertThat(
             FieldUtils.computeAllFieldValues(integration).get("encryptionService"))
         .isNull();
+  }
+
+  @Test
+  @DisplayName(
+      "When spawning an integration with a null configuration builder, should throw ExecutorException")
+  public void whenSpawnWithNullConfigBuilder_should_throwExecutorException() throws Exception {
+    IntegrationFactory integrationFactory = getFactory();
+    integrationFactory.initialise();
+
+    List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
+    List<ConnectorInstancePersisted> instances =
+        connectorInstanceService.findAllByCatalogConnector(connectors.getFirst());
+    ConnectorInstancePersisted instance = instances.getFirst();
+
+    // Act & Assert — passing null baseIntegrationConfigurationBuilder causes refresh() to fail
+    assertThatThrownBy(
+            () ->
+                new TaniumExecutorIntegration(
+                    instance,
+                    connectorInstanceService,
+                    endpointService,
+                    agentService,
+                    assetGroupService,
+                    enterpriseEditionService,
+                    licenseCacheManager,
+                    componentRequestEngine,
+                    executorService,
+                    taskScheduler,
+                    null,
+                    httpClientFactory))
+        .isInstanceOf(ExecutorException.class)
+        .hasMessageContaining("Error during initialization of the Executor");
+  }
+
+  @Test
+  @DisplayName(
+      "When integration is stopped and requested status is starting, initialise should start it")
+  public void whenStoppedAndStartingRequested_initialise_should_startIntegration()
+      throws Exception {
+    // Arrange
+    IntegrationFactory integrationFactory = getFactory();
+    integrationFactory.initialise();
+
+    List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
+    ConnectorInstancePersisted instance =
+        connectorInstanceService.findAllByCatalogConnector(connectors.getFirst()).getFirst();
+
+    instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.starting);
+    connectorInstanceService.save(instance);
+
+    Integration integration = integrationFactory.spawn(instance);
+    assertThat(integration.getCurrentStatus())
+        .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
+
+    // Act
+    integration.initialise();
+
+    // Assert
+    assertThat(integration.getCurrentStatus())
+        .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.started);
+  }
+
+  @Test
+  @DisplayName(
+      "When integration is started and requested status is stopping, initialise should stop it")
+  public void whenStartedAndStoppingRequested_initialise_should_stopIntegration() throws Exception {
+    // Arrange — start the integration first
+    IntegrationFactory integrationFactory = getFactory();
+    integrationFactory.initialise();
+
+    List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
+    ConnectorInstancePersisted instance =
+        connectorInstanceService.findAllByCatalogConnector(connectors.getFirst()).getFirst();
+
+    instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.starting);
+    connectorInstanceService.save(instance);
+
+    Integration integration = integrationFactory.spawn(instance);
+    integration.initialise();
+    assertThat(integration.getCurrentStatus())
+        .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.started);
+
+    // Arrange — now request stopping
+    instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+    connectorInstanceService.save(instance);
+
+    // Act
+    integration.initialise();
+
+    // Assert
+    assertThat(integration.getCurrentStatus())
+        .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
   }
 }

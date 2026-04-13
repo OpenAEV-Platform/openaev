@@ -1,6 +1,7 @@
 package io.openaev.executors.openaev.service;
 
 import static io.openaev.executors.ExecutorHelper.replaceArgs;
+import static io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_NAME;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetAgentJobRepository;
@@ -11,9 +12,11 @@ import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 @Slf4j
 @RequiredArgsConstructor
+@Service(OPENAEV_EXECUTOR_NAME)
 public class OpenAEVExecutorContextService extends ExecutorContextService {
 
   private final AssetAgentJobRepository assetAgentJobRepository;

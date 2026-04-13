@@ -202,12 +202,6 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       String queueName = this.rabbitmqService.registerQueue(input.getId());
       // We need to support upsert for registration
       Injector injector = injectorRepository.findById(input.getId()).orElse(null);
-      if (injector == null) {
-        Injector injectorChecking =
-            injectorRepository
-                .findByTypeAndTenantId(input.getType(), TenantContext.getCurrentTenant())
-                .orElse(null);
-      }
       if (injector != null) {
         updateExistingExternalInjector(
             injector,

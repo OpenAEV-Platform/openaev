@@ -1,5 +1,7 @@
 package io.openaev.integration.impl.executors.caldera;
 
+import static java.util.Optional.ofNullable;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.*;
@@ -47,7 +49,6 @@ public class CalderaExecutorIntegration extends Integration {
   private final ExecutorService executorService;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final ConnectorInstanceService connectorInstanceService;
-  private final ConnectorInstance connectorInstance;
   private final HttpClientFactory httpClientFactory;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
@@ -73,7 +74,6 @@ public class CalderaExecutorIntegration extends Integration {
     this.taskScheduler = taskScheduler;
     this.executorService = executorService;
     this.connectorInstanceService = connectorInstanceService;
-    this.connectorInstance = connectorInstance;
     this.httpClientFactory = httpClientFactory;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
 
@@ -91,13 +91,22 @@ public class CalderaExecutorIntegration extends Integration {
   protected void innerStart() throws Exception {
     String executorId =
         connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
-            connectorInstance.getId(), ConnectorType.EXECUTOR.getIdKeyName());
+            getConnectorInstance().getId(), ConnectorType.EXECUTOR.getIdKeyName());
+    String executorName =
+        ofNullable(
+                connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
+                    getConnectorInstance().getId(), "EXECUTOR_NAME"))
+            .orElseThrow(
+                () ->
+                    new ExecutorException(
+                        "EXECUTOR_NAME configuration is required for the Executor",
+                        getConnectorInstance().getId()));
 
     Executor executor =
         executorService.register(
             executorId,
             CALDERA_EXECUTOR_TYPE,
-            CALDERA_EXECUTOR_NAME,
+            executorName,
             null,
             CALDERA_BACKGROUND_COLOR,
             getClass().getResourceAsStream("/img/icon-caldera.png"),

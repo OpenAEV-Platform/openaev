@@ -1,4 +1,4 @@
-import { Badge, Button, Tooltip } from '@mui/material';
+import { Badge, Button } from '@mui/material';
 import { type CSSProperties, type SyntheticEvent } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -27,12 +27,12 @@ const DeployButton = ({ onDeployBtnClick, style = {}, deploymentCount }: Props) 
       onDeployBtnClick(e);
     }
   };
+
   return (
-    <Tooltip title={t('Can not deploy more than one instance')}>
-      <div style={{
-        ...style,
-        position: 'relative',
-      }}
+    <div style={style}>
+      <Badge
+        badgeContent={deploymentCount}
+        color="warning"
       >
         <Button
           variant={isEnterpriseEdition ? 'contained' : 'outlined'}
@@ -42,23 +42,12 @@ const DeployButton = ({ onDeployBtnClick, style = {}, deploymentCount }: Props) 
           }}
           size="small"
           onClick={onDeployClickAction}
-          disabled={deploymentCount > 0}
           endIcon={isEnterpriseEdition ? null : <span><EEChip /></span>}
         >
           {t('Deploy')}
         </Button>
-        <Badge
-          badgeContent={deploymentCount}
-          color="warning"
-          sx={{
-            position: 'absolute',
-            top: '10px',
-            right: 0,
-          }}
-        />
-      </div>
-    </Tooltip>
-
+      </Badge>
+    </div>
   );
 };
 

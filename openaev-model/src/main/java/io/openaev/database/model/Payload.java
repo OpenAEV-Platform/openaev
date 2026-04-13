@@ -203,7 +203,7 @@ public class Payload implements GrantableBase, TenantBase {
   // -- COLLECTOR TYPE --
 
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "payload_collector_type", referencedColumnName = "collector_type_name")
+  @JoinColumn(name = "payload_collector_type")
   @JsonSerialize(using = CollectorTypeNameSerializer.class)
   @JsonProperty("payload_collector_type")
   @IncludeOption(key = "exclude from payload export")
