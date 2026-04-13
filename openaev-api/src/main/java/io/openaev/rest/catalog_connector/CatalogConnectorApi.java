@@ -44,10 +44,11 @@ public class CatalogConnectorApi extends RestBehavior {
     return this.catalogConnectorService.getCatalogConnectors();
   }
 
-    @GetMapping({
-            CATALOG_CONNECTOR_URI + "/{catalogConnectorId}",
-            TENANT_CATALOG_CONNECTOR_URI + "/{catalogConnectorId}"
-    })@AccessControl(
+  @GetMapping({
+    CATALOG_CONNECTOR_URI + "/{catalogConnectorId}",
+    TENANT_CATALOG_CONNECTOR_URI + "/{catalogConnectorId}"
+  })
+  @AccessControl(
       resourceId = "#catalogConnectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.CATALOG)
