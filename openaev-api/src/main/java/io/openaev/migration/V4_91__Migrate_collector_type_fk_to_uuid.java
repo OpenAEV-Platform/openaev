@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
  * </ul>
  */
 @Component
-public class V4_90__Migrate_collector_type_fk_to_uuid extends BaseJavaMigration {
+public class V4_91__Migrate_collector_type_fk_to_uuid extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

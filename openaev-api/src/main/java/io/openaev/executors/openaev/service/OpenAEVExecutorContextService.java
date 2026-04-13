@@ -37,17 +37,6 @@ public class OpenAEVExecutorContextService extends ExecutorContextService {
                   () -> new UnsupportedOperationException("Inject does not have a contract"));
     }
 
-    Injector injector = inject.getInjector();
-    if (injector == null) {
-      // Fallback for legacy injects without inject_injector populated
-      injector =
-          inject
-              .getInjectorContract()
-              .map(InjectorContract::getFirstInjector)
-              .orElseThrow(
-                  () -> new UnsupportedOperationException("Inject does not have a contract"));
-    }
-
     return switch (platform) {
       case Windows, Linux, MacOS -> {
         String executorCommandKey = platform.name() + "." + arch.name();
